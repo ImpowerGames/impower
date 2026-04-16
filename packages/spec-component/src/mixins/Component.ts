@@ -9,6 +9,69 @@ import { convertHostToTagSelectors } from "../utils/convertHostToTagSelectors";
 import { emit } from "../utils/emit";
 import { getPropValue } from "../utils/getPropValue";
 
+export interface IComponent<
+  Props extends Record<string, unknown>,
+  Stores extends Record<string, IStore>,
+  Context extends Record<string, unknown>,
+  Graphics extends Record<string, string>,
+  Selectors extends Record<string, null | string | string[]>,
+> {
+  shadowDOM: boolean;
+  graphics: Graphics;
+  stores: Stores;
+  selectors: Selectors;
+  refs: RefMap<Selectors>;
+  props: Props;
+  context: Context;
+  attrs: Record<keyof Props, string>;
+  css?: string;
+  sharedCSS?: Record<string, string>;
+  html: string;
+  self: ShadowRoot | HTMLElement;
+  root: HTMLElement;
+  contentSlot: HTMLSlotElement | null;
+  styleSheetRoot: ShadowRoot | Document;
+  skipMorphingChildren: boolean;
+  skipMorphingAttributes: string[];
+  reload(
+    spec: ComponentSpec<Props, Stores, Context, Graphics, Selectors>,
+  ): void;
+  loadCSS(cssText: string | undefined): void;
+  loadSharedCSS(name: string, cssText: string): void;
+  getRefMap<S extends Record<string, null | string | string[]>>(
+    selectors: S,
+  ): RefMap<S>;
+  attributeChangedCallback(
+    name: string,
+    oldValue: string,
+    newValue: string,
+  ): void;
+  onAttributeChanged(name: string, newValue: string): void;
+  shouldAttributeTriggerUpdate(
+    name: string,
+    oldValue: string,
+    newValue: string,
+  ): boolean;
+  connectedCallback(): void;
+  onConnected(): void;
+  disconnectedCallback(): void;
+  onDisconnected(): void;
+  onInit(): void;
+  reduce(args: { props: Props; stores: Stores }): void;
+  onStoreUpdate(): void;
+  onContextChanged(oldContext: Context, newContext: Context): void;
+  shouldContextTriggerUpdate(oldContext: Context, newContext: Context): boolean;
+  update(): void;
+  render(morph: boolean): void;
+  morph(parent: Node, innerHTML: Node | string): void;
+  beforeNodeMorphed(oldNode: Element, newNode: Element): boolean;
+  afterNodeMorphed(oldNode: Element, newNode: Element): void;
+  rebindRefs(): void;
+  onRender(): void;
+  emit<T>(event: string, detail?: T): boolean;
+  getElementById<T extends HTMLElement>(id: string): T | null;
+}
+
 export const Component = <
   Props extends Record<string, unknown>,
   Stores extends Record<string, IStore>,
@@ -28,7 +91,10 @@ export const Component = <
     });
   }
 
-  const cls = class CustomElement extends Base {
+  class CustomElement
+    extends Base
+    implements IComponent<Props, Stores, Context, Graphics, Selectors>
+  {
     #initialized = false;
 
     #html = spec.html({
@@ -558,13 +624,13 @@ export const Component = <
       }
       return this.self.querySelector<T>(`#${id}`) || null;
     }
-  };
+  }
 
   if (spec.props) {
     Object.entries(spec.props).forEach(([propName, v]) => {
       const attrName = propToAttrMap[propName as keyof Props];
-      Object.defineProperty(cls.prototype, propName, {
-        get(this: InstanceType<typeof cls>) {
+      Object.defineProperty(CustomElement.prototype, propName, {
+        get(this: InstanceType<typeof CustomElement>) {
           if (attrName) {
             const attrValue = this.getAttribute(attrName);
             return getPropValue(attrValue, v);
@@ -572,7 +638,7 @@ export const Component = <
             return null;
           }
         },
-        set(this: InstanceType<typeof cls>, value) {
+        set(this: InstanceType<typeof CustomElement>, value) {
           if (attrName) {
             if (value === undefined) {
               this.removeAttribute(attrName);
@@ -593,12 +659,13 @@ export const Component = <
     });
   }
 
-  return cls as typeof cls & {
-    new (...args: any[]): Props & {
-      readonly refs: RefMap<Selectors>;
-      readonly props: Props;
-      readonly stores: Stores;
-      readonly context: Context;
-    };
+  return CustomElement as unknown as T & {
+    get tag(): `${string}-${string}`;
+    get attrs(): Record<keyof Props, string>;
+    get observedAttributes(): string[];
+  } & {
+    new (
+      ...args: any[]
+    ): Props & IComponent<Props, Stores, Context, Graphics, Selectors>;
   };
 };

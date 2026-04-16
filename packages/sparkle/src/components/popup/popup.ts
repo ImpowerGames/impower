@@ -66,7 +66,7 @@ export function PopupComponent<
       return el;
     }
 
-    #intersectionObserver?: IntersectionObserver;
+    intersectionObserver?: IntersectionObserver;
 
     override onAttributeChanged(name: string, newValue: string) {
       if (name === this.attrs.strategy) {
@@ -105,7 +105,7 @@ export function PopupComponent<
     }
 
     override onDisconnected() {
-      this.#intersectionObserver?.disconnect();
+      this.intersectionObserver?.disconnect();
       this.stop();
       window.removeEventListener("resize", this.update);
     }
@@ -132,9 +132,9 @@ export function PopupComponent<
       if (!popupEl) {
         return;
       }
-      if (!this.#intersectionObserver) {
-        this.#intersectionObserver = new IntersectionObserver(this.update);
-        this.#intersectionObserver?.observe(anchorEl);
+      if (!this.intersectionObserver) {
+        this.intersectionObserver = new IntersectionObserver(this.update);
+        this.intersectionObserver?.observe(anchorEl);
       }
       await this.reposition();
     }

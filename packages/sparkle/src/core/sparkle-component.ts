@@ -76,7 +76,7 @@ export function SparkleComponent<
       ...(spec.props || {}),
     },
   };
-  const cls = class CustomSparkleComponent extends Component<
+  class CustomSparkleComponent extends Component<
     typeof DEFAULT_SPARKLE_PROPS,
     Stores,
     Context,
@@ -429,11 +429,11 @@ export function SparkleComponent<
      *
      * @summary i
      */
-    get inset(): "" | SizeName | string | null {
-      return this.getStringAttribute(CustomSparkleComponent.attrs.inset);
+    get anchor(): "" | SizeName | string | null {
+      return this.getStringAttribute(CustomSparkleComponent.attrs.anchor);
     }
-    set inset(value) {
-      this.setStringAttribute(CustomSparkleComponent.attrs.inset, value);
+    set anchor(value) {
+      this.setStringAttribute(CustomSparkleComponent.attrs.anchor, value);
     }
 
     /**
@@ -442,11 +442,11 @@ export function SparkleComponent<
      *
      * @summary i-t
      */
-    get insetTop(): "" | SizeName | string | null {
-      return this.getStringAttribute(CustomSparkleComponent.attrs.insetTop);
+    get anchorTop(): "" | SizeName | string | null {
+      return this.getStringAttribute(CustomSparkleComponent.attrs.anchorTop);
     }
-    set insetTop(value) {
-      this.setStringAttribute(CustomSparkleComponent.attrs.insetTop, value);
+    set anchorTop(value) {
+      this.setStringAttribute(CustomSparkleComponent.attrs.anchorTop, value);
     }
 
     /**
@@ -455,11 +455,11 @@ export function SparkleComponent<
      *
      * @summary i-r
      */
-    get insetRight(): "" | SizeName | string | null {
-      return this.getStringAttribute(CustomSparkleComponent.attrs.insetRight);
+    get anchorRight(): "" | SizeName | string | null {
+      return this.getStringAttribute(CustomSparkleComponent.attrs.anchorRight);
     }
-    set insetRight(value) {
-      this.setStringAttribute(CustomSparkleComponent.attrs.insetRight, value);
+    set anchorRight(value) {
+      this.setStringAttribute(CustomSparkleComponent.attrs.anchorRight, value);
     }
 
     /**
@@ -468,11 +468,11 @@ export function SparkleComponent<
      *
      * @summary i-b
      */
-    get insetBottom(): "" | SizeName | string | null {
-      return this.getStringAttribute(CustomSparkleComponent.attrs.insetBottom);
+    get anchorBottom(): "" | SizeName | string | null {
+      return this.getStringAttribute(CustomSparkleComponent.attrs.anchorBottom);
     }
-    set insetBottom(value) {
-      this.setStringAttribute(CustomSparkleComponent.attrs.insetBottom, value);
+    set anchorBottom(value) {
+      this.setStringAttribute(CustomSparkleComponent.attrs.anchorBottom, value);
     }
 
     /**
@@ -481,11 +481,11 @@ export function SparkleComponent<
      *
      * @summary i-l
      */
-    get insetLeft(): "" | SizeName | string | null {
-      return this.getStringAttribute(CustomSparkleComponent.attrs.insetLeft);
+    get anchorLeft(): "" | SizeName | string | null {
+      return this.getStringAttribute(CustomSparkleComponent.attrs.anchorLeft);
     }
-    set insetLeft(value) {
-      this.setStringAttribute(CustomSparkleComponent.attrs.insetLeft, value);
+    set anchorLeft(value) {
+      this.setStringAttribute(CustomSparkleComponent.attrs.anchorLeft, value);
     }
 
     /**
@@ -2005,7 +2005,9 @@ export function SparkleComponent<
 
     getNumberAttribute(name: string, emptyValue = 0): number | null {
       const value = this.getAttribute(name);
-      return value != null ? getUnitlessValue(value, emptyValue) : null;
+      return value != null
+        ? (getUnitlessValue(value, emptyValue) ?? null)
+        : null;
     }
 
     setNumberAttribute(name: string, value: number | null): void | null {
@@ -2015,9 +2017,9 @@ export function SparkleComponent<
         this.removeAttribute(name);
       }
     }
-  };
+  }
 
-  return cls as typeof cls & {
+  return CustomSparkleComponent as typeof CustomSparkleComponent & {
     new (...args: any[]): Props &
       InstanceType<
         ReturnType<
