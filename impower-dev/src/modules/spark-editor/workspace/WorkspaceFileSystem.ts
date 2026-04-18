@@ -147,23 +147,26 @@ export default class WorkspaceFileSystem {
     // TODO: handle fetching latest text with workspace/textDocumentContent/refresh instead?
     if (params.command === "sparkdown.getFileText") {
       const [uri] = params.arguments || [];
-      const result = await Workspace.fs.getFileText(uri);
+      const result = await this.getFileText(uri);
       return result;
     }
     if (params.command === "sparkdown.getFileSrc") {
       const [uri] = params.arguments || [];
-      const result = await Workspace.fs.getFileSrc(uri);
+      const result = await this.getFileSrc(uri);
       return result;
     }
     if (params.command === "sparkdown.getFileVersion") {
       const [uri] = params.arguments || [];
-      const result = await Workspace.fs.getFileVersion(uri);
+      const result = await this.getFileVersion(uri);
       return result;
     }
     if (params.command === "sparkdown.getFileLanguageId") {
       const [uri] = params.arguments || [];
-      const result = await Workspace.fs.getFileLanguageId(uri);
+      const result = await this.getFileLanguageId(uri);
       return result;
+    }
+    if (params.command === "sparkdown.inspect") {
+      return null;
     }
     return undefined;
   }

@@ -11,6 +11,7 @@ import {
 } from "vscode-languageserver/browser";
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
 import { canRename } from "./utils/providers/canRename";
+import { getCodeLenses } from "./utils/providers/getCodeLenses";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
 import { getCompletions } from "./utils/providers/getCompletions";
 import { getDocumentColors } from "./utils/providers/getDocumentColors";
@@ -98,6 +99,7 @@ try {
       range: true,
       full: true,
     },
+    codeLensProvider: {},
   };
 
   connection.onInitialize(async (params): Promise<InitializeResult> => {
@@ -520,6 +522,23 @@ try {
       `lsp: semanticTokens.onRange ${uri}`,
       `lsp: semanticTokens.onRange ${uri} start`,
       `lsp: semanticTokens.onRange ${uri} end`,
+    );
+    return result;
+  });
+
+  // codeLensProvider
+  connection.onCodeLens((params) => {
+    const uri = params.textDocument.uri;
+    const document = workspace.document(uri);
+    const annotations = workspace.annotations(uri);
+    performance.mark(`lsp: onCodeLens ${uri} start`);
+    const result = getCodeLenses(document, annotations);
+    console.log("result", result);
+    performance.mark(`lsp: onCodeLens ${uri} end`);
+    performance.measure(
+      `lsp: onCodeLens ${uri}`,
+      `lsp: onCodeLens ${uri} start`,
+      `lsp: onCodeLens ${uri} end`,
     );
     return result;
   });

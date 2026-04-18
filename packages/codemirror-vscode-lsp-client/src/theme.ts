@@ -1,6 +1,7 @@
+import { Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
-export const lspTheme = EditorView.baseTheme({
+export const lspTheme: Extension = EditorView.baseTheme({
   ".cm-lsp-documentation": {
     whiteSpace: "normal",
     "& blockquote, & details, & dl, & ol, & p, & pre, & table, & ul": {
@@ -28,5 +29,23 @@ export const lspTheme = EditorView.baseTheme({
 
   ".cm-lsp-message button[type=submit]": {
     display: "block",
+  },
+
+  ".codicon": {
+    textAlign: "center",
+    padding: 0,
+    margin: 0,
+    "&::after": {
+      display: "block",
+      content: "''",
+      width: "16px",
+      height: "16px",
+      backgroundRepeat: "no-repeat",
+      backgroundPosition: "center",
+      maskRepeat: "no-repeat",
+      webkitMaskRepeat: "no-repeat",
+      maskPosition: "center",
+      webkitMaskPosition: "center",
+    },
   },
 });

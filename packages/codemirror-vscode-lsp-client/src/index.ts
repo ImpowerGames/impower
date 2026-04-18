@@ -52,6 +52,13 @@ export {
 export { formatDocument, formatKeymap, serverFormatting } from "./formatting";
 export { serverHovers } from "./hover";
 export {
+  convertFromServerCodeLens,
+  serverCodeLenses,
+  setDocumentCodeLenses,
+  updateDocumentCodeLenses,
+  type DocumentCodeLens,
+} from "./lens";
+export {
   convertFromServerDocumentLinks,
   serverDocumentLinks,
   setDocumentLinks,
@@ -114,6 +121,7 @@ import { serverDiagnostics } from "./diagnostics";
 import { serverFolding } from "./folding";
 import { serverFormatting } from "./formatting";
 import { serverHovers } from "./hover";
+import { serverCodeLenses } from "./lens";
 import { serverDocumentLinks } from "./link";
 import { contextMenu } from "./menu";
 import { serverReferences } from "./references";
@@ -136,6 +144,7 @@ export function languageServerExtensions(): readonly (
     serverFolding(),
     serverColorDecorations(),
     serverDocumentLinks(),
+    serverCodeLenses(),
     serverDocumentSymbols(),
     serverSemanticHighlighting(),
     serverHovers(),

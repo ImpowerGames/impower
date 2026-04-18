@@ -14,47 +14,15 @@ import {
   LSPAny,
   ProvideDocumentSymbolsSignature,
 } from "vscode-languageclient";
-import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
 import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
+import { executeLanguageCommand } from "./executeLanguageCommand";
 import { getEditor } from "./getEditor";
 import { getOpenTextDocument } from "./getOpenTextDocument";
 import { getWorkspaceFiles } from "./getWorkspaceFiles";
 import { getWorkspaceFileWatchers } from "./getWorkspaceFileWatchers";
 import { updateCommands } from "./updateCommands";
-
-const getFileText = async (uri: string) => {
-  const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
-  const text = new TextDecoder("utf-8").decode(buffer);
-  return text;
-};
-
-const getFileSrc = (uri: string) => {
-  if (SparkdownPreviewGamePanelManager.instance.panel?.webview) {
-    return SparkdownPreviewGamePanelManager.instance.panel.webview
-      .asWebviewUri(vscode.Uri.parse(uri))
-      .toString();
-  } else {
-    return uri;
-  }
-};
-
-const getFileVersion = async (uri: string) => {
-  const doc = getEditor(uri)?.document ?? (await getOpenTextDocument(uri));
-  if (doc) {
-    return doc.version;
-  }
-  return null;
-};
-
-const getFileLanguageId = async (uri: string) => {
-  const doc = getEditor(uri)?.document ?? (await getOpenTextDocument(uri));
-  if (doc) {
-    return doc.version;
-  }
-  return null;
-};
 
 export const activateLanguageClient = async (
   context: vscode.ExtensionContext,
@@ -64,35 +32,18 @@ export const activateLanguageClient = async (
   const fileWatchers = getWorkspaceFileWatchers();
   const files = await getWorkspaceFiles();
   for (const file of files) {
-    file.src = getFileSrc(file.uri);
+    file.src = await executeLanguageCommand({
+      command: "sparkdown.getFileSrc",
+      arguments: [file.uri],
+    });
   }
   const executeCommandMiddleware = async (params: {
     command: string;
     arguments?: LSPAny[];
   }) => {
-    if (params.command === "sparkdown.getFileText") {
-      const [uri] = params.arguments || [];
-      if (uri && typeof uri === "string") {
-        return getFileText(uri);
-      }
-    }
-    if (params.command === "sparkdown.getFileSrc") {
-      const [uri] = params.arguments || [];
-      if (uri && typeof uri === "string") {
-        return getFileSrc(uri);
-      }
-    }
-    if (params.command === "sparkdown.getFileVersion") {
-      const [uri] = params.arguments || [];
-      if (uri && typeof uri === "string") {
-        return getFileVersion(uri);
-      }
-    }
-    if (params.command === "sparkdown.getFileLanguageId") {
-      const [uri] = params.arguments || [];
-      if (uri && typeof uri === "string") {
-        return getFileLanguageId(uri);
-      }
+    const result = await executeLanguageCommand(params);
+    if (result !== undefined) {
+      return result;
     }
     console.error("UNHANDLED EXECUTE COMMAND:", params);
     return null;

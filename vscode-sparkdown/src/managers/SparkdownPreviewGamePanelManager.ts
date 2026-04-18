@@ -25,6 +25,7 @@ import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/mod
 import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
 import * as vscode from "vscode";
 import { ViewColumn, WebviewPanel, window } from "vscode";
+import { executeLanguageCommand } from "../utils/executeLanguageCommand";
 import { getClientRange } from "../utils/getClientRange";
 import { getEditor } from "../utils/getEditor";
 import { getNonce } from "../utils/getNonce";
@@ -153,54 +154,9 @@ export class SparkdownPreviewGamePanelManager {
       }
       if (ExecuteCommandMessage.type.isRequest(message)) {
         const params = message.params;
-        if (params.command === "sparkdown.getFileText") {
-          const [uri] = params.arguments || [];
-          if (uri && typeof uri === "string") {
-            const buffer = await vscode.workspace.fs.readFile(
-              vscode.Uri.parse(uri),
-            );
-            const text = new TextDecoder("utf-8").decode(buffer);
-            this.sendResponse(ExecuteCommandMessage.type, message.id, text);
-          }
-        }
-        if (params.command === "sparkdown.getFileSrc") {
-          const [uri] = params.arguments || [];
-          if (uri && typeof uri === "string") {
-            const src = this._panel?.webview
-              .asWebviewUri(vscode.Uri.parse(uri))
-              .toString();
-            this.sendResponse(ExecuteCommandMessage.type, message.id, src);
-          }
-        }
-        if (params.command === "sparkdown.getFileVersion") {
-          const [uri] = params.arguments || [];
-          if (uri && typeof uri === "string") {
-            let version = null;
-            try {
-              const doc =
-                getEditor(uri)?.document ??
-                (await vscode.workspace.openTextDocument(uri));
-              version = doc.version;
-            } catch {}
-            this.sendResponse(ExecuteCommandMessage.type, message.id, version);
-          }
-        }
-        if (params.command === "sparkdown.getFileLanguageId") {
-          const [uri] = params.arguments || [];
-          if (uri && typeof uri === "string") {
-            let languageId = null;
-            try {
-              const doc =
-                getEditor(uri)?.document ??
-                (await vscode.workspace.openTextDocument(uri));
-              languageId = doc.languageId;
-            } catch {}
-            this.sendResponse(
-              ExecuteCommandMessage.type,
-              message.id,
-              languageId,
-            );
-          }
+        const result = await executeLanguageCommand(params);
+        if (result !== undefined) {
+          this.sendResponse(ExecuteCommandMessage.type, message.id, result);
         }
       }
       if (HoveredOnPreviewMessage.type.isNotification(message)) {

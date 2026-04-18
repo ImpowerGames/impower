@@ -44,6 +44,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       "declarations",
       "formatting",
       "links",
+      "lenses",
       "references",
       "semantics",
     ]);

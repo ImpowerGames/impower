@@ -13,6 +13,7 @@ import { CompilationAnnotator } from "./annotators/CompilationAnnotator";
 import { DeclarationAnnotator } from "./annotators/DeclarationAnnotator";
 import { FormattingAnnotator } from "./annotators/FormattingAnnotator";
 import { ImplicitAnnotator } from "./annotators/ImplicitAnnotator";
+import { LensAnnotator } from "./annotators/LensAnnotator";
 import { LinkAnnotator } from "./annotators/LinkAnnotator";
 import { ReferenceAnnotator } from "./annotators/ReferenceAnnotator";
 import { SemanticAnnotator } from "./annotators/SemanticAnnotator";
@@ -48,6 +49,7 @@ export interface SparkdownAnnotators {
   implicits: ImplicitAnnotator;
   formatting: FormattingAnnotator;
   links: LinkAnnotator;
+  lenses: LensAnnotator;
   semantics: SemanticAnnotator;
 }
 
@@ -70,6 +72,7 @@ export class SparkdownCombinedAnnotator {
       implicits: new ImplicitAnnotator(),
       formatting: new FormattingAnnotator(),
       links: new LinkAnnotator(),
+      lenses: new LensAnnotator(),
       semantics: new SemanticAnnotator(),
     };
     this._currentEntries = Object.entries(this.current) as [
@@ -89,6 +92,7 @@ export class SparkdownCombinedAnnotator {
       implicits: this.current.implicits.current,
       formatting: this.current.formatting.current,
       links: this.current.links.current,
+      lenses: this.current.lenses.current,
       semantics: this.current.semantics.current,
     };
   }
@@ -109,6 +113,7 @@ export class SparkdownCombinedAnnotator {
       implicits: [],
       formatting: [],
       links: [],
+      lenses: [],
       semantics: [],
     };
 
