@@ -5,7 +5,7 @@
  * Released under the MIT license.
  */
 
-import { ObservablePoint, Observer, PointLike } from "pixi.js";
+import { ObservablePoint, Observer, PointData, PointLike } from "pixi.js";
 import { Vec3 } from "../math/vec3";
 import { Matrix4x4 } from "./matrix";
 import { Quaternion } from "./quaternion";
@@ -15,7 +15,10 @@ const temp = new Float32Array(3);
 /**
  * Represents a point in 3D space.
  */
-export class Point3D extends ObservablePoint implements IPoint3DData {
+export class Point3D
+  extends ObservablePoint
+  implements IPoint3DData, PointData
+{
   private _array = new Float32Array(3);
 
   /** Array containing the x, y, z values. */
@@ -149,8 +152,12 @@ export class Point3D extends ObservablePoint implements IPoint3DData {
    * Normalize the point.
    * @param out The receiving point. If not supplied, a new point will be created.
    */
-  override normalize(out = new Point3D()) {
-    return out.setFrom(Vec3.normalize(this._array, temp));
+  override normalize<T extends PointData>(
+    out: T = new Point3D() as unknown as T,
+  ) {
+    return (out as unknown as Point3D).setFrom(
+      Vec3.normalize(this._array, temp),
+    ) as unknown as T;
   }
 
   /** Calculates the length of the point. */

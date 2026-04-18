@@ -5,7 +5,7 @@
  * Released under the MIT license.
  */
 
-import { ObservablePoint, Observer, PointLike } from "pixi.js";
+import { ObservablePoint, Observer, PointData, PointLike } from "pixi.js";
 import { Quat } from "../math/quat";
 
 const temp = new Float32Array(4);
@@ -13,7 +13,7 @@ const temp = new Float32Array(4);
 /**
  * Represents a rotation quaternion in 3D space.
  */
-export class Quaternion extends ObservablePoint {
+export class Quaternion extends ObservablePoint implements PointData {
   private _array = new Float32Array(4);
 
   /** Array containing the x, y, z, w values. */
@@ -190,8 +190,12 @@ export class Quaternion extends ObservablePoint {
    * Normalize the quaternion.
    * @param out The receiving quaternion. If not supplied, a new quaternion will be created.
    */
-  override normalize(out = new Quaternion()) {
-    return out.setFrom(Quat.normalize(this._array, temp));
+  override normalize<T extends PointData>(
+    out: T = new Quaternion() as unknown as T,
+  ) {
+    return (out as unknown as Quaternion).setFrom(
+      Quat.normalize(this._array, temp),
+    ) as unknown as T;
   }
 
   /**

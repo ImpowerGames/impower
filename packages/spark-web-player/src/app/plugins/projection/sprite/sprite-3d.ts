@@ -13,8 +13,7 @@ import { Transform3D } from "../transform/transform-3d";
 import { SpriteBillboardType } from "./sprite-billboard-type";
 
 // Allocate these once and then reuse them
-const point = new Point();
-const point3D = new Point3D();
+const point = new Point3D();
 const cornerOffsets: [number, number][] = [
   [-1, -1],
   [1, -1],
@@ -186,7 +185,7 @@ export class Sprite3D extends PerspectiveMesh {
     }
 
     // Get view space Z for depth check
-    const viewPos = point3D;
+    const viewPos = point;
     this._camera.worldToView(spritePos.x, spritePos.y, spritePos.z, viewPos);
     const depth = -viewPos.z;
 
@@ -293,7 +292,7 @@ export class Sprite3D extends PerspectiveMesh {
     );
 
     // Sprites that are closer to camera should render ontop of others
-    const anchorOffset = point3D.set(0, h * (0.5 - this._anchor.y), 0);
+    const anchorOffset = point.set(0, h * (0.5 - this._anchor.y), 0);
     this.transform.localToWorld(anchorOffset, anchorOffset);
     this._camera.worldToView(
       anchorOffset.x,
