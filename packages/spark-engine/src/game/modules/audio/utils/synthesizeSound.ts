@@ -28,7 +28,6 @@ export interface Modulator {
 export interface Synth {
   shape: OscillatorType;
   volume: number;
-  compression: number;
   envelope: {
     offset: number;
     attack: number;
@@ -91,7 +90,7 @@ export interface OscillatorState {
   rng?: () => number;
 }
 
-const PI2 = 2 * Math.PI;
+export const PI2 = 2 * Math.PI;
 
 const fix = (x: number, fractionDigits = 10): number => {
   // Fix float precision errors
@@ -638,7 +637,6 @@ export const fillSoundBuffer = (
   frequency?: number | Float32Array,
 ): void => {
   const shape_wave = synth.shape;
-  const compression_amount = synth.compression;
   const pitch_freq =
     (typeof frequency === "number"
       ? frequency
@@ -756,8 +754,6 @@ export const fillSoundBuffer = (
   let arpNumNotesPlayed = 0;
   let arpFrequencyFactor = 1;
   let arpAmplitudeFactor = 1;
-
-  const compressionFactor = 1 / (1 + compression_amount);
 
   const fundamentalFrequency =
     typeof pitch_freq === "number" ? pitch_freq : (pitch_freq[startIndex] ?? 0);
@@ -901,10 +897,12 @@ export const fillSoundBuffer = (
 
     // Distortion Effect ("Square"-ness)
     if (distortion_on && distortionEdge > 0) {
-      const distortionMod = lerp(distortionEdge, 1, 8);
-      sampleValue =
-        Math.pow(Math.abs(sampleValue), 1 / distortionMod) *
-        Math.sign(sampleValue);
+      const compressionFactor = 1 / (1 + distortionEdge);
+      if (sampleValue > 0) {
+        sampleValue = Math.pow(sampleValue, compressionFactor);
+      } else {
+        sampleValue = -Math.pow(-sampleValue, compressionFactor);
+      }
     }
 
     let activeCutoff = lowpassCutoff;
@@ -987,13 +985,6 @@ export const fillSoundBuffer = (
     sampleValue *= Math.max(0, masterVolume);
     sampleValue *= Math.max(0, envelopeVolume);
     sampleValue *= Math.max(0, arpAmplitudeFactor);
-
-    // Compressor
-    if (sampleValue > 0) {
-      sampleValue = Math.pow(sampleValue, compressionFactor);
-    } else {
-      sampleValue = -Math.pow(-sampleValue, compressionFactor);
-    }
 
     // Set Buffer
     soundBuffer[i] = (soundBuffer[i] ?? 0) + sampleValue;

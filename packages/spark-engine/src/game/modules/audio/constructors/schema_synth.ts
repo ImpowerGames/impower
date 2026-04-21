@@ -7,7 +7,6 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
   $type: "synth",
   $name: "$schema",
   volume: [0.01, 0, 1],
-  compression: [0.01, 0, 1],
   shape: [
     "sine",
     "triangle",
@@ -66,7 +65,7 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
       "pinknoise",
       "whitenoise",
     ],
-    tones: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+    tones: [1, 0, 16],
     levels: [0.01, 0, 1],
   },
   vibrato: {

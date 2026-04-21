@@ -2,6 +2,8 @@ import { RecursivePartial } from "../../../core/types/RecursivePartial";
 import { Reference } from "../../../core/types/Reference";
 import { OscillatorType } from "./OscillatorType";
 
+export type Direction = "up" | "down" | "down-up" | "up-down";
+
 export interface Modulator {
   on: boolean;
   shape: OscillatorType;
@@ -15,7 +17,6 @@ export interface Synth extends Reference<"synth"> {
   name?: string;
   shape: OscillatorType;
   volume: number;
-  compression: number;
   envelope: {
     offset: number;
     attack: number;
@@ -55,7 +56,7 @@ export interface Synth extends Reference<"synth"> {
     rate_ramp: number;
     max_octaves: number;
     max_notes: number;
-    direction: "up" | "down" | "down-up" | "up-down";
+    direction: Direction;
     tones: number[];
     levels: number[];
     shapes: OscillatorType[];
