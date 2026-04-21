@@ -620,6 +620,15 @@ const getEnvelopeVolume = (
 
 const WAHWAH_MIN_RESONANCE = 4000;
 const WAHWAH_MIN_CUTOFF = 0.6;
+const WAHWAH_MIN = 0;
+const WAHWAH_MAX = 1;
+const TREMOLO_MIN = 0;
+const TREMOLO_MAX = 1.5;
+const VIBRATO_MIN = 0.5;
+const VIBRATO_MAX = 1;
+const DISTORTION_GRIT_MIN = 1;
+const DISTORTION_GRIT_MAX = 2;
+const DISTORTION_EDGE_MULTIPLIER = 7;
 
 export const fillSoundBuffer = (
   synth: Synth,
@@ -785,7 +794,11 @@ export const fillSoundBuffer = (
     if (distortion_on && distortionGrit > 0) {
       const doublePeriod = periodLength * 2;
       const phase = i % doublePeriod;
-      const shortDistortionMod = lerp(distortionGrit, 1, 2);
+      const shortDistortionMod = lerp(
+        distortionGrit,
+        DISTORTION_GRIT_MIN,
+        DISTORTION_GRIT_MAX,
+      );
       const shortBlockLength = periodLength / shortDistortionMod;
       const longDistortionMod = 2 - 1 / shortDistortionMod;
       const cycleIndex = Math.floor(i / doublePeriod);
@@ -874,7 +887,11 @@ export const fillSoundBuffer = (
         vibratoStrength,
         currentState.vibratoState,
       );
-      const vibratoMultiplier = normalizeOsc(vibratoMod, 0.5, 1);
+      const vibratoMultiplier = normalizeOsc(
+        vibratoMod,
+        VIBRATO_MIN,
+        VIBRATO_MAX,
+      );
       samplePitch *= vibratoMultiplier;
     }
 
@@ -897,7 +914,8 @@ export const fillSoundBuffer = (
 
     // Distortion Effect ("Square"-ness)
     if (distortion_on && distortionEdge > 0) {
-      const compressionFactor = 1 / (1 + distortionEdge);
+      const compressionFactor =
+        1 / (1 + distortionEdge * DISTORTION_EDGE_MULTIPLIER);
       if (sampleValue > 0) {
         sampleValue = Math.pow(sampleValue, compressionFactor);
       } else {
@@ -917,7 +935,7 @@ export const fillSoundBuffer = (
         wahwahStrength,
         currentState.wahwahState,
       );
-      const wahMultiplier = normalizeOsc(wahMod, 0.1, 1);
+      const wahMultiplier = normalizeOsc(wahMod, WAHWAH_MIN, WAHWAH_MAX);
       activeCutoff =
         (lowpassCutoff > 0 ? lowpassCutoff : WAHWAH_MIN_CUTOFF) * wahMultiplier;
       sampleResonance =
@@ -948,20 +966,6 @@ export const fillSoundBuffer = (
       );
     }
 
-    // Tremolo Effect
-    if (tremolo_on && tremoloRate > 0 && tremoloStrength > 0) {
-      const tremoloMod = modulate(
-        sampleRate,
-        localIndex,
-        tremolo_shape,
-        tremoloRate,
-        tremoloStrength,
-        currentState.tremoloState,
-      );
-      const tremoloMultiplier = normalizeOsc(tremoloMod, 0, 1.5);
-      sampleValue *= tremoloMultiplier;
-    }
-
     // Volume
     const envelopeVolume = getEnvelopeVolume(
       i,
@@ -980,6 +984,27 @@ export const fillSoundBuffer = (
 
     if (volumeBuffer) {
       volumeBuffer[i] = envelopeVolume;
+    }
+
+    // Tremolo Effect
+    if (tremolo_on && tremoloRate > 0 && tremoloStrength > 0) {
+      const tremoloMod = modulate(
+        sampleRate,
+        localIndex,
+        tremolo_shape,
+        tremoloRate,
+        tremoloStrength,
+        currentState.tremoloState,
+      );
+      const tremoloMultiplier = normalizeOsc(
+        tremoloMod,
+        TREMOLO_MIN,
+        TREMOLO_MAX,
+      );
+      sampleValue *= tremoloMultiplier;
+      if (volumeBuffer) {
+        volumeBuffer[i]! *= tremoloMultiplier;
+      }
     }
 
     sampleValue *= Math.max(0, masterVolume);
