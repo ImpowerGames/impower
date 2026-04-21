@@ -982,6 +982,7 @@ export const fillSoundBuffer = (
       limitSound,
     );
 
+    sampleValue *= Math.max(0, envelopeVolume);
     if (volumeBuffer) {
       volumeBuffer[i] = envelopeVolume;
     }
@@ -1008,8 +1009,14 @@ export const fillSoundBuffer = (
     }
 
     sampleValue *= Math.max(0, masterVolume);
-    sampleValue *= Math.max(0, envelopeVolume);
+    if (volumeBuffer) {
+      volumeBuffer[i]! *= masterVolume;
+    }
+
     sampleValue *= Math.max(0, arpAmplitudeFactor);
+    if (volumeBuffer) {
+      volumeBuffer[i]! *= arpAmplitudeFactor;
+    }
 
     // Set Buffer
     soundBuffer[i] = (soundBuffer[i] ?? 0) + sampleValue;
