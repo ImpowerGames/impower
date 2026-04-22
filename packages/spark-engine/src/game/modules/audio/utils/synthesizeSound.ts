@@ -871,10 +871,7 @@ export const fillSoundBuffer = (
           Math.round(roundToNearestMultiple(samplesPerNote, newPeriodLength)) +
           (arpNumNotesPlayed === 0 ? startPhaseOffset : 0);
         arpLengthLeft = arpLimit;
-        arpPhaseOffset =
-          arpNumNotesPlayed === 0
-            ? 0
-            : localIndex - startPhaseOffset - distortionPhaseOffset;
+        arpPhaseOffset = localIndex - startPhaseOffset - distortionPhaseOffset;
       }
       arpLengthLeft -= 1;
     }
