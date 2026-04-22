@@ -59,7 +59,7 @@ export const default_synth: Create<Synth> = (obj) => ({
     on: false,
     edge: 0.5,
     edge_ramp: 0,
-    grit: 0,
+    grit: 0.5,
     grit_ramp: 0,
     ...(obj?.distortion || {}),
   },

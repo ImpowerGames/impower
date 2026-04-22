@@ -410,10 +410,10 @@ export const normalizeOsc = (mod: number, min: number, max: number) => {
 };
 
 export const getCycleIndex = (
-  numNotesPlayed: number,
+  activeIndex: number,
   choicesLength: number,
 ): number => {
-  return Math.floor(numNotesPlayed / choicesLength);
+  return Math.floor(activeIndex / choicesLength);
 };
 
 export const isChoicesReversed = (
@@ -439,13 +439,13 @@ export const getOctaveSemitones = (
 
 export const choose = <T>(
   choices: T[],
-  numNotesInArp: number,
-  numNotesPlayed: number,
+  choicesLength: number,
+  activeIndex: number,
   isReversed: boolean,
 ): T | undefined => {
   const index = isReversed
-    ? (numNotesInArp - 1 - numNotesPlayed) % numNotesInArp
-    : numNotesPlayed % numNotesInArp;
+    ? (choicesLength - 1 - activeIndex) % choicesLength
+    : activeIndex % choicesLength;
   return choices?.[index];
 };
 
@@ -800,6 +800,10 @@ export const fillSoundBuffer = (
 
     const localIndex = i - startIndex;
 
+    let baseSamplePitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
+    let samplePitch = baseSamplePitch;
+    let periodLength = samplePitch > 0 ? sampleRate / samplePitch : 0;
+
     // Vibrato Effect
     let vibratoMultiplier = 1;
     if (vibrato_on && vibratoRate > 0 && vibratoStrength > 0) {
@@ -812,16 +816,16 @@ export const fillSoundBuffer = (
         currentState.vibratoState,
       );
       vibratoMultiplier = normalizeOsc(vibratoMod, VIBRATO_MIN, VIBRATO_MAX);
+      samplePitch *= vibratoMultiplier;
     }
 
-    let samplePitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
-    const periodLength = samplePitch > 0 ? sampleRate / samplePitch : 0;
+    // Distortion Grit Effect (Square Width)
     let distortionPhaseOffset = 0;
-
-    // Distortion Effect (Square Width)
+    const noteTime = localIndex - startPhaseOffset - arpPhaseOffset;
     if (distortion_on && distortionGrit > 0 && periodLength > 0) {
       const doublePeriod = periodLength * 2;
-      const phase = i % doublePeriod;
+      let phase = noteTime % doublePeriod;
+      if (phase < 0) phase += doublePeriod;
       const shortDistortionMod = lerp(
         distortionGrit,
         DISTORTION_GRIT_MIN,
@@ -829,7 +833,7 @@ export const fillSoundBuffer = (
       );
       const shortBlockLength = periodLength / shortDistortionMod;
       const longDistortionMod = 2 - 1 / shortDistortionMod;
-      const cycleIndex = Math.floor(i / doublePeriod);
+      const cycleIndex = Math.floor(noteTime / doublePeriod);
       if (phase < shortBlockLength) {
         // Short Block
         distortionPhaseOffset = cycleIndex * doublePeriod;
@@ -841,16 +845,6 @@ export const fillSoundBuffer = (
       }
     }
 
-    // Determine the provisional angle of the old note to correctly detect dynamic zero-crossings
-    const provisionalPitch = samplePitch * vibratoMultiplier;
-    const phaseIndexForCrossing =
-      localIndex - startPhaseOffset - distortionPhaseOffset - arpPhaseOffset;
-    const provisionalAngle =
-      (phaseIndexForCrossing / sampleRate) * provisionalPitch;
-    const isZeroCrossing =
-      localIndex > 0 &&
-      Math.floor(provisionalAngle) > Math.floor(previousAngle);
-
     // Arpeggio Effect
     if (
       arpeggio_on &&
@@ -858,6 +852,17 @@ export const fillSoundBuffer = (
       arpeggio_tones?.length > 0 &&
       arpNumNotesPlayed < arpeggio_max_notes - 1
     ) {
+      // Determine the provisional angle of the old note to correctly detect dynamic zero-crossings
+      const phaseIndexForCrossing =
+        localIndex - startPhaseOffset - distortionPhaseOffset - arpPhaseOffset;
+      const provisionalAngle =
+        (phaseIndexForCrossing / sampleRate) * samplePitch;
+      // The angle wraps around to 0 when distortion is active, so we must check for both integer crossings and phase wraps
+      const isZeroCrossing =
+        localIndex > 0 &&
+        (Math.floor(provisionalAngle) > Math.floor(previousAngle) ||
+          provisionalAngle < previousAngle - 0.5);
+
       if (arpLengthLeft <= 0) {
         arpWaitingForZeroCrossing = true;
       }
@@ -912,38 +917,73 @@ export const fillSoundBuffer = (
           Math.round(samplesPerNote) +
           (arpNumNotesPlayed === 0 ? startPhaseOffset : 0);
 
-        // Ensure new offsets accommodate vibrato smoothly
-        const newPitch =
-          Math.max(0, sampleFrequency) * arpFrequencyFactor * vibratoMultiplier;
+        // Ensure new offsets accommodate vibrato AND distortion grit smoothly
+        const newBasePitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
         const newPeriodLength =
-          newPitch > 0 ? sampleRate / newPitch : periodLength;
+          newBasePitch > 0 ? sampleRate / newBasePitch : 0;
         const arpNotePhaseSamples = arpNotePhase * newPeriodLength;
 
-        arpPhaseOffset =
-          localIndex -
-          startPhaseOffset -
-          distortionPhaseOffset -
-          arpNotePhaseSamples;
+        // Reset the note time so distortion grit and phase align perfectly with the start of the new note!
+        arpPhaseOffset = localIndex - startPhaseOffset - arpNotePhaseSamples;
+
+        // Update parameters for this frame immediately to avoid single-sample crackles
+        periodLength = newPeriodLength;
+        samplePitch = newBasePitch;
+
+        let newDistortionPhaseOffset = 0;
+
+        // Apply Distortion Grit to note
+        if (distortion_on && distortionGrit > 0 && periodLength > 0) {
+          const doublePeriod = periodLength * 2;
+          let phase = arpNotePhaseSamples % doublePeriod;
+          if (phase < 0) phase += doublePeriod;
+          const shortDistortionMod = lerp(
+            distortionGrit,
+            DISTORTION_GRIT_MIN,
+            DISTORTION_GRIT_MAX,
+          );
+          const shortBlockLength = periodLength / shortDistortionMod;
+          const longDistortionMod = 2 - 1 / shortDistortionMod;
+          const cycleIndex = Math.floor(arpNotePhaseSamples / doublePeriod);
+          if (phase < shortBlockLength) {
+            newDistortionPhaseOffset = cycleIndex * doublePeriod;
+            samplePitch *= shortDistortionMod;
+          } else {
+            newDistortionPhaseOffset =
+              cycleIndex * doublePeriod + shortBlockLength;
+            samplePitch /= longDistortionMod;
+          }
+        }
+
+        distortionPhaseOffset = newDistortionPhaseOffset;
+
+        // Apply Vibrato to note
+        samplePitch *= vibratoMultiplier;
       }
 
       // Constantly evaluate current arpeggio shape
-      const cycleIndex = getCycleIndex(
-        arpNumNotesPlayed,
+      const activeNoteIndex = Math.max(0, arpNumNotesPlayed);
+      const activeCycleIndex = getCycleIndex(
+        activeNoteIndex,
         arpeggio_tones?.length ?? 0,
       );
-      const isReversed = isChoicesReversed(cycleIndex, arpeggio_direction);
+      const activeIsReversed = isChoicesReversed(
+        activeCycleIndex,
+        arpeggio_direction,
+      );
       sampleShape =
-        choose(arpeggio_shapes, numNotesInArp, arpNumNotesPlayed, isReversed) ??
-        shape_wave;
+        choose(
+          arpeggio_shapes,
+          numNotesInArp,
+          activeNoteIndex,
+          activeIsReversed,
+        ) ?? shape_wave;
 
       // Countdown duration to the target samplesPerNote
       if (!arpWaitingForZeroCrossing) {
         arpLengthLeft -= 1;
       }
     }
-
-    // Apply exact Vibrato mapping to final current pitch
-    samplePitch *= vibratoMultiplier;
 
     if (pitchBuffer) {
       if (samplePitch > maxPitch) {
@@ -966,7 +1006,7 @@ export const fillSoundBuffer = (
     const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
     let sampleValue = oscillator(angle, currentState.waveState);
 
-    // Distortion Effect ("Square"-ness)
+    // Distortion Edge Effect ("Square"-ness)
     if (distortion_on && distortionEdge > 0) {
       const compressionFactor =
         1 / (1 + distortionEdge * DISTORTION_EDGE_MULTIPLIER);
