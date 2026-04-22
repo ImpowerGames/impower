@@ -48,7 +48,7 @@ export const default_synth: Create<Synth> = (obj) => ({
   },
   wahwah: {
     on: false,
-    rate: 6,
+    rate: A[4],
     rate_ramp: 0,
     strength: 0.5,
     strength_ramp: 0,
@@ -74,7 +74,7 @@ export const default_synth: Create<Synth> = (obj) => ({
   },
   vibrato: {
     on: false,
-    rate: 6,
+    rate: 5,
     rate_ramp: 0,
     strength: 0.5,
     strength_ramp: 0,
@@ -91,6 +91,7 @@ export const default_synth: Create<Synth> = (obj) => ({
     tones: [0, 4, 7],
     levels: [],
     shapes: [],
+    phases: [],
     ...(obj?.arpeggio || {}),
   },
   reverb: {

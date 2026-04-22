@@ -60,6 +60,7 @@ export interface Synth extends Reference<"synth"> {
     tones: number[];
     levels: number[];
     shapes: OscillatorType[];
+    phases: number[];
   };
   vibrato: Modulator;
   tremolo: Modulator;

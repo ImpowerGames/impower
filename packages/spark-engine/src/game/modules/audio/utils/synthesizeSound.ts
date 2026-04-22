@@ -70,6 +70,7 @@ export interface Synth {
     direction: "up" | "down" | "down-up" | "up-down";
     tones: number[];
     levels: number[];
+    phases: number[];
     shapes: OscillatorType[];
   };
   vibrato: Modulator;
@@ -445,7 +446,7 @@ export const choose = <T>(
   const index = isReversed
     ? (numNotesInArp - 1 - numNotesPlayed) % numNotesInArp
     : numNotesPlayed % numNotesInArp;
-  return choices[index];
+  return choices?.[index];
 };
 
 export const getDeltaPerSample = (
@@ -692,7 +693,15 @@ export const fillSoundBuffer = (
   const arpeggio_tones = synth.arpeggio.tones;
   const arpeggio_shapes = synth.arpeggio.shapes;
   const arpeggio_levels = synth.arpeggio.levels;
+  const arpeggio_phases = synth.arpeggio.phases;
   const arpeggio_direction = synth.arpeggio.direction;
+
+  const numNotesInArp = Math.max(
+    arpeggio_tones?.length ?? 0,
+    arpeggio_shapes?.length ?? 0,
+    arpeggio_levels?.length ?? 0,
+    arpeggio_phases?.length ?? 0,
+  );
 
   let freqAccelDelta = getDeltaPerSample(
     synth.pitch.frequency_torque,
@@ -759,6 +768,7 @@ export const fillSoundBuffer = (
   let wahwahRate = wahwah_rate;
   let wahwahStrength = wahwah_strength;
   let arpeggioRate = arpeggio_rate;
+
   let arpLengthLeft = 0;
   let arpNumNotesPlayed = -1;
   let arpFrequencyFactor = 1;
@@ -771,6 +781,8 @@ export const fillSoundBuffer = (
   const startPhaseOffset = pitch_phase * fundamentalPeriodLength;
 
   let arpPhaseOffset = 0;
+  let previousAngle = 0;
+  let arpWaitingForZeroCrossing = false;
 
   // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
@@ -782,16 +794,32 @@ export const fillSoundBuffer = (
     const sampleFrequency =
       (typeof pitch_freq === "number" ? pitch_freq : (pitch_freq[i] ?? 0)) *
       pitchFreqFactor;
-    let samplePitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
+
     let sampleShape = shape_wave;
     let sampleResonance = lowpass_resonance;
 
-    const periodLength = sampleRate / samplePitch;
+    const localIndex = i - startIndex;
 
+    // Vibrato Effect
+    let vibratoMultiplier = 1;
+    if (vibrato_on && vibratoRate > 0 && vibratoStrength > 0) {
+      const vibratoMod = modulate(
+        sampleRate,
+        localIndex,
+        vibrato_shape,
+        vibratoRate,
+        vibratoStrength,
+        currentState.vibratoState,
+      );
+      vibratoMultiplier = normalizeOsc(vibratoMod, VIBRATO_MIN, VIBRATO_MAX);
+    }
+
+    let samplePitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
+    const periodLength = samplePitch > 0 ? sampleRate / samplePitch : 0;
     let distortionPhaseOffset = 0;
 
     // Distortion Effect (Square Width)
-    if (distortion_on && distortionGrit > 0) {
+    if (distortion_on && distortionGrit > 0 && periodLength > 0) {
       const doublePeriod = periodLength * 2;
       const phase = i % doublePeriod;
       const shortDistortionMod = lerp(
@@ -813,7 +841,15 @@ export const fillSoundBuffer = (
       }
     }
 
-    const localIndex = i - startIndex;
+    // Determine the provisional angle of the old note to correctly detect dynamic zero-crossings
+    const provisionalPitch = samplePitch * vibratoMultiplier;
+    const phaseIndexForCrossing =
+      localIndex - startPhaseOffset - distortionPhaseOffset - arpPhaseOffset;
+    const provisionalAngle =
+      (phaseIndexForCrossing / sampleRate) * provisionalPitch;
+    const isZeroCrossing =
+      localIndex > 0 &&
+      Math.floor(provisionalAngle) > Math.floor(previousAngle);
 
     // Arpeggio Effect
     if (
@@ -823,27 +859,27 @@ export const fillSoundBuffer = (
       arpNumNotesPlayed < arpeggio_max_notes - 1
     ) {
       if (arpLengthLeft <= 0) {
-        arpNumNotesPlayed += 1;
+        arpWaitingForZeroCrossing = true;
       }
-      const cycleIndex = getCycleIndex(
-        arpNumNotesPlayed,
-        arpeggio_tones?.length ?? 0,
-      );
-      const isReversed = isChoicesReversed(cycleIndex, arpeggio_direction);
-      const arpOctaveSemitones = getOctaveSemitones(
-        cycleIndex,
-        isReversed,
-        arpeggio_max_octaves,
-      );
-      const numNotesInArp = Math.max(
-        arpeggio_tones?.length ?? 0,
-        arpeggio_shapes?.length ?? 0,
-        arpeggio_levels?.length ?? 0,
-      );
-      sampleShape =
-        choose(arpeggio_shapes, numNotesInArp, arpNumNotesPlayed, isReversed) ??
-        shape_wave;
-      if (arpLengthLeft <= 0) {
+
+      if (
+        arpWaitingForZeroCrossing &&
+        (isZeroCrossing || arpNumNotesPlayed === -1)
+      ) {
+        arpWaitingForZeroCrossing = false;
+        arpNumNotesPlayed += 1;
+
+        const cycleIndex = getCycleIndex(
+          arpNumNotesPlayed,
+          arpeggio_tones?.length ?? 0,
+        );
+        const isReversed = isChoicesReversed(cycleIndex, arpeggio_direction);
+        const arpOctaveSemitones = getOctaveSemitones(
+          cycleIndex,
+          isReversed,
+          arpeggio_max_octaves,
+        );
+
         arpAmplitudeFactor =
           choose(
             arpeggio_levels,
@@ -858,41 +894,56 @@ export const fillSoundBuffer = (
             arpNumNotesPlayed,
             isReversed,
           ) ?? 0;
+        const arpNotePhase =
+          choose(
+            arpeggio_phases,
+            numNotesInArp,
+            arpNumNotesPlayed,
+            isReversed,
+          ) ?? 0;
         const arpSemitones = arpOctaveSemitones + arpNoteSemitones;
         const secondsPerNote = 1 / arpeggioRate;
         const samplesPerNote = sampleRate * secondsPerNote;
+
         arpFrequencyFactor = convertSemitonesToFrequencyFactor(arpSemitones);
-        const newPitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
-        // Calculate the period using the new pitch (safeguard against 0Hz division)
+
+        // Wait precisely samplesPerNote, after which we will look for a dynamic zero crossing
+        arpLengthLeft =
+          Math.round(samplesPerNote) +
+          (arpNumNotesPlayed === 0 ? startPhaseOffset : 0);
+
+        // Ensure new offsets accommodate vibrato smoothly
+        const newPitch =
+          Math.max(0, sampleFrequency) * arpFrequencyFactor * vibratoMultiplier;
         const newPeriodLength =
           newPitch > 0 ? sampleRate / newPitch : periodLength;
-        // Ensure frequency changes occur exactly at the nearest integer zero-crossing (to minimize crackles)
-        const arpLimit =
-          Math.round(roundToNearestMultiple(samplesPerNote, newPeriodLength)) +
-          (arpNumNotesPlayed === 0 ? startPhaseOffset : 0);
-        arpLengthLeft = arpLimit;
-        arpPhaseOffset = localIndex - startPhaseOffset - distortionPhaseOffset;
+        const arpNotePhaseSamples = arpNotePhase * newPeriodLength;
+
+        arpPhaseOffset =
+          localIndex -
+          startPhaseOffset -
+          distortionPhaseOffset -
+          arpNotePhaseSamples;
       }
-      arpLengthLeft -= 1;
+
+      // Constantly evaluate current arpeggio shape
+      const cycleIndex = getCycleIndex(
+        arpNumNotesPlayed,
+        arpeggio_tones?.length ?? 0,
+      );
+      const isReversed = isChoicesReversed(cycleIndex, arpeggio_direction);
+      sampleShape =
+        choose(arpeggio_shapes, numNotesInArp, arpNumNotesPlayed, isReversed) ??
+        shape_wave;
+
+      // Countdown duration to the target samplesPerNote
+      if (!arpWaitingForZeroCrossing) {
+        arpLengthLeft -= 1;
+      }
     }
 
-    // Vibrato Effect
-    if (vibrato_on && vibratoRate > 0 && vibratoStrength > 0) {
-      const vibratoMod = modulate(
-        sampleRate,
-        localIndex,
-        vibrato_shape,
-        vibratoRate,
-        vibratoStrength,
-        currentState.vibratoState,
-      );
-      const vibratoMultiplier = normalizeOsc(
-        vibratoMod,
-        VIBRATO_MIN,
-        VIBRATO_MAX,
-      );
-      samplePitch *= vibratoMultiplier;
-    }
+    // Apply exact Vibrato mapping to final current pitch
+    samplePitch *= vibratoMultiplier;
 
     if (pitchBuffer) {
       if (samplePitch > maxPitch) {
@@ -908,6 +959,10 @@ export const fillSoundBuffer = (
     const phaseIndex =
       localIndex - startPhaseOffset - distortionPhaseOffset - arpPhaseOffset;
     const angle = (phaseIndex / sampleRate) * samplePitch;
+
+    // Save current angle to check next iteration's zero crossing boundary reliably
+    previousAngle = angle;
+
     const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
     let sampleValue = oscillator(angle, currentState.waveState);
 

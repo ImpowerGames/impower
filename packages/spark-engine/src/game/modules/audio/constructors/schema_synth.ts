@@ -67,6 +67,7 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     ],
     tones: [1, 0, 16],
     levels: [0.01, 0, 1],
+    phases: [0.01, 0, 1],
   },
   vibrato: {
     rate: [1, 0, A[1]],
@@ -83,7 +84,7 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     shape: ["sine", "triangle", "sawtooth", "tangent", "square", "whitenoise"],
   },
   wahwah: {
-    rate: [1, 0, A[1]],
+    rate: [1, 0, A[6]],
     rate_ramp: [0.01, -1, 1],
     strength: [0.01, 0, 1],
     strength_ramp: [0.01, -1, 1],

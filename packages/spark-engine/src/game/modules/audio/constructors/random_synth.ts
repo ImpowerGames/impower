@@ -64,9 +64,9 @@ export const random_synth_coin: Create<Random<Synth>> = () => ({
   $name: "$random:coin",
   shape: ["sine", "triangle", "sawtooth", "tangent", "square"],
   envelope: {
-    decay: [0.02],
-    sustain: [0.2, 0.3],
-    release: [0.1, 0.25],
+    decay: [0.005, 0.1],
+    sustain: [0.05, 0.1],
+    release: [0.05, 0.4],
   },
   pitch: {
     frequency: [A[3], A[5]],
