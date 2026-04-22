@@ -399,23 +399,23 @@ export const createSynthesisState = (
   };
 };
 
-const roundToNearestMultiple = (n: number, period: number): number => {
+export const roundToNearestMultiple = (n: number, period: number): number => {
   return Math.floor(n / period) * period;
 };
 
-const normalizeOsc = (mod: number, min: number, max: number) => {
+export const normalizeOsc = (mod: number, min: number, max: number) => {
   const p = unlerp(mod, -1, 1);
   return lerp(p, min, max);
 };
 
-const getCycleIndex = (
+export const getCycleIndex = (
   numNotesPlayed: number,
   choicesLength: number,
 ): number => {
   return Math.floor(numNotesPlayed / choicesLength);
 };
 
-const isChoicesReversed = (
+export const isChoicesReversed = (
   cycleIndex: number,
   direction: "down" | "up" | "down-up" | "up-down",
 ): boolean => {
@@ -427,7 +427,7 @@ const isChoicesReversed = (
   return isReversed;
 };
 
-const getOctaveSemitones = (
+export const getOctaveSemitones = (
   cycleIndex: number,
   isReversed: boolean | undefined,
   maxOctaves: number,
@@ -436,7 +436,7 @@ const getOctaveSemitones = (
   return octave * 12;
 };
 
-const choose = <T>(
+export const choose = <T>(
   choices: T[],
   numNotesInArp: number,
   numNotesPlayed: number,
@@ -448,7 +448,7 @@ const choose = <T>(
   return choices[index];
 };
 
-const getDeltaPerSample = (
+export const getDeltaPerSample = (
   thingsPerSecond: number,
   samplesPerSecond: number,
 ): number => {
@@ -760,7 +760,7 @@ export const fillSoundBuffer = (
   let wahwahStrength = wahwah_strength;
   let arpeggioRate = arpeggio_rate;
   let arpLengthLeft = 0;
-  let arpNumNotesPlayed = 0;
+  let arpNumNotesPlayed = -1;
   let arpFrequencyFactor = 1;
   let arpAmplitudeFactor = 1;
 
