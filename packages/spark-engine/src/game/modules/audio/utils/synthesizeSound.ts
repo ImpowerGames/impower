@@ -820,7 +820,7 @@ export const fillSoundBuffer = (
       arpeggio_on &&
       arpeggioRate > 0 &&
       arpeggio_tones?.length > 0 &&
-      arpNumNotesPlayed < arpeggio_max_notes
+      arpNumNotesPlayed < arpeggio_max_notes - 1
     ) {
       const cycleIndex = getCycleIndex(
         arpNumNotesPlayed,
