@@ -16,6 +16,7 @@ export interface Modulator {
 export interface Synth extends Reference<"synth"> {
   name?: string;
   shape: OscillatorType;
+  phase: number;
   volume: number;
   envelope: {
     offset: number;
@@ -30,7 +31,6 @@ export interface Synth extends Reference<"synth"> {
     frequency_ramp: number;
     frequency_torque: number;
     frequency_jerk: number;
-    phase: number;
   };
   lowpass: {
     on: boolean;

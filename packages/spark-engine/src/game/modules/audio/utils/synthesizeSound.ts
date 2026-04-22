@@ -27,6 +27,7 @@ export interface Modulator {
 
 export interface Synth {
   shape: OscillatorType;
+  phase: number;
   volume: number;
   envelope: {
     offset: number;
@@ -41,7 +42,6 @@ export interface Synth {
     frequency_ramp: number;
     frequency_torque: number;
     frequency_jerk: number;
-    phase: number;
   };
   lowpass: {
     on: boolean;
@@ -646,14 +646,14 @@ export const fillSoundBuffer = (
   gain?: number | Float32Array,
   frequency?: number | Float32Array,
 ): void => {
-  const shape_wave = synth.shape;
+  const synth_shape = synth.shape;
+  const synth_phase = synth.phase;
   const pitch_freq =
     (typeof frequency === "number"
       ? frequency
       : frequency && frequency.length === 1
         ? frequency[0]
         : frequency) ?? synth.pitch.frequency;
-  const pitch_phase = synth.pitch.phase;
   const nodeGain =
     typeof gain === "number"
       ? gain
@@ -778,7 +778,7 @@ export const fillSoundBuffer = (
     typeof pitch_freq === "number" ? pitch_freq : (pitch_freq[startIndex] ?? 0);
 
   const fundamentalPeriodLength = sampleRate / fundamentalFrequency;
-  const startPhaseOffset = pitch_phase * fundamentalPeriodLength;
+  const startPhaseOffset = synth_phase * fundamentalPeriodLength;
 
   let arpPhaseOffset = 0;
   let previousAngle = 0;
@@ -795,7 +795,7 @@ export const fillSoundBuffer = (
       (typeof pitch_freq === "number" ? pitch_freq : (pitch_freq[i] ?? 0)) *
       pitchFreqFactor;
 
-    let sampleShape = shape_wave;
+    let sampleShape = synth_shape;
     let sampleResonance = lowpass_resonance;
 
     const localIndex = i - startIndex;
@@ -977,7 +977,7 @@ export const fillSoundBuffer = (
           numNotesInArp,
           activeNoteIndex,
           activeIsReversed,
-        ) ?? shape_wave;
+        ) ?? synth_shape;
 
       // Countdown duration to the target samplesPerNote
       if (!arpWaitingForZeroCrossing) {

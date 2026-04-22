@@ -6,7 +6,6 @@ import { A } from "../constants/A";
 export const schema_synth: Create<Schema<Synth>> = () => ({
   $type: "synth",
   $name: "$schema",
-  volume: [0.01, 0, 1],
   shape: [
     "sine",
     "triangle",
@@ -18,6 +17,8 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     "brownnoise",
     "pinknoise",
   ],
+  phase: [0.01, -1, 1],
+  volume: [0.01, 0, 1],
   envelope: {
     offset: [0.001, 0, 1],
     attack: [0.001, 0, 1],
@@ -31,7 +32,6 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     frequency_ramp: [0.01, -1, 1],
     frequency_torque: [0.01, -1, 1],
     frequency_jerk: [0.01, -1, 1],
-    phase: [0.01, -1, 1],
   },
   lowpass: {
     cutoff: [A[1], 0, A[9]],
@@ -67,7 +67,7 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     ],
     tones: [1, 0, 16],
     levels: [0.01, 0, 1],
-    phases: [0.01, 0, 1],
+    phases: [0.01, -1, 1],
   },
   vibrato: {
     rate: [1, 0, A[1]],

@@ -14,6 +14,7 @@ export const default_synth: Create<Synth> = (obj) => ({
     prosody: {},
   },
   shape: "triangle",
+  phase: 0,
   volume: 0.5,
   ...(obj || {}),
   envelope: {
@@ -30,7 +31,6 @@ export const default_synth: Create<Synth> = (obj) => ({
     frequency_ramp: 0,
     frequency_torque: 0,
     frequency_jerk: 0,
-    phase: 0,
     ...(obj?.pitch || {}),
   },
   highpass: {
