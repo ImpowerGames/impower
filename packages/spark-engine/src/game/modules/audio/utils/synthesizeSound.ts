@@ -822,6 +822,9 @@ export const fillSoundBuffer = (
       arpeggio_tones?.length > 0 &&
       arpNumNotesPlayed < arpeggio_max_notes - 1
     ) {
+      if (arpLengthLeft <= 0) {
+        arpNumNotesPlayed += 1;
+      }
       const cycleIndex = getCycleIndex(
         arpNumNotesPlayed,
         arpeggio_tones?.length ?? 0,
@@ -872,7 +875,6 @@ export const fillSoundBuffer = (
           arpNumNotesPlayed === 0
             ? 0
             : localIndex - startPhaseOffset - distortionPhaseOffset;
-        arpNumNotesPlayed += 1;
       }
       arpLengthLeft -= 1;
     }
