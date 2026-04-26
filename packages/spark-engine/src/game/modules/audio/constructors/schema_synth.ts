@@ -70,14 +70,14 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     phases: [0.01, -1, 1],
   },
   vibrato: {
-    rate: [1, 0, A[1]],
+    rate: [1, 0, A[2]],
     rate_ramp: [0.01, -1, 1],
     strength: [0.01, 0, 1],
     strength_ramp: [0.01, -1, 1],
     shape: ["sine", "triangle", "sawtooth", "tangent", "square", "whitenoise"],
   },
   tremolo: {
-    rate: [1, 0, A[1]],
+    rate: [1, 0, A[2]],
     rate_ramp: [0.01, -1, 1],
     strength: [0.01, 0, 1],
     strength_ramp: [0.01, -1, 1],

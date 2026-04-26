@@ -351,6 +351,7 @@ export const random_synth_snap: Create<Random<Synth>> = () => ({
   arpeggio: {
     on: [true],
     rate: [200],
+    tones: [[0]],
     levels: [[0, 0.1, 1]],
   },
 });
@@ -358,7 +359,7 @@ export const random_synth_snap: Create<Random<Synth>> = () => ({
 export const random_synth_clack: Create<Random<Synth>> = () => ({
   $type: "synth",
   $name: "$random:clack",
-  shape: ["whitenoise", "brownnoise"],
+  shape: ["sine", "triangle", "sawtooth", "tangent", "square"],
   envelope: {
     attack: [0.01],
     decay: [0.003],
@@ -369,13 +370,18 @@ export const random_synth_clack: Create<Random<Synth>> = () => ({
   pitch: {
     frequency: [A[7], A[9]],
   },
-  lowpass: {
-    cutoff: [8085],
-    resonance: [0, 1],
+  highpass: {
+    on: [true],
+    cutoff: [3465],
+  },
+  vibrato: {
+    on: [true],
+    rate: [A[1]],
   },
   arpeggio: {
     on: [true],
     rate: [100],
+    tones: [[0]],
     levels: [[0.2, 1, 0.1, 0.05, 0.01, 1, 0]],
   },
 });

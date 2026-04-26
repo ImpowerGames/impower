@@ -38,19 +38,28 @@ export const audioBuiltinDefinitions = () => ({
     }),
     typewriter: default_synth({
       $name: "typewriter",
-      shape: "whitenoise",
+      shape: "tangent",
       envelope: {
         attack: 0.01,
         decay: 0.003,
         sustain: 0.04,
         release: 0.01,
-        level: 0.3,
+        level: 0.15,
       },
-      pitch: { frequency: 4790 },
+      pitch: { frequency: 3465 },
+      highpass: {
+        on: true,
+        cutoff: 6600,
+      },
+      vibrato: {
+        on: true,
+        rate: 55,
+      },
       arpeggio: {
         on: true,
         rate: 100,
-        levels: [0.05, 0.15, 0.1, 0.01, 0, 0.05, 0],
+        tones: [0],
+        levels: [0.2, 1, 0.1, 0.05, 0.01, 1, 0],
       },
     }),
   } as Record<string, ReturnType<typeof default_synth>>,
