@@ -1,4 +1,4 @@
-import { ElementContent } from "./ElementContent";
+import { type ElementContent } from "./ElementContent";
 
 export interface ElementState {
   type?: string;

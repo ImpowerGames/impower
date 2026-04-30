@@ -1,4 +1,4 @@
-import { Reference } from "../../../core/types/Reference";
+import { type Reference } from "../../../core/types/Reference";
 
 export interface Typewriter extends Reference<"typewriter"> {
   fade_duration: number;

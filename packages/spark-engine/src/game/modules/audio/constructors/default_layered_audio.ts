@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { LayeredAudio } from "../types/LayeredAudio";
+import { type Create } from "../../../core/types/Create";
+import { type LayeredAudio } from "../types/LayeredAudio";
 
 export const default_layered_audio: Create<LayeredAudio> = (obj) => ({
   $type: "layered_audio",

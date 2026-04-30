@@ -1,4 +1,4 @@
-import { MidiEvent } from "./MidiEvent";
+import { type MidiEvent } from "./MidiEvent";
 
 export interface Midi {
   /**

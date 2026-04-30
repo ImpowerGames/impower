@@ -1,5 +1,5 @@
-import { Synth } from "./Synth";
-import { Tone } from "./Tone";
+import { type Synth } from "./Synth";
+import { type Tone } from "./Tone";
 
 export interface LoadAudioPlayerParams {
   channel: string;

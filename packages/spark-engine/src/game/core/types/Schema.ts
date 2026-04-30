@@ -12,4 +12,4 @@ export type Schema<T = any> = T extends object
     } & {
       [P in keyof Pick<T, Extract<keyof T, "$name">>]: "$schema";
     }
-  : T | { $type: string };
+  : T;

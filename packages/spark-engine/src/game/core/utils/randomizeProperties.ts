@@ -1,5 +1,5 @@
-import { Random } from "../types/Random";
-import { Schema } from "../types/Schema";
+import { type Random } from "../types/Random";
+import { type Schema } from "../types/Schema";
 import { clampedRandom } from "./clampedRandom";
 import { cull } from "./cull";
 import { getAllProperties } from "./getAllProperties";

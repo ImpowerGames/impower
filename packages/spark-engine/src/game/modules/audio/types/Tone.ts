@@ -1,5 +1,5 @@
-import { Hertz } from "./Hertz";
-import { Note } from "./Note";
+import { type Hertz } from "./Hertz";
+import { type Note } from "./Note";
 
 export interface Tone {
   /** time in seconds from start */

@@ -1,4 +1,4 @@
-import { Chunk } from "./Chunk";
+import { type Chunk } from "./Chunk";
 
 export interface Syllable {
   text: string;

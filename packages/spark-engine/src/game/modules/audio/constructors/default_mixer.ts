@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Mixer } from "../types/Mixer";
+import { type Create } from "../../../core/types/Create";
+import { type Mixer } from "../types/Mixer";
 
 export const default_mixer: Create<Mixer> = (obj) => ({
   $type: "mixer",

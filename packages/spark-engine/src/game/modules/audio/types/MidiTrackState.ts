@@ -1,4 +1,4 @@
-import { MidiChannelState } from "./MidiChannelState";
+import { type MidiChannelState } from "./MidiChannelState";
 
 export interface MidiTrackState {
   currentTime: number;

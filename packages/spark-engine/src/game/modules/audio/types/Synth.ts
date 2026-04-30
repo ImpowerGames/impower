@@ -1,6 +1,6 @@
-import { RecursivePartial } from "../../../core/types/RecursivePartial";
-import { Reference } from "../../../core/types/Reference";
-import { OscillatorType } from "./OscillatorType";
+import { type RecursivePartial } from "../../../core/types/RecursivePartial";
+import { type Reference } from "../../../core/types/Reference";
+import { type OscillatorType } from "./OscillatorType";
 
 export type Direction = "up" | "down" | "down-up" | "up-down";
 

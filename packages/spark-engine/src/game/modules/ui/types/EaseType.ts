@@ -1,4 +1,4 @@
-import { CurveType } from "./CurveType";
+import { type CurveType } from "./CurveType";
 
 export type CurveDirection = "in" | "out" | "in_out";
 

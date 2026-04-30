@@ -1,6 +1,6 @@
-import { Create } from "../../../core/types/Create";
+import { type Create } from "../../../core/types/Create";
 import { A } from "../constants/A";
-import { Synth } from "../types/Synth";
+import { type Synth } from "../types/Synth";
 
 export const default_synth: Create<Synth> = (obj) => ({
   $type: "synth",

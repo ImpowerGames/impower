@@ -1,5 +1,5 @@
-import { Animation } from "./Animation";
-import { Font } from "./Font";
+import { type Animation } from "./Animation";
+import { type Font } from "./Font";
 
 export type ElementContent =
   | TextContent

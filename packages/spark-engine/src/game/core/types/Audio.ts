@@ -1,4 +1,4 @@
-import { Reference } from "./Reference";
+import { type Reference } from "./Reference";
 
 export interface Audio extends Reference<"audio"> {
   src: string;

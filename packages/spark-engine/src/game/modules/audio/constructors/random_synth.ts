@@ -2,9 +2,9 @@
  * Inspired by ChipTone <https://sfbgames.itch.io/chiptone>
  */
 
-import { Synth } from "../../..";
-import { Create } from "../../../core/types/Create";
-import { Random } from "../../../core/types/Random";
+import { type Synth } from "../../..";
+import { type Create } from "../../../core/types/Create";
+import { type Random } from "../../../core/types/Random";
 import { A } from "../constants/A";
 import {
   MAJOR_ARPEGGIOS_DOWN,

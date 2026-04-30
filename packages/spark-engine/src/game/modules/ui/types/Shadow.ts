@@ -1,4 +1,4 @@
-import { Reference } from "../../../core/types/Reference";
+import { type Reference } from "../../../core/types/Reference";
 
 export interface Shadow extends Reference<"shadow"> {
   layers: {

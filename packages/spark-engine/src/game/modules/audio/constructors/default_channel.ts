@@ -1,5 +1,5 @@
-import { Create } from "../../../core/types/Create";
-import { Channel } from "../types/Channel";
+import { type Create } from "../../../core/types/Create";
+import { type Channel } from "../types/Channel";
 
 export const default_channel: Create<Channel> = (obj) => ({
   $type: "channel",

@@ -1,6 +1,6 @@
-import { Synth } from "../../..";
-import { Create } from "../../../core/types/Create";
-import { Schema } from "../../../core/types/Schema";
+import { type Synth } from "../../..";
+import { type Create } from "../../../core/types/Create";
+import { type Schema } from "../../../core/types/Schema";
 import { A } from "../constants/A";
 
 export const schema_synth: Create<Schema<Synth>> = () => ({

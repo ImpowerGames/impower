@@ -1,4 +1,4 @@
-import { Hertz } from "../types/Hertz";
+import { type Hertz } from "../types/Hertz";
 
 const A1 = 55;
 

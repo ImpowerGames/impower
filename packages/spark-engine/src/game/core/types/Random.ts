@@ -1,4 +1,4 @@
-import { RecursivePartial } from "./RecursivePartial";
+import { type RecursivePartial } from "./RecursivePartial";
 
 export type Random<T = any> = T extends object
   ? {
