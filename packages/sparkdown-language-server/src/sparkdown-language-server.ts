@@ -533,7 +533,6 @@ try {
     const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onCodeLens ${uri} start`);
     const result = getCodeLenses(document, annotations);
-    console.log("result", result);
     performance.mark(`lsp: onCodeLens ${uri} end`);
     performance.measure(
       `lsp: onCodeLens ${uri}`,
