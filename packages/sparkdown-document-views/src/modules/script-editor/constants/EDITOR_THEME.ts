@@ -44,6 +44,10 @@ const EDITOR_THEME: {
   },
   "& .cm-gutters": {
     fontFamily: "Courier Prime Sans",
+    backgroundColor: "transparent",
+    color: EDITOR_COLORS.lineNumber,
+    border: "none",
+    opacity: 0.7,
   },
   "kbd, code, pre": {
     fontFamily: "Courier Prime Sans",
@@ -180,12 +184,6 @@ const EDITOR_THEME: {
   "& .cm-snippet .cm-selectionMatch-main": {
     backgroundColor: "transparent",
   },
-  "& .cm-gutters": {
-    backgroundColor: "transparent",
-    color: EDITOR_COLORS.lineNumber,
-    border: "none",
-    opacity: 0.7,
-  },
   "& .cm-activeLineGutter": {
     backgroundColor: "transparent",
     color: EDITOR_COLORS.activeLineNumber,
@@ -198,6 +196,7 @@ const EDITOR_THEME: {
       position: "absolute",
       inset: "2px",
       outline: "2px solid #FFFFFF12",
+      pointerEvents: "none",
     },
   },
   "&.cm-selected .cm-activeLine": {
