@@ -1,16 +1,15 @@
+import tailwindcss from "@tailwindcss/vite";
 import { exec, execSync } from "child_process";
 import * as dotenv from "dotenv";
-import * as esbuild from "esbuild";
-import esbuildPluginPino from "esbuild-plugin-pino";
 import fs from "fs";
 import MagicString from "magic-string";
 import path from "path";
 import glob from "tiny-glob";
 import { build, createServer, Plugin } from "vite";
 import pkg from "./package.json";
-import { ComponentSpec } from "./src/build/ComponentSpec";
-import extractAllSVGs from "./src/build/extractAllSVGs";
-import getScopedCSS from "./src/build/getScopedCSS";
+import { ComponentSpec } from "./src/build/ComponentSpec.js";
+import extractAllSVGs from "./src/build/extractAllSVGs.js";
+import getScopedCSS from "./src/build/getScopedCSS.js";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
 
 const RESET = "\x1b[0m";
@@ -54,14 +53,12 @@ const pagesInDir = `${indir}/pages`;
 
 const alias: Record<string, string> = {};
 for (const depName of Object.keys(pkg.peerDependencies || {})) {
-  alias[depName] = depName;
+  alias[depName] = path.resolve(process.cwd(), "node_modules", depName);
 }
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
-
-const LOG_PREFIX =
-  (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
+const MINIFY = process.argv.includes("--minify");
 
 // Env Setup
 const envPrefix = PRODUCTION ? ".env.production" : ".env.development";
@@ -80,9 +77,34 @@ Object.entries(process.env).forEach(([key, value]) => {
   }
 });
 
+const PATH_RESOLUTION_BANNER = `
+import { createRequire } from 'module';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+process.env.NODE_ENV = process.env.NODE_ENV || '${PRODUCTION ? "production" : "development"}';
+`.trim();
+
 const PROCESS_ENV_BANNER_JS = `
 var process = { env: ${JSON.stringify(BROWSER_VARIABLES_ENV)} };
 import.meta.env = ${JSON.stringify(BROWSER_VARIABLES_ENV)};
+`.trim();
+
+const getServiceWorkerProcessEnvBanner = (options?: {
+  swVersion?: string | number;
+  swResources?: string[];
+}) =>
+  `
+var process = {
+  env: {
+    NODE_ENV: '${PRODUCTION ? "production" : "development"}',
+    SW_VERSION: ${options?.swVersion ? `'${options.swVersion}'` : "undefined"},
+    SW_CACHE_NAME: ${options?.swVersion ? `'cache-${options.swVersion}'` : "undefined"},
+    SW_RESOURCES: ${options?.swResources ? `'${JSON.stringify(options.swResources)}'` : "undefined"},
+  }
+};
 `.trim();
 
 // ----------------------------------------------------------------------------
@@ -117,7 +139,7 @@ const staticallyStylePage = (html: string, ssg: string) => {
 };
 
 // ----------------------------------------------------------------------------
-// Dev Vite Plugins
+// Vite Plugins
 // ----------------------------------------------------------------------------
 
 const viteDefineProcessPlugin = (): Plugin => ({
@@ -141,12 +163,13 @@ const viteInlineWorkerPlugin = (): Plugin => ({
     if (id.includes("\0")) return;
     const file = id.split("?")[0];
     if (/\.worker\.(?:ts|js)$/.test(file)) {
+      console.log("");
       const result = await build({
         configFile: false,
         build: {
           lib: { entry: file, formats: ["es"], fileName: "worker" },
           write: false,
-          minify: PRODUCTION,
+          minify: MINIFY,
         },
       });
       // @ts-ignore
@@ -166,7 +189,7 @@ const viteLoadersPlugin = (): Plugin => ({
   name: "vite-custom-loaders",
   enforce: "pre",
   async resolveId(source, importer) {
-    if (source.endsWith(".css") && !source.includes("?")) {
+    if (/\.(html|css|svg|txt|csv)$/.test(source) && !source.includes("?")) {
       const res = await this.resolve(source, importer, { skipSelf: true });
       if (res) return `${res.id}?raw`;
     }
@@ -350,20 +373,15 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
               swResourceSet.add(p);
             }
             const SW_RESOURCES = Array.from(swResourceSet);
+            console.log("");
             const result = await build({
               configFile: false,
               plugins: [
                 viteBannerPlugin(
-                  `
-var process = {
-  env: {
-    NODE_ENV: '${PRODUCTION ? "production" : "development"}',
-    SW_VERSION: '${SW_VERSION}',
-    SW_CACHE_NAME: 'cache-${SW_VERSION}',
-    SW_RESOURCES: '${JSON.stringify(SW_RESOURCES)}',
-  }
-};
-        `.trim(),
+                  getServiceWorkerProcessEnvBanner({
+                    swVersion: SW_VERSION,
+                    swResources: SW_RESOURCES,
+                  }),
                 ),
               ],
               build: {
@@ -469,69 +487,9 @@ var process = {
         res.end(styledHtml);
         return;
       } catch (e: any) {
-        // Pass errors to Vite's error handler
         server.ssrFixStacktrace(e);
         return next(e);
       }
-
-      next();
-    });
-  },
-});
-
-// ----------------------------------------------------------------------------
-// Prod Esbuild Plugins
-// ----------------------------------------------------------------------------
-
-const esbuildDefineProcessPlugin = (): esbuild.Plugin => {
-  return {
-    name: "env-plugin",
-    setup(build: esbuild.PluginBuild) {
-      const options = build.initialOptions;
-      options.write = false;
-      build.onEnd(async (result) => {
-        if (result.outputFiles) {
-          await Promise.all(
-            result.outputFiles
-              .filter((f) => f.path.match(/\.js$/))
-              .map((f) => {
-                const modified = PROCESS_ENV_BANNER_JS + "\n" + f.text;
-                return fs.promises.writeFile(f.path, modified, "utf-8");
-              }),
-          );
-        }
-      });
-    },
-  };
-};
-
-const esbuildInlineWorkerPlugin = (
-  extraConfig?: esbuild.BuildOptions,
-): esbuild.Plugin => ({
-  name: "esbuild-inline-worker",
-  setup(build) {
-    build.onLoad({ filter: /\.worker\.(?:ts|js)$/ }, async (args) => {
-      const result = await esbuild.build({
-        entryPoints: [args.path],
-        write: false,
-        bundle: true,
-        minify: PRODUCTION,
-        format: "esm",
-        target: "esnext",
-        ...(extraConfig || {}),
-      });
-      let bundledText = result.outputFiles?.[0]?.text || "";
-      const exportIndex = bundledText.lastIndexOf("export");
-      if (exportIndex >= 0) {
-        bundledText = bundledText.slice(0, exportIndex);
-      }
-      console.log(
-        LOG_PREFIX + `loaded inline worker contents (${bundledText.length})`,
-      );
-      return {
-        contents: bundledText,
-        loader: "text",
-      };
     });
   },
 });
@@ -554,7 +512,6 @@ const copyPublic = async () => {
 };
 
 const buildApi = async () => {
-  // Build js files
   console.log("");
   console.log(STEP_COLOR, "Building API...");
   const entryPoints = [`${apiInDir}/index.ts`];
@@ -562,112 +519,124 @@ const buildApi = async () => {
     console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
     console.log(
       OUT_COLOR,
-      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`,
+      `    ⤷ ${getRelativePath(p).replace(indir, outdir).replace(/\.ts$/, ".js")}`,
     );
   });
-  await esbuild.build({
-    entryPoints,
-    outdir: apiOutDir,
-    platform: "node",
-    format: "esm",
-    bundle: true,
-    sourcemap: !PRODUCTION,
-    loader: {
-      ".html": "text",
-      ".css": "text",
-      ".svg": "text",
-      ".txt": "text",
-      ".csv": "text",
-      ".ttf": "binary",
-      ".woff2": "binary",
-    },
-    external: ["@fastify/secure-session"],
-    plugins: [
-      esbuildPluginPino({ transports: PRODUCTION ? [] : ["pino-pretty"] }),
-    ],
-    banner: {
-      js: `
-import { createRequire } from 'module';
-import path from 'path';
-import { fileURLToPath } from 'url';
-const require = createRequire(import.meta.url);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-      `.trim(),
+
+  console.log("");
+  await build({
+    configFile: false,
+    build: {
+      outDir: apiOutDir,
+      emptyOutDir: false,
+      ssr: true,
+      minify: MINIFY,
+      sourcemap: !PRODUCTION,
+      rollupOptions: {
+        input: entryPoints,
+        output: {
+          format: "esm",
+          entryFileNames: "[name].js",
+          banner: PATH_RESOLUTION_BANNER,
+        },
+        external: [
+          "fastify",
+          "@fastify/secure-session",
+          "@fastify/formbody",
+          "@fastify/multipart",
+          "@fastify/middie",
+          "pino-pretty",
+        ],
+      },
     },
   });
 };
 
 const buildPages = async () => {
-  // Build js files
   console.log("");
   console.log(STEP_COLOR, "Building Pages...");
   const entryPoints = (await glob(`${pagesInDir}/**/*.{js,mjs,ts}`)).filter(
     (p) => !p.endsWith(".d.ts"),
   );
+
+  const input: Record<string, string> = {};
   entryPoints.forEach((p) => {
     console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
     console.log(
       OUT_COLOR,
-      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`,
+      `    ⤷ ${getRelativePath(p).replace(indir, outdir).replace(/\.ts$/, ".js")}`,
     );
+    const name = path.relative(pagesInDir, p).replace(/\.[^/.]+$/, "");
+    input[name] = path.resolve(process.cwd(), p);
   });
-  await esbuild.build({
-    entryPoints: entryPoints,
-    outdir: publicOutDir,
-    platform: "browser",
-    format: "esm",
-    bundle: true,
-    minify: PRODUCTION,
-    sourcemap: !PRODUCTION,
-    loader: {
-      ".html": "text",
-      ".css": "text",
-      ".svg": "text",
-      ".txt": "text",
-      ".csv": "text",
-      ".ttf": "binary",
-      ".woff2": "binary",
+
+  console.log("");
+  await build({
+    configFile: false,
+    resolve: { alias },
+    plugins: [
+      viteInlineWorkerPlugin(),
+      viteLoadersPlugin(),
+      viteDefineProcessPlugin(),
+      viteBannerPlugin(PROCESS_ENV_BANNER_JS),
+      tailwindcss(),
+    ],
+    build: {
+      outDir: publicOutDir,
+      emptyOutDir: false,
+      minify: MINIFY,
+      sourcemap: !PRODUCTION,
+      rollupOptions: {
+        input,
+        output: {
+          format: "esm",
+          entryFileNames: "[name].js",
+          chunkFileNames: "chunks/[name]-[hash].js",
+        },
+      },
     },
-    alias,
-    plugins: [esbuildInlineWorkerPlugin(), esbuildDefineProcessPlugin()],
   });
 };
 
 const buildComponents = async () => {
-  // Build js files
   console.log("");
   console.log(STEP_COLOR, "Building Components...");
   const entryPoints = await glob(`${componentsInDir}/**/*.{js,mjs,ts}`);
+
+  const input: Record<string, string> = {};
   entryPoints.forEach((p) => {
     console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
     console.log(
       OUT_COLOR,
-      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`,
+      `    ⤷ ${getRelativePath(p).replace(indir, outdir).replace(/\.ts$/, ".js")}`,
     );
+    const name = path.relative(componentsInDir, p).replace(/\.[^/.]+$/, "");
+    input[name] = path.resolve(process.cwd(), p);
   });
-  await esbuild.build({
-    entryPoints: entryPoints,
-    outdir: componentsOutDir,
-    platform: "node",
-    format: "esm",
-    bundle: true,
-    minify: PRODUCTION,
-    sourcemap: !PRODUCTION,
-    loader: {
-      ".html": "text",
-      ".css": "text",
-      ".svg": "text",
-      ".txt": "text",
-      ".csv": "text",
-      ".ttf": "binary",
-      ".woff2": "binary",
+
+  console.log("");
+  await build({
+    configFile: false,
+    resolve: { alias },
+    plugins: [viteLoadersPlugin(), tailwindcss()],
+    build: {
+      outDir: componentsOutDir,
+      emptyOutDir: false,
+      ssr: true,
+      minify: MINIFY,
+      sourcemap: !PRODUCTION,
+      rollupOptions: {
+        input,
+        output: {
+          format: "esm",
+          entryFileNames: "[name].js",
+        },
+      },
     },
   });
 };
 
 const expandPageComponents = async () => {
-  // Expand/Copy each page's html file using components.js
   const htmlFilePaths = await glob(`${pagesInDir}/**/*.{html}`);
   const componentBundlePaths = await glob(
     `${componentsOutDir}/**/*.{js,mjs,ts}`,
@@ -808,6 +777,7 @@ const buildWorkers = async () => {
       );
     });
   }
+
   console.log("");
   console.log(STEP_COLOR, "Caching Resources...");
   console.log(SRC_COLOR, `  ${getRelativePath(publicOutDir)}`);
@@ -824,33 +794,44 @@ const buildWorkers = async () => {
   SW_RESOURCES.forEach((p) => {
     console.log(OUT_COLOR, `    ⤷ ${p}`);
   });
+
   console.log("");
   console.log(STEP_COLOR, "Building Service Workers...");
+  const swInput: Record<string, string> = {};
   serviceWorkerPaths.forEach((p) => {
     console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
     console.log(
       OUT_COLOR,
-      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`,
+      `    ⤷ ${getRelativePath(p).replace(indir, outdir).replace(/\.ts$/, ".js")}`,
     );
+    const name = path.basename(p, path.extname(p));
+    swInput[name] = path.resolve(process.cwd(), p);
   });
-  await esbuild.build({
-    entryPoints: serviceWorkerPaths,
-    outdir: publicOutDir,
-    bundle: true,
-    minify: PRODUCTION,
-    sourcemap: !PRODUCTION,
-    external: ["commonjs"],
-    banner: {
-      js: `
-  var process = {
-    env: {
-      NODE_ENV: '${PRODUCTION ? "production" : "development"}',
-      SW_VERSION: '${SW_VERSION}',
-      SW_CACHE_NAME: 'cache-${SW_VERSION}',
-      SW_RESOURCES: '${JSON.stringify(SW_RESOURCES)}',
-    }
-  };
-        `.trim(),
+
+  console.log("");
+  await build({
+    configFile: false,
+    plugins: [
+      viteBannerPlugin(
+        getServiceWorkerProcessEnvBanner({
+          swVersion: SW_VERSION,
+          swResources: SW_RESOURCES,
+        }),
+      ),
+    ],
+    build: {
+      outDir: publicOutDir,
+      emptyOutDir: false,
+      minify: MINIFY,
+      sourcemap: !PRODUCTION,
+      rollupOptions: {
+        input: swInput,
+        output: {
+          format: "esm",
+          entryFileNames: "[name].js",
+        },
+        external: ["commonjs"],
+      },
     },
   });
 };
@@ -876,6 +857,7 @@ const serve = async () => {
       viteLoadersPlugin(),
       viteSpecComponentHmrPlugin(),
       viteStaticallyRenderedPagesPlugin(),
+      tailwindcss(),
     ],
   });
 

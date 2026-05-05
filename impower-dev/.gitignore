@@ -5,4 +5,5 @@ https/
 .dev/
 
 *.local
+.env.production
 .DS_Store

@@ -26,13 +26,10 @@
     "build:prod:workers:opfs-workspace": "cd ../packages/opfs-workspace && node ./esbuild.js --outdir=../../impower-dev/out/public --production && cd ../../impower-dev",
     "build:dev:workers": "npm-run-all -p build:dev:workers:*",
     "build:prod:workers": "npm-run-all -p build:prod:workers:*",
-    "dev": "tsx ./esbuild.ts --watch",
-    "prod": "tsx ./esbuild.ts --production",
-    "build": "npm run prod",
+    "dev": "tsx ./build.ts --watch",
+    "prod": "tsx ./build.ts --production",
+    "build": "tsx ./build.ts --production --minify",
     "start": "node ./out/api/index.js"
-  },
-  "overrides": {
-    "esbuild": "^0.18.10"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
@@ -57,6 +54,7 @@
   },
   "devDependencies": {
     "@adobe/css-tools": "^4.4.4",
+    "@tailwindcss/vite": "^4.2.4",
     "@types/browser-resolve": "^2.0.4",
     "@types/gapi": "^0.0.47",
     "@types/gapi.client.drive-v3": "^0.0.5",
@@ -65,8 +63,6 @@
     "@types/node": "^20.3.2",
     "@types/ws": "^8.5.5",
     "chokidar": "^3.5.3",
-    "esbuild": "^0.18.10",
-    "esbuild-plugin-pino": "^2.0.0",
     "kill-port": "^2.0.1",
     "magic-string": "^0.30.21",
     "mkcert": "^3.0.0",
@@ -92,6 +88,8 @@
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.1",
     "marked": "^17.0.4",
+    "preact": "^10.29.1",
+    "preact-custom-element": "^4.6.0",
     "style-mod": "^4.1.3",
     "vscode-languageserver-protocol": "^3.17.5",
     "vscode-languageserver-textdocument": "^1.0.12"

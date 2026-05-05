@@ -4,7 +4,9 @@ import workspace from "../../workspace/WorkspaceStore";
 import css from "./preview-game.css";
 
 const SPARKDOWN_PLAYER_ORIGIN =
-  process?.env?.["VITE_SPARKDOWN_PLAYER_ORIGIN"] || "";
+  process?.env?.["VITE_SPARKDOWN_PLAYER_ORIGIN"] ||
+  import.meta.env.VITE_SPARKDOWN_PLAYER_ORIGIN ||
+  "";
 
 export default spec({
   tag: "se-preview-game",

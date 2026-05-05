@@ -56,10 +56,10 @@ export default class Account extends Component(spec) {
       const syncProvider = Workspace.sync.google;
       const accountInfo = await syncProvider.getCurrentAccount();
       this.loadAccountUI(accountInfo);
-      await Workspace.window.loadProject();
     } catch (err: any) {
       console.error(err);
     }
+    await Workspace.window.loadProject();
   }
 
   handleRevoke = async () => {
