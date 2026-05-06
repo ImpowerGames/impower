@@ -496,6 +496,9 @@ export const filter = (
   input: [number, number],
   output: [number, number, number],
 ): number => {
+  if (cutoff <= 0) {
+    cutoff = Number.EPSILON;
+  }
   const min = Math.sqrt(2);
   const r = lerp(resonance, min, min * 2, true);
   const c = 1 / Math.tan((Math.PI * cutoff) / sampleRate);
@@ -730,14 +733,14 @@ export const fillSoundBuffer = (
   const freqJerk = synth.pitch.frequency_jerk * PITCH_FREQ_RAMP_MULTIPLIER;
   let freqJerkPerSample = freqJerk / (sampleRate * sampleRate * sampleRate);
 
-  const lowpassCutoffDelta = getDeltaPerSample(
-    synth.lowpass.cutoff_ramp,
-    sampleRate,
-  );
-  const highpassCutoffDelta = getDeltaPerSample(
-    synth.highpass.cutoff_ramp,
-    sampleRate,
-  );
+  const lowpassCutoffRamp =
+    synth.lowpass.cutoff_ramp * PITCH_FREQ_RAMP_MULTIPLIER;
+  const lowpassCutoffDelta = getDeltaPerSample(lowpassCutoffRamp, sampleRate);
+
+  const highpassCutoffRamp =
+    synth.highpass.cutoff_ramp * PITCH_FREQ_RAMP_MULTIPLIER;
+  const highpassCutoffDelta = getDeltaPerSample(highpassCutoffRamp, sampleRate);
+
   const vibratoRateRamp =
     synth.vibrato.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
   const vibratoRateDelta = getDeltaPerSample(vibratoRateRamp, sampleRate);
@@ -745,6 +748,7 @@ export const fillSoundBuffer = (
     synth.vibrato.strength_ramp,
     sampleRate,
   );
+
   const distortionGritDelta = getDeltaPerSample(
     synth.distortion.grit_ramp,
     sampleRate,
@@ -753,6 +757,7 @@ export const fillSoundBuffer = (
     synth.distortion.edge_ramp,
     sampleRate,
   );
+
   const tremoloRateRamp =
     synth.tremolo.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
   const tremoloRateDelta = getDeltaPerSample(tremoloRateRamp, sampleRate);
@@ -760,6 +765,7 @@ export const fillSoundBuffer = (
     synth.tremolo.strength_ramp,
     sampleRate,
   );
+
   const wahwahRateRamp =
     synth.wahwah.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
   const wahwahRateDelta = getDeltaPerSample(wahwahRateRamp, sampleRate);
@@ -767,6 +773,7 @@ export const fillSoundBuffer = (
     synth.wahwah.strength_ramp,
     sampleRate,
   );
+
   const arpeggioRateRamp =
     synth.arpeggio.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
   const arpeggioRateDelta = getDeltaPerSample(arpeggioRateRamp, sampleRate);
@@ -993,7 +1000,7 @@ export const fillSoundBuffer = (
     }
 
     // Lowpass Filter
-    if ((lowpass_on || wahwah_on) && activeCutoff > 0) {
+    if (lowpass_on || wahwah_on) {
       sampleValue = filter(
         sampleRate,
         sampleValue,
@@ -1005,7 +1012,7 @@ export const fillSoundBuffer = (
     }
 
     // Highpass Filter
-    if (highpass_on && highpassCutoff > 0) {
+    if (highpass_on) {
       sampleValue = filter(
         sampleRate,
         sampleValue,
