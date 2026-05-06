@@ -160,6 +160,16 @@ const frac = (x: number): number => {
   return x - Math.floor(x);
 };
 
+const scaleLinear = (value: number, coefficient: number, constant: number) => {
+  if (constant == null) {
+    constant = 0.0;
+  }
+  if (coefficient == null) {
+    coefficient = 1.0;
+  }
+  return value * coefficient + constant;
+};
+
 const random = (range: number, rng: (() => number) | undefined): number => {
   const r = rng || Math.random;
   return Math.ceil(r() * range) * (Math.round(r()) ? 1 : -1);
@@ -429,11 +439,46 @@ class PassFilterState {
   }
 }
 
+class BandpassFilterState {
+  x0 = 0;
+  x1 = 0;
+  x2 = 0;
+  y0 = 0;
+  y1 = 0;
+  y2 = 0;
+
+  process(
+    sampleRate: number,
+    input: number,
+    frequency: number,
+    inputStrength: number,
+    inputBandwidth: number,
+  ): number {
+    const strength = 1.0 - inputStrength;
+    const bandwidth = 1.0 - inputBandwidth;
+    const damp = strength / Math.sqrt(1.0 - strength * strength);
+    const wo = (frequency * 2 * Math.PI) / sampleRate;
+    const e = 1.0 / (1.0 + damp * Math.tan(wo / (bandwidth * 2.0)));
+    const p = Math.cos(wo);
+    const d0 = 1.0 - e;
+    const d1 = 2.0 * e * p;
+    const d2 = 2.0 * e - 1.0;
+    this.x0 = this.x1;
+    this.x1 = this.x2;
+    this.x2 = input;
+    this.y0 = this.y1;
+    this.y1 = this.y2;
+    this.y2 = d0 * this.x2 - d0 * this.x0 + d1 * this.y1 - d2 * this.y0;
+    return this.y2;
+  }
+}
+
 export class SynthesisState {
   waveState: ModulatorState;
   vibratoState: ModulatorState;
   tremoloState: ModulatorState;
   wahwahState: ModulatorState;
+  wahwahBandpassState: BandpassFilterState;
   reverbState: ReverbState;
   lowpassState: PassFilterState;
   highpassState: PassFilterState;
@@ -450,6 +495,7 @@ export class SynthesisState {
     this.vibratoState = new ModulatorState(rng, oscillators);
     this.tremoloState = new ModulatorState(rng, oscillators);
     this.wahwahState = new ModulatorState(rng, oscillators);
+    this.wahwahBandpassState = new BandpassFilterState();
     this.lowpassState = new PassFilterState();
     this.highpassState = new PassFilterState();
     this.reverbState = new ReverbState(sampleRate);
@@ -632,18 +678,34 @@ const getEnvelopeVolume = (
   return 0;
 };
 
-export const WAHWAH_MIN_RESONANCE = 4000;
-export const WAHWAH_MIN_CUTOFF = 0.6;
-export const WAHWAH_MIN = 0;
-export const WAHWAH_MAX = 1;
-export const TREMOLO_MIN = 0;
-export const TREMOLO_MAX = 1.5;
-export const VIBRATO_MIN = 0.5;
-export const VIBRATO_MAX = 1;
+export const PITCH_SEMITONES_MULTIPLIER = 160;
+
+export const ARPEGGIO_RATE_RAMP_MULTIPLIER = 20;
+
+export const VIBRATO_MIN_AMPLITUDE = 0;
+export const VIBRATO_MAX_AMPLITUDE = 2;
+export const VIBRATO_RATE_RAMP_MULTIPLIER = 6;
+export const VIBRATO_MAX_RATE = 6.01;
+
+export const TREMOLO_MIN_AMPLITUDE = 1;
+export const TREMOLO_MAX_AMPLITUDE = 3;
+export const TREMOLO_RATE_RAMP_MULTIPLIER = 6;
+export const TREMOLO_MAX_RATE = 6;
+
+export const WAHWAH_MIN_AMPLITUDE = 0.0;
+export const WAHWAH_MAX_AMPLITUDE = 2.0;
+export const WAHWAH_RATE_RAMP_MULTIPLIER = 5;
+export const WAHWAH_STRENGTH_MULTIPLIER = 0.75;
+export const WAHWAH_BANDWIDTH = 0.3;
+export const WAHWAH_COEFFICIENT = 1.5;
+export const WAHWAH_CONSTANT = 1.0;
+export const WAHWAH_MAX_RATE = 5;
+
 export const DISTORTION_GRIT_MIN = 1;
 export const DISTORTION_GRIT_MAX = 2;
-export const DISTORTION_EDGE_MULTIPLIER = 7;
-export const PITCH_SEMITONES_MULTIPLIER = 160;
+export const DISTORTION_EDGE_MULTIPLIER = 10;
+
+export const MIN_RATE_FLOOR = 0.1;
 
 export const fillSoundBuffer = (
   synth: Synth,
@@ -731,7 +793,8 @@ export const fillSoundBuffer = (
   const highpassCutoffRamp = synth.highpass.cutoff_ramp;
   const highpassCutoffDelta = getDeltaPerSample(highpassCutoffRamp, sampleRate);
 
-  const vibratoRateRamp = synth.vibrato.rate_ramp;
+  const vibratoRateRamp =
+    synth.vibrato.rate_ramp * VIBRATO_RATE_RAMP_MULTIPLIER;
   const vibratoRateDelta = getDeltaPerSample(vibratoRateRamp, sampleRate);
   const vibratoStrengthDelta = getDeltaPerSample(
     synth.vibrato.strength_ramp,
@@ -747,21 +810,23 @@ export const fillSoundBuffer = (
     sampleRate,
   );
 
-  const tremoloRateRamp = synth.tremolo.rate_ramp;
+  const tremoloRateRamp =
+    synth.tremolo.rate_ramp * TREMOLO_RATE_RAMP_MULTIPLIER;
   const tremoloRateDelta = getDeltaPerSample(tremoloRateRamp, sampleRate);
   const tremoloStrengthDelta = getDeltaPerSample(
     synth.tremolo.strength_ramp,
     sampleRate,
   );
 
-  const wahwahRateRamp = synth.wahwah.rate_ramp;
+  const wahwahRateRamp = synth.wahwah.rate_ramp * WAHWAH_RATE_RAMP_MULTIPLIER;
   const wahwahRateDelta = getDeltaPerSample(wahwahRateRamp, sampleRate);
   const wahwahStrengthDelta = getDeltaPerSample(
     synth.wahwah.strength_ramp,
     sampleRate,
   );
 
-  const arpeggioRateRamp = synth.arpeggio.rate_ramp;
+  const arpeggioRateRamp =
+    synth.arpeggio.rate_ramp * ARPEGGIO_RATE_RAMP_MULTIPLIER;
   const arpeggioRateDelta = getDeltaPerSample(arpeggioRateRamp, sampleRate);
 
   let minPitch = Number.MAX_SAFE_INTEGER;
@@ -930,7 +995,6 @@ export const fillSoundBuffer = (
     }
 
     // Vibrato Effect
-    let vibratoMultiplier = 1;
     if (vibrato_on) {
       const vibratoMod = currentState.vibratoState.process(
         sampleRate,
@@ -938,7 +1002,11 @@ export const fillSoundBuffer = (
         vibratoRate,
         vibratoStrength,
       );
-      vibratoMultiplier = normalizeOsc(vibratoMod, VIBRATO_MIN, VIBRATO_MAX);
+      const vibratoMultiplier = normalizeOsc(
+        vibratoMod,
+        VIBRATO_MIN_AMPLITUDE,
+        VIBRATO_MAX_AMPLITUDE,
+      );
       samplePitch *= vibratoMultiplier;
     }
 
@@ -974,21 +1042,31 @@ export const fillSoundBuffer = (
 
     // Wah-Wah Effect
     if (wahwah_on) {
-      const wahMod = currentState.wahwahState.process(
+      const wahLFO = currentState.wahwahState.process(
         sampleRate,
         wahwah_shape,
         wahwahRate,
-        wahwahStrength,
+        1.0,
       );
-      const wahMultiplier = normalizeOsc(wahMod, WAHWAH_MIN, WAHWAH_MAX);
-      activeCutoff =
-        (lowpassCutoff > 0 ? lowpassCutoff : WAHWAH_MIN_CUTOFF) * wahMultiplier;
-      sampleResonance =
-        sampleResonance > 0 ? sampleResonance : WAHWAH_MIN_RESONANCE;
+      const wahFrequency = Math.pow(wahLFO * 15 + 25, 2); // [100, 1600] Hz
+
+      sampleValue = currentState.wahwahBandpassState.process(
+        sampleRate,
+        sampleValue,
+        wahFrequency,
+        wahwahStrength * WAHWAH_STRENGTH_MULTIPLIER,
+        WAHWAH_BANDWIDTH,
+      );
+
+      sampleValue *= scaleLinear(
+        wahwahStrength,
+        WAHWAH_COEFFICIENT,
+        WAHWAH_CONSTANT,
+      );
     }
 
     // Lowpass Filter
-    if (lowpass_on || wahwah_on) {
+    if (lowpass_on) {
       sampleValue = currentState.lowpassState.process(
         sampleRate,
         sampleValue,
@@ -1036,10 +1114,9 @@ export const fillSoundBuffer = (
         tremoloRate,
         tremoloStrength,
       );
-      const tremoloMultiplier = normalizeOsc(
-        tremoloMod,
-        TREMOLO_MIN,
-        TREMOLO_MAX,
+      const tremoloMultiplier = Math.max(
+        0,
+        normalizeOsc(tremoloMod, TREMOLO_MIN_AMPLITUDE, TREMOLO_MAX_AMPLITUDE),
       );
       sampleValue *= tremoloMultiplier;
       if (volumeBuffer) {
@@ -1064,18 +1141,41 @@ export const fillSoundBuffer = (
     pitchAccel += pitchJerk;
     pitchSpeed += pitchAccel;
     pitchOffset += pitchSpeed;
+
     lowpassCutoff += lowpassCutoffDelta;
+
     highpassCutoff += highpassCutoffDelta;
-    vibratoStrength += vibratoStrengthDelta;
-    vibratoRate += vibratoRateDelta;
+
     distortionEdge += distortionEdgeDelta;
     distortionGrit += distortionGritDelta;
-    tremoloStrength += tremoloStrengthDelta;
-    tremoloRate += tremoloRateDelta;
-    wahwahStrength += wahwahStrengthDelta;
-    wahwahRate += wahwahRateDelta;
+
     arpeggioRate += arpeggioRateDelta;
+
+    vibratoStrength = clamp(vibratoStrength + vibratoStrengthDelta, 0, 1);
+    const vibratoU = clamp(
+      Math.sqrt(vibratoRate) + vibratoRateDelta,
+      0,
+      VIBRATO_MAX_RATE,
+    );
+    vibratoRate = Math.pow(vibratoU, 2);
+
+    tremoloStrength = clamp(tremoloStrength + tremoloStrengthDelta, 0, 1);
+    const tremoloU = clamp(
+      Math.sqrt(Math.max(0, tremoloRate - MIN_RATE_FLOOR)) + tremoloRateDelta,
+      0,
+      TREMOLO_MAX_RATE,
+    );
+    tremoloRate = Math.pow(tremoloU, 2) + MIN_RATE_FLOOR;
+
+    wahwahStrength = clamp(wahwahStrength + wahwahStrengthDelta, 0, 1);
+    const wahwahU = clamp(
+      Math.sqrt(Math.max(0, wahwahRate - MIN_RATE_FLOOR)) + wahwahRateDelta,
+      0,
+      WAHWAH_MAX_RATE,
+    );
+    wahwahRate = Math.pow(wahwahU, 2) + MIN_RATE_FLOOR;
   }
+
   if (pitchRange) {
     if (minPitch < pitchRange[0]) {
       pitchRange[0] = minPitch;

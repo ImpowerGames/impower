@@ -48,7 +48,7 @@ export const default_synth: Create<Synth> = (obj) => ({
   },
   wahwah: {
     on: false,
-    rate: A[4],
+    rate: 5,
     rate_ramp: 0,
     strength: 0.5,
     strength_ramp: 0,

@@ -24,7 +24,7 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     attack: [0.001, 0, 1],
     decay: [0.001, 0, 1],
     sustain: [0.001, 0, 2],
-    release: [0.001, 0, 1],
+    release: [0.001, 0.001, 1],
     level: [0.01, 0, 1],
   },
   pitch: {
@@ -84,7 +84,7 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     shape: ["sine", "triangle", "sawtooth", "tangent", "square", "whitenoise"],
   },
   wahwah: {
-    rate: [1, 0, A[6]],
+    rate: [1, 0, A[2]],
     rate_ramp: [0.01, -1, 1],
     strength: [0.01, 0, 1],
     strength_ramp: [0.01, -1, 1],
