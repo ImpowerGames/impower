@@ -681,6 +681,7 @@ const getEnvelopeVolume = (
 export const PITCH_SEMITONES_MULTIPLIER = 160;
 
 export const ARPEGGIO_RATE_RAMP_MULTIPLIER = 20;
+export const ARPEGGIO_GLIDE_LENGTH = 101;
 
 export const VIBRATO_MIN_AMPLITUDE = 0;
 export const VIBRATO_MAX_AMPLITUDE = 2;
@@ -847,6 +848,8 @@ export const fillSoundBuffer = (
   let arpLengthLeft = 0;
   let arpNumNotesPlayed = -1;
   let arpFrequencyFactor = 1;
+  let arpTargetFrequencyFactor = 1;
+  let arpGlideSpeed = 0;
   let arpAmplitudeFactor = 1;
 
   let currentAngle = synth_phase;
@@ -886,13 +889,26 @@ export const fillSoundBuffer = (
       arpeggio_tones?.length > 0 &&
       arpNumNotesPlayed < arpeggio_max_notes - 1
     ) {
-      // Dynamic zero-crossing is simply when the phase rolls over to the next integer
       const isZeroCrossing =
         localIndex > 0 && Math.floor(currentAngle) > Math.floor(previousAngle);
 
       if (arpLengthLeft <= 0) {
         arpWaitingForZeroCrossing = true;
       }
+
+      // Advance glide toward target each sample
+      if (arpGlideSpeed > 0) {
+        arpFrequencyFactor = Math.min(
+          arpTargetFrequencyFactor,
+          arpFrequencyFactor + arpGlideSpeed,
+        );
+      } else if (arpGlideSpeed < 0) {
+        arpFrequencyFactor = Math.max(
+          arpTargetFrequencyFactor,
+          arpFrequencyFactor + arpGlideSpeed,
+        );
+      }
+      samplePitch = baseSampleFrequency * arpFrequencyFactor;
 
       if (
         arpWaitingForZeroCrossing &&
@@ -936,20 +952,29 @@ export const fillSoundBuffer = (
 
         const arpSemitones = arpOctaveSemitones + arpNoteSemitones;
         const secondsPerNote = 1 / arpeggioRate;
-        const samplesPerNote = sampleRate * secondsPerNote;
 
-        arpFrequencyFactor = convertSemitonesToFrequencyFactor(arpSemitones);
-        arpLengthLeft = Math.round(samplesPerNote);
+        arpTargetFrequencyFactor =
+          convertSemitonesToFrequencyFactor(arpSemitones);
 
-        // Update samplePitch immediately for the phase snap
-        samplePitch = baseSampleFrequency * arpFrequencyFactor;
+        if (arpNumNotesPlayed === 0) {
+          // First note: snap immediately
+          arpFrequencyFactor = arpTargetFrequencyFactor;
+          arpGlideSpeed = 0;
+          samplePitch = baseSampleFrequency * arpFrequencyFactor;
+        } else {
+          // Subsequent notes: glide to smooth out transition between notes
+          arpGlideSpeed =
+            (arpTargetFrequencyFactor - arpFrequencyFactor) /
+            ARPEGGIO_GLIDE_LENGTH;
+          // samplePitch stays at current value for this zero-crossing sample;
+          // glide begins from the next sample
+        }
 
-        // SNAP PHASE ACCUMULATOR
-        // Keep the integer cycles we've completed, but overwrite the fractional phase
+        arpLengthLeft = Math.round(sampleRate * secondsPerNote);
         currentAngle = Math.floor(currentAngle) + arpNotePhase;
       }
 
-      // Constantly evaluate current arpeggio shape
+      // Evaluate current arpeggio shape
       const activeNoteIndex = Math.max(0, arpNumNotesPlayed);
       const activeCycleIndex = getCycleIndex(
         activeNoteIndex,
@@ -967,7 +992,6 @@ export const fillSoundBuffer = (
           activeIsReversed,
         ) ?? synth_shape;
 
-      // Countdown duration to the target samplesPerNote
       if (!arpWaitingForZeroCrossing) {
         arpLengthLeft -= 1;
       }
