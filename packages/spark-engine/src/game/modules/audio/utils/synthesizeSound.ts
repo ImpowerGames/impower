@@ -85,6 +85,7 @@ export interface Synth {
 }
 
 export interface OscillatorState {
+  angle?: number;
   prevPhase?: number;
   prevRandom?: number;
   b?: [number, number, number, number, number, number, number];
@@ -262,12 +263,16 @@ export const OSCILLATORS: Record<
   pinknoise,
 };
 
-export const lerp = (t: number, a: number, b: number): number => {
-  if (t <= 0) {
-    return a;
+export const lerp = (
+  t: number,
+  a: number,
+  b: number,
+  clampValue: boolean,
+): number => {
+  if (clampValue) {
+    t = clamp(t, 0, 1);
   }
-  const p = t > 1 ? t - Math.floor(t) : t;
-  return a * (1 - p) + b * p;
+  return a * (1 - t) + b * t;
 };
 
 export const unlerp = (value: number, min: number, max: number) => {
@@ -406,7 +411,7 @@ export const roundToNearestMultiple = (n: number, period: number): number => {
 
 export const normalizeOsc = (mod: number, min: number, max: number) => {
   const p = unlerp(mod, -1, 1);
-  return lerp(p, min, max);
+  return lerp(p, min, max, false);
 };
 
 export const getCycleIndex = (
@@ -462,15 +467,25 @@ export const getDeltaPerSample = (
 
 export const modulate = (
   sampleRate: number,
-  localIndex: number,
   shape: OscillatorType,
   hertz: number,
   amplitude: number,
   state: OscillatorState,
 ): number => {
-  const angle = (localIndex / sampleRate) * hertz;
+  if (state.angle === undefined) {
+    state.angle = 0;
+  }
+
+  // Calculate how much the angle should move this sample
+  const clampedHertz = Math.max(0, hertz);
+  const phaseDelta = clampedHertz / sampleRate;
+
+  // Accumulate the angle
+  state.angle += phaseDelta;
+
   const oscillator = OSCILLATORS?.[shape] || OSCILLATORS.sine;
-  return oscillator(angle, state) * amplitude;
+  const clampedAmplitude = Math.max(0, amplitude);
+  return oscillator(state.angle, state) * clampedAmplitude;
 };
 
 export const filter = (
@@ -482,7 +497,7 @@ export const filter = (
   output: [number, number, number],
 ): number => {
   const min = Math.sqrt(2);
-  const r = lerp(resonance, min, min * 2);
+  const r = lerp(resonance, min, min * 2, true);
   const c = 1 / Math.tan((Math.PI * cutoff) / sampleRate);
   const a1 = 1 / (1 + r * c + c * c);
   const a2 = 2 * a1;
@@ -589,31 +604,31 @@ const getEnvelopeVolume = (
     // delay
     const delayP =
       (localIndex - delayStartIndex) / (delayEndIndex - delayStartIndex);
-    return lerp(delayP, delayStartVolume, delayEndVolume);
+    return lerp(delayP, delayStartVolume, delayEndVolume, true);
   }
   if (localIndex < attackEndIndex) {
     // attack
     const attackP =
       (localIndex - attackStartIndex) / (attackEndIndex - attackStartIndex);
-    return lerp(attackP, attackStartVolume, attackEndVolume);
+    return lerp(attackP, attackStartVolume, attackEndVolume, true);
   }
   if (localIndex < decayEndIndex) {
     // decay
     const decayP =
       (localIndex - decayStartIndex) / (decayEndIndex - decayStartIndex);
-    return lerp(decayP, decayStartVolume, decayEndVolume);
+    return lerp(decayP, decayStartVolume, decayEndVolume, true);
   }
   if (localIndex < sustainEndIndex) {
     // sustain
     const sustainP =
       (localIndex - sustainStartIndex) / (sustainEndIndex - sustainStartIndex);
-    return lerp(sustainP, sustainStartVolume, sustainEndVolume);
+    return lerp(sustainP, sustainStartVolume, sustainEndVolume, true);
   }
   if (localIndex < releaseEndIndex) {
     // release
     const releaseP =
       (localIndex - releaseStartIndex) / (releaseEndIndex - releaseStartIndex);
-    return lerp(releaseP, releaseStartVolume, releaseEndVolume);
+    return lerp(releaseP, releaseStartVolume, releaseEndVolume, true);
   }
   // after release
   return 0;
@@ -630,6 +645,8 @@ const VIBRATO_MAX = 1;
 const DISTORTION_GRIT_MIN = 1;
 const DISTORTION_GRIT_MAX = 2;
 const DISTORTION_EDGE_MULTIPLIER = 7;
+const PITCH_FREQ_RAMP_MULTIPLIER = 5000;
+const MODULATOR_RATE_RAMP_MULTIPLIER = 25;
 
 export const fillSoundBuffer = (
   synth: Synth,
@@ -703,15 +720,16 @@ export const fillSoundBuffer = (
     arpeggio_phases?.length ?? 0,
   );
 
-  let freqAccelDelta = getDeltaPerSample(
-    synth.pitch.frequency_torque,
-    sampleRate,
-  );
-  let freqJerkDelta = getDeltaPerSample(synth.pitch.frequency_jerk, sampleRate);
-  let pitchFreqDelta = getDeltaPerSample(
-    synth.pitch.frequency_ramp,
-    sampleRate,
-  );
+  // Speed (Hz / s) -> (Hz / sample)
+  const freqRamp = synth.pitch.frequency_ramp * PITCH_FREQ_RAMP_MULTIPLIER;
+  let freqSpeedPerSample = freqRamp / sampleRate;
+  // Acceleration (Hz / s / s) -> (Hz / sample / sample)
+  const freqTorque = synth.pitch.frequency_torque * PITCH_FREQ_RAMP_MULTIPLIER;
+  let freqAccelPerSample = freqTorque / (sampleRate * sampleRate);
+  // Jerk (Hz / s / s / s) -> (Hz / sample / sample / sample)
+  const freqJerk = synth.pitch.frequency_jerk * PITCH_FREQ_RAMP_MULTIPLIER;
+  let freqJerkPerSample = freqJerk / (sampleRate * sampleRate * sampleRate);
+
   const lowpassCutoffDelta = getDeltaPerSample(
     synth.lowpass.cutoff_ramp,
     sampleRate,
@@ -720,10 +738,9 @@ export const fillSoundBuffer = (
     synth.highpass.cutoff_ramp,
     sampleRate,
   );
-  const vibratoRateDelta = getDeltaPerSample(
-    synth.vibrato.rate_ramp,
-    sampleRate,
-  );
+  const vibratoRateRamp =
+    synth.vibrato.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
+  const vibratoRateDelta = getDeltaPerSample(vibratoRateRamp, sampleRate);
   const vibratoStrengthDelta = getDeltaPerSample(
     synth.vibrato.strength_ramp,
     sampleRate,
@@ -736,23 +753,23 @@ export const fillSoundBuffer = (
     synth.distortion.edge_ramp,
     sampleRate,
   );
-  const tremoloRateDelta = getDeltaPerSample(
-    synth.tremolo.rate_ramp,
-    sampleRate,
-  );
+  const tremoloRateRamp =
+    synth.tremolo.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
+  const tremoloRateDelta = getDeltaPerSample(tremoloRateRamp, sampleRate);
   const tremoloStrengthDelta = getDeltaPerSample(
     synth.tremolo.strength_ramp,
     sampleRate,
   );
-  const wahwahRateDelta = getDeltaPerSample(synth.wahwah.rate_ramp, sampleRate);
+  const wahwahRateRamp =
+    synth.wahwah.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
+  const wahwahRateDelta = getDeltaPerSample(wahwahRateRamp, sampleRate);
   const wahwahStrengthDelta = getDeltaPerSample(
     synth.wahwah.strength_ramp,
     sampleRate,
   );
-  const arpeggioRateDelta = getDeltaPerSample(
-    synth.arpeggio.rate_ramp,
-    sampleRate,
-  );
+  const arpeggioRateRamp =
+    synth.arpeggio.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
+  const arpeggioRateDelta = getDeltaPerSample(arpeggioRateRamp, sampleRate);
 
   let minPitch = Number.MAX_SAFE_INTEGER;
   let maxPitch = 0;
@@ -774,94 +791,42 @@ export const fillSoundBuffer = (
   let arpFrequencyFactor = 1;
   let arpAmplitudeFactor = 1;
 
-  const fundamentalFrequency =
-    typeof pitch_freq === "number" ? pitch_freq : (pitch_freq[startIndex] ?? 0);
-
-  const fundamentalPeriodLength = sampleRate / fundamentalFrequency;
-  const startPhaseOffset = synth_phase * fundamentalPeriodLength;
-
-  let arpPhaseOffset = 0;
-  let previousAngle = 0;
+  let currentAngle = synth_phase;
+  let previousAngle = currentAngle;
   let arpWaitingForZeroCrossing = false;
+
+  const MIN_FREQ = 0;
+  const MAX_FREQ = 44100 / 8;
 
   // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
     const masterVolume =
       typeof nodeGain === "number" ? nodeGain : (nodeGain?.[i] ?? 1);
-    const pitchFreqFactor = convertSemitonesToFrequencyFactor(
-      pitchFreqOffset * 10,
+
+    const baseSampleFrequency = clamp(
+      (typeof pitch_freq === "number" ? pitch_freq : (pitch_freq[i] ?? 0)) +
+        pitchFreqOffset,
+      MIN_FREQ,
+      MAX_FREQ,
     );
-    const sampleFrequency =
-      (typeof pitch_freq === "number" ? pitch_freq : (pitch_freq[i] ?? 0)) *
-      pitchFreqFactor;
 
     let sampleShape = synth_shape;
     let sampleResonance = lowpass_resonance;
 
     const localIndex = i - startIndex;
 
-    let baseSamplePitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
-    let samplePitch = baseSamplePitch;
+    let samplePitch = baseSampleFrequency * arpFrequencyFactor;
     let periodLength = samplePitch > 0 ? sampleRate / samplePitch : 0;
-
-    // Vibrato Effect
-    let vibratoMultiplier = 1;
-    if (vibrato_on && vibratoRate > 0 && vibratoStrength > 0) {
-      const vibratoMod = modulate(
-        sampleRate,
-        localIndex,
-        vibrato_shape,
-        vibratoRate,
-        vibratoStrength,
-        currentState.vibratoState,
-      );
-      vibratoMultiplier = normalizeOsc(vibratoMod, VIBRATO_MIN, VIBRATO_MAX);
-      samplePitch *= vibratoMultiplier;
-    }
-
-    // Distortion Grit Effect (Square Width)
-    let distortionPhaseOffset = 0;
-    const noteTime = localIndex - startPhaseOffset - arpPhaseOffset;
-    if (distortion_on && distortionGrit > 0 && periodLength > 0) {
-      const doublePeriod = periodLength * 2;
-      let phase = noteTime % doublePeriod;
-      if (phase < 0) phase += doublePeriod;
-      const shortDistortionMod = lerp(
-        distortionGrit,
-        DISTORTION_GRIT_MIN,
-        DISTORTION_GRIT_MAX,
-      );
-      const shortBlockLength = periodLength / shortDistortionMod;
-      const longDistortionMod = 2 - 1 / shortDistortionMod;
-      const cycleIndex = Math.floor(noteTime / doublePeriod);
-      if (phase < shortBlockLength) {
-        // Short Block
-        distortionPhaseOffset = cycleIndex * doublePeriod;
-        samplePitch *= shortDistortionMod;
-      } else {
-        // Long Block
-        distortionPhaseOffset = cycleIndex * doublePeriod + shortBlockLength;
-        samplePitch /= longDistortionMod;
-      }
-    }
 
     // Arpeggio Effect
     if (
       arpeggio_on &&
-      arpeggioRate > 0 &&
       arpeggio_tones?.length > 0 &&
       arpNumNotesPlayed < arpeggio_max_notes - 1
     ) {
-      // Determine the provisional angle of the old note to correctly detect dynamic zero-crossings
-      const phaseIndexForCrossing =
-        localIndex - startPhaseOffset - distortionPhaseOffset - arpPhaseOffset;
-      const provisionalAngle =
-        (phaseIndexForCrossing / sampleRate) * samplePitch;
-      // The angle wraps around to 0 when distortion is active, so we must check for both integer crossings and phase wraps
+      // Dynamic zero-crossing is simply when the phase rolls over to the next integer
       const isZeroCrossing =
-        localIndex > 0 &&
-        (Math.floor(provisionalAngle) > Math.floor(previousAngle) ||
-          provisionalAngle < previousAngle - 0.5);
+        localIndex > 0 && Math.floor(currentAngle) > Math.floor(previousAngle);
 
       if (arpLengthLeft <= 0) {
         arpWaitingForZeroCrossing = true;
@@ -906,59 +871,20 @@ export const fillSoundBuffer = (
             arpNumNotesPlayed,
             isReversed,
           ) ?? 0;
+
         const arpSemitones = arpOctaveSemitones + arpNoteSemitones;
         const secondsPerNote = 1 / arpeggioRate;
         const samplesPerNote = sampleRate * secondsPerNote;
 
         arpFrequencyFactor = convertSemitonesToFrequencyFactor(arpSemitones);
+        arpLengthLeft = Math.round(samplesPerNote);
 
-        // Wait precisely samplesPerNote, after which we will look for a dynamic zero crossing
-        arpLengthLeft =
-          Math.round(samplesPerNote) +
-          (arpNumNotesPlayed === 0 ? startPhaseOffset : 0);
+        // Update samplePitch immediately for the phase snap
+        samplePitch = baseSampleFrequency * arpFrequencyFactor;
 
-        // Ensure new offsets accommodate vibrato AND distortion grit smoothly
-        const newBasePitch = Math.max(0, sampleFrequency) * arpFrequencyFactor;
-        const newPeriodLength =
-          newBasePitch > 0 ? sampleRate / newBasePitch : 0;
-        const arpNotePhaseSamples = arpNotePhase * newPeriodLength;
-
-        // Reset the note time so distortion grit and phase align perfectly with the start of the new note!
-        arpPhaseOffset = localIndex - startPhaseOffset - arpNotePhaseSamples;
-
-        // Update parameters for this frame immediately to avoid single-sample crackles
-        periodLength = newPeriodLength;
-        samplePitch = newBasePitch;
-
-        let newDistortionPhaseOffset = 0;
-
-        // Apply Distortion Grit to note
-        if (distortion_on && distortionGrit > 0 && periodLength > 0) {
-          const doublePeriod = periodLength * 2;
-          let phase = arpNotePhaseSamples % doublePeriod;
-          if (phase < 0) phase += doublePeriod;
-          const shortDistortionMod = lerp(
-            distortionGrit,
-            DISTORTION_GRIT_MIN,
-            DISTORTION_GRIT_MAX,
-          );
-          const shortBlockLength = periodLength / shortDistortionMod;
-          const longDistortionMod = 2 - 1 / shortDistortionMod;
-          const cycleIndex = Math.floor(arpNotePhaseSamples / doublePeriod);
-          if (phase < shortBlockLength) {
-            newDistortionPhaseOffset = cycleIndex * doublePeriod;
-            samplePitch *= shortDistortionMod;
-          } else {
-            newDistortionPhaseOffset =
-              cycleIndex * doublePeriod + shortBlockLength;
-            samplePitch /= longDistortionMod;
-          }
-        }
-
-        distortionPhaseOffset = newDistortionPhaseOffset;
-
-        // Apply Vibrato to note
-        samplePitch *= vibratoMultiplier;
+        // SNAP PHASE ACCUMULATOR
+        // Keep the integer cycles we've completed, but overwrite the fractional phase
+        currentAngle = Math.floor(currentAngle) + arpNotePhase;
       }
 
       // Constantly evaluate current arpeggio shape
@@ -985,6 +911,41 @@ export const fillSoundBuffer = (
       }
     }
 
+    // Distortion Grit Effect (Square Width)
+    if (distortion_on && distortionGrit > 0 && periodLength > 0) {
+      // Check where we are precisely in a 2-cycle loop
+      const doubleCyclePhase = currentAngle % 2.0;
+
+      const shortDistortionMod = lerp(
+        distortionGrit,
+        DISTORTION_GRIT_MIN,
+        DISTORTION_GRIT_MAX,
+        true,
+      );
+      const longDistortionMod = 2 - 1 / shortDistortionMod;
+
+      // Because currentAngle equals exact cycles, < 1.0 is exactly the first wave!
+      if (doubleCyclePhase < 1.0) {
+        samplePitch *= shortDistortionMod; // Fast cycle
+      } else {
+        samplePitch /= longDistortionMod; // Slow cycle
+      }
+    }
+
+    // Vibrato Effect
+    let vibratoMultiplier = 1;
+    if (vibrato_on) {
+      const vibratoMod = modulate(
+        sampleRate,
+        vibrato_shape,
+        vibratoRate,
+        vibratoStrength,
+        currentState.vibratoState,
+      );
+      vibratoMultiplier = normalizeOsc(vibratoMod, VIBRATO_MIN, VIBRATO_MAX);
+      samplePitch *= vibratoMultiplier;
+    }
+
     if (pitchBuffer) {
       if (samplePitch > maxPitch) {
         maxPitch = samplePitch;
@@ -996,15 +957,11 @@ export const fillSoundBuffer = (
     }
 
     // Base Waveform
-    const phaseIndex =
-      localIndex - startPhaseOffset - distortionPhaseOffset - arpPhaseOffset;
-    const angle = (phaseIndex / sampleRate) * samplePitch;
-
-    // Save current angle to check next iteration's zero crossing boundary reliably
-    previousAngle = angle;
+    previousAngle = currentAngle;
+    currentAngle += samplePitch / sampleRate;
 
     const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
-    let sampleValue = oscillator(angle, currentState.waveState);
+    let sampleValue = oscillator(currentAngle, currentState.waveState);
 
     // Distortion Edge Effect ("Square"-ness)
     if (distortion_on && distortionEdge > 0) {
@@ -1020,10 +977,9 @@ export const fillSoundBuffer = (
     let activeCutoff = lowpassCutoff;
 
     // Wah-Wah Effect
-    if (wahwah_on && wahwahRate > 0 && wahwahStrength > 0) {
+    if (wahwah_on) {
       const wahMod = modulate(
         sampleRate,
-        localIndex,
         wahwah_shape,
         wahwahRate,
         wahwahStrength,
@@ -1082,10 +1038,9 @@ export const fillSoundBuffer = (
     }
 
     // Tremolo Effect
-    if (tremolo_on && tremoloRate > 0 && tremoloStrength > 0) {
+    if (tremolo_on) {
       const tremoloMod = modulate(
         sampleRate,
-        localIndex,
         tremolo_shape,
         tremoloRate,
         tremoloStrength,
@@ -1116,9 +1071,9 @@ export const fillSoundBuffer = (
     soundBuffer[i] = (soundBuffer[i] ?? 0) + sampleValue;
 
     // Ramp values
-    freqAccelDelta += freqJerkDelta;
-    pitchFreqDelta += freqAccelDelta;
-    pitchFreqOffset += pitchFreqDelta;
+    freqAccelPerSample += freqJerkPerSample;
+    freqSpeedPerSample += freqAccelPerSample;
+    pitchFreqOffset += freqSpeedPerSample;
     lowpassCutoff += lowpassCutoffDelta;
     highpassCutoff += highpassCutoffDelta;
     vibratoStrength += vibratoStrengthDelta;
