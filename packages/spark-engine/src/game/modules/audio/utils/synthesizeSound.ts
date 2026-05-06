@@ -67,6 +67,7 @@ export interface Synth {
     rate_ramp: number;
     max_octaves: number;
     max_notes: number;
+    glide: number;
     direction: "up" | "down" | "down-up" | "up-down";
     tones: number[];
     levels: number[];
@@ -545,9 +546,9 @@ export const choose = <T>(
   activeIndex: number,
   isReversed: boolean,
 ): T | undefined => {
-  const index = isReversed
-    ? (choicesLength - 1 - activeIndex) % choicesLength
-    : activeIndex % choicesLength;
+  const wrappedIndex =
+    ((activeIndex % choicesLength) + choicesLength) % choicesLength;
+  const index = isReversed ? choicesLength - 1 - wrappedIndex : wrappedIndex;
   return choices?.[index];
 };
 
@@ -681,7 +682,6 @@ const getEnvelopeVolume = (
 export const PITCH_SEMITONES_MULTIPLIER = 160;
 
 export const ARPEGGIO_RATE_RAMP_MULTIPLIER = 20;
-export const ARPEGGIO_GLIDE_LENGTH = 101;
 
 export const VIBRATO_MIN_AMPLITUDE = 0;
 export const VIBRATO_MAX_AMPLITUDE = 2;
@@ -767,6 +767,7 @@ export const fillSoundBuffer = (
   const arpeggio_rate = synth.arpeggio.rate;
   const arpeggio_max_octaves = synth.arpeggio.max_octaves;
   const arpeggio_max_notes = synth.arpeggio.max_notes;
+  const arpeggio_glide = synth.arpeggio.glide;
   const arpeggio_tones = synth.arpeggio.tones;
   const arpeggio_shapes = synth.arpeggio.shapes;
   const arpeggio_levels = synth.arpeggio.levels;
@@ -779,6 +780,8 @@ export const fillSoundBuffer = (
     arpeggio_levels?.length ?? 0,
     arpeggio_phases?.length ?? 0,
   );
+
+  const arpeggioGlideLength = arpeggio_glide * sampleRate;
 
   // Speed (Hz / s) -> (Hz / sample)
   const freqRamp = synth.pitch.frequency_ramp;
@@ -956,7 +959,7 @@ export const fillSoundBuffer = (
         arpTargetFrequencyFactor =
           convertSemitonesToFrequencyFactor(arpSemitones);
 
-        if (arpNumNotesPlayed === 0) {
+        if (arpNumNotesPlayed === 0 || arpeggioGlideLength === 0) {
           // First note: snap immediately
           arpFrequencyFactor = arpTargetFrequencyFactor;
           arpGlideSpeed = 0;
@@ -965,7 +968,7 @@ export const fillSoundBuffer = (
           // Subsequent notes: glide to smooth out transition between notes
           arpGlideSpeed =
             (arpTargetFrequencyFactor - arpFrequencyFactor) /
-            ARPEGGIO_GLIDE_LENGTH;
+            arpeggioGlideLength;
           // samplePitch stays at current value for this zero-crossing sample;
           // glide begins from the next sample
         }

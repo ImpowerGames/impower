@@ -56,6 +56,7 @@ export interface Synth extends Reference<"synth"> {
     rate_ramp: number;
     max_octaves: number;
     max_notes: number;
+    glide: number;
     direction: Direction;
     tones: number[];
     levels: number[];

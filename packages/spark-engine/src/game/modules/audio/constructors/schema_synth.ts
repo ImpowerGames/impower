@@ -49,10 +49,11 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     grit_ramp: [0.01, -1, 1],
   },
   arpeggio: {
-    rate: [1, 0, 1000],
+    rate: [1, 0, 100],
     rate_ramp: [0.01, -1, 1],
-    max_octaves: [1, 0, 10],
+    max_octaves: [1, 1, 10],
     max_notes: [1, 0, 1000],
+    glide: [0.001, 0, 0.1],
     direction: ["up", "down", "up-down", "down-up"],
     shapes: [
       "sine",

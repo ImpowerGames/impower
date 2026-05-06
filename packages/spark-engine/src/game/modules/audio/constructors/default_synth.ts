@@ -87,6 +87,7 @@ export const default_synth: Create<Synth> = (obj) => ({
     rate_ramp: 0,
     max_octaves: 1,
     max_notes: 160,
+    glide: 0,
     direction: "up",
     tones: [0, 4, 7],
     levels: [],
