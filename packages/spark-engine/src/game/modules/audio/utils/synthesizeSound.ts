@@ -84,12 +84,58 @@ export interface Synth {
   };
 }
 
-export interface OscillatorState {
+export class OscillatorState {
   angle?: number;
   prevPhase?: number;
   prevRandom?: number;
   b?: [number, number, number, number, number, number, number];
   rng?: () => number;
+
+  constructor(rng: () => number) {
+    this.rng = rng;
+  }
+}
+
+export class ModulatorState extends OscillatorState {
+  oscillators?: Record<
+    OscillatorType,
+    (t: number, state?: OscillatorState) => number
+  >;
+
+  constructor(
+    rng: () => number,
+    oscillators?: Record<
+      OscillatorType,
+      (t: number, state?: OscillatorState) => number
+    >,
+  ) {
+    super(rng);
+    this.oscillators = oscillators;
+  }
+
+  process(
+    sampleRate: number,
+    shape: OscillatorType,
+    hertz: number,
+    amplitude: number,
+  ): number {
+    if (!this.oscillators) {
+      return 0;
+    }
+
+    this.angle ??= 0;
+
+    // Calculate how much the angle should move this sample
+    const clampedHertz = Math.max(0, hertz);
+    const phaseDelta = clampedHertz / sampleRate;
+
+    // Accumulate the angle
+    this.angle += phaseDelta;
+
+    const oscillator = this.oscillators[shape] || this.oscillators["sine"];
+    const clampedAmplitude = Math.max(0, amplitude);
+    return oscillator(this.angle, this) * clampedAmplitude;
+  }
 }
 
 export const PI2 = 2 * Math.PI;
@@ -165,12 +211,7 @@ export const randomizer = (seed: number): (() => number) => {
 
 const rng = randomizer(0);
 
-const whiteState: OscillatorState = {
-  prevPhase: 0,
-  prevRandom: 0,
-  b: [0, 0, 0, 0, 0, 0, 0],
-  rng,
-};
+const whiteState = new OscillatorState(rng);
 
 const whitenoise = (x: number, state?: OscillatorState): number => {
   const s = state || whiteState;
@@ -184,12 +225,7 @@ const whitenoise = (x: number, state?: OscillatorState): number => {
   return value;
 };
 
-const pinkState: OscillatorState = {
-  prevPhase: 0,
-  prevRandom: 0,
-  b: [0, 0, 0, 0, 0, 0, 0],
-  rng,
-};
+const pinkState = new OscillatorState(rng);
 
 const pinknoise = (x: number, state?: OscillatorState): number => {
   const s = state || pinkState;
@@ -226,12 +262,7 @@ const pinknoise = (x: number, state?: OscillatorState): number => {
   return value;
 };
 
-const brownState: OscillatorState = {
-  prevPhase: 0,
-  prevRandom: 0,
-  b: [0, 0, 0, 0, 0, 0, 0],
-  rng,
-};
+const brownState = new OscillatorState(rng);
 
 const brownnoise = (x: number, state?: OscillatorState): number => {
   const s = state || brownState;
@@ -360,50 +391,70 @@ class ReverbState {
   }
 }
 
-export interface SynthesisState {
-  waveState: OscillatorState;
-  vibratoState: OscillatorState;
-  tremoloState: OscillatorState;
-  wahwahState: OscillatorState;
-  reverbState: ReverbState;
-  lowpassInput: [number, number];
-  lowpassOutput: [number, number, number];
-  highpassInput: [number, number];
-  highpassOutput: [number, number, number];
+class PassFilterState {
+  input: [number, number] = [0, 0];
+  output: [number, number, number] = [0, 0, 0];
+
+  constructor() {}
+
+  process(
+    sampleRate: number,
+    value: number,
+    cutoff: number,
+    resonance: number,
+  ): number {
+    if (cutoff <= 0) {
+      cutoff = Number.EPSILON;
+    }
+    const min = Math.sqrt(2);
+    const r = lerp(resonance, min, min * 2, true);
+    const c = 1 / Math.tan((Math.PI * cutoff) / sampleRate);
+    const a1 = 1 / (1 + r * c + c * c);
+    const a2 = 2 * a1;
+    const a3 = a1;
+    const b1 = 2 * (1 - c * c) * a1;
+    const b2 = (1 - r * c + c * c) * a1;
+    const newOutput =
+      a1 * value +
+      a2 * this.input[0] +
+      a3 * this.input[1] -
+      b1 * this.output[0] -
+      b2 * this.output[1];
+    this.input[1] = this.input[0];
+    this.input[0] = value;
+    this.output[2] = this.output[1];
+    this.output[1] = this.output[0];
+    this.output[0] = newOutput;
+    return newOutput;
+  }
 }
 
-export const createSynthesisState = (
-  sampleRate: number,
-  rng: () => number,
-): SynthesisState => {
-  const waveState: OscillatorState = {
-    rng,
-  };
-  const vibratoState: OscillatorState = {
-    rng,
-  };
-  const tremoloState: OscillatorState = {
-    rng,
-  };
-  const wahwahState: OscillatorState = {
-    rng,
-  };
-  const lowpassInput: [number, number] = [0, 0];
-  const lowpassOutput: [number, number, number] = [0, 0, 0];
-  const highpassInput: [number, number] = [0, 0];
-  const highpassOutput: [number, number, number] = [0, 0, 0];
-  return {
-    waveState,
-    vibratoState,
-    tremoloState,
-    wahwahState,
-    lowpassInput,
-    lowpassOutput,
-    highpassInput,
-    highpassOutput,
-    reverbState: new ReverbState(sampleRate),
-  };
-};
+export class SynthesisState {
+  waveState: ModulatorState;
+  vibratoState: ModulatorState;
+  tremoloState: ModulatorState;
+  wahwahState: ModulatorState;
+  reverbState: ReverbState;
+  lowpassState: PassFilterState;
+  highpassState: PassFilterState;
+
+  constructor(
+    sampleRate: number,
+    rng: () => number,
+    oscillators?: Record<
+      OscillatorType,
+      (t: number, state?: OscillatorState) => number
+    >,
+  ) {
+    this.waveState = new ModulatorState(rng, oscillators);
+    this.vibratoState = new ModulatorState(rng, oscillators);
+    this.tremoloState = new ModulatorState(rng, oscillators);
+    this.wahwahState = new ModulatorState(rng, oscillators);
+    this.lowpassState = new PassFilterState();
+    this.highpassState = new PassFilterState();
+    this.reverbState = new ReverbState(sampleRate);
+  }
+}
 
 export const roundToNearestMultiple = (n: number, period: number): number => {
   return Math.floor(n / period) * period;
@@ -463,62 +514,6 @@ export const getDeltaPerSample = (
   }
   const thingsPerSample = thingsPerSecond / samplesPerSecond;
   return thingsPerSample;
-};
-
-export const modulate = (
-  sampleRate: number,
-  shape: OscillatorType,
-  hertz: number,
-  amplitude: number,
-  state: OscillatorState,
-): number => {
-  if (state.angle === undefined) {
-    state.angle = 0;
-  }
-
-  // Calculate how much the angle should move this sample
-  const clampedHertz = Math.max(0, hertz);
-  const phaseDelta = clampedHertz / sampleRate;
-
-  // Accumulate the angle
-  state.angle += phaseDelta;
-
-  const oscillator = OSCILLATORS?.[shape] || OSCILLATORS.sine;
-  const clampedAmplitude = Math.max(0, amplitude);
-  return oscillator(state.angle, state) * clampedAmplitude;
-};
-
-export const filter = (
-  sampleRate: number,
-  value: number,
-  cutoff: number,
-  resonance: number,
-  input: [number, number],
-  output: [number, number, number],
-): number => {
-  if (cutoff <= 0) {
-    cutoff = Number.EPSILON;
-  }
-  const min = Math.sqrt(2);
-  const r = lerp(resonance, min, min * 2, true);
-  const c = 1 / Math.tan((Math.PI * cutoff) / sampleRate);
-  const a1 = 1 / (1 + r * c + c * c);
-  const a2 = 2 * a1;
-  const a3 = a1;
-  const b1 = 2 * (1 - c * c) * a1;
-  const b2 = (1 - r * c + c * c) * a1;
-  const newOutput =
-    a1 * value +
-    a2 * input[0] +
-    a3 * input[1] -
-    b1 * output[0] -
-    b2 * output[1];
-  input[1] = input[0];
-  input[0] = value;
-  output[2] = output[1];
-  output[1] = output[0];
-  output[0] = newOutput;
-  return newOutput;
 };
 
 const getEnvelopeVolume = (
@@ -637,19 +632,18 @@ const getEnvelopeVolume = (
   return 0;
 };
 
-const WAHWAH_MIN_RESONANCE = 4000;
-const WAHWAH_MIN_CUTOFF = 0.6;
-const WAHWAH_MIN = 0;
-const WAHWAH_MAX = 1;
-const TREMOLO_MIN = 0;
-const TREMOLO_MAX = 1.5;
-const VIBRATO_MIN = 0.5;
-const VIBRATO_MAX = 1;
-const DISTORTION_GRIT_MIN = 1;
-const DISTORTION_GRIT_MAX = 2;
-const DISTORTION_EDGE_MULTIPLIER = 7;
-const PITCH_FREQ_RAMP_MULTIPLIER = 5000;
-const MODULATOR_RATE_RAMP_MULTIPLIER = 25;
+export const WAHWAH_MIN_RESONANCE = 4000;
+export const WAHWAH_MIN_CUTOFF = 0.6;
+export const WAHWAH_MIN = 0;
+export const WAHWAH_MAX = 1;
+export const TREMOLO_MIN = 0;
+export const TREMOLO_MAX = 1.5;
+export const VIBRATO_MIN = 0.5;
+export const VIBRATO_MAX = 1;
+export const DISTORTION_GRIT_MIN = 1;
+export const DISTORTION_GRIT_MAX = 2;
+export const DISTORTION_EDGE_MULTIPLIER = 7;
+export const PITCH_SEMITONES_MULTIPLIER = 160;
 
 export const fillSoundBuffer = (
   synth: Synth,
@@ -724,25 +718,20 @@ export const fillSoundBuffer = (
   );
 
   // Speed (Hz / s) -> (Hz / sample)
-  const freqRamp = synth.pitch.frequency_ramp * PITCH_FREQ_RAMP_MULTIPLIER;
-  let freqSpeedPerSample = freqRamp / sampleRate;
-  // Acceleration (Hz / s / s) -> (Hz / sample / sample)
-  const freqTorque = synth.pitch.frequency_torque * PITCH_FREQ_RAMP_MULTIPLIER;
-  let freqAccelPerSample = freqTorque / (sampleRate * sampleRate);
-  // Jerk (Hz / s / s / s) -> (Hz / sample / sample / sample)
-  const freqJerk = synth.pitch.frequency_jerk * PITCH_FREQ_RAMP_MULTIPLIER;
-  let freqJerkPerSample = freqJerk / (sampleRate * sampleRate * sampleRate);
+  const freqRamp = synth.pitch.frequency_ramp;
+  let pitchSpeed = freqRamp / sampleRate;
+  const freqTorque = synth.pitch.frequency_torque;
+  let pitchAccel = freqTorque / (sampleRate * sampleRate);
+  const freqJerk = synth.pitch.frequency_jerk;
+  let pitchJerk = freqJerk / (sampleRate * sampleRate * sampleRate);
 
-  const lowpassCutoffRamp =
-    synth.lowpass.cutoff_ramp * PITCH_FREQ_RAMP_MULTIPLIER;
+  const lowpassCutoffRamp = synth.lowpass.cutoff_ramp;
   const lowpassCutoffDelta = getDeltaPerSample(lowpassCutoffRamp, sampleRate);
 
-  const highpassCutoffRamp =
-    synth.highpass.cutoff_ramp * PITCH_FREQ_RAMP_MULTIPLIER;
+  const highpassCutoffRamp = synth.highpass.cutoff_ramp;
   const highpassCutoffDelta = getDeltaPerSample(highpassCutoffRamp, sampleRate);
 
-  const vibratoRateRamp =
-    synth.vibrato.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
+  const vibratoRateRamp = synth.vibrato.rate_ramp;
   const vibratoRateDelta = getDeltaPerSample(vibratoRateRamp, sampleRate);
   const vibratoStrengthDelta = getDeltaPerSample(
     synth.vibrato.strength_ramp,
@@ -758,29 +747,26 @@ export const fillSoundBuffer = (
     sampleRate,
   );
 
-  const tremoloRateRamp =
-    synth.tremolo.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
+  const tremoloRateRamp = synth.tremolo.rate_ramp;
   const tremoloRateDelta = getDeltaPerSample(tremoloRateRamp, sampleRate);
   const tremoloStrengthDelta = getDeltaPerSample(
     synth.tremolo.strength_ramp,
     sampleRate,
   );
 
-  const wahwahRateRamp =
-    synth.wahwah.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
+  const wahwahRateRamp = synth.wahwah.rate_ramp;
   const wahwahRateDelta = getDeltaPerSample(wahwahRateRamp, sampleRate);
   const wahwahStrengthDelta = getDeltaPerSample(
     synth.wahwah.strength_ramp,
     sampleRate,
   );
 
-  const arpeggioRateRamp =
-    synth.arpeggio.rate_ramp * MODULATOR_RATE_RAMP_MULTIPLIER;
+  const arpeggioRateRamp = synth.arpeggio.rate_ramp;
   const arpeggioRateDelta = getDeltaPerSample(arpeggioRateRamp, sampleRate);
 
   let minPitch = Number.MAX_SAFE_INTEGER;
   let maxPitch = 0;
-  let pitchFreqOffset = 0;
+  let pitchOffset = 0;
   let lowpassCutoff = lowpass_cutoff;
   let highpassCutoff = highpass_cutoff;
   let vibratoRate = vibrato_rate;
@@ -803,16 +789,20 @@ export const fillSoundBuffer = (
   let arpWaitingForZeroCrossing = false;
 
   const MIN_FREQ = 0;
-  const MAX_FREQ = 44100 / 8;
+  const MAX_FREQ = sampleRate / 4;
 
   // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
     const masterVolume =
       typeof nodeGain === "number" ? nodeGain : (nodeGain?.[i] ?? 1);
 
+    const baseFreq =
+      typeof pitch_freq === "number" ? pitch_freq : (pitch_freq[i] ?? 0);
+    const pitchMultiplier = convertSemitonesToFrequencyFactor(
+      pitchOffset * PITCH_SEMITONES_MULTIPLIER,
+    );
     const baseSampleFrequency = clamp(
-      (typeof pitch_freq === "number" ? pitch_freq : (pitch_freq[i] ?? 0)) +
-        pitchFreqOffset,
+      baseFreq * pitchMultiplier,
       MIN_FREQ,
       MAX_FREQ,
     );
@@ -942,12 +932,11 @@ export const fillSoundBuffer = (
     // Vibrato Effect
     let vibratoMultiplier = 1;
     if (vibrato_on) {
-      const vibratoMod = modulate(
+      const vibratoMod = currentState.vibratoState.process(
         sampleRate,
         vibrato_shape,
         vibratoRate,
         vibratoStrength,
-        currentState.vibratoState,
       );
       vibratoMultiplier = normalizeOsc(vibratoMod, VIBRATO_MIN, VIBRATO_MAX);
       samplePitch *= vibratoMultiplier;
@@ -985,12 +974,11 @@ export const fillSoundBuffer = (
 
     // Wah-Wah Effect
     if (wahwah_on) {
-      const wahMod = modulate(
+      const wahMod = currentState.wahwahState.process(
         sampleRate,
         wahwah_shape,
         wahwahRate,
         wahwahStrength,
-        currentState.wahwahState,
       );
       const wahMultiplier = normalizeOsc(wahMod, WAHWAH_MIN, WAHWAH_MAX);
       activeCutoff =
@@ -1001,25 +989,21 @@ export const fillSoundBuffer = (
 
     // Lowpass Filter
     if (lowpass_on || wahwah_on) {
-      sampleValue = filter(
+      sampleValue = currentState.lowpassState.process(
         sampleRate,
         sampleValue,
         activeCutoff,
         sampleResonance,
-        currentState.lowpassInput,
-        currentState.lowpassOutput,
       );
     }
 
     // Highpass Filter
     if (highpass_on) {
-      sampleValue = filter(
+      sampleValue = currentState.highpassState.process(
         sampleRate,
         sampleValue,
         highpassCutoff,
         0,
-        currentState.highpassInput,
-        currentState.highpassOutput,
       );
     }
 
@@ -1046,12 +1030,11 @@ export const fillSoundBuffer = (
 
     // Tremolo Effect
     if (tremolo_on) {
-      const tremoloMod = modulate(
+      const tremoloMod = currentState.tremoloState.process(
         sampleRate,
         tremolo_shape,
         tremoloRate,
         tremoloStrength,
-        currentState.tremoloState,
       );
       const tremoloMultiplier = normalizeOsc(
         tremoloMod,
@@ -1078,9 +1061,9 @@ export const fillSoundBuffer = (
     soundBuffer[i] = (soundBuffer[i] ?? 0) + sampleValue;
 
     // Ramp values
-    freqAccelPerSample += freqJerkPerSample;
-    freqSpeedPerSample += freqAccelPerSample;
-    pitchFreqOffset += freqSpeedPerSample;
+    pitchAccel += pitchJerk;
+    pitchSpeed += pitchAccel;
+    pitchOffset += pitchSpeed;
     lowpassCutoff += lowpassCutoffDelta;
     highpassCutoff += highpassCutoffDelta;
     vibratoStrength += vibratoStrengthDelta;
@@ -1118,7 +1101,8 @@ export const synthesizeSound = (
   frequency?: number | Float32Array,
   currentState?: SynthesisState,
 ): void => {
-  const state = currentState ?? createSynthesisState(sampleRate, rng);
+  const state =
+    currentState ?? new SynthesisState(sampleRate, rng, OSCILLATORS);
 
   // Fundamental Wave
   fillSoundBuffer(
