@@ -65,6 +65,7 @@ export interface Synth extends Reference<"synth"> {
   };
   vibrato: Modulator;
   tremolo: Modulator;
+  ring: Modulator;
   wahwah: Modulator;
   reverb: {
     on: boolean;

@@ -76,6 +76,7 @@ export interface Synth {
   };
   vibrato: Modulator;
   tremolo: Modulator;
+  ring: Modulator;
   wahwah: Modulator;
   reverb: {
     on: boolean;
@@ -478,6 +479,7 @@ export class SynthesisState {
   waveState: ModulatorState;
   vibratoState: ModulatorState;
   tremoloState: ModulatorState;
+  ringState: ModulatorState;
   wahwahState: ModulatorState;
   wahwahBandpassState: BandpassFilterState;
   reverbState: ReverbState;
@@ -495,6 +497,7 @@ export class SynthesisState {
     this.waveState = new ModulatorState(rng, oscillators);
     this.vibratoState = new ModulatorState(rng, oscillators);
     this.tremoloState = new ModulatorState(rng, oscillators);
+    this.ringState = new ModulatorState(rng, oscillators);
     this.wahwahState = new ModulatorState(rng, oscillators);
     this.wahwahBandpassState = new BandpassFilterState();
     this.lowpassState = new PassFilterState();
@@ -692,21 +695,29 @@ export const TREMOLO_MIN_AMPLITUDE = 1;
 export const TREMOLO_MAX_AMPLITUDE = 3;
 export const TREMOLO_RATE_RAMP_MULTIPLIER = 6;
 export const TREMOLO_MAX_RATE = 6;
+export const TREMOLO_MIN_RATE_FLOOR = 0.1;
+
+export const RING_CARRIER_MIN = 1.5;
+export const RING_CARRIER_MAX = 0.5;
+export const RING_RATE_RAMP_MULTIPLIER = 80;
+export const RING_RATE_FLOOR = 20;
+export const RING_MAX_RATE = 80;
 
 export const WAHWAH_MIN_AMPLITUDE = 0.0;
 export const WAHWAH_MAX_AMPLITUDE = 2.0;
 export const WAHWAH_RATE_RAMP_MULTIPLIER = 5;
 export const WAHWAH_STRENGTH_MULTIPLIER = 0.75;
 export const WAHWAH_BANDWIDTH = 0.3;
+export const WAHWAH_LFO_COEFFICIENT = 15;
+export const WAHWAH_LFO_CONSTANT = 25;
 export const WAHWAH_COEFFICIENT = 1.5;
 export const WAHWAH_CONSTANT = 1.0;
 export const WAHWAH_MAX_RATE = 5;
+export const WAHWAH_MIN_RATE_FLOOR = 0.1;
 
 export const DISTORTION_GRIT_MIN = 1;
 export const DISTORTION_GRIT_MAX = 2;
 export const DISTORTION_EDGE_MULTIPLIER = 10;
-
-export const MIN_RATE_FLOOR = 0.1;
 
 export const fillSoundBuffer = (
   synth: Synth,
@@ -759,6 +770,10 @@ export const fillSoundBuffer = (
   const tremolo_shape = synth.tremolo.shape;
   const tremolo_strength = synth.tremolo.strength;
   const tremolo_rate = synth.tremolo.rate;
+  const ring_on = synth.ring.on;
+  const ring_shape = synth.ring.shape;
+  const ring_strength = synth.ring.strength;
+  const ring_rate = synth.ring.rate;
   const wahwah_on = synth.wahwah.on;
   const wahwah_shape = synth.wahwah.shape;
   const wahwah_strength = synth.wahwah.strength;
@@ -822,6 +837,13 @@ export const fillSoundBuffer = (
     sampleRate,
   );
 
+  const ringRateRamp = synth.ring.rate_ramp * RING_RATE_RAMP_MULTIPLIER;
+  const ringRateDelta = getDeltaPerSample(ringRateRamp, sampleRate);
+  const ringStrengthDelta = getDeltaPerSample(
+    synth.ring.strength_ramp,
+    sampleRate,
+  );
+
   const wahwahRateRamp = synth.wahwah.rate_ramp * WAHWAH_RATE_RAMP_MULTIPLIER;
   const wahwahRateDelta = getDeltaPerSample(wahwahRateRamp, sampleRate);
   const wahwahStrengthDelta = getDeltaPerSample(
@@ -844,6 +866,8 @@ export const fillSoundBuffer = (
   let distortionEdge = distortion_edge;
   let tremoloRate = tremolo_rate;
   let tremoloStrength = tremolo_strength;
+  let ringRate = ring_rate;
+  let ringStrength = ring_strength;
   let wahwahRate = wahwah_rate;
   let wahwahStrength = wahwah_strength;
   let arpeggioRate = arpeggio_rate;
@@ -1067,15 +1091,34 @@ export const fillSoundBuffer = (
 
     let activeCutoff = lowpassCutoff;
 
+    // Ring Effect
+    if (ring_on) {
+      const ringMod = currentState.ringState.process(
+        sampleRate,
+        ring_shape,
+        ringRate,
+        ringStrength,
+      );
+      const ringMultiplier = normalizeOsc(
+        ringMod,
+        RING_CARRIER_MIN,
+        RING_CARRIER_MAX,
+      );
+      sampleValue *= ringMultiplier;
+    }
+
     // Wah-Wah Effect
     if (wahwah_on) {
       const wahLFO = currentState.wahwahState.process(
         sampleRate,
         wahwah_shape,
         wahwahRate,
-        1.0,
+        1,
       );
-      const wahFrequency = Math.pow(wahLFO * 15 + 25, 2); // [100, 1600] Hz
+      const wahFrequency = Math.pow(
+        scaleLinear(wahLFO, WAHWAH_LFO_COEFFICIENT, WAHWAH_LFO_CONSTANT),
+        2,
+      );
 
       sampleValue = currentState.wahwahBandpassState.process(
         sampleRate,
@@ -1188,19 +1231,29 @@ export const fillSoundBuffer = (
 
     tremoloStrength = clamp(tremoloStrength + tremoloStrengthDelta, 0, 1);
     const tremoloU = clamp(
-      Math.sqrt(Math.max(0, tremoloRate - MIN_RATE_FLOOR)) + tremoloRateDelta,
+      Math.sqrt(Math.max(0, tremoloRate - TREMOLO_MIN_RATE_FLOOR)) +
+        tremoloRateDelta,
       0,
       TREMOLO_MAX_RATE,
     );
-    tremoloRate = Math.pow(tremoloU, 2) + MIN_RATE_FLOOR;
+    tremoloRate = Math.pow(tremoloU, 2) + TREMOLO_MIN_RATE_FLOOR;
+
+    ringStrength = clamp(ringStrength + ringStrengthDelta, 0, 1);
+    const ringU = clamp(
+      Math.sqrt(Math.max(0, ringRate - RING_RATE_FLOOR)) + ringRateDelta,
+      0,
+      RING_MAX_RATE,
+    );
+    ringRate = Math.pow(ringU, 2) + RING_RATE_FLOOR;
 
     wahwahStrength = clamp(wahwahStrength + wahwahStrengthDelta, 0, 1);
     const wahwahU = clamp(
-      Math.sqrt(Math.max(0, wahwahRate - MIN_RATE_FLOOR)) + wahwahRateDelta,
+      Math.sqrt(Math.max(0, wahwahRate - WAHWAH_MIN_RATE_FLOOR)) +
+        wahwahRateDelta,
       0,
       WAHWAH_MAX_RATE,
     );
-    wahwahRate = Math.pow(wahwahU, 2) + MIN_RATE_FLOOR;
+    wahwahRate = Math.pow(wahwahU, 2) + WAHWAH_MIN_RATE_FLOOR;
   }
 
   if (pitchRange) {

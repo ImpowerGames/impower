@@ -46,6 +46,15 @@ export const default_synth: Create<Synth> = (obj) => ({
     resonance: 0.5,
     ...(obj?.lowpass || {}),
   },
+  ring: {
+    on: false,
+    rate: 1620,
+    rate_ramp: 0,
+    strength: 0.5,
+    strength_ramp: 0,
+    shape: "sine",
+    ...(obj?.ring || {}),
+  },
   wahwah: {
     on: false,
     rate: 5,

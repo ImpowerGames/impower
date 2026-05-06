@@ -84,6 +84,13 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     strength_ramp: [0.01, -1, 1],
     shape: ["sine", "triangle", "sawtooth", "tangent", "square", "whitenoise"],
   },
+  ring: {
+    rate: [1, 0, A[7]],
+    rate_ramp: [0.01, -1, 1],
+    strength: [0.01, 0, 1],
+    strength_ramp: [0.01, -1, 1],
+    shape: ["sine", "triangle", "sawtooth", "tangent", "square", "whitenoise"],
+  },
   wahwah: {
     rate: [1, 0, A[2]],
     rate_ramp: [0.01, -1, 1],
