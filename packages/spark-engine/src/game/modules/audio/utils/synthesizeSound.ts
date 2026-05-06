@@ -686,13 +686,13 @@ export const PITCH_SEMITONES_MULTIPLIER = 160;
 
 export const ARPEGGIO_RATE_RAMP_MULTIPLIER = 20;
 
-export const VIBRATO_MIN_AMPLITUDE = 0;
-export const VIBRATO_MAX_AMPLITUDE = 2;
+export const VIBRATO_CARRIER_MIN = 0;
+export const VIBRATO_CARRIER_MAX = 2;
 export const VIBRATO_RATE_RAMP_MULTIPLIER = 6;
 export const VIBRATO_MAX_RATE = 6.01;
 
-export const TREMOLO_MIN_AMPLITUDE = 1;
-export const TREMOLO_MAX_AMPLITUDE = 3;
+export const TREMOLO_CARRIER_MIN = 1;
+export const TREMOLO_CARRIER_MAX = 3;
 export const TREMOLO_RATE_RAMP_MULTIPLIER = 6;
 export const TREMOLO_MAX_RATE = 6;
 export const TREMOLO_RATE_FLOOR = 0.1;
@@ -703,8 +703,8 @@ export const RING_RATE_RAMP_MULTIPLIER = 80;
 export const RING_RATE_FLOOR = 20;
 export const RING_MAX_RATE = 80;
 
-export const WAHWAH_MIN_AMPLITUDE = 0.0;
-export const WAHWAH_MAX_AMPLITUDE = 2.0;
+export const WAHWAH_CARRIER_MIN = 0.0;
+export const WAHWAH_CARRIER_MAX = 2.0;
 export const WAHWAH_RATE_RAMP_MULTIPLIER = 5;
 export const WAHWAH_STRENGTH_MULTIPLIER = 0.75;
 export const WAHWAH_BANDWIDTH = 0.3;
@@ -1055,8 +1055,8 @@ export const fillSoundBuffer = (
       );
       const vibratoMultiplier = normalizeOsc(
         vibratoMod,
-        VIBRATO_MIN_AMPLITUDE,
-        VIBRATO_MAX_AMPLITUDE,
+        VIBRATO_CARRIER_MIN,
+        VIBRATO_CARRIER_MAX,
       );
       samplePitch *= vibratoMultiplier;
     }
@@ -1186,7 +1186,7 @@ export const fillSoundBuffer = (
       );
       const tremoloMultiplier = Math.max(
         0,
-        normalizeOsc(tremoloMod, TREMOLO_MIN_AMPLITUDE, TREMOLO_MAX_AMPLITUDE),
+        normalizeOsc(tremoloMod, TREMOLO_CARRIER_MIN, TREMOLO_CARRIER_MAX),
       );
       sampleValue *= tremoloMultiplier;
       if (volumeBuffer) {
