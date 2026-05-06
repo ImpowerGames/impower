@@ -695,7 +695,7 @@ export const TREMOLO_MIN_AMPLITUDE = 1;
 export const TREMOLO_MAX_AMPLITUDE = 3;
 export const TREMOLO_RATE_RAMP_MULTIPLIER = 6;
 export const TREMOLO_MAX_RATE = 6;
-export const TREMOLO_MIN_RATE_FLOOR = 0.1;
+export const TREMOLO_RATE_FLOOR = 0.1;
 
 export const RING_CARRIER_MIN = 1.5;
 export const RING_CARRIER_MAX = 0.5;
@@ -713,7 +713,7 @@ export const WAHWAH_LFO_CONSTANT = 25;
 export const WAHWAH_COEFFICIENT = 1.5;
 export const WAHWAH_CONSTANT = 1.0;
 export const WAHWAH_MAX_RATE = 5;
-export const WAHWAH_MIN_RATE_FLOOR = 0.1;
+export const WAHWAH_RATE_FLOOR = 0.1;
 
 export const DISTORTION_GRIT_MIN = 1;
 export const DISTORTION_GRIT_MAX = 2;
@@ -1231,12 +1231,12 @@ export const fillSoundBuffer = (
 
     tremoloStrength = clamp(tremoloStrength + tremoloStrengthDelta, 0, 1);
     const tremoloU = clamp(
-      Math.sqrt(Math.max(0, tremoloRate - TREMOLO_MIN_RATE_FLOOR)) +
+      Math.sqrt(Math.max(0, tremoloRate - TREMOLO_RATE_FLOOR)) +
         tremoloRateDelta,
       0,
       TREMOLO_MAX_RATE,
     );
-    tremoloRate = Math.pow(tremoloU, 2) + TREMOLO_MIN_RATE_FLOOR;
+    tremoloRate = Math.pow(tremoloU, 2) + TREMOLO_RATE_FLOOR;
 
     ringStrength = clamp(ringStrength + ringStrengthDelta, 0, 1);
     const ringU = clamp(
@@ -1248,12 +1248,11 @@ export const fillSoundBuffer = (
 
     wahwahStrength = clamp(wahwahStrength + wahwahStrengthDelta, 0, 1);
     const wahwahU = clamp(
-      Math.sqrt(Math.max(0, wahwahRate - WAHWAH_MIN_RATE_FLOOR)) +
-        wahwahRateDelta,
+      Math.sqrt(Math.max(0, wahwahRate - WAHWAH_RATE_FLOOR)) + wahwahRateDelta,
       0,
       WAHWAH_MAX_RATE,
     );
-    wahwahRate = Math.pow(wahwahU, 2) + WAHWAH_MIN_RATE_FLOOR;
+    wahwahRate = Math.pow(wahwahU, 2) + WAHWAH_RATE_FLOOR;
   }
 
   if (pitchRange) {
