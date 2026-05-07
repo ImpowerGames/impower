@@ -33,6 +33,12 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     frequency_torque: [0.001, -1, 1],
     frequency_jerk: [0.001, -1, 1],
   },
+  harmonics: {
+    count: [1, 0, 6],
+    count_ramp: [0.01, -1, 1],
+    falloff: [0.01, 0, 1],
+    falloff_ramp: [0.01, -1, 1],
+  },
   lowpass: {
     cutoff: [A[1], 0, A[9]],
     cutoff_ramp: [0.01, -1, 1],

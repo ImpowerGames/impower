@@ -33,6 +33,14 @@ export const default_synth: Create<Synth> = (obj) => ({
     frequency_jerk: 0,
     ...(obj?.pitch || {}),
   },
+  harmonics: {
+    on: false,
+    count: 4,
+    count_ramp: 0,
+    falloff: 0.5,
+    falloff_ramp: 0,
+    ...(obj?.harmonics || {}),
+  },
   highpass: {
     on: false,
     cutoff: 2000,

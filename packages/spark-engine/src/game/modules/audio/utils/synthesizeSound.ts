@@ -43,6 +43,13 @@ export interface Synth {
     frequency_torque: number;
     frequency_jerk: number;
   };
+  harmonics: {
+    on: boolean;
+    count: number;
+    count_ramp: number;
+    falloff: number;
+    falloff_ramp: number;
+  };
   lowpass: {
     on: boolean;
     cutoff: number;
@@ -719,6 +726,8 @@ export const DISTORTION_GRIT_MIN = 1;
 export const DISTORTION_GRIT_MAX = 2;
 export const DISTORTION_EDGE_MULTIPLIER = 10;
 
+export const HARMONICS_COUNT_MULTIPLIER = 6;
+
 export const fillSoundBuffer = (
   synth: Synth,
   sustainSound: boolean,
@@ -788,6 +797,9 @@ export const fillSoundBuffer = (
   const arpeggio_levels = synth.arpeggio.levels;
   const arpeggio_phases = synth.arpeggio.phases;
   const arpeggio_direction = synth.arpeggio.direction;
+  const harmonics_on = synth.harmonics.on;
+  const harmonics_count = synth.harmonics.count;
+  const harmonics_falloff = synth.harmonics.falloff;
 
   const numNotesInArp = Math.max(
     arpeggio_tones?.length ?? 0,
@@ -855,6 +867,15 @@ export const fillSoundBuffer = (
     synth.arpeggio.rate_ramp * ARPEGGIO_RATE_RAMP_MULTIPLIER;
   const arpeggioRateDelta = getDeltaPerSample(arpeggioRateRamp, sampleRate);
 
+  const harmonicsNumDelta = getDeltaPerSample(
+    synth.harmonics.count_ramp,
+    sampleRate,
+  );
+  const harmonicsFalloffDelta = getDeltaPerSample(
+    synth.harmonics.falloff_ramp,
+    sampleRate,
+  );
+
   let minPitch = Number.MAX_SAFE_INTEGER;
   let maxPitch = 0;
   let pitchOffset = 0;
@@ -871,6 +892,8 @@ export const fillSoundBuffer = (
   let wahwahRate = wahwah_rate;
   let wahwahStrength = wahwah_strength;
   let arpeggioRate = arpeggio_rate;
+  let harmonicsCount = harmonics_count;
+  let harmonicsFalloff = harmonics_falloff;
 
   let arpLengthLeft = 0;
   let arpNumNotesPlayed = -1;
@@ -1076,7 +1099,27 @@ export const fillSoundBuffer = (
     currentAngle += samplePitch / sampleRate;
 
     const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
-    let sampleValue = oscillator(currentAngle, currentState.waveState);
+
+    const totalHarmonics = harmonics_on
+      ? (Math.round(harmonicsCount * HARMONICS_COUNT_MULTIPLIER) | 0) + 1
+      : 1;
+
+    let sampleValue = 0;
+    let harmonicStrength = 1.0;
+    let harmonicAngleMult = 1.0; // 1× for fundamental, 2× first harmonic, 4× second, etc...
+
+    for (let h = 0; h < totalHarmonics; h++) {
+      // Pass waveState only for the fundamental — higher harmonics use their own
+      // angle and don't need shared stateful noise tracking
+      sampleValue +=
+        oscillator(
+          currentAngle * harmonicAngleMult,
+          h === 0 ? currentState.waveState : undefined,
+        ) * harmonicStrength;
+
+      harmonicStrength *= harmonicsFalloff; // reduce amplitude each harmonic
+      harmonicAngleMult *= 2; // double frequency each harmonic
+    }
 
     // Distortion Edge Effect ("Square"-ness)
     if (distortion_on && distortionEdge > 0) {
@@ -1253,6 +1296,9 @@ export const fillSoundBuffer = (
       WAHWAH_MAX_RATE,
     );
     wahwahRate = Math.pow(wahwahU, 2) + WAHWAH_RATE_FLOOR;
+
+    harmonicsCount = clamp(harmonicsCount + harmonicsNumDelta, 0, 1);
+    harmonicsFalloff = clamp(harmonicsFalloff + harmonicsFalloffDelta, 0, 1);
   }
 
   if (pitchRange) {

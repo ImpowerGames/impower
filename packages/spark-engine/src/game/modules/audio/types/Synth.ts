@@ -32,6 +32,13 @@ export interface Synth extends Reference<"synth"> {
     frequency_torque: number;
     frequency_jerk: number;
   };
+  harmonics: {
+    on: boolean;
+    count: number;
+    count_ramp: number;
+    falloff: number;
+    falloff_ramp: number;
+  };
   lowpass: {
     on: boolean;
     cutoff: number;
