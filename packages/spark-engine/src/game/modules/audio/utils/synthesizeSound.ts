@@ -704,6 +704,28 @@ const getEnvelopeVolume = (
   return 0;
 };
 
+export const getDuration = (synth: Synth, sampleRate: number): number => {
+  const soundDuration =
+    synth.envelope.offset +
+    synth.envelope.attack +
+    synth.envelope.decay +
+    synth.envelope.sustain +
+    synth.envelope.release;
+
+  if (!synth.reverb.on || synth.reverb.mix <= 0) {
+    return soundDuration;
+  }
+
+  const room_size = synth.reverb.room_size;
+  const combFeedback = 0.7 + 0.28 * room_size;
+  const effectiveFeedback = combFeedback;
+  const longestCombSamples = Math.floor(1617 * (sampleRate / 44100));
+  const longestCombDelay = longestCombSamples / sampleRate;
+  const tailDuration = (longestCombDelay * -3) / Math.log10(effectiveFeedback);
+
+  return soundDuration + tailDuration;
+};
+
 export const PITCH_SEMITONES_MULTIPLIER = 160;
 
 export const ARPEGGIO_RATE_RAMP_MULTIPLIER = 20;
