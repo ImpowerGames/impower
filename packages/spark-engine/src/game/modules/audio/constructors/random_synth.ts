@@ -344,10 +344,6 @@ export const random_synth_tap: Create<Random<Synth>> = () => ({
   pitch: {
     frequency: [A[5], A[6]],
   },
-  distortion: {
-    on: [false, true],
-    edge: [0.01, 1],
-  },
 });
 
 export const random_synth_snap: Create<Random<Synth>> = () => ({
