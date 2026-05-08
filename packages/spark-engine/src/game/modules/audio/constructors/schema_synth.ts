@@ -39,20 +39,12 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     falloff: [0.01, 0, 1],
     falloff_ramp: [0.01, -1, 1],
   },
-  lowpass: {
-    cutoff: [A[1], 0, A[9]],
-    cutoff_ramp: [0.01, -1, 1],
-    resonance: [0.01, 0, 1],
-  },
-  highpass: {
-    cutoff: [A[2], 0, A[9]],
-    cutoff_ramp: [0.01, -1, 1],
-  },
-  distortion: {
-    edge: [0.01, 0, 1],
-    edge_ramp: [0.01, -1, 1],
-    grit: [0.01, 0, 1],
-    grit_ramp: [0.01, -1, 1],
+  fm: {
+    ratio: [0.01, 0, 2],
+    ratio_ramp: [0.01, -1, 1],
+    strength: [0.01, 0, 1],
+    strength_ramp: [0.01, -1, 1],
+    shape: ["sine", "triangle", "sawtooth", "tangent", "square", "whitenoise"],
   },
   arpeggio: {
     rate: [1, 0, 100],
@@ -104,9 +96,24 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     strength_ramp: [0.01, -1, 1],
     shape: ["sine", "triangle", "sawtooth", "tangent", "square", "whitenoise"],
   },
+  distortion: {
+    edge: [0.01, 0, 1],
+    edge_ramp: [0.01, -1, 1],
+    grit: [0.01, 0, 1],
+    grit_ramp: [0.01, -1, 1],
+  },
   reverb: {
     mix: [0.01, 0, 1],
     room_size: [0.01, 0, 1],
     damping: [0.01, 0, 1],
+  },
+  lowpass: {
+    cutoff: [A[1], 0, A[9]],
+    cutoff_ramp: [0.01, -1, 1],
+    resonance: [0.01, 0, 1],
+  },
+  highpass: {
+    cutoff: [A[2], 0, A[9]],
+    cutoff_ramp: [0.01, -1, 1],
   },
 });

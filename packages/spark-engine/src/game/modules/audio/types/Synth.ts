@@ -32,6 +32,7 @@ export interface Synth extends Reference<"synth"> {
     frequency_torque: number;
     frequency_jerk: number;
   };
+  vibrato: Modulator;
   harmonics: {
     on: boolean;
     count: number;
@@ -39,23 +40,12 @@ export interface Synth extends Reference<"synth"> {
     falloff: number;
     falloff_ramp: number;
   };
-  lowpass: {
+  fm: {
     on: boolean;
-    cutoff: number;
-    cutoff_ramp: number;
-    resonance: number;
-  };
-  highpass: {
-    on: boolean;
-    cutoff: number;
-    cutoff_ramp: number;
-  };
-  distortion: {
-    on: boolean;
-    grit: number;
-    grit_ramp: number;
-    edge: number;
-    edge_ramp: number;
+    ratio: number;
+    ratio_ramp: number;
+    strength: number;
+    strength_ramp: number;
   };
   arpeggio: {
     on: boolean;
@@ -70,15 +60,32 @@ export interface Synth extends Reference<"synth"> {
     shapes: OscillatorType[];
     phases: number[];
   };
-  vibrato: Modulator;
   tremolo: Modulator;
   ring: Modulator;
   wahwah: Modulator;
+  distortion: {
+    on: boolean;
+    grit: number;
+    grit_ramp: number;
+    edge: number;
+    edge_ramp: number;
+  };
   reverb: {
     on: boolean;
     mix: number;
     room_size: number;
     damping: number;
+  };
+  lowpass: {
+    on: boolean;
+    cutoff: number;
+    cutoff_ramp: number;
+    resonance: number;
+  };
+  highpass: {
+    on: boolean;
+    cutoff: number;
+    cutoff_ramp: number;
   };
 }
 

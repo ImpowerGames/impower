@@ -16,6 +16,8 @@ export type OscillatorType =
   | "pinknoise"
   | "whitenoise";
 
+export type Direction = "up" | "down" | "down-up" | "up-down";
+
 export interface Modulator {
   on: boolean;
   shape: OscillatorType;
@@ -43,12 +45,49 @@ export interface Synth {
     frequency_torque: number;
     frequency_jerk: number;
   };
+  vibrato: Modulator;
   harmonics: {
     on: boolean;
     count: number;
     count_ramp: number;
     falloff: number;
     falloff_ramp: number;
+  };
+  fm: {
+    on: boolean;
+    ratio: number;
+    ratio_ramp: number;
+    strength: number;
+    strength_ramp: number;
+  };
+  arpeggio: {
+    on: boolean;
+    rate: number;
+    rate_ramp: number;
+    max_octaves: number;
+    max_notes: number;
+    glide: number;
+    direction: Direction;
+    tones: number[];
+    levels: number[];
+    shapes: OscillatorType[];
+    phases: number[];
+  };
+  tremolo: Modulator;
+  ring: Modulator;
+  wahwah: Modulator;
+  distortion: {
+    on: boolean;
+    grit: number;
+    grit_ramp: number;
+    edge: number;
+    edge_ramp: number;
+  };
+  reverb: {
+    on: boolean;
+    mix: number;
+    room_size: number;
+    damping: number;
   };
   lowpass: {
     on: boolean;
@@ -60,36 +99,6 @@ export interface Synth {
     on: boolean;
     cutoff: number;
     cutoff_ramp: number;
-  };
-  distortion: {
-    on: boolean;
-    grit: number;
-    grit_ramp: number;
-    edge: number;
-    edge_ramp: number;
-  };
-  arpeggio: {
-    on: boolean;
-    rate: number;
-    rate_ramp: number;
-    max_octaves: number;
-    max_notes: number;
-    glide: number;
-    direction: "up" | "down" | "down-up" | "up-down";
-    tones: number[];
-    levels: number[];
-    phases: number[];
-    shapes: OscillatorType[];
-  };
-  vibrato: Modulator;
-  tremolo: Modulator;
-  ring: Modulator;
-  wahwah: Modulator;
-  reverb: {
-    on: boolean;
-    mix: number;
-    room_size: number;
-    damping: number;
   };
 }
 
@@ -482,6 +491,10 @@ class BandpassFilterState {
   }
 }
 
+class FMState {
+  angle: number = 0;
+}
+
 export class SynthesisState {
   waveState: ModulatorState;
   vibratoState: ModulatorState;
@@ -492,6 +505,7 @@ export class SynthesisState {
   reverbState: ReverbState;
   lowpassState: PassFilterState;
   highpassState: PassFilterState;
+  fmState: FMState;
 
   constructor(
     sampleRate: number,
@@ -510,6 +524,7 @@ export class SynthesisState {
     this.lowpassState = new PassFilterState();
     this.highpassState = new PassFilterState();
     this.reverbState = new ReverbState(sampleRate);
+    this.fmState = new FMState();
   }
 }
 
@@ -722,11 +737,15 @@ export const WAHWAH_CONSTANT = 1.0;
 export const WAHWAH_MAX_RATE = 5;
 export const WAHWAH_RATE_FLOOR = 0.1;
 
+export const FM_STRENGTH_MULTIPLIER = 0.8;
+export const FM_DEPTH_MULTIPLIER = 300;
+export const FM_DEPTH_OFFSET = 1.0;
+export const FM_TONE_COEFFICIENT = 8.0;
+export const FM_TONE_CONSTANT = 2.0;
+
 export const DISTORTION_GRIT_MIN = 1;
 export const DISTORTION_GRIT_MAX = 2;
 export const DISTORTION_EDGE_MULTIPLIER = 10;
-
-export const HARMONICS_COUNT_MULTIPLIER = 6;
 
 export const fillSoundBuffer = (
   synth: Synth,
@@ -800,6 +819,9 @@ export const fillSoundBuffer = (
   const harmonics_on = synth.harmonics.on;
   const harmonics_count = synth.harmonics.count;
   const harmonics_falloff = synth.harmonics.falloff;
+  const fm_on = synth.fm.on;
+  const fm_strength = synth.fm.strength;
+  const fm_ratio = synth.fm.ratio;
 
   const numNotesInArp = Math.max(
     arpeggio_tones?.length ?? 0,
@@ -876,6 +898,9 @@ export const fillSoundBuffer = (
     sampleRate,
   );
 
+  const fmStrengthDelta = getDeltaPerSample(synth.fm.strength_ramp, sampleRate);
+  const fmRatioDelta = getDeltaPerSample(synth.fm.ratio_ramp, sampleRate);
+
   let minPitch = Number.MAX_SAFE_INTEGER;
   let maxPitch = 0;
   let pitchOffset = 0;
@@ -894,6 +919,8 @@ export const fillSoundBuffer = (
   let arpeggioRate = arpeggio_rate;
   let harmonicsCount = harmonics_count;
   let harmonicsFalloff = harmonics_falloff;
+  let fmStrength = fm_strength;
+  let fmRatio = fm_ratio;
 
   let arpLengthLeft = 0;
   let arpNumNotesPlayed = -1;
@@ -1084,6 +1111,16 @@ export const fillSoundBuffer = (
       samplePitch *= vibratoMultiplier;
     }
 
+    if (fm_on) {
+      const fmModFreq = samplePitch * fmRatio;
+      currentState.fmState.angle += fmModFreq / sampleRate;
+      const fmSin = sine(currentState.fmState.angle);
+      const fmOffset =
+        fmSin * fmStrength * FM_STRENGTH_MULTIPLIER * FM_DEPTH_MULTIPLIER +
+        FM_DEPTH_OFFSET;
+      samplePitch += fmOffset;
+    }
+
     if (pitchBuffer) {
       if (samplePitch > maxPitch) {
         maxPitch = samplePitch;
@@ -1101,7 +1138,7 @@ export const fillSoundBuffer = (
     const oscillator = OSCILLATORS[sampleShape] || OSCILLATORS.sine;
 
     const totalHarmonics = harmonics_on
-      ? (Math.round(harmonicsCount * HARMONICS_COUNT_MULTIPLIER) | 0) + 1
+      ? (Math.round(harmonicsCount) | 0) + 1
       : 1;
 
     let sampleValue = 0;
@@ -1297,8 +1334,11 @@ export const fillSoundBuffer = (
     );
     wahwahRate = Math.pow(wahwahU, 2) + WAHWAH_RATE_FLOOR;
 
-    harmonicsCount = clamp(harmonicsCount + harmonicsNumDelta, 0, 1);
+    harmonicsCount += harmonicsNumDelta;
     harmonicsFalloff = clamp(harmonicsFalloff + harmonicsFalloffDelta, 0, 1);
+
+    fmStrength = clamp(fmStrength + fmStrengthDelta, 0, 1);
+    fmRatio = Math.max(0, fmRatio + fmRatioDelta);
   }
 
   if (pitchRange) {
