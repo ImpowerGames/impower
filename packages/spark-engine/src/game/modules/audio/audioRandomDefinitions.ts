@@ -1,4 +1,5 @@
 import {
+  random_synth,
   random_synth_beep,
   random_synth_blip,
   random_synth_boom,
@@ -9,9 +10,9 @@ import {
   random_synth_lose,
   random_synth_powerup,
   random_synth_push,
-  random_synth,
   random_synth_snap,
   random_synth_tap,
+  random_synth_tweet,
   random_synth_zap,
 } from "./constructors/random_synth";
 
@@ -28,6 +29,7 @@ export const audioRandomDefinitions = () => ({
     "$random:push": random_synth_push(),
     "$random:blip": random_synth_blip(),
     "$random:beep": random_synth_beep(),
+    "$random:tweet": random_synth_tweet(),
     "$random:tap": random_synth_tap(),
     "$random:snap": random_synth_snap(),
     "$random:clack": random_synth_clack(),

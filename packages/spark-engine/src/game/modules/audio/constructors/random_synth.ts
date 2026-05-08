@@ -315,6 +315,22 @@ export const random_synth_beep: Create<Random<Synth>> = () => ({
   },
 });
 
+export const random_synth_tweet: Create<Random<Synth>> = () => ({
+  $type: "synth",
+  $name: "$random:tweet",
+  shape: ["sine", "triangle"],
+  envelope: {
+    attack: [0.006, 0.008],
+    decay: [0.002, 0.004],
+    sustain: [0.02, 0.04],
+    release: [0.005, 0.008],
+  },
+  pitch: {
+    frequency: [A[5], A[9]],
+    frequency_ramp: [-1, -0.5],
+  },
+});
+
 export const random_synth_tap: Create<Random<Synth>> = () => ({
   $type: "synth",
   $name: "$random:tap",
@@ -365,7 +381,7 @@ export const random_synth_clack: Create<Random<Synth>> = () => ({
     decay: [0.003],
     sustain: [0.04],
     release: [0.01],
-    level: [0.15],
+    level: [0.3],
   },
   pitch: {
     frequency: [A[7], A[9]],
