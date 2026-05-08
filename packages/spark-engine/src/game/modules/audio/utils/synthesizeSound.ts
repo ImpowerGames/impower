@@ -225,7 +225,7 @@ const tangent = (x: number): number => {
 };
 
 const jitter = (x: number): number => {
-  return 0.75 * Math.sin(PI2 * x) + 0.25 * Math.sin(20 * PI2 * x);
+  return 0.75 * Math.sin(PI2 * x) + 0.25 * Math.sin(4 * PI2 * x);
 };
 
 export const randomizer = (seed: number): (() => number) => {
