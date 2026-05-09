@@ -24,7 +24,7 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     attack: [0.001, 0, 1],
     decay: [0.001, 0, 1],
     sustain: [0.001, 0, 2],
-    release: [0.001, 0.001, 1],
+    release: [0.001, 0, 1],
     level: [0.01, 0, 1],
   },
   pitch: {
