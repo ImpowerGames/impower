@@ -70,6 +70,13 @@ export interface Synth extends Reference<"synth"> {
     edge: number;
     edge_ramp: number;
   };
+  bitcrush: {
+    on: boolean;
+    crush: number;
+    crush_ramp: number;
+    skip: number;
+    skip_ramp: number;
+  };
   delay: {
     on: boolean;
     length: number;

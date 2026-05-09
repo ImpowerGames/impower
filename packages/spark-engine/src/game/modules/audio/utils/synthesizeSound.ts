@@ -83,6 +83,13 @@ export interface Synth {
     edge: number;
     edge_ramp: number;
   };
+  bitcrush: {
+    on: boolean;
+    crush: number;
+    crush_ramp: number;
+    skip: number;
+    skip_ramp: number;
+  };
   delay: {
     on: boolean;
     length: number;
@@ -544,6 +551,36 @@ class FMState {
   angle: number = 0;
 }
 
+class BitCrushState {
+  skipPhase: number = 1.0;
+  skipLastSample: number = 0.0;
+
+  process(
+    sampleValue: number,
+    crush: number,
+    skip: number,
+    sampleRate: number,
+  ) {
+    // Crush
+    const crushValue = Math.pow(crush, BITCRUSH_CRUSH_EXPONENT); // getExp(0.2): pow(slider, 0.2)
+    const numOptions = Math.pow(
+      2,
+      BITCRUSH_BIT_DEPTH - BITCRUSH_BIT_DEPTH * crushValue,
+    );
+    sampleValue = Math.trunc(sampleValue * numOptions) / numOptions;
+
+    // Skip
+    this.skipPhase +=
+      (BITSKIP_MIN_PHASE_DELTA + Math.pow(1.0 - skip, BITSKIP_PHASE_EXPONENT)) *
+      (44100 / sampleRate);
+    if (this.skipPhase > 1.0) {
+      this.skipPhase -= 1.0;
+      this.skipLastSample = sampleValue;
+    }
+    return this.skipLastSample;
+  }
+}
+
 export class SynthesisState {
   waveState: ModulatorState;
   vibratoState: ModulatorState;
@@ -556,6 +593,7 @@ export class SynthesisState {
   highpassState: PassFilterState;
   delayState: DelayState;
   fmState: FMState;
+  bitcrushState: BitCrushState;
 
   constructor(
     sampleRate: number,
@@ -576,6 +614,7 @@ export class SynthesisState {
     this.delayState = new DelayState(sampleRate);
     this.reverbState = new ReverbState(sampleRate);
     this.fmState = new FMState();
+    this.bitcrushState = new BitCrushState();
   }
 }
 
@@ -848,6 +887,11 @@ export const DISTORTION_EDGE_MULTIPLIER = 10;
 
 export const DELAY_DRY_MIX = 0.5;
 
+export const BITCRUSH_CRUSH_EXPONENT = 0.2; // getExp(0.2) on bitCrushStrength
+export const BITCRUSH_BIT_DEPTH = 16; // 2^(16 - 16×crushValue) discrete levels
+export const BITSKIP_MIN_PHASE_DELTA = 0.001; // minimum phase advance per sample
+export const BITSKIP_PHASE_EXPONENT = 4; // (1 - skip)^4 in phase delta formula
+
 export const fillSoundBuffer = (
   synth: Synth,
   sustainSound: boolean,
@@ -923,6 +967,9 @@ export const fillSoundBuffer = (
   const fm_on = synth.fm.on;
   const fm_strength = synth.fm.strength;
   const fm_ratio = synth.fm.ratio;
+  const bitcrush_on = synth.bitcrush.on;
+  const bitcrush_crush = synth.bitcrush.crush;
+  const bitcrush_skip = synth.bitcrush.skip;
 
   const numNotesInArp = Math.max(
     arpeggio_tones?.length ?? 0,
@@ -1002,6 +1049,15 @@ export const fillSoundBuffer = (
   const fmStrengthDelta = getDeltaPerSample(synth.fm.strength_ramp, sampleRate);
   const fmRatioDelta = getDeltaPerSample(synth.fm.ratio_ramp, sampleRate);
 
+  const bitcrushCrushDelta = getDeltaPerSample(
+    synth.bitcrush.crush_ramp,
+    sampleRate,
+  );
+  const bitcrushSkipDelta = getDeltaPerSample(
+    synth.bitcrush.skip_ramp,
+    sampleRate,
+  );
+
   let minPitch = Number.MAX_SAFE_INTEGER;
   let maxPitch = 0;
   let pitchOffset = 0;
@@ -1022,6 +1078,8 @@ export const fillSoundBuffer = (
   let harmonicsFalloff = harmonics_falloff;
   let fmStrength = fm_strength;
   let fmRatio = fm_ratio;
+  let bitcrushCrush = bitcrush_crush;
+  let bitcrushSkip = bitcrush_skip;
 
   let arpLengthLeft = 0;
   let arpNumNotesPlayed = -1;
@@ -1212,6 +1270,7 @@ export const fillSoundBuffer = (
       samplePitch *= vibratoMultiplier;
     }
 
+    // FM Effect
     if (fm_on) {
       const fmModFreq = samplePitch * fmRatio;
       currentState.fmState.angle += fmModFreq / sampleRate;
@@ -1375,6 +1434,16 @@ export const fillSoundBuffer = (
       }
     }
 
+    // BitCrush Effect
+    if (bitcrush_on) {
+      sampleValue = currentState.bitcrushState.process(
+        sampleValue,
+        bitcrushCrush,
+        bitcrushSkip,
+        sampleRate,
+      );
+    }
+
     sampleValue *= Math.max(0, masterVolume);
     if (volumeBuffer) {
       volumeBuffer[i]! *= masterVolume;
@@ -1439,6 +1508,9 @@ export const fillSoundBuffer = (
 
     fmStrength = clamp(fmStrength + fmStrengthDelta, 0, 1);
     fmRatio = clamp(fmRatio + fmRatioDelta, 0);
+
+    bitcrushCrush = clamp(bitcrushCrush + bitcrushCrushDelta, 0, 1);
+    bitcrushSkip = clamp(bitcrushSkip + bitcrushSkipDelta, 0, 1);
   }
 
   if (pitchRange) {

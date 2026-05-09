@@ -107,6 +107,14 @@ export const default_synth: Create<Synth> = (obj) => ({
     grit_ramp: 0,
     ...(obj?.distortion || {}),
   },
+  bitcrush: {
+    on: false,
+    crush: 0.5,
+    crush_ramp: 0,
+    skip: 0.5,
+    skip_ramp: 0,
+    ...(obj?.bitcrush || {}),
+  },
   delay: {
     on: false,
     length: 0.15,

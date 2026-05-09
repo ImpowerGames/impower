@@ -102,6 +102,12 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     grit: [0.01, 0, 1],
     grit_ramp: [0.01, -1, 1],
   },
+  bitcrush: {
+    crush: [0.01, 0, 1],
+    crush_ramp: [0.01, -1, 1],
+    skip: [0.01, 0, 1],
+    skip_ramp: [0.01, -1, 1],
+  },
   delay: {
     length: [0.001, 0, 0.5],
     strength: [0.01, 0, 1],
