@@ -83,10 +83,16 @@ export interface Synth {
     edge: number;
     edge_ramp: number;
   };
+  delay: {
+    on: boolean;
+    length: number;
+    strength: number;
+    feedback: number;
+  };
   reverb: {
     on: boolean;
-    mix: number;
     room_size: number;
+    mix: number;
     damping: number;
   };
   lowpass: {
@@ -164,11 +170,11 @@ const fix = (x: number, fractionDigits = 10): number => {
   return result === 0 ? 0 : result;
 };
 
-const clamp = (x: number, min: number, max: number) => {
+const clamp = (x: number, min: number, max?: number) => {
   if (x < min) {
     return min;
   }
-  if (x > max) {
+  if (max != null && x > max) {
     return max;
   }
   return x;
@@ -383,6 +389,49 @@ class AllpassFilter {
   }
 }
 
+class DelayState {
+  buffer: Float32Array;
+  position: number = 0;
+  time: number = 0; // seconds since last wrap
+  sampleRate: number;
+
+  constructor(sampleRate: number) {
+    // Max 0.5 seconds — matches ChipTone's getLin(0.5) maximum
+    this.buffer = new Float32Array(Math.ceil(0.5 * sampleRate) + 1);
+    this.sampleRate = sampleRate;
+  }
+
+  process(
+    dry: number,
+    dryMix: number,
+    delayLength: number,
+    delayStrength: number,
+    feedback: number,
+  ) {
+    const delayed = this.buffer[this.position]!;
+
+    // Mix dry and delayed
+    const out = dry * dryMix + delayed * delayStrength;
+
+    // Write input + feedback × previous content back into the same position
+    this.buffer[this.position] = dry + delayed * feedback;
+
+    // Advance position, safety-wrap at buffer boundary
+    this.position++;
+    if (this.position >= this.buffer.length) {
+      this.position = 0;
+    }
+
+    // Wrap the tape loop when accumulated time exceeds delay length
+    this.time += 1 / this.sampleRate;
+    if (this.time > delayLength) {
+      this.position = 0;
+      this.time = 0;
+    }
+    return out;
+  }
+}
+
 class ReverbState {
   combs: CombFilter[];
   allpasses: AllpassFilter[];
@@ -397,25 +446,25 @@ class ReverbState {
     );
   }
 
-  process(input: number, roomSize: number, damp: number): number {
-    let out = 0;
+  process(dry: number, roomSize: number, mix: number, damping: number): number {
+    let wet = 0;
     const combFeedback = 0.7 + 0.28 * roomSize;
-    const combDamp = 0.4 * damp;
+    const combDamp = 0.4 * damping;
 
     for (let i = 0; i < this.combs.length; i++) {
       this.combs[i]!.feedback = combFeedback;
       this.combs[i]!.damp1 = combDamp;
       this.combs[i]!.damp2 = 1 - combDamp;
-      out += this.combs[i]!.process(input);
+      wet += this.combs[i]!.process(dry);
     }
 
-    out *= 0.15;
+    wet *= 0.15;
 
     for (let i = 0; i < this.allpasses.length; i++) {
-      out = this.allpasses[i]!.process(out);
+      wet = this.allpasses[i]!.process(wet);
     }
 
-    return out;
+    return dry * (1 - mix) + wet * mix;
   }
 }
 
@@ -505,6 +554,7 @@ export class SynthesisState {
   reverbState: ReverbState;
   lowpassState: PassFilterState;
   highpassState: PassFilterState;
+  delayState: DelayState;
   fmState: FMState;
 
   constructor(
@@ -523,6 +573,7 @@ export class SynthesisState {
     this.wahwahBandpassState = new BandpassFilterState();
     this.lowpassState = new PassFilterState();
     this.highpassState = new PassFilterState();
+    this.delayState = new DelayState(sampleRate);
     this.reverbState = new ReverbState(sampleRate);
     this.fmState = new FMState();
   }
@@ -704,6 +755,39 @@ const getEnvelopeVolume = (
   return 0;
 };
 
+export const getDelayTailDuration = (synth: Synth): number => {
+  if (
+    !synth.delay.on ||
+    synth.delay.strength <= 0 ||
+    synth.delay.length <= 0 ||
+    synth.delay.feedback <= 0
+  ) {
+    return 0;
+  }
+  const feedback = synth.delay.feedback;
+  const numLoops = -3 / Math.log10(Math.max(feedback, 0.001));
+  return numLoops * synth.delay.length;
+};
+
+export const getReverbTailDuration = (
+  synth: Synth,
+  sampleRate: number,
+): number => {
+  if (!synth.reverb.on || synth.reverb.mix <= 0) {
+    return 0;
+  }
+
+  const room_size = synth.reverb.room_size;
+  const combFeedback = 0.7 + 0.28 * room_size;
+  const effectiveFeedback = combFeedback;
+  const longestCombSamples = Math.floor(1617 * (sampleRate / 44100));
+  const longestCombDelay = longestCombSamples / sampleRate;
+  const reverbTailDuration =
+    (longestCombDelay * -3) / Math.log10(effectiveFeedback);
+
+  return reverbTailDuration;
+};
+
 export const getDuration = (synth: Synth, sampleRate: number): number => {
   const soundDuration =
     synth.envelope.offset +
@@ -712,16 +796,9 @@ export const getDuration = (synth: Synth, sampleRate: number): number => {
     synth.envelope.sustain +
     synth.envelope.release;
 
-  if (!synth.reverb.on || synth.reverb.mix <= 0) {
-    return soundDuration;
-  }
-
-  const room_size = synth.reverb.room_size;
-  const combFeedback = 0.7 + 0.28 * room_size;
-  const effectiveFeedback = combFeedback;
-  const longestCombSamples = Math.floor(1617 * (sampleRate / 44100));
-  const longestCombDelay = longestCombSamples / sampleRate;
-  const tailDuration = (longestCombDelay * -3) / Math.log10(effectiveFeedback);
+  const delayTailDuration = getDelayTailDuration(synth);
+  const reverbTailDuration = getReverbTailDuration(synth, sampleRate);
+  const tailDuration = Math.max(delayTailDuration, reverbTailDuration);
 
   return soundDuration + tailDuration;
 };
@@ -768,6 +845,8 @@ export const FM_TONE_CONSTANT = 2.0;
 export const DISTORTION_GRIT_MIN = 1;
 export const DISTORTION_GRIT_MAX = 2;
 export const DISTORTION_EDGE_MULTIPLIER = 10;
+
+export const DELAY_DRY_MIX = 0.5;
 
 export const fillSoundBuffer = (
   synth: Synth,
@@ -1333,8 +1412,7 @@ export const fillSoundBuffer = (
 
     tremoloStrength = clamp(tremoloStrength + tremoloStrengthDelta, 0, 1);
     const tremoloU = clamp(
-      Math.sqrt(Math.max(0, tremoloRate - TREMOLO_RATE_FLOOR)) +
-        tremoloRateDelta,
+      Math.sqrt(clamp(tremoloRate - TREMOLO_RATE_FLOOR, 0)) + tremoloRateDelta,
       0,
       TREMOLO_MAX_RATE,
     );
@@ -1342,7 +1420,7 @@ export const fillSoundBuffer = (
 
     ringStrength = clamp(ringStrength + ringStrengthDelta, 0, 1);
     const ringU = clamp(
-      Math.sqrt(Math.max(0, ringRate - RING_RATE_FLOOR)) + ringRateDelta,
+      Math.sqrt(clamp(ringRate - RING_RATE_FLOOR, 0)) + ringRateDelta,
       0,
       RING_MAX_RATE,
     );
@@ -1350,7 +1428,7 @@ export const fillSoundBuffer = (
 
     wahwahStrength = clamp(wahwahStrength + wahwahStrengthDelta, 0, 1);
     const wahwahU = clamp(
-      Math.sqrt(Math.max(0, wahwahRate - WAHWAH_RATE_FLOOR)) + wahwahRateDelta,
+      Math.sqrt(clamp(wahwahRate - WAHWAH_RATE_FLOOR, 0)) + wahwahRateDelta,
       0,
       WAHWAH_MAX_RATE,
     );
@@ -1360,7 +1438,7 @@ export const fillSoundBuffer = (
     harmonicsFalloff = clamp(harmonicsFalloff + harmonicsFalloffDelta, 0, 1);
 
     fmStrength = clamp(fmStrength + fmStrengthDelta, 0, 1);
-    fmRatio = Math.max(0, fmRatio + fmRatioDelta);
+    fmRatio = clamp(fmRatio + fmRatioDelta, 0);
   }
 
   if (pitchRange) {
@@ -1408,16 +1486,40 @@ export const synthesizeSound = (
     frequency,
   );
 
+  // Delay Filter
+  const delay_on = synth.delay.on;
+  if (delay_on) {
+    const delay_length = synth.delay.length;
+    const delay_strength = synth.delay.strength;
+    const delay_feedback = synth.delay.feedback;
+    const dryMix = DELAY_DRY_MIX;
+
+    for (let i = startIndex; i < endIndex; i++) {
+      const dry = soundBuffer[i]!;
+      soundBuffer[i] = state.delayState.process(
+        dry,
+        dryMix,
+        delay_length,
+        delay_strength,
+        delay_feedback,
+      );
+    }
+  }
+
   // Reverb Filter
   const reverb_on = synth.reverb.on;
   if (reverb_on) {
-    const room = synth.reverb.room_size;
-    const damp = synth.reverb.damping;
-    const mix = synth.reverb.mix;
+    const reverb_room_size = synth.reverb.room_size;
+    const reverb_mix = synth.reverb.mix;
+    const reverb_damping = synth.reverb.damping;
     for (let i = startIndex; i < endIndex; i++) {
       const dry = soundBuffer[i]!;
-      const wet = state.reverbState.process(dry, room, damp);
-      soundBuffer[i] = dry * (1 - mix) + wet * mix;
+      soundBuffer[i] = state.reverbState.process(
+        dry,
+        reverb_room_size,
+        reverb_mix,
+        reverb_damping,
+      );
     }
   }
 };

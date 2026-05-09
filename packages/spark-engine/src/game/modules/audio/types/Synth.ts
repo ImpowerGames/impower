@@ -70,10 +70,16 @@ export interface Synth extends Reference<"synth"> {
     edge: number;
     edge_ramp: number;
   };
+  delay: {
+    on: boolean;
+    length: number;
+    strength: number;
+    feedback: number;
+  };
   reverb: {
     on: boolean;
-    mix: number;
     room_size: number;
+    mix: number;
     damping: number;
   };
   lowpass: {

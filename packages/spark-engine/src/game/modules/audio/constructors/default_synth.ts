@@ -107,11 +107,18 @@ export const default_synth: Create<Synth> = (obj) => ({
     grit_ramp: 0,
     ...(obj?.distortion || {}),
   },
+  delay: {
+    on: false,
+    length: 0.15,
+    strength: 0.5,
+    feedback: 0.75,
+    ...(obj?.delay || {}),
+  },
   reverb: {
     on: false,
-    mix: 0.5,
     room_size: 0.5,
-    damping: 0.2,
+    mix: 0.5,
+    damping: 0.5,
     ...(obj?.reverb || {}),
   },
   highpass: {

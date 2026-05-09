@@ -102,9 +102,14 @@ export const schema_synth: Create<Schema<Synth>> = () => ({
     grit: [0.01, 0, 1],
     grit_ramp: [0.01, -1, 1],
   },
+  delay: {
+    length: [0.001, 0, 0.5],
+    strength: [0.01, 0, 1],
+    feedback: [0.01, 0, 1],
+  },
   reverb: {
-    mix: [0.01, 0, 1],
     room_size: [0.01, 0, 1],
+    mix: [0.01, 0, 1],
     damping: [0.01, 0, 1],
   },
   lowpass: {

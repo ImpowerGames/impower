@@ -33,30 +33,54 @@ export const random_synth: Create<Random<Synth>> = () => ({
     frequency: [A[2], A[6]],
     frequency_ramp: [-0.5, 0.5],
   },
+  vibrato: {
+    on: [".arpeggio.on", true],
+    rate: [0, A[2]],
+    strength: [0, 1],
+  },
+  harmonics: {
+    on: [true, false],
+    count: [0, 6],
+  },
+  fm: {
+    on: [true, false],
+    ratio: [0, 2],
+  },
+  arpeggio: {
+    on: [true, false],
+    rate: [0, 100],
+    direction: ["up", "down", "down"],
+    tones: MAJOR_ARPEGGIOS_UP,
+  },
+  tremolo: {
+    on: [true, false],
+    rate: [0, A[2]],
+    strength: [0, 1],
+  },
+  ring: {
+    on: [true, false],
+    rate: [0, A[7]],
+    strength: [0, 1],
+  },
+  wahwah: {
+    on: [true, false],
+    rate: [0, A[2]],
+    strength: [0, 1],
+  },
   distortion: {
     on: [true, false],
     edge: [0, 1],
     grit: [0, 1],
   },
-  arpeggio: {
+  delay: {
     on: [true, false],
-    rate: [0, 100],
-    direction: ["up", "down"],
-    tones: MAJOR_ARPEGGIOS_UP,
-  },
-  vibrato: {
-    on: [".arpeggio.on", true],
+    length: [0, 1],
     strength: [0, 1],
-    rate: [0, A[0]],
-  },
-  tremolo: {
-    on: [true, false],
-    rate: [0, A[0]],
   },
   reverb: {
     on: [true, false],
-    mix: [0, 1],
     room_size: [0, 1],
+    mix: [0, 1],
   },
 });
 
