@@ -86,18 +86,18 @@ export interface Synth {
   };
   bitcrush: {
     on: boolean;
+    order?: number;
     crush: number;
     crush_ramp: number;
     skip: number;
     skip_ramp: number;
-    order?: number;
   };
   delay: {
     on: boolean;
+    order?: number;
     length: number;
     strength: number;
     feedback: number;
-    order?: number;
   };
   reverb: {
     on: boolean;

@@ -66,6 +66,7 @@ export interface Synth extends Reference<"synth"> {
   wahwah: Modulator;
   distortion: {
     on: boolean;
+    order?: number;
     grit: number;
     grit_ramp: number;
     edge: number;
@@ -73,6 +74,7 @@ export interface Synth extends Reference<"synth"> {
   };
   bitcrush: {
     on: boolean;
+    order?: number;
     crush: number;
     crush_ramp: number;
     skip: number;
@@ -80,6 +82,7 @@ export interface Synth extends Reference<"synth"> {
   };
   delay: {
     on: boolean;
+    order?: number;
     length: number;
     strength: number;
     feedback: number;
