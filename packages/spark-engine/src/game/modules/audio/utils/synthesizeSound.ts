@@ -128,6 +128,25 @@ export class OscillatorState {
   constructor(rng: () => number) {
     this.rng = rng;
   }
+
+  reset(): void {
+    this.angle = 0;
+    this.prevPhase = 0;
+    this.prevRandom = 0;
+    // Don't reallocate the pink-noise filter array; zero it in place.
+    const b = this.b;
+    if (b) {
+      b[0] = 0;
+      b[1] = 0;
+      b[2] = 0;
+      b[3] = 0;
+      b[4] = 0;
+      b[5] = 0;
+      b[6] = 0;
+    }
+    // rng is intentionally not reset — matches the existing fallback behavior
+    // where the module-level RNG persists across allocations.
+  }
 }
 
 export class ModulatorState extends OscillatorState {
@@ -372,6 +391,13 @@ class CombFilter {
     this.buffer = new Float32Array(size);
   }
 
+  reset(): void {
+    this.buffer.fill(0);
+    this.bufIdx = 0;
+    this.filterStore = 0;
+    // damp1/damp2/feedback are overwritten in ReverbState.process; no need to reset.
+  }
+
   process(input: number): number {
     const output = this.buffer[this.bufIdx]!;
     this.filterStore = output * this.damp2 + this.filterStore * this.damp1;
@@ -388,6 +414,12 @@ class AllpassFilter {
 
   constructor(size: number) {
     this.buffer = new Float32Array(size);
+  }
+
+  reset(): void {
+    this.buffer.fill(0);
+    this.bufIdx = 0;
+    // feedback is fixed at 0.5; don't reset.
   }
 
   process(input: number): number {
@@ -410,6 +442,20 @@ class DelayState {
       Math.ceil(DELAY_LENGTH_MAX * sampleRate) + 1,
     );
     this.sampleRate = sampleRate;
+  }
+
+  reset(sampleRate: number): void {
+    if (sampleRate !== this.sampleRate) {
+      // Sample rate changed — buffer size is rate-dependent, so rebuild.
+      this.buffer = new Float32Array(
+        Math.ceil(DELAY_LENGTH_MAX * sampleRate) + 1,
+      );
+      this.sampleRate = sampleRate;
+    } else {
+      this.buffer.fill(0);
+    }
+    this.position = 0;
+    this.time = 0;
   }
 
   process(
@@ -443,18 +489,50 @@ class DelayState {
   }
 }
 
+const REVERB_COMB_SIZES = [
+  1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617,
+] as const;
+const REVERB_ALLPASS_SIZES = [225, 341, 441, 556] as const;
+
 class ReverbState {
   combs: CombFilter[];
   allpasses: AllpassFilter[];
+  sampleRate: number;
 
   constructor(sampleRate: number) {
+    this.sampleRate = sampleRate;
     const scale = sampleRate / 44100;
-    this.combs = [1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617].map(
+    this.combs = REVERB_COMB_SIZES.map(
       (s) => new CombFilter(Math.floor(s * scale)),
     );
-    this.allpasses = [225, 341, 441, 556].map(
+    this.allpasses = REVERB_ALLPASS_SIZES.map(
       (s) => new AllpassFilter(Math.floor(s * scale)),
     );
+  }
+
+  reset(sampleRate: number): void {
+    if (sampleRate !== this.sampleRate) {
+      // Sample rate changed — comb/allpass buffer sizes are rate-dependent.
+      this.sampleRate = sampleRate;
+      const scale = sampleRate / 44100;
+      for (let i = 0; i < REVERB_COMB_SIZES.length; i++) {
+        this.combs[i] = new CombFilter(
+          Math.floor(REVERB_COMB_SIZES[i]! * scale),
+        );
+      }
+      for (let i = 0; i < REVERB_ALLPASS_SIZES.length; i++) {
+        this.allpasses[i] = new AllpassFilter(
+          Math.floor(REVERB_ALLPASS_SIZES[i]! * scale),
+        );
+      }
+    } else {
+      for (let i = 0; i < this.combs.length; i++) {
+        this.combs[i]!.reset();
+      }
+      for (let i = 0; i < this.allpasses.length; i++) {
+        this.allpasses[i]!.reset();
+      }
+    }
   }
 
   process(dry: number, roomSize: number, mix: number, damping: number): number {
@@ -484,6 +562,14 @@ class PassFilterState {
   output: [number, number, number] = [0, 0, 0];
 
   constructor() {}
+
+  reset(): void {
+    this.input[0] = 0;
+    this.input[1] = 0;
+    this.output[0] = 0;
+    this.output[1] = 0;
+    this.output[2] = 0;
+  }
 
   process(
     sampleRate: number,
@@ -525,6 +611,15 @@ class BandpassFilterState {
   y1 = 0;
   y2 = 0;
 
+  reset(): void {
+    this.x0 = 0;
+    this.x1 = 0;
+    this.x2 = 0;
+    this.y0 = 0;
+    this.y1 = 0;
+    this.y2 = 0;
+  }
+
   process(
     sampleRate: number,
     input: number,
@@ -553,11 +648,20 @@ class BandpassFilterState {
 
 class FMState {
   angle: number = 0;
+
+  reset(): void {
+    this.angle = 0;
+  }
 }
 
 class BitCrushState {
   skipPhase: number = 1.0;
   skipLastSample: number = 0.0;
+
+  reset(): void {
+    this.skipPhase = 1.0;
+    this.skipLastSample = 0.0;
+  }
 
   process(
     sampleValue: number,
@@ -589,6 +693,11 @@ class EffectChainState {
   effectChain: Int32Array = new Int32Array(NUM_REORDERABLE_EFFECTS);
   effectChainOrders: Int32Array = new Int32Array(NUM_REORDERABLE_EFFECTS);
   effectChainLength: number = 0;
+
+  reset(): void {
+    // Slot values are overwritten by addEffect; only the length needs resetting.
+    this.effectChainLength = 0;
+  }
 
   addEffect(type: number, order: number | undefined) {
     const effectChain = this.effectChain;
@@ -660,6 +769,22 @@ export class SynthesisState {
     this.fmState = new FMState();
     this.bitcrushState = new BitCrushState();
     this.effectChainState = new EffectChainState();
+  }
+
+  reset(sampleRate: number): void {
+    this.waveState.reset();
+    this.vibratoState.reset();
+    this.tremoloState.reset();
+    this.ringState.reset();
+    this.wahwahState.reset();
+    this.wahwahBandpassState.reset();
+    this.lowpassState.reset();
+    this.highpassState.reset();
+    this.delayState.reset(sampleRate);
+    this.reverbState.reset(sampleRate);
+    this.fmState.reset();
+    this.bitcrushState.reset();
+    this.effectChainState.reset();
   }
 }
 
@@ -1154,6 +1279,8 @@ export const fillSoundBuffer = (
   const MIN_FREQ = 0;
   const MAX_FREQ = sampleRate / 4;
 
+  // Repopulate the effect chain. Reset first so reused state doesn't double-add.
+  currentState.effectChainState.reset();
   if (tremolo_on) {
     currentState.effectChainState.addEffect(
       EFFECT.TREMOLO,
@@ -1608,6 +1735,11 @@ export const fillSoundBuffer = (
   }
 };
 
+// Module-level pooled state, used as the fallback when the caller doesn't
+// supply their own SynthesisState. Reused across calls — `reset()` clears
+// per-call state in place. Lazily created on first use.
+let _pooledState: SynthesisState | undefined;
+
 export const synthesizeSound = (
   synth: Synth,
   sustainSound: boolean,
@@ -1623,8 +1755,19 @@ export const synthesizeSound = (
   frequency?: number | Float32Array,
   currentState?: SynthesisState,
 ): void => {
-  const state =
-    currentState ?? new SynthesisState(sampleRate, rng, OSCILLATORS);
+  let state: SynthesisState;
+  if (currentState) {
+    // Caller manages state lifecycle; don't reset.
+    state = currentState;
+  } else {
+    // Reuse the module-level singleton — reset in place to avoid allocation.
+    if (!_pooledState) {
+      _pooledState = new SynthesisState(sampleRate, rng, OSCILLATORS);
+    } else {
+      _pooledState.reset(sampleRate);
+    }
+    state = _pooledState;
+  }
 
   // Fundamental Wave
   fillSoundBuffer(
