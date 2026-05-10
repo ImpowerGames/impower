@@ -1021,7 +1021,7 @@ export const VIBRATO_CARRIER_MAX = 2;
 export const VIBRATO_RATE_RAMP_MULTIPLIER = 6;
 export const VIBRATO_MAX_RATE = 6.01;
 
-export const TREMOLO_CARRIER_MIN = 1;
+export const TREMOLO_CARRIER_MIN = -1;
 export const TREMOLO_CARRIER_MAX = 3;
 export const TREMOLO_RATE_RAMP_MULTIPLIER = 6;
 export const TREMOLO_MAX_RATE = 6;
