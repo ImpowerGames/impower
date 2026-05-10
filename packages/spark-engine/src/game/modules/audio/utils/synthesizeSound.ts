@@ -1527,40 +1527,6 @@ export const fillSoundBuffer = (
       harmonicAngleMult *= 2; // double frequency each harmonic
     }
 
-    // Distortion Edge Effect ("Square"-ness)
-    if (distortion_on && distortionEdge > 0) {
-      const compressionFactor =
-        1 / (1 + distortionEdge * DISTORTION_EDGE_MULTIPLIER);
-      if (sampleValue > 0) {
-        sampleValue = Math.pow(sampleValue, compressionFactor);
-      } else {
-        sampleValue = -Math.pow(-sampleValue, compressionFactor);
-      }
-    }
-
-    let activeCutoff = lowpassCutoff;
-
-    // Lowpass Filter
-    if (lowpass_on) {
-      sampleValue = currentState.lowpassState.process(
-        sampleRate,
-        sampleValue,
-        activeCutoff,
-        sampleResonance,
-      );
-    }
-
-    // Highpass Filter
-    if (highpass_on) {
-      sampleValue = currentState.highpassState.process(
-        sampleRate,
-        sampleValue,
-        highpassCutoff,
-        0,
-      );
-    }
-
-    // Volume
     const envelopeVolume = getEnvelopeVolume(
       i,
       startIndex,
@@ -1653,6 +1619,39 @@ export const fillSoundBuffer = (
           delay_strength,
           delay_feedback,
         );
+      }
+    }
+
+    const activeCutoff = lowpassCutoff;
+
+    // Lowpass Filter (3-band EQ slot)
+    if (lowpass_on) {
+      sampleValue = currentState.lowpassState.process(
+        sampleRate,
+        sampleValue,
+        activeCutoff,
+        sampleResonance,
+      );
+    }
+
+    // Highpass Filter (3-band EQ slot)
+    if (highpass_on) {
+      sampleValue = currentState.highpassState.process(
+        sampleRate,
+        sampleValue,
+        highpassCutoff,
+        0,
+      );
+    }
+
+    // Distortion Edge
+    if (distortion_on && distortionEdge > 0) {
+      const compressionFactor =
+        1 / (1 + distortionEdge * DISTORTION_EDGE_MULTIPLIER);
+      if (sampleValue > 0) {
+        sampleValue = Math.pow(sampleValue, compressionFactor);
+      } else {
+        sampleValue = -Math.pow(-sampleValue, compressionFactor);
       }
     }
 
