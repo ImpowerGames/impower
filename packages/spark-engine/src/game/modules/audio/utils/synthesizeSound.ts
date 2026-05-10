@@ -652,6 +652,21 @@ class FMState {
   reset(): void {
     this.angle = 0;
   }
+
+  process(
+    samplePitch: number,
+    fmRatio: number,
+    fmStrength: number,
+    sampleRate: number,
+  ) {
+    const fmModFreq = samplePitch * fmRatio;
+    this.angle += fmModFreq / sampleRate;
+    const fmSin = sine(this.angle);
+    return (
+      fmSin * fmStrength * FM_STRENGTH_MULTIPLIER * FM_DEPTH_MULTIPLIER +
+      FM_DEPTH_OFFSET
+    );
+  }
 }
 
 class BitCrushState {
@@ -1481,12 +1496,12 @@ export const fillSoundBuffer = (
 
     // FM Effect
     if (fm_on) {
-      const fmModFreq = samplePitch * fmRatio;
-      currentState.fmState.angle += fmModFreq / sampleRate;
-      const fmSin = sine(currentState.fmState.angle);
-      const fmOffset =
-        fmSin * fmStrength * FM_STRENGTH_MULTIPLIER * FM_DEPTH_MULTIPLIER +
-        FM_DEPTH_OFFSET;
+      const fmOffset = currentState.fmState.process(
+        samplePitch,
+        fmRatio,
+        fmStrength,
+        sampleRate,
+      );
       samplePitch += fmOffset;
     }
 
