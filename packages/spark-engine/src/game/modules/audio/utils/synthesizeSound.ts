@@ -20,6 +20,7 @@ export type Direction = "up" | "down" | "down-up" | "up-down";
 
 export interface Modulator {
   on: boolean;
+  order?: number;
   shape: OscillatorType;
   rate: number;
   rate_ramp: number;
@@ -89,12 +90,14 @@ export interface Synth {
     crush_ramp: number;
     skip: number;
     skip_ramp: number;
+    order?: number;
   };
   delay: {
     on: boolean;
     length: number;
     strength: number;
     feedback: number;
+    order?: number;
   };
   reverb: {
     on: boolean;
@@ -403,8 +406,9 @@ class DelayState {
   sampleRate: number;
 
   constructor(sampleRate: number) {
-    // Max 0.5 seconds — matches ChipTone's getLin(0.5) maximum
-    this.buffer = new Float32Array(Math.ceil(0.5 * sampleRate) + 1);
+    this.buffer = new Float32Array(
+      Math.ceil(DELAY_LENGTH_MAX * sampleRate) + 1,
+    );
     this.sampleRate = sampleRate;
   }
 
@@ -581,6 +585,45 @@ class BitCrushState {
   }
 }
 
+class EffectChainState {
+  effectChain: Int32Array = new Int32Array(NUM_REORDERABLE_EFFECTS);
+  effectChainOrders: Int32Array = new Int32Array(NUM_REORDERABLE_EFFECTS);
+  effectChainLength: number = 0;
+
+  addEffect(type: number, order: number | undefined) {
+    const effectChain = this.effectChain;
+    const effectChainOrders = this.effectChainOrders;
+    effectChain[this.effectChainLength] = type;
+    effectChainOrders[this.effectChainLength] = order ?? type;
+    this.effectChainLength++;
+  }
+
+  orderEffects() {
+    const effectChain = this.effectChain;
+    const effectChainOrders = this.effectChainOrders;
+    const effectChainLength = this.effectChainLength;
+
+    // Insertion sort by order, with canonical effect index as the tie-break.
+    // At most 5 elements — branchy but allocation-free.
+    for (let i = 1; i < effectChainLength; i++) {
+      const eVal = effectChain[i]!;
+      const oVal = effectChainOrders[i]!;
+      let j = i - 1;
+      while (
+        j >= 0 &&
+        (effectChainOrders[j]! > oVal ||
+          (effectChainOrders[j]! === oVal && effectChain[j]! > eVal))
+      ) {
+        effectChain[j + 1] = effectChain[j]!;
+        effectChainOrders[j + 1] = effectChainOrders[j]!;
+        j--;
+      }
+      effectChain[j + 1] = eVal;
+      effectChainOrders[j + 1] = oVal;
+    }
+  }
+}
+
 export class SynthesisState {
   waveState: ModulatorState;
   vibratoState: ModulatorState;
@@ -594,6 +637,7 @@ export class SynthesisState {
   delayState: DelayState;
   fmState: FMState;
   bitcrushState: BitCrushState;
+  effectChainState: EffectChainState;
 
   constructor(
     sampleRate: number,
@@ -615,6 +659,7 @@ export class SynthesisState {
     this.reverbState = new ReverbState(sampleRate);
     this.fmState = new FMState();
     this.bitcrushState = new BitCrushState();
+    this.effectChainState = new EffectChainState();
   }
 }
 
@@ -886,11 +931,23 @@ export const DISTORTION_GRIT_MAX = 2;
 export const DISTORTION_EDGE_MULTIPLIER = 10;
 
 export const DELAY_DRY_MIX = 0.5;
+export const DELAY_LENGTH_MAX = 0.5;
 
 export const BITCRUSH_CRUSH_EXPONENT = 0.2; // getExp(0.2) on bitCrushStrength
 export const BITCRUSH_BIT_DEPTH = 16; // 2^(16 - 16×crushValue) discrete levels
 export const BITSKIP_MIN_PHASE_DELTA = 0.001; // minimum phase advance per sample
 export const BITSKIP_PHASE_EXPONENT = 4; // (1 - skip)^4 in phase delta formula
+
+// Reorderable post-envelope effect identifiers. Numeric values double as the
+// canonical ordering (used as tie-break when two effects share the same `order`).
+export const NUM_REORDERABLE_EFFECTS = 5;
+export const EFFECT = {
+  TREMOLO: 0,
+  RING: 1,
+  WAHWAH: 2,
+  BITCRUSH: 3,
+  DELAY: 4,
+} as const;
 
 export const fillSoundBuffer = (
   synth: Synth,
@@ -970,6 +1027,10 @@ export const fillSoundBuffer = (
   const bitcrush_on = synth.bitcrush.on;
   const bitcrush_crush = synth.bitcrush.crush;
   const bitcrush_skip = synth.bitcrush.skip;
+  const delay_on = synth.delay.on;
+  const delay_length = synth.delay.length;
+  const delay_strength = synth.delay.strength;
+  const delay_feedback = synth.delay.feedback;
 
   const numNotesInArp = Math.max(
     arpeggio_tones?.length ?? 0,
@@ -1094,6 +1155,29 @@ export const fillSoundBuffer = (
 
   const MIN_FREQ = 0;
   const MAX_FREQ = sampleRate / 4;
+
+  if (tremolo_on) {
+    currentState.effectChainState.addEffect(
+      EFFECT.TREMOLO,
+      synth.tremolo.order,
+    );
+  }
+  if (ring_on) {
+    currentState.effectChainState.addEffect(EFFECT.RING, synth.ring.order);
+  }
+  if (wahwah_on) {
+    currentState.effectChainState.addEffect(EFFECT.WAHWAH, synth.wahwah.order);
+  }
+  if (bitcrush_on) {
+    currentState.effectChainState.addEffect(
+      EFFECT.BITCRUSH,
+      synth.bitcrush.order,
+    );
+  }
+  if (delay_on) {
+    currentState.effectChainState.addEffect(EFFECT.DELAY, synth.delay.order);
+  }
+  currentState.effectChainState.orderEffects();
 
   // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
@@ -1331,50 +1415,6 @@ export const fillSoundBuffer = (
 
     let activeCutoff = lowpassCutoff;
 
-    // Ring Effect
-    if (ring_on) {
-      const ringMod = currentState.ringState.process(
-        sampleRate,
-        ring_shape,
-        ringRate,
-        ringStrength,
-      );
-      const ringMultiplier = normalizeOsc(
-        ringMod,
-        RING_CARRIER_MIN,
-        RING_CARRIER_MAX,
-      );
-      sampleValue *= ringMultiplier;
-    }
-
-    // Wah-Wah Effect
-    if (wahwah_on) {
-      const wahLFO = currentState.wahwahState.process(
-        sampleRate,
-        wahwah_shape,
-        wahwahRate,
-        1,
-      );
-      const wahFrequency = Math.pow(
-        scaleLinear(wahLFO, WAHWAH_LFO_COEFFICIENT, WAHWAH_LFO_CONSTANT),
-        2,
-      );
-
-      sampleValue = currentState.wahwahBandpassState.process(
-        sampleRate,
-        sampleValue,
-        wahFrequency,
-        wahwahStrength * WAHWAH_STRENGTH_MULTIPLIER,
-        WAHWAH_BANDWIDTH,
-      );
-
-      sampleValue *= scaleLinear(
-        wahwahStrength,
-        WAHWAH_COEFFICIENT,
-        WAHWAH_CONSTANT,
-      );
-    }
-
     // Lowpass Filter
     if (lowpass_on) {
       sampleValue = currentState.lowpassState.process(
@@ -1416,32 +1456,79 @@ export const fillSoundBuffer = (
       volumeBuffer[i] = envelopeVolume;
     }
 
-    // Tremolo Effect
-    if (tremolo_on) {
-      const tremoloMod = currentState.tremoloState.process(
-        sampleRate,
-        tremolo_shape,
-        tremoloRate,
-        tremoloStrength,
-      );
-      const tremoloMultiplier = Math.max(
-        0,
-        normalizeOsc(tremoloMod, TREMOLO_CARRIER_MIN, TREMOLO_CARRIER_MAX),
-      );
-      sampleValue *= tremoloMultiplier;
-      if (volumeBuffer) {
-        volumeBuffer[i]! *= tremoloMultiplier;
+    // Reorderable post-envelope effects
+    for (let e = 0; e < currentState.effectChainState.effectChainLength; e++) {
+      const effect = currentState.effectChainState.effectChain[e];
+      if (effect === EFFECT.TREMOLO) {
+        const tremoloMod = currentState.tremoloState.process(
+          sampleRate,
+          tremolo_shape,
+          tremoloRate,
+          tremoloStrength,
+        );
+        const tremoloMultiplier = clamp(
+          0,
+          normalizeOsc(tremoloMod, TREMOLO_CARRIER_MIN, TREMOLO_CARRIER_MAX),
+        );
+        sampleValue *= tremoloMultiplier;
+        if (volumeBuffer) {
+          volumeBuffer[i]! *= tremoloMultiplier;
+        }
+      } else if (effect === EFFECT.RING) {
+        const ringMod = currentState.ringState.process(
+          sampleRate,
+          ring_shape,
+          ringRate,
+          ringStrength,
+        );
+        const ringMultiplier = normalizeOsc(
+          ringMod,
+          RING_CARRIER_MIN,
+          RING_CARRIER_MAX,
+        );
+        sampleValue *= ringMultiplier;
+        if (volumeBuffer) {
+          volumeBuffer[i]! *= ringMultiplier;
+        }
+      } else if (effect === EFFECT.WAHWAH) {
+        const wahLFO = currentState.wahwahState.process(
+          sampleRate,
+          wahwah_shape,
+          wahwahRate,
+          1,
+        );
+        const wahFrequency = Math.pow(
+          scaleLinear(wahLFO, WAHWAH_LFO_COEFFICIENT, WAHWAH_LFO_CONSTANT),
+          2,
+        );
+        sampleValue = currentState.wahwahBandpassState.process(
+          sampleRate,
+          sampleValue,
+          wahFrequency,
+          wahwahStrength * WAHWAH_STRENGTH_MULTIPLIER,
+          WAHWAH_BANDWIDTH,
+        );
+        sampleValue *= scaleLinear(
+          wahwahStrength,
+          WAHWAH_COEFFICIENT,
+          WAHWAH_CONSTANT,
+        );
+      } else if (effect === EFFECT.BITCRUSH) {
+        sampleValue = currentState.bitcrushState.process(
+          sampleValue,
+          bitcrushCrush,
+          bitcrushSkip,
+          sampleRate,
+        );
+      } else if (effect === EFFECT.DELAY) {
+        sampleValue = currentState.delayState.process(
+          sampleValue,
+          DELAY_DRY_MIX,
+          delay_length,
+          delay_strength,
+          delay_feedback,
+        );
       }
-    }
-
-    // BitCrush Effect
-    if (bitcrush_on) {
-      sampleValue = currentState.bitcrushState.process(
-        sampleValue,
-        bitcrushCrush,
-        bitcrushSkip,
-        sampleRate,
-      );
     }
 
     sampleValue *= Math.max(0, masterVolume);
@@ -1557,26 +1644,6 @@ export const synthesizeSound = (
     gain,
     frequency,
   );
-
-  // Delay Filter
-  const delay_on = synth.delay.on;
-  if (delay_on) {
-    const delay_length = synth.delay.length;
-    const delay_strength = synth.delay.strength;
-    const delay_feedback = synth.delay.feedback;
-    const dryMix = DELAY_DRY_MIX;
-
-    for (let i = startIndex; i < endIndex; i++) {
-      const dry = soundBuffer[i]!;
-      soundBuffer[i] = state.delayState.process(
-        dry,
-        dryMix,
-        delay_length,
-        delay_strength,
-        delay_feedback,
-      );
-    }
-  }
 
   // Reverb Filter
   const reverb_on = synth.reverb.on;

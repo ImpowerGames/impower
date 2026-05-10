@@ -6,6 +6,7 @@ export type Direction = "up" | "down" | "down-up" | "up-down";
 
 export interface Modulator {
   on: boolean;
+  order?: number;
   shape: OscillatorType;
   rate: number;
   rate_ramp: number;
