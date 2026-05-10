@@ -95,5 +95,8 @@
     "**/*.rpa": true,
     "**/*.rpymc": true,
     "**/cache/": true
+  },
+  "files.associations": {
+    "*.css": "tailwindcss"
   }
 }

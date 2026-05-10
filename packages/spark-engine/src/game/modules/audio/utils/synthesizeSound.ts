@@ -938,8 +938,6 @@ export const BITCRUSH_BIT_DEPTH = 16; // 2^(16 - 16×crushValue) discrete levels
 export const BITSKIP_MIN_PHASE_DELTA = 0.001; // minimum phase advance per sample
 export const BITSKIP_PHASE_EXPONENT = 4; // (1 - skip)^4 in phase delta formula
 
-// Reorderable post-envelope effect identifiers. Numeric values double as the
-// canonical ordering (used as tie-break when two effects share the same `order`).
 export const NUM_REORDERABLE_EFFECTS = 5;
 export const EFFECT = {
   TREMOLO: 0,
