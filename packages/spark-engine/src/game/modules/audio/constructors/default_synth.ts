@@ -74,7 +74,7 @@ export const default_synth: Create<Synth> = (obj) => ({
   },
   tremolo: {
     on: false,
-    rate: 50,
+    rate: 10,
     rate_ramp: 0,
     strength: 0.5,
     strength_ramp: 0,
