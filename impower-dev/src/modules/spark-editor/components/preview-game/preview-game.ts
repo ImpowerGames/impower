@@ -76,6 +76,9 @@ export default class GamePreview extends Component(spec) {
         this.handleChannelMessage,
       );
     }
+    if (!SPARKDOWN_PLAYER_ORIGIN) {
+      console.error("no target origin specified");
+    }
     const iframe = this.refs.iframe as HTMLIFrameElement;
     const channel = new MessageChannel();
     const iframeWindowConnection = new IFrameMessageConnection(
