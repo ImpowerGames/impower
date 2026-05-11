@@ -640,8 +640,9 @@ export class SynthVisualizer {
       return bottomY - t * (bottomY - topY);
     };
 
-    // X helpers — note widths vary because the rate is ramping
-    const xOf = (sample: number): number => (sample / totalSamples) * w;
+    const displaySamples = Math.min(totalSamples, currentSample);
+
+    const xOf = (sample: number): number => (sample / displaySamples) * w;
     const noteX = (i: number): number => xOf(noteStartSamples[i]);
     const noteEndX = (i: number): number =>
       i + 1 < length
