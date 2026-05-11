@@ -79,11 +79,37 @@ export class SynthVisualizer {
 
     const startY = height / 2;
 
-    const getIndex = (x: number) =>
-      Math.min(
-        bufferLength - 1,
-        startIndex + Math.floor((x / width) * visibleLength),
-      );
+    // Smart pixel mapper: Interpolates when zoomed in, extracts min/max bounds when zoomed out
+    const getAudioPixel = (buffer: Float32Array | number[], x: number) => {
+      const exactIndex = startIndex + (x / width) * visibleLength;
+
+      if (visibleLength <= width) {
+        // Zoomed In: Smooth linear interpolation between individual samples
+        const i0 = Math.floor(exactIndex);
+        const i1 = Math.min(bufferLength - 1, i0 + 1);
+        const t = exactIndex - i0;
+        const val = buffer[i0]! * (1 - t) + buffer[i1]! * t;
+        return { min: val, max: val, avg: val };
+      }
+
+      // Zoomed Out: Min/Max grouping to prevent audio-rate aliasing
+      let startI = Math.min(bufferLength - 1, Math.floor(exactIndex));
+      let endI = Math.floor(startIndex + ((x + 1) / width) * visibleLength);
+      if (endI <= startI) endI = startI + 1;
+      endI = Math.min(bufferLength, endI);
+
+      let min = buffer[startI] || 0;
+      let max = min;
+      let sum = 0;
+
+      for (let i = startI; i < endI; i++) {
+        const val = buffer[i]!;
+        if (val < min) min = val;
+        if (val > max) max = val;
+        sum += val;
+      }
+      return { min, max, avg: sum / (endI - startI) };
+    };
 
     // Draw Dashed Baseline
     ctx.lineWidth = 1.5;
@@ -96,6 +122,7 @@ export class SynthVisualizer {
     ctx.setLineDash([]);
 
     // Draw Pitch
+    const PITCH_HEIGHT_FACTOR = 2;
     if (visibility.pitch && pitchBuffer) {
       ctx.strokeStyle = "rgba(236, 72, 153, 0.5)";
       ctx.fillStyle = "rgba(236, 72, 153, 0.2)";
@@ -103,10 +130,9 @@ export class SynthVisualizer {
       ctx.beginPath();
       ctx.moveTo(0, height);
       for (let x = 0; x < width; x++) {
-        const i = getIndex(x);
-        const mag =
-          pMax === pMin ? 0.5 : (pitchBuffer[i] - pMin) / (pMax - pMin);
-        ctx.lineTo(x, startY - mag * (height / 2));
+        const { avg } = getAudioPixel(pitchBuffer, x);
+        const mag = pMax === pMin ? 0.5 : (avg - pMin) / (pMax - pMin);
+        ctx.lineTo(x, startY - mag * (height / PITCH_HEIGHT_FACTOR));
       }
       ctx.lineTo(width, height);
       ctx.fill();
@@ -114,6 +140,7 @@ export class SynthVisualizer {
     }
 
     // Draw Volume
+    const VOLUME_HEIGHT_FACTOR = 2;
     if (visibility.volume && volumeBuffer) {
       ctx.strokeStyle = "rgba(245, 158, 11, 0.5)";
       ctx.fillStyle = "rgba(245, 158, 11, 0.2)";
@@ -121,38 +148,40 @@ export class SynthVisualizer {
       ctx.beginPath();
       ctx.moveTo(0, height);
       for (let x = 0; x < width; x++) {
-        const i = getIndex(x);
-        ctx.lineTo(x, startY - volumeBuffer[i] * (height / 2));
+        const { max } = getAudioPixel(volumeBuffer, x);
+        ctx.lineTo(x, startY - max * (height / VOLUME_HEIGHT_FACTOR));
       }
       ctx.lineTo(width, height);
       ctx.fill();
       ctx.stroke();
     }
 
-    if (visibility.reference && referenceBuffer) {
-      // Draw Reference
-      ctx.strokeStyle = "#7f22fe";
+    const drawWaveform = (
+      buffer: Float32Array | number[],
+      color: string,
+      scaleY: number,
+    ) => {
+      ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(0, startY);
+
       for (let x = 0; x < width; x++) {
-        const i = getIndex(x);
-        ctx.lineTo(x, startY - referenceBuffer[i] * (height / 2.5));
+        const { avg } = getAudioPixel(buffer, x);
+        const y = startY - avg * scaleY;
+
+        if (x === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
       }
       ctx.stroke();
+    };
+
+    const SHAPE_HEIGHT_FACTOR = 2.5;
+    if (visibility.reference && referenceBuffer) {
+      drawWaveform(referenceBuffer, "#7f22fe", height / SHAPE_HEIGHT_FACTOR);
     }
 
-    // Draw Sound
     if (visibility.shape && soundBuffer) {
-      ctx.strokeStyle = "#0ea5e9";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, startY);
-      for (let x = 0; x < width; x++) {
-        const i = getIndex(x);
-        ctx.lineTo(x, startY - soundBuffer[i] * (height / 2.5));
-      }
-      ctx.stroke();
+      drawWaveform(soundBuffer, "#0ea5e9", height / SHAPE_HEIGHT_FACTOR);
     }
   }
 
