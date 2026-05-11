@@ -1542,6 +1542,11 @@ export const fillSoundBuffer = (
       harmonicAngleMult *= 2; // double frequency each harmonic
     }
 
+    sampleValue *= Math.max(0, arpAmplitudeFactor);
+    if (volumeBuffer) {
+      volumeBuffer[i]! *= arpAmplitudeFactor;
+    }
+
     const envelopeVolume = getEnvelopeVolume(
       i,
       startIndex,
@@ -1673,11 +1678,6 @@ export const fillSoundBuffer = (
     sampleValue *= Math.max(0, masterVolume);
     if (volumeBuffer) {
       volumeBuffer[i]! *= masterVolume;
-    }
-
-    sampleValue *= Math.max(0, arpAmplitudeFactor);
-    if (volumeBuffer) {
-      volumeBuffer[i]! *= arpAmplitudeFactor;
     }
 
     // Set Buffer
