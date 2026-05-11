@@ -194,12 +194,7 @@ export class SynthVisualizer {
     ctx.strokeStyle = color;
     ctx.beginPath();
 
-    const previewState: OscillatorState = {
-      prevPhase: 0,
-      prevRandom: 0,
-      b: [0, 0, 0, 0, 0, 0, 0],
-      rng: randomizer(0),
-    };
+    const previewState = new OscillatorState(randomizer(0));
 
     const lengthInSamples = 1000;
 
@@ -526,12 +521,7 @@ export class SynthVisualizer {
     ctx.strokeStyle = color;
     ctx.beginPath();
 
-    const previewState: OscillatorState = {
-      prevPhase: 0,
-      prevRandom: 0,
-      b: [0, 0, 0, 0, 0, 0, 0],
-      rng: randomizer(0),
-    };
+    const previewState = new OscillatorState(randomizer(0));
 
     const lengthInSamples = 1000;
 
@@ -1082,6 +1072,106 @@ export class SynthVisualizer {
 
       if (i === 0) ctx.moveTo(0, y);
       else ctx.lineTo(t * w, y);
+    }
+
+    ctx.stroke();
+  }
+
+  static drawBitcrush(
+    ctx: CanvasRenderingContext2D,
+    w: number,
+    h: number,
+    color: string,
+    params: {
+      crush: number;
+      crush_ramp?: number;
+      skip: number;
+      skip_ramp?: number;
+    },
+  ) {
+    const { crush, crush_ramp = 0, skip, skip_ramp = 0 } = params;
+
+    // Duplicated from engine to ensure standalone accuracy in visualizer
+    const BITCRUSH_CRUSH_EXPONENT = 0.2;
+    const BITCRUSH_BIT_DEPTH = 16;
+    const BITSKIP_MIN_PHASE_DELTA = 0.001;
+    const BITSKIP_PHASE_EXPONENT = 4;
+
+    // Baseline
+    ctx.strokeStyle = "#404040";
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.moveTo(0, h / 2);
+    ctx.lineTo(w, h / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+
+    // Simulate 20ms of audio, showing exactly 3 periods of a 150Hz sine wave
+    const sampleRate = 44100;
+    const windowDuration = 0.02;
+    const lengthInSamples = Math.floor(windowDuration * sampleRate);
+    const freq = 150;
+
+    let skipPhase = 1.0;
+    let skipLastSample = 0.0;
+    let lastY = h / 2;
+
+    for (let i = 0; i <= lengthInSamples; i++) {
+      const t_norm = i / lengthInSamples;
+      const time = t_norm * windowDuration;
+
+      // Base sine wave
+      let sampleValue = Math.sin(time * Math.PI * 2 * freq);
+
+      // Apply linear ramps (clamped to 0-1) matching how audio handles parameter drift
+      const currentCrush = SynthVisualizer.clamp(
+        crush + crush_ramp * t_norm,
+        0,
+        1,
+      );
+      const currentSkip = SynthVisualizer.clamp(
+        skip + skip_ramp * t_norm,
+        0,
+        1,
+      );
+
+      // 1. Crush Logic (Amplitude Quantization)
+      const crushValue = Math.pow(currentCrush, BITCRUSH_CRUSH_EXPONENT);
+      const numOptions = Math.pow(
+        2,
+        BITCRUSH_BIT_DEPTH - BITCRUSH_BIT_DEPTH * crushValue,
+      );
+      sampleValue = Math.trunc(sampleValue * numOptions) / numOptions;
+
+      // 2. Skip Logic (Time Decimation)
+      skipPhase +=
+        (BITSKIP_MIN_PHASE_DELTA +
+          Math.pow(1.0 - currentSkip, BITSKIP_PHASE_EXPONENT)) *
+        (44100 / sampleRate);
+
+      if (skipPhase > 1.0) {
+        skipPhase -= 1.0;
+        skipLastSample = sampleValue;
+      }
+
+      const x = t_norm * w;
+      const y = h / 2 - skipLastSample * (h * 0.4);
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        // Force crisp 90-degree staircases for sample-and-hold drops
+        if (y !== lastY) {
+          ctx.lineTo(x, lastY);
+        }
+        ctx.lineTo(x, y);
+      }
+
+      lastY = y;
     }
 
     ctx.stroke();

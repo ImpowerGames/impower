@@ -1382,7 +1382,7 @@ const ControlSection = ({
       </div>
       {isExpanded && (
         <div className="flex flex-col">
-          <div className="flex flex-col md:flex-row">
+          <div className="flex flex-col lg:flex-row">
             <div className="flex-1 p-3 space-y-4">{children}</div>
             <div className="flex flex-col w-full md:w-2/5 border-t md:border-t-0 md:border-l border-engine-800 bg-engine-950/30 md:min-h-full">
               {preview}
@@ -2624,6 +2624,15 @@ const BitcrushControls = ({
         onChange(newSynth);
       }}
       actions={actions}
+      preview={
+        <PreviewCanvas
+          draw={SynthVisualizer.drawBitcrush}
+          colorType="default"
+          label="Shape"
+          params={params}
+          sampleRate={sampleRate}
+        />
+      }
     >
       <Slider
         label="Crush"
