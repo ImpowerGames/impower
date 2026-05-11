@@ -22,7 +22,7 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-game";
 
 const SPARKDOWN_PLAYER_ORIGIN =
-  process?.env?.["VITE_SPARKDOWN_PLAYER_ORIGIN"] || "";
+  import.meta.env.VITE_SPARKDOWN_PLAYER_ORIGIN || "";
 
 export default class GamePreview extends Component(spec) {
   private _resolveInitializing!: () => void;
