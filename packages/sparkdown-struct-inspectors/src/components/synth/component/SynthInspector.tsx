@@ -488,6 +488,116 @@ const RandomizePanel = ({ onRandomize }: RandomizePanelProps) => {
   );
 };
 
+export const DragHandle = ({
+  onPointerDown,
+}: {
+  onPointerDown: (e: PointerEvent) => void;
+}) => {
+  return (
+    <div
+      className="cursor-grab active:cursor-grabbing mr-2 bg-engine-900/40 rounded-md p-1.5 text-engine-500 flex items-center justify-center touch-none select-none"
+      onPointerDown={onPointerDown}
+      title="Drag to reorder"
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="9" cy="12" r="1.5"></circle>
+        <circle cx="9" cy="5" r="1.5"></circle>
+        <circle cx="9" cy="19" r="1.5"></circle>
+        <circle cx="15" cy="12" r="1.5"></circle>
+        <circle cx="15" cy="5" r="1.5"></circle>
+        <circle cx="15" cy="19" r="1.5"></circle>
+      </svg>
+    </div>
+  );
+};
+
+interface DragOverInfo {
+  index: number;
+  position: "top" | "bottom";
+}
+
+interface ModulatorComponentProps {
+  synth: Synth;
+  defaultSynth: Synth;
+  schema: Schema<Synth>;
+  onInput: (synth: Synth) => void;
+  onChange: (synth: Synth) => void;
+  actions?: ComponentChildren;
+}
+
+interface DraggableModulatorProps {
+  id: string;
+  index: number;
+  Comp: (props: ModulatorComponentProps) => ComponentChildren;
+  synth: Synth;
+  defaultSynth: Synth;
+  schema: Schema<Synth>;
+  onInput: (synth: Synth) => void;
+  onChange: (synth: Synth) => void;
+  draggedIndex: number | null;
+  dragOverInfo: DragOverInfo | null;
+  onStartDrag: (index: number, e: PointerEvent) => void;
+}
+
+const DraggableModulator = ({
+  index,
+  Comp,
+  synth,
+  defaultSynth,
+  schema,
+  onInput,
+  onChange,
+  draggedIndex,
+  dragOverInfo,
+  onStartDrag,
+}: DraggableModulatorProps) => {
+  const isDragging = draggedIndex === index;
+  const isDragOver = dragOverInfo?.index === index;
+  const isDragOverTop = isDragOver && dragOverInfo?.position === "top";
+  const isDragOverBottom = isDragOver && dragOverInfo?.position === "bottom";
+
+  return (
+    <div
+      data-modulator-index={index}
+      className={`relative transition-all duration-150 rounded-lg border-2
+        ${
+          isDragging
+            ? "opacity-40 border-dashed border-engine-500 scale-[0.98] pointer-events-none z-0"
+            : "border-transparent opacity-100 z-10"
+        }
+      `}
+    >
+      {/* Drop Indicator - Top */}
+      {isDragOverTop && !isDragging && (
+        <div className="absolute -top-2.5 left-0 right-0 h-1 bg-sky-400 rounded-full z-50 pointer-events-none shadow-[0_0_12px_rgba(56,189,248,0.9)] animate-in fade-in duration-100" />
+      )}
+
+      {/* Drop Indicator - Bottom */}
+      {isDragOverBottom && !isDragging && (
+        <div className="absolute -bottom-2.5 left-0 right-0 h-1 bg-sky-400 rounded-full z-50 pointer-events-none shadow-[0_0_12px_rgba(56,189,248,0.9)] animate-in fade-in duration-100" />
+      )}
+
+      <Comp
+        synth={synth}
+        defaultSynth={defaultSynth}
+        schema={schema}
+        onInput={onInput}
+        onChange={onChange}
+        actions={<DragHandle onPointerDown={(e) => onStartDrag(index, e)} />}
+      />
+    </div>
+  );
+};
+
 interface EditPanelProps {
   synth: Synth;
   defaultSynth: Synth;
@@ -502,8 +612,142 @@ const EditPanel = ({
   onChange,
 }: EditPanelProps) => {
   const schema = SCHEMA_SYNTH;
+
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverInfo, setDragOverInfo] = useState<DragOverInfo | null>(null);
+
+  const dragStateRef = useRef({
+    draggedIndex: null as number | null,
+    dragOverInfo: null as DragOverInfo | null,
+  });
+
+  const modulators = [
+    { id: "tremolo", order: synth.tremolo.order ?? 0, Comp: TremoloControls },
+    { id: "ring", order: synth.ring.order ?? 1, Comp: RingControls },
+    { id: "wahwah", order: synth.wahwah.order ?? 2, Comp: WahwahControls },
+    {
+      id: "bitcrush",
+      order: synth.bitcrush.order ?? 3,
+      Comp: BitcrushControls,
+    },
+    { id: "delay", order: synth.delay.order ?? 4, Comp: DelayControls },
+  ].sort((a, b) => a.order - b.order);
+
+  const moveModulator = (
+    fromIndex: number,
+    targetIndex: number,
+    position: "top" | "bottom",
+  ) => {
+    if (fromIndex === targetIndex) return;
+
+    const newMods = [...modulators];
+    const [dragged] = newMods.splice(fromIndex, 1);
+
+    let insertIndex = targetIndex;
+    if (position === "bottom") insertIndex++;
+    if (fromIndex < insertIndex) insertIndex--;
+
+    newMods.splice(insertIndex, 0, dragged);
+
+    let newSynth = synth;
+    newMods.forEach((mod, idx) => {
+      newSynth = update(newSynth, [mod.id, "order"], idx);
+    });
+    onInput(newSynth);
+    onChange(newSynth);
+  };
+
+  const handleStartDrag = useCallback(
+    (index: number, e: PointerEvent) => {
+      e.preventDefault();
+      setDraggedIndex(index);
+      dragStateRef.current.draggedIndex = index;
+
+      document.body.style.setProperty("cursor", "grabbing", "important");
+      document.body.style.userSelect = "none";
+
+      const handlePointerMove = (ev: PointerEvent) => {
+        // Query all draggables instead of just looking at the exact pixel
+        const elements = Array.from(
+          document.querySelectorAll("[data-modulator-index]"),
+        );
+
+        let closestIndex: number | null = null;
+        let closestPosition: "top" | "bottom" = "top";
+        let minDist = Infinity;
+
+        elements.forEach((el) => {
+          const rect = el.getBoundingClientRect();
+
+          // Add a generous horizontal buffer (±100px) so dragging slightly off to the side doesn't instantly lose the indicator
+          if (ev.clientX >= rect.left - 100 && ev.clientX <= rect.right + 100) {
+            const centerY = rect.top + rect.height / 2;
+            // Calculate vertical distance from cursor to the center of the element
+            const dist = Math.abs(ev.clientY - centerY);
+
+            if (dist < minDist) {
+              minDist = dist;
+              closestIndex = parseInt(
+                el.getAttribute("data-modulator-index")!,
+                10,
+              );
+              // If above the center line, target top. If below, target bottom.
+              closestPosition = ev.clientY < centerY ? "top" : "bottom";
+            }
+          }
+        });
+
+        if (
+          closestIndex !== null &&
+          closestIndex !== dragStateRef.current.draggedIndex
+        ) {
+          const currentInfo = dragStateRef.current.dragOverInfo;
+          if (
+            currentInfo?.index !== closestIndex ||
+            currentInfo?.position !== closestPosition
+          ) {
+            const newInfo: DragOverInfo = {
+              index: closestIndex,
+              position: closestPosition,
+            };
+            setDragOverInfo(newInfo);
+            dragStateRef.current.dragOverInfo = newInfo;
+          }
+        } else {
+          // Clear only if hovering over the dragged item itself, or far outside the list bounds
+          setDragOverInfo(null);
+          dragStateRef.current.dragOverInfo = null;
+        }
+      };
+
+      const handlePointerUp = () => {
+        const state = dragStateRef.current;
+        if (state.draggedIndex !== null && state.dragOverInfo !== null) {
+          moveModulator(
+            state.draggedIndex,
+            state.dragOverInfo.index,
+            state.dragOverInfo.position,
+          );
+        }
+
+        setDraggedIndex(null);
+        setDragOverInfo(null);
+        dragStateRef.current = { draggedIndex: null, dragOverInfo: null };
+
+        document.body.style.removeProperty("cursor");
+        document.body.style.removeProperty("user-select");
+        window.removeEventListener("pointermove", handlePointerMove);
+        window.removeEventListener("pointerup", handlePointerUp);
+      };
+
+      window.addEventListener("pointermove", handlePointerMove);
+      window.addEventListener("pointerup", handlePointerUp);
+    },
+    [moveModulator],
+  );
+
   return (
-    <div className="max-w-7xl mx-auto grid grid-cols-1 gap-3 items-start pb-12">
+    <div className="max-w-7xl mx-auto grid grid-cols-1 gap-3 items-start pb-12 relative">
       <GeneralControls
         synth={synth}
         defaultSynth={defaultSynth}
@@ -519,6 +763,13 @@ const EditPanel = ({
         onChange={onChange}
       />
       <PitchControls
+        synth={synth}
+        defaultSynth={defaultSynth}
+        schema={schema}
+        onInput={onInput}
+        onChange={onChange}
+      />
+      <DistortionControls
         synth={synth}
         defaultSynth={defaultSynth}
         schema={schema}
@@ -553,48 +804,24 @@ const EditPanel = ({
         onInput={onInput}
         onChange={onChange}
       />
-      <TremoloControls
-        synth={synth}
-        defaultSynth={defaultSynth}
-        schema={schema}
-        onInput={onInput}
-        onChange={onChange}
-      />
-      <RingControls
-        synth={synth}
-        defaultSynth={defaultSynth}
-        schema={schema}
-        onInput={onInput}
-        onChange={onChange}
-      />
-      <WahwahControls
-        synth={synth}
-        defaultSynth={defaultSynth}
-        schema={schema}
-        onInput={onInput}
-        onChange={onChange}
-      />
-      <DistortionControls
-        synth={synth}
-        defaultSynth={defaultSynth}
-        schema={schema}
-        onInput={onInput}
-        onChange={onChange}
-      />
-      <BitcrushControls
-        synth={synth}
-        defaultSynth={defaultSynth}
-        schema={schema}
-        onInput={onInput}
-        onChange={onChange}
-      />
-      <DelayControls
-        synth={synth}
-        defaultSynth={defaultSynth}
-        schema={schema}
-        onInput={onInput}
-        onChange={onChange}
-      />
+
+      {modulators.map(({ id, Comp }, index) => (
+        <DraggableModulator
+          key={id}
+          id={id}
+          index={index}
+          Comp={Comp}
+          synth={synth}
+          defaultSynth={defaultSynth}
+          schema={schema}
+          onInput={onInput}
+          onChange={onChange}
+          draggedIndex={draggedIndex}
+          dragOverInfo={dragOverInfo}
+          onStartDrag={handleStartDrag}
+        />
+      ))}
+
       <ReverbControls
         synth={synth}
         defaultSynth={defaultSynth}
@@ -906,7 +1133,7 @@ const Select = ({
     if (defaultValue !== undefined) {
       onChange(defaultValue);
     }
-  }, [defaultValue, step, onChange]);
+  }, [defaultValue, onChange]);
 
   // Determine if the current value has been altered from the default
   const isModified = defaultValue !== undefined && value !== defaultValue;
@@ -1072,6 +1299,7 @@ interface ControlSectionProps<T = any> {
   onToggle?: () => void;
   onReset?: (value: T) => void;
   colorType?: "default" | "pitch" | "volume";
+  actions?: ComponentChildren;
 }
 
 export interface FunctionComponent<P = {}> {
@@ -1092,11 +1320,18 @@ const ControlSection = ({
   onToggle,
   onReset,
   colorType = "default",
+  actions,
 }: ControlSectionProps) => {
   const isExpanded = !toggleable || isOn;
+
+  const defaultValueClone = structuredClone(defaultValue);
+  delete defaultValueClone.order;
+  const valueClone = structuredClone(value);
+  delete valueClone.order;
+
   const isModified =
     defaultValue !== undefined &&
-    JSON.stringify(defaultValue) !== JSON.stringify(value);
+    JSON.stringify(defaultValueClone) !== JSON.stringify(valueClone);
 
   const accent =
     colorType === "pitch"
@@ -1128,7 +1363,7 @@ const ControlSection = ({
           />
           <span>{title}</span>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-2">
           {isModified && (
             <ResetButton
               onClick={() => {
@@ -1139,6 +1374,7 @@ const ControlSection = ({
               Reset All
             </ResetButton>
           )}
+          {actions}
           {toggleable && onToggle && (
             <Toggle isOnClasses={bg} value={isOn} onChange={onToggle} />
           )}
@@ -1185,6 +1421,7 @@ interface ControlProps {
   schema: Schema<Synth>;
   onInput: (synth: Synth) => void;
   onChange: (synth: Synth) => void;
+  actions?: ComponentChildren;
 }
 
 const GeneralControls = ({
@@ -1995,6 +2232,7 @@ const RingControls = ({
   schema,
   onInput,
   onChange,
+  actions,
 }: ControlProps) => {
   const sampleRate = SynthEngine.sampleRate;
   return (
@@ -2017,6 +2255,7 @@ const RingControls = ({
         onChange(newSynth);
       }}
       colorType="volume"
+      actions={actions}
       preview={
         <PreviewCanvas
           draw={SynthVisualizer.drawLFO}
@@ -2120,6 +2359,7 @@ const WahwahControls = ({
   schema,
   onInput,
   onChange,
+  actions,
 }: ControlProps) => {
   const sampleRate = SynthEngine.sampleRate;
   return (
@@ -2142,6 +2382,7 @@ const WahwahControls = ({
         onChange(newSynth);
       }}
       colorType="pitch"
+      actions={actions}
       preview={
         <PreviewCanvas
           draw={SynthVisualizer.drawLFO}
@@ -2357,6 +2598,7 @@ const BitcrushControls = ({
   schema,
   onInput,
   onChange,
+  actions,
 }: ControlProps) => {
   const sampleRate = SynthEngine.sampleRate;
   const params = useMemo(() => {
@@ -2381,15 +2623,7 @@ const BitcrushControls = ({
         onInput(newSynth);
         onChange(newSynth);
       }}
-      // preview={
-      //   <PreviewCanvas
-      //     draw={SynthVisualizer.drawShape}
-      //     colorType="default"
-      //     label="Shape"
-      //     params={params}
-      //     sampleRate={sampleRate}
-      //   />
-      // }
+      actions={actions}
     >
       <Slider
         label="Crush"
@@ -2469,6 +2703,7 @@ const TremoloControls = ({
   schema,
   onInput,
   onChange,
+  actions,
 }: ControlProps) => {
   const sampleRate = SynthEngine.sampleRate;
   return (
@@ -2491,6 +2726,7 @@ const TremoloControls = ({
         onChange(newSynth);
       }}
       colorType="volume"
+      actions={actions}
       preview={
         <PreviewCanvas
           draw={SynthVisualizer.drawLFO}
@@ -2594,6 +2830,7 @@ const VibratoControls = ({
   schema,
   onInput,
   onChange,
+  actions,
 }: ControlProps) => {
   const sampleRate = SynthEngine.sampleRate;
   return (
@@ -2616,6 +2853,7 @@ const VibratoControls = ({
         onChange(newSynth);
       }}
       colorType="pitch"
+      actions={actions}
       preview={
         <PreviewCanvas
           draw={SynthVisualizer.drawLFO}
@@ -3116,6 +3354,7 @@ const DelayControls = ({
   schema,
   onInput,
   onChange,
+  actions,
 }: ControlProps) => {
   const sampleRate = SynthEngine.sampleRate;
   return (
@@ -3146,6 +3385,7 @@ const DelayControls = ({
           sampleRate={sampleRate}
         />
       }
+      actions={actions}
     >
       <Slider
         label="Length"
