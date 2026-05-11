@@ -5,7 +5,27 @@ import { cull } from "./cull";
 import { getAllProperties } from "./getAllProperties";
 import { getProperty } from "./getProperty";
 import { pick } from "./pick";
+import { RANDOM_LERP } from "./randomSpec";
 import { setProperty } from "./setProperty";
+
+const roundForSchema = <T>(
+  value: number,
+  validation: Schema<T>,
+  key: string,
+  rangeMin: number,
+  rangeMax: number,
+): number => {
+  const valid = getProperty(validation, key);
+  if (Array.isArray(valid)) {
+    const step = valid[0];
+    const fractionDigits = step.toString().split(".")?.[1]?.length || 0;
+    return Number(value.toFixed(fractionDigits));
+  }
+  const distance = Math.abs(rangeMax - rangeMin);
+  const fractionDigits =
+    distance <= 2 ? 2 : rangeMin.toString().split(".")?.[1]?.length || 0;
+  return Number(value.toFixed(fractionDigits));
+};
 
 export const randomizeProperties = <T>(
   obj: T,
@@ -14,68 +34,69 @@ export const randomizeProperties = <T>(
   cullProp?: string,
   rng?: () => number,
 ): void => {
+  const r = rng || Math.random;
   const randomizerProps = getAllProperties(randomization);
+
   Object.entries(randomizerProps).forEach(([k, v]) => {
-    if (Array.isArray(v)) {
-      const [firstOption, secondOption] = v;
-      if (
-        typeof firstOption === "string" &&
-        typeof secondOption === "boolean"
-      ) {
-        // Handle self references on second pass
-        setProperty(obj, k, undefined);
-      } else if (typeof firstOption === "number") {
-        const randomizedValue = clampedRandom(firstOption, secondOption, rng);
-        const valid = getProperty(validation, k);
-        if (Array.isArray(valid)) {
-          // Round according to validation step
-          const step = valid?.[0];
-          const fractionDigits = step.toString().split(".")?.[1]?.length || 0;
-          const roundedVal = Number(randomizedValue.toFixed(fractionDigits));
-          setProperty(obj, k, roundedVal);
-        } else {
-          // Round according to randomization min and max
-          const distance = Math.abs(secondOption - firstOption);
-          const fractionDigits =
-            distance <= 2
-              ? 2
-              : firstOption.toString().split(".")?.[1]?.length || 0;
-          const roundedVal = Number(randomizedValue.toFixed(fractionDigits));
-          setProperty(obj, k, roundedVal);
-        }
-      } else {
-        setProperty(obj, k, pick(v, rng));
-      }
+    if (!Array.isArray(v)) {
+      return;
     }
-  });
-  Object.entries(randomizerProps).forEach(([k, v]) => {
-    if (Array.isArray(v)) {
-      const [propertyPath, forceInverse] = v;
-      if (
-        typeof propertyPath === "string" &&
-        typeof forceInverse === "boolean"
-      ) {
-        // Resolve self references
-        const referencedValue = getProperty(obj, propertyPath);
-        const inverseOfReferencedValue =
-          typeof referencedValue === "number"
-            ? referencedValue
-            : !referencedValue;
-        if (referencedValue) {
-          setProperty(obj, k, inverseOfReferencedValue);
-        } else {
-          setProperty(
-            obj,
-            k,
-            forceInverse
-              ? inverseOfReferencedValue
-              : pick([referencedValue, inverseOfReferencedValue], rng),
-          );
-        }
-      }
+    const first = v[0];
+    const second = v[1];
+
+    // [boolean, percentage]
+    if (
+      v.length === 2 &&
+      typeof first === "boolean" &&
+      typeof second === "number"
+    ) {
+      setProperty(obj, k, r() < second ? first : !first);
+      return;
     }
+
+    // pow (lerp) — [min, max, exponent, "lerp"]
+    if (
+      v.length === 4 &&
+      v[3] === RANDOM_LERP &&
+      typeof first === "number" &&
+      typeof second === "number" &&
+      typeof v[2] === "number"
+    ) {
+      const [min, max, exponent] = v as PowOrRangeTuple;
+      const u = Math.pow(r(), exponent);
+      const value = min + u * (max - min);
+      setProperty(obj, k, roundForSchema(value, validation, k, min, max));
+      return;
+    }
+
+    // powRange — [min, max, exponent]
+    if (
+      v.length === 3 &&
+      typeof first === "number" &&
+      typeof second === "number" &&
+      typeof v[2] === "number"
+    ) {
+      const [min, max, exponent] = v as PowOrRangeTuple;
+      const sampled = min + r() * (max - min);
+      const value = Math.pow(sampled, exponent);
+      setProperty(obj, k, roundForSchema(value, validation, k, min, max));
+      return;
+    }
+
+    if (typeof first === "number") {
+      // Uniform range — [min, max]
+      const value = clampedRandom(first, second, rng);
+      setProperty(obj, k, roundForSchema(value, validation, k, first, second));
+      return;
+    }
+
+    // Otherwise pick uniformly from the array
+    setProperty(obj, k, pick(v, rng));
   });
+
   if (cullProp) {
     cull(obj, cullProp);
   }
 };
+
+type PowOrRangeTuple = [number, number, number, ...unknown[]];
