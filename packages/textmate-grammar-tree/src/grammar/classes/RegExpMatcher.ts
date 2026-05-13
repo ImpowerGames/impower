@@ -100,7 +100,7 @@ export class RegExpMatcher implements Matcher {
    * @param str - The string to match.
    * @param pos - The position to start matching at.
    */
-  match(str: string, pos: number): string[] | null {
+  match(str: string, pos: number): (string | undefined)[] | null {
     // if we don't have any capturing groups, we can cheat a little bit,
     // and only use the `test` method, which is much faster
     if (!this.hasCapturingGroups) {
@@ -129,9 +129,6 @@ export class RegExpMatcher implements Matcher {
         if (result) {
           let capturedLength = 0;
           for (let i = 1; i < result.length; i++) {
-            if (result[i] === undefined) {
-              result[i] = "";
-            }
             capturedLength += result[i]?.length ?? 0;
           }
           // parser only accepts regexps that have their capturing groups

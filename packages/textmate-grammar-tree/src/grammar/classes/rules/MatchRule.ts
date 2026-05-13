@@ -79,12 +79,13 @@ export class MatchRule implements Rule {
       if (result) {
         let pos = from;
         result.forEach((resultStr, resultIndex) => {
-          const state = new GrammarState(resultStr);
+          const resultStrLength = resultStr?.length ?? 0;
+          const state = new GrammarState(resultStr ?? "");
           const capture = this.captures?.[resultIndex];
           if (capture) {
             if (capture instanceof SwitchRule) {
               const children: Matched[] = [];
-              if (resultStr.length === 0 && capture.emit) {
+              if (resultStr != null && resultStr.length === 0 && capture.emit) {
                 const matched = capture.match(state, 0);
                 if (matched) {
                   matched.offset(pos);
@@ -92,7 +93,7 @@ export class MatchRule implements Rule {
                 }
               }
               let i = 0;
-              while (i < resultStr.length) {
+              while (i < resultStrLength) {
                 const matched = capture.match(state, i);
                 if (matched?.length) {
                   matched.offset(pos + i);
@@ -111,7 +112,7 @@ export class MatchRule implements Rule {
               const captureMatched = Matched.create(
                 capture.node,
                 pos,
-                resultStr.length,
+                resultStrLength,
                 children.length > 0 ? children : undefined,
               );
               matched.children ??= [];
@@ -120,7 +121,7 @@ export class MatchRule implements Rule {
               const captureMatched = Matched.create(
                 capture,
                 pos,
-                resultStr.length,
+                resultStrLength,
               );
               matched.children ??= [];
               matched.children.push(captureMatched);
@@ -128,7 +129,7 @@ export class MatchRule implements Rule {
           }
           if (resultIndex > 0) {
             // First capture is always the total match so it's length shouldn't count
-            pos += resultStr.length;
+            pos += resultStrLength;
           }
         });
       }

@@ -8,5 +8,5 @@ export interface Matcher {
   /**
    * Returns a match array or null if did not match.
    */
-  match(str: string, pos?: number): string[] | null;
+  match(str: string, pos?: number): (string | undefined)[] | null;
 }

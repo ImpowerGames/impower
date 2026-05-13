@@ -72,7 +72,7 @@ export class Grammar {
       for (const name in definition.repository) {
         const item = definition.repository[name];
         if (item != null) {
-          this.repository.add(item, name);
+          this.repository.add(item, name, true);
         }
       }
     }
