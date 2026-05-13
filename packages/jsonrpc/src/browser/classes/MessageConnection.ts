@@ -86,6 +86,7 @@ export abstract class MessageConnection {
           if (message.id === request.id) {
             if (isResponse<string, R>(message, request.method)) {
               if (message.error !== undefined) {
+                console.error(message.error);
                 profile("end", this._profilerId, "request " + request.method);
                 reject(new RequestError(message.error));
                 this.removeEventListener("message", onResponse);
@@ -135,6 +136,7 @@ export abstract class MessageConnection {
     try {
       responseResult = typeof result === "function" ? await result() : result;
     } catch (e) {
+      console.error(e);
       if (typeof e === "object" && e) {
         if ("message" in e) {
           responseError = e as ResponseError;
