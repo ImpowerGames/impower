@@ -251,7 +251,7 @@ export class TextmateGrammarParse implements PartialParse {
         // Possible infinite loop!
         matchLength = 1;
         console.warn(
-          "Possible infinite loop!",
+          `Possible infinite loop at pos=${pos}!`,
           JSON.stringify(this.region.input.read(Math.max(0, pos - 100), pos)),
         );
       }
