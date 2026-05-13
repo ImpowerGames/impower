@@ -1,30 +1,25 @@
 import { type Tag, tags } from "@lezer/highlight";
 
 /**
- * 1. Tag modifier text
- * 2. Tag function name
- * 3. Tag function argument
- * 4. Tag name, no function
+ * 1. Optional Tag modifier text (e.g. `(modifier)`)
+ * 2. Tag expression (e.g. `tag`, `func(tag)`, `func1(func2(tag))`)
  */
-const PARSE_TAG_REGEX =
-  /^(?:\((\S*?)\))?(?:\s+|^)(?:(?:(\S+?)\((\S+)\))|(\S+))$/;
+const PARSE_TAG_REGEX = /^(?:\((\S*?)\))?(?:\s+|^)(\S+)$/;
 
 /**
  * Parses a tag string, and converts it into an object that can be fed into
- * CodeMirror's `styleTags` function.
+ * CodeMirror's `styleTags` function. Supports arbitrary function nesting.
  *
  * Examples:
  *
  * ```text
  * tag
  * func(tag)
+ * outer(inner(tag))
  * (!) tag
  * (!) func(tag)
- * (...) tag
- * (...) func(tag)
+ * (...) outer(inner(tag))
  * (parent/) tag
- * (parent/) func(tag)
- * (grandparent/parent) tag
  * (grandparent/parent) func(tag)
  * ```
  */
@@ -34,29 +29,46 @@ export const parseTag = (
 ): {
   [selector: string]: Tag | readonly Tag[];
 } => {
-  const [, modifier, func, arg, last] = PARSE_TAG_REGEX.exec(str)!;
+  const match = PARSE_TAG_REGEX.exec(str);
 
-  if (last && !(last in tags)) {
-    throw new Error(`Unknown tag: ${last}`);
-  }
-  if (func && !(func in tags)) {
-    throw new Error(`Unknown tag function: ${func}`);
-  }
-  if (arg && !(arg in tags)) {
-    throw new Error(`Unknown tag argument: ${arg}`);
+  if (!match) {
+    throw new Error(`Invalid tag format: ${str}`);
   }
 
-  let name = arg ? arg : last;
-  let prefix = "";
-  let suffix = "";
+  const [, modifier, tagExpression] = match;
+
+  // Split the tag expression by '(' to extract all functions and the base tag
+  // e.g., "standard(function(variableName))" -> parts: ["standard", "function", "variableName))"]
+  const parts = tagExpression?.split("(") || [];
+
+  // The last part is the base tag name (strip trailing closing parentheses)
+  const baseName = parts.pop()!.replace(/\)+$/, "");
+
+  // The remaining parts are the wrapper functions
+  const funcs = parts;
+
+  if (!(baseName in tags)) {
+    throw new Error(`Unknown tag: ${baseName}`);
+  }
+
+  for (const func of funcs) {
+    if (!(func in tags)) {
+      throw new Error(`Unknown tag function: ${func}`);
+    }
+  }
 
   // @ts-ignore TS doesn't realize I've checked for this
-  let tag: Tag = tags[name];
+  let tag: Tag = tags[baseName];
 
-  if (func) {
+  // Apply functions from inside out (right to left)
+  for (let i = funcs.length - 1; i >= 0; i--) {
+    const funcName = funcs[i];
     // @ts-ignore ditto
-    tag = tags[func](tag);
+    tag = tags[funcName](tag);
   }
+
+  let prefix = "";
+  let suffix = "";
 
   if (modifier) {
     if (modifier.endsWith("...")) {
