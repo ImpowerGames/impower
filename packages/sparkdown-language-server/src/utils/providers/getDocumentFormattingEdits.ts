@@ -694,7 +694,22 @@ export const resolveFormattingConflicts = (
       const prevOldText = document.getText(prev.range);
       if (prevTo >= currFrom) {
         // Overlap detected
-        if (curr.type === "indent" && prev.type === "separator") {
+        if (curr.type === "separator" && prev.type === "separator") {
+          // combine separators
+          if (
+            document.offsetAt(curr.range.start) <
+            document.offsetAt(prev.range.start)
+          ) {
+            prev.range.start = curr.range.start;
+          }
+          if (
+            document.offsetAt(curr.range.end) >
+            document.offsetAt(prev.range.end)
+          ) {
+            prev.range.end = curr.range.end;
+          }
+          continue;
+        } else if (curr.type === "indent" && prev.type === "separator") {
           // Indent takes precedence over separator
           result.pop();
         } else if (prev.type === "indent" && curr.type === "separator") {
@@ -708,9 +723,37 @@ export const resolveFormattingConflicts = (
           continue;
         } else if (curr.type === "separator" && prev.type === "extra") {
           // Separator takes precedence over extra
+          // Keep curr
+          if (
+            document.offsetAt(prev.range.start) <
+            document.offsetAt(curr.range.start)
+          ) {
+            curr.range.start = prev.range.start;
+          }
+          if (
+            document.offsetAt(prev.range.end) >
+            document.offsetAt(curr.range.end)
+          ) {
+            curr.range.end = prev.range.end;
+          }
+          // Remove prev
           result.pop();
         } else if (prev.type === "separator" && curr.type === "extra") {
           // Separator takes precedence over extra
+          // Keep prev
+          if (
+            document.offsetAt(curr.range.start) <
+            document.offsetAt(prev.range.start)
+          ) {
+            prev.range.start = curr.range.start;
+          }
+          if (
+            document.offsetAt(curr.range.end) >
+            document.offsetAt(prev.range.end)
+          ) {
+            prev.range.end = curr.range.end;
+          }
+          // Don't add curr
           continue;
         } else if (curr.type === "blankline" && prev.type === "indent") {
           // Delete blank line and add indent
