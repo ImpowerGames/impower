@@ -68,8 +68,9 @@ import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
-const VIEW_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.VIEW_DEFINE_TYPES;
-const STYLING_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES;
+const VIEW_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.VIEW_DEFINE_TYPES || [];
+const STYLING_DEFINE_TYPES =
+  GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES || [];
 
 export type SparkdownCompilerEvents = {
   "compiler/didCompile": (

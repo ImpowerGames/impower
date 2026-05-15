@@ -29,16 +29,43 @@ import { getParentPropertyPath } from "../syntax/getParentPropertyPath";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 
 const IMAGE_CONTROL_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS;
+  GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
 const AUDIO_CONTROL_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS;
+  GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
 
 const IMAGE_CLAUSE_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS;
+  GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS || [];
 const AUDIO_CLAUSE_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS;
+  GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS || [];
 
-const STYLING_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES;
+const FLOW_BEAT_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.FLOW_BEAT_KEYWORDS || [];
+const FLOW_MODULE_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.FLOW_MODULE_KEYWORDS || [];
+
+const END_KEYWORDS = GRAMMAR_DEFINITION.variables.LUAU_END_KEYWORDS || [];
+const FLOW_BLOCK_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LUAU_FLOW_BLOCK_KEYWORDS || [];
+const IF_BLOCK_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LUAU_IF_BLOCK_KEYWORDS || [];
+const LOOP_BLOCK_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LUAU_LOOP_BLOCK_KEYWORDS || [];
+const ITERATOR_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LUAU_ITERATOR_KEYWORDS || [];
+const REPEAT_BLOCK_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LUAU_REPEAT_BLOCK_KEYWORDS || [];
+const JUMP_KEYWORDS = GRAMMAR_DEFINITION.variables.LUAU_JUMP_KEYWORDS || [];
+const RETURN_KEYWORDS = GRAMMAR_DEFINITION.variables.LUAU_RETURN_KEYWORDS || [];
+const LOGICAL_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LUAU_LOGICAL_KEYWORDS || [];
+const MODULE_KEYWORDS = GRAMMAR_DEFINITION.variables.LUAU_MODULE_KEYWORDS || [];
+const GLOBAL_DECLARATION_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LUAU_GLOBAL_DECLARATION_KEYWORDS || [];
+const LOCAL_DECLARATION_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.LUAU_LOCAL_DECLARATION_KEYWORDS || [];
+
+const STYLING_DEFINE_TYPES =
+  GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES || [];
 
 const IMAGE_TYPES = ["filtered_image", "layered_image", "image"];
 const AUDIO_TYPES = ["layered_audio", "audio", "synth"];
@@ -217,6 +244,31 @@ const addCharacterCompletions = (
     };
     if (completion.label && !completions.has(completion.label)) {
       completions.set(completion.label, completion);
+    }
+  }
+};
+
+const addTriggeredKeywordCompletions = (
+  completions: Map<string, CompletionItem>,
+  description: string | undefined,
+  keywords: string[],
+  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
+  read: (from: number, to: number) => string,
+) => {
+  const currentText = contentNode
+    ? read(contentNode.from, contentNode.to)?.trim()
+    : "";
+  for (const keyword of keywords) {
+    if (keyword.startsWith(currentText)) {
+      const completion: CompletionItem = {
+        label: keyword,
+        insertText: keyword,
+        labelDetails: { description },
+        kind: CompletionItemKind.Constant,
+      };
+      if (completion.label && !completions.has(completion.label)) {
+        completions.set(completion.label, completion);
+      }
     }
   }
 };
@@ -1938,39 +1990,243 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  if (leftStack.at(-2)?.name === "ImplicitAction") {
-    const contentNode = leftStack.at(-2);
-    const text = getNodeText(contentNode).trimStart();
-    if (isCursorAfterNodeText(contentNode)) {
-      if (text === "@") {
-        addScreenElementReferenceCompletions(
+  const rootLevelNode = leftStack.at(-2);
+
+  if (rootLevelNode) {
+    if (
+      leftStack.some(
+        (n) => n.name === "LuauIfBlock" || n.name === "LuauSparkdownIfBlock",
+      )
+    ) {
+      const contentNode = leftStack[0];
+      if (contentNode) {
+        addTriggeredKeywordCompletions(
           completions,
-          program,
-          ["text"],
-          " ",
-          ": ",
-        );
-      } else if (text === "^") {
-        addSnippet(completions, "title", "^:", ": ");
-      } else if (text === "$") {
-        addSnippet(completions, "heading", "$:", ": ");
-      } else if (text === "%") {
-        addSnippet(completions, "transitional", "%:", ": ");
-      } else {
-        addCharacterCompletions(
-          completions,
-          read,
-          scriptAnnotations,
-          document.uri,
+          "flow",
+          IF_BLOCK_KEYWORDS,
           contentNode,
-          "",
-          ": ",
-          true,
-          program,
+          read,
         );
       }
     }
-    return buildCompletions();
+    if (
+      leftStack.some(
+        (n) =>
+          n.name === "LuauForLoop" ||
+          n.name === "LuauSparkdownForLoop" ||
+          n.name === "LuauWhileLoop" ||
+          n.name === "LuauSparkdownWhileLoop" ||
+          n.name === "LuauRepeatLoop" ||
+          n.name === "LuauSparkdownRepeatLoop",
+      )
+    ) {
+      const contentNode = leftStack[0];
+      if (contentNode) {
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          LOOP_BLOCK_KEYWORDS,
+          contentNode,
+          read,
+        );
+      }
+    }
+    if (leftStack.some((n) => n.name === "LuauForCondition")) {
+      const contentNode = leftStack[0];
+      if (contentNode) {
+        addTriggeredKeywordCompletions(
+          completions,
+          "iteration",
+          ITERATOR_KEYWORDS,
+          contentNode,
+          read,
+        );
+      }
+    }
+    if (
+      leftStack.some(
+        (n) =>
+          n.name === "LuauRepeatLoop" || n.name === "LuauSparkdownRepeatLoop",
+      )
+    ) {
+      const contentNode = leftStack[0];
+      if (contentNode) {
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          REPEAT_BLOCK_KEYWORDS,
+          contentNode,
+          read,
+        );
+      }
+    }
+
+    if (rootLevelNode.name === "LuauFunctionDefinition") {
+      const contentNode = leftStack[0];
+      if (contentNode) {
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          END_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          RETURN_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "declare",
+          LOCAL_DECLARATION_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          FLOW_BLOCK_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          JUMP_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "logic",
+          LOGICAL_KEYWORDS,
+          contentNode,
+          read,
+        );
+      }
+
+      return buildCompletions();
+    }
+
+    if (
+      rootLevelNode.name === "LuauSparkdownIfBlock" ||
+      rootLevelNode.name === "LuauSparkdownElseifBlock" ||
+      rootLevelNode.name === "LuauSparkdownElseBlock" ||
+      rootLevelNode.name === "LuauSparkdownForLoop" ||
+      rootLevelNode.name === "LuauSparkdownWhileLoop" ||
+      rootLevelNode.name === "LuauSparkdownRepeatLoop" ||
+      rootLevelNode.name === "LuauSparkdownDoBlock" ||
+      rootLevelNode.name === "ImplicitAction"
+    ) {
+      const contentNode = leftStack.find((n) => n.name === "ImplicitAction");
+      const text = getNodeText(contentNode).trimStart();
+      if (isCursorAfterNodeText(contentNode)) {
+        if (text === "@") {
+          addScreenElementReferenceCompletions(
+            completions,
+            program,
+            ["text"],
+            " ",
+            ": ",
+          );
+        } else if (text === "^") {
+          addSnippet(completions, "title", "^:", ": ");
+        } else if (text === "$") {
+          addSnippet(completions, "heading", "$:", ": ");
+        } else if (text === "%") {
+          addSnippet(completions, "transitional", "%:", ": ");
+        } else {
+          addCharacterCompletions(
+            completions,
+            read,
+            scriptAnnotations,
+            document.uri,
+            contentNode,
+            "",
+            ": ",
+            true,
+            program,
+          );
+        }
+
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          END_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          RETURN_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "declare",
+          LOCAL_DECLARATION_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          END_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          FLOW_BLOCK_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "logic",
+          LOGICAL_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "beat",
+          FLOW_BEAT_KEYWORDS,
+          contentNode,
+          read,
+        );
+        addTriggeredKeywordCompletions(
+          completions,
+          "flow",
+          FLOW_MODULE_KEYWORDS,
+          contentNode,
+          read,
+        );
+        if (rootLevelNode.name === "ImplicitAction") {
+          addTriggeredKeywordCompletions(
+            completions,
+            "module",
+            MODULE_KEYWORDS,
+            contentNode,
+            read,
+          );
+          addTriggeredKeywordCompletions(
+            completions,
+            "declare",
+            GLOBAL_DECLARATION_KEYWORDS,
+            contentNode,
+            read,
+          );
+        }
+      }
+      return buildCompletions();
+    }
   }
 
   return undefined;

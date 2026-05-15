@@ -7,181 +7,197 @@ uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
 variables:
-  INTEGER: "[0-9]+"
-  NUMBER: (?:[-]?(?:\d*[.])?\d+)
-  IDENTIFIER_START_CHAR: '_\p{L}'
-  IDENTIFIER_END_CHAR: '0-9_\p{L}-'
-  IDENTIFIER_START: "[{{IDENTIFIER_START_CHAR}}]"
-  IDENTIFIER_END: "[{{IDENTIFIER_END_CHAR}}]*"
-  IDENTIFIER: "{{IDENTIFIER_START}}{{IDENTIFIER_END}}"
-  STRICT_PROPERTY_IDENTIFIER: (?:{{INTEGER}}|{{IDENTIFIER}}|{{QUOTED_STRING}})
-  BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
-  AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
-  TAG_START: (?:[#]+(?:$|{{WS}}+))
-  COMMENT_START: (?:[/][/]|[/][*])
-  BREAK: (?:{{WS}}+[>]{{WS}}*)
-  # Word
-  WORD: (?:[\p{L}\p{N}\p{Mn}']+)
-  # Whitespace
-  WS: '[^\S\n\r]'
-  # End Of Line
-  EOL: "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)"
-  # Strict End Of Property Line (# tags are not allowed in property declarations, so no need to check for it)
-  EOPL: "(?:$|{{WS}}*$|{{WS}}*[/][/].*$)"
-  # Keyword Terminator
-  KEYWORD_TERMINATOR: "(?:[:]|{{TAG_START}}|{{COMMENT_START}})"
-  # End Of Keyword
-  EOK: "(?:$|{{WS}}+|(?={{KEYWORD_TERMINATOR}}))"
-  COMPARISON_OPERATOR: (?:[~]|[|]|[\^]|[$]|[*])
-  QUOTED_STRING: (?:["](?:\\.|[^"\r\n])*["])
-  UNQUOTED_STRING_TERMINATOR: (?:$|[\s"'`<>=:(){}\[\]]|{{COMMENT_START}})
-  UNQUOTED_STRING_VALUE: (?:.*?)(?={{UNQUOTED_STRING_TERMINATOR}})
-  PROPERTY_NAME_TERMINATOR: (?:[:]|[=]|[\r\n])
-  ASSIGN_EQUAL_OPERATOR: (?:{{WS}}*[=]{{WS}}*)
-  ARRAY_ITEM_OPERATOR: (?:[-](?:$|{{WS}}+))
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
-  CONDITIONAL_BLOCK_KEYWORDS:
+
+  FLOW_BEAT_KEYWORDS: ["scene", "branch"]
+  FLOW_MODULE_KEYWORDS: ["include", "load"]
+
+  LUAU_SCOPE_MODIFIERS: ["store", "local", "const"]
+  LUAU_ACCESS_MODIFIERS: ["read", "write"]
+  LUAU_END_KEYWORDS: ["end"]
+  LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS: ["match", "plural"]
+  LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS: ["queue", "cycle", "chain"]
+  LUAU_SEQUENTIAL_MODIFIER_KEYWORDS: ["shuffle"]
+  LUAU_FLOW_BLOCK_KEYWORDS: ["do", "if", "for", "while", "repeat"]
+  LUAU_IF_BLOCK_KEYWORDS: ["then", "elseif", "else"]
+  LUAU_LOOP_BLOCK_KEYWORDS: ["break", "continue"]
+  LUAU_ITERATOR_KEYWORDS: ["in"]
+  LUAU_REPEAT_BLOCK_KEYWORDS: ["until"]
+  LUAU_JUMP_KEYWORDS: ["goto"]
+  LUAU_RETURN_KEYWORDS: ["return"]
+  LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
+  LUAU_MODULE_KEYWORDS: ["require", "export"]
+  LUAU_GLOBAL_DECLARATION_KEYWORDS: ["define"]
+  LUAU_LOCAL_DECLARATION_KEYWORDS: ["local", "const", "function", "type"]
+  LUAU_STANDARD_LIB_GLOBALS: ["_G", "_VERSION"]
+  LUAU_STANDARD_LIB_CONSTANTS:
     [
-      "if",
-      "elseif",
-      "else",
-      "match",
-      "case",
-      "stopping",
-      "shuffle",
-      "cycle",
-      "once",
-      "repeat",
-      "for",
-      "fill",
+      "bit32",
+      "coroutine",
+      "debug",
+      "math",
+      "os",
+      "string",
+      "table",
+      "task",
+      "utf8",
+      "buffer",
+      "vector",
     ]
-  OUTER_CONTROL_STATEMENT_KEYWORDS: ["if", "elseif", "match", "repeat", "in"]
-  INNER_CONTROL_STATEMENT_KEYWORDS: ["case", "fill", "slot"]
-  DECLARATION_KEYWORDS:
+  LUAU_STANDARD_LIB_FUNCTIONS:
     [
-      "include",
-      "function",
-      "store",
-      "var",
-      "const",
-      "temp",
-      "list",
-      "define",
-      "load",
-      "scene",
-      "branch",
-      "screen",
-      "component",
-      "animation",
-      "style",
-      "theme",
+      "assert",
+      "collectgarbage",
+      "error",
+      "gcinfo",
+      "getfenv",
+      "getmetatable",
+      "ipairs",
+      "loadstring",
+      "newproxy",
+      "next",
+      "pairs",
+      "pcall",
+      "print",
+      "rawequal",
+      "rawset",
+      "require",
+      "select",
+      "setfenv",
+      "setmetatable",
+      "tonumber",
+      "tostring",
+      "type",
+      "typeof",
+      "unpack",
+      "xpcall",
     ]
-  VIEW_DEFINE_TYPES: ["screen", "component"]
-  STYLING_DEFINE_TYPES: ["style", "animation", "color"]
+  LUAU_META_METHODS:
+    [
+      "__add",
+      "__call",
+      "__concat",
+      "__div",
+      "__eq",
+      "__index",
+      "__le",
+      "__len",
+      "__lt",
+      "__metatable",
+      "__mod",
+      "__mode",
+      "__mul",
+      "__newindex",
+      "__pow",
+      "__sub",
+      "__tostring",
+      "__unm",
+      "__iter",
+      "__idiv",
+    ]
+
+  IDENTIFIER_START_CHAR: '_\p{L}'
+  IDENTIFIER_END_CHAR: '0-9_\p{L}-'
+  IDENTIFIER_START: "[{{IDENTIFIER_START_CHAR}}]"
+  IDENTIFIER_END: "[{{IDENTIFIER_END_CHAR}}]*"
+  IDENTIFIER: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}}\b)
+
+  TAG_START: (?:[#]+(?=$|{{WS}}))
+  COMMENT_START: (?:[-][-])
+  BREAK: (?:{{WS}}+[>]{{WS}}*)
+  CHAIN: (?:[\\])
+  GLUE: (?<=^|{{WS}})(?:[.][.])(?=$|{{WS}})
+
+  # Newline
+  NL: (?:\r\n|\r|\n)
+  # Whitespace
+  WS: (?:[^\S\n\r])
+  # Word
+  WORD: (?:[\p{L}\p{N}\p{Mn}]+)
+  # End Of Line
+  EOL: "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$)"
+  # End Of Keyword
+  EOK: "(?:$|{{WS}}+|(?=[:]|{{TAG_START}}|{{COMMENT_START}}))"
+
+  BEAT: (?:{{WS}}*{{FLOW_BEAT_KEYWORDS}})
+  END: (?:{{WS}}*(?:end)\b)
+
+  LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
+  LUAU_COMMENT_START: (?:[-][-])
+  LUAU_IDENTIFIER: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
+  LUAU_ASSIGNMENT_OPERATORS: (?:\+=|-=|\/=|\/\/=|\*=|%=|\^=|\.\.=|=(?!=))
+  LUAU_COMPARE_OPERATORS: (?:==|~=|<=?|>=?)
+  LUAU_ARITHMETIC_OPERATORS: (?:\+|-|%|\*|\/\/|\/|\^)
+  LUAU_CONCAT_OPERATOR: (?<![.])(?:[.][.])(?![.])
+  LUAU_TYPECAST_OPERATOR: (?:[:][:])
+  LUAU_LENGTH_OPERATOR: (?:[#])
+  LUAU_ALTERNATOR_OPERATOR: (?:[|])
+  LUAU_TYPE_ANNOTATION_OPERATOR: (?<![:])(?:[:])(?![:])
+  LUAU_ACCESSOR_OPERATOR: (?:[.]|[:])
+  LUAU_TYPE_BINARY_OPERATORS: (?:[?]|[&]|[|]|[-][>])
+  LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
+  LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
+  LUAU_BINARY_OPERATOR_AHEAD: (?:({{WS}}*)(?={{LUAU_BINARY_OPERATORS}})|(?=$|.))
+  LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
 
 patterns:
   - { include: "#EndOfLine" }
   - { include: "#Newline" }
-  - { include: "#Annotation" }
+
   - { include: "#FrontMatter" }
-  - { include: "#Todo" }
+  - { include: "#Annotation" }
+
   - { include: "#Include" }
   - { include: "#Load" }
-  - { include: "#Declaration" }
-  - { include: "#Function" }
+
   - { include: "#Scene" }
   - { include: "#Branch" }
-  - { include: "#Knot" }
-  - { include: "#Stitch" }
-  - { include: "#Divert" }
-  - { include: "#Thread" }
-  - { include: "#ReturnStatement" }
-  - { include: "#TempDeclaration" }
-  - { include: "#Logic" }
-  - { include: "#Choice" }
-  - { include: "#Gather" }
-  - { include: "#Title" }
-  - { include: "#Heading" }
-  - { include: "#Transitional" }
-  - { include: "#Write" }
-  - { include: "#Dialogue" }
-  - { include: "#AssetLine" }
-  - { include: "#Action" }
-  - { include: "#ConditionalBracedBlock" }
-  - { include: "#ConditionalIndentedBlock" }
+
+  - { include: "#LuauExplicitStatement" }
+  - { include: "#LuauImplicitStatement" }
+  - { include: "#LuauSparkdownControlBlock" }
+  - { include: "#LuauInterpolatedStringExpression" }
+  - { include: "#LuauEndKeyword" }
+
+  - { include: "#SparkdownStatement" }
+
   - { include: "#Whitespace" }
 
 repository:
-  ########## Helpers ##########
+  ########## Sparkdown Statements ##########
 
-  FileSeparator:
-    match: ^([/]{4,})({{WS}}*)([^/\s]+)({{WS}}*)([/]{4,})({{WS}}*)$
+  SparkdownStatement:
+    patterns:
+      - { include: "#Choice" }
+      - { include: "#FlowStatements" }
+      - { include: "#DisplayStatements" }
 
-  FileSplitter:
-    match: ^((?:[/]{4,})(?:{{WS}}*)(?:[^/\s]+)(?:{{WS}}*)(?:[/]{4,})(?:{{WS}}*))$
+  FlowStatements:
+    patterns:
+      - { include: "#Divert" }
+      - { include: "#Thread" }
+      - { include: "#Gather" }
+
+  DisplayStatements:
+    patterns:
+      - { include: "#Title" }
+      - { include: "#Heading" }
+      - { include: "#Transitional" }
+      - { include: "#Write" }
+      - { include: "#Dialogue" }
+      - { include: "#AssetLine" }
+      - { include: "#Action" }
 
   ########## Annotation ##########
 
   Annotation:
     patterns:
-      - { include: "#Comment" }
+      - { include: "#LuauComment" }
       - { include: "#Tags" }
-
-  ########## Comment ##########
-
-  Comment:
-    patterns:
-      - { include: "#LineComment" }
-      - { include: "#BlockComment" }
-
-  LineComment:
-    tag: lineComment
-    name: comment.line.sd
-    match: ({{WS}}*)([/][/])(.*?)$(\r\n|\r|\n)?
-    captures:
-      1:
-        patterns:
-          - { include: "#Whitespace" }
-      2:
-        name: punctuation.definition.comment.mark
-      3:
-        patterns:
-          - { include: "#LineCommentContent" }
-      4:
-        patterns:
-          - { include: "#Newline" }
-
-  LineCommentContent:
-    tag: definition(lineComment)
-    name: punctuation.definition.comment.content.sd
-    match: (.+$)
-
-  BlockComment:
-    tag: blockComment
-    name: comment.block.sd
-    begin: ({{WS}}*)([/][*])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Whitespace" }
-      2:
-        name: punctuation.definition.comment.mark
-    patterns:
-      - { include: "#Newline" }
-      - { include: "#BlockCommentContent" }
-    end: ([*][/])
-    endCaptures:
-      1:
-        name: punctuation.definition.comment.mark
-
-  BlockCommentContent:
-    tag: definition(lineComment)
-    name: punctuation.definition.comment.content.sd
-    match: (.+?)(?=$|[*][/])
 
   ########## Tag ##########
 
@@ -217,38 +233,12 @@ repository:
     name: punctuation.definition.comment.content.sd
     match: (.+?)(?=$|{{TAG_START}})
 
-  ########## Todo ##########
-
-  Todo:
-    tag: docComment
-    name: comment.line.sd entity.todo.sd
-    begin: ({{WS}}*)(TODO:|todo:)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: definition(docComment)
-        name: constant.other entity.todo.begin.sd
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#TodoContent" }
-    end: (?=$)
-
-  TodoContent:
-    tag: definition(docComment)
-    name: punctuation.definition.comment.content.sd
-    match: (.+$)
-
   ########## Include ##########
 
   Include:
     tag: meta
     name: meta.import.include.sd
-    begin: ^({{WS}}*)(INCLUDE|include)({{EOK}})
+    begin: ^({{WS}}*)(include)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -279,7 +269,7 @@ repository:
   Load:
     tag: meta
     name: meta.import.load.sd
-    begin: ^({{WS}}*)(LOAD|load)({{EOK}})
+    begin: ^({{WS}}*)(load)({{EOK}})
     beginCaptures:
       1:
         patterns:
@@ -302,1825 +292,9 @@ repository:
     match: (.+)
 
   LoadName:
-    tag: variableName
+    tag: constant(variableName)
     name: variable.other.constant.load.name.sd
     match: (\S+)
-
-  ########## Declaration: VAR LIST CONST EXTERNAL DEFINE ##########
-
-  Declaration:
-    patterns:
-      - { include: "#StoreDeclaration" }
-      - { include: "#VarDeclaration" }
-      - { include: "#ListDeclaration" }
-      - { include: "#ConstDeclaration" }
-      - { include: "#ExternalDeclaration" }
-      - { include: "#DefineDeclaration" }
-
-  StoreDeclaration:
-    tag: meta
-    name: storage.type.var.sd
-    begin: ({{WS}}*)(store)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#StoreKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#VariableAssignment" }
-    end: (?=$)
-
-  StoreKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.var.sd
-    match: (.+)
-
-  VarDeclaration:
-    tag: meta
-    name: storage.type.var.sd
-    begin: ({{WS}}*)(VAR|var)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#VarKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#VariableAssignment" }
-    end: (?=$)
-
-  VarKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.var.sd
-    match: (.+)
-
-  ListDeclaration:
-    tag: meta
-    name: storage.type.list.sd
-    begin: ({{WS}}*)(LIST|list)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ListKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#ListTypeAssignment" }
-    end: (?=$)
-
-  ListKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.list.sd
-    match: (.+)
-
-  ConstDeclaration:
-    tag: meta
-    name: storage.type.const.sd
-    begin: ({{WS}}*)(CONST|const)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ConstKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#VariableAssignment" }
-    end: (?=$)
-
-  ConstKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.const.sd
-    match: (.+)
-
-  ExternalDeclaration:
-    tag: meta
-    name: storage.type.external.sd
-    begin: ({{WS}}*)(EXTERNAL|external)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ExternalKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#ExternalFunctionDeclaration" }
-    end: (?=$)
-
-  ExternalKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.external.sd
-    match: (.+)
-
-  ListTypeAssignment:
-    begin: ({{IDENTIFIER}})($|{{ASSIGN_EQUAL_OPERATOR}}|(?={{EOL}}))
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#ListTypeDeclarationName" }
-      2:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Expression" }
-    end: (?=$)
-
-  VariableAssignment:
-    begin: ({{IDENTIFIER}})($|{{ASSIGN_EQUAL_OPERATOR}}|(?={{EOL}}))
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#VariableDeclarationName" }
-      2:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Divert" }
-      - { include: "#Expression" }
-    end: (?=$)
-
-  ExternalFunctionDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#FunctionName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#FunctionDeclarationParameters" }
-    end: (?=$)
-
-  RefModifier:
-    match: (ref)({{WS}}*)
-    captures:
-      1:
-        tag: modifier
-        name: storage.modifier.ref.sd
-      2:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  FunctionDeclarationParameters:
-    brackets: true
-    begin: ([(])({{WS}}*)
-    beginCaptures:
-      1:
-        tag: keyword
-        name: punctuation.definition.template-expression.begin.sd
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Separator" }
-      - { include: "#PunctuationComma" }
-      - { include: "#Parameter" }
-    end: $|({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        tag: keyword
-        name: punctuation.definition.template-expression.end.sd
-
-  FunctionCallParameters:
-    brackets: true
-    begin: ([(])({{WS}}*)
-    beginCaptures:
-      1:
-        tag: keyword
-        name: punctuation.definition.template-expression.begin.sd
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Separator" }
-      - { include: "#PunctuationComma" }
-      - { include: "#Parameter" }
-    end: $|({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        tag: keyword
-        name: punctuation.definition.template-expression.end.sd
-
-  Parameter:
-    tag: meta
-    name: meta.parameter.sd
-    begin: (?=.+$)
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Expression" }
-    end: $|(?={{WS}}*(?:[)]|[,]))
-
-  DefineDeclaration:
-    patterns:
-      - { include: "#DefineViewDeclaration" }
-      - { include: "#DefineStylingDeclaration" }
-      - { include: "#DefinePlainDeclaration" }
-
-  DefineViewDeclaration:
-    tag: meta
-    name: meta.definition.type.define.sd
-    begin: ({{WS}}*)(define)({{EOK}})(?={{VIEW_DEFINE_TYPES}}{{EOK}})(.*?)$
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#DefineKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#DefineAssignment" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#ViewStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  DefineStylingDeclaration:
-    tag: meta
-    name: meta.definition.type.define.sd
-    begin: ({{WS}}*)(define)({{EOK}})(?={{STYLING_DEFINE_TYPES}}{{EOK}})(.*?)$
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#DefineKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#DefineAssignment" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#StylingStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  DefinePlainDeclaration:
-    tag: meta
-    name: meta.definition.type.define.sd
-    begin: ({{WS}}*)(define)({{EOK}})(.*?)$
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#DefineKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#DefineAssignment" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#PlainStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  DefineKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.object.sd
-    match: (.+)
-
-  DefineAssignment:
-    match: (.*?)([(].*[)])?(?:(with)((?=$|[:])|{{WS}}+)((?=$|[:])|{{IDENTIFIER}}))?({{WS}}*)($|[:])
-    captures:
-      1:
-        patterns:
-          - { include: "#DefineIdentifier" }
-      2:
-        patterns:
-          - { include: "#FunctionDeclarationParameters" }
-      3:
-        patterns:
-          - { include: "#WithKeyword" }
-      4:
-        patterns:
-          - { include: "#Separator" }
-      5:
-        patterns:
-          - { include: "#DefineModifierName" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      7:
-        patterns:
-          - { include: "#ColonOperator" }
-
-  DefineIdentifier:
-    match: ({{IDENTIFIER}})($|{{WS}}+)($|{{IDENTIFIER}})($|.+)
-    captures:
-      1:
-        patterns:
-          - { include: "#DefineTypeName" }
-      2:
-        patterns:
-          - { include: "#DefinePunctuationAccessor" }
-      3:
-        patterns:
-          - { include: "#DefineVariableName" }
-      4:
-        patterns:
-          - { include: "#Other" }
-
-  WithKeyword:
-    tag: controlKeyword
-    name: keyword.control.define.with.sd
-    match: (.+)
-
-  DefineModifierName:
-    tag: keyword
-    name: storage.modifier.sd
-    match: (.+)
-
-  DefineTypeName:
-    tag: typeName
-    name: support.type.define.sd
-    match: (.+)
-
-  DefinePunctuationAccessor:
-    match: ({{WS}})
-    tag: separator
-    name: meta.template.expression.accessor.sd
-
-  DefineVariableName:
-    tag: variableName
-    name: variable.other.constant.sd
-    match: (.+)
-
-  BlankProperty:
-    match: ^({{WS}}+$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-
-  ViewStructField:
-    emit: true
-    patterns:
-      - { include: "#BlankProperty" }
-      - { include: "#ViewStructObjectItem" }
-      - { include: "#ViewStructScalarItem" }
-      - { include: "#ViewStructScalarProperty" }
-      - { include: "#ViewStructObjectProperty" }
-      - { include: "#Newline" }
-
-  StylingStructField:
-    emit: true
-    patterns:
-      - { include: "#BlankProperty" }
-      - { include: "#StylingStructObjectItem" }
-      - { include: "#StylingStructScalarItem" }
-      - { include: "#StylingStructScalarProperty" }
-      - { include: "#StylingStructObjectProperty" }
-      - { include: "#Newline" }
-
-  PlainStructField:
-    emit: true
-    patterns:
-      - { include: "#BlankProperty" }
-      - { include: "#PlainStructObjectItem" }
-      - { include: "#PlainStructScalarItem" }
-      - { include: "#PlainStructScalarProperty" }
-      - { include: "#PlainStructObjectProperty" }
-      - { include: "#Newline" }
-
-  ViewStructObjectItem:
-    patterns:
-      - { include: "#ViewStructObjectItemBlock" }
-      - { include: "#ViewStructObjectItemWithInlineScalarProperty" }
-      - { include: "#ViewStructObjectItemWithInlineObjectProperty" }
-
-  StylingStructObjectItem:
-    patterns:
-      - { include: "#StylingStructObjectItemBlock" }
-      - { include: "#StylingStructObjectItemWithInlineScalarProperty" }
-      - { include: "#StylingStructObjectItemWithInlineObjectProperty" }
-
-  PlainStructObjectItem:
-    patterns:
-      - { include: "#PlainStructObjectItemBlock" }
-      - { include: "#PlainStructObjectItemWithInlineScalarProperty" }
-      - { include: "#PlainStructObjectItemWithInlineObjectProperty" }
-
-  ViewStructObjectItemBlock:
-    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{EOPL}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#EndOfLine" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#ViewStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  StylingStructObjectItemBlock:
-    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{EOPL}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#EndOfLine" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#StylingStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  PlainStructObjectItemBlock:
-    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{EOPL}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#EndOfLine" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#PlainStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  ViewStructObjectItemWithInlineScalarProperty:
-    tag: meta
-    name: meta.definition.struct.item.object.sd
-    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#ViewDeclarationScalarPropertyName" }
-      4:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-      5:
-        patterns:
-          - { include: "#StylingStructFieldValue" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#ViewStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  StylingStructObjectItemWithInlineScalarProperty:
-    tag: meta
-    name: meta.definition.struct.item.object.sd
-    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#StylingDeclarationScalarPropertyName" }
-      4:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-      5:
-        patterns:
-          - { include: "#StylingStructFieldValue" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#StylingStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  PlainStructObjectItemWithInlineScalarProperty:
-    tag: meta
-    name: meta.definition.struct.item.object.sd
-    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#PlainDeclarationScalarPropertyName" }
-      4:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-      5:
-        patterns:
-          - { include: "#PlainStructFieldValue" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#PlainStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  ViewStructObjectItemWithInlineObjectProperty:
-    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{WS}}*)([:])({{WS}}*)(.*$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#ViewDeclarationObjectPropertyName" }
-      4:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      5:
-        patterns:
-          - { include: "#ColonOperator" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      7:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#IllegalChar" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#ViewStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  StylingStructObjectItemWithInlineObjectProperty:
-    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{WS}}*)([:])({{WS}}*)(.*$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#StylingDeclarationObjectPropertyName" }
-      4:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      5:
-        patterns:
-          - { include: "#ColonOperator" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      7:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#IllegalChar" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#StylingStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  PlainStructObjectItemWithInlineObjectProperty:
-    begin: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})({{STRICT_PROPERTY_IDENTIFIER}})({{WS}}*)([:])({{WS}}*)(.*$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#PlainDeclarationObjectPropertyName" }
-      4:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      5:
-        patterns:
-          - { include: "#ColonOperator" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      7:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#IllegalChar" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#PlainStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  ViewStructScalarItem:
-    match: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#ViewStructFieldValue" }
-
-  StylingStructScalarItem:
-    match: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#StylingStructFieldValue" }
-
-  PlainStructScalarItem:
-    match: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      3:
-        patterns:
-          - { include: "#PlainStructFieldValue" }
-
-  ViewStructScalarProperty:
-    match: ^({{WS}}*)({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ViewDeclarationScalarPropertyName" }
-      3:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-      4:
-        patterns:
-          - { include: "#ViewStructFieldValue" }
-
-  StylingStructScalarProperty:
-    match: ^({{WS}}*)({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#StylingDeclarationScalarPropertyName" }
-      3:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-      4:
-        patterns:
-          - { include: "#StylingStructFieldValue" }
-
-  PlainStructScalarProperty:
-    match: ^({{WS}}*)({{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#PlainDeclarationScalarPropertyName" }
-      3:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-      4:
-        patterns:
-          - { include: "#PlainStructFieldValue" }
-
-  ViewStructObjectProperty:
-    begin: ^({{WS}}*)(.+$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ViewDeclarationObjectPropertyAssignment" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#ViewStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  StylingStructObjectProperty:
-    begin: ^({{WS}}*)(.+$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#PlainDeclarationObjectPropertyAssignment" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#StylingStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  PlainStructObjectProperty:
-    begin: ^({{WS}}*)(.+$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#PlainDeclarationObjectPropertyAssignment" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Newline" }
-      - { include: "#PlainStructField" }
-      - { include: "#Unknown" }
-    end: (?=^(?!$|{{WS}}*//|\1{{WS}}|\1[-]))
-
-  ViewDeclarationObjectPropertyAssignment:
-    begin: (?=\S)
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#ViewForControlProperty" }
-      - { include: "#ViewControlProperty" }
-      - { include: "#ViewDeclarationObjectPropertyName" }
-    applyEndPatternLast: true
-    end: $|({{WS}}*)([:])({{WS}}*)(.*$)|(.+$)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#ColonOperator" }
-      3:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      4:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#IllegalChar" }
-      5:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#IllegalChar" }
-
-  PlainDeclarationObjectPropertyAssignment:
-    begin: (?=\S)
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#PlainDeclarationObjectPropertyName" }
-    applyEndPatternLast: true
-    end: $|({{WS}}*)([:])({{WS}}*)(.*$)|(.+$)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#ColonOperator" }
-      3:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      4:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#IllegalChar" }
-      5:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#IllegalChar" }
-
-  ViewDeclarationObjectPropertyName:
-    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#SelectorPropertyNamePart" }
-      - { include: "#ComponentName" }
-      - { include: "#IllegalChar" }
-    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
-
-  StylingDeclarationObjectPropertyName:
-    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#OperatorPrefixedPropertyName" }
-      - { include: "#PropertyName" }
-      - { include: "#InvalidSelectorPropertyName" }
-    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
-
-  PlainDeclarationObjectPropertyName:
-    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#OperatorPrefixedPropertyName" }
-      - { include: "#PropertyName" }
-      - { include: "#InvalidSelectorPropertyName" }
-    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
-
-  OperatorPrefixedPropertyName:
-    begin: (?=\S)(?!{{IDENTIFIER}})(?!{{PROPERTY_NAME_TERMINATOR}})
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#SelectorPropertyNamePart" }
-      - { include: "#ComponentName" }
-      - { include: "#IllegalChar" }
-    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
-
-  InvalidSelectorPropertyName:
-    tag: invalid
-    name: invalid.illegal.unknown-statement.sd
-    begin: (?=\S)(?!{{PROPERTY_NAME_TERMINATOR}})
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#SelectorPropertyNamePart" }
-      - { include: "#ComponentName" }
-      - { include: "#IllegalChar" }
-    end: (?=$|{{EOPL}}|{{WS}}*{{PROPERTY_NAME_TERMINATOR}})
-
-  SelectorPropertyNamePart:
-    patterns:
-      - { include: "#ParenPropertyIdentifierString" }
-      - { include: "#BracketPropertyIdentifierString" }
-      - { include: "#BracePropertyIdentifierString" }
-      - { include: "#UnitValue" }
-      - { include: "#Literal" }
-      - { include: "#SelectorOperator" }
-      - { include: "#RecursiveSelectorFunction" }
-      - { include: "#SimpleSelectorFunction" }
-      - { include: "#StyleAttribute" }
-      - { include: "#EventAttribute" }
-      - { include: "#LabelAttribute" }
-      - { include: "#Separator" }
-
-  ParenPropertyIdentifierString:
-    brackets: true
-    begin: ([(])({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationParenOpen" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#SelectorPropertyNamePart" }
-    end: $|({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#PunctuationParenClose" }
-
-  BracketPropertyIdentifierString:
-    brackets: true
-    begin: (\[)({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationBracketOpen" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#SelectorPropertyNamePart" }
-    end: $|({{WS}}*)(\])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#PunctuationBracketClose" }
-
-  BracePropertyIdentifierString:
-    brackets: true
-    begin: (\{)({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationBraceOpen" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#SelectorPropertyNamePart" }
-    end: $|({{WS}}*)(\})
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#PunctuationBraceClose" }
-
-  UnitValue:
-    match: ([-]?(?:\d*[.])?\d+)([%]|[a-zA-Z]+)
-    captures:
-      1:
-        tag: number
-        name: constant.numeric.amount.sd
-      2:
-        tag: number
-        name: constant.numeric.unit.sd
-
-  SelectorOperator:
-    tag: keyword
-    name: keyword.other.selector.operator.sd
-    match: ([>]|[+]|[~]|[*]|[&]|[\^])
-
-  RecursiveSelectorFunction:
-    begin: ([@])(has|not|is|where)(?=[(])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#EventAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#EventAttributeName" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#RecursiveSelectorFunctionParameters" }
-    applyEndPatternLast: true
-    end: (?=$|.)
-
-  RecursiveSelectorFunctionParameters:
-    brackets: true
-    begin: ([(])({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationParenOpen" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#SelectorPropertyNamePart" }
-      - { include: "#ComponentName" }
-      - { include: "#IllegalChar" }
-    end: $|({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#PunctuationParenClose" }
-
-  SimpleSelectorFunction:
-    begin: ([@])({{IDENTIFIER}})?(?=[(])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#EventAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#EventAttributeName" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#SimpleSelectorFunctionParameters" }
-    applyEndPatternLast: true
-    end: (?=$|.)
-
-  SimpleSelectorFunctionParameters:
-    brackets: true
-    begin: ([(])({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationParenOpen" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#SelectorPropertyNamePart" }
-      - { include: "#ParameterStringIdentifier" }
-      - { include: "#IllegalChar" }
-    end: $|({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#PunctuationParenClose" }
-
-  StyleAttribute:
-    emit: true
-    patterns:
-      - { include: "#AssignedBracedStyleAttribute" }
-      - { include: "#AssignedQuotedStyleAttribute" }
-      - { include: "#AssignedUnquotedStyleAttribute" }
-      - { include: "#UnassignedStyleAttribute" }
-
-  EventAttribute:
-    emit: true
-    patterns:
-      - { include: "#AssignedBracedEventAttribute" }
-      - { include: "#AssignedQuotedEventAttribute" }
-      - { include: "#AssignedUnquotedEventAttribute" }
-      - { include: "#UnassignedEventAttribute" }
-
-  AssignedBracedStyleAttribute:
-    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])([{])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#StyleAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#StyleAttributeName" }
-      3:
-        patterns:
-          - { include: "#ComparisonOperator" }
-      4:
-        patterns:
-          - { include: "#EqualOperator" }
-      5:
-        patterns:
-          - { include: "#PunctuationBraceOpen" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Expression" }
-    end: ([}])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationBraceClose" }
-
-  AssignedQuotedStyleAttribute:
-    tag: string
-    name: string.quoted.double.view.sd
-    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])(["])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#StyleAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#StyleAttributeName" }
-      3:
-        patterns:
-          - { include: "#ComparisonOperator" }
-      4:
-        patterns:
-          - { include: "#EqualOperator" }
-      5:
-        patterns:
-          - { include: "#PunctuationStringOpen" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#StringContent" }
-    end: $|(["])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationStringClose" }
-
-  AssignedUnquotedStyleAttribute:
-    begin: ([#])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#StyleAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#StyleAttributeName" }
-      3:
-        patterns:
-          - { include: "#ComparisonOperator" }
-      4:
-        patterns:
-          - { include: "#EqualOperator" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#UnquotedStyleAttributeValue" }
-    end: (?={{UNQUOTED_STRING_TERMINATOR}})
-
-  UnassignedStyleAttribute:
-    match: ([#])({{IDENTIFIER}})?
-    captures:
-      1:
-        patterns:
-          - { include: "#StyleAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#StyleAttributeName" }
-
-  AssignedBracedEventAttribute:
-    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])([{])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#EventAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#EventAttributeName" }
-      3:
-        patterns:
-          - { include: "#ComparisonOperator" }
-      4:
-        patterns:
-          - { include: "#EqualOperator" }
-      5:
-        patterns:
-          - { include: "#PunctuationBraceOpen" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Expression" }
-    end: ([}])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationBraceClose" }
-
-  AssignedQuotedEventAttribute:
-    tag: string
-    name: string.quoted.double.view.sd
-    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])(["])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#EventAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#EventAttributeName" }
-      3:
-        patterns:
-          - { include: "#ComparisonOperator" }
-      4:
-        patterns:
-          - { include: "#EqualOperator" }
-      5:
-        patterns:
-          - { include: "#PunctuationStringOpen" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#StringContent" }
-    end: $|(["])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationStringClose" }
-
-  AssignedUnquotedEventAttribute:
-    begin: ([@])({{IDENTIFIER}})?({{COMPARISON_OPERATOR}})?([=])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#EventAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#EventAttributeName" }
-      3:
-        patterns:
-          - { include: "#ComparisonOperator" }
-      4:
-        patterns:
-          - { include: "#EqualOperator" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#UnquotedEventAttributeValue" }
-    end: (?={{UNQUOTED_STRING_TERMINATOR}})
-
-  UnassignedEventAttribute:
-    match: ([@])({{IDENTIFIER}})?
-    captures:
-      1:
-        patterns:
-          - { include: "#EventAttributeOperator" }
-      2:
-        patterns:
-          - { include: "#EventAttributeName" }
-
-  StyleAttributeOperator:
-    tag: variableName
-    name: variable.other.constant.attribute.style.sd
-    match: ([#])
-
-  StyleAttributeName:
-    tag: variableName
-    name: variable.other.constant.attribute.style.sd
-    match: (.+)
-
-  UnquotedStyleAttributeValue:
-    tag: string
-    name: string.unquoted.attribute.value.sd
-    match: ({{UNQUOTED_STRING_VALUE}})
-
-  EventAttributeOperator:
-    tag: function(variableName)
-    name: entity.name.function.attribute.name.view.sd
-    match: ([@])
-
-  EventAttributeName:
-    tag: function(variableName)
-    name: entity.name.function.attribute.name.view.sd
-    match: (.+)
-
-  UnquotedEventAttributeValue:
-    match: ({{UNQUOTED_STRING_VALUE}})
-    captures:
-      1:
-        patterns:
-          - { include: "#DivertTarget" }
-
-  UnquotedStringValue:
-    tag: string
-    name: string.unquoted.attribute.value.sd
-    match: ({{UNQUOTED_STRING_VALUE}})
-
-  LabelAttribute:
-    emit: true
-    patterns:
-      - { include: "#StringLiteral" }
-
-  FunctionCall:
-    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#FunctionName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#FunctionCallParameters" }
-    applyEndPatternLast: true
-    end: (?=$|.)
-
-  FunctionAccessor:
-    begin: ([.])?({{IDENTIFIER}})({{WS}}*)(?=[(])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationAccessor" }
-      2:
-        patterns:
-          - { include: "#FunctionName" }
-      3:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#FunctionCallParameters" }
-    applyEndPatternLast: true
-    end: (?=$|.)
-
-  ArrayItemOperator:
-    match: ([-])($|{{WS}}+)
-    captures:
-      1:
-        patterns:
-          - { include: "#ArrayItemMark" }
-      2:
-        patterns:
-          - { include: "#Separator" }
-
-  ArrayItemMark:
-    tag: keyword
-    name: keyword.operator.expression.array.sd
-    match: (.+)
-
-  ViewStructFieldValue:
-    match: (.+$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#NumericFieldValue" }
-          - { include: "#BooleanFieldValue" }
-          - { include: "#StringFieldValue" }
-          - { include: "#AccessPath" }
-          - { include: "#UnquotedStringFieldValue" }
-
-  StylingStructFieldValue:
-    match: (.+$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#NumericFieldValue" }
-          - { include: "#BooleanFieldValue" }
-          - { include: "#StringFieldValue" }
-          - { include: "#StylingValue" }
-
-  PlainStructFieldValue:
-    match: (.+$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#NumericFieldValue" }
-          - { include: "#BooleanFieldValue" }
-          - { include: "#StringFieldValue" }
-          - { include: "#AccessPathFieldValue" }
-          - { include: "#InvalidFieldValue" }
-
-  InvalidFieldValue:
-    tag: invalid
-    name: invalid.illegal.invalid-field-value.sd
-    match: (.+$)
-
-  NumericFieldValue:
-    tag: number
-    name: constant.numeric.sd
-    match: ([-]?(?:\d*[.])?\d+|Infinity|NaN)({{EOPL}})
-    captures:
-      1:
-        patterns:
-          - { include: "#NumericLiteral" }
-      2:
-        patterns:
-          - { include: "#EndOfLine" }
-
-  BooleanFieldValue:
-    tag: bool
-    name: constant.language.boolean.true.sd
-    match: (true|false)({{EOPL}})
-    captures:
-      1:
-        patterns:
-          - { include: "#BooleanLiteral" }
-      2:
-        patterns:
-          - { include: "#EndOfLine" }
-
-  StringFieldValue:
-    tag: string
-    name: string.quoted.double.sd
-    match: (["])((?:\\.|[^"])*)(["])({{EOPL}})
-    captures:
-      1:
-        patterns:
-          - { include: "#PunctuationStringOpen" }
-      2:
-        patterns:
-          - { include: "#PlainStringContent" }
-      3:
-        patterns:
-          - { include: "#PunctuationStringClose" }
-      4:
-        patterns:
-          - { include: "#EndOfLine" }
-
-  AccessPathFieldValue:
-    match: ({{IDENTIFIER}}.*?)({{EOPL}})
-    captures:
-      1:
-        patterns:
-          - { include: "#AccessPath" }
-      2:
-        patterns:
-          - { include: "#EndOfLine" }
-
-  UnquotedStringFieldValue:
-    match: (.+)({{EOPL}})
-    captures:
-      1:
-        patterns:
-          - { include: "#UnquotedString" }
-      2:
-        patterns:
-          - { include: "#EndOfLine" }
-
-  UnquotedString:
-    tag: string
-    name: string.unquoted.sd
-    match: (.+)
-
-  StylingValue:
-    match: (.+)({{EOPL}})
-    captures:
-      1:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#StylingValuePart" }
-          - { include: "#StylingStringIdentifier" }
-          - { include: "#UnquotedChar" }
-      2:
-        patterns:
-          - { include: "#EndOfLine" }
-
-  StylingValuePart:
-    patterns:
-      - { include: "#Separator" }
-      - { include: "#Color" }
-      - { include: "#Ratio" }
-      - { include: "#UnitValue" }
-      - { include: "#NumericLiteral" }
-      - { include: "#PunctuationComma" }
-      - { include: "#StylingFunction" }
-      - { include: "#QualifiedAccessPath" }
-
-  StylingFunction:
-    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "StylingFunctionName" }
-      2:
-        patterns:
-          - { include: "ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#StylingFunctionParameters" }
-    applyEndPatternLast: true
-    end: (?=$|.)
-
-  StylingFunctionParameters:
-    brackets: true
-    begin: ([(])({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "PunctuationParenOpen" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#CalcOperator" }
-      - { include: "#StylingValuePart" }
-      - { include: "#ParameterStringIdentifier" }
-      - { include: "#UnquotedChar" }
-    end: $|({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "PunctuationParenClose" }
-
-  StylingFunctionName:
-    tag: function(variableName)
-    name: entity.name.function.sd
-    match: ({{IDENTIFIER}})
-
-  StylingStringIdentifier:
-    tag: string
-    name: string.unquoted.identifier.sd
-    match: ({{IDENTIFIER}})
-
-  ParameterStringIdentifier:
-    tag: string
-    name: string.unquoted.identifier.sd
-    match: ({{IDENTIFIER}})
-
-  UnquotedChar:
-    tag: string
-    name: string.unquoted.char.sd
-    match: (.)
-
-  CalcOperator:
-    tag: keyword
-    name: keyword.other.calc.operator.sd
-    match: ([+]|[-]|[*]|[/])
-
-  Ratio:
-    match: ({{NUMBER}})({{WS}}*)([/])({{WS}}*)({{NUMBER}})
-    captures:
-      1:
-        patterns:
-          - { include: "#NumericLiteral" }
-      2:
-        patterns:
-          - { include: "ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "CalcOperator" }
-      4:
-        patterns:
-          - { include: "ExtraWhitespace" }
-      5:
-        patterns:
-          - { include: "NumericLiteral" }
-
-  TargetAccessPath:
-    emit: true
-    patterns:
-      - { include: "#AccessPath" }
-      - { include: "#IllegalExpression" }
-
-  QualifiedAccessPath:
-    begin: (?={{IDENTIFIER}}[.])
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#AccessPath" }
-    end: (?=$)|(?!{{IDENTIFIER}}|[.]|\[)
-
-  AccessPath:
-    begin: (?={{IDENTIFIER}})
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#AccessPart" }
-    end: (?=$)|(?!{{IDENTIFIER}}|[.]|\[)
-
-  AccessPart:
-    emit: true
-    patterns:
-      - { include: "#ArrayLiteral" }
-      - { include: "#FunctionAccessor" }
-      - { include: "#PropertyAccessor" }
-      - { include: "#NamespaceAccessor" }
-      - { include: "#VariableName" }
-      - { include: "#PunctuationAccessor" }
-
-  ListTypeDeclarationName:
-    emit: true
-    patterns:
-      - { include: "#TypeName" }
-      - { include: "#Unknown" }
-
-  VariableDeclarationName:
-    emit: true
-    patterns:
-      - { include: "#VariableName" }
-      - { include: "#Unknown" }
-
-  ViewDeclarationScalarPropertyName:
-    match: ({{STRICT_PROPERTY_IDENTIFIER}})
-    captures:
-      1:
-        patterns:
-          - { include: "#DeclarationScalarPropertyIndex" }
-          - { include: "#DeclarationScalarPropertyQuotedKey" }
-          - { include: "#ComponentName" }
-
-  StylingDeclarationScalarPropertyName:
-    match: ({{STRICT_PROPERTY_IDENTIFIER}})
-    captures:
-      1:
-        patterns:
-          - { include: "#DeclarationScalarPropertyIndex" }
-          - { include: "#DeclarationScalarPropertyQuotedKey" }
-          - { include: "#DeclarationScalarPropertyKey" }
-
-  PlainDeclarationScalarPropertyName:
-    match: ({{STRICT_PROPERTY_IDENTIFIER}})
-    captures:
-      1:
-        patterns:
-          - { include: "#DeclarationScalarPropertyIndex" }
-          - { include: "#DeclarationScalarPropertyQuotedKey" }
-          - { include: "#DeclarationScalarPropertyKey" }
-
-  DeclarationScalarPropertyIndex:
-    tag: number
-    name: constant.numeric.integer.sd
-    match: ({{INTEGER}})
-
-  DeclarationScalarPropertyKey:
-    tag: propertyName
-    name: variable.other.property.define.sd
-    match: ({{IDENTIFIER}})
-
-  DeclarationScalarPropertyQuotedKey:
-    tag: string
-    name: string.quoted.key.sd
-    match: ({{QUOTED_STRING}})
-
-  ViewForControlProperty:
-    match: ^({{WS}}*)(for)({{WS}}*)(.*?)($|{{WS}}+)($|in)($|{{WS}}+)(.*?)($|{{WS}}*)($|[:])($|{{WS}}*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ViewDeclarationControlKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#ViewDeclarationAsExpression" }
-      5:
-        patterns:
-          - { include: "#Separator" }
-      6:
-        patterns:
-          - { include: "#InKeyword" }
-      7:
-        patterns:
-          - { include: "#Separator" }
-      8:
-        patterns:
-          - { include: "#ViewDeclarationControlExpression" }
-      9:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      10:
-        patterns:
-          - { include: "#ColonOperator" }
-      11:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-
-  ViewControlProperty:
-    match: ^({{WS}}*)({{CONDITIONAL_BLOCK_KEYWORDS}})({{WS}}*)(.*?)({{WS}}*)($|[:])($|{{WS}}*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ViewDeclarationControlKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#ViewDeclarationControlExpression" }
-      5:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      6:
-        patterns:
-          - { include: "#ColonOperator" }
-      7:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-
-  ComponentName:
-    patterns:
-      - { include: "#BuiltinComponentName" }
-      - { include: "#CustomComponentName" }
-      - { include: "#FunctionCallParameters" }
-
-  BuiltinComponentName:
-    tag: definitionKeyword
-    name: keyword.other.component.builtin.name.sd
-    match: \b(box|span|scroller|text|stroke|link|label|field|button|image|mask|input|slider|checkbox|dropdown|option|divider)(?!{{IDENTIFIER}})
-
-  CustomComponentName:
-    tag: className
-    name: entity.name.type.class.view.sd
-    match: ({{IDENTIFIER}})
-
-  ViewDeclarationControlKeyword:
-    patterns:
-      - { include: "#ViewDeclarationControlInnerKeyword" }
-      - { include: "#ViewDeclarationControlTopKeyword" }
-
-  ViewDeclarationControlInnerKeyword:
-    tag: controlKeyword
-    name: keyword.control.inner.view.sd
-    match: (case|fill|slot)(?=$|{{WS}})
-
-  ViewDeclarationControlTopKeyword:
-    tag: controlKeyword
-    name: keyword.control.view.sd
-    match: ({{CONDITIONAL_BLOCK_KEYWORDS}})(?=$|{{WS}})
-
-  InKeyword:
-    tag: controlKeyword
-    name: keyword.control.in.view.sd
-    match: \b(in)\b
-
-  ViewDeclarationAsExpression:
-    emit: true
-    patterns:
-      - { include: "#Expression" }
-
-  ViewDeclarationControlExpression:
-    emit: true
-    patterns:
-      - { include: "#Expression" }
-
-  ########## Label ##########
-
-  Label:
-    match: ([(])({{WS}}*)({{IDENTIFIER}})({{WS}}*)([)])({{WS}}*)
-    captures:
-      1:
-        patterns:
-          - { include: "#LabelBeginMark" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#LabelDeclarationName" }
-      4:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      5:
-        patterns:
-          - { include: "#LabelEndMark" }
-      6:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  LabelBeginMark:
-    tag: keyword
-    name: keyword.flow.label.sd
-    match: (.+)
-
-  LabelEndMark:
-    tag: keyword
-    name: keyword.flow.label.sd
-    match: (.+)
-
-  LabelDeclarationName:
-    tag: definition(heading)
-    name: keyword.control.section.sd
-    match: (.+)
 
   ########## Break ##########
 
@@ -2138,7 +312,7 @@ repository:
   Chain:
     tag: special(meta)
     name: meta.chain.sd
-    match: ({{WS}}*)([\\])(?:({{WS}}+)$|({{WS}}*))
+    match: ({{WS}}*)({{CHAIN}})(?:({{WS}}+)$|({{WS}}*))
     captures:
       1:
         patterns:
@@ -2158,7 +332,7 @@ repository:
   Glue:
     tag: meta
     name: meta.glue.sd
-    match: ({{WS}}*)([<][>])
+    match: ({{WS}}*)({{GLUE}})
     captures:
       1:
         patterns:
@@ -2184,7 +358,7 @@ repository:
           - { include: "#Label" }
       4:
         patterns:
-          - { include: "#ConditionalBracedBlock" }
+          - { include: "#LuauInterpolatedStringExpression" }
       5:
         patterns:
           - { include: "#Newline" }
@@ -2205,7 +379,7 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#ConditionalBracedBlock" }
+          - { include: "#LuauInterpolatedStringExpression" }
       3:
         patterns:
           - { include: "#Newline" }
@@ -2263,108 +437,13 @@ repository:
     tag: string
     name: string.choice.sd
     match: (.+)
+
     captures:
       1:
         patterns:
           - { include: "#Annotation" }
-          - { include: "#ConditionalBracedBlock" }
+          - { include: "#LuauInterpolatedStringExpression" }
           - { include: "#DisplayText" }
-
-  ########## Logic ##########
-
-  Logic:
-    tag: meta
-    name: meta.logic.sd
-    begin: ({{WS}}*)(~)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#LogicMark" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#ReturnStatement" }
-      - { include: "#TempDeclaration" }
-      - { include: "#Expression" }
-    end: ({{EOL}})(\r\n|\r|\n)?
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#EndOfLine" }
-      2:
-        patterns:
-          - { include: "#Newline" }
-
-  LogicMark:
-    tag: keyword
-    name: keyword.other.logic.sd
-    match: (.+)
-
-  ReturnStatement:
-    begin: ({{WS}}*)(~{{EOK}})?({{WS}}*)(return)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#OptionalLogicMark" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#ReturnKeyword" }
-      5:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Expression" }
-    end: (?=$)
-
-  ReturnKeyword:
-    tag: controlKeyword
-    name: keyword.control.return.sd
-    match: (.+)
-
-  TempDeclaration:
-    begin: ({{WS}}*)(~{{EOK}})?({{WS}}*)(temp)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#OptionalLogicMark" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#TempKeyword" }
-      5:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#VariableAssignment" }
-    end: (?=$)
-
-  OptionalLogicMark:
-    tag: keyword
-    name: keyword.other.logic.optional.sd
-    match: (.+)
-
-  TempKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.temp.sd
-    match: (.+)
 
   ########## Gather ##########
 
@@ -2389,7 +468,47 @@ repository:
     name: keyword.other.gather.sd
     match: (.+)
 
-  ########## Scene, Knot, Branch, Stitch, Function ##########
+  ########## Label ##########
+
+  Label:
+    match: ([(])({{WS}}*)({{IDENTIFIER}})({{WS}}*)([)])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#LabelBeginMark" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      3:
+        patterns:
+          - { include: "#LabelDeclarationName" }
+      4:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      5:
+        patterns:
+          - { include: "#LabelEndMark" }
+      6:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LabelBeginMark:
+    tag: keyword
+    name: keyword.flow.label.sd
+    match: (.+)
+
+  LabelEndMark:
+    tag: keyword
+    name: keyword.flow.label.sd
+    match: (.+)
+
+  LabelDeclarationName:
+    tag: definition(heading)
+    name: keyword.control.section.sd
+    match: (.+)
+
+  ########## Scene ##########
 
   Scene:
     begin: ^({{WS}}*)(scene)({{EOK}})
@@ -2406,7 +525,7 @@ repository:
     patterns:
       - { include: "#SceneWithParametersDeclaration" }
       - { include: "#SceneWithoutParametersDeclaration" }
-    end: ([:])|(?=$)
+    end: $|([:])
     endCaptures:
       1:
         patterns:
@@ -2422,21 +541,18 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#FunctionDeclarationParameters" }
+      - { include: "#LuauFunctionParameters" }
     end: (?=$|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   SceneWithoutParametersDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)
-    beginCaptures:
+    match: ({{IDENTIFIER}})({{WS}}*)
+    captures:
       1:
         patterns:
           - { include: "#SceneDeclarationName" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   SceneKeyword:
     tag: controlKeyword
@@ -2448,65 +564,7 @@ repository:
     name: keyword.control.section.sd
     match: (.+)
 
-  Knot:
-    begin: ^({{WS}}*)([=]{2,}{{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#KnotBeginMark" }
-    patterns:
-      - { include: "#KnotFunction" }
-      - { include: "#KnotWithParametersDeclaration" }
-      - { include: "#KnotWithoutParametersDeclaration" }
-    end: ({{WS}}*[=]{2,})|(?=$)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#KnotEndMark" }
-
-  KnotWithParametersDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#KnotDeclarationName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[=]|{{COMMENT_START}}|{{WS}}*(?![(]))
-
-  KnotWithoutParametersDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#KnotDeclarationName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[=]|{{COMMENT_START}}|{{WS}}*(?![(]))
-
-  KnotBeginMark:
-    tag: keyword
-    name: keyword.flow.knot.sd
-    match: (.+)
-
-  KnotEndMark:
-    tag: keyword
-    name: keyword.flow.knot.sd
-    match: (.+)
-
-  KnotDeclarationName:
-    tag: definition(heading)
-    name: keyword.control.section.sd
-    match: (.+)
+  ########## Branch ##########
 
   Branch:
     begin: ^({{WS}}*)(branch)({{EOK}})
@@ -2524,7 +582,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#BranchWithParametersDeclaration" }
       - { include: "#BranchWithoutParametersDeclaration" }
-    end: ([:])|(?=$)
+    end: $|([:])
     endCaptures:
       1:
         patterns:
@@ -2540,21 +598,18 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#FunctionDeclarationParameters" }
+      - { include: "#LuauFunctionParameters" }
     end: (?=$|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   BranchWithoutParametersDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)
-    beginCaptures:
+    match: ({{IDENTIFIER}})({{WS}}*)
+    captures:
       1:
         patterns:
           - { include: "#BranchDeclarationName" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|{{COMMENT_START}}|{{WS}}*(?![(]))
 
   BranchKeyword:
     tag: controlKeyword
@@ -2564,133 +619,6 @@ repository:
   BranchDeclarationName:
     tag: definition(heading)
     name: keyword.control.section.sd
-    match: (.+)
-
-  Stitch:
-    begin: ^({{WS}}*)([=])({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#StitchBeginMark" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#StitchWithParametersDeclaration" }
-      - { include: "#StitchWithoutParametersDeclaration" }
-    end: ([=]+)|(?=$)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#InvalidValue" }
-
-  StitchWithParametersDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#StitchDeclarationName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[=]|{{COMMENT_START}}|{{WS}}*(?![(]))
-
-  StitchWithoutParametersDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#StitchDeclarationName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#FunctionDeclarationParameters" }
-    end: (?=$|[=]|{{COMMENT_START}}|{{WS}}*(?![(]))
-
-  StitchBeginMark:
-    tag: keyword
-    name: keyword.flow.stitch.sd
-    match: (.+)
-
-  StitchEndMark:
-    tag: keyword
-    name: keyword.flow.stitch.sd
-    match: (.+)
-
-  StitchDeclarationName:
-    tag: definition(heading)
-    name: keyword.control.section.sd
-    match: (.+)
-
-  Function:
-    begin: ^({{WS}}*)(function)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#FunctionKeyword" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#FunctionDeclaration" }
-    end: ([:])|(?=$)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ColonOperator" }
-
-  KnotFunction:
-    begin: (function)({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#FunctionKeyword" }
-      2:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#FunctionDeclaration" }
-    end: (?=$|{{WS}}*[=]{2,})
-
-  FunctionDeclaration:
-    begin: ({{IDENTIFIER}})({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#FunctionDeclarationName" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#FunctionDeclarationParameters" }
-    end: (?=$)
-
-  FunctionKeyword:
-    tag: controlKeyword
-    name: keyword.control.function.sd
-    match: (.+)
-
-  FunctionDeclarationName:
-    tag: definition(heading)
-    name: keyword.control.section.sd
-    match: (.+)
-
-  FunctionEndMark:
-    tag: keyword
-    name: keyword.flow.function.sd
     match: (.+)
 
   ########## Divert & Thread ##########
@@ -2782,7 +710,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#End" }
       - { include: "#Done" }
-      - { include: "#FunctionCall" }
+      - { include: "#LuauFunctionCall" }
       - { include: "#DivertPath" }
     end: (?=$)|(?!{{IDENTIFIER}}|[.^])
 
@@ -2818,427 +746,41 @@ repository:
     name: keyword.control.divert.path.sd
     match: ({{IDENTIFIER}})
 
-  ########## ConditionalBracedBlock (anything within {}) ##########
+  ########## Whitespace ##########
 
-  ConditionalBracedBlock:
-    tag: meta
-    name: meta.definition.type.conditional-block.sd
-    brackets: true
-    begin: ([{])({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#ConditionalBlockOpenBrace" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#CloseBraceAhead" }
-      - { include: "#MultilineAlternative" }
-      - { include: "#MultilineBlock" }
-      - { include: "#ConditionalSubstitution" }
-      - { include: "#Divert" }
-      - { include: "#Substitution" }
-      - { include: "#FirstAlternativeItem" }
-      - { include: "#AlternativeItem" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#InlineConditionalText" }
-    end: ({{WS}}*)([}])({{WS}}*)?
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#ConditionalBlockCloseBrace" }
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  ConditionalBlockOpenBrace:
-    tag: keyword
-    name: punctuation.definition.template-expression.begin.sd
-    match: ([{])
-
-  ConditionalBlockCloseBrace:
-    tag: keyword
-    name: punctuation.definition.template-expression.end.sd
-    match: ([}])
-
-  Substitution:
-    name: keyword.control.sd
-    match: (?<=[{]{{WS}}*)({{WS}}*)([^{}:|]+)((?<!{{WS}}){{WS}}*)(?=[}])
-    captures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#Expression" }
-      3:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-
-  FirstAlternativeItem:
-    begin: (?<=[{]{{WS}}*)({{WS}}*)([&!~])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        tag: controlKeyword
-        name: keyword.control.alternative.type.sd
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#PipeAhead" }
-      - { include: "#Literal" }
-      - { include: "#Divert" }
-      - { include: "#ConditionalSubstitution" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#InlineConditionalText" }
-    end: (?=[|])
-
-  AlternativeItem:
-    begin: ([|])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#AlternativeOperator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#CloseBraceAhead" }
-      - { include: "#PipeAhead" }
-      - { include: "#Literal" }
-      - { include: "#Divert" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#InlineConditionalText" }
-    end: (?=[}]|[|])
-
-  ConditionalSubstitution:
-    begin: ((?:[^:{}|]|[|](?=[|]))+)((?<!{{WS}}){{WS}}*)([:])({{WS}}*)(?!{{EOL}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Expression" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#ColonOperator" }
-      4:
-        patterns:
-          - { include: "#Whitespace" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#CloseBraceAhead" }
-      - { include: "#Divert" }
-      - { include: "#InlineElseClause" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#InlineConditionalText" }
-    end: ({{WS}}*)(?=[}])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-
-  InlineElseClause:
-    begin: ([|])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#AlternativeOperator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#CloseBraceAhead" }
-      - { include: "#Divert" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#InlineConditionalText" }
-    end: (?=[}])
-
-  MultilineBlock:
-    begin: ([^{}:]+)((?<!{{WS}}){{WS}}*)([:])(?={{EOL}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#SequenceKeyword" }
-          - { include: "#Expression" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      3:
-        patterns:
-          - { include: "#ColonOperator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#MultilineCloseBraceAhead" }
-      - { include: "#MultilineCaseClause" }
-      - { include: "#MultilineAlternativeClause" }
-      - { include: "#Divert" }
-      - { include: "#ReturnStatement" }
-      - { include: "#TempDeclaration" }
-      - { include: "#Logic" }
-      - { include: "#Choice" }
-      - { include: "#Todo" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#MultilineConditionalText" }
-    end: (?=[}])
-
-  MultilineAlternative:
-    begin: (?<=[{]{{WS}}*)({{WS}}*)(?={{EOL}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#MultilineCloseBraceAhead" }
-      - { include: "#MultilineCaseClause" }
-      - { include: "#MultilineAlternativeClause" }
-      - { include: "#Divert" }
-      - { include: "#Thread" }
-      - { include: "#ReturnStatement" }
-      - { include: "#TempDeclaration" }
-      - { include: "#Logic" }
-      - { include: "#Choice" }
-      - { include: "#Todo" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#MultilineConditionalText" }
-    end: (?=[}])
-
-  MultilineCaseClause:
-    begin: ^({{WS}}*)([-])({{EOK}})(?:(else)|([^|{}:]+))({{WS}}*)([:])({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#MultilineCaseMark" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-      4:
-        patterns:
-          - { include: "#ElseKeyword" }
-      5:
-        patterns:
-          - { include: "#Expression" }
-      6:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      7:
-        patterns:
-          - { include: "#ColonOperator" }
-      8:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#MultilineCloseBraceAhead" }
-      - { include: "#MultilineDashAhead" }
-      - { include: "#Divert" }
-      - { include: "#Thread" }
-      - { include: "#ReturnStatement" }
-      - { include: "#TempDeclaration" }
-      - { include: "#Logic" }
-      - { include: "#Choice" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#MultilineConditionalText" }
-    end: (?=^|[}]|[-]{{EOK}})
-
-  ElseKeyword:
-    tag: controlKeyword
-    name: keyword.control.else.sd
-    match: (.+)
-
-  MultilineAlternativeClause:
-    begin: ^({{WS}}*)([-])({{EOK}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#MultilineAlternativeMark" }
-      3:
-        patterns:
-          - { include: "#Separator" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#MultilineCloseBraceAhead" }
-      - { include: "#MultilineDashAhead" }
-      - { include: "#Divert" }
-      - { include: "#Thread" }
-      - { include: "#ReturnStatement" }
-      - { include: "#TempDeclaration" }
-      - { include: "#Logic" }
-      - { include: "#Choice" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#MultilineConditionalText" }
-    end: (?=^|[}]|[-]{{EOK}})
-
-  SequenceKeyword:
-    tag: controlKeyword
-    name: keyword.control.sequence.sd
-    match: \b(stopping|shuffle|cycle|once)\b
-
-  InlineConditionalText:
-    patterns:
-      - { include: "#DisplayText" }
-
-  MultilineConditionalText:
-    begin: (?={{WS}}*\S)
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Newline" }
-      - { include: "#MultilineCloseBraceAhead" }
-      - { include: "#ConditionalBracedBlock" }
-      - { include: "#ConditionalIndentedBlock" }
-      - { include: "#Title" }
-      - { include: "#Heading" }
-      - { include: "#Transitional" }
-      - { include: "#Write" }
-      - { include: "#Dialogue" }
-      - { include: "#Action" }
-      - { include: "#DisplayText" }
-    end: (?=$|{{WS}}*[}])
-
-  MultilineCaseMark:
-    tag: keyword
-    name: keyword.switch.clause.sd
-    match: ([-])
-
-  MultilineAlternativeMark:
-    tag: keyword
-    name: keyword.sequence.clause.sd
-    match: ([-])
-
-  PipeAhead:
-    match: (?=[|])
-
-  CloseBraceAhead:
-    match: (?=[}])
-
-  MultilineCloseBraceAhead:
-    match: ^({{WS}}*)(?=[}])
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-
-  MultilineDashAhead:
-    match: ^({{WS}}*)(?=[-]{{EOK}})
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-
-  ########## ConditionalIndentedBlock ##########
-
-  ConditionalIndentedBlock:
-    tag: meta
-    name: meta.definition.type.conditional-block.sd
-    begin: ({{WS}}*)({{CONDITIONAL_BLOCK_KEYWORDS}})\b
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#ConditionalKeyword" }
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Expression" }
-    end: ([:])|(?=$)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ColonOperator" }
-
-  ########## Expression ##########
-
-  Expression:
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#ConditionalKeyword" }
-      - { include: "#RefModifier" }
-      - { include: "#FunctionCall" }
-      - { include: "#Divert" }
-      - { include: "#Operator" }
-      - { include: "#Literal" }
-      - { include: "#Separator" }
-      - { include: "#Newline" }
-      - { include: "#ParenExpression" }
-      - { include: "#BracketExpression" }
-      - { include: "#BraceExpression" }
-      - { include: "#AccessPath" }
-      - { include: "#PunctuationComma" }
-      - { include: "#IllegalChar" }
-
-  ConditionalKeyword:
-    tag: controlKeyword
-    name: keyword.control.definition.const.sd
-    match: ({{CONDITIONAL_BLOCK_KEYWORDS}})\b
-
-  ParentheticalExpression:
-    brackets: true
-    begin: ([(])({{WS}}*)
-    beginCaptures:
-      1:
-        tag: keyword
-        name: punctuation.definition.template-expression.begin.sd
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Separator" }
-      - { include: "#InKeyword" }
-      - { include: "#Expression" }
-    end: $|({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        tag: keyword
-        name: punctuation.definition.template-expression.end.sd
+  Newline:
+    tag: content
+    name: punctuation.whitespace.newline.sd
+    match: ({{NL}})
 
   Indent:
     tag: special(content)
-    name: markup.raw.whitespace.indent.sd
+    name: punctuation.whitespace.indent.sd
     match: ^({{WS}}+)
 
   TrailingWhitespace:
     tag: local(content)
-    name: markup.raw.whitespace.trailing.sd
+    name: punctuation.whitespace.trailing.sd
     match: (?<!^)({{WS}}+)$
 
   ExtraWhitespace:
     tag: content
-    name: markup.raw.whitespace.extra.sd
+    name: punctuation.whitespace.extra.sd
     match: ({{WS}}+)
 
   Whitespace:
     tag: content
-    name: markup.raw.whitespace.sd
+    name: punctuation.whitespace.sd
     match: ({{WS}}+)
 
   Separator:
     tag: definition(content)
-    name: markup.raw.whitespace.separator.sd
+    name: punctuation.whitespace.separator.sd
     match: ({{WS}}+)
 
   OptionalSeparator:
     tag: definition(content)
-    name: markup.raw.whitespace.separator.optional.sd
+    name: punctuation.whitespace.separator.optional.sd
     match: ({{WS}}*)
 
   EndOfLine:
@@ -3246,281 +788,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#TrailingWhitespace" }
 
-  Operator:
-    patterns:
-      - { include: "#HasOperator" }
-      - { include: "#SpreadOperator" }
-      - { include: "#AssignArithmeticOperator" }
-      - { include: "#AssignBitwiseOperator" }
-      - { include: "#BitwiseShiftOperator" }
-      - { include: "#CompareEqualOperator" }
-      - { include: "#CompareRelativeOperator" }
-      - { include: "#HasntOperator" }
-      - { include: "#NegateOperator" }
-      - { include: "#LogicalOperator" }
-      - { include: "#WordOperator" }
-      - { include: "#BitwiseOperator" }
-      - { include: "#AssignEqualOperator" }
-      - { include: "#DecrementOperator" }
-      - { include: "#IncrementOperator" }
-      - { include: "#ArithmeticOperator" }
-      - { include: "#AssignMultiplyOperator" }
-      - { include: "#AssignDivideOperator" }
-
-  SpreadOperator:
-    tag: derefOperator
-    name: keyword.operator.spread.sd
-    match: ([.][.][.])
-
-  AssignArithmeticOperator:
-    match: ({{WS}}*)([*][=]|(?<!\()[/][=]|[%][=]|[+][=]|[-][=])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: updateOperator
-        name: keyword.operator.assignment.compound.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  AssignBitwiseOperator:
-    match: ({{WS}}*)([&][=]|[\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: updateOperator
-        name: keyword.operator.assignment.compound.bitwise.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  BitwiseShiftOperator:
-    match: ({{WS}}*)([<][<]|[>][>][>]|[>][>])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: updateOperator
-        name: keyword.operator.bitwise.shift.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  CompareEqualOperator:
-    match: ({{WS}}*)([=][=][=]|[!][=][=]|[=][=]|[!][=])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: compareOperator
-        name: keyword.operator.comparison.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  CompareRelativeOperator:
-    match: ({{WS}}*)([<][=]|[>][=]|[<][>]|[<]|[>])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: compareOperator
-        name: keyword.operator.relational.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  HasntOperator:
-    match: ({{WS}}*)([!][?])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: logicOperator
-        name: keyword.operator.logical.hasnt.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  HasOperator:
-    match: ({{WS}}*)([?])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: logicOperator
-        name: keyword.operator.logical.has.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  NegateOperator:
-    match: ({{WS}}*)([!])
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: logicOperator
-        name: keyword.operator.logical.sd
-
-  LogicalOperator:
-    match: ({{WS}}*)([&][&]|[|][|]|[?][?])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: logicOperator
-        name: keyword.operator.logical.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  BitwiseOperator:
-    match: ({{WS}}*)([&]|[~]|[\^]|[|])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: bitwiseOperator
-        name: keyword.operator.bitwise.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  ComparisonOperator:
-    tag: updateOperator
-    name: keyword.operator.comparison.sd
-    match: ({{COMPARISON_OPERATOR}})
-
-  AssignEqualOperator:
-    match: ({{WS}}*)([=])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        patterns:
-          - { include: "#EqualOperator" }
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  EqualOperator:
-    tag: updateOperator
-    name: keyword.operator.assignment.sd
-    match: ([=])
-
-  DecrementOperator:
-    match: ([-][-])({{WS}}*)
-    captures:
-      1:
-        tag: updateOperator
-        name: keyword.operator.decrement.sd
-      2:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  IncrementOperator:
-    match: ([+][+])({{WS}}*)
-    captures:
-      1:
-        tag: updateOperator
-        name: keyword.operator.increment.sd
-      2:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  ArithmeticOperator:
-    match: ({{WS}}*)([%]|[*]|[/]|[-]|[+])({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: arithmeticOperator
-        name: keyword.operator.arithmetic.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  AssignMultiplyOperator:
-    begin: (?<=[)\]{{IDENTIFIER_END_CHAR}}])({{WS}}*)(?=(\/[*]([^*]|([*][^\/]))*[*]\/\s*)+(?:(/=)|(?:(/)(?![/*]))))
-    beginCaptures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-    patterns:
-      - { include: "#Comment" }
-    end: (?:(/=)|(?:(/)(?![*]([^*]|([*][^\/]))*[*][/])))({{WS}}*)
-    endCaptures:
-      1:
-        tag: updateOperator
-        name: keyword.operator.assignment.compound.sd
-      2:
-        tag: arithmeticOperator
-        name: keyword.operator.arithmetic.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  AssignDivideOperator:
-    match: (?<=[)\]{{IDENTIFIER_END_CHAR}}])({{WS}}*)([/][=]|([/])(?![/*]))({{WS}}*)
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-      2:
-        tag: arithmeticOperator
-        name: keyword.operator.arithmetic.sd
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  AlternativeOperator:
-    tag: logicOperator
-    name: meta.template.expression.operator.pipe.sd
-    match: ([|])
+  ########## Operators ##########
 
   ColonOperator:
     tag: logicOperator
@@ -3532,337 +800,112 @@ repository:
     name: meta.template.expression.operator.colon.sd
     match: ([:])
 
-  WordOperator:
-    match: \b(not|and|or|has|hasnt|mod)\b({{WS}}*)
-    captures:
-      1:
-        tag: keyword
-        name: keyword.logical.word.sd
-      2:
-        emit: true
-        patterns:
-          - { include: "#OptionalSeparator" }
-
-  Literal:
-    patterns:
-      - { include: "#StringLiteral" }
-      - { include: "#NumericLiteral" }
-      - { include: "#BooleanLiteral" }
-      - { include: "#NullLiteral" }
-      - { include: "#UndefinedLiteral" }
-
-  StringLiteral:
-    tag: string
-    name: string.quoted.double.sd
-    begin: (["])
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationStringOpen" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#StringContent" }
-    end: (["])|($)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationStringClose" }
-
-  StringContent:
-    match: ((?:\\.|[^"])*?)(?=$|")
-    captures:
-      1:
-        patterns:
-          - { include: "#StringEscape" }
-          - { include: "#ConditionalBracedBlock" }
-          - { include: "#StringCharacter" }
-
-  PlainStringContent:
-    match: ((?:\\.|[^"])*?)(?=$|")
-    captures:
-      1:
-        patterns:
-          - { include: "#StringEscape" }
-          - { include: "#Color" }
-          - { include: "#StringCharacter" }
-
-  PunctuationStringOpen:
+  PunctuationStringDoubleQuoteOpen:
+    tag: definition(string)
+    name: punctuation.definition.string.double.begin.sd
     match: (["])
-    tag: string
-    name: punctuation.definition.string.begin.sd
 
-  PunctuationStringClose:
+  PunctuationStringDoubleQuoteClose:
+    tag: definition(string)
+    name: punctuation.definition.string.double.end.sd
     match: (["])
-    tag: string
-    name: punctuation.definition.string.end.sd
 
-  StringEscape:
-    match: (\\)(.)
-    captures:
-      1:
-        tag: definition(escape)
-        name: constant.character.escape.sd
-      2:
-        tag: content
-        name: markup.raw.whitespace.sd
+  PunctuationStringSingleQuoteOpen:
+    tag: definition(string)
+    name: punctuation.definition.string.single.begin.sd
+    match: (['])
 
-  StringCharacter:
-    tag: content
-    name: markup.raw.whitespace.sd
-    match: (.)
+  PunctuationStringSingleQuoteClose:
+    tag: definition(string)
+    name: punctuation.definition.string.single.end.sd
+    match: (['])
 
-  NumericLiteral:
-    patterns:
-      - { include: "#NumberLiteral" }
-      - { include: "#NumericConstantLiteral" }
+  PunctuationStringBacktickQuoteOpen:
+    tag: definition(string)
+    name: punctuation.definition.string.backtick.begin.sd
+    match: ([`])
 
-  NumberLiteral:
-    tag: number
-    name: constant.numeric.sd
-    match: ([-]?(?:\d*[.])?\d+)
+  PunctuationStringBacktickQuoteClose:
+    tag: definition(string)
+    name: punctuation.definition.string.backtick.end.sd
+    match: ([`])
 
-  NumericConstantLiteral:
-    patterns:
-      - { include: "#Infinity" }
-      - { include: "#NaN" }
+  PunctuationStringBracketQuoteOpen:
+    tag: definition(string)
+    name: punctuation.definition.string.bracket.begin.sd
+    match: (\[)
 
-  NaN:
-    tag: atom
-    name: constant.language.nan.sd
-    match: "{{BEFORE_KEYWORD}}NaN{{AFTER_KEYWORD}}"
+  PunctuationStringBracketQuoteClose:
+    tag: definition(string)
+    name: punctuation.definition.string.bracket.end.sd
+    match: (\])
 
-  Infinity:
-    tag: atom
-    name: constant.language.infinity.sd
-    match: "{{BEFORE_KEYWORD}}Infinity{{AFTER_KEYWORD}}"
+  PunctuationStringEqualQuoteOpen:
+    tag: definition(string)
+    name: punctuation.definition.string.equal.begin.sd
+    match: ([=]+)
 
-  BooleanLiteral:
-    patterns:
-      - { include: "#BooleanTrue" }
-      - { include: "#BooleanFalse" }
-
-  BooleanTrue:
-    tag: bool
-    name: constant.language.boolean.true.sd
-    match: "{{BEFORE_KEYWORD}}true{{AFTER_KEYWORD}}"
-
-  BooleanFalse:
-    tag: bool
-    name: constant.language.boolean.false.sd
-    match: "{{BEFORE_KEYWORD}}false{{AFTER_KEYWORD}}"
-
-  NullLiteral:
-    tag: "null"
-    name: constant.language.null.sd
-    match: "{{BEFORE_KEYWORD}}null{{AFTER_KEYWORD}}"
-
-  UndefinedLiteral:
-    tag: "null"
-    name: constant.language.undefined.sd
-    match: "{{BEFORE_KEYWORD}}undefined{{AFTER_KEYWORD}}"
-
-  ArrayLiteral:
-    name: meta.array.literal.sd
-    brackets: true
-    begin: (\[)
-    beginCaptures:
-      1:
-        tag: brace
-        name: meta.brace.square.open.sd
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#ArrayItem" }
-      - { include: "#Newline" }
-    end: (\])
-    endCaptures:
-      1:
-        tag: brace
-        name: meta.brace.square.close.sd
-
-  ArrayItem:
-    tag: meta
-    name: meta.item.sd
-    begin: (?=.+$)
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Expression" }
-    end: (?=\])|([,])
-    endCaptures:
-      1:
-        tag: separator
-        name: meta.template.expression.comma.sd
-
-  PunctuationComma:
-    tag: operator
-    name: keyword.operator.comma.sd
-    match: ([,])
-
-  PunctuationSemicolon:
-    tag: separator
-    name: meta.template.expression.semicolon.sd
-    match: ([;])
+  PunctuationStringEqualQuoteClose:
+    tag: definition(string)
+    name: punctuation.definition.string.equal.end.sd
+    match: ([=]+)
 
   PunctuationParenOpen:
-    match: ([(])
     tag: keyword
     name: punctuation.definition.template-expression.begin.sd
+    match: ([(])
 
   PunctuationParenClose:
-    match: ([)])
     tag: keyword
     name: punctuation.definition.template-expression.end.sd
+    match: ([)])
 
   PunctuationBracketOpen:
-    match: (\[)
     tag: keyword
     name: punctuation.definition.template-expression.begin.sd
+    match: (\[)
 
   PunctuationBracketClose:
-    match: (\])
     tag: keyword
     name: punctuation.definition.template-expression.end.sd
+    match: (\])
 
   PunctuationBraceOpen:
-    match: (\{)
     tag: keyword
     name: punctuation.definition.template-expression.begin.sd
+    match: (\{)
 
   PunctuationBraceClose:
-    match: (\})
     tag: keyword
     name: punctuation.definition.template-expression.end.sd
+    match: (\})
 
-  ParenExpression:
-    brackets: true
-    begin: ([(])({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationParenOpen" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Expression" }
-    end: $|({{WS}}*)([)])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#PunctuationParenClose" }
+  PunctuationAngleOpen:
+    tag: keyword
+    name: punctuation.definition.template-expression.begin.sd
+    match: ([<])
 
-  BracketExpression:
-    brackets: true
-    begin: (\[)({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationBracketOpen" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Expression" }
-    end: $|({{WS}}*)(\])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#PunctuationBracketClose" }
+  PunctuationAngleClose:
+    tag: keyword
+    name: punctuation.definition.template-expression.end.sd
+    match: ([>])
 
-  BraceExpression:
-    brackets: true
-    begin: (\{)({{WS}}*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationBraceOpen" }
-      2:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Expression" }
-    end: $|({{WS}}*)(\})
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#PunctuationBraceClose" }
+  PunctuationDoubleAngleOpen:
+    tag: keyword
+    name: punctuation.definition.template-expression.begin.sd
+    match: ([<][<])
 
-  NamespaceAccessor:
-    match: ({{IDENTIFIER}})([.])($|{{IDENTIFIER}})(?![(])
-    captures:
-      1:
-        patterns:
-          - { include: "#TypeName" }
-      2:
-        patterns:
-          - { include: "#PunctuationAccessor" }
-      3:
-        patterns:
-          - { include: "#VariableName" }
-
-  VariableAccessor:
-    match: ([.])({{IDENTIFIER}})(?![(])
-    captures:
-      1:
-        patterns:
-          - { include: "#PunctuationAccessor" }
-      2:
-        patterns:
-          - { include: "#VariableName" }
-
-  PropertyAccessor:
-    match: ([.])({{IDENTIFIER}})(?![(])
-    captures:
-      1:
-        patterns:
-          - { include: "#PunctuationAccessor" }
-      2:
-        patterns:
-          - { include: "#PropertyName" }
-
-  IllegalPropertyDeclaration:
-    tag: invalid
-    name: invalid.illegal.property-declaration.sd
-    match: ({{IDENTIFIER}})({{WS}}*)([:])(.*?)($|(?=[;}]))
-
-  TypeName:
-    tag: typeName
-    name: support.type.sd
-    match: ({{IDENTIFIER}})
-
-  VariableName:
-    tag: variableName
-    name: variable.other.constant.sd
-    match: ({{IDENTIFIER}})(?![(])
-
-  PropertyName:
-    tag: propertyName
-    name: variable.other.property.sd
-    match: ({{IDENTIFIER}})(?![(])
-
-  FunctionName:
-    tag: heading
-    name: keyword.control.divert.path.sd
-    match: ({{IDENTIFIER}})
-
-  Identifier:
-    match: ({{IDENTIFIER}})
+  PunctuationDoubleAngleClose:
+    tag: keyword
+    name: punctuation.definition.template-expression.end.sd
+    match: ([>][>])
 
   PunctuationAccessor:
-    match: ([.])
     tag: separator
     name: meta.template.expression.accessor.sd
+    match: ([.])
+
+  ########## Color ##########
 
   Color:
     emit: true
@@ -3903,7 +946,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
-      - { include: "#Comment" }
+      - { include: "#LuauComment" }
       - { include: "#FrontMatterField" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
@@ -3934,7 +977,7 @@ repository:
         patterns:
           - { include: "#FrontMatterStringInline" }
     patterns:
-      - { include: "#Comment" }
+      - { include: "#LuauComment" }
       - { include: "#FrontMatterStringBlock" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
@@ -3970,7 +1013,7 @@ repository:
     name: string.front-matter.string.sd
     begin: (?=.*$)
     patterns:
-      - { include: "#Comment" }
+      - { include: "#LuauComment" }
       - { include: "#InlineText" }
     end: ($(?:\r\n|\r|\n)?)
     endCaptures:
@@ -3987,7 +1030,7 @@ repository:
 
   BlockTitle:
     tag: monospace
-    name: constant.character.escape.title.sd
+    name: string.display.title.block.sd
     begin: ^({{WS}}*)(\^)([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
@@ -4012,7 +1055,7 @@ repository:
 
   InlineTitle:
     tag: monospace
-    name: constant.character.escape.title.sd
+    name: string.display.title.inline.sd
     begin: ({{WS}}*)(\^)([:])($|{{WS}}+)
     beginCaptures:
       1:
@@ -4052,7 +1095,7 @@ repository:
 
   BlockHeading:
     tag: regexp
-    name: string.regexp.heading.block.sd
+    name: string.display.heading.block.sd
     begin: ^({{WS}}*)([$])([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
@@ -4077,7 +1120,7 @@ repository:
 
   InlineHeading:
     tag: regexp
-    name: string.regexp.heading.inline.sd
+    name: string.display.heading.inline.sd
     begin: ({{WS}}*)([$])([:])($|{{WS}}+)
     beginCaptures:
       1:
@@ -4120,7 +1163,7 @@ repository:
 
   BlockTransitional:
     tag: labelName
-    name: keyword.control.transitional.block.sd
+    name: string.display.transitional.block.sd
     begin: ^({{WS}}*)([%])([:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
@@ -4145,7 +1188,7 @@ repository:
 
   InlineTransitional:
     tag: labelName
-    name: keyword.control.transitional.inline.sd
+    name: string.display.transitional.inline.sd
     begin: ({{WS}}*)([%])([:])($|{{WS}}+)
     beginCaptures:
       1:
@@ -4184,8 +1227,8 @@ repository:
       - { include: "#InlineWrite" }
 
   BlockWrite:
-    tag: string
-    name: string.write.block.sd
+    tag: definition(string)
+    name: string.display.write.block.sd
     begin: ^({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
@@ -4216,8 +1259,8 @@ repository:
     end: (?=^(?!$|//|\1{{WS}}))
 
   InlineWrite:
-    tag: string
-    name: string.write.inline.sd
+    tag: definition(string)
+    name: string.display.write.inline.sd
     begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
@@ -4267,8 +1310,8 @@ repository:
       - { include: "#InlineDialogue" }
 
   BlockDialogue:
-    tag: string
-    name: string.dialogue.block.sd
+    tag: definition(string)
+    name: string.display.dialogue.block.sd
     begin: ^({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])({{WS}}*)(?={{EOL}})
     beginCaptures:
       1:
@@ -4293,8 +1336,8 @@ repository:
     end: (?=^(?!$|//|\1{{WS}}))
 
   InlineDialogue:
-    tag: string
-    name: string.dialogue.inline.sd
+    tag: definition(string)
+    name: string.display.dialogue.inline.sd
     begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])($|{{WS}}+)
     beginCaptures:
       1:
@@ -4442,7 +1485,7 @@ repository:
     end: (?=^(?!$|//|\1{{WS}}))
 
   InlineAction:
-    begin: ({{WS}}*)(?:([<][>])|([:])($|{{WS}}+))
+    begin: ({{WS}}*)(?:({{GLUE}})|([:])($|{{WS}}+))
     beginCaptures:
       1:
         patterns:
@@ -4468,7 +1511,7 @@ repository:
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
 
   ImplicitAction:
-    begin: ({{WS}}*)(?=\S)
+    begin: ({{WS}}*)(?!{{END}})(?=\S)
     beginCaptures:
       1:
         patterns:
@@ -4487,7 +1530,7 @@ repository:
   ########## Parenthetical ##########
 
   ParentheticalLine:
-    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)({{WS}}*)([(][^()]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)($|{{EOL}}|(?={{BREAK}})|[\\](?:{{WS}}))
+    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)({{WS}}*)([(][^()]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)($|{{EOL}}|(?={{BREAK}})|{{CHAIN}}(?:{{WS}}))
     captures:
       1:
         patterns:
@@ -4585,7 +1628,7 @@ repository:
           - { include: "#Indent" }
 
   LineChain:
-    match: ({{WS}}*)(.*?)([\\](?:$|{{WS}}+))({{EOL}})(\r\n|\r|\n)?
+    match: ({{WS}}*)(.*?)({{CHAIN}}(?:$|{{WS}}+))({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:
@@ -4620,7 +1663,7 @@ repository:
           - { include: "#EndOfLine" }
 
   LineEnd:
-    begin: ({{WS}}*)(?=\S)
+    begin: ({{WS}}*)(?!{{EOL}})(?=\S)
     beginCaptures:
       1:
         patterns:
@@ -4633,17 +1676,19 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Escape" }
-      - { include: "#ConditionalBracedBlock" }
+      - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#ParentheticalLine" }
       - { include: "#Chain" }
       - { include: "#Glue" }
       - { include: "#TextChunk" }
 
   TextChunk:
+    tag: special(string)
+    name: string.display.text.chunk.sd
     begin: (?=.+)
     patterns:
       - { include: "#DisplayText" }
-    end: (?=$|{{WS}}*[\\](?:$|{{WS}})|[<][>]|{{EOL}})
+    end: (?=$|{{WS}}*{{CHAIN}}(?:$|{{WS}})|{{GLUE}}|{{EOL}})
 
   DisplayText:
     patterns:
@@ -4851,7 +1896,7 @@ repository:
       1:
         patterns:
           - { include: "#Separator" }
-          - { include: "#StringLiteral" }
+          - { include: "#LuauString" }
           - { include: "#AssetCommandKeywordNone" }
           - { include: "#AssetCommandFilteredFileName" }
           - { include: "#AssetCommandFileName" }
@@ -4864,7 +1909,7 @@ repository:
     match: (none)
 
   AssetCommandFilteredFileName:
-    tag: variableName
+    tag: constant(variableName)
     name: variable.other.constant.asset.file.sd
     match: ({{IDENTIFIER}})((?:[~][^~\s]+)+)
     captures:
@@ -4876,7 +1921,7 @@ repository:
           - { include: "#AssetCommandFilter" }
 
   AssetCommandFileName:
-    tag: variableName
+    tag: constant(variableName)
     name: variable.other.constant.asset.file.sd
     match: ({{IDENTIFIER}})
 
@@ -4901,13 +1946,13 @@ repository:
     match: ([~])
 
   AssetCommandFilterName:
-    tag: variableName
+    tag: constant(variableName)
     name: variable.other.constant.asset.filter.sd
     match: ([^~\s]+)
 
   WhitespaceAssetCommandClause:
     tag: content
-    name: markup.raw.whitespace.sd
+    name: punctuation.whitespace.sd
     match: ({{WS}}+)
 
   TimeValue:
@@ -4928,7 +1973,7 @@ repository:
     match: ([-]?(?:\d*[.])?\d+)(?=$|{{WS}})
 
   NameValue:
-    tag: variableName
+    tag: constant(variableName)
     name: variable.other.constant.sd
     match: ({{IDENTIFIER}})(?=$|{{WS}})
 
@@ -4975,20 +2020,17 @@ repository:
           - { include: "#TextCommandArguments" }
 
   TextCommandControl:
-    match: (.+)
     captures:
       1:
         patterns:
-          - { include: "#NumericLiteral" }
+          - { include: "#LuauNumber" }
           - { include: "#TextCommandControlKeyword" }
 
   TextCommandControlKeyword:
     tag: keyword
     name: keyword.style.control.keyword.sd
-    match: (.+)
 
   TextCommandArguments:
-    match: (.+)
     captures:
       1:
         patterns:
@@ -5000,7 +2042,7 @@ repository:
     begin: (?=.+$)
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Expression" }
+      - { include: "#LuauExpression" }
     end: (?=$)|([,])
     endCaptures:
       1:
@@ -5019,7 +2061,7 @@ repository:
       - { include: "#Escape" }
       - { include: "#Divert" }
       - { include: "#Thread" }
-      - { include: "#ConditionalBracedBlock" }
+      - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#AudioCommand" }
       - { include: "#ImageCommand" }
       - { include: "#InlineText" }
@@ -5054,11 +2096,6 @@ repository:
         tag: content
         name: markup.raw.text.sd
 
-  Newline:
-    tag: content
-    name: markup.raw.whitespace.newline.sd
-    match: (\r\n|\r|\n)
-
   Styling:
     patterns:
       - { include: "#Glue" }
@@ -5070,7 +2107,6 @@ repository:
       - { include: "#Centered" }
 
   StylingMark:
-    match: (.+)
     captures:
       1:
         tag: definition(content)
@@ -5258,3 +2294,2669 @@ repository:
     tag: invalid
     name: invalid.illegal.unknown-statement.sd
     match: (.+$)
+
+  # LUAU
+
+  LuauExpression:
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauIfExpression" }
+      - { include: "#LuauAlternatorBlocks" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauArithmeticOperation" }
+      - { include: "#LuauCompareOperation" }
+      - { include: "#LuauConcatOperation" }
+      - { include: "#LuauLengthOperation" }
+      - { include: "#LuauLogicalOperation" }
+      - { include: "#LuauTypeCastOperation" }
+      - { include: "#LuauParenthetical" }
+      - { include: "#LuauAttribute" }
+      - { include: "#LuauNumber" }
+      - { include: "#LuauString" }
+      - { include: "#LuauBoolean" }
+      - { include: "#LuauNil" }
+      - { include: "#LuauKeyword" }
+      - { include: "#LuauStdLibGlobals" }
+      - { include: "#LuauGenericsInstantiation" }
+      - { include: "#LuauTypeofFunction" }
+      - { include: "#LuauAccessPath" }
+      - { include: "#LuauTable" }
+      - { include: "#LuauTypeAnnotationOperation" }
+      - { include: "#LuauSemicolonSeparator" }
+
+  LuauImplicitStatement:
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauShebang" }
+      - { include: "#LuauDefine" }
+      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauVariableDefinition" }
+      - { include: "#LuauFunctionTypeDeclaration" }
+      - { include: "#LuauDataTypeDeclaration" }
+      - { include: "#LuauUntilStatement" }
+      - { include: "#LuauReturnStatement" }
+      - { include: "#LuauGotoStatement" }
+      - { include: "#LuauBreakStatement" }
+      - { include: "#LuauContinueStatement" }
+      - { include: "#LuauLabel" }
+
+  # ----------------------------------------------------------------------------
+  # Explicit Statement
+  # ----------------------------------------------------------------------------
+
+  LuauExplicitStatement:
+    begin: ({{WS}}*)([&])($|{{WS}}+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauExplicitStatementMark" }
+      3:
+        patterns:
+          - { include: "#Separator" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|$
+
+  LuauExplicitStatementMark:
+    tag: keyword
+    name: keyword.other.statement.explicit.luau.mark.sd
+    match: (.+)
+
+  # ----------------------------------------------------------------------------
+  # Define (Syntactic Sugar for OOP Classes)
+  # ----------------------------------------------------------------------------
+
+  LuauDefine:
+    tag: meta
+    name: meta.function.luau
+    begin: ({{WS}}*)(define)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauDefineKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauDefineNameAndInheritance" }
+      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauPropertyDefinition" }
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauDefineNameAndInheritance:
+    begin: (?<=define\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauDefineName" }
+    patterns:
+      - { include: "#LuauInheritanceOperation" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauWithKeyword" }
+
+  LuauInheritanceOperation:
+    match: ({{WS}}*)(as)\b({{WS}}*)($|{{LUAU_IDENTIFIER}})($|{{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAsKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#LuauDefineParentName" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauPropertyDefinition:
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})?(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauScopeModifier" }
+          - { include: "#LuauAccessModifier" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauVariableAssignment" }
+    applyEndPatternLast: true
+    end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+
+  LuauDefineKeyword:
+    tag: controlKeyword
+    name: keyword.control.define.luau
+    match: (define)\b
+
+  LuauAsKeyword:
+    tag: controlKeyword
+    name: keyword.control.as.luau
+    match: (as)\b
+
+  LuauWithKeyword:
+    tag: controlKeyword
+    name: keyword.control.as.luau
+    match: (with)\b
+
+  LuauDefineName:
+    tag: definition(typeName)
+    name: entity.name.type.define.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  LuauDefineParentName:
+    tag: typeName
+    name: entity.name.type.define.parent.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  # ----------------------------------------------------------------------------
+  # Function Definition
+  # ----------------------------------------------------------------------------
+
+  LuauFunctionDefinition:
+    tag: meta
+    name: meta.function.luau
+    begin: ({{WS}}*)(?:({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*))?(function)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauScopeModifier" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#LuauFunctionKeyword" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauGenericsDeclaration" }
+      - { include: "#LuauFunctionReturnType" }
+      - { include: "#LuauFunctionParameters" }
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauFunctionParameters:
+    tag: meta
+    name: meta.parameter.luau
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauVariadicParameter" }
+      - { include: "#LuauFunctionParameter" }
+      - { include: "#LuauTypeAnnotationOperation" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  LuauVariadicType:
+    match: ({{LUAU_IDENTIFIER}}[.][.][.])
+    tag: special(typeName)
+    name: variable.parameter.function.varargs.luau
+
+  LuauVariadicParameter:
+    match: ([.][.][.])
+    tag: special(variableName)
+    name: variable.parameter.function.varargs.luau
+
+  LuauFunctionParameter:
+    match: ({{LUAU_IDENTIFIER}})
+    tag: function(variableName)
+    name: variable.parameter.function.luau
+
+  LuauFunctionReturnType:
+    begin: (?<=[)]{{WS}}*)([:])(?![:])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauTypeOperator" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeLiteral" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauFunctionName:
+    tag: function(name)
+    name: entity.name.function.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  # ----------------------------------------------------------------------------
+  # Variable Definition
+  # ----------------------------------------------------------------------------
+
+  LuauVariableDefinition:
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauScopeModifier" }
+      3:
+        emit: true
+        patterns:
+          - { include: "OptionalSeparator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauVariableAssignment" }
+    applyEndPatternLast: true
+    end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+
+  LuauVariableAssignment:
+    begin: ({{LUAU_IDENTIFIER}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauVariableName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauTypeAnnotationOperation" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauCommaSeparator" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  # ----------------------------------------------------------------------------
+  # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownControlBlock:
+    patterns:
+      - { include: "#LuauSparkdownForLoop" }
+      - { include: "#LuauSparkdownWhileLoop" }
+      - { include: "#LuauSparkdownRepeatLoop" }
+      - { include: "#LuauSparkdownDoBlock" }
+      - { include: "#LuauSparkdownIfBlock" }
+      - { include: "#LuauSparkdownElseifBlock" }
+      - { include: "#LuauSparkdownElseBlock" }
+      - { include: "#LuauSparkdownAlternatorBlocks" }
+
+  LuauControlBlock:
+    patterns:
+      - { include: "#LuauForLoop" }
+      - { include: "#LuauWhileLoop" }
+      - { include: "#LuauRepeatLoop" }
+      - { include: "#LuauDoBlock" }
+      - { include: "#LuauIfBlock" }
+      - { include: "#LuauElseifBlock" }
+      - { include: "#LuauElseBlock" }
+      - { include: "#LuauAlternatorBlocks" }
+
+  # ----------------------------------------------------------------------------
+  # For Loop
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownForLoop:
+    begin: ({{WS}}*)(for)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauForKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauForCondition" }
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#SparkdownStatement" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|$
+
+  LuauForLoop:
+    begin: ({{WS}}*)(for)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauForKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauForCondition" }
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|$
+
+  LuauForCondition:
+    begin: (?<=for\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  # ----------------------------------------------------------------------------
+  # While Loop
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownWhileLoop:
+    begin: ({{WS}}*)(while)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauWhileKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauWhileCondition" }
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#SparkdownStatement" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|$
+
+  LuauWhileLoop:
+    begin: ({{WS}}*)(while)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauWhileKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauWhileCondition" }
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|$
+
+  LuauWhileCondition:
+    begin: (?<=while\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  # ----------------------------------------------------------------------------
+  # Repeat Loop
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownRepeatLoop:
+    begin: ({{WS}}*)(repeat)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauRepeatKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#SparkdownStatement" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:until)\b)
+
+  LuauRepeatLoop:
+    begin: ({{WS}}*)(repeat)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauRepeatKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:until)\b)
+
+  LuauUntilStatement:
+    begin: ({{WS}}*)(until)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauUntilKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|$
+
+  # ----------------------------------------------------------------------------
+  # Do Block
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownDoBlock:
+    begin: ({{WS}}*)(do)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauDoKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#SparkdownStatement" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauDoBlock:
+    begin: ({{WS}}*)(do)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauDoKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # ----------------------------------------------------------------------------
+  # If Block
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownIfBlock:
+    begin: ({{WS}}*)(if)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauIfKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauIfBlockCondition" }
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#SparkdownStatement" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauIfBlock:
+    begin: ({{WS}}*)(if)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauIfKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauIfBlockCondition" }
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauIfBlockCondition:
+    begin: (?<=if\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}})|(?=$|{{WS}})
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauThenKeyword" }
+
+  LuauIfExpressionCondition:
+    begin: (?<=if\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  # ----------------------------------------------------------------------------
+  # Elseif Block
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownElseifBlock:
+    begin: ({{WS}}*)(elseif)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauElseifKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauElseifBlockCondition" }
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#SparkdownStatement" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:end|elseif|else)\b)
+
+  LuauElseifBlock:
+    begin: ({{WS}}*)(elseif)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauElseifKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauElseifBlockCondition" }
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:end|elseif|else)\b)
+
+  LuauElseifBlockCondition:
+    begin: (?<=elseif\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}})|(?=$|{{WS}})
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauThenKeyword" }
+
+  # ----------------------------------------------------------------------------
+  # Else Block
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownElseBlock:
+    begin: ({{WS}}*)(else)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauElseKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#SparkdownStatement" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
+
+  LuauElseBlock:
+    begin: ({{WS}}*)(else)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauElseKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
+
+  # ----------------------------------------------------------------------------
+  # If-Then-Else Expression
+  # ----------------------------------------------------------------------------
+
+  LuauIfExpression:
+    begin: ({{WS}}*)(if)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauIfKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauIfExpressionCondition" }
+      - { include: "#LuauThenExpression" }
+      - { include: "#LuauElseExpression" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?=(?:then)\b)
+
+  LuauThenExpression:
+    begin: (?=(?:then)\b)
+    patterns:
+      - { include: "#LuauThenOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauThenOperator:
+    begin: ((?:then)\b)({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauThenKeyword" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  LuauElseExpression:
+    begin: (?=(?:else)\b)
+    patterns:
+      - { include: "#LuauElseOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauElseOperator:
+    begin: ((?:else)\b)({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauElseKeyword" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  # ----------------------------------------------------------------------------
+  # Alternator Blocks
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownAlternatorBlocks:
+    patterns:
+      - { include: "#LuauSparkdownConditionalAlternatorBlock" }
+      - { include: "#LuauSparkdownSequentialAlternatorBlock" }
+
+  LuauAlternatorBlocks:
+    patterns:
+      - { include: "#LuauConditionalAlternatorBlock" }
+      - { include: "#LuauSequentialAlternatorBlock" }
+
+  LuauAlternatorSeparator:
+    match: ({{WS}}*)([|])({{WS}}*)(?:({{LUAU_IDENTIFIER}})({{WS}}*)([=])({{WS}}*))?
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: operator
+        name: keyword.operator.alternator.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#LuauAlternatorAssignmentName" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      6:
+        patterns:
+          - { include: "#LuauAlternatorAssignmentOperator" }
+      7:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauAlternatorAssignmentName:
+    tag: variableName
+    name: variable.other.readwrite.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  LuauAlternatorAssignmentOperator:
+    tag: updateOperator
+    name: keyword.operator.equal.luau
+
+  # ----------------------------------------------------------------------------
+  # Conditional Alternator Block
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownConditionalAlternatorBlock:
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#Newline" }
+    patterns:
+      - { include: "#LuauConditionalAlternatorCondition" }
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#SparkdownStatement" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauConditionalAlternatorBlock:
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauConditionalAlternatorCondition" }
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauConditionalAlternatorCondition:
+    begin: (?<=(?:{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}){{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  # ----------------------------------------------------------------------------
+  # Sequential Alternator Block
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownSequentialAlternatorBlock:
+    begin: ({{WS}}*)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#SparkdownStatement" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSequentialAlternatorBlock:
+    begin: ({{WS}}*)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # ----------------------------------------------------------------------------
+  # Flow Statements
+  # ----------------------------------------------------------------------------
+
+  LuauBreakStatement:
+    match: ({{WS}}*)(break)\b
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauBreakKeyword" }
+
+  LuauContinueStatement:
+    match: ({{WS}}*)(continue)\b
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauContinueKeyword" }
+
+  LuauGotoStatement:
+    tag: meta
+    name: meta.function.luau
+    begin: ({{WS}}*)(goto)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauLabelName" }
+    applyEndPatternLast: true
+    end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+
+  LuauReturnStatement:
+    tag: meta
+    name: meta.function.luau
+    begin: ({{WS}}*)(return)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  # ----------------------------------------------------------------------------
+  # Modifiers & Keywords
+  # ----------------------------------------------------------------------------
+
+  LuauAccessModifier:
+    tag: modifier
+    name: storage.modifier.access.luau
+    match: ({{LUAU_ACCESS_MODIFIERS}})
+
+  LuauScopeModifier:
+    tag: modifier
+    name: storage.modifier.scope.luau
+    match: ({{LUAU_SCOPE_MODIFIERS}})
+
+  LuauControlKeyword:
+    tag: controlKeyword
+    name: keyword.control.luau
+    match: (.+)
+
+  LuauKeyword:
+    patterns:
+      - { include: "#LuauBreakKeyword" }
+      - { include: "#LuauContinueKeyword" }
+      - { include: "#LuauReturnKeyword" }
+      - { include: "#LuauInKeyword" }
+      - { include: "#LuauLocalKeyword" }
+      - { include: "#LuauConstKeyword" }
+      - { include: "#LuauUnitKeywords" }
+      - { include: "#LuauDoKeyword" }
+      - { include: "#LuauThenKeyword" }
+      - { include: "#LuauIfKeyword" }
+      - { include: "#LuauElseifKeyword" }
+      - { include: "#LuauElseKeyword" }
+      - { include: "#LuauForKeyword" }
+      - { include: "#LuauWhileKeyword" }
+      - { include: "#LuauRepeatKeyword" }
+      - { include: "#LuauUntilKeyword" }
+      - { include: "#LuauLocalKeyword" }
+      - { include: "#LuauConstKeyword" }
+      - { include: "#LuauFunctionKeyword" }
+
+  LuauEndKeyword:
+    tag: controlKeyword
+    name: keyword.control.end.luau
+    match: (end)\b
+
+  LuauDoKeyword:
+    tag: controlKeyword
+    name: keyword.control.do.luau
+    match: (do)\b
+
+  LuauThenKeyword:
+    tag: controlKeyword
+    name: keyword.control.then.luau
+    match: (then)\b
+
+  LuauIfKeyword:
+    tag: controlKeyword
+    name: keyword.control.if.luau
+    match: (if)\b
+
+  LuauElseifKeyword:
+    tag: controlKeyword
+    name: keyword.control.elseif.luau
+    match: (elseif)\b
+
+  LuauElseKeyword:
+    tag: controlKeyword
+    name: keyword.control.else.luau
+    match: (else)\b
+
+  LuauForKeyword:
+    tag: controlKeyword
+    name: keyword.control.for.luau
+    match: (for)\b
+
+  LuauWhileKeyword:
+    tag: controlKeyword
+    name: keyword.control.while.luau
+    match: (while)\b
+
+  LuauRepeatKeyword:
+    tag: controlKeyword
+    name: keyword.control.repeat.luau
+    match: (repeat)\b
+
+  LuauUntilKeyword:
+    tag: controlKeyword
+    name: keyword.control.until.luau
+    match: (until)\b
+
+  LuauBreakKeyword:
+    tag: controlKeyword
+    name: keyword.control.break.luau
+    match: (break)\b
+
+  LuauContinueKeyword:
+    tag: controlKeyword
+    name: keyword.control.continue.luau
+    match: (continue)\b
+
+  LuauReturnKeyword:
+    tag: controlKeyword
+    name: keyword.control.return.luau
+    match: (return)\b
+
+  LuauInKeyword:
+    tag: controlKeyword
+    name: keyword.control.end.luau
+    match: (in)\b
+
+  LuauLocalKeyword:
+    tag: modifier
+    name: storage.modifier.local.luau
+    match: (local)\b
+
+  LuauConstKeyword:
+    tag: modifier
+    name: storage.modifier.const.luau
+    match: (const)\b
+
+  LuauFunctionKeyword:
+    tag: controlKeyword
+    name: keyword.control.luau
+    match: (function)\b
+
+  LuauSelfKeyword:
+    tag: self
+    name: variable.language.self.luau
+    match: (self)\b
+
+  LuauUnitKeywords:
+    tag: variableName
+    name: variable.other.readwrite.unit.luau
+    match: (?<!\.)[.][.][.](?!\.)
+
+  # ----------------------------------------------------------------------------
+  # Identifiers
+  # ----------------------------------------------------------------------------
+
+  LuauAccessPath:
+    begin: (?=(?!{{LUAU_TERMINATOR_KEYWORDS}}){{LUAU_IDENTIFIER}})
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauAccessPart" }
+    end: (?={{BEAT}})|(?=$|{{WS}}*(?:{{LUAU_BINARY_OPERATORS}}|{{LUAU_TERMINATOR_KEYWORDS}})|(?!{{WS}}*(?:{{LUAU_IDENTIFIER}}|{{LUAU_ACCESSOR_OPERATOR}}|\[))){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauAccessPart:
+    emit: true
+    patterns:
+      - { include: "#LuauFunctionAccessor" }
+      - { include: "#LuauPropertyAccessor" }
+      - { include: "#LuauPropertyIndexer" }
+      - { include: "#LuauFunctionDeclarationName" }
+      - { include: "#LuauFunctionCall" }
+      - { include: "#LuauVariable" }
+
+  LuauFunctionAccessor:
+    match: ({{WS}}*)({{LUAU_ACCESSOR_OPERATOR}})({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauStdLibMethods" }
+          - { include: "#LuauFunctionName" }
+      5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
+  LuauFunctionDeclarationName:
+    match: (?<=function\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauFunctionName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
+  LuauFunctionCall:
+    begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStdLibFunctions" }
+          - { include: "#LuauFunctionName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauFunctionCallParameters" }
+    applyEndPatternLast: true
+    end: (?={{BEAT}})|(?=$|.)
+
+  LuauFunctionCallParameters:
+    tag: meta
+    name: meta.parameter.luau
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([)])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+
+  LuauVariable:
+    match: (?!end)\b({{LUAU_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauSelfKeyword" }
+          - { include: "#LuauStdLibConstants" }
+          - { include: "#LuauVariableName" }
+
+  LuauPropertyAccessor:
+    match: ({{WS}}*)({{LUAU_ACCESSOR_OPERATOR}})({{WS}}*)({{LUAU_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauStdLibMethods" }
+          - { include: "#LuauPropertyName" }
+
+  LuauPropertyIndexer:
+    brackets: true
+    begin: ({{WS}}*)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#PunctuationBracketOpen" }
+    patterns:
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (\])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBracketClose" }
+
+  LuauParameterName:
+    tag: function(variableName)
+    name: variable.other.property.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  LuauPropertyName:
+    tag: propertyName
+    name: variable.other.property.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  LuauVariableName:
+    tag: variableName
+    name: variable.other.readwrite.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  LuauAccessorOperator:
+    tag: separator
+    name: meta.template.expression.accessor.sd
+    match: ({{LUAU_ACCESSOR_OPERATOR}})
+
+  # ----------------------------------------------------------------------------
+  # Standard Library
+  # ----------------------------------------------------------------------------
+
+  LuauStdLibGlobals:
+    tag: atom
+    name: constant.language.luau
+    match: ({{LUAU_STANDARD_LIB_GLOBALS}})\b
+
+  LuauStdLibFunctions:
+    tag: standard(function(name))
+    name: support.function.luau
+    match: ({{LUAU_STANDARD_LIB_FUNCTIONS}})
+
+  LuauStdLibConstants:
+    tag: standard(variableName)
+    name: support.type.standard.sd
+    match: ({{LUAU_STANDARD_LIB_CONSTANTS}})
+
+  LuauStdLibMethods:
+    tag: standard(function(name))
+    name: support.function.luau
+    match: ({{LUAU_META_METHODS}})
+
+  # ----------------------------------------------------------------------------
+  # Shebang
+  # ----------------------------------------------------------------------------
+
+  LuauShebang:
+    match: ([#][!])(.*)$
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauShebangPunctuation" }
+      2:
+        patterns:
+          - { include: "#LuauShebangContent" }
+
+  LuauShebangPunctuation:
+    tag: punctuation
+    name: punctuation.definition.comment.luau
+    match: (.+)
+
+  LuauShebangContent:
+    tag: lineComment
+    name: comment.line.shebang.luau
+    match: (.+)
+
+  # ----------------------------------------------------------------------------
+  # Comments
+  # ----------------------------------------------------------------------------
+
+  LuauComment:
+    patterns:
+      - { include: "#LuauBlockComment" }
+      - { include: "#LuauDocLineComment" }
+      - { include: "#LuauLineComment" }
+
+  LuauBlockComment:
+    tag: blockComment
+    name: comment.block.luau
+    begin: ({{WS}}*)(--\[)([=]*)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauDocCommentTags" }
+      - { include: "#LuauBlockCommentContent" }
+      - { include: "#Newline" }
+    end: (\])(\3)(\])({{WS}}*)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauBlockCommentContent:
+    tag: definition(blockComment)
+    name: punctuation.definition.comment.content.sd
+    match: (.)
+
+  LuauCommentMark:
+    tag: comment
+    name: comment.luau
+    match: (.+)
+
+  LuauCodeBlockTag:
+    tag: comment
+    name: comment.luau
+    match: (.+)
+
+  LuauDocLineComment:
+    tag: docComment
+    name: comment.line.double-dash.documentation.luau
+    begin: ({{WS}}*)(---)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauDocCommentTags" }
+      - { include: "#LuauLineCommentContent" }
+    end: (?={{BEAT}})|$
+
+  LuauLineComment:
+    tag: lineComment
+    name: comment.line.double-dash.luau
+    begin: ({{WS}}*)(--)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauLineCommentContent" }
+    end: (?={{BEAT}})|$
+
+  LuauLineCommentContent:
+    tag: definition(lineComment)
+    name: punctuation.definition.comment.content.sd
+    match: (.+?)(?=$)
+
+  LuauDocCommentTags:
+    patterns:
+      - { include: "#LuauDocTagModifier" }
+      - { include: "#LuauDocParamModifier" }
+
+  LuauDocTagModifier:
+    tag: annotation
+    name: storage.type.class.luadoc.luau
+    match: '@\w+'
+
+  LuauDocParamModifier:
+    match: ((?<=[\s*!/])[\\@]param)(\s+)(\b\w+\b)
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauDocTagAnnotation" }
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#LuauDocParamName" }
+
+  LuauDocTagAnnotation:
+    tag: annotation
+    name: storage.type.class.luadoc.luau
+    match: (.+)
+
+  LuauDocParamName:
+    tag: variableName
+    name: variable.parameter.luau
+    match: (.+)
+
+  # ----------------------------------------------------------------------------
+  # Literal Values
+  # ----------------------------------------------------------------------------
+
+  LuauLiteral:
+    patterns:
+      - { include: "#LuauString" }
+      - { include: "#LuauNumber" }
+      - { include: "#LuauBoolean" }
+      - { include: "#LuauNil" }
+
+  # ----------------------------------------------------------------------------
+  # Number Values
+  # ----------------------------------------------------------------------------
+
+  LuauNumber:
+    patterns:
+      - { include: "#LuauNumericHex" }
+      - { include: "#LuauNumericBinary" }
+      - { include: "#LuauNumericDecimal" }
+      - { include: "#LuauNaN" }
+      - { include: "#LuauInfinity" }
+
+  LuauNumericHex:
+    match: (0_*[xX]_*[\da-fA-F_]*(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{LUAU_BINARY_OPERATOR_AHEAD}}
+    captures:
+      1:
+        tag: number
+        name: constant.numeric.hex.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauNumericBinary:
+    match: (0_*[bB][01_]+(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{LUAU_BINARY_OPERATOR_AHEAD}}
+    captures:
+      1:
+        tag: number
+        name: constant.numeric.binary.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauNumericDecimal:
+    match: ((?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{LUAU_BINARY_OPERATOR_AHEAD}}
+    captures:
+      1:
+        tag: number
+        name: constant.numeric.decimal.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauNaN:
+    tag: atom
+    name: constant.language.nan.sd
+    match: \b(nan)\b
+
+  LuauInfinity:
+    tag: atom
+    name: constant.language.infinity.sd
+    match: \b(inf)\b
+
+  # ----------------------------------------------------------------------------
+  # String Values
+  # ----------------------------------------------------------------------------
+
+  LuauString:
+    patterns:
+      - { include: "#LuauDoubleQuotedString" }
+      - { include: "#LuauSingleQuotedString" }
+      - { include: "#LuauMultilineString" }
+      - { include: "#LuauInterpolatedString" }
+
+  LuauDoubleQuotedString:
+    tag: definition(string)
+    name: string.quoted.double.luau
+    begin: (["])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringDoubleQuoteOpen" }
+    patterns:
+      - { include: "#LuauStringEscape" }
+      - { include: "#Color" }
+      - { include: "#PlainText" }
+    end: (["]){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringDoubleQuoteClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauSingleQuotedString:
+    tag: definition(string)
+    name: string.quoted.single.luau
+    begin: (['])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringSingleQuoteOpen" }
+    patterns:
+      - { include: "#LuauStringEscape" }
+      - { include: "#Color" }
+      - { include: "#PlainText" }
+    end: ([']){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringSingleQuoteClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauMultilineString:
+    tag: definition(string)
+    name: string.other.multiline.luau
+    begin: (\[)([=]*)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringBracketQuoteOpen" }
+      2:
+        patterns:
+          - { include: "#PunctuationStringEqualQuoteOpen" }
+      3:
+        patterns:
+          - { include: "#PunctuationStringBracketQuoteOpen" }
+    patterns:
+      - { include: "#LuauStringEscape" }
+      - { include: "#Color" }
+      - { include: "#PlainText" }
+      - { include: "#Newline" }
+    end: (\])(\2)(\]){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringBracketQuoteClose" }
+      2:
+        patterns:
+          - { include: "#PunctuationStringEqualQuoteClose" }
+      3:
+        patterns:
+          - { include: "#PunctuationStringBracketQuoteClose" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauInterpolatedString:
+    tag: definition(string)
+    name: string.interpolated.luau
+    begin: ([`])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringBacktickQuoteOpen" }
+    patterns:
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#LuauStringEscape" }
+      - { include: "#Color" }
+      - { include: "#PlainText" }
+    end: ([`]){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringBacktickQuoteClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauInterpolatedStringExpression:
+    tag: meta
+    name: meta.template.expression.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([}])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  LuauStringEscape:
+    patterns:
+      - { include: "#LuauEscapeStandard" }
+      - { include: "#LuauEscapeDecimal" }
+      - { include: "#LuauEscapeHex" }
+      - { include: "#LuauEscapeUnicode" }
+      - { include: "#LuauEscapeLine" }
+      - { include: "#LuauEscapeAny" }
+
+  LuauEscapeStandard:
+    tag: escape
+    name: constant.character.escape.luau
+    match: \\[abfnrtvz'"\{\\]
+
+  LuauEscapeDecimal:
+    tag: escape
+    name: constant.character.escape.luau
+    match: \\\d{1,3}
+
+  LuauEscapeHex:
+    tag: escape
+    name: constant.character.escape.luau
+    match: \\x[0-9a-fA-F]{2}
+
+  LuauEscapeUnicode:
+    tag: escape
+    name: constant.character.escape.luau
+    match: \\u\{[0-9a-fA-F]*\}
+
+  LuauEscapeLine:
+    tag: escape
+    name: constant.character.escape.luau
+    match: \\$
+
+  LuauEscapeAny:
+    tag: escape
+    name: constant.character.escape.luau
+    match: \\.
+
+  # ----------------------------------------------------------------------------
+  # Constant Values
+  # ----------------------------------------------------------------------------
+
+  LuauBoolean:
+    match: (true|false)\b{{LUAU_BINARY_OPERATOR_AHEAD}}
+    captures:
+      1:
+        tag: bool
+        name: constant.language.boolean.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauNil:
+    match: (nil(?!:))\b{{LUAU_BINARY_OPERATOR_AHEAD}}
+    captures:
+      1:
+        tag: "null"
+        name: constant.language.nil.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  # ----------------------------------------------------------------------------
+  # Table Value
+  # ----------------------------------------------------------------------------
+
+  LuauTable:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#LuauTableIndexDeclaration" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([}]){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauTableIndexDeclaration:
+    brackets: true
+    begin: (\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBracketOpen" }
+    patterns:
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (\])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBracketClose" }
+
+  # ----------------------------------------------------------------------------
+  # Parenthetical Value
+  # ----------------------------------------------------------------------------
+
+  LuauParenthetical:
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([)]){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  # ----------------------------------------------------------------------------
+  # Operations
+  # ----------------------------------------------------------------------------
+
+  LuauAssignmentOperation:
+    begin: ({{WS}}*)(?={{LUAU_ASSIGNMENT_OPERATORS}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauAssignmentOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauAssignmentOperator:
+    begin: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: updateOperator
+        name: keyword.operator.assignment.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  LuauArithmeticOperation:
+    begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauArithmeticOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauArithmeticOperator:
+    begin: ({{WS}}*)({{LUAU_ARITHMETIC_OPERATORS}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: arithmeticOperator
+        name: keyword.operator.arithmetic.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  LuauCompareOperation:
+    begin: ({{WS}}*)(?={{LUAU_COMPARE_OPERATORS}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauCompareOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauCompareOperator:
+    begin: ({{WS}}*)({{LUAU_COMPARE_OPERATORS}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: compareOperator
+        name: keyword.operator.comparison.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  LuauConcatOperation:
+    begin: ({{WS}}*)(?={{LUAU_CONCAT_OPERATOR}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauConcatOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauConcatOperator:
+    begin: ({{WS}}*)({{LUAU_CONCAT_OPERATOR}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: special(operator)
+        name: keyword.operator.concat.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  LuauLengthOperation:
+    begin: ({{WS}}*)(?={{LUAU_LENGTH_OPERATOR}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauLengthOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauLengthOperator:
+    begin: ({{WS}}*)({{LUAU_LENGTH_OPERATOR}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: special(operator)
+        name: keyword.operator.length.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  LuauLogicalOperation:
+    begin: ({{WS}}*)(?={{LUAU_LOGICAL_KEYWORDS}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauLogicalOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauLogicalOperator:
+    begin: ({{WS}}*)({{LUAU_LOGICAL_KEYWORDS}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: special(logicOperator)
+        name: keyword.operator.logical.luau keyword.operator.wordlike.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  LuauTypeCastOperation:
+    begin: ({{WS}}*)(?={{LUAU_TYPECAST_OPERATOR}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauTypeCastOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauTypeCastOperator:
+    begin: ({{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: typeOperator
+        name: keyword.operator.typecast.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  # ----------------------------------------------------------------------------
+  # Syntax Punctuation
+  # ----------------------------------------------------------------------------
+
+  LuauCommaSeparator:
+    match: ({{WS}}*)([,])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: operator
+        name: keyword.operator.comma.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauSemicolonSeparator:
+    match: ({{WS}}*)([;])({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: operator
+        name: keyword.operator.semicolon.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  # ----------------------------------------------------------------------------
+  # Types and Generics
+  # ----------------------------------------------------------------------------
+  LuauGenericsDeclaration:
+    begin: ([<])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationAngleOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeLiteral" }
+      - { include: "#LuauTypeAssignmentOperator" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([>])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationAngleClose" }
+
+  LuauGenericsInstantiation:
+    begin: ([<][<])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationDoubleAngleOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#Newline" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#LuauTypeLiteral" }
+    end: ([>][>])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationDoubleAngleClose" }
+
+  LuauFunctionTypeDeclaration:
+    tag: meta
+    name: meta.function.luau
+    begin: ({{WS}}*)(?:(export)\b({{WS}}*))?(type)\b({{WS}}*)(function)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauExportModifier" }
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#LuauTypeKeyword" }
+      5:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      6:
+        patterns:
+          - { include: "#LuauFunctionKeyword" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauGenericsDeclaration" }
+      - { include: "#LuauTypeFunctionParameters" }
+      - { include: "#LuauTypeName" }
+    end: (?={{BEAT}})|(?<=[\)\-{}\[\]"'])
+
+  LuauDataTypeDeclaration:
+    begin: ({{WS}}*)(?:(export)\b({{WS}}*))?(type)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauExportModifier" }
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#LuauTypeKeyword" }
+      5:
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeLiteral" }
+      - { include: "#LuauTypeAssignment" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:$|(?!{{LUAU_COMMENT_START}}|{{LUAU_IDENTIFIER}}|[=])))
+
+  LuauTypeAssignment:
+    begin: ([=])({{WS}}*)
+    beginCaptures:
+      1:
+        tag: updateOperator
+        name: keyword.operator.assignment.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauTypeLiteral" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauTypeAssignmentOperator:
+    match: ([=])({{WS}}*)
+    captures:
+      1:
+        tag: updateOperator
+        name: keyword.operator.assignment.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauExportModifier:
+    tag: modifier
+    name: storage.modifier.visibility.luau
+    match: (.+)
+
+  LuauTypeKeyword:
+    tag: definitionKeyword
+    name: storage.type.luau
+    match: (.+)
+
+  LuauTypeName:
+    match: ({{LUAU_IDENTIFIER}}){{LUAU_BINARY_OPERATOR_AHEAD}}
+    captures:
+      1:
+        tag: typeName
+        name: entity.name.type.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauTypeLiteral:
+    begin: (?={{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`])
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeBinaryOperation" }
+      - { include: "#LuauTypeTableStruct" }
+      - { include: "#LuauString" }
+      - { include: "#LuauBoolean" }
+      - { include: "#LuauPrimitiveType" }
+      - { include: "#LuauTypeFunctionParameters" }
+      - { include: "#LuauTypeGenerics" }
+      - { include: "#LuauTypeofFunction" }
+      - { include: "#LuauVariadicType" }
+      - { include: "#LuauTypeName" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauTypeBinaryOperation:
+    begin: ({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauTypeBinaryOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeLiteral" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauTypeBinaryOperator:
+    begin: ({{WS}}*)({{LUAU_TYPE_BINARY_OPERATORS}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: typeOperator
+        name: keyword.operator.type.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  LuauTypeAnnotationOperation:
+    begin: ({{WS}}*)(?={{LUAU_TYPE_ANNOTATION_OPERATOR}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauTypeAnnotationOperator" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeLiteral" }
+    end: (?={{BEAT}})|(?=$|{{WS}})
+
+  LuauTypeAnnotationOperator:
+    begin: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: typeOperator
+        name: keyword.operator.type.luau
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#Indent" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}})
+
+  LuauPrimitiveType:
+    match: (nil|string|number|boolean|thread|vector|buffer|unknown|never|any)\b{{LUAU_BINARY_OPERATOR_AHEAD}}
+    captures:
+      1:
+        tag: standard(typeName)
+        name: support.type.primitive.luau
+      2:
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauTypeofFunction:
+    begin: (typeof|type)\b({{WS}}*)(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauTypeofFunctionName" }
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauTypeofFunctionParameters" }
+    applyEndPatternLast: true
+    end: (?={{BEAT}})|(?=$|.)
+
+  LuauTypeofFunctionParameters:
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: ([)]){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "OptionalSeparator" }
+
+  LuauTypeofFunctionName:
+    tag: function(typeName)
+    name: support.function.luau
+    match: (.+)
+
+  LuauTypeGenerics:
+    brackets: true
+    begin: ([<])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationAngleOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauVariadicType" }
+      - { include: "#LuauTypeLiteral" }
+      - { include: "#LuauTypeAssignmentOperator" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([>]){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationAngleClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauTypeTableStruct:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeTableIndexer" }
+      - { include: "#LuauTypeTableProperty" }
+      - { include: "#LuauTypeAnnotationOperation" }
+      - { include: "#LuauTypeLiteral" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSemicolonSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([}]){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauTypeTableIndexer:
+    brackets: true
+    begin: (\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBracketOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeLiteral" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (\])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBracketClose" }
+
+  LuauTypeTableProperty:
+    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauAccessModifier" }
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#LuauTypePropertyName" }
+
+  LuauTypePropertyName:
+    tag: propertyName
+    name: variable.property.luau
+    match: (.+)
+
+  LuauTypeFunctionParameters:
+    brackets: true
+    begin: ([(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeNamedFunctionParameter" }
+      - { include: "#LuauTypeLiteral" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([)]){{LUAU_BINARY_OPERATOR_AHEAD}}
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+
+  LuauTypeNamedFunctionParameter:
+    begin: ({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[:])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauParameterName" }
+    patterns:
+      - { include: "#LuauTypeAnnotationOperation" }
+    applyEndPatternLast: true
+    end: (?=$|.)
+
+  LuauTypeOperator:
+    tag: typeOperator
+    name: keyword.operator.type.luau
+    match: (.+)
+
+  # ----------------------------------------------------------------------------
+  # Labels
+  # ----------------------------------------------------------------------------
+
+  LuauLabel:
+    match: ({{WS}}*)([:][:])({{LUAU_IDENTIFIER}})([:][:])
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauLabelOperator" }
+      3:
+        patterns:
+          - { include: "#LuauLabelName" }
+      4:
+        patterns:
+          - { include: "#LuauLabelOperator" }
+
+  LuauLabelOperator:
+    tag: operator
+    name: keyword.operator.label.luau
+    match: (.+)
+
+  LuauLabelName:
+    tag: labelName
+    name: storage.type.attribute.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  # ----------------------------------------------------------------------------
+  # Attributes
+  # ----------------------------------------------------------------------------
+
+  LuauAttribute:
+    match: (@)({{LUAU_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#LuauAttributeName" }
+
+  LuauAttributeOperator:
+    tag: operator
+    name: keyword.operator.attribute.luau
+    match: (.+)
+
+  LuauAttributeName:
+    tag: attributeName
+    name: storage.type.attribute.luau
+    match: (.+)

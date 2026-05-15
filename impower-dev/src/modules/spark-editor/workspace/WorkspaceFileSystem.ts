@@ -42,7 +42,6 @@ import {
   FileData,
   ProjectMetadataField,
 } from "@impower/spark-editor-protocol/src/types";
-import GRAMMAR from "../../../../../packages/sparkdown/language/sparkdown.language-grammar.json";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
@@ -51,11 +50,9 @@ import getTextBuffer from "./utils/getTextBuffer";
 
 const FILE_SEPARATOR_PREFIX = "//// ";
 const FILE_SEPARATOR_SUFFIX = " ////";
-const FILE_SPLITTER_REGEX = new RegExp(
-  GRAMMAR.repository.FileSplitter.match,
-  "umg",
-);
-const FILE_SEPARATOR_REGEX = new RegExp(GRAMMAR.repository.FileSeparator.match);
+const FILE_SPLITTER_REGEX = /^([/]{4,})(\s*)([^/\s]+)(\s*)([/]{4,})(\s*)$/gmu;
+const FILE_SEPARATOR_REGEX =
+  /^((?:[/]{4,})(?:\s*)(?:[^/\s]+)(?:\s*)(?:[/]{4,})(?:\s*))$/;
 const FILE_NAME_CAPTURE_INDEX = 3;
 
 const cmp = (a: any, b: any) => {
@@ -472,7 +469,7 @@ export default class WorkspaceFileSystem {
           ? this.getFileUri(projectId, filename)
           : this.getFileUri(projectId, "main.sd");
         chunks[uri] = content.trim();
-      } else {
+      } else if (FILE_SEPARATOR_REGEX) {
         const match = content.trim().match(FILE_SEPARATOR_REGEX);
         filename = match?.[FILE_NAME_CAPTURE_INDEX]?.trim() || "";
       }

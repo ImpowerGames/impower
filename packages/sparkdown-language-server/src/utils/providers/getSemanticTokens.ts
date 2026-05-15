@@ -15,7 +15,8 @@ import { type Range } from "vscode-languageserver-textdocument";
 export const TOKEN_TYPES = [...Object.values(SemanticTokenTypes)];
 export const TOKEN_MODIFIERS = [...Object.values(SemanticTokenModifiers)];
 
-const STYLING_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES;
+const STYLING_DEFINE_TYPES =
+  GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES || [];
 
 export const getSemanticTokens = (
   document: SparkdownDocument | undefined,
