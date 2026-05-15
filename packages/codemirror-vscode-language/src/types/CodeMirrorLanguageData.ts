@@ -21,4 +21,6 @@ export interface CodeMirrorLanguageData extends Record<string, any> {
   };
 
   wordChars?: string;
+
+  indentOnInput?: RegExp;
 }

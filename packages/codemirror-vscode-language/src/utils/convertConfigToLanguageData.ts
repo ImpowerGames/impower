@@ -8,6 +8,7 @@ export const convertConfigToLanguageData = (
   const autoClosingPairs = config?.autoClosingPairs ?? [];
   const surroundingPairs = config?.surroundingPairs ?? [];
   const wordChars = config?.wordChars;
+  const decreaseIndentPattern = config?.indentationRules?.decreaseIndentPattern;
 
   const data: CodeMirrorLanguageData = {};
 
@@ -41,6 +42,10 @@ export const convertConfigToLanguageData = (
 
   if (wordChars) {
     data.wordChars = wordChars;
+  }
+
+  if (decreaseIndentPattern) {
+    data.indentOnInput = new RegExp(decreaseIndentPattern);
   }
 
   return data;
