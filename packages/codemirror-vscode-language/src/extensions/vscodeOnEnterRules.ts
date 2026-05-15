@@ -29,40 +29,52 @@ export const vscodeOnEnterRulesConfig = Facet.define<
 
 export function onEnterRulesCommand(view: EditorView) {
   const state = view.state;
-
-  // 4. Get the configured onEnterRules
   const config = state.facet(vscodeOnEnterRulesConfig);
   const onEnterRules = config.onEnterRules;
-
-  // 5. Evaluate the rules against the state BEFORE the transaction occurred
   const doc = state.doc;
+
   let triggeredRule = undefined;
+
   const modifiedTransactionSpec = state.changeByRange((range) => {
     const pos = range.from;
     const beforeLine = doc.lineAt(pos);
+
     if (!onEnterRules || state.selection.ranges.length !== 1) {
       return { range };
     }
+
     const selectionFrom = state.selection.main.from;
     const selectionTo = state.selection.main.to;
-    const afterTextLine = doc.lineAt(selectionTo);
-    const beforeText = state.sliceDoc(beforeLine.from, selectionFrom);
-    const afterText = state.sliceDoc(
+    const cursorFromLine = doc.lineAt(selectionFrom);
+    const cursorToLine = doc.lineAt(selectionTo);
+
+    const lineTextBeforeCursor = state.sliceDoc(
+      cursorFromLine.from,
+      selectionFrom,
+    );
+    const lineTextAfterCursor = state.sliceDoc(
       selectionTo,
-      afterTextLine.from + afterTextLine.text.length,
+      cursorToLine.from + cursorToLine.text.length,
     );
     const previousLineText =
       beforeLine.number > 1 ? doc.line(beforeLine.number - 1)?.text : "";
+
     const currentIndentSize =
       beforeLine.text.match(INDENT_REGEX)?.[0].length ?? 0;
     const decreasedIndentSize = currentIndentSize - getIndentUnit(state);
     const increasedIndentSize = currentIndentSize + getIndentUnit(state);
-    let cursorOffset = 0;
+
     for (const onEnterRule of onEnterRules) {
-      if (onEnterRule.beforeText && !onEnterRule.beforeText.test(beforeText)) {
+      if (
+        onEnterRule.beforeText &&
+        !onEnterRule.beforeText.test(lineTextBeforeCursor)
+      ) {
         continue;
       }
-      if (onEnterRule.afterText && !onEnterRule.afterText.test(afterText)) {
+      if (
+        onEnterRule.afterText &&
+        !onEnterRule.afterText.test(lineTextAfterCursor)
+      ) {
         continue;
       }
       if (
@@ -71,75 +83,73 @@ export function onEnterRulesCommand(view: EditorView) {
       ) {
         continue;
       }
+
       triggeredRule = onEnterRule;
-      let indent = indentString(state, currentIndentSize);
-      if (onEnterRule.action.indent === "none") {
-        indent = indentString(state, currentIndentSize);
-      }
-      if (onEnterRule.action.indent === "indent") {
-        indent = indentString(state, increasedIndentSize);
-      }
-      if (onEnterRule.action.indent === "outdent") {
-        indent = indentString(state, decreasedIndentSize);
-      }
-      if (onEnterRule.action.indent === "indentOutdent") {
-        const afterIndent =
-          state.lineBreak + indentString(state, currentIndentSize);
-        indent = indentString(state, increasedIndentSize) + afterIndent;
-        cursorOffset = -afterIndent.length;
-      }
+
+      // 1. Calculate the base indentation for the NEW line
+      let newIndentSize = currentIndentSize;
       if (
-        onEnterRule.action.deleteText &&
-        beforeText.endsWith(onEnterRule.action.deleteText) &&
-        range.empty
+        onEnterRule.action.indent === "indent" ||
+        onEnterRule.action.indent === "indentOutdent"
       ) {
-        return {
-          range: EditorSelection.cursor(
-            pos - onEnterRule.action.deleteText.length + cursorOffset,
-          ),
-          changes: [
-            {
-              from: beforeLine.to - onEnterRule.action.deleteText.length,
-              to: beforeLine.to,
-              insert: "",
-            },
-          ],
-        };
-      } else if (onEnterRule.action.appendText && range.empty) {
-        const insert = state.lineBreak + indent + onEnterRule.action.appendText;
-        return {
-          range: EditorSelection.cursor(pos + insert.length + cursorOffset),
-          changes: [
-            {
-              from: pos,
-              to: pos,
-              insert,
-            },
-          ],
-        };
-      } else {
-        const preChanges = [];
-        if (!range.empty) {
-          preChanges.push({
-            from: range.from,
-            to: range.to,
-            insert: "",
-          });
-        }
-        const insert = state.lineBreak + indent;
-        return {
-          range: EditorSelection.cursor(pos + insert.length + cursorOffset),
-          changes: [
-            ...preChanges,
-            {
-              from: pos,
-              to: pos,
-              insert,
-            },
-          ],
-        };
+        newIndentSize = increasedIndentSize;
+      } else if (onEnterRule.action.indent === "outdent") {
+        newIndentSize = decreasedIndentSize;
       }
+
+      let newIndent = indentString(state, Math.max(0, newIndentSize));
+      let afterIndent = "";
+
+      // 2. Handle 'indentOutdent' which adds an extra line below the cursor
+      if (onEnterRule.action.indent === "indentOutdent") {
+        afterIndent = state.lineBreak + indentString(state, currentIndentSize);
+      }
+
+      // 3. Handle 'removeText' (removes N characters from the new line's indentation)
+      if (onEnterRule.action.removeText) {
+        newIndent = newIndent.slice(
+          0,
+          Math.max(0, newIndent.length - onEnterRule.action.removeText),
+        );
+      }
+
+      // 4. Handle 'appendText'
+      const append = onEnterRule.action.appendText || "";
+
+      // Assemble the final string to insert
+      const insert = state.lineBreak + newIndent + append + afterIndent;
+
+      // 5. Calculate where the replacement starts and ends (handling 'deleteText')
+      let deleteFrom = pos;
+      let deleteTo = pos;
+
+      if (!range.empty) {
+        deleteFrom = range.from;
+        deleteTo = range.to;
+      } else if (
+        onEnterRule.action.deleteText &&
+        lineTextBeforeCursor.endsWith(onEnterRule.action.deleteText)
+      ) {
+        deleteFrom = pos - onEnterRule.action.deleteText.length;
+      }
+
+      // 6. Calculate exactly where the cursor should land
+      // It should be right after the appended text, before any 'afterIndent'
+      const newCursorPos =
+        deleteFrom + state.lineBreak.length + newIndent.length + append.length;
+
+      return {
+        range: EditorSelection.cursor(newCursorPos),
+        changes: [
+          {
+            from: deleteFrom,
+            to: deleteTo,
+            insert,
+          },
+        ],
+      };
     }
+
     return { range };
   });
 
@@ -150,22 +160,7 @@ export function onEnterRulesCommand(view: EditorView) {
     return true;
   }
 
-  const defaultChanges = state.changeByRange((range) => {
-    const pos = range.from;
-    const insert = state.lineBreak;
-    return {
-      range: EditorSelection.cursor(pos + insert.length),
-      changes: [
-        {
-          from: pos,
-          to: pos,
-          insert,
-        },
-      ],
-    };
-  });
-  view.dispatch(state.update(defaultChanges, { userEvent: "input.type" }));
-  return true;
+  return false;
 }
 
 export const vscodeOnEnterRules = (
