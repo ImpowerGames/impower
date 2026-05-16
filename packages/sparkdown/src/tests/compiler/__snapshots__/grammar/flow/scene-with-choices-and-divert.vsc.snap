@@ -1,0 +1,52 @@
+text.source.sparkdown [0..97]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.separator.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..13]: "Rooftop"
+ ├─ Newline [13..14]: "\n"
+ ├─ string.display.dialogue.inline.sd [14..33]
+ │   ├─ punctuation.whitespace.indent.sd [14..16]: "  "
+ │   ├─ entity.name.type.dialogue.character.name.sd [16..17]
+ │   │   └─ markup.raw.text.sd [16..17]: "N"
+ │   ├─ meta.template.expression.operator.colon.sd [17..18]: ":"
+ │   ├─ punctuation.whitespace.separator.sd [18..19]: " "
+ │   └─ string.display.text.chunk.sd [19..33]
+ │       ├─ markup.raw.text.sd [19..21]: "Do"
+ │       ├─ markup.raw.space.sd [21..22]: " "
+ │       ├─ markup.raw.text.sd [22..25]: "you"
+ │       ├─ markup.raw.space.sd [25..26]: " "
+ │       ├─ markup.raw.text.sd [26..29]: "see"
+ │       ├─ markup.raw.space.sd [29..30]: " "
+ │       ├─ markup.raw.text.sd [30..32]: "it"
+ │       └─ markup.raw.punctuation.sd [32..33]: "?"
+ ├─ Newline [33..34]: "\n"
+ ├─ entity.choice.sd [34..63]
+ │   ├─ punctuation.whitespace.indent.sd [34..36]: "  "
+ │   ├─ keyword.operator.expression.list.sd [36..38]: "+ "
+ │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [38..39]: "["
+ │   ├─ string.choice.sd [39..47]
+ │   │   ├─ markup.raw.text.sd [39..46]: "Courage"
+ │   │   └─ markup.raw.punctuation.sd [46..47]: "."
+ │   ├─ punctuation.definition.template-expression.end.choice.suppression.sd [47..48]: "]"
+ │   ├─ punctuation.whitespace.separator.sd [48..49]: " "
+ │   ├─ keyword.control.divert.mark.sd [49..51]: "->"
+ │   └─ keyword.control.divert.path.sd [51..63]
+ │       ├─ punctuation.whitespace.separator.optional.sd [51..52]: " "
+ │       └─ keyword.control.divert.path.sd [52..63]
+ │           └─ keyword.control.divert.path.sd [52..63]: "WishCourage"
+ ├─ Newline [63..64]: "\n"
+ ├─ entity.choice.sd [64..93]
+ │   ├─ punctuation.whitespace.indent.sd [64..66]: "  "
+ │   ├─ keyword.operator.expression.list.sd [66..68]: "+ "
+ │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [68..69]: "["
+ │   ├─ string.choice.sd [69..77]
+ │   │   ├─ markup.raw.text.sd [69..76]: "Answers"
+ │   │   └─ markup.raw.punctuation.sd [76..77]: "."
+ │   ├─ punctuation.definition.template-expression.end.choice.suppression.sd [77..78]: "]"
+ │   ├─ punctuation.whitespace.separator.sd [78..79]: " "
+ │   ├─ keyword.control.divert.mark.sd [79..81]: "->"
+ │   └─ keyword.control.divert.path.sd [81..93]
+ │       ├─ punctuation.whitespace.separator.optional.sd [81..82]: " "
+ │       └─ keyword.control.divert.path.sd [82..93]
+ │           └─ keyword.control.divert.path.sd [82..93]: "WishAnswers"
+ ├─ Newline [93..94]: "\n"
+ └─ keyword.control.end.luau [94..97]: "end"

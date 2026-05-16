@@ -1,9 +1,9 @@
 import { Range } from "@codemirror/state";
-import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { InkParser } from "../../../inkjs/compiler/Parser/InkParser";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { SourceMetadata } from "../../../inkjs/engine/Error";
+import { lower } from "../../lower/lower";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { populateDefinedStructs } from "../../utils/populateDefinedStructs";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
@@ -66,22 +66,28 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       nodeRef.name !== "Whitespace" &&
       nodeRef.name !== "FrontMatter"
     ) {
-      if (nodeRef.name === "Include") {
-        const includeContentNode = getDescendent(
-          "IncludeContent",
-          nodeRef.node,
+      // Snapshot the chunk's absolute start line so the lowerer can produce
+      // chunk-relative debug metadata. `text.lineAt(pos).number` is 1-based,
+      // so subtract 1 to get a 0-based absolute line. The 0-based chunk-
+      // relative line is `(absolute-line) - (chunk-start-absolute-line)`.
+      // Compiler's `offsetDebugMetadata` later re-adds the chunk offset.
+      const text = this.text;
+      const chunkStartLine0 = text ? text.lineAt(nodeRef.from).number - 1 : 0;
+      const lowered = lower(nodeRef, {
+        read: (from, to) => this.read(from, to),
+        lineNumber: (pos) =>
+          text ? text.lineAt(pos).number - 1 - chunkStartLine0 : 0,
+        characterNumber: (pos) => {
+          if (!text) return 0;
+          const line = text.lineAt(pos);
+          return pos - line.from;
+        },
+        config: this.config,
+      });
+      if (lowered !== undefined) {
+        annotations.push(
+          SparkdownAnnotation.mark(lowered).range(nodeRef.from, nodeRef.to),
         );
-        if (includeContentNode) {
-          const includeFilePath = this.read(
-            includeContentNode.from,
-            includeContentNode.to,
-          );
-          annotations.push(
-            SparkdownAnnotation.mark({
-              include: includeFilePath,
-            }).range(nodeRef.from, nodeRef.to),
-          );
-        }
       } else if (
         nodeRef.name === "DefineViewDeclaration" ||
         nodeRef.name === "DefineStylingDeclaration" ||

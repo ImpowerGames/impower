@@ -1,0 +1,3 @@
+function plural(n: number)
+  return n
+end

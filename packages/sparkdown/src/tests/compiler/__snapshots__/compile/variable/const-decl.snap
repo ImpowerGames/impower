@@ -1,0 +1,12 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "ConstantDeclaration"
+        }
+      ]
+    }
+  ]
+}

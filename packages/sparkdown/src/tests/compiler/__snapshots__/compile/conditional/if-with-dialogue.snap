@@ -1,0 +1,96 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Conditional",
+          "init": null,
+          "branches": [
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": false,
+              "cond": {
+                "type": "VariableReference",
+                "path": [
+                  "happy"
+                ]
+              },
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Wrap"
+                    },
+                    {
+                      "type": "Tag",
+                      "start": true
+                    },
+                    {
+                      "type": "Text",
+                      "text": "dialogue:N"
+                    },
+                    {
+                      "type": "Tag",
+                      "start": false
+                    },
+                    {
+                      "type": "Text",
+                      "text": "I trust you."
+                    },
+                    {
+                      "type": "Text",
+                      "text": "\n"
+                    },
+                    {
+                      "type": "Wrap"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": true,
+              "cond": null,
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Wrap"
+                    },
+                    {
+                      "type": "Tag",
+                      "start": true
+                    },
+                    {
+                      "type": "Text",
+                      "text": "dialogue:N"
+                    },
+                    {
+                      "type": "Tag",
+                      "start": false
+                    },
+                    {
+                      "type": "Text",
+                      "text": "Stay a while."
+                    },
+                    {
+                      "type": "Text",
+                      "text": "\n"
+                    },
+                    {
+                      "type": "Wrap"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+sparkdown [0..56]
+ └─ LuauDefine [0..56]
+     ├─ LuauDefine_begin [0..7]
+     │   ├─ LuauDefine_begin_c1 0
+     │   ├─ LuauDefine_begin_c2 [0..6]
+     │   │   └─ LuauDefineKeyword [0..6]: "define"
+     │   └─ LuauDefine_begin_c3 [6..7]
+     │       └─ LuauDefine_begin_c3 [6..7]
+     │           └─ OptionalSeparator [6..7]: " "
+     ├─ LuauDefine_content [7..53]
+     │   ├─ LuauDefineNameAndInheritance [7..34]
+     │   │   ├─ LuauDefineNameAndInheritance_begin [7..16]
+     │   │   │   └─ LuauDefineNameAndInheritance_begin_c1 [7..16]
+     │   │   │       └─ LuauDefineName [7..16]: "companion"
+     │   │   ├─ LuauDefineNameAndInheritance_content [16..30]
+     │   │   │   └─ LuauInheritanceOperation [16..30]
+     │   │   │       ├─ LuauInheritanceOperation_c1 [16..17]
+     │   │   │       │   └─ ExtraWhitespace [16..17]: " "
+     │   │   │       ├─ LuauInheritanceOperation_c2 [17..19]
+     │   │   │       │   └─ LuauAsKeyword [17..19]: "as"
+     │   │   │       ├─ LuauInheritanceOperation_c3 [19..20]
+     │   │   │       │   └─ LuauInheritanceOperation_c3 [19..20]
+     │   │   │       │       └─ OptionalSeparator [19..20]: " "
+     │   │   │       ├─ LuauInheritanceOperation_c4 [20..29]
+     │   │   │       │   └─ LuauDefineParentName [20..29]: "character"
+     │   │   │       └─ LuauInheritanceOperation_c5 [29..30]
+     │   │   │           └─ LuauInheritanceOperation_c5 [29..30]
+     │   │   │               └─ OptionalSeparator [29..30]: " "
+     │   │   └─ LuauDefineNameAndInheritance_end [30..34]
+     │   │       ├─ LuauDefineNameAndInheritance_end_c1 30
+     │   │       │   └─ LuauDefineNameAndInheritance_end_c1 30
+     │   │       │       └─ OptionalSeparator 30
+     │   │       └─ LuauDefineNameAndInheritance_end_c2 [30..34]
+     │   │           └─ LuauWithKeyword [30..34]: "with"
+     │   ├─ Newline [34..35]: "\n"
+     │   ├─ LuauPropertyDefinition [35..52]
+     │   │   ├─ LuauPropertyDefinition_begin [35..43]
+     │   │   │   ├─ LuauPropertyDefinition_begin_c1 [35..37]
+     │   │   │   │   └─ Indent [35..37]: "  "
+     │   │   │   ├─ LuauPropertyDefinition_begin_c2 [37..42]
+     │   │   │   │   └─ LuauScopeModifier [37..42]: "store"
+     │   │   │   └─ LuauPropertyDefinition_begin_c3 [42..43]
+     │   │   │       └─ LuauPropertyDefinition_begin_c3 [42..43]
+     │   │   │           └─ OptionalSeparator [42..43]: " "
+     │   │   ├─ LuauPropertyDefinition_content [43..52]
+     │   │   │   └─ LuauVariableAssignment [43..52]
+     │   │   │       ├─ LuauVariableAssignment_begin [43..49]
+     │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [43..48]
+     │   │   │       │   │   └─ LuauVariableName [43..48]: "trust"
+     │   │   │       │   └─ LuauVariableAssignment_begin_c2 [48..49]
+     │   │   │       │       └─ ExtraWhitespace [48..49]: " "
+     │   │   │       ├─ LuauVariableAssignment_content [49..52]
+     │   │   │       │   └─ LuauAssignmentOperation [49..52]
+     │   │   │       │       ├─ LuauAssignmentOperation_begin 49
+     │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 49
+     │   │   │       │       ├─ LuauAssignmentOperation_content [49..52]
+     │   │   │       │       │   ├─ LuauAssignmentOperator [49..51]
+     │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [49..51]
+     │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 49
+     │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [49..50]: "="
+     │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [50..51]
+     │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [50..51]
+     │   │   │       │       │   │   │           └─ OptionalSeparator [50..51]: " "
+     │   │   │       │       │   │   └─ LuauAssignmentOperator_end 51
+     │   │   │       │       │   └─ LuauNumericDecimal [51..52]
+     │   │   │       │       │       ├─ LuauNumericDecimal_c1 [51..52]: "0"
+     │   │   │       │       │       └─ LuauNumericDecimal_c2 52
+     │   │   │       │       └─ LuauAssignmentOperation_end 52
+     │   │   │       └─ LuauVariableAssignment_end 52
+     │   │   └─ LuauPropertyDefinition_end 52
+     │   └─ Newline [52..53]: "\n"
+     └─ LuauDefine_end [53..56]
+         ├─ LuauDefine_end_c1 53
+         │   └─ LuauDefine_end_c1 53
+         │       └─ OptionalSeparator 53
+         └─ LuauDefine_end_c2 [53..56]
+             └─ LuauEndKeyword [53..56]: "end"

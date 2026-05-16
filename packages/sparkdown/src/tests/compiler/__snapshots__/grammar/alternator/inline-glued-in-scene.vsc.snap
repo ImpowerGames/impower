@@ -1,0 +1,27 @@
+text.source.sparkdown [0..45]
+ ├─ keyword.control.scene.sd [0..5]: "scene"
+ ├─ punctuation.whitespace.separator.sd [5..6]: " "
+ ├─ keyword.control.section.sd [6..10]: "main"
+ ├─ Newline [10..11]: "\n"
+ ├─ punctuation.whitespace.indent.sd [11..13]: "  "
+ ├─ string.display.text.chunk.sd [13..35]
+ │   ├─ markup.raw.text.sd [13..19]: "Before"
+ │   ├─ punctuation.whitespace.sd [19..20]: " "
+ │   ├─ meta.glue.sd [20..22]
+ │   │   └─ keyword.other.glue.sd [20..22]: ".."
+ │   ├─ punctuation.whitespace.extra.sd [22..23]: " "
+ │   ├─ keyword.control.luau [23..28]: "queue"
+ │   ├─ keyword.operator.alternator.luau [28..29]: "|"
+ │   ├─ markup.raw.text.sd [29..30]: "A"
+ │   ├─ keyword.operator.alternator.luau [30..31]: "|"
+ │   ├─ markup.raw.text.sd [31..32]: "B"
+ │   ├─ keyword.operator.alternator.luau [32..33]: "|"
+ │   ├─ markup.raw.text.sd [33..34]: "C"
+ │   └─ punctuation.whitespace.extra.sd [34..35]: " "
+ ├─ meta.glue.sd [35..37]
+ │   └─ keyword.other.glue.sd [35..37]: ".."
+ ├─ string.display.text.chunk.sd [37..44]
+ │   ├─ markup.raw.space.sd [37..38]: " "
+ │   ├─ markup.raw.text.sd [38..43]: "After"
+ │   └─ markup.raw.punctuation.sd [43..44]: "."
+ └─ Newline [44..45]: "\n"

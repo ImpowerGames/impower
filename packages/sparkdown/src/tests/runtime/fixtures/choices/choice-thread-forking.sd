@@ -1,0 +1,16 @@
+-> hub
+scene hub
+  <- side
+  * "Hub leave" -> END
+
+scene side
+  * "Side enter" -> side_resume
+
+scene side_resume
+  -> deep ->
+  Back in side_resume.
+  -> END
+
+scene deep
+  Going deep.
+  ->->

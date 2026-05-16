@@ -1,0 +1,7 @@
+label gather
+{gather}
+choose
+  + choice
+end
+{gather}
+-> DONE

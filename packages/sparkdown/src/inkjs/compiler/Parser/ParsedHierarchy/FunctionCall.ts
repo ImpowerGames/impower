@@ -30,7 +30,8 @@ export class FunctionCall extends Expression {
       name === "SEED_RANDOM" ||
       name === "LIST_VALUE" ||
       name === "LIST_RANDOM" ||
-      name === "READ_COUNT"
+      name === "READ_COUNT" ||
+      name === "plural.category"
     );
   };
 
@@ -83,6 +84,15 @@ export class FunctionCall extends Expression {
 
   get isReadCount(): boolean {
     return this.name === "READ_COUNT";
+  }
+
+  // `plural.category(n)` — stdlib builtin that returns the CLDR plural
+  // category for `n` in the active language (`lang.current` store;
+  // defaults to `"en"`). Emitted by the lowerer when desugaring
+  // `plural(n)|one=...|other=...` and also callable directly from
+  // source as `plural.category(n)`.
+  get isPluralCategory(): boolean {
+    return this.name === "plural.category";
   }
 
   public shouldPopReturnedValue: boolean = false;
@@ -202,9 +212,25 @@ export class FunctionCall extends Expression {
       this.args[0].GenerateIntoContainer(container);
 
       container.AddContent(RuntimeControlCommand.ListRandom());
+    } else if (this.isPluralCategory) {
+      if (this.args.length !== 1) {
+        this.Error(
+          "plural.category should take 1 parameter - a number to classify",
+        );
+      }
+
+      this.args[0].GenerateIntoContainer(container);
+
+      container.AddContent(RuntimeControlCommand.PluralCategory());
     } else if (NativeFunctionCall.CallExistsWithName(this.name)) {
       const nativeCall = NativeFunctionCall.CallWithName(this.name);
-      if (nativeCall.numberOfParameters !== this.args.length) {
+      // Variadic natives (currently the `__method_*` builtin-method
+      // family) validate arity at runtime inside the method impl, so
+      // skip the compile-time assertion for those.
+      if (
+        !nativeCall.isVariadic &&
+        nativeCall.numberOfParameters !== this.args.length
+      ) {
         let msg = `${FunctionCall.name} should take ${nativeCall.numberOfParameters} parameter`;
         if (nativeCall.numberOfParameters > 1) {
           msg += "s";
@@ -217,7 +243,12 @@ export class FunctionCall extends Expression {
         this.args[ii].GenerateIntoContainer(container);
       }
 
-      container.AddContent(NativeFunctionCall.CallWithName(this.name));
+      // Pass the call-site arg count so variadic natives (`__method_*`)
+      // know how many parameters to pop off the eval stack. Ignored for
+      // fixed-arity natives — their prototype's arity wins.
+      container.AddContent(
+        NativeFunctionCall.CallWithName(this.name, this.args.length),
+      );
     } else if (foundList !== null) {
       if (this.args.length > 1) {
         this.Error(

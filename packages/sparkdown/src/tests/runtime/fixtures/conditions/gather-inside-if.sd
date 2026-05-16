@@ -1,0 +1,11 @@
+store x = 1
+if x == 1 then
+  Tom enters.
+  -> meet
+elseif x == 2 then
+  Sarah enters.
+  -> meet
+end
+label meet
+Now they look at each other.
+-> DONE

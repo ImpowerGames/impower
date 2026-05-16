@@ -1,0 +1,88 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "classify",
+      "args": [
+        "n"
+      ],
+      "isFunction": true,
+      "body": [
+        {
+          "type": "Conditional",
+          "init": null,
+          "branches": [
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": false,
+              "cond": {
+                "type": "BinaryExpression",
+                "op": ">",
+                "left": {
+                  "type": "VariableReference",
+                  "path": [
+                    "n"
+                  ]
+                },
+                "right": {
+                  "type": "NumberExpression",
+                  "value": 0,
+                  "subtype": "int"
+                }
+              },
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Wrap"
+                    },
+                    {
+                      "type": "ReturnType",
+                      "expression": {
+                        "type": "StringExpression",
+                        "content": [
+                          "positive"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "Wrap"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": true,
+              "cond": null,
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Wrap"
+                    },
+                    {
+                      "type": "ReturnType",
+                      "expression": {
+                        "type": "StringExpression",
+                        "content": [
+                          "non-positive"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "Wrap"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

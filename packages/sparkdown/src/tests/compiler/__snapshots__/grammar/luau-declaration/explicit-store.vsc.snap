@@ -1,0 +1,11 @@
+text.source.sparkdown [0..14]
+ ├─ keyword.other.statement.explicit.luau.mark.sd [0..1]: "&"
+ ├─ punctuation.whitespace.separator.sd [1..2]: " "
+ ├─ storage.modifier.scope.luau [2..7]: "store"
+ ├─ text.source.sparkdown [7..8]: " "
+ ├─ variable.other.readwrite.luau [8..9]: "x"
+ ├─ punctuation.whitespace.extra.sd [9..10]: " "
+ ├─ keyword.operator.assignment.luau [10..11]: "="
+ ├─ punctuation.whitespace.separator.optional.sd [11..12]: " "
+ ├─ constant.numeric.decimal.luau [12..13]: "5"
+ └─ Newline [13..14]: "\n"

@@ -1,0 +1,14 @@
+-> empty_world
+scene empty_world
+  {count.turns(-> then)} = -1
+  choose
+    + (then) stuff
+  then
+    {count.turns(-> then)} = 0
+    choose
+      + more stuff
+    then
+      {count.turns(-> then)} = 1
+      -> DONE
+    end
+  end

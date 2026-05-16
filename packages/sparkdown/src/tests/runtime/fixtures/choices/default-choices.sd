@@ -1,0 +1,16 @@
+-> main
+scene main
+  label start
+  choose
+    * [Choice 1]
+    * [Choice 2]
+    * if false Impossible choice
+    * -> default
+  then
+    After choice
+  end
+  -> start
+
+scene default
+  This is default.
+  -> DONE

@@ -1,0 +1,5 @@
+scene Rooftop
+  N: Do you see it?
+  + [Courage.] -> WishCourage
+  + [Answers.] -> WishAnswers
+end

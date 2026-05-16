@@ -1,0 +1,10 @@
+-> opts
+scene opts
+  choose
+    * (firstOpt) [First choice] -> opts
+    * if firstOpt [Second choice] -> opts
+    * -> end_anchor
+  end
+
+label end_anchor
+-> DONE

@@ -1,0 +1,16 @@
+-> main
+scene main
+  Start.
+  -> tunneled ->
+  After tunnel.
+  <- threaded
+  After thread.
+  * "End" -> END
+
+scene tunneled
+  In tunnel.
+  ->->
+
+scene threaded
+  In thread.
+  -> DONE

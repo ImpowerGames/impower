@@ -1,0 +1,11 @@
+-> main
+scene main
+  label start
+  Before .. cycle|A|B|C .. After.
+  & i = i + 1
+  if i < 7 then
+    -> start
+  end
+  -> END
+
+store i = 0

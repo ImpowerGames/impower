@@ -17,6 +17,23 @@ export interface CompileProgramParams {
       favoredChoices?: (number | undefined)[];
     }
   >;
+  /**
+   * When true, the compiler marks every flow container with
+   * `visitsShouldBeCounted = true`, so visit counts are tracked even for
+   * containers that have no source-level `READ_COUNT` / `{knot}` reference.
+   *
+   * Mirrors inkjs's `CompilerOptions.countAllVisits` and the equivalent
+   * field on the parsed-hierarchy `Story` (see
+   * `inkjs/compiler/Parser/ParsedHierarchy/Story.ts`). The flag is read by
+   * `FlowBase.GenerateRuntimeObject` to flip `Container.visitsShouldBeCounted`
+   * on every knot/stitch/function.
+   *
+   * Defaults to `false` so production builds stay lean (visit-count slots
+   * inflate the save-state and the runtime container metadata). Tests that
+   * call `state.VisitCountAtPathString(...)` on containers without a
+   * source-level reference need this set.
+   */
+  countAllVisits?: boolean;
 }
 
 export interface CompileProgramResult {

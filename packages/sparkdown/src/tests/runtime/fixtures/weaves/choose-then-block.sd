@@ -1,0 +1,9 @@
+-> main
+scene main
+  choose
+    * Hi
+    * Hey
+  then
+    She nods.
+  end
+  -> DONE

@@ -1,0 +1,8 @@
+-> main
+scene main
+  choose
+    * ->
+  then
+    x
+  end
+  -> DONE

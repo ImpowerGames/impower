@@ -1,0 +1,54 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "update",
+      "args": [
+        "state"
+      ],
+      "isFunction": true,
+      "body": [
+        {
+          "type": "StorePropertyAssignment",
+          "base": {
+            "type": "VariableReference",
+            "path": [
+              "state"
+            ]
+          },
+          "key": {
+            "type": "StringExpression",
+            "content": [
+              "count"
+            ]
+          },
+          "value": {
+            "type": "BinaryExpression",
+            "op": "+",
+            "left": {
+              "type": "VariableReference",
+              "path": [
+                "state",
+                "count"
+              ]
+            },
+            "right": {
+              "type": "NumberExpression",
+              "value": 1,
+              "subtype": "int"
+            }
+          }
+        },
+        {
+          "type": "ReturnType",
+          "expression": {
+            "type": "VariableReference",
+            "path": [
+              "state"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

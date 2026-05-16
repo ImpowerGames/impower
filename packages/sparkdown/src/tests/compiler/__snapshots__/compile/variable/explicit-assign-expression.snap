@@ -1,0 +1,40 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "reassign",
+          "name": "x",
+          "expression": {
+            "type": "BinaryExpression",
+            "op": "+",
+            "left": {
+              "type": "VariableReference",
+              "path": [
+                "a"
+              ]
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "op": "*",
+              "left": {
+                "type": "VariableReference",
+                "path": [
+                  "b"
+                ]
+              },
+              "right": {
+                "type": "VariableReference",
+                "path": [
+                  "c"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

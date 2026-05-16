@@ -1,0 +1,7 @@
+if a then
+  -> A
+elseif b then
+  -> B
+else
+  -> C
+end

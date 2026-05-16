@@ -147,6 +147,26 @@ export class VariableReference extends Expression {
     // Couldn't find this multi-part path at all, whether as a divert target,
     // or list item reference.
     if (this.path.length > 1) {
+      // Last chance: maybe this is property access on a table-typed
+      // variable (sparkdown extension — `result.value` where `result`
+      // is a stored table). If the FIRST segment resolves as a variable
+      // (arg / temp / global), treat the remaining segments as key
+      // lookups. The runtime side (`Story.ts > VariableReference`
+      // branch) handles the actual indexing — see the
+      // "property-access via dotted name" comment there.
+      const baseName = this.path[0];
+      if (baseName) {
+        const baseResolve = context.ResolveVariableWithName(baseName, this);
+        if (
+          baseResolve.found &&
+          !context.constants.has(baseName) &&
+          !context.ResolveStruct(baseName)
+        ) {
+          // Variable-with-property-access — no compile-time error.
+          return;
+        }
+      }
+
       const pathStr = this.path.join(".");
       let errorMsg = `Cannot find item or path named \`${pathStr}\``;
 

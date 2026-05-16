@@ -1,0 +1,66 @@
+sparkdown [0..22]
+ ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [0..21]
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [0..6]
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c1 0
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c2 0
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c3 0
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c4 [0..5]
+ │   │   │   └─ LuauControlKeyword [0..5]: "queue"
+ │   │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [5..6]
+ │   │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [5..6]
+ │   │           └─ OptionalSeparator [5..6]: " "
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_content [6..17]
+ │   │   ├─ LuauAlternatorSeparator [6..8]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 6
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [6..7]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [7..8]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [7..8]
+ │   │   │   │       └─ OptionalSeparator [7..8]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 8
+ │   │   │   ├─ LuauAlternatorSeparator_c5 8
+ │   │   │   ├─ LuauAlternatorSeparator_c6 8
+ │   │   │   └─ LuauAlternatorSeparator_c7 8
+ │   │   ├─ LuauSparkdownAlternatorArm [8..10]
+ │   │   │   ├─ LuauSparkdownAlternatorArm_begin 8
+ │   │   │   ├─ LuauSparkdownAlternatorArm_content [8..10]
+ │   │   │   │   ├─ Word [8..9]: "A"
+ │   │   │   │   └─ Space [9..10]: " "
+ │   │   │   └─ LuauSparkdownAlternatorArm_end 10
+ │   │   ├─ LuauAlternatorSeparator [10..12]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 10
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [10..11]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [11..12]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [11..12]
+ │   │   │   │       └─ OptionalSeparator [11..12]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 12
+ │   │   │   ├─ LuauAlternatorSeparator_c5 12
+ │   │   │   ├─ LuauAlternatorSeparator_c6 12
+ │   │   │   └─ LuauAlternatorSeparator_c7 12
+ │   │   ├─ LuauSparkdownAlternatorArm [12..14]
+ │   │   │   ├─ LuauSparkdownAlternatorArm_begin 12
+ │   │   │   ├─ LuauSparkdownAlternatorArm_content [12..14]
+ │   │   │   │   ├─ Word [12..13]: "B"
+ │   │   │   │   └─ Space [13..14]: " "
+ │   │   │   └─ LuauSparkdownAlternatorArm_end 14
+ │   │   ├─ LuauAlternatorSeparator [14..16]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 14
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [14..15]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [15..16]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [15..16]
+ │   │   │   │       └─ OptionalSeparator [15..16]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 16
+ │   │   │   ├─ LuauAlternatorSeparator_c5 16
+ │   │   │   ├─ LuauAlternatorSeparator_c6 16
+ │   │   │   └─ LuauAlternatorSeparator_c7 16
+ │   │   └─ LuauSparkdownAlternatorArm [16..17]
+ │   │       ├─ LuauSparkdownAlternatorArm_begin 16
+ │   │       ├─ LuauSparkdownAlternatorArm_content [16..17]
+ │   │       │   └─ Word [16..17]: "C"
+ │   │       └─ LuauSparkdownAlternatorArm_end 17
+ │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end [17..21]
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [17..18]
+ │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [17..18]
+ │       │       └─ OptionalSeparator [17..18]: " "
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [18..21]
+ │           └─ LuauEndKeyword [18..21]: "end"
+ └─ Newline [21..22]: "\n"

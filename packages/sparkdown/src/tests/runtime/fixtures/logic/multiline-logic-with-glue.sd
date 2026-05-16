@@ -1,0 +1,8 @@
+if true then
+  {"a"}
+end
+.. b
+if true then
+  {"a"}
+end
+.. b

@@ -1,2 +1,12 @@
 out
 node_modules
+
+# Vendored upstream inkjs tests live under src/inkjs/tests/ as
+# reference material only — nothing in sparkdown's build or test
+# harness imports from there, and our vitest config explicitly excludes
+# `src/inkjs/tests/**`. The directory is gitignored entirely; if you
+# need a fresh upstream snapshot to cross-check behavior, follow the
+# re-vendor instructions in `src/inkjs/README.md`. The inkjs MIT license
+# at `src/inkjs/LICENSE` covers the engine fork and the (untracked)
+# tests directory alike.
+src/inkjs/tests

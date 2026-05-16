@@ -1,0 +1,6 @@
+function get_plural_category(n: number, lang: string): string
+  if lang == "en" then
+    return n == 1 and "one" or "other"
+  end
+  return "other"
+end

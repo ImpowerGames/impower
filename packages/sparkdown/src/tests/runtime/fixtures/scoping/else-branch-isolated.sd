@@ -1,0 +1,9 @@
+local x = 1
+if false then
+  local x = 100
+else
+  local x = 2
+  {x}
+end
+{x}
+-> DONE

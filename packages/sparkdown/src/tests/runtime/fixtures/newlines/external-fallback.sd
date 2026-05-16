@@ -1,0 +1,9 @@
+external TRUE()
+
+Phrase 1
+if TRUE() then
+  Phrase 2
+end
+-> END
+
+function TRUE() return true end

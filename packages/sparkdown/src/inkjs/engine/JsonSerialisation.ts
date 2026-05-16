@@ -8,6 +8,8 @@ import {
   VariablePointerValue,
   ListValue,
   BoolValue,
+  ObjectValue,
+  AbstractValue,
 } from "./Value";
 import { Glue } from "./Glue";
 import { ControlCommand } from "./ControlCommand";
@@ -194,6 +196,28 @@ export class JsonSerialisation {
       return;
     }
 
+    let objVal = asOrNull(obj, ObjectValue);
+    if (objVal) {
+      writer.WriteObjectStart();
+      writer.WritePropertyStart("obj");
+      writer.WriteObjectStart();
+      if (objVal.value !== null) {
+        for (const [k, v] of objVal.value) {
+          writer.WritePropertyStart(k);
+          if (v) {
+            this.WriteRuntimeObject(writer, v);
+          } else {
+            writer.WriteNull();
+          }
+          writer.WritePropertyEnd();
+        }
+      }
+      writer.WriteObjectEnd();
+      writer.WritePropertyEnd();
+      writer.WriteObjectEnd();
+      return;
+    }
+
     let divTargetVal = asOrNull(obj, DivertTargetValue);
     if (divTargetVal) {
       writer.WriteObjectStart();
@@ -234,6 +258,16 @@ export class JsonSerialisation {
       let name = nativeFunc.name;
 
       if (name == "^") name = "L^";
+
+      // Variadic natives (the `__method_*` builtin-method family) need
+      // the call-site arg count preserved through serialization — their
+      // prototype's `numberOfParameters` is -1, so the deserialized
+      // call would otherwise pop zero args off the eval stack. Encode
+      // the actual arity as a `@<n>` suffix; the deserializer parses
+      // it back and restores it on the instance.
+      if (nativeFunc.isVariadic) {
+        name = `${name}@${nativeFunc.numberOfParameters}`;
+      }
 
       writer.Write(name);
       return;
@@ -353,6 +387,17 @@ export class JsonSerialisation {
 
       // Native functions
       if (str == "L^") str = "^";
+      // Variadic natives are serialized as `name@arity` (see serializer
+      // above for the rationale). Parse the suffix back into the
+      // call-site arity so the runtime knows how many params to pop.
+      const at = str.lastIndexOf("@");
+      if (at > 0) {
+        const bareName = str.slice(0, at);
+        const arityRaw = str.slice(at + 1);
+        if (/^\d+$/.test(arityRaw) && NativeFunctionCall.CallExistsWithName(bareName)) {
+          return NativeFunctionCall.CallWithName(bareName, parseInt(arityRaw, 10));
+        }
+      }
       if (NativeFunctionCall.CallExistsWithName(str))
         return NativeFunctionCall.CallWithName(str);
 
@@ -493,6 +538,19 @@ export class JsonSerialisation {
         return new ListValue(rawList);
       }
 
+      // Object value
+      if (obj["obj"] !== undefined) {
+        const objContent = obj["obj"] as Record<string, any>;
+        const entries = new Map<string, AbstractValue>();
+        for (const key in objContent) {
+          if (!Object.prototype.hasOwnProperty.call(objContent, key)) continue;
+          const child = this.JTokenToRuntimeObject(objContent[key]);
+          const childVal = asOrNull(child, AbstractValue);
+          if (childVal) entries.set(key, childVal);
+        }
+        return new ObjectValue(entries);
+      }
+
       if (obj["originalChoicePath"] != null) return this.JObjectToChoice(obj);
     }
 
@@ -611,6 +669,13 @@ export class JsonSerialisation {
     choice.originalThreadIndex = parseInt(jObj["originalThreadIndex"]);
     choice.pathStringOnChoice = jObj["targetPath"].toString();
     choice.tags = this.JArrayToTags(jObj);
+    // `isInvisibleDefault` is the runtime flag that marks a fallback
+    // choice (`* -> target` with no choice text — picked automatically
+    // when no other choices match). Without round-tripping it, loaded
+    // states see the fallback in `currentChoices` instead of having it
+    // auto-followed by `TryFollowDefaultInvisibleChoice`. Default to
+    // `false` for backward-compat with saves that predate this field.
+    choice.isInvisibleDefault = jObj["isInvisibleDefault"] === true;
     return choice;
   }
 
@@ -629,6 +694,13 @@ export class JsonSerialisation {
     writer.WriteProperty("originalChoicePath", choice.sourcePath);
     writer.WriteIntProperty("originalThreadIndex", choice.originalThreadIndex);
     writer.WriteProperty("targetPath", choice.pathStringOnChoice);
+    // Only emit the flag when it's `true` — keeps the wire format
+    // unchanged for the common case (regular choices) so saves stay
+    // compact and existing readers don't see an unexpected new field.
+    // `JObjectToChoice` defaults the field to `false` when absent.
+    if (choice.isInvisibleDefault) {
+      writer.WriteProperty("isInvisibleDefault", choice.isInvisibleDefault);
+    }
     this.WriteChoiceTags(writer, choice);
     writer.WriteObjectEnd();
   }
@@ -773,6 +845,15 @@ export class JsonSerialisation {
     _controlCommandNames[ControlCommand.CommandType.ListRandom] = "lrnd";
     _controlCommandNames[ControlCommand.CommandType.BeginTag] = "#";
     _controlCommandNames[ControlCommand.CommandType.EndTag] = "/#";
+    _controlCommandNames[ControlCommand.CommandType.BeginObject] = "obj{";
+    _controlCommandNames[ControlCommand.CommandType.EndObject] = "}obj";
+    _controlCommandNames[ControlCommand.CommandType.IndexValue] = "idx";
+    _controlCommandNames[ControlCommand.CommandType.StoreIndex] = "idx=";
+    _controlCommandNames[ControlCommand.CommandType.CallValueAsFunction] =
+      "call";
+    _controlCommandNames[ControlCommand.CommandType.BeginScope] = "scope{";
+    _controlCommandNames[ControlCommand.CommandType.EndScope] = "}scope";
+    _controlCommandNames[ControlCommand.CommandType.PluralCategory] = "pcat";
 
     for (let i = 0; i < ControlCommand.CommandType.TOTAL_VALUES; ++i) {
       if (_controlCommandNames[i] == null)

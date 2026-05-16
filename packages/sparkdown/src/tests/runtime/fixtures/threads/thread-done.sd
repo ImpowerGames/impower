@@ -1,0 +1,10 @@
+-> main
+scene main
+  Before threading.
+  <- side
+  After threading.
+  * "Continue" -> END
+
+scene side
+  In the thread.
+  -> DONE

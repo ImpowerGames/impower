@@ -1,0 +1,4 @@
+function reset()
+  local score = 0
+  local active = true
+end

@@ -1,0 +1,8 @@
+store x = 1
+if x == 1 then
+  Tom enters.
+  -> inside_meet
+  label inside_meet
+  The crowd hushes.
+end
+-> DONE

@@ -1,0 +1,11 @@
+-> outer
+scene outer
+  <- middle
+  * "Leave" -> END
+
+scene middle
+  -> inner
+
+scene inner
+  * "From inner" -> END
+  -> DONE

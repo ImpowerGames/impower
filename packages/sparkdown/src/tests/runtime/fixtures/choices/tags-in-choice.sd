@@ -1,0 +1,8 @@
+-> main
+scene main
+  choose
+    + one # one [two # two] three # three -> END
+  end
+
+scene END
+  -> DONE

@@ -1,0 +1,9 @@
+store var1 = "aaa"
+store var2 = "bbb"
+
+-> main
+scene main
+  choose
+    + [choice # tag {var1}{var2}]
+  end
+  -> DONE

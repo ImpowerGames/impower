@@ -1,0 +1,5 @@
+function reset()
+  for k, v in pairs(companion) do
+    v.trust = 0
+  end
+end

@@ -1,0 +1,75 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "global",
+          "name": "x",
+          "expression": {
+            "type": "NumberExpression",
+            "value": 5,
+            "subtype": "int"
+          }
+        }
+      ]
+    }
+  ]
+}
+
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "y",
+          "expression": {
+            "type": "NumberExpression",
+            "value": 4,
+            "subtype": "int"
+          }
+        }
+      ]
+    }
+  ]
+}
+
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableReference",
+          "path": [
+            "x"
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableReference",
+          "path": [
+            "y"
+          ]
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        }
+      ]
+    }
+  ]
+}

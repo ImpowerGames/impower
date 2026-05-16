@@ -1,0 +1,12 @@
+-> main
+scene main
+  choose
+    * First
+      choose
+        * Very indented
+      then
+      end
+  then
+    End
+  end
+  -> DONE

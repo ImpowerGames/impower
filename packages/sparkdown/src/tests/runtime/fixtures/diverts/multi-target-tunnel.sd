@@ -1,0 +1,17 @@
+-> main
+scene main
+  -> first -> second -> third
+  Back at start.
+  -> DONE
+
+scene first
+  In first.
+  ->->
+
+scene second
+  In second.
+  ->->
+
+scene third
+  In third.
+  -> DONE

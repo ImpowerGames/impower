@@ -1,0 +1,6 @@
+-> main
+scene main
+  You have {n} .. plural(n)|one=apple|other=apples .. in the basket.
+  -> END
+
+store n = 1

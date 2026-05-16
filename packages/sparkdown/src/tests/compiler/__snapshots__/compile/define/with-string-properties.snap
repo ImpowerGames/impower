@@ -1,0 +1,40 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "name": "O",
+          "struct": {
+            "type": "StructDefinition",
+            "name": "O",
+            "parent": "companion",
+            "props": [
+              {
+                "type": "StructPropertyDefinition",
+                "name": "name",
+                "expression": {
+                  "type": "StringExpression",
+                  "content": [
+                    "Orion"
+                  ]
+                }
+              },
+              {
+                "type": "StructPropertyDefinition",
+                "name": "color",
+                "expression": {
+                  "type": "StringExpression",
+                  "content": [
+                    "teal"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

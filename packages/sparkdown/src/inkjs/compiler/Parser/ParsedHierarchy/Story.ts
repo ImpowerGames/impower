@@ -48,8 +48,10 @@ export class Story extends FlowBase {
       case "store":
       case "CONST":
       case "const":
-      case "LIST":
-      case "list":
+      // `LIST` / `list` are intentionally NOT reserved — sparkdown
+      // replaced ink's LIST type with Luau tables (see DIVERGENCES.md
+      // > "Lists → tables"), so the words are free for user identifiers
+      // (`store list = {…}`, `function list_all() end`, etc.).
       case "DEFINE":
       case "define":
       case "function":
@@ -123,14 +125,22 @@ export class Story extends FlowBase {
 
     const flowsFromOtherFiles: ParsedObject[] = [];
 
-    // Inject included files
-    for (let obj of topLevelContent) {
+    // Inject included files. Use an index-based loop instead of `for ... of`
+    // so we can re-process the position after splicing in the included
+    // file's content. If the included file's content starts with another
+    // `IncludedFile` (the nested-include case — `main.ink` → `a.ink` →
+    // `b.ink`), a naive `for ... of` would skip over it because the
+    // iterator already advanced past the original position before the
+    // splice inserted new items there. Restarting the index at `i` after
+    // splicing means we re-visit the now-inserted child IncludedFile and
+    // recursively process it.
+    for (let i = 0; i < topLevelContent.length; i++) {
+      const obj = topLevelContent[i]!;
       if (obj instanceof IncludedFile) {
         const file: IncludedFile = obj;
 
         // Remove the IncludedFile itself
-        const posOfObj = topLevelContent.indexOf(obj);
-        topLevelContent.splice(posOfObj, 1);
+        topLevelContent.splice(i, 1);
 
         // When an included story fails to load, the include
         // line itself is still valid, so we have to handle it here
@@ -151,16 +161,15 @@ export class Story extends FlowBase {
             nonFlowContent.push(new Text("\n"));
 
             // Add contents of the file in its place
-            topLevelContent.splice(posOfObj, 0, ...nonFlowContent);
-
-            // Skip past the content of this sub story
-            // (since it will already have recursively included
-            //  any lines from other files)
+            topLevelContent.splice(i, 0, ...nonFlowContent);
           }
         }
 
-        // Include object has been removed, with possible content inserted,
-        // and position of 'i' will have been determined already.
+        // Re-visit position `i`: if the first spliced-in item is itself
+        // an `IncludedFile` (nested include), the next loop iteration
+        // will process it. The `i--` cancels out the loop's `i++` so we
+        // examine the same index again.
+        i--;
         continue;
       }
     }

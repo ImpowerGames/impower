@@ -1,0 +1,13 @@
+-> main
+scene main
+  lang.current = "fr"
+  label start
+  & n = n + 1
+  Vous avez {n} .. plural(n)|one=pomme|other=pommes ..
+  if n < 3 then
+    -> start
+  end
+  -> END
+
+store n = 0
+store lang = { current = "en" }

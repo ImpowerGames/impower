@@ -1,0 +1,12 @@
+-> main
+scene main
+  -> tunnel ->
+
+scene tunnel
+  choose
+    * ->-> elsewhere(8)
+  end
+
+scene elsewhere(x)
+  {x}
+  -> DONE

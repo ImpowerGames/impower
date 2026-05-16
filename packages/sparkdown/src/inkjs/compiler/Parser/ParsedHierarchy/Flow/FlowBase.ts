@@ -242,6 +242,30 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
           foundReturn,
         );
       }
+    } else if (this.flowLevel === FlowLevel.Story) {
+      // Top-level: `return` is only valid inside a function body. A
+      // bare `return` at file scope is almost always a mistake — the
+      // `PopFunction` it emits has nothing to pop, since there's no
+      // function-call frame active. InkParser rejected the form at
+      // parse time; sparkdown's textmate grammar accepts `return X`
+      // anywhere a statement is legal, so the validation lands here
+      // at runtime-export time.
+      //
+      // `_rootWeave` holds the Story's free-floating top-level content
+      // (everything outside a `scene` / `branch` / `function`). Inkjs's
+      // `Knot` / `Stitch` checks above use `Find(ReturnType)` which
+      // would recurse into child flows; here we scope to `_rootWeave`
+      // to avoid double-flagging returns inside child functions (which
+      // are nested FlowBases that handle their own checks).
+      if (this._rootWeave !== null) {
+        const rootReturn = this._rootWeave.Find(ReturnType)();
+        if (rootReturn !== null) {
+          this.Error(
+            `Return statements can only be used inside a function body — found one at file scope.`,
+            rootReturn,
+          );
+        }
+      }
     }
 
     const container = new RuntimeContainer();

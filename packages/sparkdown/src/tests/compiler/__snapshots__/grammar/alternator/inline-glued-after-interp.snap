@@ -1,0 +1,134 @@
+sparkdown [0..67]
+ ├─ ImplicitAction [0..66]
+ │   ├─ ImplicitAction_begin 0
+ │   │   └─ ImplicitAction_begin_c1 0
+ │   ├─ ImplicitAction_content [0..66]
+ │   │   └─ LineEnd [0..66]
+ │   │       ├─ LineEnd_begin 0
+ │   │       │   └─ LineEnd_begin_c1 0
+ │   │       ├─ LineEnd_content [0..66]
+ │   │       │   ├─ TextChunk [0..49]
+ │   │       │   │   ├─ TextChunk_begin 0
+ │   │       │   │   ├─ TextChunk_content [0..49]
+ │   │       │   │   │   ├─ Word [0..3]: "You"
+ │   │       │   │   │   ├─ Space [3..4]: " "
+ │   │       │   │   │   ├─ Word [4..8]: "have"
+ │   │       │   │   │   ├─ Space [8..9]: " "
+ │   │       │   │   │   ├─ LuauInterpolatedStringExpression [9..12]
+ │   │       │   │   │   │   ├─ LuauInterpolatedStringExpression_begin [9..10]
+ │   │       │   │   │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [9..10]
+ │   │       │   │   │   │   │       └─ PunctuationBraceOpen [9..10]: "{"
+ │   │       │   │   │   │   ├─ LuauInterpolatedStringExpression_content [10..11]
+ │   │       │   │   │   │   │   └─ LuauAccessPath [10..11]
+ │   │       │   │   │   │   │       ├─ LuauAccessPath_begin 10
+ │   │       │   │   │   │   │       ├─ LuauAccessPath_content [10..11]
+ │   │       │   │   │   │   │       │   └─ LuauAccessPart [10..11]
+ │   │       │   │   │   │   │       │       └─ LuauVariable [10..11]
+ │   │       │   │   │   │   │       │           └─ LuauVariable_c1 [10..11]
+ │   │       │   │   │   │   │       │               └─ LuauVariableName [10..11]: "n"
+ │   │       │   │   │   │   │       └─ LuauAccessPath_end 11
+ │   │       │   │   │   │   │           └─ LuauAccessPath_end_c1 11
+ │   │       │   │   │   │   └─ LuauInterpolatedStringExpression_end [11..12]
+ │   │       │   │   │   │       └─ LuauInterpolatedStringExpression_end_c1 [11..12]
+ │   │       │   │   │   │           └─ PunctuationBraceClose [11..12]: "}"
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedConditionalAlternatorBlock [12..49]
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin [12..22]
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c1 [12..13]
+ │   │       │   │   │       │   │   └─ Whitespace [12..13]: " "
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c2 [13..15]
+ │   │       │   │   │       │   │   └─ Glue [13..15]
+ │   │       │   │   │       │   │       ├─ Glue_c1 13
+ │   │       │   │   │       │   │       └─ Glue_c2 [13..15]: ".."
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c3 [15..16]
+ │   │       │   │   │       │   │   └─ ExtraWhitespace [15..16]: " "
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c4 [16..22]
+ │   │       │   │   │       │   │   └─ LuauControlKeyword [16..22]: "plural"
+ │   │       │   │   │       │   └─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c5 22
+ │   │       │   │   │       │       └─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c5 22
+ │   │       │   │   │       │           └─ OptionalSeparator 22
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_content [22..48]
+ │   │       │   │   │       │   ├─ LuauConditionalAlternatorCondition [22..25]
+ │   │       │   │   │       │   │   ├─ LuauConditionalAlternatorCondition_begin 22
+ │   │       │   │   │       │   │   ├─ LuauConditionalAlternatorCondition_content [22..25]
+ │   │       │   │   │       │   │   │   └─ LuauParenthetical [22..25]
+ │   │       │   │   │       │   │   │       ├─ LuauParenthetical_begin [22..23]
+ │   │       │   │   │       │   │   │       │   └─ LuauParenthetical_begin_c1 [22..23]
+ │   │       │   │   │       │   │   │       │       └─ PunctuationParenOpen [22..23]: "("
+ │   │       │   │   │       │   │   │       ├─ LuauParenthetical_content [23..24]
+ │   │       │   │   │       │   │   │       │   └─ LuauAccessPath [23..24]
+ │   │       │   │   │       │   │   │       │       ├─ LuauAccessPath_begin 23
+ │   │       │   │   │       │   │   │       │       ├─ LuauAccessPath_content [23..24]
+ │   │       │   │   │       │   │   │       │       │   └─ LuauAccessPart [23..24]
+ │   │       │   │   │       │   │   │       │       │       └─ LuauVariable [23..24]
+ │   │       │   │   │       │   │   │       │       │           └─ LuauVariable_c1 [23..24]
+ │   │       │   │   │       │   │   │       │       │               └─ LuauVariableName [23..24]: "n"
+ │   │       │   │   │       │   │   │       │       └─ LuauAccessPath_end 24
+ │   │       │   │   │       │   │   │       │           └─ LuauAccessPath_end_c1 24
+ │   │       │   │   │       │   │   │       └─ LuauParenthetical_end [24..25]
+ │   │       │   │   │       │   │   │           ├─ LuauParenthetical_end_c1 [24..25]
+ │   │       │   │   │       │   │   │           │   └─ PunctuationParenClose [24..25]: ")"
+ │   │       │   │   │       │   │   │           └─ LuauParenthetical_end_c2 25
+ │   │       │   │   │       │   │   └─ LuauConditionalAlternatorCondition_end 25
+ │   │       │   │   │       │   ├─ LuauAlternatorSeparator [25..30]
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c1 25
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [25..26]: "|"
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 26
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 26
+ │   │       │   │   │       │   │   │       └─ OptionalSeparator 26
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 [26..29]
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentName [26..29]: "one"
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 29
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c5 29
+ │   │       │   │   │       │   │   │       └─ OptionalSeparator 29
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 [29..30]
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [29..30]: "="
+ │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 30
+ │   │       │   │   │       │   │       └─ LuauAlternatorSeparator_c7 30
+ │   │       │   │   │       │   │           └─ OptionalSeparator 30
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedAlternatorArm [30..35]
+ │   │       │   │   │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 30
+ │   │       │   │   │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [30..35]
+ │   │       │   │   │       │   │   │   └─ Word [30..35]: "apple"
+ │   │       │   │   │       │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 35
+ │   │       │   │   │       │   ├─ LuauAlternatorSeparator [35..42]
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c1 35
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [35..36]: "|"
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 36
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 36
+ │   │       │   │   │       │   │   │       └─ OptionalSeparator 36
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 [36..41]
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentName [36..41]: "other"
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 41
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c5 41
+ │   │       │   │   │       │   │   │       └─ OptionalSeparator 41
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 [41..42]
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [41..42]: "="
+ │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 42
+ │   │       │   │   │       │   │       └─ LuauAlternatorSeparator_c7 42
+ │   │       │   │   │       │   │           └─ OptionalSeparator 42
+ │   │       │   │   │       │   └─ LuauSparkdownInlineGluedAlternatorArm [42..48]
+ │   │       │   │   │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 42
+ │   │       │   │   │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [42..48]
+ │   │       │   │   │       │       │   └─ Word [42..48]: "apples"
+ │   │       │   │   │       │       └─ LuauSparkdownInlineGluedAlternatorArm_end 48
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedConditionalAlternatorBlock_end [48..49]
+ │   │       │   │   │           └─ LuauSparkdownInlineGluedConditionalAlternatorBlock_end_c1 [48..49]
+ │   │       │   │   │               └─ ExtraWhitespace [48..49]: " "
+ │   │       │   │   └─ TextChunk_end 49
+ │   │       │   ├─ Glue [49..51]
+ │   │       │   │   ├─ Glue_c1 49
+ │   │       │   │   └─ Glue_c2 [49..51]: ".."
+ │   │       │   └─ TextChunk [51..66]
+ │   │       │       ├─ TextChunk_begin 51
+ │   │       │       ├─ TextChunk_content [51..66]
+ │   │       │       │   ├─ Space [51..52]: " "
+ │   │       │       │   ├─ Word [52..54]: "in"
+ │   │       │       │   ├─ Space [54..55]: " "
+ │   │       │       │   ├─ Word [55..58]: "the"
+ │   │       │       │   ├─ Space [58..59]: " "
+ │   │       │       │   ├─ Word [59..65]: "basket"
+ │   │       │       │   └─ Punctuation [65..66]: "."
+ │   │       │       └─ TextChunk_end 66
+ │   │       └─ LineEnd_end 66
+ │   └─ ImplicitAction_end 66
+ └─ Newline [66..67]: "\n"

@@ -27,7 +27,7 @@ export class MultipleConditionExpression extends Expression {
       conditionExpr.GenerateIntoContainer(container);
 
       if (!isFirst) {
-        container.AddContent(NativeFunctionCall.CallWithName("&&"));
+        container.AddContent(NativeFunctionCall.CallWithName(NativeFunctionCall.And));
       }
 
       isFirst = false;

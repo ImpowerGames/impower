@@ -1,0 +1,8 @@
+-> main
+scene main
+  <- side
+  -> DONE
+
+scene side
+  * "Survivor choice" -> END
+  -> DONE

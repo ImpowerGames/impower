@@ -1,0 +1,43 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Tag",
+          "start": true
+        },
+        {
+          "type": "Text",
+          "text": "dialogue:N"
+        },
+        {
+          "type": "Tag",
+          "start": false
+        },
+        {
+          "type": "Text",
+          "text": "Hi "
+        },
+        {
+          "type": "VariableReference",
+          "path": [
+            "name"
+          ]
+        },
+        {
+          "type": "Text",
+          "text": ", you have "
+        },
+        {
+          "type": "Text",
+          "text": " messages."
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+-> main
+scene main
+  -> emitX ->
+  if true then
+    x
+  end
+  -> END
+
+scene emitX
+  X
+  ->->

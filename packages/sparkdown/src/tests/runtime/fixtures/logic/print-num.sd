@@ -1,0 +1,74 @@
+. {print_num(4)} .
+. {print_num(15)} .
+. {print_num(37)} .
+. {print_num(101)} .
+. {print_num(222)} .
+. {print_num(1234)} .
+-> DONE
+
+function print_num(x)
+  if x >= 1000 then
+    if x % 1000 > 0 then
+      return print_num(x // 1000) .. " thousand " .. print_num(x % 1000)
+    else
+      return print_num(x // 1000) .. " thousand"
+    end
+  elseif x >= 100 then
+    if x % 100 > 0 then
+      return print_num(x // 100) .. " hundred and " .. print_num(x % 100)
+    else
+      return print_num(x // 100) .. " hundred"
+    end
+  elseif x == 0 then
+    return "zero"
+  elseif x >= 20 then
+    local tens_str = tens_word(x // 10)
+    if x % 10 > 0 then
+      return tens_str .. "-" .. ones_word(x % 10)
+    end
+    return tens_str
+  elseif x < 10 then
+    return ones_word(x)
+  else
+    return teens_word(x)
+  end
+end
+
+function ones_word(d)
+  if d == 1 then return "one"
+  elseif d == 2 then return "two"
+  elseif d == 3 then return "three"
+  elseif d == 4 then return "four"
+  elseif d == 5 then return "five"
+  elseif d == 6 then return "six"
+  elseif d == 7 then return "seven"
+  elseif d == 8 then return "eight"
+  elseif d == 9 then return "nine"
+  else return "" end
+end
+
+function tens_word(d)
+  if d == 2 then return "twenty"
+  elseif d == 3 then return "thirty"
+  elseif d == 4 then return "forty"
+  elseif d == 5 then return "fifty"
+  elseif d == 6 then return "sixty"
+  elseif d == 7 then return "seventy"
+  elseif d == 8 then return "eighty"
+  elseif d == 9 then return "ninety"
+  else return "" end
+end
+
+function teens_word(x)
+  if x == 10 then return "ten"
+  elseif x == 11 then return "eleven"
+  elseif x == 12 then return "twelve"
+  elseif x == 13 then return "thirteen"
+  elseif x == 14 then return "fourteen"
+  elseif x == 15 then return "fifteen"
+  elseif x == 16 then return "sixteen"
+  elseif x == 17 then return "seventeen"
+  elseif x == 18 then return "eighteen"
+  elseif x == 19 then return "nineteen"
+  else return "" end
+end

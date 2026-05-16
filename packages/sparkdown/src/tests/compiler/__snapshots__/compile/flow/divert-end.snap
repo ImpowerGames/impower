@@ -1,0 +1,17 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Divert",
+          "path": [
+            "END"
+          ],
+          "isTunnel": false,
+          "isThread": false
+        }
+      ]
+    }
+  ]
+}

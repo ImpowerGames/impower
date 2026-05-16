@@ -1,0 +1,13 @@
+-> main
+scene main
+  -> tunnel1 ->
+  The End.
+  -> DONE
+
+scene tunnel1
+  Hello...
+  -> tunnel2 ->->
+
+scene tunnel2
+  ...world.
+  ->->

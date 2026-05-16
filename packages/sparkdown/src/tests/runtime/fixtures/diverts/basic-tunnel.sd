@@ -1,0 +1,9 @@
+-> main
+scene main
+  -> f ->
+  .. world
+  -> DONE
+
+scene f
+  Hello
+  ->->

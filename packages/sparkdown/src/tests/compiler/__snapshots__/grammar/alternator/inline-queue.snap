@@ -1,0 +1,86 @@
+sparkdown [0..24]
+ ├─ LuauInterpolatedStringExpression [0..23]
+ │   ├─ LuauInterpolatedStringExpression_begin [0..1]
+ │   │   └─ LuauInterpolatedStringExpression_begin_c1 [0..1]
+ │   │       └─ PunctuationBraceOpen [0..1]: "{"
+ │   ├─ LuauInterpolatedStringExpression_content [1..22]
+ │   │   └─ LuauSequentialAlternatorBlock [1..22]
+ │   │       ├─ LuauSequentialAlternatorBlock_begin [1..7]
+ │   │       │   ├─ LuauSequentialAlternatorBlock_begin_c1 1
+ │   │       │   ├─ LuauSequentialAlternatorBlock_begin_c2 1
+ │   │       │   ├─ LuauSequentialAlternatorBlock_begin_c3 1
+ │   │       │   ├─ LuauSequentialAlternatorBlock_begin_c4 [1..6]
+ │   │       │   │   └─ LuauControlKeyword [1..6]: "queue"
+ │   │       │   └─ LuauSequentialAlternatorBlock_begin_c5 [6..7]
+ │   │       │       └─ LuauSequentialAlternatorBlock_begin_c5 [6..7]
+ │   │       │           └─ OptionalSeparator [6..7]: " "
+ │   │       ├─ LuauSequentialAlternatorBlock_content [7..18]
+ │   │       │   ├─ LuauAlternatorSeparator [7..9]
+ │   │       │   │   ├─ LuauAlternatorSeparator_c1 7
+ │   │       │   │   ├─ LuauAlternatorSeparator_c2 [7..8]: "|"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c3 [8..9]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [8..9]
+ │   │       │   │   │       └─ OptionalSeparator [8..9]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c4 9
+ │   │       │   │   ├─ LuauAlternatorSeparator_c5 9
+ │   │       │   │   ├─ LuauAlternatorSeparator_c6 9
+ │   │       │   │   └─ LuauAlternatorSeparator_c7 9
+ │   │       │   ├─ LuauAccessPath [9..10]
+ │   │       │   │   ├─ LuauAccessPath_begin 9
+ │   │       │   │   ├─ LuauAccessPath_content [9..10]
+ │   │       │   │   │   └─ LuauAccessPart [9..10]
+ │   │       │   │   │       └─ LuauVariable [9..10]
+ │   │       │   │   │           └─ LuauVariable_c1 [9..10]
+ │   │       │   │   │               └─ LuauVariableName [9..10]: "A"
+ │   │       │   │   └─ LuauAccessPath_end 10
+ │   │       │   │       └─ LuauAccessPath_end_c1 10
+ │   │       │   ├─ LuauAlternatorSeparator [10..13]
+ │   │       │   │   ├─ LuauAlternatorSeparator_c1 [10..11]
+ │   │       │   │   │   └─ ExtraWhitespace [10..11]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c2 [11..12]: "|"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c3 [12..13]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [12..13]
+ │   │       │   │   │       └─ OptionalSeparator [12..13]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c4 13
+ │   │       │   │   ├─ LuauAlternatorSeparator_c5 13
+ │   │       │   │   ├─ LuauAlternatorSeparator_c6 13
+ │   │       │   │   └─ LuauAlternatorSeparator_c7 13
+ │   │       │   ├─ LuauAccessPath [13..14]
+ │   │       │   │   ├─ LuauAccessPath_begin 13
+ │   │       │   │   ├─ LuauAccessPath_content [13..14]
+ │   │       │   │   │   └─ LuauAccessPart [13..14]
+ │   │       │   │   │       └─ LuauVariable [13..14]
+ │   │       │   │   │           └─ LuauVariable_c1 [13..14]
+ │   │       │   │   │               └─ LuauVariableName [13..14]: "B"
+ │   │       │   │   └─ LuauAccessPath_end 14
+ │   │       │   │       └─ LuauAccessPath_end_c1 14
+ │   │       │   ├─ LuauAlternatorSeparator [14..17]
+ │   │       │   │   ├─ LuauAlternatorSeparator_c1 [14..15]
+ │   │       │   │   │   └─ ExtraWhitespace [14..15]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c2 [15..16]: "|"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c3 [16..17]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [16..17]
+ │   │       │   │   │       └─ OptionalSeparator [16..17]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c4 17
+ │   │       │   │   ├─ LuauAlternatorSeparator_c5 17
+ │   │       │   │   ├─ LuauAlternatorSeparator_c6 17
+ │   │       │   │   └─ LuauAlternatorSeparator_c7 17
+ │   │       │   └─ LuauAccessPath [17..18]
+ │   │       │       ├─ LuauAccessPath_begin 17
+ │   │       │       ├─ LuauAccessPath_content [17..18]
+ │   │       │       │   └─ LuauAccessPart [17..18]
+ │   │       │       │       └─ LuauVariable [17..18]
+ │   │       │       │           └─ LuauVariable_c1 [17..18]
+ │   │       │       │               └─ LuauVariableName [17..18]: "C"
+ │   │       │       └─ LuauAccessPath_end 18
+ │   │       │           └─ LuauAccessPath_end_c1 18
+ │   │       └─ LuauSequentialAlternatorBlock_end [18..22]
+ │   │           ├─ LuauSequentialAlternatorBlock_end_c1 [18..19]
+ │   │           │   └─ LuauSequentialAlternatorBlock_end_c1 [18..19]
+ │   │           │       └─ OptionalSeparator [18..19]: " "
+ │   │           └─ LuauSequentialAlternatorBlock_end_c2 [19..22]
+ │   │               └─ LuauEndKeyword [19..22]: "end"
+ │   └─ LuauInterpolatedStringExpression_end [22..23]
+ │       └─ LuauInterpolatedStringExpression_end_c1 [22..23]
+ │           └─ PunctuationBraceClose [22..23]: "}"
+ └─ Newline [23..24]: "\n"

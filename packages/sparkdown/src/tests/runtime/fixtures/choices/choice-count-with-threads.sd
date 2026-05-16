@@ -1,0 +1,11 @@
+-> hub
+scene hub
+  {count.choices()}
+  <- side
+  {count.choices()}
+  * "Hub one" -> END
+  * "Hub two" -> END
+
+scene side
+  * "Side one" -> END
+  -> DONE

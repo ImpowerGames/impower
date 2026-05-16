@@ -1,0 +1,1 @@
+((Var(a) == Var(b)) and (Var(c) == Var(d)))

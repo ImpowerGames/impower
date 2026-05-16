@@ -1,0 +1,54 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Sequence",
+          "sequenceType": "Stopping",
+          "elements": [
+            {
+              "type": "Weave",
+              "content": [
+                {
+                  "type": "Divert",
+                  "path": [
+                    "A"
+                  ],
+                  "isTunnel": false,
+                  "isThread": false
+                }
+              ]
+            },
+            {
+              "type": "Weave",
+              "content": [
+                {
+                  "type": "Divert",
+                  "path": [
+                    "B"
+                  ],
+                  "isTunnel": false,
+                  "isThread": false
+                }
+              ]
+            },
+            {
+              "type": "Weave",
+              "content": [
+                {
+                  "type": "Divert",
+                  "path": [
+                    "C"
+                  ],
+                  "isTunnel": false,
+                  "isThread": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -31,7 +31,6 @@ export type FormatType =
   | "case_mark"
   | "alternative_mark"
   | "choice_mark"
-  | "gather_mark"
   | "divert_mark"
   | "tunnel_mark"
   | "thread_mark"
@@ -347,15 +346,6 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "ChoiceMark") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("choice_mark").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "GatherMark") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("gather_mark").range(
           nodeRef.from,
           nodeRef.to,
         ),

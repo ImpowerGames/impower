@@ -1,0 +1,103 @@
+sparkdown [0..52]
+ ├─ ImplicitAction [0..51]
+ │   ├─ ImplicitAction_begin 0
+ │   │   └─ ImplicitAction_begin_c1 0
+ │   ├─ ImplicitAction_content [0..51]
+ │   │   └─ LineEnd [0..51]
+ │   │       ├─ LineEnd_begin 0
+ │   │       │   └─ LineEnd_begin_c1 0
+ │   │       ├─ LineEnd_content [0..51]
+ │   │       │   ├─ TextChunk [0..33]
+ │   │       │   │   ├─ TextChunk_begin 0
+ │   │       │   │   ├─ TextChunk_content [0..33]
+ │   │       │   │   │   ├─ Word [0..4]: "Here"
+ │   │       │   │   │   ├─ Space [4..5]: " "
+ │   │       │   │   │   ├─ Word [5..7]: "is"
+ │   │       │   │   │   ├─ Space [7..8]: " "
+ │   │       │   │   │   ├─ Word [8..12]: "some"
+ │   │       │   │   │   ├─ Space [12..13]: " "
+ │   │       │   │   │   ├─ Word [13..17]: "text"
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock [17..33]
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [17..26]
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 [17..18]
+ │   │       │   │   │       │   │   └─ Whitespace [17..18]: " "
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [18..20]
+ │   │       │   │   │       │   │   └─ Glue [18..20]
+ │   │       │   │   │       │   │       ├─ Glue_c1 18
+ │   │       │   │   │       │   │       └─ Glue_c2 [18..20]: ".."
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [20..21]
+ │   │       │   │   │       │   │   └─ ExtraWhitespace [20..21]: " "
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 21
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 21
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [21..26]
+ │   │       │   │   │       │   │   └─ LuauControlKeyword [21..26]: "queue"
+ │   │       │   │   │       │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 26
+ │   │       │   │   │       │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 26
+ │   │       │   │   │       │           └─ OptionalSeparator 26
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [26..32]
+ │   │       │   │   │       │   ├─ LuauAlternatorSeparator [26..27]
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c1 26
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [26..27]: "|"
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 27
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 27
+ │   │       │   │   │       │   │   │       └─ OptionalSeparator 27
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 27
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 27
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 27
+ │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 27
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedAlternatorArm [27..28]
+ │   │       │   │   │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 27
+ │   │       │   │   │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [27..28]
+ │   │       │   │   │       │   │   │   └─ Word [27..28]: "a"
+ │   │       │   │   │       │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 28
+ │   │       │   │   │       │   ├─ LuauAlternatorSeparator [28..29]
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c1 28
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [28..29]: "|"
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 29
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 29
+ │   │       │   │   │       │   │   │       └─ OptionalSeparator 29
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 29
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 29
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 29
+ │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 29
+ │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedAlternatorArm [29..30]
+ │   │       │   │   │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 29
+ │   │       │   │   │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [29..30]
+ │   │       │   │   │       │   │   │   └─ Word [29..30]: "b"
+ │   │       │   │   │       │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 30
+ │   │       │   │   │       │   ├─ LuauAlternatorSeparator [30..31]
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c1 30
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [30..31]: "|"
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 31
+ │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 31
+ │   │       │   │   │       │   │   │       └─ OptionalSeparator 31
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 31
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 31
+ │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 31
+ │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 31
+ │   │       │   │   │       │   └─ LuauSparkdownInlineGluedAlternatorArm [31..32]
+ │   │       │   │   │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 31
+ │   │       │   │   │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [31..32]
+ │   │       │   │   │       │       │   └─ Word [31..32]: "c"
+ │   │       │   │   │       │       └─ LuauSparkdownInlineGluedAlternatorArm_end 32
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [32..33]
+ │   │       │   │   │           └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [32..33]
+ │   │       │   │   │               └─ ExtraWhitespace [32..33]: " "
+ │   │       │   │   └─ TextChunk_end 33
+ │   │       │   ├─ Glue [33..35]
+ │   │       │   │   ├─ Glue_c1 33
+ │   │       │   │   └─ Glue_c2 [33..35]: ".."
+ │   │       │   └─ TextChunk [35..51]
+ │   │       │       ├─ TextChunk_begin 35
+ │   │       │       ├─ TextChunk_content [35..51]
+ │   │       │       │   ├─ Space [35..36]: " "
+ │   │       │       │   ├─ Word [36..39]: "and"
+ │   │       │       │   ├─ Space [39..40]: " "
+ │   │       │       │   ├─ Word [40..44]: "more"
+ │   │       │       │   ├─ Space [44..45]: " "
+ │   │       │       │   ├─ Word [45..50]: "after"
+ │   │       │       │   └─ Punctuation [50..51]: "."
+ │   │       │       └─ TextChunk_end 51
+ │   │       └─ LineEnd_end 51
+ │   └─ ImplicitAction_end 51
+ └─ Newline [51..52]: "\n"

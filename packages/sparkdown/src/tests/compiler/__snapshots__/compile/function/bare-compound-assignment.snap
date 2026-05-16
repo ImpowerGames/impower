@@ -1,0 +1,18 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "increment",
+      "args": [
+        "x"
+      ],
+      "isFunction": true,
+      "body": [
+        {
+          "type": "ReturnType",
+          "expression": null
+        }
+      ]
+    }
+  ]
+}

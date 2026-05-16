@@ -1,0 +1,3 @@
+const c = 5
+store x = c
+{x}

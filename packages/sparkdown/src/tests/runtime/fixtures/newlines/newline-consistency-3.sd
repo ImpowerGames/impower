@@ -1,0 +1,7 @@
+-> main
+scene main
+  * hello
+    -> world
+scene world
+  world
+  -> DONE

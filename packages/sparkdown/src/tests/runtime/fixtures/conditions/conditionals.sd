@@ -1,0 +1,12 @@
+-> main
+scene main
+  {if false then "not true" else "true"}
+  {if 4 > 5 then "not true" elseif 5 > 4 then "true"}
+  {if 2 * 2 > 3 then "true" else "not true"}
+  {if 1 > 3 then "not true" elseif 2 + 2 == 4 then "true" else "not true"}
+  {if 2 * 3 == 1 + 7 then "not true" elseif 2 * 3 == 9 then "not true" elseif 2 * 3 == 1 + 1 + 1 + 3 then "true" elseif 2 * 3 == 9 - 3 then "also true but not printed"}
+  if true then
+    great
+    right?
+  end
+  -> DONE

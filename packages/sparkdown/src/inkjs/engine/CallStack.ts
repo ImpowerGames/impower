@@ -184,16 +184,15 @@ export class CallStack {
 
     let contextElement = this.callStack[contextIndex - 1];
 
-    let varValue = tryGetValueFromMap(
-      contextElement.temporaryVariables,
-      name,
-      null,
-    );
-    if (varValue.exists) {
-      return varValue.result;
-    } else {
-      return null;
+    // Walk scope stack innermost → outermost. Matches Luau lexical
+    // scoping: an inner `local x` shadows an outer `x` for the duration
+    // of the inner block.
+    const scopes = contextElement.temporaryScopes;
+    for (let i = scopes.length - 1; i >= 0; i--) {
+      const varValue = tryGetValueFromMap(scopes[i]!, name, null);
+      if (varValue.exists) return varValue.result;
     }
+    return null;
   }
 
   public SetTemporaryVariable(
@@ -205,28 +204,44 @@ export class CallStack {
     if (contextIndex == -1) contextIndex = this.currentElementIndex + 1;
 
     let contextElement = this.callStack[contextIndex - 1];
+    const scopes = contextElement.temporaryScopes;
 
-    if (!declareNew && !contextElement.temporaryVariables.get(name)) {
-      throw new Error("Could not find temporary variable to set: " + name);
+    if (declareNew) {
+      // `local x = ...` (or any `isNewTemporaryDeclaration`) — always
+      // adds the binding to the innermost scope, shadowing any outer
+      // `x` in the same call-stack element.
+      const inner = scopes[scopes.length - 1]!;
+      const oldValue = tryGetValueFromMap(inner, name, null);
+      if (oldValue.exists) {
+        ListValue.RetainListOriginsForAssignment(oldValue.result, value);
+      }
+      inner.set(name, value);
+      return;
     }
 
-    let oldValue = tryGetValueFromMap(
-      contextElement.temporaryVariables,
-      name,
-      null,
-    );
-    if (oldValue.exists)
-      ListValue.RetainListOriginsForAssignment(oldValue.result, value);
-
-    contextElement.temporaryVariables.set(name, value);
+    // Reassigning an existing `local`. Walk scopes innermost → outermost
+    // to find the frame that declared it, then update there. Luau
+    // reassignment doesn't introduce a new binding.
+    for (let i = scopes.length - 1; i >= 0; i--) {
+      const frame = scopes[i]!;
+      if (frame.has(name)) {
+        const oldValue = tryGetValueFromMap(frame, name, null);
+        if (oldValue.exists) {
+          ListValue.RetainListOriginsForAssignment(oldValue.result, value);
+        }
+        frame.set(name, value);
+        return;
+      }
+    }
+    throw new Error("Could not find temporary variable to set: " + name);
   }
 
   public ContextForVariableNamed(name: string) {
-    if (this.currentElement.temporaryVariables.get(name)) {
-      return this.currentElementIndex + 1;
-    } else {
-      return 0;
+    const scopes = this.currentElement.temporaryScopes;
+    for (let i = scopes.length - 1; i >= 0; i--) {
+      if (scopes[i]!.has(name)) return this.currentElementIndex + 1;
     }
+    return 0;
   }
 
   public ThreadWithIndex(index: number) {
@@ -284,7 +299,15 @@ export namespace CallStack {
     public previousPointer: Pointer = Pointer.Null;
     public currentPointer: Pointer;
     public inExpressionEvaluation: boolean;
-    public temporaryVariables: Map<string, InkObject>;
+    // Stack of temporary-variable scope frames, innermost-last. The
+    // function/tunnel body itself is the outermost frame (index 0);
+    // each `BeginScope` control command pushes another. Sparkdown uses
+    // this to implement Luau's block-scoped `local x` (an inner `local`
+    // shadows the outer for the rest of the inner block, then the
+    // outer is visible again after `EndScope`). When no `BeginScope` is
+    // emitted, only the outer frame exists and the semantics collapse
+    // back to ink's function-scoped `temp`.
+    public temporaryScopes: Array<Map<string, InkObject>>;
     public type: PushPopType;
 
     public evaluationStackHeightWhenPushed: number = 0;
@@ -297,8 +320,36 @@ export namespace CallStack {
     ) {
       this.currentPointer = pointer.copy();
       this.inExpressionEvaluation = inExpressionEvaluation;
-      this.temporaryVariables = new Map();
+      this.temporaryScopes = [new Map()];
       this.type = type;
+    }
+
+    // Innermost (= current) scope. Kept as a getter/setter pair so the
+    // existing JSON serialization code that assigns a Map directly into
+    // `temporaryVariables` continues to work — it operates on the
+    // outermost frame, which is always present.
+    public get temporaryVariables(): Map<string, InkObject> {
+      return this.temporaryScopes[this.temporaryScopes.length - 1]!;
+    }
+    public set temporaryVariables(value: Map<string, InkObject>) {
+      // Assigning resets the scope stack to a single frame; this matches
+      // the legacy "ink temp-var map" shape used by save-state restore.
+      this.temporaryScopes = [value];
+    }
+
+    // Push a new innermost scope. Called by the runtime when it
+    // executes a `BeginScope` control command.
+    public PushScope() {
+      this.temporaryScopes.push(new Map());
+    }
+
+    // Pop the innermost scope. Called by the runtime when it executes
+    // an `EndScope` control command. Refuses to pop the outermost
+    // (function-level) frame.
+    public PopScope() {
+      if (this.temporaryScopes.length > 1) {
+        this.temporaryScopes.pop();
+      }
     }
 
     public Copy() {
@@ -307,7 +358,7 @@ export namespace CallStack {
         this.currentPointer,
         this.inExpressionEvaluation,
       );
-      copy.temporaryVariables = new Map(this.temporaryVariables);
+      copy.temporaryScopes = this.temporaryScopes.map((m) => new Map(m));
       copy.evaluationStackHeightWhenPushed =
         this.evaluationStackHeightWhenPushed;
       copy.functionStartInOutputStream = this.functionStartInOutputStream;
@@ -387,12 +438,28 @@ export namespace CallStack {
 
           let el = new Element(pushPopType, pointer, inExpressionEvaluation);
 
-          let temps = jElementObj["temp"];
-          if (typeof temps !== "undefined") {
-            el.temporaryVariables =
-              JsonSerialisation.JObjectToDictionaryRuntimeObjs(temps);
+          // Two save-state formats: legacy `temp` is a flat object map
+          // of temp-var name → value (from ink's function-scoped model);
+          // new `temps` is an array of such maps representing the scope
+          // stack innermost-last (sparkdown's Luau block scoping). On
+          // load we detect which form is present and restore
+          // accordingly. New saves always use `temps`.
+          let tempsArr = jElementObj["temps"];
+          if (Array.isArray(tempsArr)) {
+            el.temporaryScopes = tempsArr.map((m: any) =>
+              JsonSerialisation.JObjectToDictionaryRuntimeObjs(m),
+            );
+            if (el.temporaryScopes.length === 0) {
+              el.temporaryScopes = [new Map()];
+            }
           } else {
-            el.temporaryVariables.clear();
+            let temps = jElementObj["temp"];
+            if (typeof temps !== "undefined") {
+              el.temporaryVariables =
+                JsonSerialisation.JObjectToDictionaryRuntimeObjs(temps);
+            } else {
+              el.temporaryVariables.clear();
+            }
           }
 
           this.callstack.push(el);
@@ -446,12 +513,22 @@ export namespace CallStack {
         writer.WriteProperty("exp", el.inExpressionEvaluation);
         writer.WriteIntProperty("type", el.type);
 
-        if (el.temporaryVariables.size > 0) {
-          writer.WritePropertyStart("temp");
-          JsonSerialisation.WriteDictionaryRuntimeObjs(
-            writer,
-            el.temporaryVariables,
-          );
+        // Serialize the full scope stack (`temps`: array of maps,
+        // innermost-last) so block scopes are preserved across saves —
+        // a save mid-block restores with the inner scopes still active.
+        // Empty outer scope with no inner scopes is omitted to keep
+        // most save states compact (the reader treats omitted as
+        // "single empty scope").
+        const scopes = el.temporaryScopes;
+        const hasAnyVars =
+          scopes.length > 1 || (scopes[0] && scopes[0].size > 0);
+        if (hasAnyVars) {
+          writer.WritePropertyStart("temps");
+          writer.WriteArrayStart();
+          for (const frame of scopes) {
+            JsonSerialisation.WriteDictionaryRuntimeObjs(writer, frame);
+          }
+          writer.WriteArrayEnd();
           writer.WritePropertyEnd();
         }
 

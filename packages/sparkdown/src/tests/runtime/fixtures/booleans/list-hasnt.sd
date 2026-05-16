@@ -1,0 +1,2 @@
+store list = {"b", "d"}
+{not list:find("c")}

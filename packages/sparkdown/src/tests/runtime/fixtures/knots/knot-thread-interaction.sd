@@ -1,0 +1,14 @@
+-> hub
+scene hub
+  At the hub.
+  <- inventory
+  * "Leave" -> END
+
+scene inventory
+  * "Check pack" -> pack
+  * "Check map" -> END
+  -> DONE
+
+scene pack
+  Pack has a torch.
+  -> END

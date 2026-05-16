@@ -1,0 +1,12 @@
+-> main
+scene main
+  -> A ->
+  We will never return to here!
+
+scene A
+  This is A
+  ->-> B
+
+scene B
+  Now in B.
+  -> DONE

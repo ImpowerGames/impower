@@ -1,0 +1,114 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Divert",
+          "path": [
+            "main"
+          ],
+          "isTunnel": false,
+          "isThread": false
+        }
+      ]
+    }
+  ]
+}
+
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "main",
+      "args": [],
+      "isFunction": false
+    }
+  ]
+}
+
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Tag",
+          "start": true
+        },
+        {
+          "type": "Text",
+          "text": "action"
+        },
+        {
+          "type": "Tag",
+          "start": false
+        },
+        {
+          "type": "Text",
+          "text": "Got "
+        },
+        {
+          "type": "Weave",
+          "content": [
+            {
+              "type": "Sequence",
+              "sequenceType": "Shuffle|Once",
+              "elements": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Text",
+                      "text": "A"
+                    }
+                  ]
+                },
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Text",
+                      "text": "B"
+                    }
+                  ]
+                },
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Text",
+                      "text": "C"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        }
+      ]
+    }
+  ]
+}
+
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Divert",
+          "path": [
+            "END"
+          ],
+          "isTunnel": false,
+          "isThread": false
+        }
+      ]
+    }
+  ]
+}

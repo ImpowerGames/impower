@@ -1,0 +1,39 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "name": "Settings",
+          "struct": {
+            "type": "StructDefinition",
+            "name": "Settings",
+            "parent": null,
+            "props": [
+              {
+                "type": "StructPropertyDefinition",
+                "name": "max_trust",
+                "expression": {
+                  "type": "NumberExpression",
+                  "value": 10,
+                  "subtype": "int"
+                }
+              },
+              {
+                "type": "StructPropertyDefinition",
+                "name": "language",
+                "expression": {
+                  "type": "StringExpression",
+                  "content": [
+                    "en"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

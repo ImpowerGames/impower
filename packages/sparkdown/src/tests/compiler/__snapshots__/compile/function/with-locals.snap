@@ -1,0 +1,32 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "reset",
+      "args": [],
+      "isFunction": true,
+      "body": [
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "score",
+          "expression": {
+            "type": "NumberExpression",
+            "value": 0,
+            "subtype": "int"
+          }
+        },
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "active",
+          "expression": {
+            "type": "NumberExpression",
+            "value": true,
+            "subtype": "bool"
+          }
+        }
+      ]
+    }
+  ]
+}

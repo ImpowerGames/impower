@@ -1,0 +1,4 @@
+define O as companion with
+  name = "Orion",
+  color = "teal"
+end

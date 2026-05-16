@@ -1,0 +1,43 @@
+store to_one = -> one
+store to_two = -> two
+-> main
+scene main
+  if to_one == to_two then
+    same knot
+  else
+    different knot
+  end
+  if to_one == to_one then
+    same knot
+  else
+    different knot
+  end
+  if to_two == to_two then
+    same knot
+  else
+    different knot
+  end
+  if -> one == -> two then
+    same knot
+  else
+    different knot
+  end
+  if -> one == to_one then
+    same knot
+  else
+    different knot
+  end
+  if to_one == -> one then
+    same knot
+  else
+    different knot
+  end
+  -> DONE
+
+scene one
+  One
+  -> DONE
+
+scene two
+  Two
+  -> DONE

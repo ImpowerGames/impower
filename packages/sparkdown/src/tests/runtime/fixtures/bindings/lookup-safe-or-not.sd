@@ -1,0 +1,6 @@
+external myAction()
+
+One
+& myAction()
+Two
+-> DONE

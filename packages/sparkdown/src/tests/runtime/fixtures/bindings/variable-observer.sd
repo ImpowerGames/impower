@@ -1,0 +1,13 @@
+store testVar = 5
+store testVar2 = 10
+Hello world!
+& testVar = 15
+& testVar2 = 100
+Hello world 2!
+choose
+  + choice
+then
+  & testVar = 25
+  & testVar2 = 200
+  -> END
+end

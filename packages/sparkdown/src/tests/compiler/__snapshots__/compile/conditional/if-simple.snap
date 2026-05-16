@@ -1,0 +1,55 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Conditional",
+          "init": null,
+          "branches": [
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": false,
+              "cond": {
+                "type": "BinaryExpression",
+                "op": ">=",
+                "left": {
+                  "type": "VariableReference",
+                  "path": [
+                    "trust"
+                  ]
+                },
+                "right": {
+                  "type": "NumberExpression",
+                  "value": 1,
+                  "subtype": "int"
+                }
+              },
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Wrap"
+                    },
+                    {
+                      "type": "Divert",
+                      "path": [
+                        "Alley"
+                      ],
+                      "isTunnel": false,
+                      "isThread": false
+                    },
+                    {
+                      "type": "Wrap"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

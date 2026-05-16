@@ -1,0 +1,24 @@
+text.source.sparkdown [0..56]
+ ├─ meta.function.luau [0..34]
+ │   ├─ keyword.control.define.luau [0..6]: "define"
+ │   ├─ punctuation.whitespace.separator.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..16]: "companion"
+ │   ├─ punctuation.whitespace.extra.sd [16..17]: " "
+ │   ├─ keyword.control.as.luau [17..19]: "as"
+ │   ├─ punctuation.whitespace.separator.optional.sd [19..20]: " "
+ │   ├─ entity.name.type.define.parent.luau [20..29]: "character"
+ │   ├─ punctuation.whitespace.separator.optional.sd [29..30]: " "
+ │   └─ keyword.control.as.luau [30..34]: "with"
+ ├─ Newline [34..35]: "\n"
+ ├─ meta.function.luau [35..52]
+ │   ├─ punctuation.whitespace.indent.sd [35..37]: "  "
+ │   ├─ storage.modifier.scope.luau [37..42]: "store"
+ │   ├─ punctuation.whitespace.separator.optional.sd [42..43]: " "
+ │   ├─ variable.other.readwrite.luau [43..48]: "trust"
+ │   ├─ punctuation.whitespace.extra.sd [48..49]: " "
+ │   ├─ keyword.operator.assignment.luau [49..50]: "="
+ │   ├─ punctuation.whitespace.separator.optional.sd [50..51]: " "
+ │   └─ constant.numeric.decimal.luau [51..52]: "0"
+ ├─ Newline [52..53]: "\n"
+ └─ meta.function.luau [53..56]
+     └─ keyword.control.end.luau [53..56]: "end"

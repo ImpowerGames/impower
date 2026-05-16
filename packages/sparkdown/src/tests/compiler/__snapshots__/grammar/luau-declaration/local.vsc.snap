@@ -1,0 +1,13 @@
+text.source.sparkdown [0..35]
+ ├─ storage.modifier.scope.luau [0..5]: "local"
+ ├─ text.source.sparkdown [5..6]: " "
+ ├─ variable.other.readwrite.luau [6..14]: "category"
+ ├─ punctuation.whitespace.extra.sd [14..15]: " "
+ ├─ keyword.operator.assignment.luau [15..16]: "="
+ ├─ punctuation.whitespace.separator.optional.sd [16..17]: " "
+ ├─ variable.other.readwrite.luau [17..23]: "plural"
+ ├─ meta.template.expression.accessor.sd [23..24]: "."
+ ├─ entity.name.function.luau [24..32]: "category"
+ ├─ punctuation.definition.template-expression.begin.sd [32..33]: "("
+ ├─ variable.other.readwrite.luau [33..34]: "n"
+ └─ punctuation.definition.template-expression.end.sd [34..35]: ")"

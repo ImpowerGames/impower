@@ -1,0 +1,14 @@
+text.source.sparkdown [0..12]
+ ├─ keyword.other.statement.explicit.luau.mark.sd [0..1]: "&"
+ ├─ punctuation.whitespace.separator.sd [1..2]: " "
+ ├─ variable.other.readwrite.luau [2..3]: "v"
+ ├─ punctuation.whitespace.separator.optional.sd [3..4]: " "
+ ├─ keyword.operator.assignment.luau [4..5]: "="
+ ├─ punctuation.whitespace.separator.optional.sd [5..6]: " "
+ ├─ entity.name.function.luau [6..7]: "f"
+ ├─ meta.parameter.luau [7..10]
+ │   ├─ punctuation.definition.template-expression.begin.sd [7..8]: "("
+ │   ├─ variable.other.readwrite.luau [8..9]: "x"
+ │   └─ punctuation.definition.template-expression.end.sd [9..10]: ")"
+ ├─ meta.template.expression.accessor.sd [10..11]: "."
+ └─ variable.other.property.luau [11..12]: "y"

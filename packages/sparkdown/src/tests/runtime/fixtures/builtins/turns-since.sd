@@ -1,0 +1,20 @@
+-> main
+scene main
+  {count.turns(-> test)}
+  & test()
+  {count.turns(-> test)}
+  choose
+    + [choice 1]
+    + [choice 2]
+  then
+    {count.turns(-> test)}
+  end
+  choose
+    + [choice 3]
+    + [choice 4]
+  then
+    {count.turns(-> test)}
+  end
+  -> END
+
+function test() end

@@ -1,0 +1,9 @@
+-> main
+scene main
+  {math.floor(1.2)}
+  {math.ceil(1.2)}
+  {math.floor(2.7)}
+  {math.ceil(0.3)}
+  {math.floor(math.ceil(1.2))}
+  {math.floor(1)}
+  -> DONE

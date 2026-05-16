@@ -336,6 +336,50 @@ export class VariablePointerValue extends Value<string> {
   }
 }
 
+// ObjectValue: an inkjs-runtime record holding string-keyed entries (the
+// inkjs equivalent of a Luau table literal). Values are AbstractValues so
+// nested objects, strings, numbers, etc. all participate in the type system.
+//
+// Constructed at runtime by the BeginObject/EndObject control commands:
+// BeginObject pushes a marker onto the eval stack; each entry pushes a
+// StringValue(key) followed by the evaluated value; EndObject walks back to
+// the marker collecting pairs, builds the ObjectValue, and pushes it.
+export class ObjectValue extends Value<Map<string, AbstractValue>> {
+  constructor(entries?: Map<string, AbstractValue> | null) {
+    super(entries ?? new Map<string, AbstractValue>());
+  }
+  public get valueType() {
+    return ValueType.Object;
+  }
+  public get isTruthy() {
+    return this.value !== null && this.value.size > 0;
+  }
+  public Cast(newType: ValueType): Value<any> {
+    if (newType == this.valueType) return this;
+    if (newType == ValueType.String) {
+      return new StringValue(this.toString());
+    }
+    throw this.BadCastException(newType);
+  }
+  public toString(): string {
+    if (this.value === null) return "{}";
+    const parts: string[] = [];
+    for (const [k, v] of this.value) {
+      parts.push(`${k} = ${v?.toString() ?? "null"}`);
+    }
+    return `{${parts.join(", ")}}`;
+  }
+  public Copy() {
+    if (this.value === null) return new ObjectValue();
+    const next = new Map<string, AbstractValue>();
+    for (const [k, v] of this.value) {
+      const copy = v?.Copy() as AbstractValue | null;
+      if (copy) next.set(k, copy);
+    }
+    return new ObjectValue(next);
+  }
+}
+
 export class ListValue extends Value<InkList> {
   public get isTruthy() {
     if (this.value === null) {
@@ -415,4 +459,5 @@ export enum ValueType {
   String = 3,
   DivertTarget = 4,
   VariablePointer = 5,
+  Object = 6,
 }

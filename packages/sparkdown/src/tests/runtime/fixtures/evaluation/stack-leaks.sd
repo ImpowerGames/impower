@@ -1,0 +1,11 @@
+-> main
+scene main
+  {if false then "" else "else"}
+  {if 6 == 5 then "five" else "else"}
+  -> onceTest ->
+  -> onceTest ->
+  -> DONE
+
+scene onceTest
+  queue | hi end
+  ->->

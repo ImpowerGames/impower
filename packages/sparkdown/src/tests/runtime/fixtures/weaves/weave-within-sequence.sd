@@ -1,0 +1,6 @@
+choose
+  + choice
+then
+  nextline
+  -> END
+end

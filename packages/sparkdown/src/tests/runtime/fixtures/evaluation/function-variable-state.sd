@@ -1,0 +1,23 @@
+Start
+-> tunnel ->
+End
+-> END
+
+scene tunnel
+  In tunnel.
+  ->->
+
+function function_to_evaluate()
+  if zero_equals_(1) then
+    return "WRONG"
+  else
+    return "RIGHT"
+  end
+end
+
+function zero_equals_(k)
+  & do_nothing(0)
+  return 0 == k
+end
+
+function do_nothing(k) return 0 end

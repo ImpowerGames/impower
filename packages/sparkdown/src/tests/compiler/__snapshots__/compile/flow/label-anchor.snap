@@ -1,0 +1,14 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Gather",
+          "name": "afterEnding",
+          "depth": 0
+        }
+      ]
+    }
+  ]
+}

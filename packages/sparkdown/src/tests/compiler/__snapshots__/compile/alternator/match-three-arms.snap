@@ -1,0 +1,90 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Conditional",
+          "init": {
+            "type": "VariableReference",
+            "path": [
+              "player_class"
+            ]
+          },
+          "branches": [
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": false,
+              "cond": {
+                "type": "StringExpression",
+                "content": [
+                  "warrior"
+                ]
+              },
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Divert",
+                      "path": [
+                        "Warrior"
+                      ],
+                      "isTunnel": false,
+                      "isThread": false
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": false,
+              "cond": {
+                "type": "StringExpression",
+                "content": [
+                  "mage"
+                ]
+              },
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Divert",
+                      "path": [
+                        "Mage"
+                      ],
+                      "isTunnel": false,
+                      "isThread": false
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": true,
+              "cond": null,
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Divert",
+                      "path": [
+                        "Other"
+                      ],
+                      "isTunnel": false,
+                      "isThread": false
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+store global_var = 5
+
+function aTarget() return true end
+
+function pass_divert(aTarget) return aTarget end
+
+function variable_param_test(global_var) return global_var end
+
+-> DONE

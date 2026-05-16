@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "reset",
+      "args": [],
+      "isFunction": true
+    }
+  ]
+}

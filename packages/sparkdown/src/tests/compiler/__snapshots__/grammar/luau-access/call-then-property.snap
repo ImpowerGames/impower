@@ -1,0 +1,72 @@
+sparkdown [0..12]
+ └─ LuauExplicitStatement [0..12]
+     ├─ LuauExplicitStatement_begin [0..2]
+     │   ├─ LuauExplicitStatement_begin_c1 0
+     │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+     │   │   └─ LuauExplicitStatementMark [0..1]: "&"
+     │   └─ LuauExplicitStatement_begin_c3 [1..2]
+     │       └─ Separator [1..2]: " "
+     ├─ LuauExplicitStatement_content [2..12]
+     │   ├─ LuauAccessPath [2..4]
+     │   │   ├─ LuauAccessPath_begin 2
+     │   │   ├─ LuauAccessPath_content [2..3]
+     │   │   │   └─ LuauAccessPart [2..3]
+     │   │   │       └─ LuauVariable [2..3]
+     │   │   │           └─ LuauVariable_c1 [2..3]
+     │   │   │               └─ LuauVariableName [2..3]: "v"
+     │   │   └─ LuauAccessPath_end [3..4]
+     │   │       └─ LuauAccessPath_end_c1 [3..4]
+     │   │           └─ LuauAccessPath_end_c1 [3..4]
+     │   │               └─ OptionalSeparator [3..4]: " "
+     │   └─ LuauAssignmentOperation [4..12]
+     │       ├─ LuauAssignmentOperation_begin 4
+     │       │   └─ LuauAssignmentOperation_begin_c1 4
+     │       ├─ LuauAssignmentOperation_content [4..12]
+     │       │   ├─ LuauAssignmentOperator [4..6]
+     │       │   │   ├─ LuauAssignmentOperator_begin [4..6]
+     │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 4
+     │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [4..5]: "="
+     │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [5..6]
+     │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
+     │       │   │   │           └─ OptionalSeparator [5..6]: " "
+     │       │   │   └─ LuauAssignmentOperator_end 6
+     │       │   └─ LuauAccessPath [6..12]
+     │       │       ├─ LuauAccessPath_begin 6
+     │       │       ├─ LuauAccessPath_content [6..12]
+     │       │       │   ├─ LuauAccessPart [6..10]
+     │       │       │   │   └─ LuauFunctionCall [6..10]
+     │       │       │   │       ├─ LuauFunctionCall_begin [6..7]
+     │       │       │   │       │   ├─ LuauFunctionCall_begin_c1 [6..7]
+     │       │       │   │       │   │   └─ LuauFunctionName [6..7]: "f"
+     │       │       │   │       │   └─ LuauFunctionCall_begin_c2 7
+     │       │       │   │       ├─ LuauFunctionCall_content [7..10]
+     │       │       │   │       │   └─ LuauFunctionCallParameters [7..10]
+     │       │       │   │       │       ├─ LuauFunctionCallParameters_begin [7..8]
+     │       │       │   │       │       │   └─ LuauFunctionCallParameters_begin_c1 [7..8]
+     │       │       │   │       │       │       └─ PunctuationParenOpen [7..8]: "("
+     │       │       │   │       │       ├─ LuauFunctionCallParameters_content [8..9]
+     │       │       │   │       │       │   └─ LuauAccessPath [8..9]
+     │       │       │   │       │       │       ├─ LuauAccessPath_begin 8
+     │       │       │   │       │       │       ├─ LuauAccessPath_content [8..9]
+     │       │       │   │       │       │       │   └─ LuauAccessPart [8..9]
+     │       │       │   │       │       │       │       └─ LuauVariable [8..9]
+     │       │       │   │       │       │       │           └─ LuauVariable_c1 [8..9]
+     │       │       │   │       │       │       │               └─ LuauVariableName [8..9]: "x"
+     │       │       │   │       │       │       └─ LuauAccessPath_end 9
+     │       │       │   │       │       │           └─ LuauAccessPath_end_c1 9
+     │       │       │   │       │       └─ LuauFunctionCallParameters_end [9..10]
+     │       │       │   │       │           └─ LuauFunctionCallParameters_end_c1 [9..10]
+     │       │       │   │       │               └─ PunctuationParenClose [9..10]: ")"
+     │       │       │   │       └─ LuauFunctionCall_end 10
+     │       │       │   └─ LuauAccessPart [10..12]
+     │       │       │       └─ LuauPropertyAccessor [10..12]
+     │       │       │           ├─ LuauPropertyAccessor_c1 10
+     │       │       │           ├─ LuauPropertyAccessor_c2 [10..11]
+     │       │       │           │   └─ LuauAccessorOperator [10..11]: "."
+     │       │       │           ├─ LuauPropertyAccessor_c3 11
+     │       │       │           └─ LuauPropertyAccessor_c4 [11..12]
+     │       │       │               └─ LuauPropertyName [11..12]: "y"
+     │       │       └─ LuauAccessPath_end 12
+     │       │           └─ LuauAccessPath_end_c1 12
+     │       └─ LuauAssignmentOperation_end 12
+     └─ LuauExplicitStatement_end 12

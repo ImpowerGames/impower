@@ -1,0 +1,9 @@
+store a = {1, 2, 3, 4}
+store b = {3, 4, 5, 6}
+{a:union(b):concat(",")}
+{a:intersection(b):concat(",")}
+{a:difference(b):concat(",")}
+{a:some({2, 99})}
+{a:some({77, 88})}
+{a:every({1, 2})}
+{a:every({1, 99})}

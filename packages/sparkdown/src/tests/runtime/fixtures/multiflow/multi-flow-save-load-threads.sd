@@ -1,0 +1,36 @@
+Default line 1
+Default line 2
+
+scene red
+  Hello I'm red
+  <- thread1("red")
+  <- thread2("red")
+  -> DONE
+
+scene blue
+  Hello I'm blue
+  <- thread1("blue")
+  <- thread2("blue")
+  -> DONE
+
+scene thread1(name)
+  choose
+    + Thread 1 {name} choice
+  then
+    -> thread1Choice(name)
+  end
+
+scene thread2(name)
+  choose
+    + Thread 2 {name} choice
+  then
+    -> thread2Choice(name)
+  end
+
+scene thread1Choice(name)
+  After thread 1 choice ({name})
+  -> END
+
+scene thread2Choice(name)
+  After thread 2 choice ({name})
+  -> END

@@ -1,0 +1,8 @@
+scene LoseTrust(c: companion)
+  if c.trust == 0 then
+    {c.name} doesn't trust you at all.
+  else
+    & c.trust -= 1
+    {c.name} trusts you a little less...
+  end
+end

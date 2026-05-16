@@ -1,0 +1,11 @@
+store a = {1, 2, 3, 4, 5}
+{a:len()}
+{a:at(1)}
+{a:at(-1)}
+{a:find(3)}
+{a:find(99)}
+{a:concat("-")}
+{a:reverse():concat(",")}
+store unsorted = {3, 1, 4, 1, 5, 9, 2, 6}
+{unsorted:sort():concat(",")}
+{a:sub(2, 4):concat(",")}

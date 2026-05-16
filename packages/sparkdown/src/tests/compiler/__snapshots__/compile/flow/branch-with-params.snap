@@ -1,0 +1,12 @@
+{
+  "content": [
+    {
+      "type": "Stitch",
+      "name": "GainTrust",
+      "args": [
+        "c"
+      ],
+      "isFunction": false
+    }
+  ]
+}

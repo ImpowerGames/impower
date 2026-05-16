@@ -1,0 +1,4 @@
+I have {five()} eggs.
+-> DONE
+
+function five() return "five" end

@@ -1,0 +1,45 @@
+sparkdown [0..14]
+ ├─ LuauExplicitStatement [0..13]
+ │   ├─ LuauExplicitStatement_begin [0..2]
+ │   │   ├─ LuauExplicitStatement_begin_c1 0
+ │   │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+ │   │   │   └─ LuauExplicitStatementMark [0..1]: "&"
+ │   │   └─ LuauExplicitStatement_begin_c3 [1..2]
+ │   │       └─ Separator [1..2]: " "
+ │   ├─ LuauExplicitStatement_content [2..13]
+ │   │   └─ LuauVariableDefinition [2..13]
+ │   │       ├─ LuauVariableDefinition_begin [2..8]
+ │   │       │   ├─ LuauVariableDefinition_begin_c1 2
+ │   │       │   ├─ LuauVariableDefinition_begin_c2 [2..7]
+ │   │       │   │   └─ LuauScopeModifier [2..7]: "store"
+ │   │       │   └─ LuauVariableDefinition_begin_c3 [7..8]
+ │   │       │       └─ LuauVariableDefinition_begin_c3 [7..8]
+ │   │       │           └─ OptionalSeparator [7..8]: " "
+ │   │       ├─ LuauVariableDefinition_content [8..13]
+ │   │       │   └─ LuauVariableAssignment [8..13]
+ │   │       │       ├─ LuauVariableAssignment_begin [8..10]
+ │   │       │       │   ├─ LuauVariableAssignment_begin_c1 [8..9]
+ │   │       │       │   │   └─ LuauVariableName [8..9]: "x"
+ │   │       │       │   └─ LuauVariableAssignment_begin_c2 [9..10]
+ │   │       │       │       └─ ExtraWhitespace [9..10]: " "
+ │   │       │       ├─ LuauVariableAssignment_content [10..13]
+ │   │       │       │   └─ LuauAssignmentOperation [10..13]
+ │   │       │       │       ├─ LuauAssignmentOperation_begin 10
+ │   │       │       │       │   └─ LuauAssignmentOperation_begin_c1 10
+ │   │       │       │       ├─ LuauAssignmentOperation_content [10..13]
+ │   │       │       │       │   ├─ LuauAssignmentOperator [10..12]
+ │   │       │       │       │   │   ├─ LuauAssignmentOperator_begin [10..12]
+ │   │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 10
+ │   │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [10..11]: "="
+ │   │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [11..12]
+ │   │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [11..12]
+ │   │       │       │       │   │   │           └─ OptionalSeparator [11..12]: " "
+ │   │       │       │       │   │   └─ LuauAssignmentOperator_end 12
+ │   │       │       │       │   └─ LuauNumericDecimal [12..13]
+ │   │       │       │       │       ├─ LuauNumericDecimal_c1 [12..13]: "5"
+ │   │       │       │       │       └─ LuauNumericDecimal_c2 13
+ │   │       │       │       └─ LuauAssignmentOperation_end 13
+ │   │       │       └─ LuauVariableAssignment_end 13
+ │   │       └─ LuauVariableDefinition_end 13
+ │   └─ LuauExplicitStatement_end 13
+ └─ Newline [13..14]: "\n"

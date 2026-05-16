@@ -1,0 +1,88 @@
+sparkdown [0..41]
+ └─ LuauExplicitStatement [0..41]
+     ├─ LuauExplicitStatement_begin [0..2]
+     │   ├─ LuauExplicitStatement_begin_c1 0
+     │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+     │   │   └─ LuauExplicitStatementMark [0..1]: "&"
+     │   └─ LuauExplicitStatement_begin_c3 [1..2]
+     │       └─ Separator [1..2]: " "
+     ├─ LuauExplicitStatement_content [2..41]
+     │   └─ LuauAccessPath [2..41]
+     │       ├─ LuauAccessPath_begin 2
+     │       ├─ LuauAccessPath_content [2..41]
+     │       │   └─ LuauAccessPart [2..41]
+     │       │       └─ LuauFunctionCall [2..41]
+     │       │           ├─ LuauFunctionCall_begin [2..5]
+     │       │           │   ├─ LuauFunctionCall_begin_c1 [2..5]
+     │       │           │   │   └─ LuauFunctionName [2..5]: "log"
+     │       │           │   └─ LuauFunctionCall_begin_c2 5
+     │       │           └─ LuauFunctionCall_content [5..41]
+     │       │               └─ LuauFunctionCallParameters [5..41]
+     │       │                   ├─ LuauFunctionCallParameters_begin [5..6]
+     │       │                   │   └─ LuauFunctionCallParameters_begin_c1 [5..6]
+     │       │                   │       └─ PunctuationParenOpen [5..6]: "("
+     │       │                   ├─ LuauFunctionCallParameters_content [6..40]
+     │       │                   │   └─ LuauInterpolatedString [6..40]
+     │       │                   │       ├─ LuauInterpolatedString_begin [6..7]
+     │       │                   │       │   └─ LuauInterpolatedString_begin_c1 [6..7]
+     │       │                   │       │       └─ PunctuationStringBacktickQuoteOpen [6..7]: "`"
+     │       │                   │       ├─ LuauInterpolatedString_content [7..39]
+     │       │                   │       │   ├─ Word [7..12]: "reset"
+     │       │                   │       │   ├─ Space [12..13]: " "
+     │       │                   │       │   ├─ Word [13..22]: "companion"
+     │       │                   │       │   ├─ Space [22..23]: " "
+     │       │                   │       │   ├─ LuauInterpolatedStringExpression [23..28]
+     │       │                   │       │   │   ├─ LuauInterpolatedStringExpression_begin [23..24]
+     │       │                   │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [23..24]
+     │       │                   │       │   │   │       └─ PunctuationBraceOpen [23..24]: "{"
+     │       │                   │       │   │   ├─ LuauInterpolatedStringExpression_content [24..27]
+     │       │                   │       │   │   │   └─ LuauAccessPath [24..27]
+     │       │                   │       │   │   │       ├─ LuauAccessPath_begin 24
+     │       │                   │       │   │   │       ├─ LuauAccessPath_content [24..27]
+     │       │                   │       │   │   │       │   └─ LuauAccessPart [24..27]
+     │       │                   │       │   │   │       │       └─ LuauVariable [24..27]
+     │       │                   │       │   │   │       │           └─ LuauVariable_c1 [24..27]
+     │       │                   │       │   │   │       │               └─ LuauVariableName [24..27]: "key"
+     │       │                   │       │   │   │       └─ LuauAccessPath_end 27
+     │       │                   │       │   │   │           └─ LuauAccessPath_end_c1 27
+     │       │                   │       │   │   └─ LuauInterpolatedStringExpression_end [27..28]
+     │       │                   │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [27..28]
+     │       │                   │       │   │           └─ PunctuationBraceClose [27..28]: "}"
+     │       │                   │       │   ├─ Space [28..29]: " "
+     │       │                   │       │   ├─ Punctuation [29..30]: "("
+     │       │                   │       │   ├─ LuauInterpolatedStringExpression [30..38]
+     │       │                   │       │   │   ├─ LuauInterpolatedStringExpression_begin [30..31]
+     │       │                   │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [30..31]
+     │       │                   │       │   │   │       └─ PunctuationBraceOpen [30..31]: "{"
+     │       │                   │       │   │   ├─ LuauInterpolatedStringExpression_content [31..37]
+     │       │                   │       │   │   │   └─ LuauAccessPath [31..37]
+     │       │                   │       │   │   │       ├─ LuauAccessPath_begin 31
+     │       │                   │       │   │   │       ├─ LuauAccessPath_content [31..37]
+     │       │                   │       │   │   │       │   ├─ LuauAccessPart [31..32]
+     │       │                   │       │   │   │       │   │   └─ LuauVariable [31..32]
+     │       │                   │       │   │   │       │   │       └─ LuauVariable_c1 [31..32]
+     │       │                   │       │   │   │       │   │           └─ LuauVariableName [31..32]: "v"
+     │       │                   │       │   │   │       │   └─ LuauAccessPart [32..37]
+     │       │                   │       │   │   │       │       └─ LuauPropertyAccessor [32..37]
+     │       │                   │       │   │   │       │           ├─ LuauPropertyAccessor_c1 32
+     │       │                   │       │   │   │       │           ├─ LuauPropertyAccessor_c2 [32..33]
+     │       │                   │       │   │   │       │           │   └─ LuauAccessorOperator [32..33]: "."
+     │       │                   │       │   │   │       │           ├─ LuauPropertyAccessor_c3 33
+     │       │                   │       │   │   │       │           └─ LuauPropertyAccessor_c4 [33..37]
+     │       │                   │       │   │   │       │               └─ LuauPropertyName [33..37]: "name"
+     │       │                   │       │   │   │       └─ LuauAccessPath_end 37
+     │       │                   │       │   │   │           └─ LuauAccessPath_end_c1 37
+     │       │                   │       │   │   └─ LuauInterpolatedStringExpression_end [37..38]
+     │       │                   │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [37..38]
+     │       │                   │       │   │           └─ PunctuationBraceClose [37..38]: "}"
+     │       │                   │       │   └─ Punctuation [38..39]: ")"
+     │       │                   │       └─ LuauInterpolatedString_end [39..40]
+     │       │                   │           ├─ LuauInterpolatedString_end_c1 [39..40]
+     │       │                   │           │   └─ PunctuationStringBacktickQuoteClose [39..40]: "`"
+     │       │                   │           └─ LuauInterpolatedString_end_c2 40
+     │       │                   └─ LuauFunctionCallParameters_end [40..41]
+     │       │                       └─ LuauFunctionCallParameters_end_c1 [40..41]
+     │       │                           └─ PunctuationParenClose [40..41]: ")"
+     │       └─ LuauAccessPath_end 41
+     │           └─ LuauAccessPath_end_c1 41
+     └─ LuauExplicitStatement_end 41

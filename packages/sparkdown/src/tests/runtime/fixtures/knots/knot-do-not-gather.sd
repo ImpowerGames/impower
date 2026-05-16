@@ -1,0 +1,6 @@
+-> knot
+scene knot
+  -> knot.gather
+  label gather
+    g
+  -> DONE

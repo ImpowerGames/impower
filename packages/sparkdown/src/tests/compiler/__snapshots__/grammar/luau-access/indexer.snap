@@ -1,0 +1,62 @@
+sparkdown [0..15]
+ └─ LuauExplicitStatement [0..15]
+     ├─ LuauExplicitStatement_begin [0..2]
+     │   ├─ LuauExplicitStatement_begin_c1 0
+     │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+     │   │   └─ LuauExplicitStatementMark [0..1]: "&"
+     │   └─ LuauExplicitStatement_begin_c3 [1..2]
+     │       └─ Separator [1..2]: " "
+     ├─ LuauExplicitStatement_content [2..15]
+     │   ├─ LuauAccessPath [2..4]
+     │   │   ├─ LuauAccessPath_begin 2
+     │   │   ├─ LuauAccessPath_content [2..3]
+     │   │   │   └─ LuauAccessPart [2..3]
+     │   │   │       └─ LuauVariable [2..3]
+     │   │   │           └─ LuauVariable_c1 [2..3]
+     │   │   │               └─ LuauVariableName [2..3]: "v"
+     │   │   └─ LuauAccessPath_end [3..4]
+     │   │       └─ LuauAccessPath_end_c1 [3..4]
+     │   │           └─ LuauAccessPath_end_c1 [3..4]
+     │   │               └─ OptionalSeparator [3..4]: " "
+     │   └─ LuauAssignmentOperation [4..15]
+     │       ├─ LuauAssignmentOperation_begin 4
+     │       │   └─ LuauAssignmentOperation_begin_c1 4
+     │       ├─ LuauAssignmentOperation_content [4..15]
+     │       │   ├─ LuauAssignmentOperator [4..6]
+     │       │   │   ├─ LuauAssignmentOperator_begin [4..6]
+     │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 4
+     │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [4..5]: "="
+     │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [5..6]
+     │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
+     │       │   │   │           └─ OptionalSeparator [5..6]: " "
+     │       │   │   └─ LuauAssignmentOperator_end 6
+     │       │   └─ LuauAccessPath [6..15]
+     │       │       ├─ LuauAccessPath_begin 6
+     │       │       ├─ LuauAccessPath_content [6..15]
+     │       │       │   ├─ LuauAccessPart [6..10]
+     │       │       │   │   └─ LuauVariable [6..10]
+     │       │       │   │       └─ LuauVariable_c1 [6..10]
+     │       │       │   │           └─ LuauVariableName [6..10]: "opts"
+     │       │       │   └─ LuauAccessPart [10..15]
+     │       │       │       └─ LuauPropertyIndexer [10..15]
+     │       │       │           ├─ LuauPropertyIndexer_begin [10..11]
+     │       │       │           │   ├─ LuauPropertyIndexer_begin_c1 10
+     │       │       │           │   └─ LuauPropertyIndexer_begin_c2 [10..11]
+     │       │       │           │       └─ PunctuationBracketOpen [10..11]: "["
+     │       │       │           ├─ LuauPropertyIndexer_content [11..14]
+     │       │       │           │   └─ LuauAccessPath [11..14]
+     │       │       │           │       ├─ LuauAccessPath_begin 11
+     │       │       │           │       ├─ LuauAccessPath_content [11..14]
+     │       │       │           │       │   └─ LuauAccessPart [11..14]
+     │       │       │           │       │       └─ LuauVariable [11..14]
+     │       │       │           │       │           └─ LuauVariable_c1 [11..14]
+     │       │       │           │       │               └─ LuauVariableName [11..14]: "key"
+     │       │       │           │       └─ LuauAccessPath_end 14
+     │       │       │           │           └─ LuauAccessPath_end_c1 14
+     │       │       │           └─ LuauPropertyIndexer_end [14..15]
+     │       │       │               └─ LuauPropertyIndexer_end_c1 [14..15]
+     │       │       │                   └─ PunctuationBracketClose [14..15]: "]"
+     │       │       └─ LuauAccessPath_end 15
+     │       │           └─ LuauAccessPath_end_c1 15
+     │       └─ LuauAssignmentOperation_end 15
+     └─ LuauExplicitStatement_end 15

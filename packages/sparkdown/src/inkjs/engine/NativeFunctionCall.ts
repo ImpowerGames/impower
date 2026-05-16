@@ -1,9 +1,25 @@
-import { Value, ValueType, IntValue, ListValue, BoolValue } from "./Value";
+import {
+  AbstractValue,
+  Value,
+  ValueType,
+  IntValue,
+  ListValue,
+  BoolValue,
+} from "./Value";
 import { StoryException } from "./StoryException";
 import { Void } from "./Void";
 import { Path } from "./Path";
 import { InkList, InkListItem } from "./InkList";
 import { InkObject } from "./Object";
+import {
+  STDLIB,
+  VARIADIC_ARITY,
+  NumericBinary,
+  NumericUnary,
+  METHOD_DISPATCH,
+  METHOD_PREFIX,
+  callBuiltinMethod,
+} from "./StdLib";
 import { asOrNull, asOrThrows, asBooleanOrThrows } from "./TypeAssertion";
 import { throwNullException } from "./NullException";
 
@@ -23,9 +39,19 @@ export class NativeFunctionCall extends InkObject {
   public static readonly GreaterThanOrEquals: string = ">=";
   public static readonly LessThanOrEquals: string = "<=";
   public static readonly NotEquals: string = "!=";
-  public static readonly Not: string = "!";
-  public static readonly And: string = "&&";
-  public static readonly Or: string = "||";
+  // Logical operators — named after the source keywords (`not` /
+  // `and` / `or`) rather than the ink-style symbols (`!` / `&&` /
+  // `||`), since sparkdown's grammar only exposes the keyword form.
+  // Removing the layer of aliasing means runtime errors mention the
+  // operator the user actually wrote. Ink's membership operators
+  // (`?` / `!?`, also briefly exposed in sparkdown as `has` / `hasnt`)
+  // are intentionally absent — membership checks go through the
+  // method-call dispatch path (`list:find(item)`, `set:contains(sub)`)
+  // instead. See DIVERGENCES.md > "Membership: method calls, not
+  // operators".
+  public static readonly Not: string = "not";
+  public static readonly And: string = "and";
+  public static readonly Or: string = "or";
   public static readonly Min: string = "MIN";
   public static readonly Max: string = "MAX";
   public static readonly Pow: string = "POW";
@@ -33,18 +59,36 @@ export class NativeFunctionCall extends InkObject {
   public static readonly Ceiling: string = "CEILING";
   public static readonly Int: string = "INT";
   public static readonly Float: string = "FLOAT";
-  public static readonly Has: string = "?";
-  public static readonly Hasnt: string = "!?";
-  public static readonly Intersect: string = "^";
+  // Sparkdown removed `has`/`hasnt` (and the ink-symbol `?`/`!?` aliases)
+  // when builtin method dispatch landed. Containment is now expressed via
+  // `s:find(sub)` (truthy when found) and `t:find(value)` (1-based
+  // position or `nil`). Set intersection — which ink wrote as `^` and
+  // sparkdown formerly inherited — was likewise replaced by the
+  // `t:intersection(other)` method. The `^` symbol is now Luau
+  // exponentiation (aliased to `POW` in `BinaryExpression.NativeNameForOp`).
+  // See METHODS.md for the full method set.
   public static readonly ListMin: string = "LIST_MIN";
   public static readonly ListMax: string = "LIST_MAX";
   public static readonly All: string = "LIST_ALL";
   public static readonly Count: string = "LIST_COUNT";
   public static readonly ValueOfList: string = "LIST_VALUE";
   public static readonly Invert: string = "LIST_INVERT";
+  // Luau `#x` length operator. Works on strings (chars), lists (count), and
+  // objects (entry count). The runtime dispatches to the registered unary op
+  // matching the operand's value type.
+  public static readonly Length: string = "LEN";
 
-  public static CallWithName(functionName: string) {
-    return new NativeFunctionCall(functionName);
+  // Build a call-site instance pointing at the prototype registered for
+  // `functionName`. For variadic prototypes (currently the `__method_*`
+  // family), the caller passes `actualArity` so the runtime knows how
+  // many parameters to pop off the eval stack. For fixed-arity natives
+  // the actualArity argument is ignored — the prototype's arity wins.
+  public static CallWithName(functionName: string, actualArity?: number) {
+    const call = new NativeFunctionCall(functionName);
+    if (actualArity !== undefined) {
+      call._numberOfParameters = actualArity;
+    }
+    return call;
   }
 
   public static CallExistsWithName(functionName: string) {
@@ -71,10 +115,30 @@ export class NativeFunctionCall extends InkObject {
 
   get numberOfParameters() {
     if (this._prototype) {
-      return this._prototype.numberOfParameters;
+      const prototypeArity = this._prototype.numberOfParameters;
+      // Variadic prototypes (currently the `__method_*` family): the
+      // actual arg count for this call site is stored on the instance
+      // (`CallWithName` sets it when it constructs the call). Falling
+      // back to the prototype's `-1` would make `PopEvaluationStack`
+      // pop nothing, so call-site arity is required here.
+      if (prototypeArity === VARIADIC_ARITY) {
+        return this._numberOfParameters;
+      }
+      return prototypeArity;
     } else {
       return this._numberOfParameters;
     }
+  }
+
+  // Whether this native (call-site or prototype) is variadic. Variadic
+  // natives validate arity at runtime inside the method impl rather
+  // than at compile time, so FunctionCall.GenerateIntoContainer skips
+  // its arity assertion when this returns true.
+  get isVariadic(): boolean {
+    const arity = this._prototype
+      ? this._prototype._numberOfParameters
+      : this._numberOfParameters;
+    return arity === VARIADIC_ARITY;
   }
   set numberOfParameters(value: number) {
     this._numberOfParameters = value;
@@ -84,6 +148,16 @@ export class NativeFunctionCall extends InkObject {
   public Call(parameters: InkObject[]): InkObject | null {
     if (this._prototype) {
       return this._prototype.Call(parameters);
+    }
+
+    // Builtin method dispatch (`obj:method(args)`). The lowerer emits
+    // `__method_<name>` function names; we route those through
+    // `callBuiltinMethod` for receiver-type-aware dispatch, bypassing
+    // the operator-style numeric/string/list coercion path below. Each
+    // method impl handles its own arity check, so we never consult
+    // `this.numberOfParameters` (which is `VARIADIC_ARITY` for these).
+    if (this._name !== null && this._name.startsWith(METHOD_PREFIX)) {
+      return callBuiltinMethod(this._name, parameters);
     }
 
     if (this.numberOfParameters != parameters.length) {
@@ -99,6 +173,26 @@ export class NativeFunctionCall extends InkObject {
             ' on a void value. Did you forget to "return" a value from a function you called here?',
         );
       if (p instanceof ListValue) hasList = true;
+    }
+
+    // Luau short-circuit semantics for `and`/`or`. Unlike the other native
+    // functions, these return one of the operands rather than a coerced
+    // result, so we bypass `CoerceValuesToSingleType` entirely:
+    //   `a and b` → `a` if `a` is falsy, else `b`
+    //   `a or b`  → `a` if `a` is truthy, else `b`
+    // This lets idioms like `cond and "yes" or "no"` work across mixed
+    // operand types, matching the keyword-based source syntax users write.
+    if (
+      parameters.length === 2 &&
+      (this.name === NativeFunctionCall.And ||
+        this.name === NativeFunctionCall.Or)
+    ) {
+      const a = parameters[0];
+      const b = parameters[1];
+      const aTruthy = a instanceof AbstractValue ? a.isTruthy : false;
+      const pickA =
+        this.name === NativeFunctionCall.And ? !aTruthy : aTruthy;
+      return pickA ? a : b;
     }
 
     if (parameters.length == 2 && hasList) {
@@ -118,6 +212,8 @@ export class NativeFunctionCall extends InkObject {
       return this.CallType<Path>(coercedParams);
     } else if (coercedType == ValueType.List) {
       return this.CallType<InkList>(coercedParams);
+    } else if (coercedType == ValueType.Object) {
+      return this.CallType<Map<string, any>>(coercedParams);
     }
 
     return null;
@@ -202,7 +298,8 @@ export class NativeFunctionCall extends InkObject {
     let v2 = asOrThrows(parameters[1], Value);
 
     if (
-      (this.name == "&&" || this.name == "||") &&
+      (this.name == NativeFunctionCall.And ||
+        this.name == NativeFunctionCall.Or) &&
       (v1.valueType != ValueType.List || v2.valueType != ValueType.List)
     ) {
       if (this._operationFuncs === null)
@@ -397,6 +494,11 @@ export class NativeFunctionCall extends InkObject {
       this.AddIntBinaryOp(this.Min, (x, y) => Math.min(x, y));
 
       this.AddIntBinaryOp(this.Pow, (x, y) => Math.pow(x, y));
+      // Luau `//` floor division. For integers this matches `/` already
+      // (ink's integer Divide also floors), but registering it under its
+      // own runtime name keeps semantics clear and decouples `//` from
+      // any future change to `/`-on-ints behavior.
+      this.AddIntBinaryOp("//", (x, y) => Math.floor(x / y));
       this.AddIntUnaryOp(this.Floor, NativeFunctionCall.Identity);
       this.AddIntUnaryOp(this.Ceiling, NativeFunctionCall.Identity);
       this.AddIntUnaryOp(this.Int, NativeFunctionCall.Identity);
@@ -425,6 +527,8 @@ export class NativeFunctionCall extends InkObject {
       this.AddFloatBinaryOp(this.Min, (x, y) => Math.min(x, y));
 
       this.AddFloatBinaryOp(this.Pow, (x, y) => Math.pow(x, y));
+      // Luau `//` floor division on floats: `7.5 // 2 = 3`, `-7.5 // 2 = -4`.
+      this.AddFloatBinaryOp("//", (x, y) => Math.floor(x / y));
       this.AddFloatUnaryOp(this.Floor, (x) => Math.floor(x));
       this.AddFloatUnaryOp(this.Ceiling, (x) => Math.ceil(x));
       this.AddFloatUnaryOp(this.Int, (x) => Math.floor(x));
@@ -434,14 +538,15 @@ export class NativeFunctionCall extends InkObject {
       this.AddStringBinaryOp(this.Add, (x, y) => x + y); // concat
       this.AddStringBinaryOp(this.Equal, (x, y) => x === y);
       this.AddStringBinaryOp(this.NotEquals, (x, y) => !(x === y));
-      this.AddStringBinaryOp(this.Has, (x, y) => x.includes(y));
-      this.AddStringBinaryOp(this.Hasnt, (x, y) => !x.includes(y));
+      // String containment is now via `s:find(sub)` (returns 1-based
+      // position or nil) — no `has`/`hasnt` operator registration.
 
       this.AddListBinaryOp(this.Add, (x, y) => x.Union(y));
       this.AddListBinaryOp(this.Subtract, (x, y) => x.Without(y));
-      this.AddListBinaryOp(this.Has, (x, y) => x.Contains(y));
-      this.AddListBinaryOp(this.Hasnt, (x, y) => !x.Contains(y));
-      this.AddListBinaryOp(this.Intersect, (x, y) => x.Intersect(y));
+      // List containment / intersection are now method-based — see the
+      // `Intersect` constant's removal comment above and `:union` /
+      // `:intersection` / `:difference` in `MethodDispatch.ts`. The `^`
+      // symbol is reclaimed for Luau exponentiation.
 
       this.AddListBinaryOp(this.Equal, (x, y) => x.Equals(y));
       this.AddListBinaryOp(this.Greater, (x, y) => x.GreaterThan(y));
@@ -466,6 +571,12 @@ export class NativeFunctionCall extends InkObject {
       this.AddListUnaryOp(this.Count, (x) => x.Count);
       this.AddListUnaryOp(this.ValueOfList, (x) => x.maxItem.Value);
 
+      // Luau `#` length: number of characters in a string, items in a list,
+      // or entries in an object.
+      this.AddStringUnaryOp(this.Length, (x) => x.length);
+      this.AddListUnaryOp(this.Length, (x) => x.Count);
+      this.AddObjectUnaryOp(this.Length, (x) => x.size);
+
       let divertTargetsEqual = (d1: Path, d2: Path) => d1.Equals(d2);
       let divertTargetsNotEqual = (d1: Path, d2: Path) => !d1.Equals(d2);
       this.AddOpToNativeFunc(
@@ -480,6 +591,41 @@ export class NativeFunctionCall extends InkObject {
         ValueType.DivertTarget,
         divertTargetsNotEqual,
       );
+
+      // Luau stdlib (`math.floor`, `math.ceil`, `math.pow`, ...). The
+      // table of JS implementations lives in `StdLib.ts` — adding a new
+      // entry there auto-registers it here. Arity is inferred from
+      // `fn.length`; each function is registered for both int and float
+      // operand types so the runtime's type-dispatcher resolves it
+      // regardless of how the caller's number is typed.
+      for (const [namespace, methods] of Object.entries(STDLIB)) {
+        for (const [methodName, fn] of Object.entries(methods)) {
+          const fullName = `${namespace}.${methodName}`;
+          if (fn.length === 1) {
+            const unary = fn as NumericUnary;
+            this.AddIntUnaryOp(fullName, unary);
+            this.AddFloatUnaryOp(fullName, unary);
+          } else if (fn.length === 2) {
+            const binary = fn as NumericBinary;
+            this.AddIntBinaryOp(fullName, binary);
+            this.AddFloatBinaryOp(fullName, binary);
+          }
+        }
+      }
+
+      // Builtin method dispatch (`obj:method(args)` → `__method_<name>`).
+      // Each entry from `METHOD_DISPATCH` registers as a variadic native:
+      // `numberOfParameters` is set to `VARIADIC_ARITY` so neither the
+      // compiler's call-site arity check (FunctionCall.GenerateIntoContainer)
+      // nor `Call`'s runtime check rejects calls. The actual arity and
+      // receiver-type validation happens inside each method impl. See
+      // `MethodDispatch.ts` for the implementations and METHODS.md for
+      // the design rationale.
+      for (const methodName of Object.keys(METHOD_DISPATCH)) {
+        const fullName = `${METHOD_PREFIX}${methodName}`;
+        const native = new NativeFunctionCall(fullName, VARIADIC_ARITY);
+        this._nativeFunctions.set(fullName, native);
+      }
     }
   }
 
@@ -528,12 +674,22 @@ export class NativeFunctionCall extends InkObject {
   public static AddStringBinaryOp(name: string, op: BinaryOp<string>) {
     this.AddOpToNativeFunc(name, 2, ValueType.String, op);
   }
+  public static AddStringUnaryOp(name: string, op: UnaryOp<string>) {
+    this.AddOpToNativeFunc(name, 1, ValueType.String, op);
+  }
 
   public static AddListBinaryOp(name: string, op: BinaryOp<InkList>) {
     this.AddOpToNativeFunc(name, 2, ValueType.List, op);
   }
   public static AddListUnaryOp(name: string, op: UnaryOp<InkList>) {
     this.AddOpToNativeFunc(name, 1, ValueType.List, op);
+  }
+
+  public static AddObjectUnaryOp(
+    name: string,
+    op: UnaryOp<Map<string, any>>,
+  ) {
+    this.AddOpToNativeFunc(name, 1, ValueType.Object, op);
   }
 
   public toString() {

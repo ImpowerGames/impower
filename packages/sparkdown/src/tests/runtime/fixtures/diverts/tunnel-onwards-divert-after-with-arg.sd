@@ -1,0 +1,10 @@
+-> main
+scene main
+  -> a ->
+
+scene a
+  ->-> b(5 + 3)
+
+scene b(x)
+  {x}
+  -> DONE

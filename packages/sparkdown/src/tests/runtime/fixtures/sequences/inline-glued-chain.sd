@@ -1,0 +1,11 @@
+-> main
+scene main
+  label start
+  Before .. chain|A|B|C .. After.
+  & i = i + 1
+  if i < 5 then
+    -> start
+  end
+  -> END
+
+store i = 0

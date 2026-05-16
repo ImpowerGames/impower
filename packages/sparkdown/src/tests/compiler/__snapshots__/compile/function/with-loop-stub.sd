@@ -1,0 +1,7 @@
+function sum(n: number)
+  local total = 0
+  for i = 1, n do
+    total = total + i
+  end
+  return total
+end

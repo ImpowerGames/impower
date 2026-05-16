@@ -1,0 +1,4 @@
+function increment(x)
+  count += x
+  return count
+end

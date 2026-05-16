@@ -1,0 +1,13 @@
+text.source.sparkdown [0..14]
+ ├─ keyword.control.divert.mark.sd [0..2]: "->"
+ ├─ keyword.control.divert.path.sd [2..6]
+ │   ├─ punctuation.whitespace.separator.optional.sd [2..3]: " "
+ │   └─ keyword.control.divert.path.sd [3..6]
+ │       └─ keyword.control.divert.path.sd [3..6]: "Foo"
+ ├─ punctuation.whitespace.separator.optional.sd [6..7]: " "
+ ├─ keyword.control.divert.mark.sd [7..9]: "->"
+ ├─ keyword.control.divert.path.sd [9..13]
+ │   ├─ punctuation.whitespace.separator.optional.sd [9..10]: " "
+ │   └─ keyword.control.divert.path.sd [10..13]
+ │       └─ keyword.control.divert.path.sd [10..13]: "Bar"
+ └─ Newline [13..14]: "\n"

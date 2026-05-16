@@ -1,0 +1,6 @@
+-> main
+scene main
+  label x
+  -> DONE
+
+function f(x) end

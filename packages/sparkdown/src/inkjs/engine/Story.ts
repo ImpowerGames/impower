@@ -11,10 +11,14 @@ import {
   Value,
   StringValue,
   IntValue,
+  FloatValue,
   DivertTargetValue,
   VariablePointerValue,
   ListValue,
+  ObjectValue,
+  AbstractValue,
 } from "./Value";
+import { getPluralCategory } from "./PluralRules";
 import { Path } from "./Path";
 import { Void } from "./Void";
 import { Tag } from "./Tag";
@@ -778,6 +782,19 @@ export class Story extends InkObject {
     if (this._stateSnapshotAtLastNewline === null) {
       throwNullException("_stateSnapshotAtLastNewline");
     }
+    // Roll back any in-place ObjectValue mutations that were recorded by
+    // the runtime's `StoreIndex` handler during the lookahead window.
+    // Variable assignments are already snapshot-safe (they go through
+    // the patch's `SetGlobal` and never touch `_globalVariables` until
+    // `ApplyAnyPatch` runs). Property mutations write directly to a
+    // shared `Map`, so they need an explicit undo step here — otherwise
+    // re-executing the bytecode from the snapshot point would observe
+    // already-mutated state.
+    const livePatch = this._state.variablesState.patch;
+    if (livePatch !== null) {
+      livePatch.UndoPropertyMutations();
+    }
+
     this._stateSnapshotAtLastNewline.RestoreAfterPatch();
 
     this._state = this._stateSnapshotAtLastNewline;
@@ -1473,6 +1490,159 @@ export class Story extends InkObject {
           break;
         }
 
+        case ControlCommand.CommandType.BeginObject:
+          // Marker pushed onto the eval stack — EndObject walks back to it,
+          // collecting each (key, value) pair between, and assembles the
+          // ObjectValue.
+          this.state.PushEvaluationStack(evalCommand);
+          break;
+
+        case ControlCommand.CommandType.EndObject: {
+          const stack = this.state.evaluationStack;
+          let markerIdx = -1;
+          for (let i = stack.length - 1; i >= 0; --i) {
+            const obj = stack[i];
+            const cmd = asOrNull(obj, ControlCommand);
+            if (
+              cmd &&
+              cmd.commandType === ControlCommand.CommandType.BeginObject
+            ) {
+              markerIdx = i;
+              break;
+            }
+          }
+          if (markerIdx < 0) {
+            throw new StoryException(
+              "Expected BeginObject marker on evaluation stack",
+            );
+          }
+          const between = stack.splice(markerIdx, stack.length - markerIdx);
+          // between[0] is the BeginObject marker; the rest are alternating
+          // key, value, key, value, ... pairs in push order.
+          const entries = new Map<string, AbstractValue>();
+          for (let i = 1; i + 1 < between.length; i += 2) {
+            const keyObj = asOrNull(between[i], StringValue);
+            const valObj = asOrNull(between[i + 1], AbstractValue);
+            if (keyObj && keyObj.value !== null && valObj) {
+              entries.set(keyObj.value, valObj);
+            }
+          }
+          this.state.PushEvaluationStack(new ObjectValue(entries));
+          break;
+        }
+
+        case ControlCommand.CommandType.IndexValue: {
+          // Pops key + container off the eval stack; pushes container[key].
+          const indexKey = this.state.PopEvaluationStack();
+          const indexBase = this.state.PopEvaluationStack();
+          let resolved: InkObject | null = null;
+          const keyStr = indexKey?.toString() ?? "";
+          if (indexBase instanceof ObjectValue) {
+            resolved = indexBase.value?.get(keyStr) ?? null;
+          } else if (indexBase instanceof StringValue) {
+            // 1-indexed character access, matching Luau's string indexing.
+            const intKey = asOrNull(indexKey, IntValue);
+            if (intKey !== null && indexBase.value !== null) {
+              const i = (intKey.value ?? 0) - 1;
+              const ch =
+                i >= 0 && i < indexBase.value.length ? indexBase.value[i] : "";
+              resolved = new StringValue(ch ?? "");
+            }
+          }
+          if (resolved === null) {
+            // Miss → push an empty string sentinel (matches Luau's nil-coerce
+            // behavior in expression contexts; full nil support is deferred).
+            resolved = new StringValue("");
+          }
+          this.state.PushEvaluationStack(resolved);
+          break;
+        }
+
+        case ControlCommand.CommandType.StoreIndex: {
+          // Pops value, key, container off the eval stack and mutates
+          // container[key] = value in place. No result is pushed — this is a
+          // statement-level effect. The container must be an ObjectValue
+          // looked up from a variable; mutating its internal Map propagates
+          // through the variable reference (Maps are passed by reference).
+          //
+          // When a state snapshot is active (newline lookahead, background
+          // save), the mutation is also recorded in the patch's undo log
+          // so that `RestoreStateSnapshot` can roll it back. Without the
+          // undo log, mutations to ObjectValue maps survive the rewind
+          // (the snapshot's patch mechanism only tracks `SetGlobal`
+          // writes, not in-place Map edits), which causes the bytecode to
+          // re-run against already-mutated state — e.g. `obj.field =
+          // obj.field + 1` between two outputs would advance the field by 2.
+          const storeValue = this.state.PopEvaluationStack();
+          const storeKey = this.state.PopEvaluationStack();
+          const storeBase = this.state.PopEvaluationStack();
+          if (storeBase instanceof ObjectValue) {
+            const keyStr = storeKey?.toString() ?? "";
+            const val = asOrNull(storeValue, AbstractValue);
+            if (storeBase.value && val !== null) {
+              const patch = this.state.variablesState.patch;
+              if (patch !== null) {
+                const oldValue = storeBase.value.has(keyStr)
+                  ? storeBase.value.get(keyStr)
+                  : undefined;
+                patch.RecordPropertyMutation(storeBase.value, keyStr, oldValue);
+              }
+              storeBase.value.set(keyStr, val);
+            }
+          } else {
+            throw new StoryException(
+              "Cannot assign to a property of a non-object value",
+            );
+          }
+          break;
+        }
+
+        case ControlCommand.CommandType.CallValueAsFunction: {
+          // Pops a `DivertTargetValue` off the eval stack and diverts to its
+          // path, pushing a Function call-stack frame so a later `~ret` /
+          // `PopFunction` returns control to the instruction after this one.
+          //
+          // Arguments must already be on the eval stack *below* the target —
+          // they remain there for the function's parameter-binding bytecode
+          // (a sequence of `temp=` assignments at the function's entry) to
+          // pop. Argument-stack-order matches a regular `FunctionCall`, so
+          // any function callable as `foo(a, b)` is also callable here.
+          const callTarget = this.state.PopEvaluationStack();
+          const targetVal = asOrNull(callTarget, DivertTargetValue);
+          if (targetVal === null || targetVal.value === null) {
+            throw new StoryException(
+              "Tried to call a non-function value as a function" +
+                (callTarget ? " (got " + callTarget + ")" : ""),
+            );
+          }
+          this.state.divertedPointer = this.PointerAtPath(targetVal.value);
+          this.state.callStack.Push(
+            PushPopType.Function,
+            undefined,
+            this.state.outputStream.length,
+          );
+          break;
+        }
+
+        case ControlCommand.CommandType.BeginScope:
+          // Push a new innermost temporary-variable scope on the
+          // current call-stack element. Sparkdown emits this at the
+          // start of every block (`if`/`for`/`while`/`repeat`/`do`)
+          // so `local x` declarations follow Luau's block scoping —
+          // an inner `local x` shadows an outer `x` for the rest of
+          // the inner block, then the outer is visible again after
+          // the matching `EndScope`.
+          this.state.callStack.currentElement.PushScope();
+          break;
+
+        case ControlCommand.CommandType.EndScope:
+          // Pop the innermost temporary-variable scope. Refuses to
+          // pop the outermost (function-level) frame, which would
+          // leave the call-stack element with no scope frames at
+          // all and break subsequent temp-var lookups.
+          this.state.callStack.currentElement.PopScope();
+          break;
+
         case ControlCommand.CommandType.ChoiceCount:
           let choiceCount = this.state.generatedChoices.length;
           this.state.PushEvaluationStack(new IntValue(choiceCount));
@@ -1774,6 +1944,60 @@ export class Story extends InkObject {
           break;
         }
 
+        case ControlCommand.CommandType.PluralCategory: {
+          // `plural.category(n)` — pops `n`, reads the active language
+          // from the `lang.current` store (defaulting to `"en"` when
+          // unset), and pushes the CLDR plural category as a string.
+          // Used both directly (`{plural.category(n)}` for explicit
+          // category lookup) and as the desugar target for
+          // `plural(n)|one=...|other=...` alternators.
+          const nVal = this.state.PopEvaluationStack();
+          if (!(nVal instanceof IntValue) && !(nVal instanceof FloatValue)) {
+            this.Error(
+              "plural.category expected a number, but got " + nVal,
+            );
+            this.state.PushEvaluationStack(new StringValue("other"));
+            break;
+          }
+          const n =
+            nVal.value === null
+              ? 0
+              : typeof nVal.value === "number"
+                ? nVal.value
+                : 0;
+
+          // Read `lang.current`. We try the dotted name first (in case
+          // a user is using a flat-namespace store) and fall back to
+          // looking up `lang` as an ObjectValue with a `current` key.
+          // When neither is set, default to English. The lookup is
+          // intentionally lenient — missing language data should not
+          // be a hard error in a creative-writing runtime.
+          let language = "en";
+          const langDirect = this.state.variablesState.GetVariableWithName(
+            "lang.current",
+          );
+          if (langDirect instanceof StringValue && langDirect.value !== null) {
+            language = langDirect.value;
+          } else {
+            const langContainer =
+              this.state.variablesState.GetVariableWithName("lang");
+            const obj = (langContainer as any)?.value;
+            if (obj instanceof Map) {
+              const inner = obj.get("current");
+              if (inner instanceof StringValue && inner.value !== null) {
+                language = inner.value;
+              } else if (typeof inner === "string") {
+                language = inner;
+              }
+            }
+          }
+
+          this.state.PushEvaluationStack(
+            new StringValue(getPluralCategory(n, language)),
+          );
+          break;
+        }
+
         default:
           this.Error("unhandled ControlCommand: " + evalCommand);
           break;
@@ -1807,6 +2031,39 @@ export class Story extends InkObject {
       // Normal variable reference
       else {
         foundValue = this.state.variablesState.GetVariableWithName(varRef.name);
+
+        // Property-access via dotted name (sparkdown extension). If the
+        // flat-namespace lookup fails AND the name contains dots, try
+        // resolving the FIRST segment as a variable and indexing into
+        // its `ObjectValue` (or chained-ObjectValue) by the remaining
+        // segments as keys. This matches the same pattern used for
+        // `lang.current` lookup elsewhere in this file and lets
+        // sparkdown authors write `result.value` against a stored
+        // table without needing the bracket-indexer form (`result["value"]`).
+        // Falls through to the normal `Variable not found` warning if
+        // either the base variable doesn't exist or some intermediate
+        // segment isn't an ObjectValue / Map.
+        if (foundValue == null && varRef.name && varRef.name.includes(".")) {
+          const segs = varRef.name.split(".");
+          let cur: unknown = this.state.variablesState.GetVariableWithName(
+            segs[0]!,
+          );
+          if (cur != null) {
+            for (let i = 1; i < segs.length; i++) {
+              const obj = (cur as any)?.value;
+              if (obj instanceof Map) {
+                cur = obj.get(segs[i]!) ?? null;
+                if (cur == null) break;
+              } else {
+                cur = null;
+                break;
+              }
+            }
+            if (cur != null) {
+              foundValue = cur as Value;
+            }
+          }
+        }
 
         if (foundValue == null) {
           this.Warning(
@@ -2359,39 +2616,93 @@ export class Story extends InkObject {
     if (flowContainer === null) {
       return throwNullException("flowContainer");
     }
+    // Descend into the first sub-container as long as it's a structural
+    // wrapper around the real flow body (vanilla ink shape). Stop the
+    // descent if this level already has MULTIPLE consecutive per-line
+    // tag wrapper containers at the front — that's sparkdown's per-line
+    // tag layout, and we need to walk all those siblings to collect
+    // every leading tag, not just the first one. (When there's only a
+    // single leading tag wrapper, descending into it gives identical
+    // results to walking the wrapper's contents from outside.)
+    const isTagWrapper = (obj: InkObject | undefined): boolean => {
+      if (!(obj instanceof Container)) return false;
+      const first = obj.content[0];
+      const cmd = asOrNull(first, ControlCommand);
+      return (
+        cmd != null && cmd.commandType == ControlCommand.CommandType.BeginTag
+      );
+    };
     while (true) {
       let firstContent: InkObject = flowContainer.content[0];
-      if (firstContent instanceof Container) flowContainer = firstContent;
-      else break;
+      if (firstContent instanceof Container) {
+        if (
+          isTagWrapper(firstContent) &&
+          isTagWrapper(flowContainer.content[1])
+        ) {
+          break;
+        }
+        flowContainer = firstContent;
+      } else break;
     }
 
     let inTag = false;
     let tags: string[] | null = null;
 
-    for (let c of flowContainer.content) {
-      // var tag = c as Runtime.Tag;
-      let command = asOrNull(c, ControlCommand);
-
-      if (command != null) {
-        if (command.commandType == ControlCommand.CommandType.BeginTag) {
-          inTag = true;
-        } else if (command.commandType == ControlCommand.CommandType.EndTag) {
-          inTag = false;
+    // Collect every BeginTag/StringValue/EndTag triplet at the start of
+    // the flow. Sparkdown's compile pipeline chunks each top-level
+    // `# tag` line into its own sibling display-line container, so the
+    // walk must descend into those wrapper containers as long as they
+    // hold ONLY tag triplets (no non-tag runtime content). The vanilla
+    // ink form produces a single container with tags as flat children,
+    // which this loop still handles via the non-Container branch.
+    const pushFromSequence = (items: ReadonlyArray<InkObject>): boolean => {
+      // Returns `true` to keep walking later siblings; `false` once a
+      // non-tag, non-control-command item ends the run of leading tags.
+      for (const c of items) {
+        const command = asOrNull(c, ControlCommand);
+        if (command != null) {
+          if (command.commandType == ControlCommand.CommandType.BeginTag) {
+            inTag = true;
+          } else if (
+            command.commandType == ControlCommand.CommandType.EndTag
+          ) {
+            inTag = false;
+          }
+          continue;
         }
-      } else if (inTag) {
-        let str = asOrNull(c, StringValue);
-        if (str !== null) {
-          if (tags === null) tags = [];
-          if (str.value !== null) tags.push(str.value);
-        } else {
-          this.Error(
-            "Tag contained non-text content. Only plain text is allowed when using globalTags or TagsAtContentPath. If you want to evaluate dynamic content, you need to use story.Continue().",
-          );
+        if (inTag) {
+          const str = asOrNull(c, StringValue);
+          if (str !== null) {
+            if (tags === null) tags = [];
+            if (str.value !== null) tags.push(str.value);
+          } else {
+            this.Error(
+              "Tag contained non-text content. Only plain text is allowed when using globalTags or TagsAtContentPath. If you want to evaluate dynamic content, you need to use story.Continue().",
+            );
+          }
+          continue;
         }
-      } else {
-        break;
+        // A wrapper container at the front of the flow: descend if its
+        // first item is a BeginTag (this is sparkdown's per-line tag
+        // wrapper). Otherwise the run of leading tags has ended.
+        const innerContainer = asOrNull(c, Container);
+        if (innerContainer != null) {
+          const innerFirst = innerContainer.content[0];
+          const innerCommand = asOrNull(innerFirst, ControlCommand);
+          if (
+            innerCommand != null &&
+            innerCommand.commandType == ControlCommand.CommandType.BeginTag
+          ) {
+            if (!pushFromSequence(innerContainer.content)) return false;
+            continue;
+          }
+        }
+        return false;
       }
-    }
+      return true;
+    };
+
+    pushFromSequence(flowContainer.content);
 
     return tags;
   }

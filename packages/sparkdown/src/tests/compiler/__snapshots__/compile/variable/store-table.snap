@@ -1,0 +1,28 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "reassign",
+          "name": "opts",
+          "expression": {
+            "type": "ObjectExpression",
+            "entries": [
+              {
+                "key": "color",
+                "value": {
+                  "type": "StringExpression",
+                  "content": [
+                    "red"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

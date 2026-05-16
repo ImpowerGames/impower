@@ -1,0 +1,10 @@
+-> main
+scene main
+  choose
+    * if not test visible choice
+    * if test visible choice
+  end
+  -> DONE
+
+scene test
+  -> DONE

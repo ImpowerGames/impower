@@ -1,0 +1,10 @@
+text.source.sparkdown [0..22]
+ ├─ keyword.other.statement.explicit.luau.mark.sd [0..1]: "&"
+ ├─ punctuation.whitespace.separator.sd [1..2]: " "
+ ├─ variable.other.readwrite.luau [2..11]: "inventory"
+ ├─ meta.template.expression.accessor.sd [11..12]: "."
+ ├─ variable.other.property.luau [12..17]: "stars"
+ ├─ punctuation.whitespace.separator.optional.sd [17..18]: " "
+ ├─ keyword.operator.assignment.luau [18..20]: "+="
+ ├─ punctuation.whitespace.separator.optional.sd [20..21]: " "
+ └─ constant.numeric.decimal.luau [21..22]: "1"

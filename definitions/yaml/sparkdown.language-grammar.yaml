@@ -47,6 +47,18 @@ variables:
       "utf8",
       "buffer",
       "vector",
+      # Sparkdown-specific runtime-state namespaces (not in standard
+      # Luau). `count.*` exposes ink narrative-flow builtins under
+      # Luau-style names — `count.turns()`, `count.visits(-> target)`,
+      # etc. — replacing ink's `TURNS()`, `READ_COUNT(...)`. The prefix
+      # makes it clear these return *counts* rather than the things
+      # themselves. Because `count` is registered as a stdlib namespace
+      # it's also reserved as an identifier — users can't define a
+      # variable named `count`, and syntax highlighting makes the
+      # reserved status visible at the source level. `system.*` is
+      # reserved for runtime config (currently just `system.lang`).
+      "count",
+      "system",
     ]
   LUAU_STANDARD_LIB_FUNCTIONS:
     [
@@ -128,7 +140,15 @@ variables:
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
-  LUAU_IDENTIFIER: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
+  # `match` and `plural` (the conditional alternator keywords) are
+  # intentionally NOT excluded here — they are reserved only at their
+  # specific alternator-opening syntactic positions (where the rule
+  # requires `keyword (condition)`). Everywhere else they parse as
+  # ordinary identifiers, so authors can write `plural.category(n)`,
+  # `local plural = 5`, `function plural(n) end`, etc. The alternator
+  # rules' begin patterns add a `(?=[(])` lookahead so `plural.X`
+  # (followed by `.`) won't be greedily matched as an alternator opening.
+  LUAU_IDENTIFIER: (?:(?!{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})[a-zA-Z_][a-zA-Z0-9_]*\b)
   LUAU_ASSIGNMENT_OPERATORS: (?:\+=|-=|\/=|\/\/=|\*=|%=|\^=|\.\.=|=(?!=))
   LUAU_COMPARE_OPERATORS: (?:==|~=|<=?|>=?)
   LUAU_ARITHMETIC_OPERATORS: (?:\+|-|%|\*|\/\/|\/|\^)
@@ -141,7 +161,18 @@ variables:
   LUAU_TYPE_BINARY_OPERATORS: (?:[?]|[&]|[|]|[-][>])
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
-  LUAU_BINARY_OPERATOR_AHEAD: (?:({{WS}}*)(?={{LUAU_BINARY_OPERATORS}})|(?=$|.))
+  # Used as the lookahead set in `LUAU_BINARY_OPERATOR_AHEAD`. Deliberately
+  # excludes the bare `|` token — `|` is overloaded as both a type-union
+  # operator (`Foo | Bar`) AND the alternator-arm separator. When a value
+  # expression (parenthetical, string, number, table, etc.) is followed by
+  # ` | <arm-name> = ...`, treating the pipe as a binary operator would
+  # consume the trailing whitespace and prevent the surrounding alternator
+  # block's `LuauAlternatorSeparator` from matching `<ws>|<ws>` itself.
+  # Type unions written in expression context are an edge case that loses
+  # the trailing-WS-as-OptionalSeparator optimization here — `|` in unions
+  # still highlights via the type-context rules separately.
+  LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_VALUE_BINARY_OPERATORS}}|[?]|[&]|[-][>])
+  LUAU_BINARY_OPERATOR_AHEAD: (?:({{WS}}*)(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
 
 patterns:
@@ -156,6 +187,15 @@ patterns:
 
   - { include: "#Scene" }
   - { include: "#Branch" }
+
+  # `external message(x)` — declaration of a host-bound callable. Only legal
+  # at top level (no `&` prefix, not inside scenes/branches/functions). The
+  # declaration registers a signature with the parsed-hierarchy `Story.externals`
+  # map; the call site (`& message("hi")` or `{multiply(5,3)}`) goes through
+  # the regular `FunctionCall` → `Divert` lowering, and `Divert.
+  # GenerateRuntimeObject` flips `runtimeDivert.isExternal = true` when the
+  # target name matches a registered external.
+  - { include: "#LuauExternalDeclaration" }
 
   - { include: "#LuauExplicitStatement" }
   - { include: "#LuauImplicitStatement" }
@@ -180,7 +220,7 @@ repository:
     patterns:
       - { include: "#Divert" }
       - { include: "#Thread" }
-      - { include: "#Gather" }
+      - { include: "#LabelAnchor" }
 
   DisplayStatements:
     patterns:
@@ -341,11 +381,192 @@ repository:
         tag: keyword
         name: keyword.other.glue.sd
 
+  ########## Inline Glued Alternators ##########
+  #
+  # Inline display-text alternators are bracketed by `..` glue markers
+  # within narrative text:
+  #
+  #   Here is some text .. queue|a|b|c .. and more text after.
+  #
+  # Required `..` delimiters give the grammar an unambiguous scope.
+  # Inside the scope, arm bodies are parsed as display content (text +
+  # nested `{interp}`), with `|` separating arms.
+  #
+  # Mirrors the structural shape of `LuauSparkdownSequentialAlternatorBlock`
+  # (and the conditional variant) so the existing lowerer's dynamic
+  # prefix derivation handles all three uniformly. The lowerer reads
+  # `<prefix>_begin` for the keyword + modifier and `<prefix>_content`
+  # for the arms.
+
+  LuauSparkdownInlineGluedSequentialAlternatorBlock:
+    begin: ({{WS}}*)({{GLUE}})({{WS}}+)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}+))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#Glue" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      6:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      7:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauSparkdownInlineGluedAlternatorArm" }
+    end: ({{WS}}+)(?={{GLUE}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
+  LuauSparkdownInlineGluedConditionalAlternatorBlock:
+    # The `(?=[(])` lookahead ensures `plural` / `match` are matched as
+    # alternator openings only when followed by `(condition)`. Without
+    # the lookahead, expressions like `plural.category(n)` would be
+    # greedily consumed since the alternator's content/end patterns
+    # would absorb arbitrary content after `plural`.
+    begin: ({{WS}}*)({{GLUE}})({{WS}}+)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#Glue" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauConditionalAlternatorCondition" }
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauSparkdownInlineGluedAlternatorArm" }
+    end: ({{WS}}+)(?={{GLUE}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
+  # Arm body of an inline-glued alternator. Display content bounded by
+  # the next `|` separator OR the closing `..` of the surrounding
+  # alternator. Supports nested `{interp}` expressions, escape
+  # sequences, plain text, and `# tag` annotations (`ArmTag` matches
+  # bounded by `|` / closing-`..` instead of EOL).
+  LuauSparkdownInlineGluedAlternatorArm:
+    begin: (?=\S)(?![|])
+    patterns:
+      - { include: "#Escape" }
+      # `ArmDivert` is matched before `InlineText` so `-> target` inside
+      # an arm is recognized as a real divert rather than three characters
+      # of display text. Critical for flat-weave-style alternators-with-
+      # diverts (`{chain | -> A | B end}`) where the first arm transfers
+      # control on each visit. Without this include, the arm body lowerer
+      # would have nothing structural to dispatch through and the divert
+      # would be silently stringified.
+      - { include: "#ArmDivert" }
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#ArmTag" }
+      - { include: "#InlineText" }
+    end: (?=[|]|{{WS}}+{{GLUE}})
+
+  # Arm body of a block-form alternator (`queue | a | b | c end` on one
+  # line, or the multi-line `queue\n  | a\n  | b\nend` shape). Display
+  # content bounded by the next `|` separator, the closing `end`
+  # keyword, or end-of-line.
+  LuauSparkdownAlternatorArm:
+    begin: (?=\S)(?![|])
+    patterns:
+      - { include: "#Escape" }
+      # See note on `LuauSparkdownInlineGluedAlternatorArm` above —
+      # diverts inside arms need to be matched as structural nodes so
+      # the lowerer can route them through `buildDivert`.
+      - { include: "#ArmDivert" }
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#ArmTag" }
+      - { include: "#InlineText" }
+    end: (?=[|]|{{END}}(?:$|{{WS}})|$|{{NL}})
+
+  # Context-bounded divert for alternator arms. The standard `Divert`
+  # rule's `end: (?=$)` terminates at end-of-line, which inside an
+  # alternator arm would swallow the `|` separator and `end` keyword
+  # that bound the arm. `ArmDivert` mirrors the inkjs `ArmTag` pattern:
+  # same captures as `Divert` (TunnelMark/DivertMark + target + tunnel
+  # chain) but with an end pattern that stops at the alternator
+  # boundaries. The lowerer dispatch sees the same `Divert` node name
+  # via the `name:` field below, so `buildDivert` handles it uniformly.
+  ArmDivert:
+    name: meta.divert
+    begin: ({{WS}}*)([-][>][-][>]|[-][>])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#TunnelMark" }
+          - { include: "#DivertMark" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Tunnel" }
+      - { include: "#DivertTarget" }
+      - { include: "#ExtraWhitespace" }
+    end: (?=[|]|{{END}}(?:$|{{WS}})|$|{{NL}}|{{WS}}+{{GLUE}})
+
+  # Context-bounded `# tag` annotation for alternator arms. The
+  # standard `Tag` rule terminates at end-of-line, which inside an
+  # alternator would swallow subsequent `|` separators / closing
+  # `end` / closing `..`. `ArmTag` stops at the alternator boundary
+  # instead, preserving per-arm scoping.
+  ArmTag:
+    tag: docComment
+    name: comment.line.sd entity.tag.sd
+    match: ({{WS}}*)({{TAG_START}})(.*?)(?=[|]|{{WS}}+{{GLUE}}|{{END}}(?:$|{{WS}})|$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        tag: definition(docComment)
+        name: punctuation.definition.comment.sd comment.line.sd entity.tag.begin.sd
+      3:
+        tag: content
+        name: punctuation.definition.comment.content.sd
+
   ########## Choice ##########
 
   Choice:
     name: entity.choice.sd
-    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()]*[)]{{WS}}*)?(?:((?:[{][^{}]*[}]{{WS}}*)+))?(\r\n|\r|\n)?
+    # Begin pattern, captures by group:
+    #   1: leading indent
+    #   2: `*` / `+` mark (with optional repeated marks)
+    #   3: optional `(label)`
+    #   4: optional `if` keyword (gate)
+    #   5: optional condition expression — single identifier
+    #      `if has_key`, dotted path `if player.alive`, optional `not`
+    #      prefix `if not has_key`, or parenthesized arbitrary
+    #      expression `if (a and b > 0)`. Followed by mandatory
+    #      whitespace before the choice text.
+    #   6: optional trailing newline
+    begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()]*[)]{{WS}}*)?(?:(if)\b({{WS}}+)((?:not\b{{WS}}+)?(?:[(][^()]*[)]|{{LUAU_IDENTIFIER}}(?:[.]{{LUAU_IDENTIFIER}})*))(?={{WS}}|$))?(\r\n|\r|\n)?
     beginCaptures:
       1:
         patterns:
@@ -358,8 +579,15 @@ repository:
           - { include: "#Label" }
       4:
         patterns:
-          - { include: "#LuauInterpolatedStringExpression" }
+          - { include: "#LuauIfKeyword" }
       5:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      6:
+        patterns:
+          - { include: "#LuauExpression" }
+      7:
         patterns:
           - { include: "#Newline" }
     patterns:
@@ -418,7 +646,11 @@ repository:
           - { include: "#Divert" }
 
   ChoiceWithNoSuppressedText:
-    match: (.+?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
+    # `.*?` (not `.+?`) so a fallback `* -> target` choice — which has
+    # NO text between the mark and the divert — leaves capture group 1
+    # empty and routes the `-> target` into the divert capture instead
+    # of greedily consuming it as choice text.
+    match: (.*?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
     captures:
       1:
         patterns:
@@ -445,28 +677,37 @@ repository:
           - { include: "#LuauInterpolatedStringExpression" }
           - { include: "#DisplayText" }
 
-  ########## Gather ##########
+  ########## Label Anchor ##########
+  # `label NAME` declares a named divert target outside a weave —
+  # typically inside an `if` block, knot, etc. (Weave gathers use
+  # `then (label)` inside a `choose` block — see DIVERGENCES.md.)
+  # The line's body content after the label is parsed as sibling
+  # statements that the inkjs Weave assembly attaches as the anchor's
+  # body, mirroring how the legacy `- (label)` form worked.
 
-  Gather:
-    match: ^({{WS}}*)((?:[-]{{EOK}})+)({{WS}}*)([(][^()]*[)]{{WS}}*)?
+  LabelAnchor:
+    match: ^({{WS}}*)(label)\b({{WS}}*)({{IDENTIFIER}})({{WS}}*)
     captures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#GatherMark" }
+          - { include: "#LuauLabelKeyword" }
       3:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#OptionalSeparator" }
       4:
         patterns:
-          - { include: "#Label" }
+          - { include: "#LabelDeclarationName" }
+      5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
-  GatherMark:
-    tag: keyword
-    name: keyword.other.gather.sd
-    match: (.+)
+  LuauLabelKeyword:
+    tag: controlKeyword
+    name: keyword.control.label.luau
+    match: (label)\b
 
   ########## Label ##########
 
@@ -1679,6 +1920,12 @@ repository:
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#ParentheticalLine" }
       - { include: "#Chain" }
+      # Inline-glued alternators (`.. queue|a|b|c ..`) must come before
+      # `Glue` so the alternator-opening `..` wins when followed by an
+      # alternator keyword. If the `..` is plain glue, the alternator
+      # begin pattern fails to match and the Glue rule takes over.
+      - { include: "#LuauSparkdownInlineGluedSequentialAlternatorBlock" }
+      - { include: "#LuauSparkdownInlineGluedConditionalAlternatorBlock" }
       - { include: "#Glue" }
       - { include: "#TextChunk" }
 
@@ -2062,6 +2309,12 @@ repository:
       - { include: "#Divert" }
       - { include: "#Thread" }
       - { include: "#LuauInterpolatedStringExpression" }
+      # Inline-glued alternators (`.. queue|a|b|c ..`) must come before
+      # `InlineText` / `Styling` so the alternator-opening `..` is
+      # consumed by the alternator rule rather than by the regular
+      # glue path (`Styling` includes `Glue`).
+      - { include: "#LuauSparkdownInlineGluedSequentialAlternatorBlock" }
+      - { include: "#LuauSparkdownInlineGluedConditionalAlternatorBlock" }
       - { include: "#AudioCommand" }
       - { include: "#ImageCommand" }
       - { include: "#InlineText" }
@@ -2297,11 +2550,48 @@ repository:
 
   # LUAU
 
+  LuauDivertTargetLiteral:
+    # `-> name` (optionally `-> a.b.c`) as a first-class value: stores
+    # a pointer to the target which can later be invoked with `-> x`
+    # or `-> x(args)`, or compared with `==`. Mirrors inkjs's
+    # `DivertTarget` (which extends `Expression`). Single-line match
+    # to keep the boundary clean — the rule deliberately doesn't try
+    # to swallow argument parentheses; `-> place(5)` as a literal
+    # isn't a common ink shape, and stripping the arg call form here
+    # would conflict with the `-> name(args)` divert syntax. The
+    # trailing `(WS*)` is required so that, when this literal is used
+    # mid-expression (e.g. `if -> X == -> Y then`), the LuauIfBlockCondition's
+    # `(?=WS)` end-lookahead doesn't fire between the literal and the
+    # following operator.
+    match: ({{WS}}*)([-][>])({{WS}}*)({{IDENTIFIER}}(?:[.]{{IDENTIFIER}})*)({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#DivertMark" }
+      3:
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#DivertPath" }
+      5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+
   LuauExpression:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauIfExpression" }
       - { include: "#LuauAlternatorBlocks" }
+      # Divert-target literal (`-> name`) is an inkjs-style first-class
+      # value: e.g. `store x = -> place` stores a pointer to the `place`
+      # scene that can later be re-invoked via `-> x`. Must come before
+      # the arithmetic / compare operations so `->` isn't greedily split
+      # into a `-` operator + `>` comparator.
+      - { include: "#LuauDivertTargetLiteral" }
       - { include: "#LuauImplicitStatement" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauArithmeticOperation" }
@@ -2322,6 +2612,13 @@ repository:
       - { include: "#LuauTypeofFunction" }
       - { include: "#LuauAccessPath" }
       - { include: "#LuauTable" }
+      # `LuauChainedFunctionCall` must come BEFORE
+      # `LuauTypeAnnotationOperation`: after a `LuauParenthetical`, a
+      # following `:method(args)` sequence must be tokenized as a method-
+      # call chain link, not as a type annotation. Since both rules begin
+      # with `:`, the order here decides which takes priority — chained
+      # method calls win.
+      - { include: "#LuauChainedFunctionCall" }
       - { include: "#LuauTypeAnnotationOperation" }
       - { include: "#LuauSemicolonSeparator" }
 
@@ -2358,6 +2655,12 @@ repository:
         patterns:
           - { include: "#Separator" }
     patterns:
+      # Declarations need to come before LuauExpression so `& store x = 5`
+      # parses as a `LuauVariableDefinition` rather than an expression where
+      # `store` would degrade to a bare identifier reference. This makes
+      # the explicit form (`& store x = 5`) interchangeable with the
+      # implicit form (`store x = 5`).
+      - { include: "#LuauImplicitStatement" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|$
@@ -2366,6 +2669,35 @@ repository:
     tag: keyword
     name: keyword.other.statement.explicit.luau.mark.sd
     match: (.+)
+
+  # ----------------------------------------------------------------------------
+  # Implicit Assignment Statement
+  #
+  # `x = 5`, `obj.field = value`, `obj.a[k].b = …`, etc. — a bare reassignment
+  # with no leading `&`. Without this rule competing for the match,
+  # statement-bearing contexts that also accept Sparkdown display lines
+  # (if/else bodies, scene bodies) would parse `x = 5` as ImplicitAction text.
+  #
+  # The lookahead approximates Lua's "suffixed expression then `=`" rule:
+  # identifier, then any number of `.<ident>` segments or one-level `[…]`
+  # brackets, then an assignment operator. Deeply nested bracket targets that
+  # the lookahead can't recognize fall through to the lowerer's sibling-pair
+  # detection in `lowerStatements`, so this rule is a disambiguator of
+  # convenience — the lowerer is the real source of truth.
+  # ----------------------------------------------------------------------------
+
+  LuauImplicitAssignmentStatement:
+    begin: ({{WS}}*)(?={{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauAccessPath" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|$
 
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
@@ -2391,6 +2723,51 @@ repository:
       - { include: "#LuauDefineNameAndInheritance" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauPropertyDefinition" }
+      - { include: "#LuauMethodDefinition" }
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # ----------------------------------------------------------------------------
+  # Method Definition (`name(args) ... end` shorthand inside `define`)
+  #
+  # Inside a `define` block, a line that looks like an identifier followed by
+  # `(...)` and a body is a method definition — the `function` keyword is
+  # implicit. This rule only appears inside `LuauDefine.patterns`, not at the
+  # top level (where bare `name()` is a function-call expression statement).
+  # The lookahead `(?={{WS}}*[(])` prevents this rule from swallowing property
+  # names that don't have a parameter list.
+  # ----------------------------------------------------------------------------
+
+  LuauMethodDefinition:
+    tag: meta
+    name: meta.function.luau
+    begin: ({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[(])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauFunctionName" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauFunctionParameters" }
+      - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauControlBlock" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -2446,7 +2823,7 @@ repository:
           - { include: "#OptionalSeparator" }
 
   LuauPropertyDefinition:
-    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})?(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})?({{WS}}*)(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
     beginCaptures:
       1:
         patterns:
@@ -2455,6 +2832,10 @@ repository:
         patterns:
           - { include: "#LuauScopeModifier" }
           - { include: "#LuauAccessModifier" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauVariableAssignment" }
@@ -2516,6 +2897,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauGenericsDeclaration" }
       - { include: "#LuauFunctionReturnType" }
+      - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauControlBlock" }
       - { include: "#LuauExpression" }
@@ -2641,10 +3023,12 @@ repository:
       - { include: "#LuauSparkdownWhileLoop" }
       - { include: "#LuauSparkdownRepeatLoop" }
       - { include: "#LuauSparkdownDoBlock" }
+      - { include: "#LuauSparkdownChooseBlock" }
       - { include: "#LuauSparkdownIfBlock" }
       - { include: "#LuauSparkdownElseifBlock" }
       - { include: "#LuauSparkdownElseBlock" }
       - { include: "#LuauSparkdownAlternatorBlocks" }
+      - { include: "#LuauImplicitAssignmentStatement" }
 
   LuauControlBlock:
     patterns:
@@ -2656,6 +3040,19 @@ repository:
       - { include: "#LuauElseifBlock" }
       - { include: "#LuauElseBlock" }
       - { include: "#LuauAlternatorBlocks" }
+      # `LuauImplicitStatement` covers declarations (`local x = …`,
+      # `function …`, `return`, `break`, `continue`, `goto`, labels,
+      # type declarations). `LuauExplicitStatement` covers the `& …`
+      # discard-call / assignment statement form. Both are valid inside
+      # pure-luau bodies (function definitions, `if`/`for`/`while`/`do`
+      # blocks). Without them, a body like
+      #   function f() if cond then & g() end end
+      # cannot match `& g()` inside the `if` body, so the if-block
+      # terminates early and the discard-call ends up at the function
+      # level (outside the conditional) — silently broken bytecode.
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitAssignmentStatement" }
 
   # ----------------------------------------------------------------------------
   # For Loop
@@ -3111,6 +3508,121 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
 
   # ----------------------------------------------------------------------------
+  # Choose Block (Sparkdown weave / branching narrative)
+  #
+  # `choose ... [then [(label)] ... ] end` is sparkdown's block-based
+  # weave syntax. Replaces ink's mark-counting (`* * *`) + dash-prefix
+  # gathers (`- text`) — depth comes from block nesting, not from
+  # counting marks.
+  #
+  #   choose
+  #     * "Hi."
+  #     * "Hey."
+  #   then
+  #     She nods.
+  #   choose                    -- closes previous, starts next
+  #     * "Coffee?"
+  #     * "Tea?"
+  #   then (coffee) She picks coffee.    -- labeled, inline body
+  #   end
+  #
+  # Inside a `choose` block:
+  #   - `*` (once-only) and `+` (sticky) choices live at the block's
+  #     depth — no mark-counting needed.
+  #   - `if cond then ... end` blocks can wrap choices for conditional
+  #     gating (e.g. `if has_key then * Unlock end` inside `choose`).
+  #   - `then` introduces the gather body. Optional `(label)` names
+  #     the gather as a divert target.
+  #   - Another `choose` keyword chains a new block, closing the
+  #     previous block implicitly (mirrors `elseif` in if-blocks).
+  #   - `end` closes the chain.
+  # ----------------------------------------------------------------------------
+
+  LuauSparkdownChooseBlock:
+    begin: ({{WS}}*)(choose)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauChooseKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    # Order matters: the `then` clause must be checked before
+    # `SparkdownStatement` / `LuauImplicitStatement`, otherwise a bare
+    # `then` line gets swallowed as display text. Similarly `Choice`
+    # comes first so `*`-prefixed lines don't get re-routed elsewhere.
+    # Free-form lines like `      foo` (a plain action under a choice)
+    # have to match SOMETHING inside the block — without these patterns
+    # textmate's parser can't advance through them and the begin/end
+    # rule effectively stops contributing children.
+    patterns:
+      - { include: "#Choice" }
+      - { include: "#LuauSparkdownChooseThenClause" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#FlowStatements" }
+      - { include: "#DisplayStatements" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    # Same shape as every other sparkdown block: ends on `end`. Nested
+    # `choose` blocks inside a choice's body are matched by the
+    # `LuauSparkdownControlBlock` pattern (which routes back to
+    # `LuauSparkdownChooseBlock`) and consume their own `end` before
+    # the outer block sees it. No chaining: sequential weaves write
+    # `choose ... then ... end` twice — clean and unambiguous.
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkdownChooseThenClause:
+    begin: ({{WS}}*)(then)\b({{WS}}*)([(][^()]*[)]{{WS}}*)?
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauThenKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#Label" }
+    patterns:
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#FlowStatements" }
+      - { include: "#DisplayStatements" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    # The then-clause body ends when the enclosing `choose` block
+    # sees its `end`. Nested blocks inside the then-body consume
+    # their own end keywords, so the lookahead only fires on the
+    # outer choose's terminator.
+    end: (?={{BEAT}})|(?={{WS}}*end\b)
+
+  LuauChooseKeyword:
+    tag: controlKeyword
+    name: keyword.control.choose.luau
+    match: (choose)\b
+
+  # ----------------------------------------------------------------------------
   # If-Then-Else Expression
   # ----------------------------------------------------------------------------
 
@@ -3189,6 +3701,14 @@ repository:
 
   LuauSparkdownAlternatorBlocks:
     patterns:
+      # Single-line forms must come before multi-line forms — the
+      # single-line rule's begin pattern has a `(?=[|])` lookahead
+      # (sequential) / `(?=[(].*[|])` lookahead (conditional) that
+      # only matches when the keyword is followed by an arm-separator
+      # on the same line. If neither single-line lookahead matches,
+      # the parser falls through to the multi-line rules.
+      - { include: "#LuauSparkdownSingleLineConditionalAlternatorBlock" }
+      - { include: "#LuauSparkdownSingleLineSequentialAlternatorBlock" }
       - { include: "#LuauSparkdownConditionalAlternatorBlock" }
       - { include: "#LuauSparkdownSequentialAlternatorBlock" }
 
@@ -3233,13 +3753,18 @@ repository:
   LuauAlternatorAssignmentOperator:
     tag: updateOperator
     name: keyword.operator.equal.luau
+    match: ([=])
 
   # ----------------------------------------------------------------------------
   # Conditional Alternator Block
   # ----------------------------------------------------------------------------
 
   LuauSparkdownConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
+    # `(?=[(])` lookahead — see comment on
+    # `LuauSparkdownInlineGluedConditionalAlternatorBlock`. Keeps
+    # `plural.X` / `match.X` access-path forms from being absorbed by
+    # the alternator rule.
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -3275,7 +3800,11 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
+    # `(?=[(])` lookahead — see comment on
+    # `LuauSparkdownInlineGluedConditionalAlternatorBlock`. Keeps
+    # `plural.X` / `match.X` access-path forms from being absorbed by
+    # the alternator rule.
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -3294,7 +3823,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])
     endCaptures:
       1:
         emit: true
@@ -3310,7 +3839,14 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    # Close the condition when we see whitespace, a closing bracket,
+    # `,` / `;`, OR the alternator separator `|`. The `|` case matters
+    # when the condition is wrapped in parens with no trailing space:
+    # `{plural(n)|one="is"|other="are"}` — without `|` in the close
+    # lookahead, the condition would stay open at position `)|` and
+    # the `|` would never be picked up by the outer
+    # `LuauAlternatorSeparator` rule.
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}|])
 
   # ----------------------------------------------------------------------------
   # Sequential Alternator Block
@@ -3355,6 +3891,83 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
+  # Single-line sequential alternator: `queue | A | B | C end` on one
+  # line. Distinguished from the multi-line shape by the `(?=[|])`
+  # lookahead — only matches when the keyword (plus optional WS) is
+  # immediately followed by `|`. Multi-line `queue\n  | A\n...` falls
+  # through to the multi-line rule because the position after `queue`
+  # is a newline, not `|`. Arms are wrapped in
+  # `LuauSparkdownAlternatorArm` (simple display text only — diverts,
+  # nested blocks, and other complex content require the multi-line
+  # shape where each arm is its own statement).
+  LuauSparkdownSingleLineSequentialAlternatorBlock:
+    begin: ({{WS}}*)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[|])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      4:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauSparkdownAlternatorArm" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # Single-line conditional alternator: `plural(n) | one = apple |
+  # other = apples end` on one line. The `(?=[(].*[|])` lookahead
+  # requires the keyword to be followed by a parenthesized condition
+  # whose closing paren is followed somewhere on the same line by
+  # `|` — distinguishing from `plural(n)\n  | one = ...\nend`
+  # (multi-line) where the condition is followed by a newline.
+  LuauSparkdownSingleLineConditionalAlternatorBlock:
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^)\n]*[)][^|\n]*[|])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauConditionalAlternatorCondition" }
+      - { include: "#LuauAlternatorSeparator" }
+      - { include: "#LuauSparkdownAlternatorArm" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
   LuauSequentialAlternatorBlock:
     begin: ({{WS}}*)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
     beginCaptures:
@@ -3381,7 +3994,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])
     endCaptures:
       1:
         emit: true
@@ -3456,6 +4069,40 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
     end: (?={{BEAT}})|(?=$|{{WS}})
+
+  # `external message(x)` — single-line declaration of a host-bound callable.
+  # Captures the `external` keyword, the function name (via the regular
+  # `LuauFunctionDeclarationName`), and a paren-delimited parameter list
+  # (via the regular `LuauFunctionParameters`). No body — the declaration
+  # ends at the closing `)` (in practice at the trailing line break, since
+  # the parameters rule consumes the paren pair). Only legal at top level
+  # (included from the file-scope pattern list, not from `LuauImplicitStatement`).
+  LuauExternalDeclaration:
+    tag: meta
+    name: meta.function.external.sd
+    begin: ({{WS}}*)(external)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#LuauExternalKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalSeparator" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauFunctionDeclarationName" }
+      - { include: "#LuauFunctionParameters" }
+      - { include: "#ExtraWhitespace" }
+    end: (?=$|{{WS}}*$)
+
+  LuauExternalKeyword:
+    tag: modifier
+    name: storage.modifier.external.sd
+    match: (external)\b
 
   # ----------------------------------------------------------------------------
   # Modifiers & Keywords
@@ -3639,8 +4286,13 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
 
+  # The lookbehind matches either `function ` (regular definition) or
+  # `external ` (host-binding declaration) — same identifier-capture shape,
+  # different surrounding keyword. Adding `external` here means the
+  # `LuauExternalDeclaration` rule can reuse this declaration-name pattern
+  # without a parallel `LuauExternalDeclarationName` rule.
   LuauFunctionDeclarationName:
-    match: (?<=function\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
+    match: (?<=(?:function|external)\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
       1:
         patterns:
@@ -3648,6 +4300,32 @@ repository:
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
+
+  # Chained method-call rule. After a value-expression element ends in
+  # a `LuauParenthetical` (function-call result), one or more
+  # `:method(args)` sequences may follow. The grammar's `LuauAccessPath`
+  # can't pick them up because it requires beginning with an identifier,
+  # not `:`. Without this rule, the `:` after `)` would be consumed by
+  # `LuauTypeAnnotationOperation` and misparsed as a type annotation —
+  # see the order comment in `LuauExpression` for why this rule must
+  # come first.
+  #
+  # The begin pattern is a positive lookahead for `:identifier(`. The
+  # body matches one or more `LuauFunctionAccessor` + `LuauParenthetical`
+  # pairs (handled by the patterns iterating until they no longer match).
+  # The end pattern triggers when the next position is no longer the
+  # start of another chained call.
+  LuauChainedFunctionCall:
+    begin: ({{WS}}*)(?=[:]{{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_FUNCTION_CALL_START}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauFunctionAccessor" }
+      - { include: "#LuauParenthetical" }
+    end: (?!{{WS}}*[:]{{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_FUNCTION_CALL_START}})
 
   LuauFunctionCall:
     begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})
@@ -4281,7 +4959,7 @@ repository:
       - { include: "#LuauAssignmentOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
 
   LuauAssignmentOperator:
     begin: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}})({{WS}}*)
@@ -4311,7 +4989,7 @@ repository:
       - { include: "#LuauArithmeticOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
 
   LuauArithmeticOperator:
     begin: ({{WS}}*)({{LUAU_ARITHMETIC_OPERATORS}})({{WS}}*)
@@ -4341,7 +5019,7 @@ repository:
       - { include: "#LuauCompareOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
 
   LuauCompareOperator:
     begin: ({{WS}}*)({{LUAU_COMPARE_OPERATORS}})({{WS}}*)
@@ -4371,7 +5049,7 @@ repository:
       - { include: "#LuauConcatOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
 
   LuauConcatOperator:
     begin: ({{WS}}*)({{LUAU_CONCAT_OPERATOR}})({{WS}}*)
@@ -4401,7 +5079,7 @@ repository:
       - { include: "#LuauLengthOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
 
   LuauLengthOperator:
     begin: ({{WS}}*)({{LUAU_LENGTH_OPERATOR}})({{WS}}*)
@@ -4431,7 +5109,7 @@ repository:
       - { include: "#LuauLogicalOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
 
   LuauLogicalOperator:
     begin: ({{WS}}*)({{LUAU_LOGICAL_KEYWORDS}})({{WS}}*)
@@ -4461,7 +5139,7 @@ repository:
       - { include: "#LuauTypeCastOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
 
   LuauTypeCastOperator:
     begin: ({{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
@@ -4618,7 +5296,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}>=])
 
   LuauTypeAssignmentOperator:
     match: ([=])({{WS}}*)
@@ -4653,7 +5331,7 @@ repository:
           - { include: "#OptionalSeparator" }
 
   LuauTypeLiteral:
-    begin: (?={{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`])
+    begin: (?={{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>])
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeBinaryOperation" }
@@ -4661,12 +5339,26 @@ repository:
       - { include: "#LuauString" }
       - { include: "#LuauBoolean" }
       - { include: "#LuauPrimitiveType" }
+      - { include: "#LuauDivertTargetType" }
       - { include: "#LuauTypeFunctionParameters" }
       - { include: "#LuauTypeGenerics" }
       - { include: "#LuauTypeofFunction" }
       - { include: "#LuauVariadicType" }
       - { include: "#LuauTypeName" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}>=])
+
+  # `->` as a type annotation marks the parameter as carrying a
+  # divert-target value (sparkdown's analogue of ink's typed-divert
+  # parameter `function f(-> target)`). The runtime ignores type
+  # annotations and accepts any value as a divert-target if used as
+  # one (validated by `tunnel-onwards-variable-target` in
+  # `Diverts.test.ts`); this marker is purely declarative — it signals
+  # author intent and gives the typechecker something to validate
+  # against in the future. Example: `function cut_to(escape: ->) ... end`.
+  LuauDivertTargetType:
+    tag: standard(typeName)
+    name: support.type.divert-target.sd
+    match: ([-][>])
 
   LuauTypeBinaryOperation:
     begin: ({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}})
@@ -4678,7 +5370,7 @@ repository:
       - { include: "#LuauTypeBinaryOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}>=])
 
   LuauTypeBinaryOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_BINARY_OPERATORS}})({{WS}}*)
@@ -4708,7 +5400,7 @@ repository:
       - { include: "#LuauTypeAnnotationOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}>=])
 
   LuauTypeAnnotationOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)

@@ -1,0 +1,10 @@
+store nums = {3, 1, 4, 1, 5, 9, 2, 6}
+store strs = {"pear", "apple", "banana"}
+store empty = {}
+{nums:min()}
+{nums:max()}
+{strs:min()}
+{strs:max()}
+{empty:min()}
+{empty:max()}
+{empty:random()}

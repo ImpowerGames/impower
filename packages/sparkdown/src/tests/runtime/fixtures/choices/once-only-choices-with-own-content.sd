@@ -1,0 +1,20 @@
+store times = 3
+-> home
+
+scene home
+  & times = times - 1
+  if times >= 0 then
+    -> eat
+  end
+  I've finished eating now.
+  -> END
+
+scene eat
+  This is the {chain | "first" | "second" | "third" end} time.
+  choose
+    * Eat ice-cream[]
+    * Drink coke[]
+    * Munch cookies[]
+  then
+    -> home
+  end

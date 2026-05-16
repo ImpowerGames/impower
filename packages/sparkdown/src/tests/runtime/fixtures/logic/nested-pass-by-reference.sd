@@ -1,0 +1,14 @@
+store globalVal = { value = 5 }
+{globalVal.value}
+& squaresquare(globalVal)
+{globalVal.value}
+-> DONE
+
+function squaresquare(x)
+  & square(x)
+  & square(x)
+end
+
+function square(x)
+  & x.value = x.value * x.value
+end

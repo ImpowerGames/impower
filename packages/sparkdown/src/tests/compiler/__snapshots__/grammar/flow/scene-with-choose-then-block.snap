@@ -1,0 +1,140 @@
+sparkdown [0..87]
+ ├─ Scene [0..10]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ Separator [5..6]: " "
+ │   ├─ Scene_content [6..10]
+ │   │   └─ SceneWithoutParametersDeclaration [6..10]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..10]
+ │   │       │   └─ SceneDeclarationName [6..10]: "main"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 10
+ │   └─ Scene_end 10
+ │       └─ Scene_end_c1 10
+ ├─ Newline [10..11]: "\n"
+ ├─ LuauSparkdownChooseBlock [11..76]
+ │   ├─ LuauSparkdownChooseBlock_begin [11..19]
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c1 [11..13]
+ │   │   │   └─ Indent [11..13]: "  "
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c2 [13..19]
+ │   │   │   └─ LuauChooseKeyword [13..19]: "choose"
+ │   │   └─ LuauSparkdownChooseBlock_begin_c3 19
+ │   │       └─ LuauSparkdownChooseBlock_begin_c3 19
+ │   │           └─ OptionalSeparator 19
+ │   ├─ LuauSparkdownChooseBlock_content [19..71]
+ │   │   ├─ Newline [19..20]: "\n"
+ │   │   ├─ Choice [20..28]
+ │   │   │   ├─ Choice_begin [20..26]
+ │   │   │   │   ├─ Choice_begin_c1 [20..24]
+ │   │   │   │   │   └─ Indent [20..24]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [24..26]
+ │   │   │   │   │   └─ ChoiceMark [24..26]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 26
+ │   │   │   │   ├─ Choice_begin_c4 26
+ │   │   │   │   ├─ Choice_begin_c5 26
+ │   │   │   │   ├─ Choice_begin_c6 26
+ │   │   │   │   └─ Choice_begin_c7 26
+ │   │   │   ├─ Choice_content [26..28]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [26..28]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [26..28]
+ │   │   │   │       │   └─ ChoiceTextContent [26..28]
+ │   │   │   │       │       └─ ChoiceTextContent_c1 [26..28]
+ │   │   │   │       │           └─ Word [26..28]: "Hi"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 28
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 28
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 28
+ │   │   │   └─ Choice_end 28
+ │   │   ├─ Newline [28..29]: "\n"
+ │   │   ├─ Choice [29..38]
+ │   │   │   ├─ Choice_begin [29..35]
+ │   │   │   │   ├─ Choice_begin_c1 [29..33]
+ │   │   │   │   │   └─ Indent [29..33]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [33..35]
+ │   │   │   │   │   └─ ChoiceMark [33..35]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 35
+ │   │   │   │   ├─ Choice_begin_c4 35
+ │   │   │   │   ├─ Choice_begin_c5 35
+ │   │   │   │   ├─ Choice_begin_c6 35
+ │   │   │   │   └─ Choice_begin_c7 35
+ │   │   │   ├─ Choice_content [35..38]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [35..38]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [35..38]
+ │   │   │   │       │   └─ ChoiceTextContent [35..38]
+ │   │   │   │       │       └─ ChoiceTextContent_c1 [35..38]
+ │   │   │   │       │           └─ Word [35..38]: "Hey"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 38
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 38
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 38
+ │   │   │   └─ Choice_end 38
+ │   │   ├─ Newline [38..39]: "\n"
+ │   │   └─ LuauSparkdownChooseThenClause [39..71]
+ │   │       ├─ LuauSparkdownChooseThenClause_begin [39..56]
+ │   │       │   ├─ LuauSparkdownChooseThenClause_begin_c1 [39..41]
+ │   │       │   │   └─ Indent [39..41]: "  "
+ │   │       │   ├─ LuauSparkdownChooseThenClause_begin_c2 [41..45]
+ │   │       │   │   └─ LuauThenKeyword [41..45]: "then"
+ │   │       │   ├─ LuauSparkdownChooseThenClause_begin_c3 [45..46]
+ │   │       │   │   └─ LuauSparkdownChooseThenClause_begin_c3 [45..46]
+ │   │       │   │       └─ OptionalSeparator [45..46]: " "
+ │   │       │   └─ LuauSparkdownChooseThenClause_begin_c4 [46..56]
+ │   │       │       └─ Label [46..56]
+ │   │       │           ├─ Label_c1 [46..47]
+ │   │       │           │   └─ LabelBeginMark [46..47]: "("
+ │   │       │           ├─ Label_c2 47
+ │   │       │           ├─ Label_c3 [47..55]
+ │   │       │           │   └─ LabelDeclarationName [47..55]: "greeting"
+ │   │       │           ├─ Label_c4 55
+ │   │       │           ├─ Label_c5 [55..56]
+ │   │       │           │   └─ LabelEndMark [55..56]: ")"
+ │   │       │           └─ Label_c6 56
+ │   │       │               └─ Label_c6 56
+ │   │       │                   └─ OptionalSeparator 56
+ │   │       ├─ LuauSparkdownChooseThenClause_content [56..71]
+ │   │       │   ├─ Newline [56..57]: "\n"
+ │   │       │   ├─ ImplicitAction [57..70]
+ │   │       │   │   ├─ ImplicitAction_begin [57..61]
+ │   │       │   │   │   └─ ImplicitAction_begin_c1 [57..61]
+ │   │       │   │   │       └─ Indent [57..61]: "    "
+ │   │       │   │   ├─ ImplicitAction_content [61..70]
+ │   │       │   │   │   └─ LineEnd [61..70]
+ │   │       │   │   │       ├─ LineEnd_begin 61
+ │   │       │   │   │       │   └─ LineEnd_begin_c1 61
+ │   │       │   │   │       ├─ LineEnd_content [61..70]
+ │   │       │   │   │       │   └─ TextChunk [61..70]
+ │   │       │   │   │       │       ├─ TextChunk_begin 61
+ │   │       │   │   │       │       ├─ TextChunk_content [61..70]
+ │   │       │   │   │       │       │   ├─ Word [61..64]: "She"
+ │   │       │   │   │       │       │   ├─ Space [64..65]: " "
+ │   │       │   │   │       │       │   ├─ Word [65..69]: "nods"
+ │   │       │   │   │       │       │   └─ Punctuation [69..70]: "."
+ │   │       │   │   │       │       └─ TextChunk_end 70
+ │   │       │   │   │       └─ LineEnd_end 70
+ │   │       │   │   └─ ImplicitAction_end 70
+ │   │       │   └─ Newline [70..71]: "\n"
+ │   │       └─ LuauSparkdownChooseThenClause_end 71
+ │   └─ LuauSparkdownChooseBlock_end [71..76]
+ │       ├─ LuauSparkdownChooseBlock_end_c1 [71..73]
+ │       │   └─ LuauSparkdownChooseBlock_end_c1 [71..73]
+ │       │       └─ OptionalSeparator [71..73]: "  "
+ │       └─ LuauSparkdownChooseBlock_end_c2 [73..76]
+ │           └─ LuauEndKeyword [73..76]: "end"
+ ├─ Newline [76..77]: "\n"
+ ├─ Divert [77..86]
+ │   ├─ Divert_begin [77..81]
+ │   │   ├─ Divert_begin_c1 [77..79]
+ │   │   │   └─ Indent [77..79]: "  "
+ │   │   └─ Divert_begin_c2 [79..81]
+ │   │       └─ DivertMark [79..81]: "->"
+ │   ├─ Divert_content [81..86]
+ │   │   └─ DivertTarget [81..86]
+ │   │       ├─ DivertTarget_begin [81..82]
+ │   │       │   └─ DivertTarget_begin_c1 [81..82]
+ │   │       │       └─ DivertTarget_begin_c1 [81..82]
+ │   │       │           └─ OptionalSeparator [81..82]: " "
+ │   │       ├─ DivertTarget_content [82..86]
+ │   │       │   └─ Done [82..86]: "DONE"
+ │   │       └─ DivertTarget_end 86
+ │   └─ Divert_end 86
+ └─ Newline [86..87]: "\n"

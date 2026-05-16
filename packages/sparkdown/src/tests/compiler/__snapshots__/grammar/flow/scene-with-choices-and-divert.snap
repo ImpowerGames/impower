@@ -1,0 +1,153 @@
+sparkdown [0..97]
+ ├─ Scene [0..13]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ Separator [5..6]: " "
+ │   ├─ Scene_content [6..13]
+ │   │   └─ SceneWithoutParametersDeclaration [6..13]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..13]
+ │   │       │   └─ SceneDeclarationName [6..13]: "Rooftop"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 13
+ │   └─ Scene_end 13
+ │       └─ Scene_end_c1 13
+ ├─ Newline [13..14]: "\n"
+ ├─ InlineDialogue [14..33]
+ │   ├─ InlineDialogue_begin [14..19]
+ │   │   ├─ InlineDialogue_begin_c1 [14..16]
+ │   │   │   └─ Indent [14..16]: "  "
+ │   │   ├─ InlineDialogue_begin_c2 [16..17]
+ │   │   │   └─ DialogueCharacter [16..17]
+ │   │   │       ├─ DialogueCharacter_c1 16
+ │   │   │       ├─ DialogueCharacter_c2 [16..17]
+ │   │   │       │   └─ DialogueCharacterName [16..17]
+ │   │   │       │       └─ DialogueCharacterName_c1 [16..17]
+ │   │   │       │           └─ Word [16..17]: "N"
+ │   │   │       ├─ DialogueCharacter_c3 17
+ │   │   │       ├─ DialogueCharacter_c4 17
+ │   │   │       ├─ DialogueCharacter_c5 17
+ │   │   │       ├─ DialogueCharacter_c6 17
+ │   │   │       └─ DialogueCharacter_c7 17
+ │   │   ├─ InlineDialogue_begin_c3 [17..18]
+ │   │   │   └─ ColonSeparator [17..18]: ":"
+ │   │   └─ InlineDialogue_begin_c4 [18..19]
+ │   │       └─ Separator [18..19]: " "
+ │   ├─ InlineDialogue_content [19..33]
+ │   │   └─ LineEnd [19..33]
+ │   │       ├─ LineEnd_begin 19
+ │   │       │   └─ LineEnd_begin_c1 19
+ │   │       ├─ LineEnd_content [19..33]
+ │   │       │   └─ TextChunk [19..33]
+ │   │       │       ├─ TextChunk_begin 19
+ │   │       │       ├─ TextChunk_content [19..33]
+ │   │       │       │   ├─ Word [19..21]: "Do"
+ │   │       │       │   ├─ Space [21..22]: " "
+ │   │       │       │   ├─ Word [22..25]: "you"
+ │   │       │       │   ├─ Space [25..26]: " "
+ │   │       │       │   ├─ Word [26..29]: "see"
+ │   │       │       │   ├─ Space [29..30]: " "
+ │   │       │       │   ├─ Word [30..32]: "it"
+ │   │       │       │   └─ Punctuation [32..33]: "?"
+ │   │       │       └─ TextChunk_end 33
+ │   │       └─ LineEnd_end 33
+ │   └─ InlineDialogue_end 33
+ ├─ Newline [33..34]: "\n"
+ ├─ Choice [34..63]
+ │   ├─ Choice_begin [34..38]
+ │   │   ├─ Choice_begin_c1 [34..36]
+ │   │   │   └─ Indent [34..36]: "  "
+ │   │   ├─ Choice_begin_c2 [36..38]
+ │   │   │   └─ ChoiceMark [36..38]: "+ "
+ │   │   ├─ Choice_begin_c3 38
+ │   │   ├─ Choice_begin_c4 38
+ │   │   ├─ Choice_begin_c5 38
+ │   │   ├─ Choice_begin_c6 38
+ │   │   └─ Choice_begin_c7 38
+ │   ├─ Choice_content [38..63]
+ │   │   └─ ChoiceWithSuppressedText [38..63]
+ │   │       ├─ ChoiceWithSuppressedText_c1 38
+ │   │       ├─ ChoiceWithSuppressedText_c2 [38..39]: "["
+ │   │       ├─ ChoiceWithSuppressedText_c3 [39..47]
+ │   │       │   └─ ChoiceTextContent [39..47]
+ │   │       │       └─ ChoiceTextContent_c1 [39..47]
+ │   │       │           ├─ Word [39..46]: "Courage"
+ │   │       │           └─ Punctuation [46..47]: "."
+ │   │       ├─ ChoiceWithSuppressedText_c4 [47..48]: "]"
+ │   │       ├─ ChoiceWithSuppressedText_c5 48
+ │   │       ├─ ChoiceWithSuppressedText_c6 48
+ │   │       ├─ ChoiceWithSuppressedText_c7 [48..49]
+ │   │       │   └─ Separator [48..49]: " "
+ │   │       └─ ChoiceWithSuppressedText_c8 [49..63]
+ │   │           └─ Divert [49..63]
+ │   │               ├─ Divert_begin [49..51]
+ │   │               │   ├─ Divert_begin_c1 49
+ │   │               │   └─ Divert_begin_c2 [49..51]
+ │   │               │       └─ DivertMark [49..51]: "->"
+ │   │               ├─ Divert_content [51..63]
+ │   │               │   └─ DivertTarget [51..63]
+ │   │               │       ├─ DivertTarget_begin [51..52]
+ │   │               │       │   └─ DivertTarget_begin_c1 [51..52]
+ │   │               │       │       └─ DivertTarget_begin_c1 [51..52]
+ │   │               │       │           └─ OptionalSeparator [51..52]: " "
+ │   │               │       ├─ DivertTarget_content [52..63]
+ │   │               │       │   └─ DivertPath [52..63]
+ │   │               │       │       ├─ DivertPath_begin 52
+ │   │               │       │       ├─ DivertPath_content [52..63]
+ │   │               │       │       │   └─ DivertPart [52..63]
+ │   │               │       │       │       └─ DivertPartName [52..63]: "WishCourage"
+ │   │               │       │       └─ DivertPath_end 63
+ │   │               │       └─ DivertTarget_end 63
+ │   │               └─ Divert_end 63
+ │   └─ Choice_end 63
+ ├─ Newline [63..64]: "\n"
+ ├─ Choice [64..93]
+ │   ├─ Choice_begin [64..68]
+ │   │   ├─ Choice_begin_c1 [64..66]
+ │   │   │   └─ Indent [64..66]: "  "
+ │   │   ├─ Choice_begin_c2 [66..68]
+ │   │   │   └─ ChoiceMark [66..68]: "+ "
+ │   │   ├─ Choice_begin_c3 68
+ │   │   ├─ Choice_begin_c4 68
+ │   │   ├─ Choice_begin_c5 68
+ │   │   ├─ Choice_begin_c6 68
+ │   │   └─ Choice_begin_c7 68
+ │   ├─ Choice_content [68..93]
+ │   │   └─ ChoiceWithSuppressedText [68..93]
+ │   │       ├─ ChoiceWithSuppressedText_c1 68
+ │   │       ├─ ChoiceWithSuppressedText_c2 [68..69]: "["
+ │   │       ├─ ChoiceWithSuppressedText_c3 [69..77]
+ │   │       │   └─ ChoiceTextContent [69..77]
+ │   │       │       └─ ChoiceTextContent_c1 [69..77]
+ │   │       │           ├─ Word [69..76]: "Answers"
+ │   │       │           └─ Punctuation [76..77]: "."
+ │   │       ├─ ChoiceWithSuppressedText_c4 [77..78]: "]"
+ │   │       ├─ ChoiceWithSuppressedText_c5 78
+ │   │       ├─ ChoiceWithSuppressedText_c6 78
+ │   │       ├─ ChoiceWithSuppressedText_c7 [78..79]
+ │   │       │   └─ Separator [78..79]: " "
+ │   │       └─ ChoiceWithSuppressedText_c8 [79..93]
+ │   │           └─ Divert [79..93]
+ │   │               ├─ Divert_begin [79..81]
+ │   │               │   ├─ Divert_begin_c1 79
+ │   │               │   └─ Divert_begin_c2 [79..81]
+ │   │               │       └─ DivertMark [79..81]: "->"
+ │   │               ├─ Divert_content [81..93]
+ │   │               │   └─ DivertTarget [81..93]
+ │   │               │       ├─ DivertTarget_begin [81..82]
+ │   │               │       │   └─ DivertTarget_begin_c1 [81..82]
+ │   │               │       │       └─ DivertTarget_begin_c1 [81..82]
+ │   │               │       │           └─ OptionalSeparator [81..82]: " "
+ │   │               │       ├─ DivertTarget_content [82..93]
+ │   │               │       │   └─ DivertPath [82..93]
+ │   │               │       │       ├─ DivertPath_begin 82
+ │   │               │       │       ├─ DivertPath_content [82..93]
+ │   │               │       │       │   └─ DivertPart [82..93]
+ │   │               │       │       │       └─ DivertPartName [82..93]: "WishAnswers"
+ │   │               │       │       └─ DivertPath_end 93
+ │   │               │       └─ DivertTarget_end 93
+ │   │               └─ Divert_end 93
+ │   └─ Choice_end 93
+ ├─ Newline [93..94]: "\n"
+ └─ LuauEndKeyword [94..97]: "end"

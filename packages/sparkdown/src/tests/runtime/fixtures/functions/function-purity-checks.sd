@@ -1,0 +1,13 @@
+function bad_display()
+  thisLooksLikeText
+  return 1
+end
+
+function bad_divert()
+  -> somewhere
+  return 1
+end
+
+scene somewhere
+  Arrived.
+  -> END

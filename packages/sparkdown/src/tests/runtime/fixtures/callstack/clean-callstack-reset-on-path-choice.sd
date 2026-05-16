@@ -1,0 +1,10 @@
+-> RunAThing
+
+scene RunAThing
+  The first line.
+  The second line.
+  -> DONE
+
+scene SomewhereElse
+  somewhere else
+  -> END

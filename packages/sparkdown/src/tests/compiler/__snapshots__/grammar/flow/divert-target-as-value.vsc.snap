@@ -1,0 +1,12 @@
+text.source.sparkdown [0..19]
+ ├─ storage.modifier.scope.luau [0..5]: "store"
+ ├─ text.source.sparkdown [5..6]: " "
+ ├─ variable.other.readwrite.luau [6..7]: "x"
+ ├─ punctuation.whitespace.extra.sd [7..8]: " "
+ ├─ keyword.operator.assignment.luau [8..9]: "="
+ ├─ punctuation.whitespace.separator.optional.sd [9..10]: " "
+ ├─ keyword.control.divert.mark.sd [10..12]: "->"
+ ├─ punctuation.whitespace.separator.optional.sd [12..13]: " "
+ ├─ keyword.control.divert.path.sd [13..18]
+ │   └─ keyword.control.divert.path.sd [13..18]: "place"
+ └─ Newline [18..19]: "\n"

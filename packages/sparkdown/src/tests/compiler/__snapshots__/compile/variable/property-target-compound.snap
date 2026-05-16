@@ -1,0 +1,48 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "StorePropertyAssignment",
+          "base": {
+            "type": "VariableReference",
+            "path": [
+              "opts"
+            ]
+          },
+          "key": {
+            "type": "StringExpression",
+            "content": [
+              "count"
+            ]
+          },
+          "value": {
+            "type": "BinaryExpression",
+            "op": "+",
+            "left": {
+              "type": "IndexExpression",
+              "base": {
+                "type": "VariableReference",
+                "path": [
+                  "opts"
+                ]
+              },
+              "key": {
+                "type": "StringExpression",
+                "content": [
+                  "count"
+                ]
+              }
+            },
+            "right": {
+              "type": "NumberExpression",
+              "value": 1,
+              "subtype": "int"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

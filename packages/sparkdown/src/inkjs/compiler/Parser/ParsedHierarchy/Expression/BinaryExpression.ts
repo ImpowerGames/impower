@@ -1,9 +1,6 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { Expression } from "./Expression";
 import { NativeFunctionCall } from "../../../../engine/NativeFunctionCall";
-import { Story } from "../Story";
-import { UnaryExpression } from "./UnaryExpression";
-import { asOrNull } from "../../../../engine/TypeAssertion";
 
 export class BinaryExpression extends Expression {
   public readonly leftExpression: Expression;
@@ -33,44 +30,29 @@ export class BinaryExpression extends Expression {
     container.AddContent(NativeFunctionCall.CallWithName(this.opName));
   };
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
-
-    // Check for the following case:
-    //
-    //    (not A) ? B
-    //
-    // Since this easy to accidentally do:
-    //
-    //    not A ? B
-    //
-    // when you intend:
-    //
-    //    not (A ? B)
-    if (this.NativeNameForOp(this.opName) === "?") {
-      const leftUnary = asOrNull(this.leftExpression, UnaryExpression);
-      if (
-        leftUnary !== null &&
-        (leftUnary.op === "not" || leftUnary.op === "!")
-      ) {
-        this.Error(
-          `Using \`not\` or \`!\` here negates \`${leftUnary.innerExpression}\` rather than the result of the \`?\` or \`has\` operator. You need to add parentheses around the \`(A ? B)\` expression.`,
-        );
-      }
-    }
-  }
-
   public readonly NativeNameForOp = (opName: string): string => {
-    if (opName === "and") {
-      return "&&";
-    } else if (opName === "or") {
-      return "||";
-    } else if (opName === "mod") {
+    // Source keywords (`and`/`or`/`not`) flow through verbatim — the native
+    // functions are registered under the keyword form so error messages and
+    // JSON output match what the user wrote.
+    //
+    // Symbol aliases that map source-level Luau operators onto the
+    // existing ink runtime native names:
+    //   - `mod` → `%`: keyword form of the modulo symbol.
+    //   - `^`   → `POW`: Luau exponentiation (matching `math.pow`).
+    //   - `..`  → `+`:  Luau string concatenation; `+` for strings is
+    //     already a concat at runtime, so the alias reuses it.
+    if (opName === "mod") {
       return "%";
-    } else if (opName === "has") {
-      return "?";
-    } else if (opName === "hasnt") {
-      return "!?";
+    }
+    if (opName === "^") {
+      return NativeFunctionCall.Pow;
+    }
+    if (opName === "..") {
+      return NativeFunctionCall.Add;
+    }
+    if (opName === "~=") {
+      // Luau not-equal — the runtime registers the C-style `!=` form.
+      return NativeFunctionCall.NotEquals;
     }
 
     return opName;

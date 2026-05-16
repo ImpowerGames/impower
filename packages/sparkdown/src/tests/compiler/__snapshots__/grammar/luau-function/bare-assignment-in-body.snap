@@ -1,0 +1,240 @@
+sparkdown [0..112]
+ ├─ LuauFunctionDefinition [0..111]
+ │   ├─ LuauFunctionDefinition_begin [0..9]
+ │   │   ├─ LuauFunctionDefinition_begin_c1 0
+ │   │   ├─ LuauFunctionDefinition_begin_c2 0
+ │   │   ├─ LuauFunctionDefinition_begin_c3 0
+ │   │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
+ │   │   │   └─ LuauFunctionKeyword [0..8]: "function"
+ │   │   └─ LuauFunctionDefinition_begin_c5 [8..9]
+ │   │       └─ LuauFunctionDefinition_begin_c5 [8..9]
+ │   │           └─ OptionalSeparator [8..9]: " "
+ │   ├─ LuauFunctionDefinition_content [9..108]
+ │   │   ├─ LuauFunctionDeclarationName [9..14]
+ │   │   │   ├─ LuauFunctionDeclarationName_c1 [9..14]
+ │   │   │   │   └─ LuauFunctionName [9..14]: "tally"
+ │   │   │   └─ LuauFunctionDeclarationName_c2 14
+ │   │   ├─ LuauFunctionParameters [14..21]
+ │   │   │   ├─ LuauFunctionParameters_begin [14..15]
+ │   │   │   │   └─ LuauFunctionParameters_begin_c1 [14..15]
+ │   │   │   │       └─ PunctuationParenOpen [14..15]: "("
+ │   │   │   ├─ LuauFunctionParameters_content [15..20]
+ │   │   │   │   └─ LuauFunctionParameter [15..20]: "items"
+ │   │   │   └─ LuauFunctionParameters_end [20..21]
+ │   │   │       └─ LuauFunctionParameters_end_c1 [20..21]
+ │   │   │           └─ PunctuationParenClose [20..21]: ")"
+ │   │   ├─ Newline [21..22]: "\n"
+ │   │   ├─ LuauImplicitAssignmentStatement [22..33]
+ │   │   │   ├─ LuauImplicitAssignmentStatement_begin [22..24]
+ │   │   │   │   └─ LuauImplicitAssignmentStatement_begin_c1 [22..24]
+ │   │   │   │       └─ Indent [22..24]: "  "
+ │   │   │   ├─ LuauImplicitAssignmentStatement_content [24..33]
+ │   │   │   │   ├─ LuauAccessPath [24..30]
+ │   │   │   │   │   ├─ LuauAccessPath_begin 24
+ │   │   │   │   │   ├─ LuauAccessPath_content [24..29]
+ │   │   │   │   │   │   └─ LuauAccessPart [24..29]
+ │   │   │   │   │   │       └─ LuauVariable [24..29]
+ │   │   │   │   │   │           └─ LuauVariable_c1 [24..29]
+ │   │   │   │   │   │               └─ LuauVariableName [24..29]: "total"
+ │   │   │   │   │   └─ LuauAccessPath_end [29..30]
+ │   │   │   │   │       └─ LuauAccessPath_end_c1 [29..30]
+ │   │   │   │   │           └─ LuauAccessPath_end_c1 [29..30]
+ │   │   │   │   │               └─ OptionalSeparator [29..30]: " "
+ │   │   │   │   └─ LuauAssignmentOperation [30..33]
+ │   │   │   │       ├─ LuauAssignmentOperation_begin 30
+ │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 30
+ │   │   │   │       ├─ LuauAssignmentOperation_content [30..33]
+ │   │   │   │       │   ├─ LuauAssignmentOperator [30..32]
+ │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [30..32]
+ │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 30
+ │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [30..31]: "="
+ │   │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [31..32]
+ │   │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [31..32]
+ │   │   │   │       │   │   │           └─ OptionalSeparator [31..32]: " "
+ │   │   │   │       │   │   └─ LuauAssignmentOperator_end 32
+ │   │   │   │       │   └─ LuauNumericDecimal [32..33]
+ │   │   │   │       │       ├─ LuauNumericDecimal_c1 [32..33]: "0"
+ │   │   │   │       │       └─ LuauNumericDecimal_c2 33
+ │   │   │   │       └─ LuauAssignmentOperation_end 33
+ │   │   │   └─ LuauImplicitAssignmentStatement_end 33
+ │   │   ├─ Newline [33..34]: "\n"
+ │   │   ├─ LuauForLoop [34..92]
+ │   │   │   ├─ LuauForLoop_begin [34..40]
+ │   │   │   │   ├─ LuauForLoop_begin_c1 [34..36]
+ │   │   │   │   │   └─ Indent [34..36]: "  "
+ │   │   │   │   ├─ LuauForLoop_begin_c2 [36..39]
+ │   │   │   │   │   └─ LuauForKeyword [36..39]: "for"
+ │   │   │   │   └─ LuauForLoop_begin_c3 [39..40]
+ │   │   │   │       └─ LuauForLoop_begin_c3 [39..40]
+ │   │   │   │           └─ OptionalSeparator [39..40]: " "
+ │   │   │   ├─ LuauForLoop_content [40..92]
+ │   │   │   │   ├─ LuauForCondition [40..41]
+ │   │   │   │   │   ├─ LuauForCondition_begin 40
+ │   │   │   │   │   ├─ LuauForCondition_content [40..41]
+ │   │   │   │   │   │   └─ LuauAccessPath [40..41]
+ │   │   │   │   │   │       ├─ LuauAccessPath_begin 40
+ │   │   │   │   │   │       ├─ LuauAccessPath_content [40..41]
+ │   │   │   │   │   │       │   └─ LuauAccessPart [40..41]
+ │   │   │   │   │   │       │       └─ LuauVariable [40..41]
+ │   │   │   │   │   │       │           └─ LuauVariable_c1 [40..41]
+ │   │   │   │   │   │       │               └─ LuauVariableName [40..41]: "i"
+ │   │   │   │   │   │       └─ LuauAccessPath_end 41
+ │   │   │   │   │   │           └─ LuauAccessPath_end_c1 41
+ │   │   │   │   │   └─ LuauForCondition_end 41
+ │   │   │   │   ├─ ExtraWhitespace [41..42]: " "
+ │   │   │   │   ├─ LuauInKeyword [42..44]: "in"
+ │   │   │   │   ├─ ExtraWhitespace [44..45]: " "
+ │   │   │   │   ├─ LuauAccessPath [45..50]
+ │   │   │   │   │   ├─ LuauAccessPath_begin 45
+ │   │   │   │   │   ├─ LuauAccessPath_content [45..50]
+ │   │   │   │   │   │   └─ LuauAccessPart [45..50]
+ │   │   │   │   │   │       └─ LuauVariable [45..50]
+ │   │   │   │   │   │           └─ LuauVariable_c1 [45..50]
+ │   │   │   │   │   │               └─ LuauVariableName [45..50]: "items"
+ │   │   │   │   │   └─ LuauAccessPath_end 50
+ │   │   │   │   │       └─ LuauAccessPath_end_c1 50
+ │   │   │   │   └─ LuauDoBlock [50..92]
+ │   │   │   │       ├─ LuauDoBlock_begin [50..53]
+ │   │   │   │       │   ├─ LuauDoBlock_begin_c1 [50..51]
+ │   │   │   │       │   │   └─ Indent [50..51]: " "
+ │   │   │   │       │   ├─ LuauDoBlock_begin_c2 [51..53]
+ │   │   │   │       │   │   └─ LuauDoKeyword [51..53]: "do"
+ │   │   │   │       │   └─ LuauDoBlock_begin_c3 53
+ │   │   │   │       │       └─ LuauDoBlock_begin_c3 53
+ │   │   │   │       │           └─ OptionalSeparator 53
+ │   │   │   │       ├─ LuauDoBlock_content [53..87]
+ │   │   │   │       │   ├─ Newline [53..54]: "\n"
+ │   │   │   │       │   ├─ LuauImplicitAssignmentStatement [54..75]
+ │   │   │   │       │   │   ├─ LuauImplicitAssignmentStatement_begin [54..58]
+ │   │   │   │       │   │   │   └─ LuauImplicitAssignmentStatement_begin_c1 [54..58]
+ │   │   │   │       │   │   │       └─ Indent [54..58]: "    "
+ │   │   │   │       │   │   ├─ LuauImplicitAssignmentStatement_content [58..75]
+ │   │   │   │       │   │   │   ├─ LuauAccessPath [58..64]
+ │   │   │   │       │   │   │   │   ├─ LuauAccessPath_begin 58
+ │   │   │   │       │   │   │   │   ├─ LuauAccessPath_content [58..63]
+ │   │   │   │       │   │   │   │   │   └─ LuauAccessPart [58..63]
+ │   │   │   │       │   │   │   │   │       └─ LuauVariable [58..63]
+ │   │   │   │       │   │   │   │   │           └─ LuauVariable_c1 [58..63]
+ │   │   │   │       │   │   │   │   │               └─ LuauVariableName [58..63]: "total"
+ │   │   │   │       │   │   │   │   └─ LuauAccessPath_end [63..64]
+ │   │   │   │       │   │   │   │       └─ LuauAccessPath_end_c1 [63..64]
+ │   │   │   │       │   │   │   │           └─ LuauAccessPath_end_c1 [63..64]
+ │   │   │   │       │   │   │   │               └─ OptionalSeparator [63..64]: " "
+ │   │   │   │       │   │   │   └─ LuauAssignmentOperation [64..75]
+ │   │   │   │       │   │   │       ├─ LuauAssignmentOperation_begin 64
+ │   │   │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 64
+ │   │   │   │       │   │   │       ├─ LuauAssignmentOperation_content [64..75]
+ │   │   │   │       │   │   │       │   ├─ LuauAssignmentOperator [64..66]
+ │   │   │   │       │   │   │       │   │   ├─ LuauAssignmentOperator_begin [64..66]
+ │   │   │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 64
+ │   │   │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [64..65]: "="
+ │   │   │   │       │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [65..66]
+ │   │   │   │       │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [65..66]
+ │   │   │   │       │   │   │       │   │   │           └─ OptionalSeparator [65..66]: " "
+ │   │   │   │       │   │   │       │   │   └─ LuauAssignmentOperator_end 66
+ │   │   │   │       │   │   │       │   ├─ LuauAccessPath [66..72]
+ │   │   │   │       │   │   │       │   │   ├─ LuauAccessPath_begin 66
+ │   │   │   │       │   │   │       │   │   ├─ LuauAccessPath_content [66..71]
+ │   │   │   │       │   │   │       │   │   │   └─ LuauAccessPart [66..71]
+ │   │   │   │       │   │   │       │   │   │       └─ LuauVariable [66..71]
+ │   │   │   │       │   │   │       │   │   │           └─ LuauVariable_c1 [66..71]
+ │   │   │   │       │   │   │       │   │   │               └─ LuauVariableName [66..71]: "total"
+ │   │   │   │       │   │   │       │   │   └─ LuauAccessPath_end [71..72]
+ │   │   │   │       │   │   │       │   │       └─ LuauAccessPath_end_c1 [71..72]
+ │   │   │   │       │   │   │       │   │           └─ LuauAccessPath_end_c1 [71..72]
+ │   │   │   │       │   │   │       │   │               └─ OptionalSeparator [71..72]: " "
+ │   │   │   │       │   │   │       │   └─ LuauArithmeticOperation [72..75]
+ │   │   │   │       │   │   │       │       ├─ LuauArithmeticOperation_begin 72
+ │   │   │   │       │   │   │       │       │   └─ LuauArithmeticOperation_begin_c1 72
+ │   │   │   │       │   │   │       │       ├─ LuauArithmeticOperation_content [72..75]
+ │   │   │   │       │   │   │       │       │   ├─ LuauArithmeticOperator [72..74]
+ │   │   │   │       │   │   │       │       │   │   ├─ LuauArithmeticOperator_begin [72..74]
+ │   │   │   │       │   │   │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 72
+ │   │   │   │       │   │   │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [72..73]: "+"
+ │   │   │   │       │   │   │       │       │   │   │   └─ LuauArithmeticOperator_begin_c3 [73..74]
+ │   │   │   │       │   │   │       │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [73..74]
+ │   │   │   │       │   │   │       │       │   │   │           └─ OptionalSeparator [73..74]: " "
+ │   │   │   │       │   │   │       │       │   │   └─ LuauArithmeticOperator_end 74
+ │   │   │   │       │   │   │       │       │   └─ LuauAccessPath [74..75]
+ │   │   │   │       │   │   │       │       │       ├─ LuauAccessPath_begin 74
+ │   │   │   │       │   │   │       │       │       ├─ LuauAccessPath_content [74..75]
+ │   │   │   │       │   │   │       │       │       │   └─ LuauAccessPart [74..75]
+ │   │   │   │       │   │   │       │       │       │       └─ LuauVariable [74..75]
+ │   │   │   │       │   │   │       │       │       │           └─ LuauVariable_c1 [74..75]
+ │   │   │   │       │   │   │       │       │       │               └─ LuauVariableName [74..75]: "i"
+ │   │   │   │       │   │   │       │       │       └─ LuauAccessPath_end 75
+ │   │   │   │       │   │   │       │       │           └─ LuauAccessPath_end_c1 75
+ │   │   │   │       │   │   │       │       └─ LuauArithmeticOperation_end 75
+ │   │   │   │       │   │   │       └─ LuauAssignmentOperation_end 75
+ │   │   │   │       │   │   └─ LuauImplicitAssignmentStatement_end 75
+ │   │   │   │       │   ├─ Newline [75..76]: "\n"
+ │   │   │   │       │   ├─ LuauImplicitAssignmentStatement [76..86]
+ │   │   │   │       │   │   ├─ LuauImplicitAssignmentStatement_begin [76..80]
+ │   │   │   │       │   │   │   └─ LuauImplicitAssignmentStatement_begin_c1 [76..80]
+ │   │   │   │       │   │   │       └─ Indent [76..80]: "    "
+ │   │   │   │       │   │   ├─ LuauImplicitAssignmentStatement_content [80..86]
+ │   │   │   │       │   │   │   ├─ LuauAccessPath [80..82]
+ │   │   │   │       │   │   │   │   ├─ LuauAccessPath_begin 80
+ │   │   │   │       │   │   │   │   ├─ LuauAccessPath_content [80..81]
+ │   │   │   │       │   │   │   │   │   └─ LuauAccessPart [80..81]
+ │   │   │   │       │   │   │   │   │       └─ LuauVariable [80..81]
+ │   │   │   │       │   │   │   │   │           └─ LuauVariable_c1 [80..81]
+ │   │   │   │       │   │   │   │   │               └─ LuauVariableName [80..81]: "n"
+ │   │   │   │       │   │   │   │   └─ LuauAccessPath_end [81..82]
+ │   │   │   │       │   │   │   │       └─ LuauAccessPath_end_c1 [81..82]
+ │   │   │   │       │   │   │   │           └─ LuauAccessPath_end_c1 [81..82]
+ │   │   │   │       │   │   │   │               └─ OptionalSeparator [81..82]: " "
+ │   │   │   │       │   │   │   └─ LuauAssignmentOperation [82..86]
+ │   │   │   │       │   │   │       ├─ LuauAssignmentOperation_begin 82
+ │   │   │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 82
+ │   │   │   │       │   │   │       ├─ LuauAssignmentOperation_content [82..86]
+ │   │   │   │       │   │   │       │   ├─ LuauAssignmentOperator [82..85]
+ │   │   │   │       │   │   │       │   │   ├─ LuauAssignmentOperator_begin [82..85]
+ │   │   │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 82
+ │   │   │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [82..84]: "+="
+ │   │   │   │       │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [84..85]
+ │   │   │   │       │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [84..85]
+ │   │   │   │       │   │   │       │   │   │           └─ OptionalSeparator [84..85]: " "
+ │   │   │   │       │   │   │       │   │   └─ LuauAssignmentOperator_end 85
+ │   │   │   │       │   │   │       │   └─ LuauNumericDecimal [85..86]
+ │   │   │   │       │   │   │       │       ├─ LuauNumericDecimal_c1 [85..86]: "1"
+ │   │   │   │       │   │   │       │       └─ LuauNumericDecimal_c2 86
+ │   │   │   │       │   │   │       └─ LuauAssignmentOperation_end 86
+ │   │   │   │       │   │   └─ LuauImplicitAssignmentStatement_end 86
+ │   │   │   │       │   └─ Newline [86..87]: "\n"
+ │   │   │   │       └─ LuauDoBlock_end [87..92]
+ │   │   │   │           ├─ LuauDoBlock_end_c1 [87..89]
+ │   │   │   │           │   └─ LuauDoBlock_end_c1 [87..89]
+ │   │   │   │           │       └─ OptionalSeparator [87..89]: "  "
+ │   │   │   │           └─ LuauDoBlock_end_c2 [89..92]
+ │   │   │   │               └─ LuauEndKeyword [89..92]: "end"
+ │   │   │   └─ LuauForLoop_end 92
+ │   │   ├─ Newline [92..93]: "\n"
+ │   │   ├─ LuauReturnStatement [93..107]
+ │   │   │   ├─ LuauReturnStatement_begin [93..102]
+ │   │   │   │   ├─ LuauReturnStatement_begin_c1 [93..95]
+ │   │   │   │   │   └─ Indent [93..95]: "  "
+ │   │   │   │   ├─ LuauReturnStatement_begin_c2 [95..101]
+ │   │   │   │   │   └─ LuauControlKeyword [95..101]: "return"
+ │   │   │   │   └─ LuauReturnStatement_begin_c3 [101..102]
+ │   │   │   │       └─ LuauReturnStatement_begin_c3 [101..102]
+ │   │   │   │           └─ OptionalSeparator [101..102]: " "
+ │   │   │   ├─ LuauReturnStatement_content [102..107]
+ │   │   │   │   └─ LuauAccessPath [102..107]
+ │   │   │   │       ├─ LuauAccessPath_begin 102
+ │   │   │   │       ├─ LuauAccessPath_content [102..107]
+ │   │   │   │       │   └─ LuauAccessPart [102..107]
+ │   │   │   │       │       └─ LuauVariable [102..107]
+ │   │   │   │       │           └─ LuauVariable_c1 [102..107]
+ │   │   │   │       │               └─ LuauVariableName [102..107]: "total"
+ │   │   │   │       └─ LuauAccessPath_end 107
+ │   │   │   │           └─ LuauAccessPath_end_c1 107
+ │   │   │   └─ LuauReturnStatement_end 107
+ │   │   └─ Newline [107..108]: "\n"
+ │   └─ LuauFunctionDefinition_end [108..111]
+ │       ├─ LuauFunctionDefinition_end_c1 108
+ │       │   └─ LuauFunctionDefinition_end_c1 108
+ │       │       └─ OptionalSeparator 108
+ │       └─ LuauFunctionDefinition_end_c2 [108..111]
+ │           └─ LuauEndKeyword [108..111]: "end"
+ └─ Newline [111..112]: "\n"
