@@ -49,10 +49,20 @@ export function formatSource(
   source: string,
   options: FormatOptions = {},
 ): string {
-  const tree = getParser().parse(source);
-  const doc = new SparkdownDocument("test://format.sd", "sparkdown", 1, source);
+  // Real LSP usage normalizes line endings to LF inside
+  // `SparkdownDocumentRegistry.set` before anything sees the text;
+  // mirror that here so the formatter (and downstream annotators
+  // like `CompilationAnnotator`) never see `\r`.
+  const normalized = source.replace(/\r\n|\r/g, "\n");
+  const tree = getParser().parse(normalized);
+  const doc = new SparkdownDocument(
+    "test://format.sd",
+    "sparkdown",
+    1,
+    normalized,
+  );
   const annotators = new SparkdownCombinedAnnotator();
-  annotators.create(tree, Text.of(source.split(/\r?\n|\r/)));
+  annotators.create(tree, Text.of(normalized.split("\n")));
   const annotations = annotators.get();
 
   const edits = getDocumentFormattingEdits(doc, tree, annotations, {
