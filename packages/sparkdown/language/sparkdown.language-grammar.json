@@ -82,6 +82,11 @@
       "elseif",
       "else"
     ],
+    "LUAU_IF_BRANCH_END_KEYWORDS": [
+      "end",
+      "elseif",
+      "else"
+    ],
     "LUAU_LOOP_BLOCK_KEYWORDS": [
       "break",
       "continue"
@@ -115,6 +120,18 @@
       "const",
       "function",
       "type"
+    ],
+    "LUAU_PRIMITIVE_TYPES": [
+      "nil",
+      "string",
+      "number",
+      "boolean",
+      "thread",
+      "vector",
+      "buffer",
+      "unknown",
+      "never",
+      "any"
     ],
     "LUAU_STANDARD_LIB_GLOBALS": [
       "_G",
@@ -5743,7 +5760,7 @@
           "include": "#LuauSparkdownBlockBody"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:end|elseif|else)\\b)"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*\\b(?:end|elseif|else)\\b)"
     },
     "LuauElseifBlock": {
       "begin": "((?:[^\\S\\n\\r])*)(elseif)\\b((?:[^\\S\\n\\r])*)",
@@ -5779,7 +5796,7 @@
           "include": "#LuauBlockBody"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:end|elseif|else)\\b)"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*\\b(?:end|elseif|else)\\b)"
     },
     "LuauElseifBlockCondition": {
       "begin": "(?<=elseif\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|(?:[^\\S\\n\\r]))",
@@ -7545,7 +7562,7 @@
       "match": "@\\w+"
     },
     "LuauDocParamModifier": {
-      "match": "((?<=[\\s*!/])[\\\\@]param)(\\s+)(\\b\\w+\\b)",
+      "match": "((?<=[\\s*!/])[\\\\@]param)((?:[^\\S\\n\\r])+)(\\b\\w+\\b)",
       "captures": {
         "1": {
           "patterns": [
@@ -9023,7 +9040,7 @@
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?!$|(?:[^\\S\\n\\r]))"
     },
     "LuauPrimitiveType": {
-      "match": "(nil|string|number|boolean|thread|vector|buffer|unknown|never|any)\\b(?:((?:[^\\S\\n\\r])*)(?=(?:(?:\\b(?:and|or|not)\\b|(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))|(?:==|~=|<=?|>=?)|(?:\\+|-|%|\\*|\\/\\/|\\/|\\^)|(?<![.])(?:[.][.])(?![.])|(?:[:][:]))|[?]|[&]|[-][>]))|(?=$|.))",
+      "match": "(\\b(?:nil|string|number|boolean|thread|vector|buffer|unknown|never|any)\\b)(?:((?:[^\\S\\n\\r])*)(?=(?:(?:\\b(?:and|or|not)\\b|(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))|(?:==|~=|<=?|>=?)|(?:\\+|-|%|\\*|\\/\\/|\\/|\\^)|(?<![.])(?:[.][.])(?![.])|(?:[:][:]))|[?]|[&]|[-][>]))|(?=$|.))",
       "captures": {
         "1": {
           "tag": "standard(typeName)",

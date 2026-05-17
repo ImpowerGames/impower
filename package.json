@@ -1,1 +1,8 @@
-{}
+{
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "eslint": "^9.18.0",
+    "eslint-plugin-yml": "^1.14.0"
+  }
+}

@@ -24,6 +24,7 @@ variables:
   LUAU_SEQUENTIAL_MODIFIER_KEYWORDS: ["shuffle"]
   LUAU_FLOW_BLOCK_KEYWORDS: ["do", "if", "for", "while", "repeat"]
   LUAU_IF_BLOCK_KEYWORDS: ["then", "elseif", "else"]
+  LUAU_IF_BRANCH_END_KEYWORDS: ["end", "elseif", "else"]
   LUAU_LOOP_BLOCK_KEYWORDS: ["break", "continue"]
   LUAU_ITERATOR_KEYWORDS: ["in"]
   LUAU_REPEAT_BLOCK_KEYWORDS: ["until"]
@@ -33,6 +34,19 @@ variables:
   LUAU_MODULE_KEYWORDS: ["require", "export"]
   LUAU_GLOBAL_DECLARATION_KEYWORDS: ["define"]
   LUAU_LOCAL_DECLARATION_KEYWORDS: ["local", "const", "function", "type"]
+  LUAU_PRIMITIVE_TYPES:
+    [
+      "nil",
+      "string",
+      "number",
+      "boolean",
+      "thread",
+      "vector",
+      "buffer",
+      "unknown",
+      "never",
+      "any",
+    ]
   LUAU_STANDARD_LIB_GLOBALS: ["_G", "_VERSION"]
   LUAU_STANDARD_LIB_CONSTANTS: [
       "bit32",
@@ -3418,7 +3432,7 @@ repository:
     patterns:
       - { include: "#LuauElseifBlockCondition" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|(?={{WS}}*(?:end|elseif|else)\b)
+    end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})
 
   LuauElseifBlock:
     begin: ({{WS}}*)(elseif)\b({{WS}}*)
@@ -3436,7 +3450,7 @@ repository:
     patterns:
       - { include: "#LuauElseifBlockCondition" }
       - { include: "#LuauBlockBody" }
-    end: (?={{BEAT}})|(?={{WS}}*(?:end|elseif|else)\b)
+    end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})
 
   LuauElseifBlockCondition:
     begin: (?<=elseif\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
@@ -4550,7 +4564,7 @@ repository:
     match: '@\w+'
 
   LuauDocParamModifier:
-    match: ((?<=[\s*!/])[\\@]param)(\s+)(\b\w+\b)
+    match: ((?<=[\s*!/])[\\@]param)({{WS}}+)(\b\w+\b)
     captures:
       1:
         patterns:
@@ -5379,7 +5393,7 @@ repository:
     end: (?={{BEAT}})|(?!$|{{WS}})
 
   LuauPrimitiveType:
-    match: (nil|string|number|boolean|thread|vector|buffer|unknown|never|any)\b{{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: ({{LUAU_PRIMITIVE_TYPES}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: standard(typeName)
