@@ -193,6 +193,32 @@ function isElseBlockMergeableIntoIf(
   return !!ifBlockChild;
 }
 
+// A line whose first non-whitespace token is a header-opener
+// keyword (`then` for an if-block, `do` for a loop's do-block)
+// should indent at the HEADER's level, not the body's level. The
+// grammar buries these keywords inside `*_content`, so the default
+// "in content → +1" rule would put them one level too deep. This
+// helper detects the case so `computeBlockIndent` can suppress the
+// enclosing block's contribution.
+function isHeaderOpenerLine(
+  stack: GrammarSyntaxNode<SparkdownNodeName>[],
+  block: GrammarSyntaxNode<SparkdownNodeName>,
+): boolean {
+  const leaf = stack[0];
+  if (!leaf) return false;
+  // `then` belongs to an `IfBlock` / `ElseifBlock`.
+  if (
+    leaf.name === "LuauThenKeyword" &&
+    (block.name === "LuauSparkdownIfBlock" ||
+      block.name === "LuauIfBlock" ||
+      block.name === "LuauSparkdownElseifBlock" ||
+      block.name === "LuauElseifBlock")
+  ) {
+    return true;
+  }
+  return false;
+}
+
 // Tree-walking indent: returns the count of ancestor blocks whose
 // `_content` contains `pos`, minus header/footer adjustments. No
 // stack state, no annotation queue — just the tree.
@@ -235,6 +261,12 @@ function computeBlockIndent(
     // `elseif`; this rule keeps indent correct so both passes
     // agree.
     if (isElseBlockMergeableIntoIf(node, stack[i - 1])) continue;
+
+    // Header-opener line (e.g. `then` on its own line inside an
+    // if-block whose condition was too long to inline). Such lines
+    // sit inside `IfBlock_content` but visually belong to the
+    // header — indent them at the block's level, not body level.
+    if (isHeaderOpenerLine(stack, node)) continue;
 
     level += 1;
   }
@@ -1067,11 +1099,23 @@ export const getFormatting = (
         });
       },
     });
-    // Block-opener keyword line-join. `for k, v in iter\n  do`,
-    // `if cond\n  then`, etc. should fold the opener back onto the
-    // header's line: `for k, v in iter do`, `if cond then`. The
-    // grammar parses both shapes identically — this is purely
-    // visual normalization.
+    // Block-opener keyword line-join. Any multi-line Luau header
+    // (`if`/`for`/`while`/`repeat` ... `then`/`do`) folds onto a
+    // single line. The opener (`then`/`do`) is the anchor; we scan
+    // backwards through preceding whitespace+content lines until we
+    // hit the loop/conditional header keyword (or, for `then`, the
+    // enclosing if-block's `if`), then collapse everything between
+    // into single spaces.
+    //
+    // This handles three cases at once:
+    //   `if X\n  then`        → `if X then`
+    //   `if\n  X\n  then`     → `if X then`
+    //   `while\n  X\n  do`    → `while X do`
+    //
+    // Pure Luau semantics: newlines are interchangeable with spaces
+    // anywhere inside a header. The grammar doesn't quite model
+    // this (loop rules terminate at `$`), so the formatter does the
+    // visual normalization itself.
     //
     // `then` is overloaded — it also opens the *result* clause of a
     // `choose ... then ... end` construct, where it MUST stay on
@@ -1113,66 +1157,173 @@ export const getFormatting = (
           }
           if (isChooseThen) return;
         }
-        if (nodeRef.name === "LuauDoKeyword") {
-          // `do` is overloaded — `do BODY end` is a bare DoBlock
-          // (its own statement) which should NEVER join the
-          // previous line. Distinguish by examining the previous
-          // non-blank line's first token: only `for` / `while` /
-          // `repeat` headers should pull the `do` back. Tree
-          // structure alone can't disambiguate because the grammar
-          // parses split `for X\n  do` as SIBLING constructs
-          // (LuauForLoop ends at $, the DoBlock starts fresh on
-          // the next line).
-          const kwLine = document.positionAt(nodeRef.from).line;
-          let prevLine = kwLine - 1;
-          let prevText = "";
-          while (prevLine >= 0) {
-            prevText = document.getLineText(prevLine).trim();
-            if (prevText !== "") break;
-            prevLine -= 1;
-          }
-          if (
-            !prevText.startsWith("for ") &&
-            !prevText.startsWith("while ") &&
-            !prevText.startsWith("repeat ") &&
-            prevText !== "repeat"
-          ) {
-            return;
-          }
-        }
         const kwFrom = nodeRef.from;
-        // Scan back through the source for a newline. If we hit one
-        // before any non-whitespace char, the keyword is on its own
-        // line and should be joined to the previous content.
-        let scan = kwFrom - 1;
-        let sawNewline = false;
-        while (scan >= 0) {
-          const ch = document.read(scan, scan + 1);
-          if (ch === " " || ch === "\t") {
-            scan -= 1;
-            continue;
+        // Find the START of the matching header keyword (`if` /
+        // `elseif` / `for` / `while` / `repeat`). We collapse all
+        // whitespace/newlines between header-start and this opener.
+        //
+        // For `then`: tree gives us the enclosing if/elseif block.
+        // For `do`: tree often doesn't (the loop's content ends at
+        // `$` so the DoBlock is parsed as a sibling). Fall back to
+        // a line-by-line scan looking for `for`/`while`/`repeat`.
+        let headerStart: number | undefined;
+        if (nodeRef.name === "LuauThenKeyword") {
+          // Walk up to enclosing IfBlock or ElseifBlock and use
+          // its begin's `.to` as the header-start.
+          let walker = nodeRef.node.parent;
+          while (walker) {
+            if (
+              walker.name === "LuauSparkdownIfBlock" ||
+              walker.name === "LuauIfBlock" ||
+              walker.name === "LuauSparkdownElseifBlock" ||
+              walker.name === "LuauElseifBlock"
+            ) {
+              // The begin of this block ends right after `if`/`elseif`.
+              let c = walker.firstChild;
+              while (c) {
+                if (c.name.endsWith("_begin")) {
+                  headerStart = c.to;
+                  break;
+                }
+                c = c.nextSibling;
+              }
+              break;
+            }
+            walker = walker.parent;
           }
-          if (ch === "\n" || ch === "\r") {
-            sawNewline = true;
-            scan -= 1;
-            continue;
+        } else {
+          // LuauDoKeyword: walk up to LuauForLoop / LuauWhileLoop /
+          // LuauRepeatLoop (nested form) first.
+          let walker = nodeRef.node.parent;
+          while (walker) {
+            if (
+              walker.name === "LuauSparkdownForLoop" ||
+              walker.name === "LuauForLoop" ||
+              walker.name === "LuauSparkdownWhileLoop" ||
+              walker.name === "LuauWhileLoop" ||
+              walker.name === "LuauSparkdownRepeatLoop" ||
+              walker.name === "LuauRepeatLoop"
+            ) {
+              let c = walker.firstChild;
+              while (c) {
+                if (c.name.endsWith("_begin")) {
+                  headerStart = c.to;
+                  break;
+                }
+                c = c.nextSibling;
+              }
+              break;
+            }
+            walker = walker.parent;
           }
-          break;
+          // Sibling fallback: walk back through lines looking for
+          // a header keyword (`for`/`while`/`repeat`). Skip blank
+          // lines and condition-continuation lines (no `=`, `;`,
+          // and not starting with another statement keyword). Bail
+          // out on any line that looks like a separate statement
+          // — that's our signal the `do` is bare and shouldn't
+          // join with the preceding line. Cap the search at 10
+          // lines so we don't reach into unrelated code if the
+          // user's header is broken.
+          if (headerStart == null) {
+            const kwLine = document.positionAt(kwFrom).line;
+            const STATEMENT_STARTERS = [
+              "local ",
+              "function ",
+              "define ",
+              "scene ",
+              "branch ",
+              "const ",
+              "store ",
+              "return ",
+              "if ",
+              "if",
+              "end",
+              "do",
+              "else",
+              "elseif ",
+              "elseif",
+            ];
+            for (let line = kwLine - 1; line >= 0 && line > kwLine - 10; line--) {
+              const text = document.getLineText(line);
+              const trimmed = text.trim();
+              if (trimmed === "") continue;
+              if (
+                trimmed.startsWith("for ") ||
+                trimmed.startsWith("while ") ||
+                trimmed.startsWith("repeat ") ||
+                trimmed === "for" ||
+                trimmed === "while" ||
+                trimmed === "repeat"
+              ) {
+                const lineStart = document.offsetAt({
+                  line,
+                  character: 0,
+                });
+                const kwIdx = text.search(/\S/);
+                const kwMatch = text
+                  .slice(kwIdx)
+                  .match(/^(for|while|repeat)\b/);
+                if (kwMatch) {
+                  headerStart = lineStart + kwIdx + kwMatch[0].length;
+                }
+                break;
+              }
+              // If line clearly starts a separate statement (local,
+              // function, end, etc.), the `do` is bare.
+              if (
+                STATEMENT_STARTERS.some(
+                  (s) => trimmed === s.trim() || trimmed.startsWith(s),
+                )
+              ) {
+                break;
+              }
+              // Otherwise treat as a condition-continuation line
+              // and keep scanning back.
+            }
+          }
         }
-        if (!sawNewline) return;
-        // `scan` now points to the last non-whitespace char before
-        // the gap. Replace `[scan + 1, kwFrom]` with a single space.
-        const joinFrom = scan + 1;
-        if (joinFrom >= kwFrom) return;
+        if (headerStart == null) return;
+        if (headerStart >= kwFrom) return;
+
+        // Only join if there's actually a newline in the span (no
+        // need to rewrite single-line `if X then`).
+        const between = document.read(headerStart, kwFrom);
+        if (!between.includes("\n")) return;
+
+        // Collapse every WS-or-newline run to a single space. No
+        // trim — the outer slice already accounts for whatever
+        // boundary whitespace was actually present in the source,
+        // so collapsing in-place preserves single-line idempotency
+        // (`if cond then` round-trips identically).
+        const newText = between.replace(/\s+/g, " ");
+
+        // Line-length budget. If collapsing the whole header would
+        // exceed the budget, keep it multi-line — the opener stays
+        // on its own line at header-level indent (see
+        // `isHeaderOpenerLine` in `computeBlockIndent` for the
+        // indent fix).
+        const HEADER_LINE_BUDGET = 100;
+        const headerKwLine = document.positionAt(headerStart).line;
+        const headerLineStart = document.offsetAt({
+          line: headerKwLine,
+          character: 0,
+        });
+        const openerEnd = nodeRef.to;
+        const wouldBe = document
+          .read(headerLineStart, openerEnd)
+          .replace(/\s+/g, " ");
+        if (wouldBe.length > HEADER_LINE_BUDGET) return;
+
         const range: Range = {
-          start: document.positionAt(joinFrom),
+          start: document.positionAt(headerStart),
           end: document.positionAt(kwFrom),
         };
         pushIfInRange({
           lineNumber: range.start.line + 1,
           range,
           oldText: document.getText(range),
-          newText: " ",
+          newText,
           type: "opener_join",
         });
       },
