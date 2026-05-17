@@ -1,0 +1,30 @@
+function f()
+  for k, v in enum do
+    body
+  end
+
+  while cond do
+    body
+  end
+
+  if cond then
+    body
+  end
+
+  if a then
+    x = 1
+  elseif b then
+    x = 2
+  end
+
+  -- already joined, should stay
+  for k, v in iter do
+    body
+  end
+
+  -- bare do-block — must stay on its own line, not join with prev
+  local x = 1
+  do
+    local y = 2
+  end
+end

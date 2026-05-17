@@ -1067,6 +1067,116 @@ export const getFormatting = (
         });
       },
     });
+    // Block-opener keyword line-join. `for k, v in iter\n  do`,
+    // `if cond\n  then`, etc. should fold the opener back onto the
+    // header's line: `for k, v in iter do`, `if cond then`. The
+    // grammar parses both shapes identically — this is purely
+    // visual normalization.
+    //
+    // `then` is overloaded — it also opens the *result* clause of a
+    // `choose ... then ... end` construct, where it MUST stay on
+    // its own line (separates choices from the result body). Skip
+    // join when the keyword sits inside a `LuauSparkdownChooseThenClause`.
+    const BLOCK_OPENER_KEYWORDS = new Set(["LuauDoKeyword", "LuauThenKeyword"]);
+    const LOOP_CONTENT_NAMES = new Set([
+      "LuauSparkdownForLoop_content",
+      "LuauSparkdownWhileLoop_content",
+      "LuauSparkdownRepeatLoop_content",
+      "LuauForLoop_content",
+      "LuauWhileLoop_content",
+      "LuauRepeatLoop_content",
+    ]);
+    tree.iterate({
+      enter: (nodeRef) => {
+        if (!BLOCK_OPENER_KEYWORDS.has(nodeRef.name)) return;
+        if (nodeRef.name === "LuauThenKeyword") {
+          // `then` is overloaded — `choose ... then ... end` uses
+          // it to open the RESULT clause, which must stay on its
+          // own line. Skip when the keyword sits inside
+          // ChooseThenClause.
+          let walker = nodeRef.node.parent;
+          let isChooseThen = false;
+          while (walker) {
+            if (walker.name === "LuauSparkdownChooseThenClause") {
+              isChooseThen = true;
+              break;
+            }
+            if (
+              walker.name === "LuauSparkdownIfBlock" ||
+              walker.name === "LuauIfBlock" ||
+              walker.name === "LuauSparkdownElseifBlock" ||
+              walker.name === "LuauElseifBlock"
+            ) {
+              break;
+            }
+            walker = walker.parent;
+          }
+          if (isChooseThen) return;
+        }
+        if (nodeRef.name === "LuauDoKeyword") {
+          // `do` is overloaded — `do BODY end` is a bare DoBlock
+          // (its own statement) which should NEVER join the
+          // previous line. Distinguish by examining the previous
+          // non-blank line's first token: only `for` / `while` /
+          // `repeat` headers should pull the `do` back. Tree
+          // structure alone can't disambiguate because the grammar
+          // parses split `for X\n  do` as SIBLING constructs
+          // (LuauForLoop ends at $, the DoBlock starts fresh on
+          // the next line).
+          const kwLine = document.positionAt(nodeRef.from).line;
+          let prevLine = kwLine - 1;
+          let prevText = "";
+          while (prevLine >= 0) {
+            prevText = document.getLineText(prevLine).trim();
+            if (prevText !== "") break;
+            prevLine -= 1;
+          }
+          if (
+            !prevText.startsWith("for ") &&
+            !prevText.startsWith("while ") &&
+            !prevText.startsWith("repeat ") &&
+            prevText !== "repeat"
+          ) {
+            return;
+          }
+        }
+        const kwFrom = nodeRef.from;
+        // Scan back through the source for a newline. If we hit one
+        // before any non-whitespace char, the keyword is on its own
+        // line and should be joined to the previous content.
+        let scan = kwFrom - 1;
+        let sawNewline = false;
+        while (scan >= 0) {
+          const ch = document.read(scan, scan + 1);
+          if (ch === " " || ch === "\t") {
+            scan -= 1;
+            continue;
+          }
+          if (ch === "\n" || ch === "\r") {
+            sawNewline = true;
+            scan -= 1;
+            continue;
+          }
+          break;
+        }
+        if (!sawNewline) return;
+        // `scan` now points to the last non-whitespace char before
+        // the gap. Replace `[scan + 1, kwFrom]` with a single space.
+        const joinFrom = scan + 1;
+        if (joinFrom >= kwFrom) return;
+        const range: Range = {
+          start: document.positionAt(joinFrom),
+          end: document.positionAt(kwFrom),
+        };
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: " ",
+          type: "opener_join",
+        });
+      },
+    });
     // Quote normalization. Convert single-quoted Luau strings
     // (`'foo'`) to double-quoted (`"foo"`) — prettier-style. Skip
     // when the content contains a `"` already (would require
@@ -1239,6 +1349,7 @@ const PRECEDENCE: Record<string, number> = {
   quote_normalize: 100,
   crlf_normalize: 100,
   empty_block_compact: 100,
+  opener_join: 110,
   elseif_join: 110,
   elseif_drop_end: 110,
   scene_end: 100,
