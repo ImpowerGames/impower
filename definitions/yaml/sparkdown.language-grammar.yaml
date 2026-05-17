@@ -2733,10 +2733,7 @@ repository:
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauPropertyDefinition" }
       - { include: "#LuauMethodDefinition" }
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -2777,10 +2774,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauFunctionReturnType" }
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -2908,10 +2902,7 @@ repository:
       - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionParameters" }
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -3063,6 +3054,46 @@ repository:
       - { include: "#LuauExplicitStatement" }
       - { include: "#LuauImplicitAssignmentStatement" }
 
+  # Shared body-content pattern set for every sparkdown-context block-shaped
+  # rule (`LuauSparkdownIfBlock`, `LuauSparkdownForLoop`, etc.). Each of
+  # those rules typically lists a block-specific prefix (a condition rule)
+  # followed by `{ include: "#LuauSparkdownBlockBody" }`. This keeps the
+  # set of accepted body constructs in ONE place — when a new statement
+  # type lands, add it here once and every block picks it up automatically
+  # (GRAMMAR.md §5.4: the audit-every-block discipline collapses to
+  # audit-one-rule).
+  #
+  # `LuauCommaSeparator` is intentionally excluded — a display line could
+  # legitimately start with a comma (`, she muttered`), and treating that
+  # comma as a structural separator would mangle the display text.
+  LuauSparkdownBlockBody:
+    patterns:
+      - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauSparkdownControlBlock" }
+      - { include: "#SparkdownStatement" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+
+  # Pure-Luau counterpart of `LuauSparkdownBlockBody`. Used inside every
+  # Luau-only block rule (`LuauIfBlock`, `LuauForLoop`, `LuauFunctionDefinition`,
+  # etc.). `LuauControlBlock` already transitively includes
+  # `LuauImplicitStatement` / `LuauExplicitStatement` / etc., so the
+  # body tail here is shorter than the Sparkdown variant.
+  #
+  # `LuauCommaSeparator` is included as a forgiveness measure — bare
+  # commas at body level aren't valid Luau syntax (commas live inside
+  # function-call args, declarations, table literals, etc.) but if an
+  # author writes one we'd rather highlight it than emit an `UNRECOGNIZED`.
+  LuauBlockBody:
+    patterns:
+      - { include: "#LuauControlBlock" }
+      - { include: "#LuauExpression" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+
   # ----------------------------------------------------------------------------
   # For Loop
   # ----------------------------------------------------------------------------
@@ -3082,13 +3113,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauForCondition" }
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
-      - { include: "#LuauSparkdownControlBlock" }
-      - { include: "#SparkdownStatement" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|$
 
   LuauForLoop:
@@ -3106,10 +3131,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauForCondition" }
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|$
 
   LuauForCondition:
@@ -3140,13 +3162,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauWhileCondition" }
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
-      - { include: "#LuauSparkdownControlBlock" }
-      - { include: "#SparkdownStatement" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|$
 
   LuauWhileLoop:
@@ -3164,11 +3180,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauWhileCondition" }
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|$
 
   LuauWhileCondition:
@@ -3198,13 +3210,7 @@ repository:
         patterns:
           - { include: "#OptionalSeparator" }
     patterns:
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
-      - { include: "#LuauSparkdownControlBlock" }
-      - { include: "#SparkdownStatement" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*(?:until)\b)
 
   LuauRepeatLoop:
@@ -3221,11 +3227,7 @@ repository:
         patterns:
           - { include: "#OptionalSeparator" }
     patterns:
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*(?:until)\b)
 
   LuauUntilStatement:
@@ -3264,13 +3266,7 @@ repository:
         patterns:
           - { include: "#OptionalSeparator" }
     patterns:
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
-      - { include: "#LuauSparkdownControlBlock" }
-      - { include: "#SparkdownStatement" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -3295,10 +3291,7 @@ repository:
         patterns:
           - { include: "#OptionalSeparator" }
     patterns:
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -3328,13 +3321,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauIfBlockCondition" }
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
-      - { include: "#LuauSparkdownControlBlock" }
-      - { include: "#SparkdownStatement" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -3360,11 +3347,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauIfBlockCondition" }
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -3420,13 +3403,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauElseifBlockCondition" }
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
-      - { include: "#LuauSparkdownControlBlock" }
-      - { include: "#SparkdownStatement" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*(?:end|elseif|else)\b)
 
   LuauElseifBlock:
@@ -3444,11 +3421,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauElseifBlockCondition" }
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*(?:end|elseif|else)\b)
 
   LuauElseifBlockCondition:
@@ -3486,13 +3459,7 @@ repository:
         patterns:
           - { include: "#OptionalSeparator" }
     patterns:
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
-      - { include: "#LuauSparkdownControlBlock" }
-      - { include: "#SparkdownStatement" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
 
   LuauElseBlock:
@@ -3509,11 +3476,7 @@ repository:
         patterns:
           - { include: "#OptionalSeparator" }
     patterns:
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
 
   # ----------------------------------------------------------------------------
@@ -3791,13 +3754,7 @@ repository:
     patterns:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
-      - { include: "#LuauSparkdownControlBlock" }
-      - { include: "#SparkdownStatement" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -3828,10 +3785,7 @@ repository:
     patterns:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])
     endCaptures:
       1:
@@ -3883,13 +3837,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauAlternatorSeparator" }
-      - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
-      - { include: "#LuauSparkdownControlBlock" }
-      - { include: "#SparkdownStatement" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
@@ -3999,10 +3947,7 @@ repository:
           - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauAlternatorSeparator" }
-      - { include: "#LuauControlBlock" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
+      - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b|(?=[,;)\]}])
     endCaptures:
       1:

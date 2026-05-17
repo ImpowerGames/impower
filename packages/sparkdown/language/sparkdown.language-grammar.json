@@ -4517,16 +4517,7 @@
           "include": "#LuauMethodDefinition"
         },
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
@@ -4587,16 +4578,7 @@
           "include": "#LuauFunctionReturnType"
         },
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
@@ -4823,16 +4805,7 @@
           "include": "#LuauFunctionParameters"
         },
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
@@ -5102,6 +5075,50 @@
         }
       ]
     },
+    "LuauSparkdownBlockBody": {
+      "patterns": [
+        {
+          "include": "#LuauExplicitStatement"
+        },
+        {
+          "include": "#LuauImplicitStatement"
+        },
+        {
+          "include": "#LuauSparkdownControlBlock"
+        },
+        {
+          "include": "#SparkdownStatement"
+        },
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ]
+    },
+    "LuauBlockBody": {
+      "patterns": [
+        {
+          "include": "#LuauControlBlock"
+        },
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#LuauCommaSeparator"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ]
+    },
     "LuauSparkdownForLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(for)\\b((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
@@ -5133,25 +5150,7 @@
           "include": "#LuauForCondition"
         },
         {
-          "include": "#LuauExplicitStatement"
-        },
-        {
-          "include": "#LuauImplicitStatement"
-        },
-        {
-          "include": "#LuauSparkdownControlBlock"
-        },
-        {
-          "include": "#SparkdownStatement"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauSparkdownBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
@@ -5187,16 +5186,7 @@
           "include": "#LuauForCondition"
         },
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
@@ -5250,25 +5240,7 @@
           "include": "#LuauWhileCondition"
         },
         {
-          "include": "#LuauExplicitStatement"
-        },
-        {
-          "include": "#LuauImplicitStatement"
-        },
-        {
-          "include": "#LuauSparkdownControlBlock"
-        },
-        {
-          "include": "#SparkdownStatement"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauSparkdownBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
@@ -5304,19 +5276,7 @@
           "include": "#LuauWhileCondition"
         },
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#LuauCommaSeparator"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
@@ -5367,25 +5327,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauExplicitStatement"
-        },
-        {
-          "include": "#LuauImplicitStatement"
-        },
-        {
-          "include": "#LuauSparkdownControlBlock"
-        },
-        {
-          "include": "#SparkdownStatement"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauSparkdownBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:until)\\b)"
@@ -5418,19 +5360,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#LuauCommaSeparator"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:until)\\b)"
@@ -5499,25 +5429,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauExplicitStatement"
-        },
-        {
-          "include": "#LuauImplicitStatement"
-        },
-        {
-          "include": "#LuauSparkdownControlBlock"
-        },
-        {
-          "include": "#SparkdownStatement"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauSparkdownBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
@@ -5567,16 +5479,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
@@ -5629,25 +5532,7 @@
           "include": "#LuauIfBlockCondition"
         },
         {
-          "include": "#LuauExplicitStatement"
-        },
-        {
-          "include": "#LuauImplicitStatement"
-        },
-        {
-          "include": "#LuauSparkdownControlBlock"
-        },
-        {
-          "include": "#SparkdownStatement"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauSparkdownBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
@@ -5700,19 +5585,7 @@
           "include": "#LuauIfBlockCondition"
         },
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#LuauCommaSeparator"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
@@ -5818,25 +5691,7 @@
           "include": "#LuauElseifBlockCondition"
         },
         {
-          "include": "#LuauExplicitStatement"
-        },
-        {
-          "include": "#LuauImplicitStatement"
-        },
-        {
-          "include": "#LuauSparkdownControlBlock"
-        },
-        {
-          "include": "#SparkdownStatement"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauSparkdownBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:end|elseif|else)\\b)"
@@ -5872,19 +5727,7 @@
           "include": "#LuauElseifBlockCondition"
         },
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#LuauCommaSeparator"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:end|elseif|else)\\b)"
@@ -5952,25 +5795,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauExplicitStatement"
-        },
-        {
-          "include": "#LuauImplicitStatement"
-        },
-        {
-          "include": "#LuauSparkdownControlBlock"
-        },
-        {
-          "include": "#SparkdownStatement"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauSparkdownBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:end)\\b)"
@@ -6003,19 +5828,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#LuauCommaSeparator"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:end)\\b)"
@@ -6433,25 +6246,7 @@
           "include": "#LuauAlternatorSeparator"
         },
         {
-          "include": "#LuauExplicitStatement"
-        },
-        {
-          "include": "#LuauImplicitStatement"
-        },
-        {
-          "include": "#LuauSparkdownControlBlock"
-        },
-        {
-          "include": "#SparkdownStatement"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauSparkdownBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
@@ -6507,16 +6302,7 @@
           "include": "#LuauAlternatorSeparator"
         },
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b|(?=[,;)\\]}])",
@@ -6599,25 +6385,7 @@
           "include": "#LuauAlternatorSeparator"
         },
         {
-          "include": "#LuauExplicitStatement"
-        },
-        {
-          "include": "#LuauImplicitStatement"
-        },
-        {
-          "include": "#LuauSparkdownControlBlock"
-        },
-        {
-          "include": "#SparkdownStatement"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauSparkdownBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
@@ -6815,16 +6583,7 @@
           "include": "#LuauAlternatorSeparator"
         },
         {
-          "include": "#LuauControlBlock"
-        },
-        {
-          "include": "#LuauExpression"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
+          "include": "#LuauBlockBody"
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b|(?=[,;)\\]}])",
