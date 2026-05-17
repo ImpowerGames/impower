@@ -114,30 +114,75 @@ export const updateGrammarVariables = (
   grammar: TmGrammar,
   scopeReplacementRules?: VariableReplacer[],
 ) => {
-  // Keep a copy of the variable for later use and delete them from the grammar.
   const variables = grammar.variables;
 
-  const variableReplacers: VariableReplacer[] = [];
+  // First pass: build the raw (un-substituted) pattern for each variable.
+  // Arrays auto-wrap to `\b(?:a|b|c)\b` here; string values pass through.
+  const rawPatterns: Record<string, string> = {};
   for (const variableName in variables) {
     const variable = variables[variableName];
     if (variable) {
-      // Replace the pattern with earlier variables
-      const variablePattern = Array.isArray(variable)
+      rawPatterns[variableName] = Array.isArray(variable)
         ? `\\b(?:${variable.join("|")})\\b`
         : variable;
-      const pattern = replacePatternVariables(
-        variablePattern,
-        variableReplacers,
-      );
-
-      // When a variable is resolved, it's added to replacers. Then it can be used
-      // if another variable depends on it.
-      variableReplacers.push([
-        new RegExp(`{{${variableName}}}`, "gim"),
-        pattern,
-      ]);
     }
   }
+
+  // Second pass: fixed-point substitution. Resolution is order-independent —
+  // any variable can reference any other regardless of declaration position.
+  // Each pass substitutes every `{{name}}` token whose value is already a
+  // *resolved* pattern (no remaining `{{...}}` tokens of its own). We loop
+  // until a full pass makes no changes. Circular references would loop
+  // forever, so a hard cap turns them into a build error instead.
+  const MAX_PASSES = 32;
+  const TOKEN_REGEX = /{{([A-Za-z_][A-Za-z0-9_]*)}}/g;
+  const isFullyResolved = (s: string) => !TOKEN_REGEX.test(s);
+
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    let changed = false;
+    for (const name of Object.keys(rawPatterns)) {
+      const before = rawPatterns[name]!;
+      // Reset lastIndex because TOKEN_REGEX is global; reuse via replace.
+      const after = before.replace(TOKEN_REGEX, (whole, refName: string) => {
+        const ref = rawPatterns[refName];
+        // Only substitute when the referenced value is itself fully resolved.
+        // Otherwise leave the token for a later pass — substituting a
+        // half-resolved value would compound the problem.
+        return ref !== undefined && isFullyResolved(ref) ? ref : whole;
+      });
+      if (after !== before) {
+        rawPatterns[name] = after;
+        changed = true;
+      }
+    }
+    if (!changed) break;
+    if (pass === MAX_PASSES - 1) {
+      const unresolved = Object.entries(rawPatterns)
+        .filter(([, v]) => !isFullyResolved(v))
+        .map(([k]) => k);
+      throw new Error(
+        `Grammar variable substitution failed to converge after ${MAX_PASSES} passes. ` +
+          `Likely circular reference among: ${unresolved.join(", ")}.`,
+      );
+    }
+  }
+
+  // Catch typos: any remaining `{{...}}` token references a name we never
+  // saw a definition for. Fail loud instead of silently leaving a literal
+  // `{{FOO}}` in the compiled grammar (which would break regex matching).
+  for (const [name, value] of Object.entries(rawPatterns)) {
+    const stray = value.match(TOKEN_REGEX);
+    if (stray) {
+      throw new Error(
+        `Grammar variable "${name}" references undefined variable(s): ${stray.join(", ")}`,
+      );
+    }
+  }
+
+  // Build the replacer list now that all values are fully resolved.
+  const variableReplacers: VariableReplacer[] = Object.entries(rawPatterns).map(
+    ([name, value]) => [new RegExp(`{{${name}}}`, "gim"), value],
+  );
 
   transformGrammarRepository(grammar, ["begin", "end", "match"], (pattern) =>
     replacePatternVariables(pattern, variableReplacers),
