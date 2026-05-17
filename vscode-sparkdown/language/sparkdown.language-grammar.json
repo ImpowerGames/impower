@@ -2552,7 +2552,7 @@
           "include": "#BlockLineContinue"
         }
       ],
-      "end": "(?=^(?!$|//|\\1(?:[^\\S\\n\\r])))"
+      "end": "(?=^(?!$|//|\\1(?:[^\\S\\n\\r])))|(?=^(?:[^\\S\\n\\r])*(?:[*+]|->|[&%$^]|scene\\b|branch\\b|function\\b|define\\b|const\\b|store\\b|local\\b))"
     },
     "InlineDialogue": {
       "tag": "definition(string)",

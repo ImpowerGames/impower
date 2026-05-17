@@ -1654,7 +1654,19 @@ repository:
       - { include: "#BlockLineBlank" }
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
-    end: (?=^(?!$|//|\1{{WS}}))
+    # End when the next line:
+    #  - is shallower than (or equal-indent to) the speaker line —
+    #    `\1` is the captured leading WS of the speaker. `\1{{WS}}`
+    #    requires at least one MORE whitespace char, so any line at
+    #    or below the speaker's indent ends the block.
+    #  - starts a structural construct that cannot be dialogue body
+    #    regardless of its indent: a choice marker (`+` / `*`),
+    #    divert (`->`), branch / scene / function / define
+    #    declaration, or a `&`-prefixed Luau statement.
+    # Without the explicit structural terminators, perturbing a
+    # sibling choice's leading whitespace (e.g. `  + foo` →
+    # `   + foo`) would absorb it into the prior dialogue's body.
+    end: (?=^(?!$|//|\1{{WS}}))|(?=^{{WS}}*(?:[*+]|->|[&%$^]|scene\b|branch\b|function\b|define\b|const\b|store\b|local\b))
 
   InlineDialogue:
     tag: definition(string)
