@@ -8,6 +8,8 @@ import parseTagValid from "./rules/parse-tag-valid.ts";
 import noRawWhitespaceClass from "./rules/no-raw-whitespace-class.ts";
 import noHandwrittenAlternation from "./rules/no-handwritten-alternation.ts";
 import capturingVarNaming from "./rules/capturing-var-naming.ts";
+import noZeroWidthInPatterns from "./rules/no-zero-width-in-patterns.ts";
+import noNewlineInLookaround from "./rules/no-newline-in-lookaround.ts";
 
 const plugin = {
   meta: {
@@ -20,6 +22,8 @@ const plugin = {
     "no-raw-whitespace-class": noRawWhitespaceClass,
     "no-handwritten-alternation": noHandwrittenAlternation,
     "capturing-var-naming": capturingVarNaming,
+    "no-zero-width-in-patterns": noZeroWidthInPatterns,
+    "no-newline-in-lookaround": noNewlineInLookaround,
   },
   configs: {} as Record<string, unknown>,
 };
@@ -32,6 +36,8 @@ plugin.configs["recommended"] = {
     "sparkdown-grammar/no-raw-whitespace-class": "error",
     "sparkdown-grammar/no-handwritten-alternation": "warn",
     "sparkdown-grammar/capturing-var-naming": "error",
+    "sparkdown-grammar/no-zero-width-in-patterns": "error",
+    "sparkdown-grammar/no-newline-in-lookaround": "error",
   },
 };
 

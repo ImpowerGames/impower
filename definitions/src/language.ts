@@ -224,8 +224,167 @@ export const updateGrammarVariables = (
     );
   }
 
+  // Enforce GRAMMAR.md §12: no rule whose `match:` regex can match zero
+  // characters may be included from any other rule's `patterns:` list
+  // (either a `Switch` rule's top-level patterns or a `Scoped` rule's
+  // body patterns). Such an inclusion causes the parser's pattern
+  // dispatcher to return a zero-width match on every iteration with
+  // no progress, eventually tripping the runtime
+  //   "[ScopedRule:...] Too many consecutive empty matches at pos=..."
+  // warning and stalling the parse.
+  //
+  // The classic offender is `OptionalWhitespace` (`match: ({{WS}}*)`),
+  // which is *meant* to be used as a capture target (where a zero-width
+  // match is the natural "no whitespace here" signal) but is sometimes
+  // copy-pasted into a `patterns:` list where it's actively dangerous.
+  // Capture-level use is fine — only `patterns:` inclusion is rejected.
+  checkNoZeroWidthInPatterns(grammar);
+
   return grammar;
 };
+
+/**
+ * Walks every `patterns:` list in the grammar and refuses to compile
+ * if any include — *direct or transitive via a Switch rule* — points
+ * at a `match:` rule that is unconditionally zero-width. See the
+ * comment in `updateGrammarVariables` for the reasoning; see
+ * GRAMMAR.md §12 for the convention.
+ *
+ * Transitive resolution is needed because a Switch rule with no
+ * `begin`/`end`/`match` of its own is just a dispatcher — including
+ * it in a `patterns:` list effectively inlines its patterns at that
+ * position, so a Switch whose own first match-target is zero-width
+ * is itself zero-width from a dispatch-loop perspective.
+ */
+function checkNoZeroWidthInPatterns(grammar: TmGrammar): void {
+  const repo = (grammar.repository ?? {}) as Record<string, unknown>;
+
+  // Phase 1: which `match:` rules are unconditionally zero-width
+  // (return a length-0 match at every position the probe set
+  // exercises, ignoring lookaround-anchored cases that only fire at
+  // specific positions).
+  const zeroWidthMatches = new Set<string>();
+  for (const [name, rule] of Object.entries(repo)) {
+    if (!rule || typeof rule !== "object") continue;
+    const match = (rule as { match?: unknown }).match;
+    if (typeof match !== "string") continue;
+    if (isUnconditionallyZeroWidth(match)) zeroWidthMatches.add(name);
+  }
+
+  // Phase 2: propagate zero-widthness through Switch rules
+  // (rules that have only `patterns:` — no `match`, no `begin`/`end`).
+  // A Switch is "effectively zero-width" if any of its patterns
+  // resolves to a zero-width rule. Iterate to fixed point: each pass
+  // promotes any Switch whose includes already contain a known
+  // zero-width target; loops naturally bound at the rule count.
+  const effectivelyZeroWidth = new Set(zeroWidthMatches);
+  const isSwitchOnly = (rule: Record<string, unknown>): boolean =>
+    Array.isArray(rule.patterns) &&
+    typeof rule.match !== "string" &&
+    typeof rule.begin !== "string" &&
+    typeof rule.end !== "string";
+
+  for (let pass = 0; pass < Object.keys(repo).length + 1; pass++) {
+    let changed = false;
+    for (const [name, rule] of Object.entries(repo)) {
+      if (effectivelyZeroWidth.has(name)) continue;
+      if (!rule || typeof rule !== "object") continue;
+      const r = rule as Record<string, unknown>;
+      if (!isSwitchOnly(r)) continue;
+      const patterns = r.patterns as unknown[];
+      const includesZW = patterns.some((entry) => {
+        if (!entry || typeof entry !== "object") return false;
+        const include = (entry as { include?: unknown }).include;
+        if (typeof include !== "string" || !include.startsWith("#")) {
+          return false;
+        }
+        return effectivelyZeroWidth.has(include.slice(1));
+      });
+      if (includesZW) {
+        effectivelyZeroWidth.add(name);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+
+  // Phase 3: walk every `patterns:` list and flag direct includes
+  // that resolve to an effectively-zero-width rule.
+  const offenders: Array<{ host: string; offender: string }> = [];
+  const visitPatterns = (host: string, patterns: unknown): void => {
+    if (!Array.isArray(patterns)) return;
+    for (const entry of patterns) {
+      if (!entry || typeof entry !== "object") continue;
+      const include = (entry as { include?: unknown }).include;
+      if (typeof include === "string" && include.startsWith("#")) {
+        const target = include.slice(1);
+        if (effectivelyZeroWidth.has(target)) {
+          offenders.push({ host, offender: target });
+        }
+      } else {
+        // Inline nested rule (a rule object placed directly in the
+        // patterns array). Recurse so its own patterns are checked
+        // against the same set.
+        visitNested(host, entry);
+      }
+    }
+  };
+  const visitNested = (host: string, rule: unknown): void => {
+    if (!rule || typeof rule !== "object") return;
+    const r = rule as Record<string, unknown>;
+    if (Array.isArray(r.patterns)) visitPatterns(host, r.patterns);
+  };
+  for (const [name, rule] of Object.entries(repo)) {
+    if (!rule || typeof rule !== "object") continue;
+    visitNested(name, rule);
+  }
+  if (Array.isArray(grammar.patterns)) {
+    visitPatterns("<root>", grammar.patterns);
+  }
+  if (offenders.length > 0) {
+    const summary = offenders
+      .map((o) => `  - "${o.host}" includes zero-width "${o.offender}"`)
+      .join("\n");
+    throw new Error(
+      `Grammar build: ${offenders.length} rule(s) include a zero-width-matchable rule in their \`patterns:\` list:\n${summary}\n\n` +
+        `A zero-width-matchable rule (e.g. \`OptionalWhitespace\` with \`match: ({{WS}}*)\`) in a \`patterns:\` list causes the parser to loop with no progress. ` +
+        `Use \`ExtraWhitespace\` / \`RequiredWhitespace\` / \`Whitespace\` (all use \`{{WS}}+\`) inside \`patterns:\`; reserve zero-width rules for capture targets. See GRAMMAR.md §12.`,
+    );
+  }
+}
+
+/**
+ * Returns true iff the given regex source matches with zero width
+ * at an arbitrary, unanchored position. The check uses a small bank
+ * of representative probe inputs — if the regex sticky-matches at
+ * position 0 with length 0 in ANY probe, the regex is
+ * "unconditionally" zero-width and would wedge a `patterns:`
+ * dispatcher with no progress.
+ *
+ * Lookaround-anchored zero-width patterns (e.g.
+ * `(...)*?(?=$|]])`) only fire at the specific positions named in
+ * their lookahead — they fail every probe in this set and are
+ * correctly allowed in `patterns:` lists.
+ *
+ * Tolerates malformed patterns by returning false — the parser
+ * will surface the regex compile error later if it matters.
+ */
+function isUnconditionallyZeroWidth(source: string): boolean {
+  const PROBES = ["x", " ", "\n", "(", "1"];
+  try {
+    const re = new RegExp(source, "y");
+    for (const probe of PROBES) {
+      re.lastIndex = 0;
+      const m = re.exec(probe);
+      if (m !== null && m[0] === "" && re.lastIndex === 0) {
+        return true;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * If a declared variable itself depends on other variables, this
