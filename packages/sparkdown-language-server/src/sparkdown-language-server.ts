@@ -295,6 +295,7 @@ try {
       tree,
       annotations,
       params.options,
+      undefined,
       params.position,
     );
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} end`);
