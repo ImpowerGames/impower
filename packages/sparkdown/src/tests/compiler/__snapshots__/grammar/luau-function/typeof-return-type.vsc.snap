@@ -7,7 +7,7 @@ text.source.sparkdown [0..56]
  │   │   ├─ punctuation.definition.template-expression.begin.sd [18..19]: "("
  │   │   ├─ variable.parameter.function.luau [19..20]: "x"
  │   │   ├─ keyword.operator.type.luau [20..21]: ":"
- │   │   ├─ punctuation.whitespace.extra.sd [21..22]: " "
+ │   │   ├─ punctuation.whitespace.required.sd [21..22]: " "
  │   │   ├─ support.type.primitive.luau [22..28]: "number"
  │   │   └─ punctuation.definition.template-expression.end.sd [28..29]: ")"
  │   ├─ keyword.operator.type.luau [29..30]: ":"

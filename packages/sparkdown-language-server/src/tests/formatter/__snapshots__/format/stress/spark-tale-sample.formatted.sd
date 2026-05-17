@@ -1,17 +1,17 @@
 define companion as character with
-store trust = 0
+  store trust = 0
 end
 
 define O as companion with
-name = "Orion",
-color = "teal"
+  name = "Orion",
+  color = "teal"
 end
 
 scene Rooftop:
   N: Do you *see* it?
-+ [Courage.] -> WishCourage
-+ [Answers.] -> WishAnswers
-
+  + [Courage.] -> WishCourage
+  + [Answers.] -> WishAnswers
+  
   branch AfterWish:
     if trust >= 1 then
       N: I trust you.

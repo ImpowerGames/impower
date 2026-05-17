@@ -29,7 +29,7 @@ sparkdown [0..124]
      │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 17
      │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [17..18]: ":"
      │   │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [18..19]
-     │   │   │       │   │   │       └─ ExtraWhitespace [18..19]: " "
+     │   │   │       │   │   │       └─ RequiredWhitespace [18..19]: " "
      │   │   │       │   │   └─ LuauTypeAnnotationOperator_end 19
      │   │   │       │   └─ LuauTypeLiteral [19..25]
      │   │   │       │       ├─ LuauTypeLiteral_begin 19
@@ -79,7 +79,7 @@ sparkdown [0..124]
      │   │   │       │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 60
      │   │   │       │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [60..61]: ":"
      │   │   │       │   │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [61..62]
-     │   │   │       │   │   │       │   │   │       └─ ExtraWhitespace [61..62]: " "
+     │   │   │       │   │   │       │   │   │       └─ RequiredWhitespace [61..62]: " "
      │   │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperator_end 62
      │   │   │       │   │   │       │   └─ LuauTypeLiteral [62..80]
      │   │   │       │   │   │       │       ├─ LuauTypeLiteral_begin 62
@@ -113,7 +113,7 @@ sparkdown [0..124]
      │   │   │       │   │   │       │       │       │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 71
      │   │   │       │   │   │       │       │       │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [71..72]: ":"
      │   │   │       │   │   │       │       │       │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [72..73]
-     │   │   │       │   │   │       │       │       │       │   │   │       └─ ExtraWhitespace [72..73]: " "
+     │   │   │       │   │   │       │       │       │       │   │   │       └─ RequiredWhitespace [72..73]: " "
      │   │   │       │   │   │       │       │       │       │   │   └─ LuauTypeAnnotationOperator_end 73
      │   │   │       │   │   │       │       │       │       │   └─ LuauTypeLiteral [73..79]
      │   │   │       │   │   │       │       │       │       │       ├─ LuauTypeLiteral_begin 73

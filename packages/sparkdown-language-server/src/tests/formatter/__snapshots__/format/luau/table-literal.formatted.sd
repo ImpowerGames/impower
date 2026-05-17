@@ -1,0 +1,5 @@
+const TIME_OF_DAY = {
+  MORNING = 1,
+  AFTERNOOON = 2,
+  NIGHT = 3,
+}

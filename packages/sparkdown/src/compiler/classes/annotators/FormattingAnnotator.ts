@@ -176,6 +176,25 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
+    // Prettier-style: ensure a single space after `:` in Luau type
+    // annotations (`c: companion`). The grammar's capture-3 of
+    // `LuauTypeAnnotationOperator_begin` is zero-width when no
+    // whitespace was written, so the universal mid-line dispatch
+    // never fires there. Emit a zero-width "separator" annotation
+    // explicitly so the formatter's insertion logic kicks in.
+    if (nodeRef.name === "LuauTypeAnnotationOperator") {
+      const colonEnd = this.read(nodeRef.from, nodeRef.from + 1) === ":"
+        ? nodeRef.from + 1
+        : -1;
+      if (colonEnd >= 0) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("separator").range(
+            colonEnd,
+            colonEnd,
+          ),
+        );
+      }
+    }
     if (nodeRef.name === "ChoiceMark") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("choice_mark").range(
@@ -298,7 +317,15 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       nodeRef.name === "LuauSparkdownChooseBlock" ||
       nodeRef.name === "LuauSparkdownChooseThenClause" ||
       nodeRef.name === "LuauSparkdownConditionalAlternatorBlock" ||
-      nodeRef.name === "LuauSparkdownSequentialAlternatorBlock"
+      nodeRef.name === "LuauSparkdownSequentialAlternatorBlock" ||
+      // Luau class-style declarations and table literals — body is
+      // indented +1 from the `define` / opening `{` line.
+      nodeRef.name === "LuauDefine" ||
+      nodeRef.name === "LuauTable" ||
+      // Sparkdown flow containers — scene / branch wrap a body that's
+      // indented one level deeper.
+      nodeRef.name === "Scene" ||
+      nodeRef.name === "Branch"
     ) {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("block_declaration_end").range(

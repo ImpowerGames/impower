@@ -5090,9 +5090,12 @@ repository:
         tag: special(operator)
         name: keyword.operator.length.luau
       3:
+        # `#` is a prefix operator — no space between it and its
+        # operand (`#myTable`, not `# myTable`). ExtraWhitespace
+        # collapses any captured spaces to nothing.
         emit: true
         patterns:
-          - { include: "#OptionalWhitespace" }
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -5409,8 +5412,11 @@ repository:
         tag: typeOperator
         name: keyword.operator.type.luau
       3:
+        # Prettier-style: one space after `:` in type annotations
+        # (`c: companion`). RequiredWhitespace normalizes existing
+        # whitespace to one space and inserts one if zero-width.
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }

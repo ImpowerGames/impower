@@ -8441,7 +8441,7 @@
           "emit": true,
           "patterns": [
             {
-              "include": "#OptionalWhitespace"
+              "include": "#ExtraWhitespace"
             }
           ]
         }
@@ -9024,7 +9024,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#RequiredWhitespace"
             }
           ]
         }

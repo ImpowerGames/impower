@@ -29,7 +29,7 @@ sparkdown [0..94]
  │   │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 22
  │   │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [22..23]: ":"
  │   │   │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [23..24]
- │   │   │   │       │   │   │       └─ ExtraWhitespace [23..24]: " "
+ │   │   │   │       │   │   │       └─ RequiredWhitespace [23..24]: " "
  │   │   │   │       │   │   └─ LuauTypeAnnotationOperator_end 24
  │   │   │   │       │   └─ LuauTypeLiteral [24..30]
  │   │   │   │       │       ├─ LuauTypeLiteral_begin 24

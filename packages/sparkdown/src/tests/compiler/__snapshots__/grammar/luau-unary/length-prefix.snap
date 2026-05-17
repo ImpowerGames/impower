@@ -39,8 +39,6 @@ sparkdown [0..18]
      │       │       │   │   │   ├─ LuauLengthOperator_begin_c1 6
      │       │       │   │   │   ├─ LuauLengthOperator_begin_c2 [6..7]: "#"
      │       │       │   │   │   └─ LuauLengthOperator_begin_c3 7
-     │       │       │   │   │       └─ LuauLengthOperator_begin_c3 7
-     │       │       │   │   │           └─ OptionalWhitespace 7
      │       │       │   │   └─ LuauLengthOperator_end 7
      │       │       │   └─ LuauAccessPath [7..18]
      │       │       │       ├─ LuauAccessPath_begin 7

@@ -504,6 +504,45 @@ export const getFormatting = (
         newIndentLevel,
         true,
       );
+      // Luau class-style `define ... end` and table literal
+      // `{ ... }`. Body content is indented one level relative to
+      // the opening keyword / brace line.
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "LuauDefine",
+        "LuauDefine_content",
+        currentIndentation,
+        newIndentLevel,
+        true,
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "LuauTable",
+        "LuauTable_content",
+        currentIndentation,
+        newIndentLevel,
+        true,
+      );
+      // Sparkdown flow containers. The scene/branch declaration line
+      // sits at the parent level (or root); their bodies are
+      // indented one level deeper, so a `*`/`+` choice or a Luau
+      // block inside the scene body inherits that +1.
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "Scene",
+        "Scene_content",
+        currentIndentation,
+        newIndentLevel,
+        true,
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "Branch",
+        "Branch_content",
+        currentIndentation,
+        newIndentLevel,
+        true,
+      );
       // FrontMatter field content are indented by 1
       const unknownNode = stack.find((n) => n.name === "Unknown");
       const frontMatterNode = stack.find((n) => n.name === "FrontMatter");
@@ -590,15 +629,29 @@ export const getFormatting = (
         const text = document.read(aheadCur.from, aheadCur.to);
         const marks = text.split(WHITESPACE_REGEX).filter((m) => Boolean(m));
         if (marks.length > 0) {
-          const currentIndent = indentStack.at(-1);
-          const indentOffset =
-            marks.length - (currentIndent?.marks?.length ?? 0) - 1;
-          const newIndentLevel = (currentIndent?.level ?? 0) + indentOffset;
-          setIndent({
-            type: aheadCur.value.type,
-            marks,
-            level: Math.max(0, newIndentLevel),
-          });
+          const top = indentStack.at(-1);
+          // If the previous frame is a sibling choice_mark, REPLACE
+          // it (siblings share the same indent slot). Otherwise PUSH
+          // — we don't want to clobber a parent scene_begin /
+          // branch_begin frame and lose its indent contribution for
+          // the choice line.
+          if (top?.type === "choice_mark") {
+            const indentOffset =
+              marks.length - (top.marks?.length ?? 0) - 1;
+            const newIndentLevel = (top.level ?? 0) + indentOffset;
+            setIndent({
+              type: aheadCur.value.type,
+              marks,
+              level: Math.max(0, newIndentLevel),
+            });
+          } else {
+            const parentLevel = top?.level ?? 0;
+            indentStack.push({
+              type: aheadCur.value.type,
+              marks,
+              level: parentLevel,
+            });
+          }
         }
       }
       break;
@@ -675,20 +728,32 @@ export const getFormatting = (
         });
       }
     } else if (cur.value.type === "choice_mark") {
-      // The preceding `processIndent` call pushed one or more
-      // `block_declaration` entries for the current line's tree-derived
-      // indent. We don't want those to compound with the choice_mark
-      // frame (the next line's `processIndent` would then read THIS
-      // line's choose-level + 1 + previous-choice-level), so drop them
-      // before installing the choice_mark frame.
+      // The preceding `processIndent` pushed `block_declaration`
+      // entries for this line's tree-derived indent. Drop them so
+      // they don't compound with the choice_mark frame.
       while (indentStack.at(-1)?.type === "block_declaration") {
         indentStack.pop();
       }
       const text = document.getText(range);
       const marks = text.split(WHITESPACE_REGEX).filter((m) => Boolean(m));
-      const currentIndent = indentStack.at(-1);
-      const newIndentLevel = (currentIndent?.level ?? 0) + 1;
-      setIndent({ type: cur.value.type, marks, level: newIndentLevel });
+      // Bump the existing `choice_mark` frame (pushed by aheadCur)
+      // to "body level" — content lines INSIDE the choice indent one
+      // deeper than the choice line itself. We mutate the frame in
+      // place rather than replacing the stack top so the parent
+      // scene_begin / branch_begin frame below stays intact for the
+      // NEXT sibling choice line.
+      const top = indentStack.at(-1);
+      if (top?.type === "choice_mark") {
+        top.marks = marks;
+        top.level = (top.level ?? 0) + 1;
+      } else {
+        const parentLevel = top?.level ?? 0;
+        indentStack.push({
+          type: cur.value.type,
+          marks,
+          level: parentLevel + 1,
+        });
+      }
       const expectedText = marks.join(" ") + " ";
       if (text !== expectedText) {
         // Omit first char to avoid overlapping with indent edits
