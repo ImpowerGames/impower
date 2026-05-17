@@ -84,6 +84,64 @@ function isInsideAnyInlineAlternator(
   return isInsideAlternatorSet(node, read, ALL_INLINE_ALTERNATOR_NAMES);
 }
 
+// Detects whether a whitespace node sits immediately after a
+// unary `-` operator. The grammar may model `<lhs> <op> <rhs>` in
+// two shapes:
+//   1. LHS is a SIBLING of the `LuauArithmeticOperation` (the
+//      `1` in `1 + 2` sits next to the operation containing `+ 2`).
+//   2. LHS is a sibling of the OPERATOR *inside* the operation
+//      (the `-` in `-x + y` sits inside one operation whose
+//      content is `- x + y`).
+// "Unary" = NEITHER shape produced a value before the operator.
+function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
+  let walker = node.node.parent;
+  let opNode: SparkdownSyntaxNodeRef["node"] | null = null;
+  while (walker) {
+    if (walker.name === "LuauArithmeticOperator") {
+      opNode = walker;
+      break;
+    }
+    walker = walker.parent;
+  }
+  if (!opNode) return false;
+  if (node.from <= opNode.from) return false;
+  let operation: SparkdownSyntaxNodeRef["node"] | null = opNode.parent;
+  while (operation && operation.name !== "LuauArithmeticOperation") {
+    operation = operation.parent;
+  }
+  if (!operation) return false;
+
+  const isInsignificant = (n: { name: string } | null | undefined) =>
+    !!n &&
+    (n.name === "Newline" ||
+      n.name === "Whitespace" ||
+      n.name === "ExtraWhitespace" ||
+      n.name === "OptionalWhitespace" ||
+      n.name === "RequiredWhitespace" ||
+      n.name === "TrailingWhitespace");
+
+  // Shape 2: operator's preceding sibling inside its content.
+  // For `-x + y` (one operation with op,value,op,value children),
+  // the `+` has `x` (a value) as its prev sibling inside content
+  // → binary. The `-` has nothing → unary.
+  let sib = opNode.prevSibling;
+  while (sib) {
+    if (!isInsignificant(sib)) return false; // has LHS → binary
+    sib = sib.prevSibling;
+  }
+
+  // Shape 1: operation's preceding sibling at its parent level.
+  // For `1 + 2` (LHS sits OUTSIDE the operation as a sibling), the
+  // operation has `1` as prev sibling → binary.
+  sib = operation.prevSibling;
+  while (sib) {
+    if (!isInsignificant(sib)) return false; // has LHS → binary
+    sib = sib.prevSibling;
+  }
+
+  return true;
+}
+
 function isInsideAlternatorSet(
   node: SparkdownSyntaxNodeRef,
   read: (from: number, to: number) => string,
@@ -457,9 +515,17 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       const read = (from: number, to: number) => this.read(from, to);
       if (isInsideInlineAlternator(nodeRef, read)) return annotations;
       const tightInline = isInsideAnyInlineAlternator(nodeRef, read);
+      // Unary `-` collapse: if this WS sits immediately after a unary
+      // ArithmeticOperator (`-x` not `a - b`), force tight (no space).
+      // Grammar doesn't distinguish unary from binary, so we detect
+      // by walking up: if the WS's ancestor is the trailing capture
+      // of a LuauArithmeticOperator whose enclosing
+      // ArithmeticOperation starts with that operator (no LHS),
+      // it's unary.
+      const tightUnary = isAfterUnaryOperator(nodeRef);
       annotations.push(
         SparkdownAnnotation.mark<FormatType>(
-          tightInline ? "extra" : "separator",
+          tightInline || tightUnary ? "extra" : "separator",
         ).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
