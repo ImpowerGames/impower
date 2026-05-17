@@ -52,6 +52,9 @@ export function compileSource(source: string): LoweredEntry[] {
     if (
       child.name !== "Newline" &&
       child.name !== "Whitespace" &&
+      child.name !== "ExtraWhitespace" &&
+      child.name !== "OptionalWhitespace" &&
+      child.name !== "RequiredWhitespace" &&
       child.name !== "FrontMatter"
     ) {
       const nodeRef = child as unknown as SparkdownSyntaxNodeRef;

@@ -13,7 +13,7 @@ text.source.sparkdown [0..94]
  ├─ Newline [31..32]: "\n"
  ├─ meta.function.luau [32..89]
  │   └─ meta.function.luau [32..89]
- │       ├─ punctuation.whitespace.indent.sd [32..34]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [32..34]: "  "
  │       ├─ keyword.control.luau [34..40]: "return"
  │       ├─ punctuation.whitespace.optional.sd [40..41]: " "
  │       └─ string.interpolated.luau [41..89]

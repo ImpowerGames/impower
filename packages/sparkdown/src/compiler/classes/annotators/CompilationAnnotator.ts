@@ -64,6 +64,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       nodeRef.node.parent?.type.isTop &&
       nodeRef.name !== "Newline" &&
       nodeRef.name !== "Whitespace" &&
+      nodeRef.name !== "ExtraWhitespace" &&
+      nodeRef.name !== "OptionalWhitespace" &&
+      nodeRef.name !== "RequiredWhitespace" &&
       nodeRef.name !== "FrontMatter"
     ) {
       // Snapshot the chunk's absolute start line so the lowerer can produce

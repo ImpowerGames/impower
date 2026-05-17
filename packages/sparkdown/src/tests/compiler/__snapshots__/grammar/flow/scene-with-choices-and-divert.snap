@@ -17,7 +17,7 @@ sparkdown [0..96]
  ├─ InlineDialogue [15..34]
  │   ├─ InlineDialogue_begin [15..20]
  │   │   ├─ InlineDialogue_begin_c1 [15..17]
- │   │   │   └─ Indent [15..17]: "  "
+ │   │   │   └─ OptionalWhitespace [15..17]: "  "
  │   │   ├─ InlineDialogue_begin_c2 [17..18]
  │   │   │   └─ DialogueCharacter [17..18]
  │   │   │       ├─ DialogueCharacter_c1 17
@@ -57,7 +57,7 @@ sparkdown [0..96]
  ├─ Choice [36..65]
  │   ├─ Choice_begin [36..40]
  │   │   ├─ Choice_begin_c1 [36..38]
- │   │   │   └─ Indent [36..38]: "  "
+ │   │   │   └─ OptionalWhitespace [36..38]: "  "
  │   │   ├─ Choice_begin_c2 [38..40]
  │   │   │   └─ ChoiceMark [38..40]: "+ "
  │   │   ├─ Choice_begin_c3 40
@@ -106,7 +106,7 @@ sparkdown [0..96]
  └─ Choice [67..96]
      ├─ Choice_begin [67..71]
      │   ├─ Choice_begin_c1 [67..69]
-     │   │   └─ Indent [67..69]: "  "
+     │   │   └─ OptionalWhitespace [67..69]: "  "
      │   ├─ Choice_begin_c2 [69..71]
      │   │   └─ ChoiceMark [69..71]: "+ "
      │   ├─ Choice_begin_c3 71

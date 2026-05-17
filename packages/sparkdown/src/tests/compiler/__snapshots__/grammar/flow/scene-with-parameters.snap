@@ -48,7 +48,7 @@ sparkdown [0..100]
  └─ LuauSparkdownIfBlock [31..100]
      ├─ LuauSparkdownIfBlock_begin [31..36]
      │   ├─ LuauSparkdownIfBlock_begin_c1 [31..33]
-     │   │   └─ Indent [31..33]: "  "
+     │   │   └─ OptionalWhitespace [31..33]: "  "
      │   ├─ LuauSparkdownIfBlock_begin_c2 [33..35]
      │   │   └─ LuauIfKeyword [33..35]: "if"
      │   └─ LuauSparkdownIfBlock_begin_c3 [35..36]
@@ -103,7 +103,7 @@ sparkdown [0..100]
      │   ├─ ImplicitAction [55..93]
      │   │   ├─ ImplicitAction_begin [55..59]
      │   │   │   └─ ImplicitAction_begin_c1 [55..59]
-     │   │   │       └─ Indent [55..59]: "    "
+     │   │   │       └─ OptionalWhitespace [55..59]: "    "
      │   │   ├─ ImplicitAction_content [59..93]
      │   │   │   └─ LineEnd [59..93]
      │   │   │       ├─ LineEnd_begin 59

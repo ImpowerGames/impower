@@ -36,7 +36,7 @@ sparkdown [0..206]
  │   │   ├─ LuauPropertyDefinition [28..44]
  │   │   │   ├─ LuauPropertyDefinition_begin [28..30]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [28..30]
- │   │   │   │   │   └─ Indent [28..30]: "  "
+ │   │   │   │   │   └─ OptionalWhitespace [28..30]: "  "
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 30
  │   │   │   │   └─ LuauPropertyDefinition_begin_c3 30
  │   │   │   │       └─ LuauPropertyDefinition_begin_c3 30
@@ -71,7 +71,7 @@ sparkdown [0..206]
  │   │   ├─ LuauPropertyDefinition [45..65]
  │   │   │   ├─ LuauPropertyDefinition_begin [45..47]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c1 [45..47]
- │   │   │   │   │   └─ Indent [45..47]: "  "
+ │   │   │   │   │   └─ OptionalWhitespace [45..47]: "  "
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 47
  │   │   │   │   └─ LuauPropertyDefinition_begin_c3 47
  │   │   │   │       └─ LuauPropertyDefinition_begin_c3 47
@@ -106,7 +106,7 @@ sparkdown [0..206]
  │   │   ├─ LuauMethodDefinition [66..114]
  │   │   │   ├─ LuauMethodDefinition_begin [66..71]
  │   │   │   │   ├─ LuauMethodDefinition_begin_c1 [66..68]
- │   │   │   │   │   └─ Indent [66..68]: "  "
+ │   │   │   │   │   └─ OptionalWhitespace [66..68]: "  "
  │   │   │   │   ├─ LuauMethodDefinition_begin_c2 [68..71]
  │   │   │   │   │   └─ LuauFunctionName [68..71]: "fly"
  │   │   │   │   └─ LuauMethodDefinition_begin_c3 71
@@ -173,7 +173,7 @@ sparkdown [0..206]
  │   │   ├─ LuauMethodDefinition [115..201]
  │   │   │   ├─ LuauMethodDefinition_begin [115..121]
  │   │   │   │   ├─ LuauMethodDefinition_begin_c1 [115..117]
- │   │   │   │   │   └─ Indent [115..117]: "  "
+ │   │   │   │   │   └─ OptionalWhitespace [115..117]: "  "
  │   │   │   │   ├─ LuauMethodDefinition_begin_c2 [117..121]
  │   │   │   │   │   └─ LuauFunctionName [117..121]: "swim"
  │   │   │   │   └─ LuauMethodDefinition_begin_c3 121
@@ -191,7 +191,7 @@ sparkdown [0..206]
  │   │   │   │   ├─ LuauReassignment [124..150]
  │   │   │   │   │   ├─ LuauReassignment_begin [124..128]
  │   │   │   │   │   │   └─ LuauReassignment_begin_c1 [124..128]
- │   │   │   │   │   │       └─ Indent [124..128]: "    "
+ │   │   │   │   │   │       └─ OptionalWhitespace [124..128]: "    "
  │   │   │   │   │   ├─ LuauReassignment_content [128..150]
  │   │   │   │   │   │   ├─ LuauAccessPath [128..144]
  │   │   │   │   │   │   │   ├─ LuauAccessPath_begin 128

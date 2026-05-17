@@ -84,7 +84,6 @@ const LEGITIMATE_FUNCTION_BODY_CHILDREN: ReadonlySet<string> = new Set([
   "LuauBreakStatement",
   "LuauContinueStatement",
   // Whitespace / structural separators.
-  "Indent",
   "ExtraWhitespace",
   "Newline",
   "Whitespace",

@@ -407,7 +407,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -454,7 +454,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -741,7 +741,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -809,7 +809,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -891,7 +891,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -1062,7 +1062,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -1170,7 +1170,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -1268,7 +1268,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -1369,7 +1369,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -1441,7 +1441,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -1575,16 +1575,6 @@
       "name": "punctuation.whitespace.newline.sd",
       "match": "((?:\\r\\n|\\r|\\n))"
     },
-    "Indent": {
-      "tag": "special(content)",
-      "name": "punctuation.whitespace.indent.sd",
-      "match": "^((?:[^\\S\\n\\r])+)"
-    },
-    "TrailingWhitespace": {
-      "tag": "local(content)",
-      "name": "punctuation.whitespace.trailing.sd",
-      "match": "(?<!^)((?:[^\\S\\n\\r])+)$"
-    },
     "ExtraWhitespace": {
       "tag": "content",
       "name": "punctuation.whitespace.extra.sd",
@@ -1604,6 +1594,11 @@
       "tag": "definition(content)",
       "name": "punctuation.whitespace.optional.sd",
       "match": "((?:[^\\S\\n\\r])*)"
+    },
+    "TrailingWhitespace": {
+      "tag": "local(content)",
+      "name": "punctuation.whitespace.trailing.sd",
+      "match": "(?<!^)((?:[^\\S\\n\\r])+)$"
     },
     "EndOfLine": {
       "patterns": [
@@ -1888,7 +1883,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -1942,7 +1937,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -1995,7 +1990,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2072,7 +2067,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2125,7 +2120,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2205,7 +2200,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2258,7 +2253,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2335,7 +2330,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2403,7 +2398,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2497,7 +2492,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2553,7 +2548,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2795,7 +2790,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2839,7 +2834,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -2899,7 +2894,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         }
@@ -2938,7 +2933,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -3051,7 +3046,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -3090,7 +3085,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         }
@@ -3123,7 +3118,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         }
@@ -3135,7 +3130,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -3175,7 +3170,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -3208,7 +3203,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         }
@@ -3287,7 +3282,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -3316,7 +3311,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -3345,7 +3340,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -4474,7 +4469,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -4517,7 +4512,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         }
@@ -4546,7 +4541,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -4613,7 +4608,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -4752,7 +4747,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -4819,7 +4814,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5005,7 +5000,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5191,7 +5186,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5227,7 +5222,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5281,7 +5276,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5317,7 +5312,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5371,7 +5366,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5404,7 +5399,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5437,7 +5432,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5473,7 +5468,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5523,7 +5518,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5573,7 +5568,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5626,7 +5621,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5732,7 +5727,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5768,7 +5763,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5839,7 +5834,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5872,7 +5867,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5905,7 +5900,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -5982,7 +5977,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6048,7 +6043,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6129,7 +6124,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -6173,7 +6168,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -6277,7 +6272,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6340,7 +6335,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6411,7 +6406,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6479,7 +6474,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6550,7 +6545,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6609,7 +6604,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6677,7 +6672,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6696,7 +6691,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6717,7 +6712,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6756,7 +6751,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -6797,7 +6792,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8201,7 +8196,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8220,7 +8215,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -8258,7 +8253,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8277,7 +8272,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -8315,7 +8310,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8334,7 +8329,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -8372,7 +8367,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8391,7 +8386,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -8429,7 +8424,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8448,7 +8443,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -8486,7 +8481,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8505,7 +8500,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -8543,7 +8538,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8562,7 +8557,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -8704,7 +8699,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8766,7 +8761,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8956,7 +8951,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -8975,7 +8970,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -9013,7 +9008,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -9031,7 +9026,7 @@
       },
       "patterns": [
         {
-          "include": "#Indent"
+          "include": "#OptionalWhitespace"
         },
         {
           "include": "#Newline"
@@ -9395,7 +9390,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#OptionalWhitespace"
             }
           ]
         },

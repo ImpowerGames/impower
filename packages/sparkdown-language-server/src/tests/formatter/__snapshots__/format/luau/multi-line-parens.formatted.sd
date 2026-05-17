@@ -1,0 +1,9 @@
+function interrogate()
+  return (
+    chain
+      | "first"
+      | "second"
+      | "third"
+    end
+  )
+end

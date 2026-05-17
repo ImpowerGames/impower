@@ -4,7 +4,7 @@ text.source.sparkdown [0..93]
  ├─ keyword.control.section.sd [6..13]: "Rooftop"
  ├─ Newline [13..14]: "\n"
  ├─ string.display.dialogue.inline.sd [14..33]
- │   ├─ punctuation.whitespace.indent.sd [14..16]: "  "
+ │   ├─ punctuation.whitespace.optional.sd [14..16]: "  "
  │   ├─ entity.name.type.dialogue.character.name.sd [16..17]
  │   │   └─ markup.raw.text.sd [16..17]: "N"
  │   ├─ meta.template.expression.operator.colon.sd [17..18]: ":"
@@ -20,7 +20,7 @@ text.source.sparkdown [0..93]
  │       └─ markup.raw.punctuation.sd [32..33]: "?"
  ├─ Newline [33..34]: "\n"
  ├─ entity.choice.sd [34..63]
- │   ├─ punctuation.whitespace.indent.sd [34..36]: "  "
+ │   ├─ punctuation.whitespace.optional.sd [34..36]: "  "
  │   ├─ keyword.operator.expression.list.sd [36..38]: "+ "
  │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [38..39]: "["
  │   ├─ string.choice.sd [39..47]
@@ -35,7 +35,7 @@ text.source.sparkdown [0..93]
  │           └─ keyword.control.divert.path.sd [52..63]: "WishCourage"
  ├─ Newline [63..64]: "\n"
  └─ entity.choice.sd [64..93]
-     ├─ punctuation.whitespace.indent.sd [64..66]: "  "
+     ├─ punctuation.whitespace.optional.sd [64..66]: "  "
      ├─ keyword.operator.expression.list.sd [66..68]: "+ "
      ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [68..69]: "["
      ├─ string.choice.sd [69..77]

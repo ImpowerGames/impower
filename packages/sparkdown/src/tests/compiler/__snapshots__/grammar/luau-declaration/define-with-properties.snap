@@ -36,7 +36,7 @@ sparkdown [0..65]
      │   ├─ LuauPropertyDefinition [27..44]
      │   │   ├─ LuauPropertyDefinition_begin [27..29]
      │   │   │   ├─ LuauPropertyDefinition_begin_c1 [27..29]
-     │   │   │   │   └─ Indent [27..29]: "  "
+     │   │   │   │   └─ OptionalWhitespace [27..29]: "  "
      │   │   │   ├─ LuauPropertyDefinition_begin_c2 29
      │   │   │   └─ LuauPropertyDefinition_begin_c3 29
      │   │   │       └─ LuauPropertyDefinition_begin_c3 29
@@ -84,7 +84,7 @@ sparkdown [0..65]
      │   ├─ LuauPropertyDefinition [45..61]
      │   │   ├─ LuauPropertyDefinition_begin [45..47]
      │   │   │   ├─ LuauPropertyDefinition_begin_c1 [45..47]
-     │   │   │   │   └─ Indent [45..47]: "  "
+     │   │   │   │   └─ OptionalWhitespace [45..47]: "  "
      │   │   │   ├─ LuauPropertyDefinition_begin_c2 47
      │   │   │   └─ LuauPropertyDefinition_begin_c3 47
      │   │   │       └─ LuauPropertyDefinition_begin_c3 47

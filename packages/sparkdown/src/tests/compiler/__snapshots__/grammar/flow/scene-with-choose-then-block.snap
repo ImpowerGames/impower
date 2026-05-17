@@ -17,7 +17,7 @@ sparkdown [0..87]
  ├─ LuauSparkdownChooseBlock [11..76]
  │   ├─ LuauSparkdownChooseBlock_begin [11..19]
  │   │   ├─ LuauSparkdownChooseBlock_begin_c1 [11..13]
- │   │   │   └─ Indent [11..13]: "  "
+ │   │   │   └─ OptionalWhitespace [11..13]: "  "
  │   │   ├─ LuauSparkdownChooseBlock_begin_c2 [13..19]
  │   │   │   └─ LuauChooseKeyword [13..19]: "choose"
  │   │   └─ LuauSparkdownChooseBlock_begin_c3 19
@@ -28,7 +28,7 @@ sparkdown [0..87]
  │   │   ├─ Choice [20..28]
  │   │   │   ├─ Choice_begin [20..26]
  │   │   │   │   ├─ Choice_begin_c1 [20..24]
- │   │   │   │   │   └─ Indent [20..24]: "    "
+ │   │   │   │   │   └─ OptionalWhitespace [20..24]: "    "
  │   │   │   │   ├─ Choice_begin_c2 [24..26]
  │   │   │   │   │   └─ ChoiceMark [24..26]: "* "
  │   │   │   │   ├─ Choice_begin_c3 26
@@ -51,7 +51,7 @@ sparkdown [0..87]
  │   │   ├─ Choice [29..38]
  │   │   │   ├─ Choice_begin [29..35]
  │   │   │   │   ├─ Choice_begin_c1 [29..33]
- │   │   │   │   │   └─ Indent [29..33]: "    "
+ │   │   │   │   │   └─ OptionalWhitespace [29..33]: "    "
  │   │   │   │   ├─ Choice_begin_c2 [33..35]
  │   │   │   │   │   └─ ChoiceMark [33..35]: "* "
  │   │   │   │   ├─ Choice_begin_c3 35
@@ -74,7 +74,7 @@ sparkdown [0..87]
  │   │   └─ LuauSparkdownChooseThenClause [39..71]
  │   │       ├─ LuauSparkdownChooseThenClause_begin [39..56]
  │   │       │   ├─ LuauSparkdownChooseThenClause_begin_c1 [39..41]
- │   │       │   │   └─ Indent [39..41]: "  "
+ │   │       │   │   └─ OptionalWhitespace [39..41]: "  "
  │   │       │   ├─ LuauSparkdownChooseThenClause_begin_c2 [41..45]
  │   │       │   │   └─ LuauThenKeyword [41..45]: "then"
  │   │       │   ├─ LuauSparkdownChooseThenClause_begin_c3 [45..46]
@@ -98,7 +98,7 @@ sparkdown [0..87]
  │   │       │   ├─ ImplicitAction [57..70]
  │   │       │   │   ├─ ImplicitAction_begin [57..61]
  │   │       │   │   │   └─ ImplicitAction_begin_c1 [57..61]
- │   │       │   │   │       └─ Indent [57..61]: "    "
+ │   │       │   │   │       └─ OptionalWhitespace [57..61]: "    "
  │   │       │   │   ├─ ImplicitAction_content [61..70]
  │   │       │   │   │   └─ LineEnd [61..70]
  │   │       │   │   │       ├─ LineEnd_begin 61
@@ -126,7 +126,7 @@ sparkdown [0..87]
  ├─ Divert [77..86]
  │   ├─ Divert_begin [77..81]
  │   │   ├─ Divert_begin_c1 [77..79]
- │   │   │   └─ Indent [77..79]: "  "
+ │   │   │   └─ OptionalWhitespace [77..79]: "  "
  │   │   └─ Divert_begin_c2 [79..81]
  │   │       └─ DivertMark [79..81]: "->"
  │   ├─ Divert_content [81..86]

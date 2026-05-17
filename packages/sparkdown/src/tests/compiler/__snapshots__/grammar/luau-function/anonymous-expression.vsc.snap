@@ -13,7 +13,7 @@ text.source.sparkdown [0..124]
  ├─ Newline [26..27]: "\n"
  ├─ meta.function.luau [27..81]
  │   └─ meta.function.luau [27..81]
- │       ├─ punctuation.whitespace.indent.sd [27..29]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [27..29]: "  "
  │       ├─ keyword.control.luau [29..35]: "return"
  │       ├─ punctuation.whitespace.optional.sd [35..36]: " "
  │       └─ meta.function.luau [36..81]
@@ -38,7 +38,7 @@ text.source.sparkdown [0..124]
  │   └─ meta.function.luau [82..114]
  │       └─ meta.function.luau [82..114]
  │           └─ meta.function.luau [82..114]
- │               ├─ punctuation.whitespace.indent.sd [82..86]: "    "
+ │               ├─ punctuation.whitespace.optional.sd [82..86]: "    "
  │               ├─ keyword.control.luau [86..92]: "return"
  │               ├─ punctuation.whitespace.optional.sd [92..93]: " "
  │               ├─ variable.other.readwrite.luau [93..107]: "pluralizations"

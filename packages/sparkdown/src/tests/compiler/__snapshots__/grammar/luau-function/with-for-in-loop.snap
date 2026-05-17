@@ -25,7 +25,7 @@ sparkdown [0..76]
      │   ├─ LuauForLoop [17..72]
      │   │   ├─ LuauForLoop_begin [17..23]
      │   │   │   ├─ LuauForLoop_begin_c1 [17..19]
-     │   │   │   │   └─ Indent [17..19]: "  "
+     │   │   │   │   └─ OptionalWhitespace [17..19]: "  "
      │   │   │   ├─ LuauForLoop_begin_c2 [19..22]
      │   │   │   │   └─ LuauForKeyword [19..22]: "for"
      │   │   │   └─ LuauForLoop_begin_c3 [22..23]
@@ -96,7 +96,7 @@ sparkdown [0..76]
      │   │   │   └─ LuauDoBlock [47..72]
      │   │   │       ├─ LuauDoBlock_begin [47..50]
      │   │   │       │   ├─ LuauDoBlock_begin_c1 [47..48]
-     │   │   │       │   │   └─ Indent [47..48]: " "
+     │   │   │       │   │   └─ OptionalWhitespace [47..48]: " "
      │   │   │       │   ├─ LuauDoBlock_begin_c2 [48..50]
      │   │   │       │   │   └─ LuauDoKeyword [48..50]: "do"
      │   │   │       │   └─ LuauDoBlock_begin_c3 50
@@ -107,7 +107,7 @@ sparkdown [0..76]
      │   │   │       │   ├─ LuauReassignment [51..66]
      │   │   │       │   │   ├─ LuauReassignment_begin [51..55]
      │   │   │       │   │   │   └─ LuauReassignment_begin_c1 [51..55]
-     │   │   │       │   │   │       └─ Indent [51..55]: "    "
+     │   │   │       │   │   │       └─ OptionalWhitespace [51..55]: "    "
      │   │   │       │   │   ├─ LuauReassignment_content [55..66]
      │   │   │       │   │   │   ├─ LuauAccessPath [55..63]
      │   │   │       │   │   │   │   ├─ LuauAccessPath_begin 55

@@ -53,7 +53,14 @@ export type FormatType =
   | "frontmatter"
   | "block_declaration"
   | "block_declaration_begin"
-  | "block_declaration_end";
+  | "block_declaration_end"
+  // A top-level Luau declaration (function / define) starts here.
+  // Sparkdown's scene/branch have no explicit body terminator, so the
+  // formatter's `scene_begin`/`branch_begin` indent push would
+  // otherwise persist forever; the consumer resets the indent stack
+  // when it sees this so subsequent top-level constructs format
+  // against column 0.
+  | "top_level_begin";
 
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 
@@ -66,25 +73,49 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     this.processedLineFrom = -1;
   }
 
+  // True iff `nodeRef` is a direct child of the document root —
+  // there's nothing between it and the top of the tree. Used to
+  // detect top-level Luau declarations (function / define) so the
+  // formatter can reset the scene-body indent stack before they
+  // start. Skips through anonymous capture wrappers (`*_c1`,
+  // `*_begin`, etc.) that don't represent real nesting.
+  private isTopLevel(nodeRef: SparkdownSyntaxNodeRef): boolean {
+    const stack = getContextStack(nodeRef.node);
+    for (const ancestor of stack) {
+      if (ancestor === nodeRef.node) continue;
+      const name = ancestor.name;
+      if (
+        name === "sparkdown" ||
+        name === "Program" ||
+        name === "Document"
+      ) {
+        continue;
+      }
+      // Any real ancestor disqualifies us.
+      return false;
+    }
+    return true;
+  }
+
   override enter(
     annotations: Range<SparkdownAnnotation<FormatType>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<FormatType>>[] {
     // Universal whitespace dispatch keyed on POSITION first, then name.
-    // Any whitespace-class node — `Indent`, `TrailingWhitespace`,
-    // `Whitespace`, `ExtraWhitespace`, `RequiredWhitespace`,
-    // `OptionalWhitespace` — gets the same line-start / line-end /
-    // mid-line decision tree here. That's what gives the formatter
-    // idempotency: pass 1 emits the right annotation regardless of
-    // which rule the grammar author chose, so pass 2 sees the same
-    // text and produces the same output.
+    // Any whitespace-class node — `Whitespace`, `ExtraWhitespace`,
+    // `RequiredWhitespace`, `OptionalWhitespace` — gets the same
+    // line-start / line-end / mid-line decision tree here. That's
+    // what gives the formatter idempotency: pass 1 emits the right
+    // annotation regardless of which rule the grammar author chose,
+    // so pass 2 sees the same text and produces the same output.
+    // (There's no dedicated `Indent` or `TrailingWhitespace` rule
+    // in the grammar — the position checks below replace them.)
     if (
-      nodeRef.name === "Indent" ||
-      nodeRef.name === "TrailingWhitespace" ||
       nodeRef.name === "Whitespace" ||
       nodeRef.name === "ExtraWhitespace" ||
       nodeRef.name === "OptionalWhitespace" ||
-      nodeRef.name === "RequiredWhitespace"
+      nodeRef.name === "RequiredWhitespace" ||
+      nodeRef.name === "TrailingWhitespace"
     ) {
       const currentLine = this.getLineAt(nodeRef.from);
       // Line start → treat as indent regardless of which rule captured it.
@@ -157,6 +188,27 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         ),
       );
       return annotations;
+    }
+    // Top-level Luau declarations (function / define) terminate the
+    // implicit scene-body that scene_begin pushed onto the indent
+    // stack. Emit a `top_level_begin` so the formatter resets indent
+    // tracking before starting the declaration's own indent context.
+    // "Top-level" = direct child of the document root: any deeper
+    // nesting means we're inside another construct (e.g. a nested
+    // function inside a function body) and the parent's indent
+    // context should stay.
+    if (
+      nodeRef.name === "LuauFunctionDefinition" ||
+      nodeRef.name === "LuauDefine"
+    ) {
+      if (this.isTopLevel(nodeRef)) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("top_level_begin").range(
+            nodeRef.from,
+            nodeRef.from,
+          ),
+        );
+      }
     }
     if (nodeRef.name === "BranchKeyword") {
       annotations.push(
@@ -318,10 +370,16 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       nodeRef.name === "LuauSparkdownChooseThenClause" ||
       nodeRef.name === "LuauSparkdownConditionalAlternatorBlock" ||
       nodeRef.name === "LuauSparkdownSequentialAlternatorBlock" ||
+      // Non-Sparkdown alternator variants — pure-Luau expression
+      // contexts like `return ( chain | ... end )`.
+      nodeRef.name === "LuauSequentialAlternatorBlock" ||
+      nodeRef.name === "LuauConditionalAlternatorBlock" ||
       // Luau class-style declarations and table literals — body is
       // indented +1 from the `define` / opening `{` line.
       nodeRef.name === "LuauDefine" ||
+      nodeRef.name === "LuauMethodDefinition" ||
       nodeRef.name === "LuauTable" ||
+      nodeRef.name === "LuauParenthetical" ||
       // Sparkdown flow containers — scene / branch wrap a body that's
       // indented one level deeper.
       nodeRef.name === "Scene" ||

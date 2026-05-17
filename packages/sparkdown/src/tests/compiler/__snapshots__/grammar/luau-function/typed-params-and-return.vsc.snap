@@ -21,7 +21,7 @@ text.source.sparkdown [0..150]
  │   └─ support.type.primitive.luau [55..61]: "string"
  ├─ Newline [61..62]: "\n"
  ├─ meta.function.luau [62..84]
- │   ├─ punctuation.whitespace.indent.sd [62..64]: "  "
+ │   ├─ punctuation.whitespace.optional.sd [62..64]: "  "
  │   ├─ keyword.control.if.luau [64..66]: "if"
  │   ├─ punctuation.whitespace.optional.sd [66..67]: " "
  │   ├─ variable.other.readwrite.luau [67..71]: "lang"
@@ -37,7 +37,7 @@ text.source.sparkdown [0..150]
  ├─ Newline [84..85]: "\n"
  ├─ meta.function.luau [85..123]
  │   └─ meta.function.luau [85..123]
- │       ├─ punctuation.whitespace.indent.sd [85..89]: "    "
+ │       ├─ punctuation.whitespace.optional.sd [85..89]: "    "
  │       ├─ keyword.control.luau [89..95]: "return"
  │       ├─ punctuation.whitespace.optional.sd [95..96]: " "
  │       ├─ variable.other.readwrite.luau [96..97]: "n"
@@ -68,7 +68,7 @@ text.source.sparkdown [0..150]
  ├─ Newline [129..130]: "\n"
  ├─ meta.function.luau [130..146]
  │   └─ meta.function.luau [130..146]
- │       ├─ punctuation.whitespace.indent.sd [130..132]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [130..132]: "  "
  │       ├─ keyword.control.luau [132..138]: "return"
  │       ├─ punctuation.whitespace.optional.sd [138..139]: " "
  │       └─ string.quoted.double.luau [139..146]

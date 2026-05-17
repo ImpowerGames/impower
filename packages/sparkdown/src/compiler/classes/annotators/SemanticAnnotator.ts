@@ -86,7 +86,17 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "ViewStructField") {
       this.inViewField = true;
     }
-    if (nodeRef.name === "Indent") {
+    // Leading-WS handling for the (now-dead) ViewField scoping path.
+    // The grammar's `Indent` rule is gone; we detect "whitespace at
+    // line start" by position. `OptionalWhitespace` is the canonical
+    // class for leading-WS captures now (see whitespace taxonomy
+    // comment in the grammar YAML), but accept any whitespace-class
+    // node here since the dispatch is position-driven.
+    if (
+      (nodeRef.name === "OptionalWhitespace" ||
+        nodeRef.name === "Whitespace") &&
+      this.getLineAt(nodeRef.from).from === nodeRef.from
+    ) {
       const currentIndentation = this.read(nodeRef.from, nodeRef.to);
       let indent = currentIndentation.length;
       if (this.inViewField) {

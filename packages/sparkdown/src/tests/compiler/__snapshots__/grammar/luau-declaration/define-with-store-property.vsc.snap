@@ -11,7 +11,7 @@ text.source.sparkdown [0..56]
  │   └─ keyword.control.as.luau [30..34]: "with"
  ├─ Newline [34..35]: "\n"
  ├─ meta.function.luau [35..52]
- │   ├─ punctuation.whitespace.indent.sd [35..37]: "  "
+ │   ├─ punctuation.whitespace.optional.sd [35..37]: "  "
  │   ├─ storage.modifier.scope.luau [37..42]: "store"
  │   ├─ punctuation.whitespace.optional.sd [42..43]: " "
  │   ├─ variable.other.readwrite.luau [43..48]: "trust"

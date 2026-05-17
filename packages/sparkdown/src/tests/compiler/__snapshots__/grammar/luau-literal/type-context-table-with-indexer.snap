@@ -114,7 +114,7 @@ sparkdown [0..77]
      │   ├─ LuauReturnStatement [59..73]
      │   │   ├─ LuauReturnStatement_begin [59..68]
      │   │   │   ├─ LuauReturnStatement_begin_c1 [59..61]
-     │   │   │   │   └─ Indent [59..61]: "  "
+     │   │   │   │   └─ OptionalWhitespace [59..61]: "  "
      │   │   │   ├─ LuauReturnStatement_begin_c2 [61..67]
      │   │   │   │   └─ LuauControlKeyword [61..67]: "return"
      │   │   │   └─ LuauReturnStatement_begin_c3 [67..68]

@@ -27,7 +27,7 @@ sparkdown [0..187]
  ├─ ImplicitAction [26..185]
  │   ├─ ImplicitAction_begin [26..28]
  │   │   └─ ImplicitAction_begin_c1 [26..28]
- │   │       └─ Indent [26..28]: "  "
+ │   │       └─ OptionalWhitespace [26..28]: "  "
  │   ├─ ImplicitAction_content [28..185]
  │   │   └─ LineEnd [28..185]
  │   │       ├─ LineEnd_begin 28

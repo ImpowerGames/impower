@@ -5,7 +5,7 @@ text.source.sparkdown [0..25]
  ├─ punctuation.whitespace.optional.sd [7..8]: " "
  ├─ keyword.control.then.luau [8..12]: "then"
  ├─ Newline [12..13]: "\n"
- ├─ punctuation.whitespace.indent.sd [13..15]: "  "
+ ├─ punctuation.whitespace.optional.sd [13..15]: "  "
  ├─ variable.other.readwrite.luau [15..16]: "x"
  ├─ punctuation.whitespace.optional.sd [16..17]: " "
  ├─ keyword.operator.assignment.luau [17..18]: "="

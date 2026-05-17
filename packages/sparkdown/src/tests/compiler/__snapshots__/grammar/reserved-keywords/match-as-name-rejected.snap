@@ -46,7 +46,7 @@ sparkdown [0..40]
      │   └─ LuauConditionalAlternatorBlock [26..40]
      │       ├─ LuauConditionalAlternatorBlock_begin [26..33]
      │       │   ├─ LuauConditionalAlternatorBlock_begin_c1 [26..28]
-     │       │   │   └─ Indent [26..28]: "  "
+     │       │   │   └─ OptionalWhitespace [26..28]: "  "
      │       │   ├─ LuauConditionalAlternatorBlock_begin_c2 [28..33]
      │       │   │   └─ LuauControlKeyword [28..33]: "match"
      │       │   └─ LuauConditionalAlternatorBlock_begin_c3 33

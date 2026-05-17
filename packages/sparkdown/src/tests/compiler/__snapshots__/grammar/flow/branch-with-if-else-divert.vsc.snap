@@ -3,7 +3,7 @@ text.source.sparkdown [0..91]
  ├─ punctuation.whitespace.required.sd [6..7]: " "
  ├─ keyword.control.section.sd [7..16]: "AfterWish"
  ├─ Newline [16..17]: "\n"
- ├─ punctuation.whitespace.indent.sd [17..19]: "  "
+ ├─ punctuation.whitespace.optional.sd [17..19]: "  "
  ├─ keyword.control.if.luau [19..21]: "if"
  ├─ punctuation.whitespace.optional.sd [21..22]: " "
  ├─ variable.other.readwrite.luau [22..27]: "trust"
@@ -15,7 +15,7 @@ text.source.sparkdown [0..91]
  ├─ keyword.control.then.luau [33..37]: "then"
  ├─ Newline [37..38]: "\n"
  ├─ string.display.dialogue.inline.sd [38..54]
- │   ├─ punctuation.whitespace.indent.sd [38..42]: "    "
+ │   ├─ punctuation.whitespace.optional.sd [38..42]: "    "
  │   ├─ entity.name.type.dialogue.character.name.sd [42..43]
  │   │   └─ markup.raw.text.sd [42..43]: "N"
  │   ├─ meta.template.expression.operator.colon.sd [43..44]: ":"
@@ -28,17 +28,17 @@ text.source.sparkdown [0..91]
  │       ├─ markup.raw.text.sd [51..53]: "go"
  │       └─ markup.raw.punctuation.sd [53..54]: "."
  ├─ Newline [54..55]: "\n"
- ├─ punctuation.whitespace.indent.sd [55..59]: "    "
+ ├─ punctuation.whitespace.optional.sd [55..59]: "    "
  ├─ keyword.control.divert.mark.sd [59..61]: "->"
  ├─ keyword.control.divert.path.sd [61..67]
  │   ├─ punctuation.whitespace.optional.sd [61..62]: " "
  │   └─ keyword.control.divert.path.sd [62..67]
  │       └─ keyword.control.divert.path.sd [62..67]: "Alley"
  ├─ Newline [67..68]: "\n"
- ├─ punctuation.whitespace.indent.sd [68..70]: "  "
+ ├─ punctuation.whitespace.optional.sd [68..70]: "  "
  ├─ keyword.control.else.luau [70..74]: "else"
  ├─ Newline [74..75]: "\n"
- ├─ punctuation.whitespace.indent.sd [75..79]: "    "
+ ├─ punctuation.whitespace.optional.sd [75..79]: "    "
  ├─ keyword.control.divert.mark.sd [79..81]: "->"
  ├─ keyword.control.divert.path.sd [81..85]
  │   ├─ punctuation.whitespace.optional.sd [81..82]: " "

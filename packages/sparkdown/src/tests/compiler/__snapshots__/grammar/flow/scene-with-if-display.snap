@@ -48,7 +48,7 @@ sparkdown [0..172]
  ├─ LuauSparkdownIfBlock [31..170]
  │   ├─ LuauSparkdownIfBlock_begin [31..36]
  │   │   ├─ LuauSparkdownIfBlock_begin_c1 [31..33]
- │   │   │   └─ Indent [31..33]: "  "
+ │   │   │   └─ OptionalWhitespace [31..33]: "  "
  │   │   ├─ LuauSparkdownIfBlock_begin_c2 [33..35]
  │   │   │   └─ LuauIfKeyword [33..35]: "if"
  │   │   └─ LuauSparkdownIfBlock_begin_c3 [35..36]
@@ -103,7 +103,7 @@ sparkdown [0..172]
  │   │   ├─ ImplicitAction [55..93]
  │   │   │   ├─ ImplicitAction_begin [55..59]
  │   │   │   │   └─ ImplicitAction_begin_c1 [55..59]
- │   │   │   │       └─ Indent [55..59]: "    "
+ │   │   │   │       └─ OptionalWhitespace [55..59]: "    "
  │   │   │   ├─ ImplicitAction_content [59..93]
  │   │   │   │   └─ LineEnd [59..93]
  │   │   │   │       ├─ LineEnd_begin 59
@@ -157,7 +157,7 @@ sparkdown [0..172]
  │   │   └─ LuauSparkdownElseBlock [95..165]
  │   │       ├─ LuauSparkdownElseBlock_begin [95..101]
  │   │       │   ├─ LuauSparkdownElseBlock_begin_c1 [95..97]
- │   │       │   │   └─ Indent [95..97]: "  "
+ │   │       │   │   └─ OptionalWhitespace [95..97]: "  "
  │   │       │   ├─ LuauSparkdownElseBlock_begin_c2 [97..101]
  │   │       │   │   └─ LuauElseKeyword [97..101]: "else"
  │   │       │   └─ LuauSparkdownElseBlock_begin_c3 101
@@ -168,7 +168,7 @@ sparkdown [0..172]
  │   │       │   ├─ LuauExplicitStatement [103..121]
  │   │       │   │   ├─ LuauExplicitStatement_begin [103..109]
  │   │       │   │   │   ├─ LuauExplicitStatement_begin_c1 [103..107]
- │   │       │   │   │   │   └─ Indent [103..107]: "    "
+ │   │       │   │   │   │   └─ OptionalWhitespace [103..107]: "    "
  │   │       │   │   │   ├─ LuauExplicitStatement_begin_c2 [107..108]
  │   │       │   │   │   │   └─ LuauExplicitStatementMark [107..108]: "&"
  │   │       │   │   │   └─ LuauExplicitStatement_begin_c3 [108..109]
@@ -214,7 +214,7 @@ sparkdown [0..172]
  │   │       │   ├─ ImplicitAction [123..163]
  │   │       │   │   ├─ ImplicitAction_begin [123..127]
  │   │       │   │   │   └─ ImplicitAction_begin_c1 [123..127]
- │   │       │   │   │       └─ Indent [123..127]: "    "
+ │   │       │   │   │       └─ OptionalWhitespace [123..127]: "    "
  │   │       │   │   ├─ ImplicitAction_content [127..163]
  │   │       │   │   │   └─ LineEnd [127..163]
  │   │       │   │   │       ├─ LineEnd_begin 127

@@ -36,7 +36,7 @@ sparkdown [0..56]
      │   ├─ LuauPropertyDefinition [35..52]
      │   │   ├─ LuauPropertyDefinition_begin [35..43]
      │   │   │   ├─ LuauPropertyDefinition_begin_c1 [35..37]
-     │   │   │   │   └─ Indent [35..37]: "  "
+     │   │   │   │   └─ OptionalWhitespace [35..37]: "  "
      │   │   │   ├─ LuauPropertyDefinition_begin_c2 [37..42]
      │   │   │   │   └─ LuauScopeModifier [37..42]: "store"
      │   │   │   └─ LuauPropertyDefinition_begin_c3 [42..43]

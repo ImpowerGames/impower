@@ -3,29 +3,29 @@ text.source.sparkdown [0..87]
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..10]: "main"
  ├─ Newline [10..11]: "\n"
- ├─ punctuation.whitespace.indent.sd [11..13]: "  "
+ ├─ punctuation.whitespace.optional.sd [11..13]: "  "
  ├─ keyword.control.choose.luau [13..19]: "choose"
  ├─ Newline [19..20]: "\n"
  ├─ entity.choice.sd [20..28]
- │   ├─ punctuation.whitespace.indent.sd [20..24]: "    "
+ │   ├─ punctuation.whitespace.optional.sd [20..24]: "    "
  │   ├─ keyword.operator.expression.list.sd [24..26]: "* "
  │   └─ string.choice.sd [26..28]
  │       └─ markup.raw.text.sd [26..28]: "Hi"
  ├─ Newline [28..29]: "\n"
  ├─ entity.choice.sd [29..38]
- │   ├─ punctuation.whitespace.indent.sd [29..33]: "    "
+ │   ├─ punctuation.whitespace.optional.sd [29..33]: "    "
  │   ├─ keyword.operator.expression.list.sd [33..35]: "* "
  │   └─ string.choice.sd [35..38]
  │       └─ markup.raw.text.sd [35..38]: "Hey"
  ├─ Newline [38..39]: "\n"
- ├─ punctuation.whitespace.indent.sd [39..41]: "  "
+ ├─ punctuation.whitespace.optional.sd [39..41]: "  "
  ├─ keyword.control.then.luau [41..45]: "then"
  ├─ punctuation.whitespace.optional.sd [45..46]: " "
  ├─ keyword.flow.label.sd [46..47]: "("
  ├─ keyword.control.section.sd [47..55]: "greeting"
  ├─ keyword.flow.label.sd [55..56]: ")"
  ├─ Newline [56..57]: "\n"
- ├─ punctuation.whitespace.indent.sd [57..61]: "    "
+ ├─ punctuation.whitespace.optional.sd [57..61]: "    "
  ├─ string.display.text.chunk.sd [61..70]
  │   ├─ markup.raw.text.sd [61..64]: "She"
  │   ├─ markup.raw.space.sd [64..65]: " "
@@ -35,7 +35,7 @@ text.source.sparkdown [0..87]
  ├─ punctuation.whitespace.optional.sd [71..73]: "  "
  ├─ keyword.control.end.luau [73..76]: "end"
  ├─ Newline [76..77]: "\n"
- ├─ punctuation.whitespace.indent.sd [77..79]: "  "
+ ├─ punctuation.whitespace.optional.sd [77..79]: "  "
  ├─ keyword.control.divert.mark.sd [79..81]: "->"
  ├─ keyword.control.divert.path.sd [81..86]
  │   ├─ punctuation.whitespace.optional.sd [81..82]: " "

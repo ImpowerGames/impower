@@ -880,8 +880,16 @@ function tryLowerInlineConditional(
       branches.push(current);
       current = { cond: null, body: [] };
       phase = "in-body";
-    } else if (sib.name === "ExtraWhitespace" || sib.name === "Newline") {
-      // skip
+    } else if (
+      sib.name === "ExtraWhitespace" ||
+      sib.name === "Whitespace" ||
+      sib.name === "OptionalWhitespace" ||
+      sib.name === "RequiredWhitespace" ||
+      sib.name === "Newline"
+    ) {
+      // skip — whitespace between if-expression siblings is purely
+      // structural (the grammar's #OptionalWhitespace captures
+      // create nodes even between `then "a"` and `else "b"`).
     } else if (phase === "in-elseif-cond") {
       elseifCondNodes.push(sib);
     } else if (phase === "in-body") {

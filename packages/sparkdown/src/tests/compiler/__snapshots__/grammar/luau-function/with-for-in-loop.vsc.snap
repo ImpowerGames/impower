@@ -7,8 +7,8 @@ text.source.sparkdown [0..76]
  │       ├─ punctuation.definition.template-expression.begin.sd [14..15]: "("
  │       └─ punctuation.definition.template-expression.end.sd [15..16]: ")"
  ├─ Newline [16..17]: "\n"
- ├─ meta.function.luau [17..47]
- │   ├─ punctuation.whitespace.indent.sd [17..19]: "  "
+ ├─ meta.function.luau [17..50]
+ │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
  │   ├─ keyword.control.for.luau [19..22]: "for"
  │   ├─ punctuation.whitespace.optional.sd [22..23]: " "
  │   ├─ variable.other.readwrite.luau [23..24]: "k"
@@ -19,16 +19,15 @@ text.source.sparkdown [0..76]
  │   ├─ keyword.control.end.luau [28..30]: "in"
  │   ├─ punctuation.whitespace.extra.sd [30..31]: " "
  │   ├─ support.function.luau [31..36]: "pairs"
- │   └─ meta.parameter.luau [36..47]
- │       ├─ punctuation.definition.template-expression.begin.sd [36..37]: "("
- │       ├─ variable.other.readwrite.luau [37..46]: "companion"
- │       └─ punctuation.definition.template-expression.end.sd [46..47]: ")"
- ├─ meta.function.luau [47..48]: " "
- ├─ meta.function.luau [48..50]
+ │   ├─ meta.parameter.luau [36..47]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [36..37]: "("
+ │   │   ├─ variable.other.readwrite.luau [37..46]: "companion"
+ │   │   └─ punctuation.definition.template-expression.end.sd [46..47]: ")"
+ │   ├─ punctuation.whitespace.optional.sd [47..48]: " "
  │   └─ keyword.control.do.luau [48..50]: "do"
  ├─ Newline [50..51]: "\n"
  ├─ meta.function.luau [51..66]
- │   ├─ punctuation.whitespace.indent.sd [51..55]: "    "
+ │   ├─ punctuation.whitespace.optional.sd [51..55]: "    "
  │   ├─ variable.other.readwrite.luau [55..56]: "v"
  │   ├─ meta.template.expression.accessor.sd [56..57]: "."
  │   ├─ variable.other.property.luau [57..62]: "trust"

@@ -11,7 +11,7 @@ text.source.sparkdown [0..206]
  │   └─ keyword.control.as.luau [23..27]: "with"
  ├─ Newline [27..28]: "\n"
  ├─ meta.function.luau [28..44]
- │   ├─ punctuation.whitespace.indent.sd [28..30]: "  "
+ │   ├─ punctuation.whitespace.optional.sd [28..30]: "  "
  │   ├─ variable.other.readwrite.luau [30..36]: "canFly"
  │   ├─ punctuation.whitespace.optional.sd [36..37]: " "
  │   ├─ keyword.operator.assignment.luau [37..38]: "="
@@ -19,7 +19,7 @@ text.source.sparkdown [0..206]
  │   └─ constant.language.boolean.luau [39..44]: "false"
  ├─ Newline [44..45]: "\n"
  ├─ meta.function.luau [45..65]
- │   ├─ punctuation.whitespace.indent.sd [45..47]: "  "
+ │   ├─ punctuation.whitespace.optional.sd [45..47]: "  "
  │   ├─ variable.other.readwrite.luau [47..57]: "isSwimming"
  │   ├─ punctuation.whitespace.optional.sd [57..58]: " "
  │   ├─ keyword.operator.assignment.luau [58..59]: "="
@@ -28,7 +28,7 @@ text.source.sparkdown [0..206]
  ├─ Newline [65..66]: "\n"
  ├─ meta.function.luau [66..73]
  │   └─ meta.function.luau [66..73]
- │       ├─ punctuation.whitespace.indent.sd [66..68]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [66..68]: "  "
  │       ├─ entity.name.function.luau [68..71]: "fly"
  │       └─ meta.parameter.luau [71..73]
  │           ├─ punctuation.definition.template-expression.begin.sd [71..72]: "("
@@ -62,7 +62,7 @@ text.source.sparkdown [0..206]
  ├─ Newline [114..115]: "\n"
  ├─ meta.function.luau [115..123]
  │   └─ meta.function.luau [115..123]
- │       ├─ punctuation.whitespace.indent.sd [115..117]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [115..117]: "  "
  │       ├─ entity.name.function.luau [117..121]: "swim"
  │       └─ meta.parameter.luau [121..123]
  │           ├─ punctuation.definition.template-expression.begin.sd [121..122]: "("
@@ -70,7 +70,7 @@ text.source.sparkdown [0..206]
  ├─ Newline [123..124]: "\n"
  ├─ meta.function.luau [124..150]
  │   └─ meta.function.luau [124..150]
- │       ├─ punctuation.whitespace.indent.sd [124..128]: "    "
+ │       ├─ punctuation.whitespace.optional.sd [124..128]: "    "
  │       ├─ variable.language.self.luau [128..132]: "self"
  │       ├─ meta.template.expression.accessor.sd [132..133]: "."
  │       ├─ variable.other.property.luau [133..143]: "isSwimming"

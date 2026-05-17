@@ -3,7 +3,7 @@ text.source.sparkdown [0..45]
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..10]: "main"
  ├─ Newline [10..11]: "\n"
- ├─ punctuation.whitespace.indent.sd [11..13]: "  "
+ ├─ punctuation.whitespace.optional.sd [11..13]: "  "
  ├─ string.display.text.chunk.sd [13..35]
  │   ├─ markup.raw.text.sd [13..19]: "Before"
  │   ├─ punctuation.whitespace.sd [19..20]: " "

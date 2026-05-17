@@ -12,7 +12,7 @@ text.source.sparkdown [0..90]
  │       └─ punctuation.definition.template-expression.end.sd [38..39]: ")"
  ├─ Newline [39..40]: "\n"
  ├─ meta.function.luau [40..64]
- │   ├─ punctuation.whitespace.indent.sd [40..42]: "  "
+ │   ├─ punctuation.whitespace.optional.sd [40..42]: "  "
  │   ├─ storage.modifier.scope.luau [42..47]: "local"
  │   ├─ punctuation.whitespace.optional.sd [47..48]: " "
  │   ├─ variable.other.readwrite.luau [48..60]: "check_plural"
@@ -23,7 +23,7 @@ text.source.sparkdown [0..90]
  ├─ Newline [64..65]: "\n"
  ├─ meta.function.luau [65..86]
  │   └─ meta.function.luau [65..86]
- │       ├─ punctuation.whitespace.indent.sd [65..67]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [65..67]: "  "
  │       ├─ keyword.control.luau [67..73]: "return"
  │       ├─ punctuation.whitespace.optional.sd [73..74]: " "
  │       └─ variable.other.readwrite.luau [74..86]: "check_plural"

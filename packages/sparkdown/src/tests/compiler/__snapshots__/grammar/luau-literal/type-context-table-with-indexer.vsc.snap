@@ -28,7 +28,7 @@ text.source.sparkdown [0..77]
  ├─ Newline [58..59]: "\n"
  ├─ meta.function.luau [59..73]
  │   └─ meta.function.luau [59..73]
- │       ├─ punctuation.whitespace.indent.sd [59..61]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [59..61]: "  "
  │       ├─ keyword.control.luau [61..67]: "return"
  │       ├─ punctuation.whitespace.optional.sd [67..68]: " "
  │       └─ variable.other.readwrite.luau [68..73]: "value"

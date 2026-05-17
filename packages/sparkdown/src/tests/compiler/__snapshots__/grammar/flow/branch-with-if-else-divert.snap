@@ -17,7 +17,7 @@ sparkdown [0..97]
  └─ LuauSparkdownIfBlock [18..97]
      ├─ LuauSparkdownIfBlock_begin [18..23]
      │   ├─ LuauSparkdownIfBlock_begin_c1 [18..20]
-     │   │   └─ Indent [18..20]: "  "
+     │   │   └─ OptionalWhitespace [18..20]: "  "
      │   ├─ LuauSparkdownIfBlock_begin_c2 [20..22]
      │   │   └─ LuauIfKeyword [20..22]: "if"
      │   └─ LuauSparkdownIfBlock_begin_c3 [22..23]
@@ -64,7 +64,7 @@ sparkdown [0..97]
      │   ├─ InlineDialogue [40..56]
      │   │   ├─ InlineDialogue_begin [40..47]
      │   │   │   ├─ InlineDialogue_begin_c1 [40..44]
-     │   │   │   │   └─ Indent [40..44]: "    "
+     │   │   │   │   └─ OptionalWhitespace [40..44]: "    "
      │   │   │   ├─ InlineDialogue_begin_c2 [44..45]
      │   │   │   │   └─ DialogueCharacter [44..45]
      │   │   │   │       ├─ DialogueCharacter_c1 44
@@ -102,7 +102,7 @@ sparkdown [0..97]
      │   ├─ Divert [58..70]
      │   │   ├─ Divert_begin [58..64]
      │   │   │   ├─ Divert_begin_c1 [58..62]
-     │   │   │   │   └─ Indent [58..62]: "    "
+     │   │   │   │   └─ OptionalWhitespace [58..62]: "    "
      │   │   │   └─ Divert_begin_c2 [62..64]
      │   │   │       └─ DivertMark [62..64]: "->"
      │   │   ├─ Divert_content [64..70]
@@ -124,7 +124,7 @@ sparkdown [0..97]
      │   └─ LuauSparkdownElseBlock [72..92]
      │       ├─ LuauSparkdownElseBlock_begin [72..78]
      │       │   ├─ LuauSparkdownElseBlock_begin_c1 [72..74]
-     │       │   │   └─ Indent [72..74]: "  "
+     │       │   │   └─ OptionalWhitespace [72..74]: "  "
      │       │   ├─ LuauSparkdownElseBlock_begin_c2 [74..78]
      │       │   │   └─ LuauElseKeyword [74..78]: "else"
      │       │   └─ LuauSparkdownElseBlock_begin_c3 78
@@ -135,7 +135,7 @@ sparkdown [0..97]
      │       │   ├─ Divert [80..90]
      │       │   │   ├─ Divert_begin [80..86]
      │       │   │   │   ├─ Divert_begin_c1 [80..84]
-     │       │   │   │   │   └─ Indent [80..84]: "    "
+     │       │   │   │   │   └─ OptionalWhitespace [80..84]: "    "
      │       │   │   │   └─ Divert_begin_c2 [84..86]
      │       │   │   │       └─ DivertMark [84..86]: "->"
      │       │   │   ├─ Divert_content [86..90]

@@ -46,7 +46,7 @@ sparkdown [0..90]
      │   ├─ LuauVariableDefinition [40..64]
      │   │   ├─ LuauVariableDefinition_begin [40..48]
      │   │   │   ├─ LuauVariableDefinition_begin_c1 [40..42]
-     │   │   │   │   └─ Indent [40..42]: "  "
+     │   │   │   │   └─ OptionalWhitespace [40..42]: "  "
      │   │   │   ├─ LuauVariableDefinition_begin_c2 [42..47]
      │   │   │   │   └─ LuauScopeModifier [42..47]: "local"
      │   │   │   └─ LuauVariableDefinition_begin_c3 [47..48]
@@ -88,7 +88,7 @@ sparkdown [0..90]
      │   ├─ LuauReturnStatement [65..86]
      │   │   ├─ LuauReturnStatement_begin [65..74]
      │   │   │   ├─ LuauReturnStatement_begin_c1 [65..67]
-     │   │   │   │   └─ Indent [65..67]: "  "
+     │   │   │   │   └─ OptionalWhitespace [65..67]: "  "
      │   │   │   ├─ LuauReturnStatement_begin_c2 [67..73]
      │   │   │   │   └─ LuauControlKeyword [67..73]: "return"
      │   │   │   └─ LuauReturnStatement_begin_c3 [73..74]

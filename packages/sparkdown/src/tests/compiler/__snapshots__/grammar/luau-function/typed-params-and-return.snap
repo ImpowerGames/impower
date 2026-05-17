@@ -88,7 +88,7 @@ sparkdown [0..150]
      │   ├─ LuauIfBlock [62..129]
      │   │   ├─ LuauIfBlock_begin [62..67]
      │   │   │   ├─ LuauIfBlock_begin_c1 [62..64]
-     │   │   │   │   └─ Indent [62..64]: "  "
+     │   │   │   │   └─ OptionalWhitespace [62..64]: "  "
      │   │   │   ├─ LuauIfBlock_begin_c2 [64..66]
      │   │   │   │   └─ LuauIfKeyword [64..66]: "if"
      │   │   │   └─ LuauIfBlock_begin_c3 [66..67]
@@ -142,7 +142,7 @@ sparkdown [0..150]
      │   │   │   ├─ LuauReturnStatement [85..123]
      │   │   │   │   ├─ LuauReturnStatement_begin [85..96]
      │   │   │   │   │   ├─ LuauReturnStatement_begin_c1 [85..89]
-     │   │   │   │   │   │   └─ Indent [85..89]: "    "
+     │   │   │   │   │   │   └─ OptionalWhitespace [85..89]: "    "
      │   │   │   │   │   ├─ LuauReturnStatement_begin_c2 [89..95]
      │   │   │   │   │   │   └─ LuauControlKeyword [89..95]: "return"
      │   │   │   │   │   └─ LuauReturnStatement_begin_c3 [95..96]
@@ -233,7 +233,7 @@ sparkdown [0..150]
      │   ├─ LuauReturnStatement [130..146]
      │   │   ├─ LuauReturnStatement_begin [130..139]
      │   │   │   ├─ LuauReturnStatement_begin_c1 [130..132]
-     │   │   │   │   └─ Indent [130..132]: "  "
+     │   │   │   │   └─ OptionalWhitespace [130..132]: "  "
      │   │   │   ├─ LuauReturnStatement_begin_c2 [132..138]
      │   │   │   │   └─ LuauControlKeyword [132..138]: "return"
      │   │   │   └─ LuauReturnStatement_begin_c3 [138..139]

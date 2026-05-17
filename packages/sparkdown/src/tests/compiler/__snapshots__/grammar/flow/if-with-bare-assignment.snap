@@ -24,7 +24,7 @@ sparkdown [0..25]
  │   │   ├─ LuauReassignment [13..20]
  │   │   │   ├─ LuauReassignment_begin [13..15]
  │   │   │   │   └─ LuauReassignment_begin_c1 [13..15]
- │   │   │   │       └─ Indent [13..15]: "  "
+ │   │   │   │       └─ OptionalWhitespace [13..15]: "  "
  │   │   │   ├─ LuauReassignment_content [15..20]
  │   │   │   │   ├─ LuauAccessPath [15..17]
  │   │   │   │   │   ├─ LuauAccessPath_begin 15

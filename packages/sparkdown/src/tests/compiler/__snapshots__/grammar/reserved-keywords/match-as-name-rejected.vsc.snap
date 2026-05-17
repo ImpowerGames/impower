@@ -12,7 +12,7 @@ text.source.sparkdown [0..40]
  │       └─ punctuation.definition.template-expression.end.sd [24..25]: ")"
  ├─ Newline [25..26]: "\n"
  ├─ meta.function.luau [26..36]
- │   ├─ punctuation.whitespace.indent.sd [26..28]: "  "
+ │   ├─ punctuation.whitespace.optional.sd [26..28]: "  "
  │   ├─ keyword.control.luau [28..33]: "match"
  │   ├─ punctuation.definition.template-expression.begin.sd [33..34]: "("
  │   ├─ variable.other.readwrite.luau [34..35]: "x"

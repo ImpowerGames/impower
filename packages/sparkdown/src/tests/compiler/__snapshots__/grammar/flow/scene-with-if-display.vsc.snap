@@ -10,7 +10,7 @@ text.source.sparkdown [0..165]
  │   ├─ entity.name.type.luau [19..28]: "companion"
  │   └─ punctuation.definition.template-expression.end.sd [28..29]: ")"
  ├─ Newline [29..30]: "\n"
- ├─ punctuation.whitespace.indent.sd [30..32]: "  "
+ ├─ punctuation.whitespace.optional.sd [30..32]: "  "
  ├─ keyword.control.if.luau [32..34]: "if"
  ├─ punctuation.whitespace.optional.sd [34..35]: " "
  ├─ variable.other.readwrite.luau [35..36]: "c"
@@ -23,7 +23,7 @@ text.source.sparkdown [0..165]
  ├─ punctuation.whitespace.optional.sd [47..48]: " "
  ├─ keyword.control.then.luau [48..52]: "then"
  ├─ Newline [52..53]: "\n"
- ├─ punctuation.whitespace.indent.sd [53..57]: "    "
+ ├─ punctuation.whitespace.optional.sd [53..57]: "    "
  ├─ meta.template.expression.luau [57..65]
  │   ├─ punctuation.definition.template-expression.begin.sd [57..58]: "{"
  │   ├─ meta.embedded.line.luau [58..64]
@@ -46,10 +46,10 @@ text.source.sparkdown [0..165]
  │   ├─ markup.raw.text.sd [87..90]: "all"
  │   └─ markup.raw.punctuation.sd [90..91]: "."
  ├─ Newline [91..92]: "\n"
- ├─ punctuation.whitespace.indent.sd [92..94]: "  "
+ ├─ punctuation.whitespace.optional.sd [92..94]: "  "
  ├─ keyword.control.else.luau [94..98]: "else"
  ├─ Newline [98..99]: "\n"
- ├─ punctuation.whitespace.indent.sd [99..103]: "    "
+ ├─ punctuation.whitespace.optional.sd [99..103]: "    "
  ├─ keyword.other.statement.explicit.luau.mark.sd [103..104]: "&"
  ├─ punctuation.whitespace.required.sd [104..105]: " "
  ├─ variable.other.readwrite.luau [105..106]: "c"
@@ -60,7 +60,7 @@ text.source.sparkdown [0..165]
  ├─ punctuation.whitespace.optional.sd [115..116]: " "
  ├─ constant.numeric.decimal.luau [116..117]: "1"
  ├─ Newline [117..118]: "\n"
- ├─ punctuation.whitespace.indent.sd [118..122]: "    "
+ ├─ punctuation.whitespace.optional.sd [118..122]: "    "
  ├─ meta.template.expression.luau [122..130]
  │   ├─ punctuation.definition.template-expression.begin.sd [122..123]: "{"
  │   ├─ meta.embedded.line.luau [123..129]

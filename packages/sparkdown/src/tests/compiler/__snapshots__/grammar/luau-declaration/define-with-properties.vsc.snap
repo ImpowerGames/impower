@@ -11,7 +11,7 @@ text.source.sparkdown [0..65]
  │   └─ keyword.control.as.luau [22..26]: "with"
  ├─ Newline [26..27]: "\n"
  ├─ meta.function.luau [27..44]
- │   ├─ punctuation.whitespace.indent.sd [27..29]: "  "
+ │   ├─ punctuation.whitespace.optional.sd [27..29]: "  "
  │   ├─ variable.other.readwrite.luau [29..33]: "name"
  │   ├─ punctuation.whitespace.optional.sd [33..34]: " "
  │   ├─ keyword.operator.assignment.luau [34..35]: "="
@@ -23,7 +23,7 @@ text.source.sparkdown [0..65]
  │   └─ keyword.operator.comma.luau [43..44]: ","
  ├─ Newline [44..45]: "\n"
  ├─ meta.function.luau [45..61]
- │   ├─ punctuation.whitespace.indent.sd [45..47]: "  "
+ │   ├─ punctuation.whitespace.optional.sd [45..47]: "  "
  │   ├─ variable.other.readwrite.luau [47..52]: "color"
  │   ├─ punctuation.whitespace.optional.sd [52..53]: " "
  │   ├─ keyword.operator.assignment.luau [53..54]: "="

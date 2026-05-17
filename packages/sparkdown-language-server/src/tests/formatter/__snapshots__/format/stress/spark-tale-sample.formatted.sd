@@ -23,8 +23,8 @@ scene Rooftop:
     end
     end
     
-    function reset()
-      for k, vinpairs(companion) do
-          v.trust = 0
-        end
+function reset()
+  for k, vinpairs(companion) do
+      v.trust = 0
     end
+end

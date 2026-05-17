@@ -3,7 +3,6 @@ import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/Sp
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
-import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { Tree } from "@lezer/common";
 import {
@@ -223,21 +222,16 @@ export const getFormatting = (
       // block adds exactly +1 to the body indent regardless of how
       // the source already looked. The non-strict branch lives on
       // for future use.
-      let indentOffset = 0;
-      if (!strict) {
-        const indentLevel = currentIndentation.includes("\t")
-          ? currentIndentation.split("\t").length - 1
-          : Math.round(currentIndentation.length / options.tabSize);
-        const rootIndentNode = getDescendent("Indent", rootNode);
-        const rootNodeIndentText = rootIndentNode
-          ? document.read(rootIndentNode.from, rootIndentNode.to)
-          : "";
-        const rootNodeIndentLevel = rootNodeIndentText.includes("\t")
-          ? rootNodeIndentText.split("\t").length - 1
-          : Math.round(rootNodeIndentText.length / options.tabSize);
-        indentOffset = indentLevel - rootNodeIndentLevel;
-      }
-      if (contentNode) level += indentOffset + 1;
+      // Always +1 per nesting level. The historic non-strict mode
+      // walked the block's leading whitespace via `getDescendent
+      // ("Indent", rootNode)` to derive a different offset; the
+      // `Indent` rule has been removed from the grammar in favor of
+      // a position-based check in `FormattingAnnotator`, so we
+      // can't recover that here without re-adding source-walking
+      // logic. Strict-only is the only callsite anyway.
+      void rootNode;
+      void strict;
+      if (contentNode) level += 1;
     }
     level = Math.max(0, level);
     indent({ type: "block_declaration", level });
@@ -288,7 +282,27 @@ export const getFormatting = (
     let newIndentLevel = tempIndentLevel ?? currentIndent?.level ?? 0;
     tempIndentLevel = undefined;
     if (tree) {
-      const stack = getStack<SparkdownNodeName>(tree, from, 1);
+      // Skip past any leading whitespace on the current line when
+      // reading the tree-context stack: when pass 1 wrote `  )`, pass
+      // 2's parser puts those `  ` inside `LuauParenthetical_content`
+      // (matched by `ExtraWhitespace`), but the `)` itself lives in
+      // `LuauParenthetical_end`. Reading the stack at the WS position
+      // would credit the parens-content's `+1` and double-indent the
+      // `)`. Use the position of the line's first non-whitespace
+      // character instead so both passes derive the same context.
+      const lineStart = document.offsetAt({
+        line: document.positionAt(from).line,
+        character: 0,
+      });
+      const lineEnd = document.offsetAt({
+        line: document.positionAt(from).line + 1,
+        character: 0,
+      });
+      const lineText = document.read(lineStart, lineEnd);
+      const firstNonWs = lineText.search(/\S/);
+      const stackPos =
+        firstNonWs >= 0 ? lineStart + firstNonWs : from;
+      const stack = getStack<SparkdownNodeName>(tree, stackPos, 1);
       // Block Declaration properties are indented relative to root node
       newIndentLevel = processBlockDeclaration(
         stack,
@@ -504,6 +518,24 @@ export const getFormatting = (
         newIndentLevel,
         true,
       );
+      // Non-Sparkdown alternator variants — appear in pure-Luau
+      // expression contexts like `return ( chain | ... end )`.
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "LuauSequentialAlternatorBlock",
+        "LuauSequentialAlternatorBlock_content",
+        currentIndentation,
+        newIndentLevel,
+        true,
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "LuauConditionalAlternatorBlock",
+        "LuauConditionalAlternatorBlock_content",
+        currentIndentation,
+        newIndentLevel,
+        true,
+      );
       // Luau class-style `define ... end` and table literal
       // `{ ... }`. Body content is indented one level relative to
       // the opening keyword / brace line.
@@ -517,8 +549,24 @@ export const getFormatting = (
       );
       newIndentLevel = processBlockDeclaration(
         stack,
+        "LuauMethodDefinition",
+        "LuauMethodDefinition_content",
+        currentIndentation,
+        newIndentLevel,
+        true,
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
         "LuauTable",
         "LuauTable_content",
+        currentIndentation,
+        newIndentLevel,
+        true,
+      );
+      newIndentLevel = processBlockDeclaration(
+        stack,
+        "LuauParenthetical",
+        "LuauParenthetical_content",
         currentIndentation,
         newIndentLevel,
         true,
@@ -613,6 +661,12 @@ export const getFormatting = (
           );
         }
       } else if (aheadCur.value.type === "scene_begin") {
+        resetIndent();
+      } else if (aheadCur.value.type === "top_level_begin") {
+        // A top-level Luau declaration (function / define) starts
+        // here — the previous scene's implicit body is over, so drop
+        // the lingering scene_begin / branch_begin frames before the
+        // declaration's own indent context takes effect.
         resetIndent();
       } else if (aheadCur.value.type === "block_declaration_end") {
         while (indentStack.at(-1)?.type === "block_declaration") {
