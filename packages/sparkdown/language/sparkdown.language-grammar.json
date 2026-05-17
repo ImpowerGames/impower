@@ -6144,7 +6144,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
@@ -6188,7 +6188,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
@@ -8251,7 +8251,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
@@ -8308,7 +8308,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
@@ -8365,7 +8365,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
@@ -8422,7 +8422,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
@@ -8479,7 +8479,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
@@ -8536,7 +8536,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
@@ -8593,7 +8593,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
@@ -9006,7 +9006,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
@@ -9062,7 +9062,7 @@
       },
       "patterns": [
         {
-          "include": "#OptionalWhitespace"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"

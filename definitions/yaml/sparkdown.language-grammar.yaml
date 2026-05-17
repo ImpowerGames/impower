@@ -3747,8 +3747,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
@@ -3775,8 +3782,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
@@ -5069,8 +5083,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
@@ -5099,8 +5120,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
@@ -5129,8 +5157,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
@@ -5159,8 +5194,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
@@ -5192,8 +5234,15 @@ repository:
         emit: true
         patterns:
           - { include: "#ExtraWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
@@ -5222,8 +5271,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
   LuauTypeCastOperation:
@@ -5251,8 +5307,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
@@ -5480,8 +5543,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
@@ -5514,8 +5584,15 @@ repository:
         # dispatch fires and inserts the space.
         patterns:
           - { include: "#OptionalWhitespace" }
+    # `ExtraWhitespace` (not `OptionalWhitespace`) here on purpose:
+    # this rule's `patterns:` list is iterated by the parser inside
+    # an open scope, and `OptionalWhitespace` (`{{WS}}*`) can match
+    # zero chars — that wedges the loop with no progress and trips
+    # the `Too many consecutive empty matches` warning. See GRAMMAR.md
+    # §12 ("Switch rules can't include OptionalWhitespace") — same
+    # constraint applies to a scoped rule's own patterns list.
     patterns:
-      - { include: "#OptionalWhitespace" }
+      - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
