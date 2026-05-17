@@ -6106,7 +6106,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|[)}\\],;])"
     },
     "LuauThenExpression": {
       "begin": "(?=(?:then)\\b)",
@@ -6121,7 +6121,7 @@
           "include": "#LuauExpression"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|else\\b|elseif\\b|$|(?:[^\\S\\n\\r])|[)}\\],;])"
     },
     "LuauThenOperator": {
       "begin": "((?:then)\\b)((?:[^\\S\\n\\r])*)",
@@ -6165,7 +6165,7 @@
           "include": "#LuauExpression"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|elseif\\b|$|(?:[^\\S\\n\\r])|[)}\\],;])"
     },
     "LuauElseOperator": {
       "begin": "((?:else)\\b)((?:[^\\S\\n\\r])*)",

@@ -1384,7 +1384,6 @@ repository:
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
-
   InlineTitle:
     tag: monospace
     name: string.display.title.inline.sd
@@ -1412,7 +1411,6 @@ repository:
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
-
   TitleMark:
     tag: definition(punctuation)
     name: punctuation.title.mark.sd
@@ -1448,7 +1446,6 @@ repository:
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
-
   InlineHeading:
     tag: regexp
     name: string.display.heading.inline.sd
@@ -1476,7 +1473,6 @@ repository:
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
-
   HeadingMark:
     tag: definition(punctuation)
     name: punctuation.heading.mark.sd
@@ -1515,7 +1511,6 @@ repository:
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
-
   InlineTransitional:
     tag: labelName
     name: string.display.transitional.inline.sd
@@ -1543,7 +1538,6 @@ repository:
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
-
   TransitionalMark:
     tag: definition(punctuation)
     name: punctuation.transitional.mark.sd
@@ -1586,7 +1580,6 @@ repository:
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
-
   InlineWrite:
     tag: definition(string)
     name: string.display.write.inline.sd
@@ -1620,7 +1613,6 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
-
   WriteMark:
     tag: keyword
     name: keyword.action.mark.sd
@@ -1673,7 +1665,6 @@ repository:
     # sibling choice's leading whitespace (e.g. `  + foo` →
     # `   + foo`) would absorb it into the prior dialogue's body.
     end: (?=^(?!$|//|\1{{WS}}))|(?=^{{WS}}*(?:[*+]|->|[&%$^]|scene\b|branch\b|function\b|define\b|const\b|store\b|local\b))
-
   InlineDialogue:
     tag: definition(string)
     name: string.display.dialogue.inline.sd
@@ -1701,7 +1692,6 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
-
   DialogueMark:
     tag: definition(typeName)
     name: entity.name.type.dialogue.character.name.sd
@@ -1821,7 +1811,6 @@ repository:
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
-
   InlineAction:
     begin: ({{WS}}*)(?:({{GLUE}})|([:])($|{{WS}}+))
     beginCaptures:
@@ -1847,7 +1836,6 @@ repository:
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
-
   ImplicitAction:
     begin: ({{WS}}*)(?!{{END}})(?=\S)
     beginCaptures:
@@ -1864,7 +1852,6 @@ repository:
       - { include: "#LineEnd" }
       - { include: "#ExtraWhitespace" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
-
   ########## Parenthetical ##########
 
   ParentheticalLine:
@@ -2786,7 +2773,6 @@ repository:
       - { include: "#LuauAssignmentOperation" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|$
-
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -3728,7 +3714,13 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})
+    # End on a BEAT (next scene/branch) or on the natural closing
+    # delimiter of any expression-host context — interpolation `}`,
+    # call/paren `)`, index `]`, an arg separator `,` or `;`. Without
+    # the bracket alternatives, the rule would only close via parent
+    # force-close (an `[ScopedRule:LuauTernaryExpression] Incomplete
+    # scope` warning at parse time).
+    end: (?={{BEAT}}|[)}\],;])
 
   LuauThenExpression:
     begin: (?=(?:then)\b)
@@ -3736,7 +3728,14 @@ repository:
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    # End at the next ternary clause keyword, at a BEAT, at a closing
+    # bracket / arg separator, or at the first WS after the `then`
+    # body finishes (the single-line single-token case). The `else`
+    # / `elseif` alternatives are needed because in inline ternary
+    # the surrounding `LuauTernaryExpression` no longer ends at
+    # `(?=then)`, so this rule has to relinquish the cursor at the
+    # next clause boundary on its own.
+    end: (?={{BEAT}}|else\b|elseif\b|$|{{WS}}|[)}\],;])
 
   LuauThenOperator:
     begin: ((?:then)\b)({{WS}}*)
@@ -3759,7 +3758,12 @@ repository:
       - { include: "#LuauElseOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    # Mirror `LuauThenExpression`'s end. We need explicit
+    # closing-delimiter alternatives because inline ternary lives
+    # inside `{…}` / `(…)` / `[…]` and the bare `(?=$|{{WS}})` would
+    # otherwise leave the scope to be force-closed by the outer
+    # interpolation / paren / index rule.
+    end: (?={{BEAT}}|elseif\b|$|{{WS}}|[)}\],;])
 
   LuauElseOperator:
     begin: ((?:else)\b)({{WS}}*)
@@ -4156,7 +4160,6 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
     end: (?={{BEAT}})|(?=$|{{WS}})
-
   # `external message(x)` — single-line declaration of a host-bound callable.
   # Captures the `external` keyword, the function name (via the regular
   # `LuauFunctionDeclarationName`), and a paren-delimited parameter list
@@ -5053,7 +5056,6 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
-
   LuauAssignmentOperator:
     begin: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}})({{WS}}*)
     beginCaptures:
@@ -5224,7 +5226,6 @@ repository:
       - { include: "#OptionalWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
-
   LuauTypeCastOperation:
     begin: ({{WS}}*)(?={{LUAU_TYPECAST_OPERATOR}})
     beginCaptures:

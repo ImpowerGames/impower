@@ -10,78 +10,77 @@ sparkdown [0..40]
      │   └─ LuauFunctionDefinition_begin_c5 [8..9]
      │       └─ LuauFunctionDefinition_begin_c5 [8..9]
      │           └─ OptionalWhitespace [8..9]: " "
-     ├─ LuauFunctionDefinition_content [9..40]
-     │   ├─ LuauFunctionDeclarationName [9..14]
-     │   │   ├─ LuauFunctionDeclarationName_c1 [9..14]
-     │   │   │   └─ LuauFunctionName [9..14]: "check"
-     │   │   └─ LuauFunctionDeclarationName_c2 14
-     │   ├─ LuauFunctionParameters [14..25]
-     │   │   ├─ LuauFunctionParameters_begin [14..15]
-     │   │   │   └─ LuauFunctionParameters_begin_c1 [14..15]
-     │   │   │       └─ PunctuationParenOpen [14..15]: "("
-     │   │   ├─ LuauFunctionParameters_content [15..24]
-     │   │   │   ├─ LuauFunctionParameter [15..16]: "x"
-     │   │   │   └─ LuauTypeAnnotationOperation [16..24]
-     │   │   │       ├─ LuauTypeAnnotationOperation_begin 16
-     │   │   │       │   └─ LuauTypeAnnotationOperation_begin_c1 16
-     │   │   │       ├─ LuauTypeAnnotationOperation_content [16..24]
-     │   │   │       │   ├─ LuauTypeAnnotationOperator [16..18]
-     │   │   │       │   │   ├─ LuauTypeAnnotationOperator_begin [16..18]
-     │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 16
-     │   │   │       │   │   │   │   └─ OptionalWhitespace 16
-     │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [16..17]: ":"
-     │   │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [17..18]
-     │   │   │       │   │   │       └─ OptionalWhitespace [17..18]: " "
-     │   │   │       │   │   └─ LuauTypeAnnotationOperator_end 18
-     │   │   │       │   └─ LuauTypeLiteral [18..24]
-     │   │   │       │       ├─ LuauTypeLiteral_begin 18
-     │   │   │       │       ├─ LuauTypeLiteral_content [18..24]
-     │   │   │       │       │   └─ LuauPrimitiveType [18..24]
-     │   │   │       │       │       ├─ LuauPrimitiveType_c1 [18..24]: "number"
-     │   │   │       │       │       └─ LuauPrimitiveType_c2 24
-     │   │   │       │       └─ LuauTypeLiteral_end 24
-     │   │   │       └─ LuauTypeAnnotationOperation_end 24
-     │   │   └─ LuauFunctionParameters_end [24..25]
-     │   │       └─ LuauFunctionParameters_end_c1 [24..25]
-     │   │           └─ PunctuationParenClose [24..25]: ")"
-     │   ├─ Newline [25..26]: "\n"
-     │   └─ LuauConditionalAlternatorBlock [26..40]
-     │       ├─ LuauConditionalAlternatorBlock_begin [26..33]
-     │       │   ├─ LuauConditionalAlternatorBlock_begin_c1 [26..28]
-     │       │   │   └─ OptionalWhitespace [26..28]: "  "
-     │       │   ├─ LuauConditionalAlternatorBlock_begin_c2 [28..33]
-     │       │   │   └─ LuauControlKeyword [28..33]: "match"
-     │       │   └─ LuauConditionalAlternatorBlock_begin_c3 33
-     │       │       └─ LuauConditionalAlternatorBlock_begin_c3 33
-     │       │           └─ OptionalWhitespace 33
-     │       ├─ LuauConditionalAlternatorBlock_content [33..37]
-     │       │   ├─ LuauConditionalAlternatorCondition [33..36]
-     │       │   │   ├─ LuauConditionalAlternatorCondition_begin 33
-     │       │   │   ├─ LuauConditionalAlternatorCondition_content [33..36]
-     │       │   │   │   └─ LuauParenthetical [33..36]
-     │       │   │   │       ├─ LuauParenthetical_begin [33..34]
-     │       │   │   │       │   └─ LuauParenthetical_begin_c1 [33..34]
-     │       │   │   │       │       └─ PunctuationParenOpen [33..34]: "("
-     │       │   │   │       ├─ LuauParenthetical_content [34..35]
-     │       │   │   │       │   └─ LuauAccessPath [34..35]
-     │       │   │   │       │       ├─ LuauAccessPath_begin 34
-     │       │   │   │       │       ├─ LuauAccessPath_content [34..35]
-     │       │   │   │       │       │   └─ LuauAccessPart [34..35]
-     │       │   │   │       │       │       └─ LuauVariable [34..35]
-     │       │   │   │       │       │           └─ LuauVariable_c1 [34..35]
-     │       │   │   │       │       │               └─ LuauVariableName [34..35]: "x"
-     │       │   │   │       │       └─ LuauAccessPath_end 35
-     │       │   │   │       │           └─ LuauAccessPath_end_c1 35
-     │       │   │   │       └─ LuauParenthetical_end [35..36]
-     │       │   │   │           ├─ LuauParenthetical_end_c1 [35..36]
-     │       │   │   │           │   └─ PunctuationParenClose [35..36]: ")"
-     │       │   │   │           └─ LuauParenthetical_end_c2 36
-     │       │   │   └─ LuauConditionalAlternatorCondition_end 36
-     │       │   └─ Newline [36..37]: "\n"
-     │       └─ LuauConditionalAlternatorBlock_end [37..40]
-     │           ├─ LuauConditionalAlternatorBlock_end_c1 37
-     │           │   └─ LuauConditionalAlternatorBlock_end_c1 37
-     │           │       └─ OptionalWhitespace 37
-     │           └─ LuauConditionalAlternatorBlock_end_c2 [37..40]
-     │               └─ LuauEndKeyword [37..40]: "end"
-     └─ ERROR_INCOMPLETE 40
+     └─ LuauFunctionDefinition_content [9..40]
+         ├─ LuauFunctionDeclarationName [9..14]
+         │   ├─ LuauFunctionDeclarationName_c1 [9..14]
+         │   │   └─ LuauFunctionName [9..14]: "check"
+         │   └─ LuauFunctionDeclarationName_c2 14
+         ├─ LuauFunctionParameters [14..25]
+         │   ├─ LuauFunctionParameters_begin [14..15]
+         │   │   └─ LuauFunctionParameters_begin_c1 [14..15]
+         │   │       └─ PunctuationParenOpen [14..15]: "("
+         │   ├─ LuauFunctionParameters_content [15..24]
+         │   │   ├─ LuauFunctionParameter [15..16]: "x"
+         │   │   └─ LuauTypeAnnotationOperation [16..24]
+         │   │       ├─ LuauTypeAnnotationOperation_begin 16
+         │   │       │   └─ LuauTypeAnnotationOperation_begin_c1 16
+         │   │       ├─ LuauTypeAnnotationOperation_content [16..24]
+         │   │       │   ├─ LuauTypeAnnotationOperator [16..18]
+         │   │       │   │   ├─ LuauTypeAnnotationOperator_begin [16..18]
+         │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 16
+         │   │       │   │   │   │   └─ OptionalWhitespace 16
+         │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [16..17]: ":"
+         │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [17..18]
+         │   │       │   │   │       └─ OptionalWhitespace [17..18]: " "
+         │   │       │   │   └─ LuauTypeAnnotationOperator_end 18
+         │   │       │   └─ LuauTypeLiteral [18..24]
+         │   │       │       ├─ LuauTypeLiteral_begin 18
+         │   │       │       ├─ LuauTypeLiteral_content [18..24]
+         │   │       │       │   └─ LuauPrimitiveType [18..24]
+         │   │       │       │       ├─ LuauPrimitiveType_c1 [18..24]: "number"
+         │   │       │       │       └─ LuauPrimitiveType_c2 24
+         │   │       │       └─ LuauTypeLiteral_end 24
+         │   │       └─ LuauTypeAnnotationOperation_end 24
+         │   └─ LuauFunctionParameters_end [24..25]
+         │       └─ LuauFunctionParameters_end_c1 [24..25]
+         │           └─ PunctuationParenClose [24..25]: ")"
+         ├─ Newline [25..26]: "\n"
+         └─ LuauConditionalAlternatorBlock [26..40]
+             ├─ LuauConditionalAlternatorBlock_begin [26..33]
+             │   ├─ LuauConditionalAlternatorBlock_begin_c1 [26..28]
+             │   │   └─ OptionalWhitespace [26..28]: "  "
+             │   ├─ LuauConditionalAlternatorBlock_begin_c2 [28..33]
+             │   │   └─ LuauControlKeyword [28..33]: "match"
+             │   └─ LuauConditionalAlternatorBlock_begin_c3 33
+             │       └─ LuauConditionalAlternatorBlock_begin_c3 33
+             │           └─ OptionalWhitespace 33
+             ├─ LuauConditionalAlternatorBlock_content [33..37]
+             │   ├─ LuauConditionalAlternatorCondition [33..36]
+             │   │   ├─ LuauConditionalAlternatorCondition_begin 33
+             │   │   ├─ LuauConditionalAlternatorCondition_content [33..36]
+             │   │   │   └─ LuauParenthetical [33..36]
+             │   │   │       ├─ LuauParenthetical_begin [33..34]
+             │   │   │       │   └─ LuauParenthetical_begin_c1 [33..34]
+             │   │   │       │       └─ PunctuationParenOpen [33..34]: "("
+             │   │   │       ├─ LuauParenthetical_content [34..35]
+             │   │   │       │   └─ LuauAccessPath [34..35]
+             │   │   │       │       ├─ LuauAccessPath_begin 34
+             │   │   │       │       ├─ LuauAccessPath_content [34..35]
+             │   │   │       │       │   └─ LuauAccessPart [34..35]
+             │   │   │       │       │       └─ LuauVariable [34..35]
+             │   │   │       │       │           └─ LuauVariable_c1 [34..35]
+             │   │   │       │       │               └─ LuauVariableName [34..35]: "x"
+             │   │   │       │       └─ LuauAccessPath_end 35
+             │   │   │       │           └─ LuauAccessPath_end_c1 35
+             │   │   │       └─ LuauParenthetical_end [35..36]
+             │   │   │           ├─ LuauParenthetical_end_c1 [35..36]
+             │   │   │           │   └─ PunctuationParenClose [35..36]: ")"
+             │   │   │           └─ LuauParenthetical_end_c2 36
+             │   │   └─ LuauConditionalAlternatorCondition_end 36
+             │   └─ Newline [36..37]: "\n"
+             └─ LuauConditionalAlternatorBlock_end [37..40]
+                 ├─ LuauConditionalAlternatorBlock_end_c1 37
+                 │   └─ LuauConditionalAlternatorBlock_end_c1 37
+                 │       └─ OptionalWhitespace 37
+                 └─ LuauConditionalAlternatorBlock_end_c2 [37..40]
+                     └─ LuauEndKeyword [37..40]: "end"
