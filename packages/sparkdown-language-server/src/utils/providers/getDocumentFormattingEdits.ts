@@ -143,6 +143,56 @@ function countChoiceBodies(
   return count;
 }
 
+// `ElseBlock` whose only content is a single `IfBlock` collapses to
+// `elseif`. Both Sparkdown and non-Sparkdown variants. Returns true
+// when this node is one of those merge-eligible else blocks so the
+// indent logic can treat it as transparent (and the post-format
+// rewrite pass deletes the outer `end` and joins keywords).
+const MERGEABLE_ELSE_BLOCKS = new Set<SparkdownNodeName>([
+  "LuauSparkdownElseBlock",
+  "LuauElseBlock",
+] as SparkdownNodeName[]);
+
+const MATCHING_IF_BLOCK: Record<string, string> = {
+  LuauSparkdownElseBlock: "LuauSparkdownIfBlock",
+  LuauElseBlock: "LuauIfBlock",
+};
+
+function isElseBlockMergeableIntoIf(
+  node: GrammarSyntaxNode<SparkdownNodeName>,
+  contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
+): boolean {
+  if (!MERGEABLE_ELSE_BLOCKS.has(node.name)) return false;
+  if (!contentNode) return false;
+  const expectedIfName = MATCHING_IF_BLOCK[node.name];
+  if (!expectedIfName) return false;
+  // Walk content's direct children. Exactly one must be the expected
+  // `IfBlock`, and everything else must be insignificant (newlines /
+  // whitespace nodes the parser keeps for layout).
+  let ifBlockChild: GrammarSyntaxNode<SparkdownNodeName> | undefined;
+  let child = contentNode.node.firstChild;
+  while (child) {
+    const isInsignificant =
+      child.name === "Newline" ||
+      child.name === "Whitespace" ||
+      child.name === "ExtraWhitespace" ||
+      child.name === "OptionalWhitespace" ||
+      child.name === "RequiredWhitespace" ||
+      child.name === "TrailingWhitespace";
+    if (!isInsignificant) {
+      if (child.name === expectedIfName && !ifBlockChild) {
+        ifBlockChild = child.node as GrammarSyntaxNode<SparkdownNodeName>;
+      } else {
+        // Either a second meaningful child, or a non-If first child —
+        // not eligible for elseif collapse.
+        return false;
+      }
+    }
+    child = child.nextSibling;
+  }
+  return !!ifBlockChild;
+}
+
 // Tree-walking indent: returns the count of ancestor blocks whose
 // `_content` contains `pos`, minus header/footer adjustments. No
 // stack state, no annotation queue — just the tree.
@@ -174,6 +224,17 @@ function computeBlockIndent(
       const directChild = stack[i - 2];
       if (directChild && siblings.includes(directChild.name)) continue;
     }
+
+    // `else if … end end` → `elseif … end` transparency. When an
+    // `ElseBlock`'s only meaningful content is a single `IfBlock`,
+    // the two collapse visually into one `elseif` clause. The
+    // `ElseBlock` itself contributes 0 — the inner `IfBlock`'s
+    // header/body/end align with the outer `if`'s siblings, exactly
+    // as a real `elseif` would. The textual rewrite (see post-format
+    // tree walk) deletes the outer `end` and merges `else if` →
+    // `elseif`; this rule keeps indent correct so both passes
+    // agree.
+    if (isElseBlockMergeableIntoIf(node, stack[i - 1])) continue;
 
     level += 1;
   }
@@ -778,6 +839,242 @@ export const getFormatting = (
         );
       },
     });
+    // `else if X then BODY end end` → `elseif X then BODY end`. The
+    // indent-suppression rule above (`isElseBlockMergeableIntoIf`)
+    // already aligns indents as if these were a single `elseif`;
+    // here we make the source text match by joining the keywords
+    // and dropping the now-redundant outer `end`.
+    tree.iterate({
+      enter: (nodeRef) => {
+        if (!MERGEABLE_ELSE_BLOCKS.has(nodeRef.name as SparkdownNodeName))
+          return;
+        const elseNode = nodeRef.node;
+        // Find begin / content / end children.
+        let beginNode, contentNode, endNode;
+        let child = elseNode.firstChild;
+        while (child) {
+          if (child.name.endsWith("_begin")) beginNode = child;
+          else if (child.name.endsWith("_content")) contentNode = child;
+          else if (child.name.endsWith("_end")) endNode = child;
+          child = child.nextSibling;
+        }
+        // We only need begin + content for `else if` → `elseif`.
+        // ElseBlock's own `_end` is zero-width (lookahead on `end`)
+        // — the actual `end` keyword that becomes redundant is the
+        // INNER if's `end`. After conversion the outer `if`'s `end`
+        // continues to close the whole chain.
+        if (!beginNode || !contentNode) return;
+        void endNode;
+        // Verify the eligible pattern (single inner IfBlock).
+        const expectedIfName =
+          MATCHING_IF_BLOCK[nodeRef.name as string] ?? "";
+        let innerIfNode;
+        let c = contentNode.firstChild;
+        while (c) {
+          const insignificant =
+            c.name === "Newline" ||
+            c.name === "Whitespace" ||
+            c.name === "ExtraWhitespace" ||
+            c.name === "OptionalWhitespace" ||
+            c.name === "RequiredWhitespace" ||
+            c.name === "TrailingWhitespace";
+          if (!insignificant) {
+            if (c.name === expectedIfName && !innerIfNode) {
+              innerIfNode = c;
+            } else {
+              return;
+            }
+          }
+          c = c.nextSibling;
+        }
+        if (!innerIfNode) return;
+        // Locate the inner `if` keyword and inner `end` keyword.
+        let elseKeyword, innerIfKeyword, innerEndKeyword;
+        beginNode.cursor().iterate((inner) => {
+          if (inner.name === "LuauElseKeyword") {
+            elseKeyword = { from: inner.from, to: inner.to };
+            return false;
+          }
+          return true;
+        });
+        // Find the inner if's own _end child (direct child of
+        // innerIfNode). We can't just iterate the whole subtree —
+        // a nested if-statement inside the body would have its own
+        // _end too, and we'd grab the wrong one.
+        let innerEndChild;
+        let ec = innerIfNode.firstChild;
+        while (ec) {
+          if (ec.name.endsWith("_end")) {
+            innerEndChild = ec;
+            break;
+          }
+          ec = ec.nextSibling;
+        }
+        if (!innerEndChild) return;
+        innerIfNode.cursor().iterate((inner) => {
+          if (innerIfKeyword) return false;
+          if (inner.name === "LuauIfKeyword") {
+            innerIfKeyword = { from: inner.from, to: inner.to };
+            return false;
+          }
+          return true;
+        });
+        innerEndChild.cursor().iterate((inner) => {
+          if (inner.name === "LuauEndKeyword") {
+            innerEndKeyword = { from: inner.from, to: inner.to };
+            return false;
+          }
+          return true;
+        });
+        if (!elseKeyword || !innerIfKeyword || !innerEndKeyword) return;
+        // Edit 1: collapse `else…if` into `<indent>elseif`. We
+        // extend the range back to the start of the `else` line so
+        // the leading whitespace is absorbed too — the elseif chain
+        // sits at the OUTER if's level (sibling clauses share their
+        // header indent), and absorbing the original WS lets us
+        // produce that indent here in one edit (instead of relying
+        // on a separate, possibly-conflicting indent edit on the
+        // same line).
+        //
+        // Safety check: only extend back to column 0 if everything
+        // before `else` on its line is whitespace. Otherwise we'd
+        // clobber preceding content.
+        const elseLine = document.positionAt(elseKeyword.from).line;
+        const elseLineStart = document.offsetAt({
+          line: elseLine,
+          character: 0,
+        });
+        const elsePrelude = document.read(elseLineStart, elseKeyword.from);
+        const elsePreludeIsAllWs = /^[ \t]*$/.test(elsePrelude);
+        // Indent to emit. The else block is "transparent" per
+        // `isElseBlockMergeableIntoIf`, so the elseif keyword sits
+        // at the level the else WOULD sit at — which equals the
+        // outer if's level. We compute it by looking at the
+        // ancestor stack of the `else` keyword's position.
+        const elseStack = getStack<SparkdownNodeName>(
+          tree,
+          elseKeyword.from,
+          1,
+        );
+        const indentLevel = computeBlockIndent(elseStack);
+        const indentChars = options.insertSpaces
+          ? " ".repeat(indentLevel * options.tabSize)
+          : "\t".repeat(indentLevel);
+        const joinFrom = elsePreludeIsAllWs
+          ? elseLineStart
+          : elseKeyword.from;
+        const joinPrefix = elsePreludeIsAllWs ? indentChars : "";
+        const joinRange: Range = {
+          start: document.positionAt(joinFrom),
+          end: document.positionAt(innerIfKeyword.to),
+        };
+        pushIfInRange({
+          lineNumber: joinRange.start.line + 1,
+          range: joinRange,
+          oldText: document.getText(joinRange),
+          newText: joinPrefix + "elseif",
+          type: "elseif_join",
+        });
+        // Edit 2: delete the inner `end`'s entire line (leading
+        // indent + `end` keyword + trailing newline). The outer if's
+        // own `end` continues to close the chain.
+        const endLine = document.positionAt(innerEndKeyword.from).line;
+        const lineStart: Position = { line: endLine, character: 0 };
+        const nextLineStart: Position = { line: endLine + 1, character: 0 };
+        const lineRange: Range = { start: lineStart, end: nextLineStart };
+        pushIfInRange({
+          lineNumber: endLine + 1,
+          range: lineRange,
+          oldText: document.getText(lineRange),
+          newText: "",
+          type: "elseif_drop_end",
+        });
+      },
+    });
+    // Trailing-comma policy for multi-line `LuauTable` literals.
+    // Prettier-style: multi-line → add trailing comma after the last
+    // field; single-line → strip any trailing comma. Skips empty
+    // tables and tables that got rewritten by the alternator pass
+    // above (no `{` / `}` left).
+    tree.iterate({
+      enter: (nodeRef) => {
+        if (nodeRef.name !== "LuauTable") return;
+        const tableNode = nodeRef.node;
+        // Find content range. If begin/end aren't `{` / `}` in the
+        // source (e.g. inline alternator that we just rewrote),
+        // bail out.
+        if (document.read(tableNode.from, tableNode.from + 1) !== "{") return;
+        if (document.read(tableNode.to - 1, tableNode.to) !== "}") return;
+        const contentFrom = tableNode.from + 1;
+        const contentTo = tableNode.to - 1;
+        const contentText = document.read(contentFrom, contentTo);
+        // Empty table — nothing to do.
+        if (!contentText.trim()) return;
+        const isMultiline = contentText.includes("\n");
+        // Locate the last non-whitespace position inside the content.
+        let lastNonWs = contentText.length - 1;
+        while (
+          lastNonWs >= 0 &&
+          (contentText[lastNonWs] === " " ||
+            contentText[lastNonWs] === "\t" ||
+            contentText[lastNonWs] === "\n" ||
+            contentText[lastNonWs] === "\r")
+        ) {
+          lastNonWs -= 1;
+        }
+        if (lastNonWs < 0) return;
+        const hasTrailingComma = contentText[lastNonWs] === ",";
+        const lastNonWsOffset = contentFrom + lastNonWs;
+        if (isMultiline && !hasTrailingComma) {
+          // Insert `,` immediately after the last field value.
+          const insertAt = lastNonWsOffset + 1;
+          const range: Range = {
+            start: document.positionAt(insertAt),
+            end: document.positionAt(insertAt),
+          };
+          pushIfInRange({
+            lineNumber: range.start.line + 1,
+            range,
+            oldText: "",
+            newText: ",",
+            type: "trailing_comma_insert",
+          });
+        } else if (!isMultiline && hasTrailingComma) {
+          // Delete the trailing `,` plus the whitespace that was
+          // before AND after it inside the table braces — otherwise
+          // the surrounding whitespace gets normalized on a second
+          // pass (`b = 2 ` vs `b = 2`) and we lose idempotency.
+          const commaIdx = lastNonWs;
+          let leftBound = commaIdx;
+          while (
+            leftBound > 0 &&
+            (contentText[leftBound - 1] === " " ||
+              contentText[leftBound - 1] === "\t")
+          ) {
+            leftBound -= 1;
+          }
+          let rightBound = commaIdx + 1;
+          while (
+            rightBound < contentText.length &&
+            (contentText[rightBound] === " " ||
+              contentText[rightBound] === "\t")
+          ) {
+            rightBound += 1;
+          }
+          const range: Range = {
+            start: document.positionAt(contentFrom + leftBound),
+            end: document.positionAt(contentFrom + rightBound),
+          };
+          pushIfInRange({
+            lineNumber: range.start.line + 1,
+            range,
+            oldText: document.getText(range),
+            newText: "",
+            type: "trailing_comma_delete",
+          });
+        }
+      },
+    });
   }
 
   edits.sort(
@@ -805,6 +1102,10 @@ const PRECEDENCE: Record<string, number> = {
   alternator_open: 100,
   alternator_close: 100,
   alternator_comma: 100,
+  trailing_comma_insert: 100,
+  trailing_comma_delete: 100,
+  elseif_join: 110,
+  elseif_drop_end: 110,
   scene_end: 100,
   branch_end: 100,
   choice_mark: 100,
@@ -865,7 +1166,11 @@ export const resolveFormattingConflicts = (
     const curr = structuredClone(edits[i])!;
     const prev = result.at(-1);
     if (!prev || end(prev) < start(curr)) {
-      // No overlap (and not even touching) — just push.
+      // No overlap — just push. Touching edits (prev.end === curr.start)
+      // ARE treated as conflicts here: VS Code's edit applier won't
+      // accept adjacent non-overlapping ranges as independent edits,
+      // so we collapse them through the same precedence/merge logic
+      // below.
       result.push(curr);
       continue;
     }

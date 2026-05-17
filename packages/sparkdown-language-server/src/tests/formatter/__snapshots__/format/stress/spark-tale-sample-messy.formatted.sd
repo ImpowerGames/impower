@@ -22,7 +22,7 @@ store currentTimeOfDay = TIME_OF_DAY.NIGHT
 store foundTheAlley = false
 store inventory = {
   stars = 0,
-  coins = 0
+  coins = 0,
 }
 
 const MAX_TRUST = 10
