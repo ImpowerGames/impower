@@ -1,0 +1,16 @@
+function f()
+  local a = "already double"
+  local b = "should convert"
+  local c = "has escape ' inside"
+  local d = 'has "double" inside'
+  local e = `template ${a}`
+end
+
+define O as character with
+  name = "Orion"
+end
+
+scene S:
+  N: He said 'hi'
+  M: "She replied"
+end

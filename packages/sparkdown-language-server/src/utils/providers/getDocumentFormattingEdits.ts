@@ -991,6 +991,125 @@ export const getFormatting = (
         });
       },
     });
+    // Empty-block compaction. `function f()\n\nend` → `function f() end`,
+    // same for `define`. Body-bearing blocks whose body contains
+    // nothing meaningful collapse onto one line. Skips blocks that
+    // already have a single-line body and ones with comments / any
+    // real statement inside.
+    const EMPTY_COMPACTABLE_BLOCKS = new Set<string>([
+      "LuauFunctionDefinition",
+      "LuauDefine",
+      "LuauMethodDefinition",
+    ]);
+    tree.iterate({
+      enter: (nodeRef) => {
+        if (!EMPTY_COMPACTABLE_BLOCKS.has(nodeRef.name)) return;
+        const node = nodeRef.node;
+        let contentNode, endNode;
+        let child = node.firstChild;
+        while (child) {
+          if (child.name === `${nodeRef.name}_content`) contentNode = child;
+          else if (child.name === `${nodeRef.name}_end`) endNode = child;
+          child = child.nextSibling;
+        }
+        if (!contentNode || !endNode) return;
+        // Find the signature: the part of `_content` that represents
+        // the declaration (name + params for function/method, name +
+        // inheritance for define). Everything after the signature
+        // until `_end` is the body. We pick the LAST signature-like
+        // child as the boundary.
+        const SIGNATURE_NAMES = new Set([
+          "LuauFunctionParameters",
+          "LuauFunctionReturnTypeAnnotation",
+          "LuauFunctionDeclarationName",
+          "LuauDefineNameAndInheritance",
+          "LuauMethodDeclarationName",
+        ]);
+        let signatureEnd: number | undefined;
+        let bodyHasContent = false;
+        let cc = contentNode.firstChild;
+        while (cc) {
+          if (SIGNATURE_NAMES.has(cc.name)) {
+            signatureEnd = cc.to;
+          } else {
+            const insignificant =
+              cc.name === "Newline" ||
+              cc.name === "Whitespace" ||
+              cc.name === "ExtraWhitespace" ||
+              cc.name === "OptionalWhitespace" ||
+              cc.name === "RequiredWhitespace" ||
+              cc.name === "TrailingWhitespace";
+            if (!insignificant && signatureEnd != null) {
+              bodyHasContent = true;
+              break;
+            }
+          }
+          cc = cc.nextSibling;
+        }
+        if (bodyHasContent) return;
+        if (signatureEnd == null) signatureEnd = contentNode.from;
+        const replaceFrom = signatureEnd;
+        const replaceTo = endNode.from;
+        if (replaceFrom >= replaceTo) return;
+        const text = document.read(replaceFrom, replaceTo);
+        if (text === " ") return; // already compact
+        if (text.trim() !== "") return; // body actually has content
+        const range: Range = {
+          start: document.positionAt(replaceFrom),
+          end: document.positionAt(replaceTo),
+        };
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: " ",
+          type: "empty_block_compact",
+        });
+      },
+    });
+    // Quote normalization. Convert single-quoted Luau strings
+    // (`'foo'`) to double-quoted (`"foo"`) — prettier-style. Skip
+    // when the content contains a `"` already (would require
+    // re-escaping; keep the user's chosen form). Interpolated
+    // template strings (backticks) are NOT touched: they have
+    // different semantics (interpolation evaluation). Display-text
+    // quotes (`N: "hello"`) live as plain text in dialogue nodes,
+    // NOT as `LuauSingleQuotedString` / `LuauDoubleQuotedString`,
+    // so they're untouched too.
+    tree.iterate({
+      enter: (nodeRef) => {
+        if (nodeRef.name !== "LuauSingleQuotedString") return;
+        const node = nodeRef.node;
+        let beginNode, contentNode, endNode;
+        let child = node.firstChild;
+        while (child) {
+          if (child.name.endsWith("_begin")) beginNode = child;
+          else if (child.name.endsWith("_content")) contentNode = child;
+          else if (child.name.endsWith("_end")) endNode = child;
+          child = child.nextSibling;
+        }
+        if (!beginNode || !contentNode || !endNode) return;
+        const contentText = document.read(contentNode.from, contentNode.to);
+        // If the content contains a literal `"`, keep single-quoted
+        // form — converting would require escape rewrites which
+        // risk subtle semantic changes (raw `\` sequences, etc.).
+        if (contentText.includes('"')) return;
+        // Strip redundant `\'` escapes — single-quote doesn't need
+        // escaping inside a double-quoted string.
+        const newContent = contentText.split("\\'").join("'");
+        const range: Range = {
+          start: document.positionAt(node.from),
+          end: document.positionAt(node.to),
+        };
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: `"${newContent}"`,
+          type: "quote_normalize",
+        });
+      },
+    });
     // Trailing-comma policy for multi-line `LuauTable` literals.
     // Prettier-style: multi-line → add trailing comma after the last
     // field; single-line → strip any trailing comma. Skips empty
@@ -1026,16 +1145,29 @@ export const getFormatting = (
         const hasTrailingComma = contentText[lastNonWs] === ",";
         const lastNonWsOffset = contentFrom + lastNonWs;
         if (isMultiline && !hasTrailingComma) {
-          // Insert `,` immediately after the last field value.
-          const insertAt = lastNonWsOffset + 1;
+          // Insert `,` immediately after the last field value AND
+          // absorb any trailing spaces/tabs through end-of-line so
+          // the trailing-whitespace trim pass can't fire on what
+          // we just produced (would non-idempotent: pass 1 leaves
+          // `0, `, pass 2 trims to `0,`). The range stretches to
+          // the next `\n` (or content end) and we emit just `,`.
+          const insertFrom = lastNonWsOffset + 1;
+          let insertTo = insertFrom;
+          while (
+            insertTo < contentText.length + contentFrom &&
+            (contentText[insertTo - contentFrom] === " " ||
+              contentText[insertTo - contentFrom] === "\t")
+          ) {
+            insertTo += 1;
+          }
           const range: Range = {
-            start: document.positionAt(insertAt),
-            end: document.positionAt(insertAt),
+            start: document.positionAt(insertFrom),
+            end: document.positionAt(insertTo),
           };
           pushIfInRange({
             lineNumber: range.start.line + 1,
             range,
-            oldText: "",
+            oldText: document.getText(range),
             newText: ",",
             type: "trailing_comma_insert",
           });
@@ -1104,6 +1236,9 @@ const PRECEDENCE: Record<string, number> = {
   alternator_comma: 100,
   trailing_comma_insert: 100,
   trailing_comma_delete: 100,
+  quote_normalize: 100,
+  crlf_normalize: 100,
+  empty_block_compact: 100,
   elseif_join: 110,
   elseif_drop_end: 110,
   scene_end: 100,
