@@ -4710,7 +4710,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#OptionalSeparator"
             }
           ]
         },
@@ -5049,7 +5049,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#OptionalSeparator"
             }
           ]
         }

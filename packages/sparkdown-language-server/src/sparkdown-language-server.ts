@@ -242,7 +242,6 @@ try {
     const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
-      settings,
       document,
       tree,
       annotations,
@@ -267,7 +266,6 @@ try {
     const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentRangeFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
-      settings,
       document,
       tree,
       annotations,
@@ -293,7 +291,6 @@ try {
     const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
-      settings,
       document,
       tree,
       annotations,

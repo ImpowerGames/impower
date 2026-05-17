@@ -1,0 +1,9 @@
+total=a+b
+total = a +b
+total =a+ b
+total  =  a  +  b
+result=x*2+y/3-1
+flag = x==y
+flag2= x ~=y
+big = (a+b)*(c-d)
+mix = a   +b   * c

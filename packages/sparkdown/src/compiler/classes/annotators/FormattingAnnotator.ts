@@ -2,40 +2,51 @@ import { Range } from "@codemirror/state";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { SyntaxNodeRef } from "@lezer/common";
-import { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
+// Inline alternator constructs whose body content lives on a single
+// line — either embedded in dialogue/action via interpolation
+// (`{queue|a|b}`) or written as the single-line block-form
+// (`queue | A | B | C end`). Whitespace inside these participates in
+// the runtime's typing-pacing — see GRAMMAR.md §12 and the project
+// memory on dialogue/glue/break significance — so the formatter must
+// NOT collapse / normalize it.
+//
+// The pure-expression alternator rules (`LuauSequentialAlternatorBlock`
+// / `LuauConditionalAlternatorBlock`, no `Sparkdown` prefix) are the
+// shape that appears inside `{...}` interpolations — that's where the
+// pacing concern lives, since the surrounding context is display text.
+const INLINE_ALTERNATOR_NAMES = new Set([
+  "LuauSequentialAlternatorBlock",
+  "LuauConditionalAlternatorBlock",
+  "LuauSparkdownInlineGluedSequentialAlternatorBlock",
+  "LuauSparkdownInlineGluedConditionalAlternatorBlock",
+  "LuauSparkdownSingleLineSequentialAlternatorBlock",
+  "LuauSparkdownSingleLineConditionalAlternatorBlock",
+]);
+
+function isInsideInlineAlternator(node: SparkdownSyntaxNodeRef): boolean {
+  for (const ancestor of getContextStack(node.node)) {
+    if (INLINE_ALTERNATOR_NAMES.has(ancestor.name)) return true;
+  }
+  return false;
+}
+
 export type FormatType =
-  | "keyword"
   | "separator"
   | "extra"
   | "trailing"
   | "newline"
   | "indent"
-  | "open_brace"
-  | "close_brace"
   | "frontmatter_begin"
   | "frontmatter_end"
   | "scene_begin"
   | "scene_end"
   | "branch_begin"
   | "branch_end"
-  | "function_begin"
-  | "function_end"
-  | "knot_begin"
-  | "knot_end"
-  | "stitch_begin"
-  | "stitch_end"
-  | "case_mark"
-  | "alternative_mark"
   | "choice_mark"
-  | "divert_mark"
-  | "tunnel_mark"
-  | "thread_mark"
-  | "optional_mark"
-  | "indenting_colon"
   | "sol_comment"
   | "eol_divert"
   | "blankline"
@@ -59,13 +70,31 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<FormatType>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<FormatType>>[] {
-    if (nodeRef.name === "Indent" || nodeRef.name === "Whitespace") {
+    // Universal line-start whitespace handling. Any whitespace-type
+    // node that lands at the start of a fresh line gets treated as
+    // INDENT, regardless of which grammar rule captured it
+    // (`#Indent`, `#Whitespace`, `#ExtraWhitespace`, `#Separator`,
+    // `#OptionalSeparator`). This is what gives the formatter
+    // idempotency on lines whose leading whitespace the grammar
+    // marks under a non-Indent capture (e.g. the indent before `|`
+    // in a multi-line alternator, or before `end` in a body block).
+    // Without this normalization, pass 1 would collapse the leading
+    // whitespace to nothing and pass 2 would re-add it — and round
+    // and round.
+    if (
+      nodeRef.name === "Indent" ||
+      nodeRef.name === "Whitespace" ||
+      nodeRef.name === "ExtraWhitespace" ||
+      nodeRef.name === "OptionalSeparator" ||
+      nodeRef.name === "Separator" ||
+      nodeRef.name === "TrailingWhitespace"
+    ) {
       const currentLine = this.getLineAt(nodeRef.from);
       if (currentLine.from === nodeRef.from) {
         if (this.processedLineFrom < currentLine.from) {
           this.processedLineFrom = currentLine.from;
           const indentMatch = currentLine.text.match(INDENT_REGEX);
-          let currentIndentation = indentMatch?.[0] || "";
+          const currentIndentation = indentMatch?.[0] || "";
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("indent").range(
               currentLine.from,
@@ -73,100 +102,19 @@ export class FormattingAnnotator extends SparkdownAnnotator<
             ),
           );
         }
-      } else if (nodeRef.name === "Indent") {
+        return annotations;
+      }
+      if (nodeRef.name === "Indent") {
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("separator").range(
             nodeRef.from,
             nodeRef.to,
           ),
         );
+        return annotations;
       }
     }
-    if (nodeRef.name === "ConstKeyword") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("keyword").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "VarKeyword") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("keyword").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "ListKeyword") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("keyword").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "DefineKeyword") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("keyword").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "ExternalKeyword") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("keyword").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "IncludeKeyword") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("keyword").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "TempKeyword") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("keyword").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "SequenceKeyword") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("keyword").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "ElseKeyword") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("keyword").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
     if (
-      nodeRef.name === "DefineViewDeclaration_begin" ||
-      nodeRef.name === "DefineStylingDeclaration_begin" ||
-      nodeRef.name === "DefinePlainDeclaration_begin" ||
       nodeRef.name === "BlockTitle_begin" ||
       nodeRef.name === "BlockHeading_begin" ||
       nodeRef.name === "BlockTransitional_begin" ||
@@ -185,26 +133,6 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "FrontMatter_begin") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("frontmatter_begin").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "FunctionKeyword") {
-      if (getContextStack(nodeRef.node).find((n) => n.name === "Function")) {
-        annotations.push(
-          SparkdownAnnotation.mark<FormatType>("function_begin").range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "Function_end") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("function_end").range(
           nodeRef.from,
           nodeRef.to,
         ),
@@ -247,102 +175,6 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "KnotBeginMark") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("knot_begin").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "Knot_end") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("knot_end").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "StitchBeginMark") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("stitch_begin").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "Stitch_end") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("stitch_end").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "ConditionalBlockOpenBrace") {
-      const stack = getContextStack<SparkdownNodeName>(nodeRef.node);
-      const parentConditionalBlockNode = stack.find(
-        (n) => n.name === "ConditionalBracedBlock",
-      );
-      if (parentConditionalBlockNode) {
-        const multilineNode = getDescendent(
-          ["MultilineBlock", "MultilineAlternative"],
-          parentConditionalBlockNode,
-        );
-        if (multilineNode) {
-          annotations.push(
-            SparkdownAnnotation.mark<FormatType>("open_brace").range(
-              nodeRef.from,
-              nodeRef.to,
-            ),
-          );
-          return annotations;
-        }
-      }
-    }
-    if (nodeRef.name === "ConditionalBlockCloseBrace") {
-      const stack = getContextStack<SparkdownNodeName>(nodeRef.node);
-      const parentConditionalBlockNode = stack.find(
-        (n) => n.name === "ConditionalBracedBlock",
-      );
-      if (parentConditionalBlockNode) {
-        const multilineNode = getDescendent(
-          ["MultilineBlock", "MultilineAlternative"],
-          parentConditionalBlockNode,
-        );
-        if (multilineNode) {
-          annotations.push(
-            SparkdownAnnotation.mark<FormatType>("close_brace").range(
-              nodeRef.from,
-              nodeRef.to,
-            ),
-          );
-          return annotations;
-        }
-      }
-    }
-    if (nodeRef.name === "MultilineCaseMark") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("case_mark").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "MultilineAlternativeMark") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("alternative_mark").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
     if (nodeRef.name === "ChoiceMark") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("choice_mark").range(
@@ -352,47 +184,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "DivertMark") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("divert_mark").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "TunnelMark") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("tunnel_mark").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "ThreadMark") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("thread_mark").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "OptionalLogicMark") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("optional_mark").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (
-      nodeRef.name === "LineComment" ||
-      nodeRef.name === "BlockComment" ||
-      nodeRef.name === "Tag"
-    ) {
+    if (nodeRef.name === "Tag") {
       if (nodeRef.from === this.getLineAt(nodeRef.from).from) {
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("sol_comment").range(
@@ -404,8 +196,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
     }
     if (nodeRef.name === "Divert") {
-      const tunnelArrowNode = getDescendent("TunnelArrow", nodeRef.node);
-      if (!tunnelArrowNode) {
+      const tunnelMarkNode = getDescendent("TunnelMark", nodeRef.node);
+      if (!tunnelMarkNode) {
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("eol_divert").range(
             nodeRef.from,
@@ -416,6 +208,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "Separator") {
+      if (isInsideInlineAlternator(nodeRef)) return annotations;
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("separator").range(
           nodeRef.from,
@@ -425,10 +218,11 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "OptionalSeparator") {
+      if (isInsideInlineAlternator(nodeRef)) return annotations;
       const nextChar = this.read(nodeRef.to, nodeRef.to + 1);
       if (nextChar === "\n" || nextChar === "\r") {
-        // An optional separator that is followed by the end of the line,
-        // should be considered extra space and should be trimmed away
+        // An optional separator at end of line is just extra whitespace —
+        // collapse it to nothing.
         annotations.push(
           SparkdownAnnotation.mark<FormatType>("extra").range(
             nodeRef.from,
@@ -436,26 +230,18 @@ export class FormattingAnnotator extends SparkdownAnnotator<
           ),
         );
       } else {
-        const stack = getContextStack<SparkdownNodeName>(nodeRef.node);
-        if (
-          !stack.some((n) => n.name === "ConditionalBracedBlock_end") ||
-          stack.some((n) => n.name === "Choice_begin")
-        ) {
-          // Optional separators should be enforced to have at least one space,
-          // unless they are after a conditional block that is not part of a choice condition.
-          // (This is because whitespace or lack thereof is often significant after conditional blocks in text content)
-          // (e.g. We should not add a separator space between the block and the period in this {sentence}.)
-          annotations.push(
-            SparkdownAnnotation.mark<FormatType>("separator").range(
-              nodeRef.from,
-              nodeRef.to,
-            ),
-          );
-        }
+        // Mid-line, an OptionalSeparator becomes a normalized one-space separator.
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("separator").range(
+            nodeRef.from,
+            nodeRef.to,
+          ),
+        );
       }
       return annotations;
     }
     if (nodeRef.name === "ExtraWhitespace") {
+      if (isInsideInlineAlternator(nodeRef)) return annotations;
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("extra").range(
           nodeRef.from,
@@ -502,15 +288,38 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     nodeRef: SyntaxNodeRef,
   ): Range<SparkdownAnnotation<FormatType>>[] {
     if (
-      nodeRef.name === "DefineViewDeclaration" ||
-      nodeRef.name === "DefineStylingDeclaration" ||
-      nodeRef.name === "DefinePlainDeclaration" ||
       nodeRef.name === "BlockTitle" ||
       nodeRef.name === "BlockHeading" ||
       nodeRef.name === "BlockTransitional" ||
       nodeRef.name === "BlockWrite" ||
       nodeRef.name === "BlockDialogue" ||
-      nodeRef.name === "BlockAction"
+      nodeRef.name === "BlockAction" ||
+      // Luau block scopes — emit a block_declaration_end so the
+      // formatter's indent stack pops the entries pushed by the
+      // corresponding `processBlockDeclaration` calls in
+      // `getDocumentFormattingEdits.processIndent`.
+      nodeRef.name === "LuauFunctionDefinition" ||
+      nodeRef.name === "LuauSparkdownIfBlock" ||
+      nodeRef.name === "LuauSparkdownElseifBlock" ||
+      nodeRef.name === "LuauSparkdownElseBlock" ||
+      nodeRef.name === "LuauSparkdownForLoop" ||
+      nodeRef.name === "LuauSparkdownWhileLoop" ||
+      nodeRef.name === "LuauSparkdownRepeatLoop" ||
+      nodeRef.name === "LuauSparkdownDoBlock" ||
+      // Non-Sparkdown Luau variants used inside function bodies.
+      nodeRef.name === "LuauIfBlock" ||
+      nodeRef.name === "LuauElseifBlock" ||
+      nodeRef.name === "LuauElseBlock" ||
+      nodeRef.name === "LuauForLoop" ||
+      nodeRef.name === "LuauWhileLoop" ||
+      nodeRef.name === "LuauRepeatLoop" ||
+      nodeRef.name === "LuauDoBlock" ||
+      // Sparkdown alternator + choose blocks. Same indent stack model
+      // as the Luau control-flow scopes above.
+      nodeRef.name === "LuauSparkdownChooseBlock" ||
+      nodeRef.name === "LuauSparkdownChooseThenClause" ||
+      nodeRef.name === "LuauSparkdownConditionalAlternatorBlock" ||
+      nodeRef.name === "LuauSparkdownSequentialAlternatorBlock"
     ) {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("block_declaration_end").range(

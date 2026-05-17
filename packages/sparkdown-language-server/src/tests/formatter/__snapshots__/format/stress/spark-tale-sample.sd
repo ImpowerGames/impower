@@ -1,0 +1,30 @@
+define companion as character with
+  store trust = 0
+end
+
+define O as companion with
+  name = "Orion",
+  color = "teal"
+end
+
+scene Rooftop
+  N: Do you *see* it?
+  + [Courage.] -> WishCourage
+  + [Answers.] -> WishAnswers
+
+  branch AfterWish
+    if trust >= 1 then
+      N: I trust you.
+      -> Alley
+    else
+      O: Stay a while.
+      -> END
+    end
+  end
+end
+
+function reset()
+  for k, v in pairs(companion) do
+    v.trust = 0
+  end
+end

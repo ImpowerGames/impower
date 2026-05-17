@@ -2,7 +2,7 @@ text.source.sparkdown [0..87]
  ├─ storage.modifier.scope.luau [0..5]: "store"
  ├─ text.source.sparkdown [5..6]: " "
  ├─ variable.other.readwrite.luau [6..15]: "inventory"
- ├─ punctuation.whitespace.extra.sd [15..16]: " "
+ ├─ punctuation.whitespace.separator.optional.sd [15..16]: " "
  ├─ keyword.operator.assignment.luau [16..17]: "="
  ├─ punctuation.whitespace.separator.optional.sd [17..18]: " "
  ├─ punctuation.definition.template-expression.begin.sd [18..19]: "{"

@@ -13,7 +13,7 @@ sparkdown [0..51]
      │       │   ├─ LuauVariableAssignment_begin_c1 [6..17]
      │       │   │   └─ LuauVariableName [6..17]: "TIME_OF_DAY"
      │       │   └─ LuauVariableAssignment_begin_c2 [17..18]
-     │       │       └─ ExtraWhitespace [17..18]: " "
+     │       │       └─ OptionalSeparator [17..18]: " "
      │       ├─ LuauVariableAssignment_content [18..51]
      │       │   └─ LuauAssignmentOperation [18..51]
      │       │       ├─ LuauAssignmentOperation_begin 18

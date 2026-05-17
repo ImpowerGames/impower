@@ -1,0 +1,4 @@
+plural(count)
+  | one = "is one apple"
+  | other = "are many apples"
+end

@@ -3,7 +3,7 @@ text.source.sparkdown [0..65]
  │   ├─ keyword.control.define.luau [0..6]: "define"
  │   ├─ punctuation.whitespace.separator.optional.sd [6..7]: " "
  │   ├─ entity.name.type.define.luau [7..8]: "O"
- │   ├─ punctuation.whitespace.extra.sd [8..9]: " "
+ │   ├─ punctuation.whitespace.separator.optional.sd [8..9]: " "
  │   ├─ keyword.control.as.luau [9..11]: "as"
  │   ├─ punctuation.whitespace.separator.optional.sd [11..12]: " "
  │   ├─ entity.name.type.define.parent.luau [12..21]: "companion"
@@ -13,7 +13,7 @@ text.source.sparkdown [0..65]
  ├─ meta.function.luau [27..44]
  │   ├─ punctuation.whitespace.indent.sd [27..29]: "  "
  │   ├─ variable.other.readwrite.luau [29..33]: "name"
- │   ├─ punctuation.whitespace.extra.sd [33..34]: " "
+ │   ├─ punctuation.whitespace.separator.optional.sd [33..34]: " "
  │   ├─ keyword.operator.assignment.luau [34..35]: "="
  │   ├─ punctuation.whitespace.separator.optional.sd [35..36]: " "
  │   ├─ string.quoted.double.luau [36..43]
@@ -25,7 +25,7 @@ text.source.sparkdown [0..65]
  ├─ meta.function.luau [45..61]
  │   ├─ punctuation.whitespace.indent.sd [45..47]: "  "
  │   ├─ variable.other.readwrite.luau [47..52]: "color"
- │   ├─ punctuation.whitespace.extra.sd [52..53]: " "
+ │   ├─ punctuation.whitespace.separator.optional.sd [52..53]: " "
  │   ├─ keyword.operator.assignment.luau [53..54]: "="
  │   ├─ punctuation.whitespace.separator.optional.sd [54..55]: " "
  │   └─ string.quoted.double.luau [55..61]

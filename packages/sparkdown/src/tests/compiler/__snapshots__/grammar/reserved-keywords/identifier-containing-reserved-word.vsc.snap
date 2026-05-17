@@ -17,7 +17,7 @@ text.source.sparkdown [0..90]
  ├─ meta.function.luau [47..48]: " "
  ├─ meta.function.luau [48..64]
  │   ├─ variable.other.readwrite.luau [48..60]: "check_plural"
- │   ├─ punctuation.whitespace.extra.sd [60..61]: " "
+ │   ├─ punctuation.whitespace.separator.optional.sd [60..61]: " "
  │   ├─ keyword.operator.assignment.luau [61..62]: "="
  │   ├─ punctuation.whitespace.separator.optional.sd [62..63]: " "
  │   └─ variable.other.readwrite.luau [63..64]: "n"

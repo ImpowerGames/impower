@@ -58,7 +58,7 @@ sparkdown [0..90]
      │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [48..60]
      │   │   │       │   │   └─ LuauVariableName [48..60]: "check_plural"
      │   │   │       │   └─ LuauVariableAssignment_begin_c2 [60..61]
-     │   │   │       │       └─ ExtraWhitespace [60..61]: " "
+     │   │   │       │       └─ OptionalSeparator [60..61]: " "
      │   │   │       ├─ LuauVariableAssignment_content [61..64]
      │   │   │       │   └─ LuauAssignmentOperation [61..64]
      │   │   │       │       ├─ LuauAssignmentOperation_begin 61

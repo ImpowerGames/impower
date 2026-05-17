@@ -13,7 +13,7 @@ sparkdown [0..36]
  │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..14]
  │   │       │   │   └─ LuauVariableName [6..14]: "category"
  │   │       │   └─ LuauVariableAssignment_begin_c2 [14..15]
- │   │       │       └─ ExtraWhitespace [14..15]: " "
+ │   │       │       └─ OptionalSeparator [14..15]: " "
  │   │       ├─ LuauVariableAssignment_content [15..35]
  │   │       │   └─ LuauAssignmentOperation [15..35]
  │   │       │       ├─ LuauAssignmentOperation_begin 15

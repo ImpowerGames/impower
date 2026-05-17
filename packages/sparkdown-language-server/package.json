@@ -20,7 +20,8 @@
   "scripts": {
     "build": "node ./esbuild.js",
     "watch": "node ./esbuild.js --watch",
-    "package": "node ./esbuild.js --production"
+    "package": "node ./esbuild.js --production",
+    "test": "vitest run"
   },
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
@@ -35,7 +36,8 @@
   "devDependencies": {
     "@types/node": "^22.13.4",
     "chokidar": "^4.0.3",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.25.0",
+    "vitest": "^3.0.0"
   },
   "peerDependencies": {
     "@codemirror/state": "^6.5.2",

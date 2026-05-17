@@ -2836,8 +2836,11 @@ repository:
     match: ({{WS}}*)(as)\b({{WS}}*)($|{{LUAU_IDENTIFIER}})($|{{WS}}*)
     captures:
       1:
+        # The space before `as` is a SEPARATOR (normalize to one
+        # space), not ExtraWhitespace (collapse). Without this, the
+        # formatter eats the space producing `companionas`.
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#OptionalSeparator" }
       2:
         patterns:
           - { include: "#LuauAsKeyword" }
@@ -3032,8 +3035,12 @@ repository:
         patterns:
           - { include: "#LuauVariableName" }
       2:
+        # `Separator` (normalize to one space) rather than
+        # `ExtraWhitespace` (collapse to nothing): the formatter would
+        # otherwise eat the space between the variable name and the
+        # following `=` / `+=` / `-=` operator, producing `x= 1`.
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#OptionalSeparator" }
     patterns:
       - { include: "#LuauTypeAnnotationOperation" }
       - { include: "#LuauAssignmentOperation" }

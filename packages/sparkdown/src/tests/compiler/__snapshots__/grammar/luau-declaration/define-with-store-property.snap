@@ -15,7 +15,7 @@ sparkdown [0..56]
      │   │   ├─ LuauDefineNameAndInheritance_content [16..30]
      │   │   │   └─ LuauInheritanceOperation [16..30]
      │   │   │       ├─ LuauInheritanceOperation_c1 [16..17]
-     │   │   │       │   └─ ExtraWhitespace [16..17]: " "
+     │   │   │       │   └─ OptionalSeparator [16..17]: " "
      │   │   │       ├─ LuauInheritanceOperation_c2 [17..19]
      │   │   │       │   └─ LuauAsKeyword [17..19]: "as"
      │   │   │       ├─ LuauInheritanceOperation_c3 [19..20]
@@ -48,7 +48,7 @@ sparkdown [0..56]
      │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [43..48]
      │   │   │       │   │   └─ LuauVariableName [43..48]: "trust"
      │   │   │       │   └─ LuauVariableAssignment_begin_c2 [48..49]
-     │   │   │       │       └─ ExtraWhitespace [48..49]: " "
+     │   │   │       │       └─ OptionalSeparator [48..49]: " "
      │   │   │       ├─ LuauVariableAssignment_content [49..52]
      │   │   │       │   └─ LuauAssignmentOperation [49..52]
      │   │   │       │       ├─ LuauAssignmentOperation_begin 49

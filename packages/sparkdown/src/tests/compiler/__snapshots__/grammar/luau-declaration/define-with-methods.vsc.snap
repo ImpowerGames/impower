@@ -3,7 +3,7 @@ text.source.sparkdown [0..206]
  │   ├─ keyword.control.define.luau [0..6]: "define"
  │   ├─ punctuation.whitespace.separator.optional.sd [6..7]: " "
  │   ├─ entity.name.type.define.luau [7..14]: "Penguin"
- │   ├─ punctuation.whitespace.extra.sd [14..15]: " "
+ │   ├─ punctuation.whitespace.separator.optional.sd [14..15]: " "
  │   ├─ keyword.control.as.luau [15..17]: "as"
  │   ├─ punctuation.whitespace.separator.optional.sd [17..18]: " "
  │   ├─ entity.name.type.define.parent.luau [18..22]: "Bird"
@@ -13,7 +13,7 @@ text.source.sparkdown [0..206]
  ├─ meta.function.luau [28..44]
  │   ├─ punctuation.whitespace.indent.sd [28..30]: "  "
  │   ├─ variable.other.readwrite.luau [30..36]: "canFly"
- │   ├─ punctuation.whitespace.extra.sd [36..37]: " "
+ │   ├─ punctuation.whitespace.separator.optional.sd [36..37]: " "
  │   ├─ keyword.operator.assignment.luau [37..38]: "="
  │   ├─ punctuation.whitespace.separator.optional.sd [38..39]: " "
  │   └─ constant.language.boolean.luau [39..44]: "false"
@@ -21,7 +21,7 @@ text.source.sparkdown [0..206]
  ├─ meta.function.luau [45..65]
  │   ├─ punctuation.whitespace.indent.sd [45..47]: "  "
  │   ├─ variable.other.readwrite.luau [47..57]: "isSwimming"
- │   ├─ punctuation.whitespace.extra.sd [57..58]: " "
+ │   ├─ punctuation.whitespace.separator.optional.sd [57..58]: " "
  │   ├─ keyword.operator.assignment.luau [58..59]: "="
  │   ├─ punctuation.whitespace.separator.optional.sd [59..60]: " "
  │   └─ constant.language.boolean.luau [60..65]: "false"

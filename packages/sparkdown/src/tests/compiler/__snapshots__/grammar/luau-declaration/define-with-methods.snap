@@ -15,7 +15,7 @@ sparkdown [0..206]
  │   │   │   ├─ LuauDefineNameAndInheritance_content [14..23]
  │   │   │   │   └─ LuauInheritanceOperation [14..23]
  │   │   │   │       ├─ LuauInheritanceOperation_c1 [14..15]
- │   │   │   │       │   └─ ExtraWhitespace [14..15]: " "
+ │   │   │   │       │   └─ OptionalSeparator [14..15]: " "
  │   │   │   │       ├─ LuauInheritanceOperation_c2 [15..17]
  │   │   │   │       │   └─ LuauAsKeyword [15..17]: "as"
  │   │   │   │       ├─ LuauInheritanceOperation_c3 [17..18]
@@ -47,7 +47,7 @@ sparkdown [0..206]
  │   │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [30..36]
  │   │   │   │       │   │   └─ LuauVariableName [30..36]: "canFly"
  │   │   │   │       │   └─ LuauVariableAssignment_begin_c2 [36..37]
- │   │   │   │       │       └─ ExtraWhitespace [36..37]: " "
+ │   │   │   │       │       └─ OptionalSeparator [36..37]: " "
  │   │   │   │       ├─ LuauVariableAssignment_content [37..44]
  │   │   │   │       │   └─ LuauAssignmentOperation [37..44]
  │   │   │   │       │       ├─ LuauAssignmentOperation_begin 37
@@ -82,7 +82,7 @@ sparkdown [0..206]
  │   │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [47..57]
  │   │   │   │       │   │   └─ LuauVariableName [47..57]: "isSwimming"
  │   │   │   │       │   └─ LuauVariableAssignment_begin_c2 [57..58]
- │   │   │   │       │       └─ ExtraWhitespace [57..58]: " "
+ │   │   │   │       │       └─ OptionalSeparator [57..58]: " "
  │   │   │   │       ├─ LuauVariableAssignment_content [58..65]
  │   │   │   │       │   └─ LuauAssignmentOperation [58..65]
  │   │   │   │       │       ├─ LuauAssignmentOperation_begin 58

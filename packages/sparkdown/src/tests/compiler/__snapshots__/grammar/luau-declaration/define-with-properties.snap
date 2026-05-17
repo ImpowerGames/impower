@@ -15,7 +15,7 @@ sparkdown [0..65]
      │   │   ├─ LuauDefineNameAndInheritance_content [8..22]
      │   │   │   └─ LuauInheritanceOperation [8..22]
      │   │   │       ├─ LuauInheritanceOperation_c1 [8..9]
-     │   │   │       │   └─ ExtraWhitespace [8..9]: " "
+     │   │   │       │   └─ OptionalSeparator [8..9]: " "
      │   │   │       ├─ LuauInheritanceOperation_c2 [9..11]
      │   │   │       │   └─ LuauAsKeyword [9..11]: "as"
      │   │   │       ├─ LuauInheritanceOperation_c3 [11..12]
@@ -47,7 +47,7 @@ sparkdown [0..65]
      │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [29..33]
      │   │   │       │   │   └─ LuauVariableName [29..33]: "name"
      │   │   │       │   └─ LuauVariableAssignment_begin_c2 [33..34]
-     │   │   │       │       └─ ExtraWhitespace [33..34]: " "
+     │   │   │       │       └─ OptionalSeparator [33..34]: " "
      │   │   │       ├─ LuauVariableAssignment_content [34..44]
      │   │   │       │   ├─ LuauAssignmentOperation [34..43]
      │   │   │       │   │   ├─ LuauAssignmentOperation_begin 34
@@ -95,7 +95,7 @@ sparkdown [0..65]
      │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [47..52]
      │   │   │       │   │   └─ LuauVariableName [47..52]: "color"
      │   │   │       │   └─ LuauVariableAssignment_begin_c2 [52..53]
-     │   │   │       │       └─ ExtraWhitespace [52..53]: " "
+     │   │   │       │       └─ OptionalSeparator [52..53]: " "
      │   │   │       ├─ LuauVariableAssignment_content [53..61]
      │   │   │       │   └─ LuauAssignmentOperation [53..61]
      │   │   │       │       ├─ LuauAssignmentOperation_begin 53

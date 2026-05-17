@@ -1,0 +1,9 @@
+function complicated(  a  ,  b  ,  c  )
+local x=a*b+c
+if x>10 then
+return foo(bar(x),baz(x*2,x/3))
+elseif  x<0  then
+return -x
+end
+return x
+end

@@ -13,7 +13,7 @@ sparkdown [0..87]
  │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..15]
  │   │       │   │   └─ LuauVariableName [6..15]: "inventory"
  │   │       │   └─ LuauVariableAssignment_begin_c2 [15..16]
- │   │       │       └─ ExtraWhitespace [15..16]: " "
+ │   │       │       └─ OptionalSeparator [15..16]: " "
  │   │       ├─ LuauVariableAssignment_content [16..27]
  │   │       │   └─ LuauAssignmentOperation [16..27]
  │   │       │       ├─ LuauAssignmentOperation_begin 16

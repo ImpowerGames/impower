@@ -1,0 +1,7 @@
+if   happy then
+N: I trust you.
+elseif sad then
+N: I'm sorry.
+else
+N: Stay a while.
+end

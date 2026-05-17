@@ -21,7 +21,7 @@ sparkdown [0..14]
  │   │       │       │   ├─ LuauVariableAssignment_begin_c1 [8..9]
  │   │       │       │   │   └─ LuauVariableName [8..9]: "x"
  │   │       │       │   └─ LuauVariableAssignment_begin_c2 [9..10]
- │   │       │       │       └─ ExtraWhitespace [9..10]: " "
+ │   │       │       │       └─ OptionalSeparator [9..10]: " "
  │   │       │       ├─ LuauVariableAssignment_content [10..13]
  │   │       │       │   └─ LuauAssignmentOperation [10..13]
  │   │       │       │       ├─ LuauAssignmentOperation_begin 10

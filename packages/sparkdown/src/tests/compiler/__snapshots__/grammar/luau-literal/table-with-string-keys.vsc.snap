@@ -2,7 +2,7 @@ text.source.sparkdown [0..68]
  ├─ storage.modifier.scope.luau [0..5]: "const"
  ├─ text.source.sparkdown [5..6]: " "
  ├─ variable.other.readwrite.luau [6..17]: "TIME_OF_DAY"
- ├─ punctuation.whitespace.extra.sd [17..18]: " "
+ ├─ punctuation.whitespace.separator.optional.sd [17..18]: " "
  ├─ keyword.operator.assignment.luau [18..19]: "="
  ├─ punctuation.whitespace.separator.optional.sd [19..20]: " "
  ├─ punctuation.definition.template-expression.begin.sd [20..21]: "{"

@@ -1,0 +1,8 @@
+x = foo ( a )
+y = foo(  a  ,  b  )
+arr = list [ 0 ]
+arr2 = list[  i  ]
+obj = { x = 1, y = 2 }
+obj2 = {  x = 1  ,  y = 2  }
+nested = foo ( bar ( baz ( a ) ) )
+mixed = foo ( a, bar[ b ], { k = v } )
