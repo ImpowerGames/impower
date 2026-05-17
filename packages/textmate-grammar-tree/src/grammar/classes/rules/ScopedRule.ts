@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { NodeID } from "../../../core/enums/NodeID";
 import { Wrapping } from "../../enums/Wrapping";
 import {
   MatchRuleDefinition,
@@ -161,6 +162,14 @@ export class ScopedRule implements Rule {
         break;
       }
     }
+    // Final end-pattern check for rules that legitimately close at end-of-
+    // input via a lookahead (e.g. `(?=$)`). Without this, the loop exits
+    // via `pos >= state.str.length` without ever calling `this.end()` on
+    // the final iteration, and the rule appears incomplete even though it
+    // closed correctly.
+    if (!endMatched && pos >= state.str.length) {
+      endMatched = this.end(state, pos);
+    }
     if (contentChildren.length === 1) {
       const wrapped = contentChildren[0]!.wrap(
         this.contentRule.node,
@@ -200,11 +209,41 @@ export class ScopedRule implements Rule {
         ...wrappedEndChildren,
       ]);
     } else {
-      // No end matched: incomplete scope
-      // TODO: Mark node as incomplete?
+      // Incomplete scope: the `end` pattern never matched. This usually
+      // means the rule's `patterns:` list is missing an include for some
+      // construct that appears inside the body — the parser ran the
+      // patterns, ran out, did the forced final end-check, and that
+      // still didn't match. So it had to give up and return without
+      // closing.
+      //
+      // Surface the failure two ways:
+      //   1. `console.warn` (same style as the "Possible infinite loop!"
+      //      warning above) so the developer sees it in the test runner /
+      //      browser console.
+      //   2. Append an `INCOMPLETE_NODE` child (the prebuilt error-typed
+      //      node from `Grammar.nodes[NodeID.incomplete]`) at the end of
+      //      the scope's children. The error type flows through
+      //      `Tree.build` so the resulting tree node is `isError`, which
+      //      `printTree` already renders in red — no extra plumbing.
+      console.warn(
+        `[ScopedRule:${this.id}] Incomplete scope at pos=${state.absolutePos + from}! ` +
+          `The rule's end pattern never matched — most likely cause is a missing ` +
+          `include in the rule's "patterns:" list (see GRAMMAR.md §5.4).`,
+        JSON.stringify(
+          state.str.slice(from, Math.min(from + totalLength, from + 80)),
+        ),
+      );
+
+      const incompleteMarker = Matched.create(
+        this.repo.grammar.nodes[NodeID.incomplete]!,
+        from + totalLength,
+        0,
+      );
+
       const incompleteNode = Matched.create(this.node, from, totalLength, [
         ...wrappedBeginChildren,
         ...wrappedContentChildren,
+        incompleteMarker,
       ]);
       state.exit(this.id, from);
       return incompleteNode;

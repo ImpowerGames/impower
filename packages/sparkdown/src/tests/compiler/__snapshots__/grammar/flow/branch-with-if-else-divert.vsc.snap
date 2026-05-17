@@ -1,4 +1,4 @@
-text.source.sparkdown [0..95]
+text.source.sparkdown [0..91]
  ├─ keyword.control.branch.sd [0..6]: "branch"
  ├─ punctuation.whitespace.separator.sd [6..7]: " "
  ├─ keyword.control.section.sd [7..16]: "AfterWish"
@@ -45,6 +45,4 @@ text.source.sparkdown [0..95]
  │   └─ constant.language.end.sd [82..85]: "END"
  ├─ Newline [85..86]: "\n"
  ├─ punctuation.whitespace.separator.optional.sd [86..88]: "  "
- ├─ keyword.control.end.luau [88..91]: "end"
- ├─ Newline [91..92]: "\n"
- └─ keyword.control.end.luau [92..95]: "end"
+ └─ keyword.control.end.luau [88..91]: "end"

@@ -1,4 +1,4 @@
-text.source.sparkdown [0..97]
+text.source.sparkdown [0..93]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.separator.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..13]: "Rooftop"
@@ -34,19 +34,17 @@ text.source.sparkdown [0..97]
  │       └─ keyword.control.divert.path.sd [52..63]
  │           └─ keyword.control.divert.path.sd [52..63]: "WishCourage"
  ├─ Newline [63..64]: "\n"
- ├─ entity.choice.sd [64..93]
- │   ├─ punctuation.whitespace.indent.sd [64..66]: "  "
- │   ├─ keyword.operator.expression.list.sd [66..68]: "+ "
- │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [68..69]: "["
- │   ├─ string.choice.sd [69..77]
- │   │   ├─ markup.raw.text.sd [69..76]: "Answers"
- │   │   └─ markup.raw.punctuation.sd [76..77]: "."
- │   ├─ punctuation.definition.template-expression.end.choice.suppression.sd [77..78]: "]"
- │   ├─ punctuation.whitespace.separator.sd [78..79]: " "
- │   ├─ keyword.control.divert.mark.sd [79..81]: "->"
- │   └─ keyword.control.divert.path.sd [81..93]
- │       ├─ punctuation.whitespace.separator.optional.sd [81..82]: " "
- │       └─ keyword.control.divert.path.sd [82..93]
- │           └─ keyword.control.divert.path.sd [82..93]: "WishAnswers"
- ├─ Newline [93..94]: "\n"
- └─ keyword.control.end.luau [94..97]: "end"
+ └─ entity.choice.sd [64..93]
+     ├─ punctuation.whitespace.indent.sd [64..66]: "  "
+     ├─ keyword.operator.expression.list.sd [66..68]: "+ "
+     ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [68..69]: "["
+     ├─ string.choice.sd [69..77]
+     │   ├─ markup.raw.text.sd [69..76]: "Answers"
+     │   └─ markup.raw.punctuation.sd [76..77]: "."
+     ├─ punctuation.definition.template-expression.end.choice.suppression.sd [77..78]: "]"
+     ├─ punctuation.whitespace.separator.sd [78..79]: " "
+     ├─ keyword.control.divert.mark.sd [79..81]: "->"
+     └─ keyword.control.divert.path.sd [81..93]
+         ├─ punctuation.whitespace.separator.optional.sd [81..82]: " "
+         └─ keyword.control.divert.path.sd [82..93]
+             └─ keyword.control.divert.path.sd [82..93]: "WishAnswers"

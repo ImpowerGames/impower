@@ -2,4 +2,3 @@ scene LoseTrust(c: companion)
   if c.trust == 0 then
     {c.name} doesn't trust you at all.
   end
-end

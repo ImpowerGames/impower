@@ -1,4 +1,4 @@
-sparkdown [0..95]
+sparkdown [0..97]
  ├─ Branch [0..16]
  │   ├─ Branch_begin [0..7]
  │   │   ├─ Branch_begin_c1 0
@@ -13,148 +13,146 @@ sparkdown [0..95]
  │   │       └─ BranchWithoutParametersDeclaration_c2 16
  │   └─ Branch_end 16
  │       └─ Branch_end_c1 16
- ├─ Newline [16..17]: "\n"
- ├─ LuauSparkdownIfBlock [17..91]
- │   ├─ LuauSparkdownIfBlock_begin [17..22]
- │   │   ├─ LuauSparkdownIfBlock_begin_c1 [17..19]
- │   │   │   └─ Indent [17..19]: "  "
- │   │   ├─ LuauSparkdownIfBlock_begin_c2 [19..21]
- │   │   │   └─ LuauIfKeyword [19..21]: "if"
- │   │   └─ LuauSparkdownIfBlock_begin_c3 [21..22]
- │   │       └─ LuauSparkdownIfBlock_begin_c3 [21..22]
- │   │           └─ OptionalSeparator [21..22]: " "
- │   ├─ LuauSparkdownIfBlock_content [22..86]
- │   │   ├─ LuauIfBlockCondition [22..37]
- │   │   │   ├─ LuauIfBlockCondition_begin 22
- │   │   │   ├─ LuauIfBlockCondition_content [22..32]
- │   │   │   │   ├─ LuauAccessPath [22..28]
- │   │   │   │   │   ├─ LuauAccessPath_begin 22
- │   │   │   │   │   ├─ LuauAccessPath_content [22..27]
- │   │   │   │   │   │   └─ LuauAccessPart [22..27]
- │   │   │   │   │   │       └─ LuauVariable [22..27]
- │   │   │   │   │   │           └─ LuauVariable_c1 [22..27]
- │   │   │   │   │   │               └─ LuauVariableName [22..27]: "trust"
- │   │   │   │   │   └─ LuauAccessPath_end [27..28]
- │   │   │   │   │       └─ LuauAccessPath_end_c1 [27..28]
- │   │   │   │   │           └─ LuauAccessPath_end_c1 [27..28]
- │   │   │   │   │               └─ OptionalSeparator [27..28]: " "
- │   │   │   │   └─ LuauCompareOperation [28..32]
- │   │   │   │       ├─ LuauCompareOperation_begin 28
- │   │   │   │       │   └─ LuauCompareOperation_begin_c1 28
- │   │   │   │       ├─ LuauCompareOperation_content [28..32]
- │   │   │   │       │   ├─ LuauCompareOperator [28..31]
- │   │   │   │       │   │   ├─ LuauCompareOperator_begin [28..31]
- │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c1 28
- │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [28..30]: ">="
- │   │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [30..31]
- │   │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [30..31]
- │   │   │   │       │   │   │           └─ OptionalSeparator [30..31]: " "
- │   │   │   │       │   │   └─ LuauCompareOperator_end 31
- │   │   │   │       │   └─ LuauNumericDecimal [31..32]
- │   │   │   │       │       ├─ LuauNumericDecimal_c1 [31..32]: "1"
- │   │   │   │       │       └─ LuauNumericDecimal_c2 32
- │   │   │   │       └─ LuauCompareOperation_end 32
- │   │   │   └─ LuauIfBlockCondition_end [32..37]
- │   │   │       ├─ LuauIfBlockCondition_end_c1 [32..33]
- │   │   │       │   └─ LuauIfBlockCondition_end_c1 [32..33]
- │   │   │       │       └─ OptionalSeparator [32..33]: " "
- │   │   │       └─ LuauIfBlockCondition_end_c2 [33..37]
- │   │   │           └─ LuauThenKeyword [33..37]: "then"
- │   │   ├─ Newline [37..38]: "\n"
- │   │   ├─ InlineDialogue [38..54]
- │   │   │   ├─ InlineDialogue_begin [38..45]
- │   │   │   │   ├─ InlineDialogue_begin_c1 [38..42]
- │   │   │   │   │   └─ Indent [38..42]: "    "
- │   │   │   │   ├─ InlineDialogue_begin_c2 [42..43]
- │   │   │   │   │   └─ DialogueCharacter [42..43]
- │   │   │   │   │       ├─ DialogueCharacter_c1 42
- │   │   │   │   │       ├─ DialogueCharacter_c2 [42..43]
- │   │   │   │   │       │   └─ DialogueCharacterName [42..43]
- │   │   │   │   │       │       └─ DialogueCharacterName_c1 [42..43]
- │   │   │   │   │       │           └─ Word [42..43]: "N"
- │   │   │   │   │       ├─ DialogueCharacter_c3 43
- │   │   │   │   │       ├─ DialogueCharacter_c4 43
- │   │   │   │   │       ├─ DialogueCharacter_c5 43
- │   │   │   │   │       ├─ DialogueCharacter_c6 43
- │   │   │   │   │       └─ DialogueCharacter_c7 43
- │   │   │   │   ├─ InlineDialogue_begin_c3 [43..44]
- │   │   │   │   │   └─ ColonSeparator [43..44]: ":"
- │   │   │   │   └─ InlineDialogue_begin_c4 [44..45]
- │   │   │   │       └─ Separator [44..45]: " "
- │   │   │   ├─ InlineDialogue_content [45..54]
- │   │   │   │   └─ LineEnd [45..54]
- │   │   │   │       ├─ LineEnd_begin 45
- │   │   │   │       │   └─ LineEnd_begin_c1 45
- │   │   │   │       ├─ LineEnd_content [45..54]
- │   │   │   │       │   └─ TextChunk [45..54]
- │   │   │   │       │       ├─ TextChunk_begin 45
- │   │   │   │       │       ├─ TextChunk_content [45..54]
- │   │   │   │       │       │   ├─ Word [45..48]: "Let"
- │   │   │   │       │       │   ├─ Punctuation [48..49]: "'"
- │   │   │   │       │       │   ├─ Word [49..50]: "s"
- │   │   │   │       │       │   ├─ Space [50..51]: " "
- │   │   │   │       │       │   ├─ Word [51..53]: "go"
- │   │   │   │       │       │   └─ Punctuation [53..54]: "."
- │   │   │   │       │       └─ TextChunk_end 54
- │   │   │   │       └─ LineEnd_end 54
- │   │   │   └─ InlineDialogue_end 54
- │   │   ├─ Newline [54..55]: "\n"
- │   │   ├─ Divert [55..67]
- │   │   │   ├─ Divert_begin [55..61]
- │   │   │   │   ├─ Divert_begin_c1 [55..59]
- │   │   │   │   │   └─ Indent [55..59]: "    "
- │   │   │   │   └─ Divert_begin_c2 [59..61]
- │   │   │   │       └─ DivertMark [59..61]: "->"
- │   │   │   ├─ Divert_content [61..67]
- │   │   │   │   └─ DivertTarget [61..67]
- │   │   │   │       ├─ DivertTarget_begin [61..62]
- │   │   │   │       │   └─ DivertTarget_begin_c1 [61..62]
- │   │   │   │       │       └─ DivertTarget_begin_c1 [61..62]
- │   │   │   │       │           └─ OptionalSeparator [61..62]: " "
- │   │   │   │       ├─ DivertTarget_content [62..67]
- │   │   │   │       │   └─ DivertPath [62..67]
- │   │   │   │       │       ├─ DivertPath_begin 62
- │   │   │   │       │       ├─ DivertPath_content [62..67]
- │   │   │   │       │       │   └─ DivertPart [62..67]
- │   │   │   │       │       │       └─ DivertPartName [62..67]: "Alley"
- │   │   │   │       │       └─ DivertPath_end 67
- │   │   │   │       └─ DivertTarget_end 67
- │   │   │   └─ Divert_end 67
- │   │   ├─ Newline [67..68]: "\n"
- │   │   └─ LuauSparkdownElseBlock [68..86]
- │   │       ├─ LuauSparkdownElseBlock_begin [68..74]
- │   │       │   ├─ LuauSparkdownElseBlock_begin_c1 [68..70]
- │   │       │   │   └─ Indent [68..70]: "  "
- │   │       │   ├─ LuauSparkdownElseBlock_begin_c2 [70..74]
- │   │       │   │   └─ LuauElseKeyword [70..74]: "else"
- │   │       │   └─ LuauSparkdownElseBlock_begin_c3 74
- │   │       │       └─ LuauSparkdownElseBlock_begin_c3 74
- │   │       │           └─ OptionalSeparator 74
- │   │       ├─ LuauSparkdownElseBlock_content [74..86]
- │   │       │   ├─ Newline [74..75]: "\n"
- │   │       │   ├─ Divert [75..85]
- │   │       │   │   ├─ Divert_begin [75..81]
- │   │       │   │   │   ├─ Divert_begin_c1 [75..79]
- │   │       │   │   │   │   └─ Indent [75..79]: "    "
- │   │       │   │   │   └─ Divert_begin_c2 [79..81]
- │   │       │   │   │       └─ DivertMark [79..81]: "->"
- │   │       │   │   ├─ Divert_content [81..85]
- │   │       │   │   │   └─ DivertTarget [81..85]
- │   │       │   │   │       ├─ DivertTarget_begin [81..82]
- │   │       │   │   │       │   └─ DivertTarget_begin_c1 [81..82]
- │   │       │   │   │       │       └─ DivertTarget_begin_c1 [81..82]
- │   │       │   │   │       │           └─ OptionalSeparator [81..82]: " "
- │   │       │   │   │       ├─ DivertTarget_content [82..85]
- │   │       │   │   │       │   └─ End [82..85]: "END"
- │   │       │   │   │       └─ DivertTarget_end 85
- │   │       │   │   └─ Divert_end 85
- │   │       │   └─ Newline [85..86]: "\n"
- │   │       └─ LuauSparkdownElseBlock_end 86
- │   └─ LuauSparkdownIfBlock_end [86..91]
- │       ├─ LuauSparkdownIfBlock_end_c1 [86..88]
- │       │   └─ LuauSparkdownIfBlock_end_c1 [86..88]
- │       │       └─ OptionalSeparator [86..88]: "  "
- │       └─ LuauSparkdownIfBlock_end_c2 [88..91]
- │           └─ LuauEndKeyword [88..91]: "end"
- ├─ Newline [91..92]: "\n"
- └─ LuauEndKeyword [92..95]: "end"
+ ├─ Newline [16..18]: "\r\n"
+ └─ LuauSparkdownIfBlock [18..97]
+     ├─ LuauSparkdownIfBlock_begin [18..23]
+     │   ├─ LuauSparkdownIfBlock_begin_c1 [18..20]
+     │   │   └─ Indent [18..20]: "  "
+     │   ├─ LuauSparkdownIfBlock_begin_c2 [20..22]
+     │   │   └─ LuauIfKeyword [20..22]: "if"
+     │   └─ LuauSparkdownIfBlock_begin_c3 [22..23]
+     │       └─ LuauSparkdownIfBlock_begin_c3 [22..23]
+     │           └─ OptionalSeparator [22..23]: " "
+     ├─ LuauSparkdownIfBlock_content [23..92]
+     │   ├─ LuauIfBlockCondition [23..38]
+     │   │   ├─ LuauIfBlockCondition_begin 23
+     │   │   ├─ LuauIfBlockCondition_content [23..33]
+     │   │   │   ├─ LuauAccessPath [23..29]
+     │   │   │   │   ├─ LuauAccessPath_begin 23
+     │   │   │   │   ├─ LuauAccessPath_content [23..28]
+     │   │   │   │   │   └─ LuauAccessPart [23..28]
+     │   │   │   │   │       └─ LuauVariable [23..28]
+     │   │   │   │   │           └─ LuauVariable_c1 [23..28]
+     │   │   │   │   │               └─ LuauVariableName [23..28]: "trust"
+     │   │   │   │   └─ LuauAccessPath_end [28..29]
+     │   │   │   │       └─ LuauAccessPath_end_c1 [28..29]
+     │   │   │   │           └─ LuauAccessPath_end_c1 [28..29]
+     │   │   │   │               └─ OptionalSeparator [28..29]: " "
+     │   │   │   └─ LuauCompareOperation [29..33]
+     │   │   │       ├─ LuauCompareOperation_begin 29
+     │   │   │       │   └─ LuauCompareOperation_begin_c1 29
+     │   │   │       ├─ LuauCompareOperation_content [29..33]
+     │   │   │       │   ├─ LuauCompareOperator [29..32]
+     │   │   │       │   │   ├─ LuauCompareOperator_begin [29..32]
+     │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c1 29
+     │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [29..31]: ">="
+     │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [31..32]
+     │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [31..32]
+     │   │   │       │   │   │           └─ OptionalSeparator [31..32]: " "
+     │   │   │       │   │   └─ LuauCompareOperator_end 32
+     │   │   │       │   └─ LuauNumericDecimal [32..33]
+     │   │   │       │       ├─ LuauNumericDecimal_c1 [32..33]: "1"
+     │   │   │       │       └─ LuauNumericDecimal_c2 33
+     │   │   │       └─ LuauCompareOperation_end 33
+     │   │   └─ LuauIfBlockCondition_end [33..38]
+     │   │       ├─ LuauIfBlockCondition_end_c1 [33..34]
+     │   │       │   └─ LuauIfBlockCondition_end_c1 [33..34]
+     │   │       │       └─ OptionalSeparator [33..34]: " "
+     │   │       └─ LuauIfBlockCondition_end_c2 [34..38]
+     │   │           └─ LuauThenKeyword [34..38]: "then"
+     │   ├─ Newline [38..40]: "\r\n"
+     │   ├─ InlineDialogue [40..56]
+     │   │   ├─ InlineDialogue_begin [40..47]
+     │   │   │   ├─ InlineDialogue_begin_c1 [40..44]
+     │   │   │   │   └─ Indent [40..44]: "    "
+     │   │   │   ├─ InlineDialogue_begin_c2 [44..45]
+     │   │   │   │   └─ DialogueCharacter [44..45]
+     │   │   │   │       ├─ DialogueCharacter_c1 44
+     │   │   │   │       ├─ DialogueCharacter_c2 [44..45]
+     │   │   │   │       │   └─ DialogueCharacterName [44..45]
+     │   │   │   │       │       └─ DialogueCharacterName_c1 [44..45]
+     │   │   │   │       │           └─ Word [44..45]: "N"
+     │   │   │   │       ├─ DialogueCharacter_c3 45
+     │   │   │   │       ├─ DialogueCharacter_c4 45
+     │   │   │   │       ├─ DialogueCharacter_c5 45
+     │   │   │   │       ├─ DialogueCharacter_c6 45
+     │   │   │   │       └─ DialogueCharacter_c7 45
+     │   │   │   ├─ InlineDialogue_begin_c3 [45..46]
+     │   │   │   │   └─ ColonSeparator [45..46]: ":"
+     │   │   │   └─ InlineDialogue_begin_c4 [46..47]
+     │   │   │       └─ Separator [46..47]: " "
+     │   │   ├─ InlineDialogue_content [47..56]
+     │   │   │   └─ LineEnd [47..56]
+     │   │   │       ├─ LineEnd_begin 47
+     │   │   │       │   └─ LineEnd_begin_c1 47
+     │   │   │       ├─ LineEnd_content [47..56]
+     │   │   │       │   └─ TextChunk [47..56]
+     │   │   │       │       ├─ TextChunk_begin 47
+     │   │   │       │       ├─ TextChunk_content [47..56]
+     │   │   │       │       │   ├─ Word [47..50]: "Let"
+     │   │   │       │       │   ├─ Punctuation [50..51]: "'"
+     │   │   │       │       │   ├─ Word [51..52]: "s"
+     │   │   │       │       │   ├─ Space [52..53]: " "
+     │   │   │       │       │   ├─ Word [53..55]: "go"
+     │   │   │       │       │   └─ Punctuation [55..56]: "."
+     │   │   │       │       └─ TextChunk_end 56
+     │   │   │       └─ LineEnd_end 56
+     │   │   └─ InlineDialogue_end 56
+     │   ├─ Newline [56..58]: "\r\n"
+     │   ├─ Divert [58..70]
+     │   │   ├─ Divert_begin [58..64]
+     │   │   │   ├─ Divert_begin_c1 [58..62]
+     │   │   │   │   └─ Indent [58..62]: "    "
+     │   │   │   └─ Divert_begin_c2 [62..64]
+     │   │   │       └─ DivertMark [62..64]: "->"
+     │   │   ├─ Divert_content [64..70]
+     │   │   │   └─ DivertTarget [64..70]
+     │   │   │       ├─ DivertTarget_begin [64..65]
+     │   │   │       │   └─ DivertTarget_begin_c1 [64..65]
+     │   │   │       │       └─ DivertTarget_begin_c1 [64..65]
+     │   │   │       │           └─ OptionalSeparator [64..65]: " "
+     │   │   │       ├─ DivertTarget_content [65..70]
+     │   │   │       │   └─ DivertPath [65..70]
+     │   │   │       │       ├─ DivertPath_begin 65
+     │   │   │       │       ├─ DivertPath_content [65..70]
+     │   │   │       │       │   └─ DivertPart [65..70]
+     │   │   │       │       │       └─ DivertPartName [65..70]: "Alley"
+     │   │   │       │       └─ DivertPath_end 70
+     │   │   │       └─ DivertTarget_end 70
+     │   │   └─ Divert_end 70
+     │   ├─ Newline [70..72]: "\r\n"
+     │   └─ LuauSparkdownElseBlock [72..92]
+     │       ├─ LuauSparkdownElseBlock_begin [72..78]
+     │       │   ├─ LuauSparkdownElseBlock_begin_c1 [72..74]
+     │       │   │   └─ Indent [72..74]: "  "
+     │       │   ├─ LuauSparkdownElseBlock_begin_c2 [74..78]
+     │       │   │   └─ LuauElseKeyword [74..78]: "else"
+     │       │   └─ LuauSparkdownElseBlock_begin_c3 78
+     │       │       └─ LuauSparkdownElseBlock_begin_c3 78
+     │       │           └─ OptionalSeparator 78
+     │       ├─ LuauSparkdownElseBlock_content [78..92]
+     │       │   ├─ Newline [78..80]: "\r\n"
+     │       │   ├─ Divert [80..90]
+     │       │   │   ├─ Divert_begin [80..86]
+     │       │   │   │   ├─ Divert_begin_c1 [80..84]
+     │       │   │   │   │   └─ Indent [80..84]: "    "
+     │       │   │   │   └─ Divert_begin_c2 [84..86]
+     │       │   │   │       └─ DivertMark [84..86]: "->"
+     │       │   │   ├─ Divert_content [86..90]
+     │       │   │   │   └─ DivertTarget [86..90]
+     │       │   │   │       ├─ DivertTarget_begin [86..87]
+     │       │   │   │       │   └─ DivertTarget_begin_c1 [86..87]
+     │       │   │   │       │       └─ DivertTarget_begin_c1 [86..87]
+     │       │   │   │       │           └─ OptionalSeparator [86..87]: " "
+     │       │   │   │       ├─ DivertTarget_content [87..90]
+     │       │   │   │       │   └─ End [87..90]: "END"
+     │       │   │   │       └─ DivertTarget_end 90
+     │       │   │   └─ Divert_end 90
+     │       │   └─ Newline [90..92]: "\r\n"
+     │       └─ LuauSparkdownElseBlock_end 92
+     └─ LuauSparkdownIfBlock_end [92..97]
+         ├─ LuauSparkdownIfBlock_end_c1 [92..94]
+         │   └─ LuauSparkdownIfBlock_end_c1 [92..94]
+         │       └─ OptionalSeparator [92..94]: "  "
+         └─ LuauSparkdownIfBlock_end_c2 [94..97]
+             └─ LuauEndKeyword [94..97]: "end"

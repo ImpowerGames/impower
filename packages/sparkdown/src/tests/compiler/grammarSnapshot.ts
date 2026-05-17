@@ -21,7 +21,7 @@ export function dumpTree(source: string): string {
 }
 
 const ESC = String.fromCharCode(27);
-const ANSI_ESCAPE = new RegExp(ESC + "\\[\\d+m", "g");
+const ANSI_ESCAPE = new RegExp(ESC + "\\[\\d+(?:;\\d+)*m", "g");
 
 export function stripAnsi(text: string): string {
   return text.replace(ANSI_ESCAPE, "");

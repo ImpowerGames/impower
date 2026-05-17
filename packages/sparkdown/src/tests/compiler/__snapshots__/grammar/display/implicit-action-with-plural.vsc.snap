@@ -1,4 +1,4 @@
-text.source.sparkdown [0..189]
+text.source.sparkdown [0..185]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.separator.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..22]: "DisplayInventory"
@@ -84,6 +84,4 @@ text.source.sparkdown [0..189]
  │   │   │   └─ punctuation.definition.template-expression.end.sd [181..182]: "}"
  │   │   └─ punctuation.definition.template-expression.end.sd [182..183]: "}"
  │   └─ markup.raw.punctuation.sd [183..184]: "."
- ├─ Newline [184..185]: "\n"
- ├─ keyword.control.end.luau [185..188]: "end"
- └─ Newline [188..189]: "\n"
+ └─ Newline [184..185]: "\n"

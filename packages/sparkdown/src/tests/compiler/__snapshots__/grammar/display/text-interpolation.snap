@@ -2,45 +2,46 @@ sparkdown [0..33]
  └─ ImplicitAction [0..33]
      ├─ ImplicitAction_begin 0
      │   └─ ImplicitAction_begin_c1 0
-     └─ ImplicitAction_content [0..33]
-         └─ LineEnd [0..33]
-             ├─ LineEnd_begin 0
-             │   └─ LineEnd_begin_c1 0
-             ├─ LineEnd_content [0..33]
-             │   └─ TextChunk [0..33]
-             │       ├─ TextChunk_begin 0
-             │       ├─ TextChunk_content [0..33]
-             │       │   ├─ Word [0..3]: "You"
-             │       │   ├─ Space [3..4]: " "
-             │       │   ├─ Word [4..8]: "have"
-             │       │   ├─ Space [8..9]: " "
-             │       │   ├─ LuauInterpolatedStringExpression [9..26]
-             │       │   │   ├─ LuauInterpolatedStringExpression_begin [9..10]
-             │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [9..10]
-             │       │   │   │       └─ PunctuationBraceOpen [9..10]: "{"
-             │       │   │   ├─ LuauInterpolatedStringExpression_content [10..25]
-             │       │   │   │   └─ LuauAccessPath [10..25]
-             │       │   │   │       ├─ LuauAccessPath_begin 10
-             │       │   │   │       ├─ LuauAccessPath_content [10..25]
-             │       │   │   │       │   ├─ LuauAccessPart [10..19]
-             │       │   │   │       │   │   └─ LuauVariable [10..19]
-             │       │   │   │       │   │       └─ LuauVariable_c1 [10..19]
-             │       │   │   │       │   │           └─ LuauVariableName [10..19]: "inventory"
-             │       │   │   │       │   └─ LuauAccessPart [19..25]
-             │       │   │   │       │       └─ LuauPropertyAccessor [19..25]
-             │       │   │   │       │           ├─ LuauPropertyAccessor_c1 19
-             │       │   │   │       │           ├─ LuauPropertyAccessor_c2 [19..20]
-             │       │   │   │       │           │   └─ LuauAccessorOperator [19..20]: "."
-             │       │   │   │       │           ├─ LuauPropertyAccessor_c3 20
-             │       │   │   │       │           └─ LuauPropertyAccessor_c4 [20..25]
-             │       │   │   │       │               └─ LuauPropertyName [20..25]: "stars"
-             │       │   │   │       └─ LuauAccessPath_end 25
-             │       │   │   │           └─ LuauAccessPath_end_c1 25
-             │       │   │   └─ LuauInterpolatedStringExpression_end [25..26]
-             │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [25..26]
-             │       │   │           └─ PunctuationBraceClose [25..26]: "}"
-             │       │   ├─ Space [26..27]: " "
-             │       │   ├─ Word [27..32]: "stars"
-             │       │   └─ Punctuation [32..33]: "."
-             │       └─ TextChunk_end 33
-             └─ LineEnd_end 33
+     ├─ ImplicitAction_content [0..33]
+     │   └─ LineEnd [0..33]
+     │       ├─ LineEnd_begin 0
+     │       │   └─ LineEnd_begin_c1 0
+     │       ├─ LineEnd_content [0..33]
+     │       │   └─ TextChunk [0..33]
+     │       │       ├─ TextChunk_begin 0
+     │       │       ├─ TextChunk_content [0..33]
+     │       │       │   ├─ Word [0..3]: "You"
+     │       │       │   ├─ Space [3..4]: " "
+     │       │       │   ├─ Word [4..8]: "have"
+     │       │       │   ├─ Space [8..9]: " "
+     │       │       │   ├─ LuauInterpolatedStringExpression [9..26]
+     │       │       │   │   ├─ LuauInterpolatedStringExpression_begin [9..10]
+     │       │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [9..10]
+     │       │       │   │   │       └─ PunctuationBraceOpen [9..10]: "{"
+     │       │       │   │   ├─ LuauInterpolatedStringExpression_content [10..25]
+     │       │       │   │   │   └─ LuauAccessPath [10..25]
+     │       │       │   │   │       ├─ LuauAccessPath_begin 10
+     │       │       │   │   │       ├─ LuauAccessPath_content [10..25]
+     │       │       │   │   │       │   ├─ LuauAccessPart [10..19]
+     │       │       │   │   │       │   │   └─ LuauVariable [10..19]
+     │       │       │   │   │       │   │       └─ LuauVariable_c1 [10..19]
+     │       │       │   │   │       │   │           └─ LuauVariableName [10..19]: "inventory"
+     │       │       │   │   │       │   └─ LuauAccessPart [19..25]
+     │       │       │   │   │       │       └─ LuauPropertyAccessor [19..25]
+     │       │       │   │   │       │           ├─ LuauPropertyAccessor_c1 19
+     │       │       │   │   │       │           ├─ LuauPropertyAccessor_c2 [19..20]
+     │       │       │   │   │       │           │   └─ LuauAccessorOperator [19..20]: "."
+     │       │       │   │   │       │           ├─ LuauPropertyAccessor_c3 20
+     │       │       │   │   │       │           └─ LuauPropertyAccessor_c4 [20..25]
+     │       │       │   │   │       │               └─ LuauPropertyName [20..25]: "stars"
+     │       │       │   │   │       └─ LuauAccessPath_end 25
+     │       │       │   │   │           └─ LuauAccessPath_end_c1 25
+     │       │       │   │   └─ LuauInterpolatedStringExpression_end [25..26]
+     │       │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [25..26]
+     │       │       │   │           └─ PunctuationBraceClose [25..26]: "}"
+     │       │       │   ├─ Space [26..27]: " "
+     │       │       │   ├─ Word [27..32]: "stars"
+     │       │       │   └─ Punctuation [32..33]: "."
+     │       │       └─ TextChunk_end 33
+     │       └─ LineEnd_end 33
+     └─ ERROR_INCOMPLETE 33
