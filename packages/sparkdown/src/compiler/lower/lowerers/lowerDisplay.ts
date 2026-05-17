@@ -763,7 +763,7 @@ export function lowerBlockWrite(
 // Detects the `{if cond then a else b}` pattern inside an interpolation
 // node and lowers it as an inkjs `Conditional` ParsedObject. The
 // grammar parses the if-expression as a string of sibling nodes inside
-// the interpolation: `LuauIfExpression` (carrying the condition),
+// the interpolation: `LuauTernaryExpression` (carrying the condition),
 // `LuauThenKeyword`, then-value sibling(s), optional `LuauElseKeyword`
 // + else-value sibling(s). We rebuild that into a Conditional with
 // `ConditionalSingleBranch` branches whose `_innerWeave` contains the
@@ -843,59 +843,115 @@ function tryLowerInlineConditional(
   interpNode: SyntaxNode,
   ctx: LowerContext,
 ): Conditional | null {
-  const ifExpr = findFirstDirectChild(interpNode, "LuauIfExpression");
+  const ifExpr = findFirstDirectChild(interpNode, "LuauTernaryExpression");
   if (!ifExpr) return null;
   const firstCondContent = getDescendent(
-    "LuauIfExpressionCondition_content",
+    "LuauTernaryExpressionCondition_content",
     ifExpr,
   );
   if (!firstCondContent) return null;
 
-  // Collect a flat list of (condition-nodes, then-nodes) pairs plus an
-  // optional final else-nodes group, walking the sibling stream:
-  //   LuauIfExpression(first-cond) → ThenKw → <then-1> →
-  //   (ElseifKw → <cond-N> → ThenKw → <then-N>)* →
-  //   (ElseKw → <else>)?
+  // Walk the children of `LuauTernaryExpression`. Since the rule no
+  // longer ends at `(?=then)`, the `then`/`else` clauses parse as
+  // nested `LuauThenExpression`/`LuauElseExpression` children, with
+  // `elseif` appearing as a free-standing `LuauElseifKeyword` (caught
+  // by `LuauTernaryKeyword`) between branches:
+  //   LuauTernaryExpression
+  //     ├ LuauTernaryExpressionCondition  (first if-cond)
+  //     ├ LuauThenExpression              (`then <body1>`)
+  //     ├ LuauElseifKeyword (×N)          → start elseif-cond phase
+  //     ├ <cond-N expression nodes>
+  //     ├ LuauThenExpression              (`then <bodyN>`)
+  //     └ LuauElseExpression?             (`else <body>`)
   type Branch = { cond: Expression | null; body: SyntaxNode[] };
   const branches: Branch[] = [];
   const firstCond = lowerExpressionFromContainer(firstCondContent, ctx);
   if (!firstCond) return null;
   let current: Branch = { cond: firstCond, body: [] };
-  let phase: "wait-then" | "in-body" | "wait-elseif-then" | "in-elseif-cond" =
-    "wait-then";
   let elseifCondNodes: SyntaxNode[] = [];
-  let sib = ifExpr.nextSibling;
-  while (sib) {
-    if (sib.name === "LuauThenKeyword") {
-      if (phase === "in-elseif-cond") {
-        const cond = lowerExpressionFromNodes(elseifCondNodes, ctx);
-        current = { cond: cond ?? null, body: [] };
-        elseifCondNodes = [];
+  let phase: "wait-then" | "wait-next" | "in-elseif-cond" = "wait-then";
+
+  const isWhitespaceNode = (name: string): boolean =>
+    name === "ExtraWhitespace" ||
+    name === "Whitespace" ||
+    name === "OptionalWhitespace" ||
+    name === "RequiredWhitespace" ||
+    name === "Newline";
+
+  // Collect the expression nodes inside a `LuauThenExpression` /
+  // `LuauElseExpression` wrapper. The wrapper's `_content` child holds
+  // the operator (`LuauThenOperator`/`LuauElseOperator`) plus the
+  // branch body. Skip the operator and any whitespace-only nodes.
+  const collectClauseBody = (clause: SyntaxNode): SyntaxNode[] => {
+    const body: SyntaxNode[] = [];
+    const content =
+      findChildByNameDirect(clause, `${clause.name}_content`) ?? clause;
+    let bodyChild = content.firstChild;
+    while (bodyChild) {
+      if (
+        bodyChild.name !== "LuauThenOperator" &&
+        bodyChild.name !== "LuauElseOperator" &&
+        !isWhitespaceNode(bodyChild.name)
+      ) {
+        body.push(bodyChild);
       }
-      phase = "in-body";
-    } else if (sib.name === "LuauElseifKeyword") {
+      bodyChild = bodyChild.nextSibling;
+    }
+    return body;
+  };
+
+  // The actual child clauses live inside the `_content` wrapper that
+  // begin/end rules emit, not as direct children of the rule node.
+  const ifContent =
+    findChildByNameDirect(ifExpr, "LuauTernaryExpression_content") ?? ifExpr;
+  // The first `LuauTernaryExpressionCondition` was already lowered as
+  // `firstCond` above. Subsequent `LuauTernaryExpressionCondition`
+  // children belong to `elseif` clauses — they appear because the
+  // condition rule's `(?<=if\b{{WS}}*)` lookbehind also fires after
+  // `elseif`'s trailing `if\b`. Track whether we've consumed the first.
+  let seenFirstCond = false;
+  let elseifCondNode: SyntaxNode | null = null;
+  let child = ifContent.firstChild;
+  while (child) {
+    if (child.name === "LuauTernaryExpressionCondition") {
+      if (!seenFirstCond) {
+        seenFirstCond = true;
+      } else if (phase === "in-elseif-cond") {
+        elseifCondNode = child;
+      }
+    } else if (child.name === "LuauThenExpression") {
+      if (phase === "in-elseif-cond") {
+        const cond = elseifCondNode
+          ? lowerExpressionFromContainer(
+              getDescendent(
+                "LuauTernaryExpressionCondition_content",
+                elseifCondNode,
+              ) ?? elseifCondNode,
+              ctx,
+            )
+          : lowerExpressionFromNodes(elseifCondNodes, ctx);
+        current = { cond: cond ?? null, body: collectClauseBody(child) };
+        elseifCondNodes = [];
+        elseifCondNode = null;
+      } else {
+        current.body.push(...collectClauseBody(child));
+      }
+      phase = "wait-next";
+    } else if (child.name === "LuauElseExpression") {
+      branches.push(current);
+      current = { cond: null, body: collectClauseBody(child) };
+      phase = "wait-next";
+    } else if (child.name === "LuauElseifKeyword") {
       branches.push(current);
       phase = "in-elseif-cond";
-    } else if (sib.name === "LuauElseKeyword") {
-      branches.push(current);
-      current = { cond: null, body: [] };
-      phase = "in-body";
-    } else if (
-      sib.name === "ExtraWhitespace" ||
-      sib.name === "Whitespace" ||
-      sib.name === "OptionalWhitespace" ||
-      sib.name === "RequiredWhitespace" ||
-      sib.name === "Newline"
-    ) {
-      // skip — whitespace between if-expression siblings is purely
-      // structural (the grammar's #OptionalWhitespace captures
-      // create nodes even between `then "a"` and `else "b"`).
+      elseifCondNode = null;
+      elseifCondNodes = [];
+    } else if (isWhitespaceNode(child.name)) {
+      // Structural whitespace between siblings.
     } else if (phase === "in-elseif-cond") {
-      elseifCondNodes.push(sib);
-    } else if (phase === "in-body") {
-      current.body.push(sib);
+      elseifCondNodes.push(child);
     }
-    sib = sib.nextSibling;
+    child = child.nextSibling;
   }
   branches.push(current);
 

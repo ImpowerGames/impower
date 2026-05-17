@@ -4355,7 +4355,7 @@
           "include": "#LuauComment"
         },
         {
-          "include": "#LuauIfExpression"
+          "include": "#LuauTernaryExpression"
         },
         {
           "include": "#LuauAlternatorBlocks"
@@ -5267,7 +5267,7 @@
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
     },
     "LuauForCondition": {
-      "begin": "(?<=for\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|(?:[^\\S\\n\\r]))",
+      "begin": "(?<=for\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|do\\b)",
       "patterns": [
         {
           "include": "#LuauInKeyword"
@@ -5285,7 +5285,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])+do\\b)"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|(?:(?:[^\\S\\n\\r])*(?:end)\\b))|(?=(?:[^\\S\\n\\r])*do\\b)"
     },
     "LuauSparkdownWhileLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(while)\\b((?:[^\\S\\n\\r])*)",
@@ -5360,7 +5360,7 @@
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
     },
     "LuauWhileCondition": {
-      "begin": "(?<=while\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|(?:[^\\S\\n\\r]))",
+      "begin": "(?<=while\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|do\\b)",
       "patterns": [
         {
           "include": "#LuauExpression"
@@ -5375,7 +5375,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|(?:(?:[^\\S\\n\\r])*(?:end)\\b))|(?=(?:[^\\S\\n\\r])*do\\b)"
     },
     "LuauSparkdownRepeatLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(repeat)\\b((?:[^\\S\\n\\r])*)",
@@ -5686,7 +5686,7 @@
       }
     },
     "LuauIfBlockCondition": {
-      "begin": "(?<=if\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|(?:[^\\S\\n\\r]))",
+      "begin": "(?<=if\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|then\\b)",
       "patterns": [
         {
           "include": "#LuauExpression"
@@ -5701,7 +5701,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "((?:[^\\S\\n\\r])*)((?:then)\\b)|(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))",
+      "end": "((?:[^\\S\\n\\r])*)((?:then)\\b)|(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|(?:(?:[^\\S\\n\\r])*(?:end)\\b))",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -5720,7 +5720,7 @@
         }
       }
     },
-    "LuauIfExpressionCondition": {
+    "LuauTernaryExpressionCondition": {
       "begin": "(?<=if\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|(?:[^\\S\\n\\r]))",
       "patterns": [
         {
@@ -5811,7 +5811,7 @@
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*\\b(?:end|elseif|else)\\b)"
     },
     "LuauElseifBlockCondition": {
-      "begin": "(?<=elseif\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|(?:[^\\S\\n\\r]))",
+      "begin": "(?<=elseif\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|then\\b)",
       "patterns": [
         {
           "include": "#LuauExpression"
@@ -5826,7 +5826,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "((?:[^\\S\\n\\r])*)((?:then)\\b)|(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))",
+      "end": "((?:[^\\S\\n\\r])*)((?:then)\\b)|(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|(?:(?:[^\\S\\n\\r])*(?:end)\\b))",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -6054,7 +6054,7 @@
       "name": "keyword.control.choose.luau",
       "match": "(choose)\\b"
     },
-    "LuauIfExpression": {
+    "LuauTernaryExpression": {
       "begin": "((?:[^\\S\\n\\r])*)(if)\\b((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
@@ -6082,7 +6082,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauIfExpressionCondition"
+          "include": "#LuauTernaryExpressionCondition"
         },
         {
           "include": "#LuauThenExpression"
@@ -6094,6 +6094,9 @@
           "include": "#LuauExpression"
         },
         {
+          "include": "#LuauTernaryKeyword"
+        },
+        {
           "include": "#LuauCommaSeparator"
         },
         {
@@ -6103,7 +6106,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:then)\\b)"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))"
     },
     "LuauThenExpression": {
       "begin": "(?=(?:then)\\b)",
@@ -6865,6 +6868,19 @@
       "name": "keyword.control.luau",
       "match": "(.+)"
     },
+    "LuauTernaryKeyword": {
+      "patterns": [
+        {
+          "include": "#LuauThenKeyword"
+        },
+        {
+          "include": "#LuauElseifKeyword"
+        },
+        {
+          "include": "#LuauElseKeyword"
+        }
+      ]
+    },
     "LuauKeyword": {
       "patterns": [
         {
@@ -6889,19 +6905,7 @@
           "include": "#LuauUnitKeywords"
         },
         {
-          "include": "#LuauDoKeyword"
-        },
-        {
-          "include": "#LuauThenKeyword"
-        },
-        {
           "include": "#LuauIfKeyword"
-        },
-        {
-          "include": "#LuauElseifKeyword"
-        },
-        {
-          "include": "#LuauElseKeyword"
         },
         {
           "include": "#LuauForKeyword"
@@ -6911,9 +6915,6 @@
         },
         {
           "include": "#LuauRepeatKeyword"
-        },
-        {
-          "include": "#LuauUntilKeyword"
         },
         {
           "include": "#LuauLocalKeyword"

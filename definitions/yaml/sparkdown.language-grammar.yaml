@@ -2667,7 +2667,7 @@ repository:
   LuauExpression:
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauIfExpression" }
+      - { include: "#LuauTernaryExpression" }
       - { include: "#LuauAlternatorBlocks" }
       # Divert-target literal (`-> name`) is an inkjs-style first-class
       # value: e.g. `store x = -> place` stores a pointer to the `place`
@@ -3215,17 +3215,20 @@ repository:
     end: (?={{BEAT}})|$
 
   LuauForCondition:
-    begin: (?<=for\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    # See `LuauIfBlockCondition` for the multi-line trick: begin's
+    # lookbehind is intra-line but the rule's patterns include
+    # `Newline`/`RequiredWhitespace` so the condition can span
+    # newlines until the `do` keyword closes it.
+    begin: (?<=for\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
       - { include: "#LuauInKeyword" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#RequiredWhitespace" }
       - { include: "#Newline" }
-    # Multi-variable for-in (`for k, v in iter() do`) needs to consume
-    # commas, spaces, the `in` keyword, and call expressions before
-    # terminating. End on `do` keyword instead of the first whitespace.
-    end: (?={{BEAT}})|(?=$|{{WS}}+do\b)
+    # End just before `do` (allowing a leading WS run, but NOT bare
+    # whitespace alone) so multi-line for-in headers parse.
+    end: (?={{BEAT}}|{{END}})|(?={{WS}}*do\b)
 
   # ----------------------------------------------------------------------------
   # While Loop
@@ -3268,13 +3271,14 @@ repository:
     end: (?={{BEAT}})|$
 
   LuauWhileCondition:
-    begin: (?<=while\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    # See `LuauIfBlockCondition` for the multi-line trick.
+    begin: (?<=while\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: (?={{BEAT}}|{{END}})|(?={{WS}}*do\b)
 
   # ----------------------------------------------------------------------------
   # Repeat Loop
@@ -3443,13 +3447,22 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauIfBlockCondition:
-    begin: (?<=if\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    # Begin fires immediately after `if` regardless of whether the
+    # condition starts on the same line or on a continuation line.
+    # The trick (cf. `LuauLogicalOperator`'s patterns array): the
+    # `begin` lookbehind is intra-line, but the rule's `patterns`
+    # array includes both `Newline` and `ExtraWhitespace`, so once
+    # the scope is open, the condition can span newlines until the
+    # `then` keyword closes it. Critically, `then` is excluded from
+    # `LuauKeyword` so the inner `LuauExpression` can't snatch it
+    # before this rule's end pattern fires.
+    begin: (?<=if\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}})|(?=$|{{WS}})
+    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}})
     endCaptures:
       1:
         emit: true
@@ -3459,7 +3472,7 @@ repository:
         patterns:
           - { include: "#LuauThenKeyword" }
 
-  LuauIfExpressionCondition:
+  LuauTernaryExpressionCondition:
     begin: (?<=if\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
     patterns:
       - { include: "#LuauExpression" }
@@ -3509,13 +3522,14 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})
 
   LuauElseifBlockCondition:
-    begin: (?<=elseif\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    # See `LuauIfBlockCondition` for the multi-line trick.
+    begin: (?<=elseif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}})|(?=$|{{WS}})
+    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}})
     endCaptures:
       1:
         emit: true
@@ -3682,7 +3696,7 @@ repository:
   # If-Then-Else Expression
   # ----------------------------------------------------------------------------
 
-  LuauIfExpression:
+  LuauTernaryExpression:
     begin: ({{WS}}*)(if)\b({{WS}}*)
     beginCaptures:
       1:
@@ -3696,14 +3710,19 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauIfExpressionCondition" }
+      - { include: "#LuauTernaryExpressionCondition" }
       - { include: "#LuauThenExpression" }
       - { include: "#LuauElseExpression" }
       - { include: "#LuauExpression" }
+      # `then`/`else`/`elseif` fallback — `LuauKeyword` no longer matches
+      # them (so other rules' end-patterns can fire), but the inline-
+      # ternary form still needs them tokenised when they appear free-
+      # standing inside this expression.
+      - { include: "#LuauTernaryKeyword" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?=(?:then)\b)
+    end: (?={{BEAT}})
 
   LuauThenExpression:
     begin: (?=(?:then)\b)
@@ -4160,6 +4179,24 @@ repository:
     tag: controlKeyword
     name: keyword.control.luau
 
+  # Scope-ending keywords are pulled OUT of `LuauKeyword` so general
+  # expression contexts don't greedily match them as keyword tokens
+  # before the surrounding scope's end-pattern fires. `end` is already
+  # excluded for the same reason. Each scope-ender is matched by the
+  # rule that owns its scope:
+  #   • `then`              → `LuauIfBlockCondition` end / `LuauThenExpression`
+  #   • `else` / `elseif`   → `LuauElseBlock` / `LuauElseifBlock` / `LuauElseExpression`
+  #   • `do`                → `LuauForCondition` / `LuauWhileCondition` end / `LuauDoBlock` begin
+  #   • `until`             → `LuauRepeatLoop` end
+  # Inline ternary additionally re-includes the if-style scope-enders
+  # via `LuauTernaryKeyword` so `then`/`else`/`elseif` still highlight
+  # when they appear free-standing inside a `LuauTernaryExpression`.
+  LuauTernaryKeyword:
+    patterns:
+      - { include: "#LuauThenKeyword" }
+      - { include: "#LuauElseifKeyword" }
+      - { include: "#LuauElseKeyword" }
+
   LuauKeyword:
     patterns:
       - { include: "#LuauBreakKeyword" }
@@ -4169,15 +4206,10 @@ repository:
       - { include: "#LuauLocalKeyword" }
       - { include: "#LuauConstKeyword" }
       - { include: "#LuauUnitKeywords" }
-      - { include: "#LuauDoKeyword" }
-      - { include: "#LuauThenKeyword" }
       - { include: "#LuauIfKeyword" }
-      - { include: "#LuauElseifKeyword" }
-      - { include: "#LuauElseKeyword" }
       - { include: "#LuauForKeyword" }
       - { include: "#LuauWhileKeyword" }
       - { include: "#LuauRepeatKeyword" }
-      - { include: "#LuauUntilKeyword" }
       - { include: "#LuauLocalKeyword" }
       - { include: "#LuauConstKeyword" }
       - { include: "#LuauFunctionKeyword" }
