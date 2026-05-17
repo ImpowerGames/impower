@@ -421,11 +421,12 @@ function collectFromNode(
 }
 
 function readOperatorText(node: SyntaxNode, ctx: LowerContext): string | null {
-  // Operator marker nodes wrap their text in generated capture children. The
-  // _c2 child typically holds the actual operator string.
-  const begin = findChildByName(node, `${node.name}_begin`);
-  const c2 = begin ? findChildByName(begin, `${node.name}_begin_c2`) : null;
-  if (c2) return ctx.read(c2.from, c2.to).trim();
+  // Operator marker nodes wrap their text with optional surrounding
+  // whitespace captured by their begin pattern (e.g.
+  // `({{WS}}*)({{LUAU_ARITHMETIC_OPERATORS}})({{WS}}*)`). Trimming the
+  // whole node's text reliably yields just the operator string —
+  // there's nothing inside an operator marker but optional whitespace +
+  // the op + optional whitespace.
   return ctx.read(node.from, node.to).trim();
 }
 
@@ -575,27 +576,26 @@ function lowerDivertTargetLiteral(
   // inkjs's `DivertTarget` Expression wraps the Divert and generates
   // a runtime `DivertTargetValue` that can be stored in variables,
   // compared with `==`, or re-diverted-to via `-> x`.
+  // The path lives inside the `DivertPath` named wrapper (§6.4: we
+  // address captures by name, not by `_cN` index). `DivertPath` is a
+  // descendant of `LuauDivertTargetLiteral` (one level deep via the
+  // capture's auto-generated `_cN` wrapper), so use `getDescendent`.
   const parts: Identifier[] = [];
-  let child = node.firstChild;
-  while (child) {
-    if (child.name === "LuauDivertTargetLiteral_c4") {
-      // Inside c4 there's a `DivertPath` whose `DivertPartName`
-      // descendants form the path.
-      const stack: SyntaxNode[] = [child];
-      while (stack.length > 0) {
-        const n = stack.pop()!;
-        if (n.name === "DivertPartName") {
-          parts.push(new Identifier(ctx.read(n.from, n.to)));
-        } else {
-          let c = n.firstChild;
-          while (c) {
-            stack.push(c);
-            c = c.nextSibling;
-          }
+  const pathNode = getDescendent("DivertPath", node);
+  if (pathNode) {
+    const stack: SyntaxNode[] = [pathNode];
+    while (stack.length > 0) {
+      const n = stack.pop()!;
+      if (n.name === "DivertPartName") {
+        parts.push(new Identifier(ctx.read(n.from, n.to)));
+      } else {
+        let c = n.firstChild;
+        while (c) {
+          stack.push(c);
+          c = c.nextSibling;
         }
       }
     }
-    child = child.nextSibling;
   }
   const divert = new Divert(parts);
   return new DivertTarget(divert);

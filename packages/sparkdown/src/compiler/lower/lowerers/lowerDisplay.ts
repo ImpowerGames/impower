@@ -1,26 +1,26 @@
-import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
-import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
+import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
-import { buildDivert } from "../utils/buildDivert";
 import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
-import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
-import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
+import { buildDivert } from "../utils/buildDivert";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
+import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
 
 // Slice 4: each display line emits a Tag pair carrying the line type (and
 // optional identifier such as a character name or write target), then the
@@ -110,9 +110,7 @@ function processDisplayBody(
     }
   }
 
-  segments = segments.filter(
-    (s) => !(s.kind === "text" && s.raw.length === 0),
-  );
+  segments = segments.filter((s) => !(s.kind === "text" && s.raw.length === 0));
 
   const out: ParsedObject[] = [];
   for (let i = 0; i < segments.length; i++) {
@@ -297,10 +295,7 @@ function collectTopLevelInjections(
           // (`Before .. queue|A|B|C ..` → `Before A`), anchor the
           // injection's `from` on the opening `..` (Glue inside
           // `_begin`) rather than on the alternator node's leading edge.
-          const beginNode = findChildByNameDirect(
-            node,
-            `${node.name}_begin`,
-          );
+          const beginNode = findChildByNameDirect(node, `${node.name}_begin`);
           const openingGlue = beginNode
             ? getDescendent("Glue", beginNode)
             : null;
@@ -421,9 +416,16 @@ function appendDisplayTags(
   while (child) {
     if (child.name === "Tag") {
       out.push(new Tag(true));
-      const c3 = findChildByNameDirect(child, "Tag_c3");
-      if (c3) {
-        appendInterpolatedTagText(ctx.read(c3.from, c3.to), out);
+      // `Tag`'s capture 3 wraps with the `TagContent` named rule
+      // (§6.4: address by name, not by `_cN` index). `TagContent`
+      // lives one level inside the auto-generated `_c3` capture
+      // wrapper, so `getDescendent` is required to reach it.
+      const tagContent = getDescendent("TagContent", child);
+      if (tagContent) {
+        appendInterpolatedTagText(
+          ctx.read(tagContent.from, tagContent.to),
+          out,
+        );
       }
       out.push(new Tag(false));
     }
@@ -468,9 +470,10 @@ function appendInterpolatedTagText(raw: string, out: ParsedObject[]): void {
 
 // ----- Body region extraction -----
 
-function extractInlineBodyRange(
-  nodeRef: SparkdownSyntaxNodeRef,
-): { from: number; to: number } {
+function extractInlineBodyRange(nodeRef: SparkdownSyntaxNodeRef): {
+  from: number;
+  to: number;
+} {
   const colon = getDescendent(
     ["ColonSeparator", "ColonOperator"],
     nodeRef.node,
@@ -577,8 +580,7 @@ export function lowerLuauInterpolatedStringExpression(
   // line of text and concatenate. Without this guard, sparkdown's
   // per-`{}` lowering produces a stray newline between each adjacent
   // pair, which differs from author expectation when porting fixtures.
-  const omitTrailingNewline =
-    hasAdjacentInterpolationSibling(nodeRef.node);
+  const omitTrailingNewline = hasAdjacentInterpolationSibling(nodeRef.node);
 
   const inlineAlt = tryLowerInlineAlternator(nodeRef.node, ctx);
   if (inlineAlt) {
@@ -589,9 +591,7 @@ export function lowerLuauInterpolatedStringExpression(
   const expr = lowerExpressionFromContainer(nodeRef.node, ctx);
   if (!expr) return {};
   expr.outputWhenComplete = true;
-  return wrapInWeave(
-    omitTrailingNewline ? [expr] : [expr, new Text("\n")],
-  );
+  return wrapInWeave(omitTrailingNewline ? [expr] : [expr, new Text("\n")]);
 }
 
 // Returns true when `node` is immediately followed (no Newline between)
@@ -676,15 +676,7 @@ export function lowerInlineWrite(
   const target = readIdentifier(nodeRef, ctx, "WriteTarget");
   const { from, to } = extractInlineBodyRange(nodeRef);
   return wrapInWeave(
-    buildDisplayContent(
-      nodeRef.node,
-      from,
-      to,
-      ctx,
-      "inline",
-      "write",
-      target,
-    ),
+    buildDisplayContent(nodeRef.node, from, to, ctx, "inline", "write", target),
   );
 }
 
@@ -764,15 +756,7 @@ export function lowerBlockWrite(
   const target = readIdentifier(nodeRef, ctx, "WriteTarget");
   const { from, to } = extractBlockBodyRange(nodeRef, ctx);
   return wrapInWeave(
-    buildDisplayContent(
-      nodeRef.node,
-      from,
-      to,
-      ctx,
-      "block",
-      "write",
-      target,
-    ),
+    buildDisplayContent(nodeRef.node, from, to, ctx, "block", "write", target),
   );
 }
 
@@ -958,9 +942,7 @@ function findChildByNameDirect(
 // Walk up the parent chain, scanning forward through siblings at each
 // level (skipping structural `_begin`/`_content`/`_end` wrappers), and
 // return the first `Glue` whose left edge is immediately adjacent.
-function findClosingGlueForAlternator(
-  altNode: SyntaxNode,
-): SyntaxNode | null {
+function findClosingGlueForAlternator(altNode: SyntaxNode): SyntaxNode | null {
   let cursor: SyntaxNode | null = altNode;
   while (cursor) {
     let sib: SyntaxNode | null = cursor.nextSibling;

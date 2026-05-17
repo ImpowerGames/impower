@@ -1,20 +1,23 @@
-import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
-import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { Choice } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ContentList } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ContentList";
+import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { SourceMetadata } from "../../../inkjs/engine/Error";
-import { CompiledBlock, InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
+import {
+  CompiledBlock,
+  InkDiagnostic,
+} from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
+import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { buildDivert } from "../utils/buildDivert";
 import { wrapInWeave } from "../utils/wrapInWeave";
-import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 
 // Lowers a single `*` (once-only) or `+` (sticky) choice. Captures the
 // choice mark, optional label, choice text (split across `startContent`
@@ -66,18 +69,19 @@ export function lowerChoice(
 
   if (bracketed) {
     hasWeaveStyleInlineBrackets = true;
-    // The grammar emits the captures as positional children
-    // `ChoiceWithSuppressedText_c1` … `_c8`. The relevant text ranges:
-    //   c1 → text before `[`  (startContent)
-    //   c3 → text inside `[]` (choiceOnlyContent)
-    //   c5 → text after `]`   (innerContent)
-    appendTextFromCapture(bracketed, "ChoiceWithSuppressedText_c1", ctx, startContent);
-    appendTextFromCapture(bracketed, "ChoiceWithSuppressedText_c3", ctx, choiceOnlyContent);
-    appendTextFromCapture(bracketed, "ChoiceWithSuppressedText_c5", ctx, innerContent);
+    // Each capture is wrapped by a uniquely-named rule (§6.4: address
+    // captures by name, not by `_cN` index). The wrappers mirror ink's
+    // three-part choice anatomy:
+    //   ChoiceStartText → text before `[`  (startContent)
+    //   ChoiceOnlyText  → text inside `[]` (choiceOnlyContent)
+    //   ChoiceInnerText → text after `]`   (innerContent)
+    appendTextFromCapture(bracketed, "ChoiceStartText", ctx, startContent);
+    appendTextFromCapture(bracketed, "ChoiceOnlyText", ctx, choiceOnlyContent);
+    appendTextFromCapture(bracketed, "ChoiceInnerText", ctx, innerContent);
   } else if (unbracketed) {
     // Plain choice: all visible text goes in startContent (label and
     // chosen output are the same).
-    appendTextFromCapture(unbracketed, "ChoiceWithNoSuppressedText_c1", ctx, startContent);
+    appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, startContent);
   }
 
   // Same-line vs next-line divert handling. `getDescendent` walks
@@ -138,11 +142,12 @@ export function lowerChoice(
     choice.identifier = identifier;
   }
 
-  // `{cond}` guard(s) on the choice live in `Choice_begin_c4` per the
-  // grammar's begin pattern. Multiple `{a}{b}` chain into a logical
-  // AND, mirroring ink's behavior. inkjs's `Choice.GenerateRuntimeObject`
-  // emits the expression and sets `runtimeChoice.hasCondition = true`,
-  // so an empty/no-condition choice keeps its current runtime shape.
+  // Choice condition (`* if cond text`) — captured by the grammar as a
+  // `ChoiceCondition` named wrapper child. `collectChoiceCondition`
+  // walks for that wrapper and lowers its inner expression. inkjs's
+  // `Choice.GenerateRuntimeObject` emits the condition and sets
+  // `runtimeChoice.hasCondition = true`; an empty/no-condition choice
+  // keeps its current runtime shape.
   const condition = collectChoiceCondition(nodeRef.node, ctx);
   if (condition) {
     choice.condition = condition;
@@ -155,7 +160,10 @@ export function lowerChoice(
   // The runtime's `TryFollowDefaultInvisibleChoice` auto-picks these
   // when no visible choices remain. inkjs's `Choice.GenerateRuntimeObject`
   // propagates this flag to `ChoicePoint.isInvisibleDefault`.
-  if (startContent.content.length === 0 && choiceOnlyContent.content.length === 0) {
+  if (
+    startContent.content.length === 0 &&
+    choiceOnlyContent.content.length === 0
+  ) {
     choice.isInvisibleDefault = true;
   }
 
@@ -201,10 +209,7 @@ export function lowerChoice(
   return block;
 }
 
-function makeSource(
-  choiceNode: SyntaxNode,
-  ctx: LowerContext,
-): SourceMetadata {
+function makeSource(choiceNode: SyntaxNode, ctx: LowerContext): SourceMetadata {
   return {
     fileName: null,
     filePath: ctx.filePath ?? null,
@@ -221,15 +226,14 @@ function collectChoiceCondition(
 ): Expression | null {
   // Sparkdown's choice-gate form: `* if cond text` — the `if` keyword
   // sits between the choice mark (or label) and the choice text, and
-  // the cond expression lives in `Choice_begin_c6` per the grammar.
+  // the cond expression is wrapped by the `ChoiceCondition` named rule
+  // (§6.4: address captures by name, not by auto-generated `_cN` index).
   // `not` prefix and parenthesized expressions are also accepted.
   // Lowering treats the captured node as a normal expression
   // (`LuauAccessPath`, `LuauParenthetical`, etc.) and assigns it to
   // `choice.condition` — inkjs's `Choice.GenerateRuntimeObject` then
   // emits the condition + flips `hasCondition` on the runtime choice.
-  const beginNode = findDirectChild(choiceNode, "Choice_begin");
-  if (!beginNode) return null;
-  const condCapture = findDirectChild(beginNode, "Choice_begin_c6");
+  const condCapture = getDescendent("ChoiceCondition", choiceNode);
   if (!condCapture) return null;
   return lowerExpressionFromContainer(condCapture, ctx);
 }
@@ -258,9 +262,34 @@ function appendTextFromCapture(
   ctx: LowerContext,
   list: ContentList,
 ): boolean {
-  const captureNode = findDirectChild(parent, captureName);
-  if (!captureNode) return false;
-  return appendNodeContent(captureNode, ctx, list);
+  // A capture's text range can contain multiple matches of the inner
+  // pattern — each emits its own wrapper node as a sibling (e.g. `c5`
+  // for the post-bracket text of a choice can have several
+  // `ChoiceInnerText` siblings, one per inner `DisplayText` match).
+  // Walk every wrapper with the given name inside `parent` and append
+  // each in source order.
+  let appended = false;
+  const stack: SyntaxNode[] = [parent];
+  const matches: SyntaxNode[] = [];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    let child = node.firstChild;
+    while (child) {
+      if (child.name === captureName) {
+        matches.push(child);
+        // Don't descend into the wrapper — its inner text is what we'll
+        // process via `appendNodeContent`.
+      } else {
+        stack.push(child);
+      }
+      child = child.nextSibling;
+    }
+  }
+  matches.sort((a, b) => a.from - b.from);
+  for (const node of matches) {
+    if (appendNodeContent(node, ctx, list)) appended = true;
+  }
+  return appended;
 }
 
 function appendNodeContent(
@@ -318,10 +347,10 @@ function appendNodeContent(
         appended = true;
       }
     } else {
-      const c3 = findDirectChild(m.node, "Tag_c3");
+      const tagContent = getDescendent("TagContent", m.node);
       list.AddContent(new Tag(true, true));
-      if (c3) {
-        if (appendTagContent(c3, ctx, list)) {
+      if (tagContent) {
+        if (appendTagContent(tagContent, ctx, list)) {
           appended = true;
         }
       }

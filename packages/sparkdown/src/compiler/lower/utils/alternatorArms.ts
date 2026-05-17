@@ -1,5 +1,5 @@
-import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { type SyntaxNode } from "@lezer/common";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
@@ -8,8 +8,8 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
-import { lower } from "../lower";
 import { lowerPrimary } from "../expression/lowerExpression";
+import { lower } from "../lower";
 
 // Build a statement-form `Divert` ParsedObject from a
 // `LuauDivertTargetLiteral` syntax node. Mirrors what
@@ -194,8 +194,10 @@ function lowerArmContent(
       // text run; don't trim mid-arm leading whitespace that belongs
       // to the text immediately before the tag.
       flushText(true);
-      // ArmTag's third capture is the tag content (everything after `#`).
-      const tagContent = findChildByName(child, "ArmTag_c3");
+      // `ArmTagContent` lives one level inside the auto-generated `_c3`
+      // capture wrapper, so use `getDescendent` rather than the direct
+      // child lookup.
+      const tagContent = getDescendent("ArmTagContent", child);
       const raw = tagContent
         ? ctx.read(tagContent.from, tagContent.to).trim()
         : "";

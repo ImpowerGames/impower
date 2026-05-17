@@ -326,6 +326,60 @@ const replaceScopes = (
 };
 
 /**
+ * Auto-fills `match: (.+)` for any *named* rule that doesn't already
+ * provide its own matching shape. A rule counts as "needing the default"
+ * when it has a `name` or `tag` (so it emits a scope/node) but lacks every
+ * form of pattern source: `match`, `begin`, `patterns`, and `include`.
+ *
+ * The default is the most common marker-rule shape in this grammar — see
+ * the dozens of `match: (.+)` lines on simple keyword/punctuation rules —
+ * so this lets authors omit the boilerplate and write just:
+ *
+ *   IncludeKeyword:
+ *     tag: controlKeyword
+ *     name: keyword.control.definition.include.sd
+ *
+ * Applies to top-level `repository:` entries and to each rule inside any
+ * nested `patterns:` array. Deliberately does NOT recurse into `captures:`
+ * / `beginCaptures:` / `endCaptures:` — capture entries are positional
+ * scope assignments, not rules; a `match` on them would be meaningless.
+ *
+ * Runs *before* `updateGrammarVariables` so the inserted `match` still
+ * passes through variable substitution (currently a no-op for `(.+)`, but
+ * keeps the pipeline order uniform).
+ */
+const applyDefaultMatchToRule = (rule: any): void => {
+  if (!rule || typeof rule !== "object" || Array.isArray(rule)) return;
+  const isNamed =
+    typeof rule["name"] === "string" || typeof rule["tag"] === "string";
+  const hasMatchShape =
+    typeof rule["match"] === "string" ||
+    typeof rule["begin"] === "string" ||
+    typeof rule["include"] === "string" ||
+    Array.isArray(rule["patterns"]);
+  if (isNamed && !hasMatchShape) {
+    rule["match"] = "(.+)";
+  }
+  // Recurse only into nested rule lists. A rule's `patterns:` is the only
+  // place sub-rules live; captures are scope assignments, not rules.
+  if (Array.isArray(rule["patterns"])) {
+    for (const child of rule["patterns"]) applyDefaultMatchToRule(child);
+  }
+};
+
+const applyDefaultMatch = (grammar: TmGrammar): void => {
+  const repository = grammar.repository;
+  if (repository) {
+    for (const key of Object.keys(repository)) {
+      applyDefaultMatchToRule(repository[key]);
+    }
+  }
+  if (Array.isArray(grammar.patterns)) {
+    for (const child of grammar.patterns) applyDefaultMatchToRule(child);
+  }
+};
+
+/**
  * In each rule of the repository, substitute variables for the given
  * `propertyNames` using `transformProperty`.
  *
@@ -388,6 +442,7 @@ const transformGrammarRule = (
 const buildJson = async (inYamlPath: string, outJsonPath: string) => {
   const text = await fs.promises.readFile(inYamlPath, "utf8");
   const parsed = YAML.parse(text);
+  applyDefaultMatch(parsed);
   const resolved = updateGrammarVariables(parsed);
   const json = JSON.stringify(resolved, null, 2);
   await fs.promises.writeFile(outJsonPath, json);

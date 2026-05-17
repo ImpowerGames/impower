@@ -150,8 +150,8 @@ function buildGatherFromThenClause(
   depth: number,
   ctx: LowerContext,
 ): Gather | null {
-  // Optional `(label)` after `then` is captured into
-  // `LuauSparkdownChooseThenClause_begin_c4` as a `Label` child.
+  // Optional `(label)` after `then` is captured as a `Label` child by
+  // the begin pattern — find its `LabelDeclarationName` descendant.
   const label = getDescendent("LabelDeclarationName", thenClause);
   const identifier = label
     ? new Identifier(ctx.read(label.from, label.to))

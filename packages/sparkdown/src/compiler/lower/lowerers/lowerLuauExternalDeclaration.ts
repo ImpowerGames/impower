@@ -71,8 +71,8 @@ export function lowerLuauExternalDeclaration(
 
 // Walk the subtree looking for the first node with `name`. Used to find
 // `LuauFunctionName` underneath the wrapping `LuauFunctionDeclarationName`
-// / `LuauFunctionDeclarationName_c1` structure without hardcoding the
-// wrapper layout (which may change as the grammar evolves).
+// structure without hardcoding the wrapper layout (which may change as
+// the grammar evolves).
 function findDescendant(
   start: SyntaxNode,
   name: string,

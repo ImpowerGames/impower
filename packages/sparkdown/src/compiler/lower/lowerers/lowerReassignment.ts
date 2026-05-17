@@ -70,8 +70,9 @@ function readAssignmentOperatorText(
 ): string | null {
   const marker = getDescendent("LuauAssignmentOperator", opNode);
   if (!marker) return null;
-  const c2 = getDescendent("LuauAssignmentOperator_begin_c2", marker);
-  return (c2 ?? marker).name && c2
-    ? ctx.read(c2.from, c2.to).trim()
-    : ctx.read(marker.from, marker.to).trim();
+  // `LuauAssignmentOperator`'s begin pattern is
+  // `({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}})({{WS}}*)` — the marker
+  // node only contains optional whitespace + the op + optional
+  // whitespace, so trim is enough to yield the operator text.
+  return ctx.read(marker.from, marker.to).trim();
 }

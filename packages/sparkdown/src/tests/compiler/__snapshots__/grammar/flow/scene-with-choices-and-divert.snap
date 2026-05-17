@@ -70,10 +70,11 @@ sparkdown [0..96]
  │   │       ├─ ChoiceWithSuppressedText_c1 40
  │   │       ├─ ChoiceWithSuppressedText_c2 [40..41]: "["
  │   │       ├─ ChoiceWithSuppressedText_c3 [41..49]
- │   │       │   └─ ChoiceTextContent [41..49]
- │   │       │       └─ ChoiceTextContent_c1 [41..49]
- │   │       │           ├─ Word [41..48]: "Courage"
- │   │       │           └─ Punctuation [48..49]: "."
+ │   │       │   └─ ChoiceOnlyText [41..49]
+ │   │       │       └─ ChoiceTextContent [41..49]
+ │   │       │           └─ ChoiceTextContent_c1 [41..49]
+ │   │       │               ├─ Word [41..48]: "Courage"
+ │   │       │               └─ Punctuation [48..49]: "."
  │   │       ├─ ChoiceWithSuppressedText_c4 [49..50]: "]"
  │   │       ├─ ChoiceWithSuppressedText_c5 50
  │   │       ├─ ChoiceWithSuppressedText_c6 50
@@ -118,10 +119,11 @@ sparkdown [0..96]
      │       ├─ ChoiceWithSuppressedText_c1 71
      │       ├─ ChoiceWithSuppressedText_c2 [71..72]: "["
      │       ├─ ChoiceWithSuppressedText_c3 [72..80]
-     │       │   └─ ChoiceTextContent [72..80]
-     │       │       └─ ChoiceTextContent_c1 [72..80]
-     │       │           ├─ Word [72..79]: "Answers"
-     │       │           └─ Punctuation [79..80]: "."
+     │       │   └─ ChoiceOnlyText [72..80]
+     │       │       └─ ChoiceTextContent [72..80]
+     │       │           └─ ChoiceTextContent_c1 [72..80]
+     │       │               ├─ Word [72..79]: "Answers"
+     │       │               └─ Punctuation [79..80]: "."
      │       ├─ ChoiceWithSuppressedText_c4 [80..81]: "]"
      │       ├─ ChoiceWithSuppressedText_c5 81
      │       ├─ ChoiceWithSuppressedText_c6 81

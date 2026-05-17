@@ -306,7 +306,6 @@ repository:
   IncludeKeyword:
     tag: controlKeyword
     name: keyword.control.definition.include.sd
-    match: (.+)
 
   IncludeContent:
     tag: string
@@ -338,7 +337,6 @@ repository:
   LoadKeyword:
     tag: controlKeyword
     name: keyword.control.definition.load.sd
-    match: (.+)
 
   LoadName:
     tag: constant(variableName)
@@ -557,8 +555,12 @@ repository:
         tag: definition(docComment)
         name: punctuation.definition.comment.sd comment.line.sd entity.tag.begin.sd
       3:
-        tag: content
-        name: punctuation.definition.comment.content.sd
+        patterns:
+          - { include: "#ArmTagContent" }
+
+  ArmTagContent:
+    tag: content
+    name: punctuation.definition.comment.content.sd
 
   ########## Choice ##########
 
@@ -569,12 +571,16 @@ repository:
     #   2: `*` / `+` mark (with optional repeated marks)
     #   3: optional `(label)`
     #   4: optional `if` keyword (gate)
-    #   5: optional condition expression — single identifier
+    #   5: mandatory whitespace after `if`
+    #   6: optional condition expression — single identifier
     #      `if has_key`, dotted path `if player.alive`, optional `not`
     #      prefix `if not has_key`, or parenthesized arbitrary
     #      expression `if (a and b > 0)`. Followed by mandatory
-    #      whitespace before the choice text.
-    #   6: optional trailing newline
+    #      whitespace before the choice text. Wrapped by the
+    #      `ChoiceCondition` named rule so the lowerer can address
+    #      it by name (§6.4) — `Choice_begin_c6` would otherwise be
+    #      auto-generated and unstable.
+    #   7: optional trailing newline
     begin: ({{WS}}*)((?:[*]{{EOK}})+|(?:[+]{{EOK}})+)([(][^()]*[)]{{WS}}*)?(?:(if)\b({{WS}}+)((?:not\b{{WS}}+)?(?:[(][^()]*[)]|{{LUAU_IDENTIFIER}}(?:[.]{{LUAU_IDENTIFIER}})*))(?={{WS}}|$))?(\r\n|\r|\n)?
     beginCaptures:
       1:
@@ -595,10 +601,11 @@ repository:
           - { include: "#OptionalSeparator" }
       6:
         patterns:
-          - { include: "#LuauExpression" }
+          - { include: "#ChoiceCondition" }
       7:
         patterns:
           - { include: "#Newline" }
+
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -606,6 +613,11 @@ repository:
       - { include: "#ChoiceWithSuppressedText" }
       - { include: "#ChoiceWithNoSuppressedText" }
     end: (?=$)
+
+  ChoiceCondition:
+    emit: true
+    patterns:
+      - { include: "#LuauExpression" }
 
   ChoiceConditional:
     name: entity.choice.sd
@@ -624,26 +636,25 @@ repository:
   ChoiceMark:
     tag: keyword
     name: keyword.operator.expression.list.sd
-    match: (.+)
 
   ChoiceWithSuppressedText:
     match: (.*?)(\[)(.*?)(\])(.*?)(?:({{WS}}*)$|({{WS}}*)([-][>].*$))
     captures:
       1:
         patterns:
-          - { include: "#ChoiceTextContent" }
+          - { include: "#ChoiceStartText" }
       2:
         tag: keyword
         name: punctuation.definition.template-expression.begin.choice.suppression.sd
       3:
         patterns:
-          - { include: "#ChoiceTextContent" }
+          - { include: "#ChoiceOnlyText" }
       4:
         tag: keyword
         name: punctuation.definition.template-expression.end.choice.suppression.sd
       5:
         patterns:
-          - { include: "#DisplayText" }
+          - { include: "#ChoiceInnerText" }
       6:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -663,7 +674,7 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#ChoiceTextContent" }
+          - { include: "#ChoicePlainText" }
       2:
         patterns:
           - { include: "#ExtraWhitespace" }
@@ -674,10 +685,36 @@ repository:
         patterns:
           - { include: "#Divert" }
 
+  # Named wrappers for the four choice-text captures — distinct per
+  # capture so the lowerer can address each by name (§6.4) instead of
+  # the auto-generated `_cN` capture-index strings. Inner highlighting
+  # is delegated to `ChoiceTextContent` (text before/inside the
+  # brackets) or `DisplayText` (text after the closing bracket).
+  # `emit: true` is required so the wrapper node appears in the tree —
+  # a pure-`patterns:` dispatcher would be invisible (§5.3).
+  ChoiceStartText:
+    emit: true
+    patterns:
+      - { include: "#ChoiceTextContent" }
+
+  ChoiceOnlyText:
+    emit: true
+    patterns:
+      - { include: "#ChoiceTextContent" }
+
+  ChoiceInnerText:
+    emit: true
+    patterns:
+      - { include: "#DisplayText" }
+
+  ChoicePlainText:
+    emit: true
+    patterns:
+      - { include: "#ChoiceTextContent" }
+
   ChoiceTextContent:
     tag: string
     name: string.choice.sd
-    match: (.+)
 
     captures:
       1:
@@ -746,17 +783,14 @@ repository:
   LabelBeginMark:
     tag: keyword
     name: keyword.flow.label.sd
-    match: (.+)
 
   LabelEndMark:
     tag: keyword
     name: keyword.flow.label.sd
-    match: (.+)
 
   LabelDeclarationName:
     tag: definition(heading)
     name: keyword.control.section.sd
-    match: (.+)
 
   ########## Scene ##########
 
@@ -807,12 +841,10 @@ repository:
   SceneKeyword:
     tag: controlKeyword
     name: keyword.control.scene.sd
-    match: (.+)
 
   SceneDeclarationName:
     tag: definition(heading)
     name: keyword.control.section.sd
-    match: (.+)
 
   ########## Branch ##########
 
@@ -864,12 +896,10 @@ repository:
   BranchKeyword:
     tag: controlKeyword
     name: keyword.control.branch.sd
-    match: (.+)
 
   BranchDeclarationName:
     tag: definition(heading)
     name: keyword.control.section.sd
-    match: (.+)
 
   ########## Divert & Thread ##########
 
@@ -1236,7 +1266,6 @@ repository:
   FrontMatterFieldKeyword:
     tag: keyword
     name: keyword.other.front-matter.field.sd
-    match: (.+)
 
   FrontMatterStringInline:
     match: ({{WS}}*)($|.+$(?:\r\n|\r|\n)?)
@@ -1334,7 +1363,6 @@ repository:
   TitleMark:
     tag: definition(punctuation)
     name: punctuation.title.mark.sd
-    match: (.+)
 
   ########## Heading ##########
 
@@ -1399,7 +1427,6 @@ repository:
   HeadingMark:
     tag: definition(punctuation)
     name: punctuation.heading.mark.sd
-    match: (.+)
 
   HeadingLocationTime:
     match: INT[.]?[\/]EXT[.]|INT[.]|EXT[.]{{WS}}*(.*?){{WS}}+[-]{{WS}}+(.*?){{WS}}*$
@@ -1467,7 +1494,6 @@ repository:
   TransitionalMark:
     tag: definition(punctuation)
     name: punctuation.transitional.mark.sd
-    match: (.+)
 
   ########## Write ##########
 
@@ -1545,12 +1571,10 @@ repository:
   WriteMark:
     tag: keyword
     name: keyword.action.mark.sd
-    match: (.+)
 
   WriteTarget:
     tag: propertyName
     name: variable.other.property.write.target.sd
-    match: (.+)
 
   ########## Dialogue ##########
 
@@ -1616,7 +1640,6 @@ repository:
   DialogueMark:
     tag: definition(typeName)
     name: entity.name.type.dialogue.character.name.sd
-    match: (.+)
 
   DialogueCharacter:
     match: ({{WS}}*)(.*?)({{WS}}*)({{WS}}[(][^()]*?[)])?($|{{WS}}*)({{WS}}\[.*?\])?({{EOL}})
@@ -2114,32 +2137,26 @@ repository:
   ImageBeginMark:
     tag: keyword
     name: keyword.operator.expression.begin.image.sd
-    match: (.+)
 
   ImageEndMark:
     tag: keyword
     name: keyword.operator.expression.end.image.sd
-    match: (.+)
 
   AudioBeginMark:
     tag: keyword
     name: keyword.operator.expression.begin.audio.sd
-    match: (.+)
 
   AudioEndMark:
     tag: keyword
     name: keyword.operator.expression.end.audio.sd
-    match: (.+)
 
   AssetCommandControl:
     tag: controlKeyword
     name: keyword.control.asset.control.sd
-    match: (.+)
 
   AssetCommandTarget:
     tag: typeName
     name: entity.name.type.asset.target.sd
-    match: (.+)
 
   AssetCommandClauseKeyword:
     tag: keyword
@@ -2308,7 +2325,6 @@ repository:
   ControlKeyword:
     tag: controlKeyword
     name: keyword.control.sd
-    match: (.+)
 
   ########## Text ##########
 
@@ -2545,7 +2561,6 @@ repository:
   IllegalExpression:
     tag: invalid
     name: invalid.illegal.illegal-expression.sd
-    match: (.+)
 
   IllegalChar:
     tag: invalid
@@ -2677,7 +2692,6 @@ repository:
   LuauExplicitStatementMark:
     tag: keyword
     name: keyword.other.statement.explicit.luau.mark.sd
-    match: (.+)
 
   # ----------------------------------------------------------------------------
   # Implicit Assignment Statement
@@ -4075,7 +4089,6 @@ repository:
   LuauControlKeyword:
     tag: controlKeyword
     name: keyword.control.luau
-    match: (.+)
 
   LuauKeyword:
     patterns:
@@ -4425,12 +4438,10 @@ repository:
   LuauShebangPunctuation:
     tag: punctuation
     name: punctuation.definition.comment.luau
-    match: (.+)
 
   LuauShebangContent:
     tag: lineComment
     name: comment.line.shebang.luau
-    match: (.+)
 
   # ----------------------------------------------------------------------------
   # Comments
@@ -4487,12 +4498,10 @@ repository:
   LuauCommentMark:
     tag: comment
     name: comment.luau
-    match: (.+)
 
   LuauCodeBlockTag:
     tag: comment
     name: comment.luau
-    match: (.+)
 
   LuauDocLineComment:
     tag: docComment
@@ -4556,12 +4565,10 @@ repository:
   LuauDocTagAnnotation:
     tag: annotation
     name: storage.type.class.luadoc.luau
-    match: (.+)
 
   LuauDocParamName:
     tag: variableName
     name: variable.parameter.luau
-    match: (.+)
 
   # ----------------------------------------------------------------------------
   # Literal Values
@@ -5266,12 +5273,10 @@ repository:
   LuauExportModifier:
     tag: modifier
     name: storage.modifier.visibility.luau
-    match: (.+)
 
   LuauTypeKeyword:
     tag: definitionKeyword
     name: storage.type.luau
-    match: (.+)
 
   LuauTypeName:
     match: ({{LUAU_IDENTIFIER}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
@@ -5420,7 +5425,6 @@ repository:
   LuauTypeofFunctionName:
     tag: function(typeName)
     name: support.function.luau
-    match: (.+)
 
   LuauTypeGenerics:
     brackets: true
@@ -5508,7 +5512,6 @@ repository:
   LuauTypePropertyName:
     tag: propertyName
     name: variable.property.luau
-    match: (.+)
 
   LuauTypeFunctionParameters:
     brackets: true
@@ -5551,7 +5554,6 @@ repository:
   LuauTypeOperator:
     tag: typeOperator
     name: keyword.operator.type.luau
-    match: (.+)
 
   # ----------------------------------------------------------------------------
   # Labels
@@ -5576,7 +5578,6 @@ repository:
   LuauLabelOperator:
     tag: operator
     name: keyword.operator.label.luau
-    match: (.+)
 
   LuauLabelName:
     tag: labelName
@@ -5600,9 +5601,7 @@ repository:
   LuauAttributeOperator:
     tag: operator
     name: keyword.operator.attribute.luau
-    match: (.+)
 
   LuauAttributeName:
     tag: attributeName
     name: storage.type.attribute.luau
-    match: (.+)

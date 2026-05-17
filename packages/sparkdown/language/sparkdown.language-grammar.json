@@ -772,10 +772,18 @@
           "name": "punctuation.definition.comment.sd comment.line.sd entity.tag.begin.sd"
         },
         "3": {
-          "tag": "content",
-          "name": "punctuation.definition.comment.content.sd"
+          "patterns": [
+            {
+              "include": "#ArmTagContent"
+            }
+          ]
         }
       }
+    },
+    "ArmTagContent": {
+      "tag": "content",
+      "name": "punctuation.definition.comment.content.sd",
+      "match": "(.+)"
     },
     "Choice": {
       "name": "entity.choice.sd",
@@ -820,7 +828,7 @@
         "6": {
           "patterns": [
             {
-              "include": "#LuauExpression"
+              "include": "#ChoiceCondition"
             }
           ]
         },
@@ -850,6 +858,14 @@
         }
       ],
       "end": "(?=$)"
+    },
+    "ChoiceCondition": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        }
+      ]
     },
     "ChoiceConditional": {
       "name": "entity.choice.sd",
@@ -889,7 +905,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#ChoiceTextContent"
+              "include": "#ChoiceStartText"
             }
           ]
         },
@@ -900,7 +916,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#ChoiceTextContent"
+              "include": "#ChoiceOnlyText"
             }
           ]
         },
@@ -911,7 +927,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#DisplayText"
+              "include": "#ChoiceInnerText"
             }
           ]
         },
@@ -944,7 +960,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#ChoiceTextContent"
+              "include": "#ChoicePlainText"
             }
           ]
         },
@@ -971,10 +987,41 @@
         }
       }
     },
+    "ChoiceStartText": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#ChoiceTextContent"
+        }
+      ]
+    },
+    "ChoiceOnlyText": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#ChoiceTextContent"
+        }
+      ]
+    },
+    "ChoiceInnerText": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#DisplayText"
+        }
+      ]
+    },
+    "ChoicePlainText": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#ChoiceTextContent"
+        }
+      ]
+    },
     "ChoiceTextContent": {
       "tag": "string",
       "name": "string.choice.sd",
-      "match": "(.+)",
       "captures": {
         "1": {
           "patterns": [
@@ -989,7 +1036,8 @@
             }
           ]
         }
-      }
+      },
+      "match": "(.+)"
     },
     "LabelAnchor": {
       "match": "^((?:[^\\S\\n\\r])*)(label)\\b((?:[^\\S\\n\\r])*)((?:[_\\p{L}][0-9_\\p{L}-]*\\b))((?:[^\\S\\n\\r])*)",
@@ -3783,7 +3831,8 @@
     },
     "TextCommandControlKeyword": {
       "tag": "keyword",
-      "name": "keyword.style.control.keyword.sd"
+      "name": "keyword.style.control.keyword.sd",
+      "match": "(.+)"
     },
     "TextCommandArguments": {
       "captures": {

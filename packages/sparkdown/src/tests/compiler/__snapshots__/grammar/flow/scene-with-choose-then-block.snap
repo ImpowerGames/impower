@@ -39,9 +39,10 @@ sparkdown [0..87]
  │   │   │   ├─ Choice_content [26..28]
  │   │   │   │   └─ ChoiceWithNoSuppressedText [26..28]
  │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [26..28]
- │   │   │   │       │   └─ ChoiceTextContent [26..28]
- │   │   │   │       │       └─ ChoiceTextContent_c1 [26..28]
- │   │   │   │       │           └─ Word [26..28]: "Hi"
+ │   │   │   │       │   └─ ChoicePlainText [26..28]
+ │   │   │   │       │       └─ ChoiceTextContent [26..28]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [26..28]
+ │   │   │   │       │               └─ Word [26..28]: "Hi"
  │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 28
  │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 28
  │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 28
@@ -61,9 +62,10 @@ sparkdown [0..87]
  │   │   │   ├─ Choice_content [35..38]
  │   │   │   │   └─ ChoiceWithNoSuppressedText [35..38]
  │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [35..38]
- │   │   │   │       │   └─ ChoiceTextContent [35..38]
- │   │   │   │       │       └─ ChoiceTextContent_c1 [35..38]
- │   │   │   │       │           └─ Word [35..38]: "Hey"
+ │   │   │   │       │   └─ ChoicePlainText [35..38]
+ │   │   │   │       │       └─ ChoiceTextContent [35..38]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [35..38]
+ │   │   │   │       │               └─ Word [35..38]: "Hey"
  │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 38
  │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 38
  │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 38
