@@ -49,28 +49,51 @@ const KEYWORDS_REQUIRING_TRAILING_SPACE = new Set([
   "BranchKeyword",
 ]);
 
-const INLINE_ALTERNATOR_NAMES = new Set([
-  "LuauSequentialAlternatorBlock",
-  "LuauConditionalAlternatorBlock",
+// Alternator forms whose ARM CONTENT is *display text* (not a Luau
+// expression). These carry typing-pacing significance: whitespace
+// between/around the `|` separators is part of the rendered output,
+// so the formatter must leave it alone.
+const PRESERVE_WHITESPACE_ALTERNATOR_NAMES = new Set([
   "LuauSparkdownInlineGluedSequentialAlternatorBlock",
   "LuauSparkdownInlineGluedConditionalAlternatorBlock",
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
 ]);
 
+// Any inline alternator form — these all live on a single line and
+// should be tight (no `keyword (paren)` separation). Includes both
+// the display-text variants above AND the Luau-expression variants
+// (`{plural(n)|one="is"|other="are"}`).
+const ALL_INLINE_ALTERNATOR_NAMES = new Set([
+  ...PRESERVE_WHITESPACE_ALTERNATOR_NAMES,
+  "LuauSequentialAlternatorBlock",
+  "LuauConditionalAlternatorBlock",
+]);
+
 function isInsideInlineAlternator(
   node: SparkdownSyntaxNodeRef,
   read: (from: number, to: number) => string,
 ): boolean {
+  return isInsideAlternatorSet(node, read, PRESERVE_WHITESPACE_ALTERNATOR_NAMES);
+}
+
+function isInsideAnyInlineAlternator(
+  node: SparkdownSyntaxNodeRef,
+  read: (from: number, to: number) => string,
+): boolean {
+  return isInsideAlternatorSet(node, read, ALL_INLINE_ALTERNATOR_NAMES);
+}
+
+function isInsideAlternatorSet(
+  node: SparkdownSyntaxNodeRef,
+  read: (from: number, to: number) => string,
+  names: Set<string>,
+): boolean {
   for (const ancestor of getContextStack(node.node)) {
-    if (!INLINE_ALTERNATOR_NAMES.has(ancestor.name)) continue;
-    // Same-rule grammar names cover BOTH the single-line inline form
-    // (`{queue|a|b}` or `queue | a | b end`) and the multi-line
-    // block form written inside a Luau expression like
-    // `return ( chain | ... end )`. Only the single-line form
-    // carries runtime typing-pacing significance — multi-line
-    // blocks should be normalized like any other body content. We
-    // distinguish by checking whether the ancestor spans a newline.
+    if (!names.has(ancestor.name)) continue;
+    // The shared rule names cover BOTH the single-line inline form
+    // and the multi-line block form (e.g. `return ( chain | ... end )`).
+    // Only the single-line form is "inline" for formatter purposes.
     const span = read(ancestor.from, ancestor.to);
     if (span.includes("\n")) continue;
     return true;
@@ -361,9 +384,14 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
       const nextChar = this.read(scanPos, scanPos + 1);
       if (nextChar === "(") {
+        // Any inline alternator (display-text variants AND
+        // Luau-expression variants like `{plural(n)|one=...}`)
+        // should stay tight — never `plural (n)`.
         const insideInline =
           nodeRef.name === "LuauControlKeyword" &&
-          isInsideInlineAlternator(nodeRef, (from, to) => this.read(from, to));
+          isInsideAnyInlineAlternator(nodeRef, (from, to) =>
+            this.read(from, to),
+          );
         if (!insideInline) {
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
@@ -413,17 +441,26 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     //     the formatter's shouldInsertSpaceBetween rules).
     //   - ExtraWhitespace → "extra" (collapse to nothing).
     //   - Whitespace → preserve, no annotation.
+    //
+    // Inline alternators get special treatment:
+    //   - Display-text variants (`PRESERVE_WHITESPACE_ALTERNATOR_NAMES`):
+    //     whitespace is part of the rendered output (typing-pacing) →
+    //     skip emission entirely.
+    //   - Luau-expression variants (`{plural(n)|key="val"|...}`):
+    //     should be TIGHT — emit `extra` so structural whitespace
+    //     around `=` / `|` collapses (string-literal contents stay
+    //     intact because the parser treats them as one token).
     if (
       nodeRef.name === "RequiredWhitespace" ||
       nodeRef.name === "OptionalWhitespace"
     ) {
-      if (isInsideInlineAlternator(nodeRef, (from, to) => this.read(from, to)))
-        return annotations;
+      const read = (from: number, to: number) => this.read(from, to);
+      if (isInsideInlineAlternator(nodeRef, read)) return annotations;
+      const tightInline = isInsideAnyInlineAlternator(nodeRef, read);
       annotations.push(
-        SparkdownAnnotation.mark<FormatType>("separator").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
+        SparkdownAnnotation.mark<FormatType>(
+          tightInline ? "extra" : "separator",
+        ).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
     }

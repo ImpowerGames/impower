@@ -793,169 +793,177 @@ export const getFormatting = (
   };
 };
 
+// Edit-type precedence. When two overlapping edits can't merge,
+// the higher-precedence one wins. Adding a new edit type? Drop one
+// entry here and the conflict logic does the rest.
+//
+// Slots are spaced (10s) to leave room for future types without
+// renumbering. Equal precedence is fine — they'll fall to the
+// merge/adjacent-concat fallback.
+const PRECEDENCE: Record<string, number> = {
+  // Targeted character rewrites that nothing else should touch.
+  alternator_open: 100,
+  alternator_close: 100,
+  alternator_comma: 100,
+  scene_end: 100,
+  branch_end: 100,
+  choice_mark: 100,
+  // Structural line-level edits.
+  blankline_insert: 100,
+  blankline: 90,
+  newline: 90,
+  // Whitespace normalization at the leading column.
+  indent: 80,
+  // Mid-line whitespace.
+  keyword_separator: 70,
+  separator: 60,
+  extra: 50,
+  trailing: 40,
+};
+
+const precedence = (type: string) => PRECEDENCE[type] ?? 0;
+
+// Pairs that can merge their ranges into one edit (rather than one
+// winning and the other being dropped). The winner's `newText` is
+// kept; the loser's range is unioned in.
+const MERGEABLE: Set<string> = new Set([
+  // Same-type unions: two adjacent whitespace dispatches at the same
+  // boundary should fuse into one edit, not stay as two adjacent edits.
+  "separator|separator",
+  "extra|extra",
+  // Cross-type mergeables: when both edits target overlapping
+  // whitespace and their normalized intents are compatible.
+  "keyword_separator|separator",
+  "keyword_separator|keyword_separator",
+  "separator|extra",
+]);
+
+const isMergeable = (a: string, b: string) =>
+  MERGEABLE.has(`${a}|${b}`) || MERGEABLE.has(`${b}|${a}`);
+
 export const resolveFormattingConflicts = (
   edits: (TextEdit & { type: string })[] | undefined,
   document: SparkdownDocument,
   formattingOnType?: Position,
 ): TextEdit[] => {
   const result: (TextEdit & { type: string })[] = [];
-  if (!edits) {
-    return result;
-  }
+  if (!edits) return result;
+
+  const start = (e: TextEdit) => document.offsetAt(e.range.start);
+  const end = (e: TextEdit) => document.offsetAt(e.range.end);
+
+  // Union the prev edit's range with curr's, keeping prev's `newText`.
+  const unionInto = (
+    keep: TextEdit & { type: string },
+    other: TextEdit & { type: string },
+  ) => {
+    if (start(other) < start(keep)) keep.range.start = other.range.start;
+    if (end(other) > end(keep)) keep.range.end = other.range.end;
+  };
+
   for (let i = 0; i < edits.length; i++) {
     const curr = structuredClone(edits[i])!;
-    const prev = result.at(-1)!;
-    if (prev) {
-      const currFrom = document.offsetAt(curr.range.start);
-      const prevTo = document.offsetAt(prev.range.end);
-      const prevFrom = document.offsetAt(prev.range.start);
-      const currOldText = document.getText(curr.range);
-      const prevOldText = document.getText(prev.range);
-      // Normalize for symmetric handling: treat `keyword_separator`
-      // and `separator` together when checking conflicts so the
-      // pair-permutation list below stays short. `keyword_separator`
-      // ALWAYS wins.
-      if (prevTo >= currFrom) {
-        if (
-          (curr.type === "keyword_separator" && prev.type === "separator") ||
-          (curr.type === "separator" && prev.type === "keyword_separator") ||
-          (curr.type === "keyword_separator" &&
-            prev.type === "keyword_separator")
-        ) {
-          // Use the keyword_separator's newText (always " "), merging
-          // ranges so we don't leave a duplicate edit.
-          const keep = curr.type === "keyword_separator" ? curr : prev;
-          const drop = curr.type === "keyword_separator" ? prev : curr;
-          if (
-            document.offsetAt(drop.range.start) <
-            document.offsetAt(keep.range.start)
-          ) {
-            keep.range.start = drop.range.start;
-          }
-          if (
-            document.offsetAt(drop.range.end) >
-            document.offsetAt(keep.range.end)
-          ) {
-            keep.range.end = drop.range.end;
-          }
-          if (curr.type === "keyword_separator") {
-            result.pop();
-          } else {
-            continue;
-          }
-        } else if (curr.type === "separator" && prev.type === "separator") {
-          if (
-            document.offsetAt(curr.range.start) <
-            document.offsetAt(prev.range.start)
-          ) {
-            prev.range.start = curr.range.start;
-          }
-          if (
-            document.offsetAt(curr.range.end) >
-            document.offsetAt(prev.range.end)
-          ) {
-            prev.range.end = curr.range.end;
-          }
-          continue;
-        } else if (curr.type === "indent" && prev.type === "separator") {
-          result.pop();
-        } else if (prev.type === "indent" && curr.type === "separator") {
-          continue;
-        } else if (curr.type === "indent" && prev.type === "extra") {
-          result.pop();
-        } else if (prev.type === "indent" && curr.type === "extra") {
-          continue;
-        } else if (curr.type === "separator" && prev.type === "extra") {
-          if (
-            document.offsetAt(prev.range.start) <
-            document.offsetAt(curr.range.start)
-          ) {
-            curr.range.start = prev.range.start;
-          }
-          if (
-            document.offsetAt(prev.range.end) >
-            document.offsetAt(curr.range.end)
-          ) {
-            curr.range.end = prev.range.end;
-          }
-          result.pop();
-        } else if (prev.type === "separator" && curr.type === "extra") {
-          if (
-            document.offsetAt(curr.range.start) <
-            document.offsetAt(prev.range.start)
-          ) {
-            prev.range.start = curr.range.start;
-          }
-          if (
-            document.offsetAt(curr.range.end) >
-            document.offsetAt(prev.range.end)
-          ) {
-            prev.range.end = curr.range.end;
-          }
-          continue;
-        } else if (curr.type === "blankline" && prev.type === "indent") {
-          if (
-            document.offsetAt(prev.range.start) <
-            document.offsetAt(curr.range.start)
-          ) {
-            curr.range.start = prev.range.start;
-          }
-          if (
-            document.getLineText(prev.range.start.line).trim() ||
-            formattingOnType
-          ) {
-            curr.newText += prev.newText;
-          }
-          result.pop();
-        } else if (prev.type === "blankline" && curr.type === "indent") {
-          if (
-            document.offsetAt(curr.range.end) >
-            document.offsetAt(prev.range.end)
-          ) {
-            prev.range.end = curr.range.end;
-          }
-          if (
-            document.getLineText(curr.range.start.line).trim() ||
-            formattingOnType
-          ) {
-            prev.newText += curr.newText;
-          }
-          continue;
-        } else if (curr.type === "blankline" && prev.type === "separator") {
-          result.pop();
-        } else if (prev.type === "blankline" && curr.type === "separator") {
-          continue;
-        } else if (curr.newText === "" && prev.newText === "") {
-          prev.range.end = curr.range.end;
-          continue;
-        } else if (prevTo === currFrom) {
-          prev.newText += curr.newText;
-          prev.range.end = curr.range.end;
-          continue;
-        } else {
-          console.error(
-            "ERROR:",
-            JSON.stringify({
-              line: prev.range.start.line + 1,
-              offset: prevFrom,
-              oldText: prevOldText,
-              newText: prev.newText,
-              type: prev.type,
-            }),
-            " overlaps with ",
-            JSON.stringify({
-              line: curr.range.start.line + 1,
-              offset: currFrom,
-              oldText: currOldText,
-              newText: curr.newText,
-              type: curr.type,
-            }),
-          );
-          continue;
-        }
-      }
+    const prev = result.at(-1);
+    if (!prev || end(prev) < start(curr)) {
+      // No overlap (and not even touching) — just push.
+      result.push(curr);
+      continue;
     }
-    result.push({ range: curr.range, newText: curr.newText, type: curr.type });
+
+    // blankline + indent is special: deleting a blank line AND
+    // formatting the next line's indent should combine into ONE edit
+    // covering both spans, with the indent text appended (so the
+    // next line gets its leading whitespace right after the deletion).
+    // Skip the concat in trim-and-keep cases where the blank line
+    // itself was the body content (no text to indent).
+    const blanklineIndentMerge =
+      (prev.type === "blankline" && curr.type === "indent") ||
+      (prev.type === "indent" && curr.type === "blankline");
+    if (blanklineIndentMerge) {
+      const blankline = prev.type === "blankline" ? prev : curr;
+      const indent = prev.type === "indent" ? prev : curr;
+      // Use the indent edit's *content line* as the trim check: if
+      // that line has visible characters (or we're formatting-on-type
+      // and need to preserve indent at the cursor), concat the
+      // indent text after the blankline deletion. Otherwise the
+      // blank-line removal stands alone.
+      const indentLineHasContent =
+        document.getLineText(indent.range.start.line).trim() !== "";
+      const shouldConcat = indentLineHasContent || formattingOnType;
+      unionInto(prev, curr);
+      if (shouldConcat) {
+        // The blankline edit deletes; the indent edit inserts WS.
+        // After unioning ranges, the deletion + insertion = blankline-deleted-then-indent.
+        if (prev.type === "blankline") prev.newText += indent.newText;
+        else prev.newText = blankline.newText + prev.newText;
+      } else {
+        // Just the deletion. prev keeps its newText if it's the
+        // blankline; otherwise replace.
+        if (prev.type === "indent") prev.newText = blankline.newText;
+      }
+      // Force prev's type to whichever should dominate for downstream
+      // (immaterial after this — the edit is final).
+      prev.type = "blankline";
+      continue;
+    }
+
+    if (isMergeable(prev.type, curr.type)) {
+      // Mergeable overlap — keep whichever has higher precedence
+      // (its `newText` wins); union ranges.
+      if (precedence(curr.type) > precedence(prev.type)) {
+        unionInto(curr, prev);
+        result.pop();
+        result.push(curr);
+      } else {
+        unionInto(prev, curr);
+      }
+      continue;
+    }
+
+    // Not mergeable — higher precedence wins, lower is dropped.
+    // (Ties: drop curr, keep prev — arbitrary but stable.)
+    if (precedence(curr.type) > precedence(prev.type)) {
+      result.pop();
+      result.push(curr);
+      continue;
+    }
+    if (precedence(curr.type) < precedence(prev.type)) {
+      continue;
+    }
+
+    // Equal precedence, not mergeable, overlapping. Two cases:
+    //   - Pure deletions adjacent / overlapping: fuse the range, keep "".
+    //   - Touching (prev.end === curr.start) but otherwise unrelated:
+    //     fuse text into prev.
+    // Anything else is a real conflict the formatter has produced —
+    // log and drop curr to keep going.
+    if (curr.newText === "" && prev.newText === "") {
+      prev.range.end = curr.range.end;
+      continue;
+    }
+    if (end(prev) === start(curr)) {
+      prev.newText += curr.newText;
+      prev.range.end = curr.range.end;
+      continue;
+    }
+    console.error(
+      "ERROR:",
+      JSON.stringify({
+        line: prev.range.start.line + 1,
+        offset: start(prev),
+        oldText: document.getText(prev.range),
+        newText: prev.newText,
+        type: prev.type,
+      }),
+      " overlaps with ",
+      JSON.stringify({
+        line: curr.range.start.line + 1,
+        offset: start(curr),
+        oldText: document.getText(curr.range),
+        newText: curr.newText,
+        type: curr.type,
+      }),
+    );
   }
 
   return result;
