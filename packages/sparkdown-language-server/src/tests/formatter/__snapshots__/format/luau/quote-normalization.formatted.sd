@@ -10,7 +10,7 @@ define O as character with
   name = "Orion"
 end
 
-scene S:
+scene S
   N: He said 'hi'
   M: "She replied"
 end

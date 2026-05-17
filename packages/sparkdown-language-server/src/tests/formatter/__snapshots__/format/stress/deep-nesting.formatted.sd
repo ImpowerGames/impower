@@ -1,4 +1,4 @@
-scene start:
+scene start
   if health > 0 then
     if has_key then
       N: You unlock the door.

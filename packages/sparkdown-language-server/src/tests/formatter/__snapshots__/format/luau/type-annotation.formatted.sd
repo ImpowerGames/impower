@@ -1,4 +1,4 @@
-scene LoseTrust(c: companion):
+scene LoseTrust(c: companion)
   N: Done.
 end
 

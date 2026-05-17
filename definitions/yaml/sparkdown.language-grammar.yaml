@@ -829,17 +829,7 @@ repository:
     patterns:
       - { include: "#SceneWithParametersDeclaration" }
       - { include: "#SceneWithoutParametersDeclaration" }
-    # End on `$` or `:` — but tolerate optional whitespace before
-    # the colon (`scene Foo(x: int)   :`) so the parser doesn't get
-    # stuck after the parameter-decl rule returns to the trailing WS.
-    end: $|({{WS}}*)([:])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#ColonOperator" }
+    end: $
 
   SceneWithParametersDeclaration:
     begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])
@@ -890,14 +880,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#BranchWithParametersDeclaration" }
       - { include: "#BranchWithoutParametersDeclaration" }
-    end: $|({{WS}}*)([:])
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        patterns:
-          - { include: "#ColonOperator" }
+    end: $
 
   BranchWithParametersDeclaration:
     begin: ({{IDENTIFIER}})({{WS}}*)(?=[(])

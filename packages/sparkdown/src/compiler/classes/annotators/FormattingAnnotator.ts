@@ -174,9 +174,7 @@ export type FormatType =
   | "frontmatter_begin"
   | "frontmatter_end"
   | "scene_begin"
-  | "scene_end"
   | "branch_begin"
-  | "branch_end"
   | "choice_mark"
   | "sol_comment"
   | "eol_divert"
@@ -290,15 +288,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "Scene_end") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("scene_end").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
+    // (Scene_end annotation removed — scene declarations no longer
+    // accept a trailing colon, so there's no end-of-declaration token
+    // for the formatter to normalize.)
     // Top-level Luau declarations (function / define) terminate the
     // implicit scene-body that scene_begin pushed onto the indent
     // stack. Emit a `top_level_begin` so the formatter resets indent
@@ -329,15 +321,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "Branch_end") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("branch_end").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
+    // (Branch_end annotation removed — see Scene_end note above.)
     // Wordlike binary operators (`and`, `or`, `not`) — the
     // operator's trailing-WS capture sits between the keyword and
     // its right operand. When the operand begins with `(`, the

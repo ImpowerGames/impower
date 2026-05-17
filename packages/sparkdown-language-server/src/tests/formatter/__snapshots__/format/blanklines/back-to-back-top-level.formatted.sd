@@ -6,10 +6,10 @@ function g()
   return 2
 end
 
-scene Foo:
+scene Foo
   Hello.
 end
 
-scene Bar:
+scene Bar
   World.
 end

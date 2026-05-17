@@ -731,32 +731,8 @@ export const getFormatting = (
       ensureBlankLineBefore(cur.from);
     } else if (cur.value.type === "top_level_begin") {
       ensureBlankLineBefore(cur.from);
-    } else if (cur.value.type === "scene_end") {
-      const text = document.getText(range);
-      const expectedText = ":";
-      if (text !== expectedText) {
-        pushIfInRange({
-          lineNumber: range.start.line + 1,
-          range,
-          oldText: document.getText(range),
-          newText: expectedText,
-          type: cur.value.type,
-        });
-      }
     } else if (cur.value.type === "branch_begin") {
       branchActive = true;
-    } else if (cur.value.type === "branch_end") {
-      const text = document.getText(range);
-      const expectedText = ":";
-      if (text !== expectedText) {
-        pushIfInRange({
-          lineNumber: range.start.line + 1,
-          range,
-          oldText: document.getText(range),
-          newText: expectedText,
-          type: cur.value.type,
-        });
-      }
     } else if (cur.value.type === "newline") {
       const range = document.range(cur.from, cur.to);
       const lineRange = document.getLineRange(range.start.line);
@@ -1566,8 +1542,6 @@ const PRECEDENCE: Record<string, number> = {
   opener_join: 110,
   elseif_join: 110,
   elseif_drop_end: 110,
-  scene_end: 100,
-  branch_end: 100,
   choice_mark: 100,
   // Structural line-level edits.
   blankline_insert: 100,

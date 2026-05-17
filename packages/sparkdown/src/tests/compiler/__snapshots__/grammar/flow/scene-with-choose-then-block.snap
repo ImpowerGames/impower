@@ -13,8 +13,6 @@ sparkdown [0..87]
  │   │       │   └─ SceneDeclarationName [6..10]: "main"
  │   │       └─ SceneWithoutParametersDeclaration_c2 10
  │   └─ Scene_end 10
- │       ├─ Scene_end_c1 10
- │       └─ Scene_end_c2 10
  ├─ Newline [10..11]: "\n"
  ├─ LuauSparkdownChooseBlock [11..76]
  │   ├─ LuauSparkdownChooseBlock_begin [11..19]

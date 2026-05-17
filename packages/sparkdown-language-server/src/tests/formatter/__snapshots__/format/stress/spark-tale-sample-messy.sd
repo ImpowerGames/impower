@@ -29,7 +29,7 @@ const   MAX_TRUST   =   10
 
 ^:   THE TALE OF THE SPARK
 
-scene   Rooftop  :
+scene   Rooftop
    [[  show backdrop rooftop_night  ]]
    ((  play   music   stars  ))
 
@@ -46,18 +46,18 @@ scene   Rooftop  :
    +   [Courage.]   ->   WishCourage
     +   [Answers.]   ->   WishAnswers
 
-   branch   WishCourage  :
+   branch   WishCourage
       [[  show portrait nova_smile over 50ms  ]]
       N:   Then let's be brave together.
       ->   AfterWish
    end
 
-   branch   WishAnswers  :
+   branch   WishAnswers
       O:   Answers come with a price.
       ->   AfterWish
    end
 
-   branch   AfterWish  :
+   branch   AfterWish
       if   trust   >=   1   then
          N:   I trust you. Let's follow it.
          [[  hide stage over 1s  ]]
@@ -70,7 +70,7 @@ scene   Rooftop  :
    end
 end
 
-scene   Alley  :
+scene   Alley
 
    [[  show backdrop alley_neon  ]]
    ((  play   music   stars  ))
@@ -89,12 +89,12 @@ scene   Alley  :
    +   [I'll protect it.]   ->   ProtectStar
    +   [Let's take it.]   ->   TakeStar
 
-   branch   ProtectStar  :
+   branch   ProtectStar
       ->   GainTrust(   companion.O   )   ->
       ->   PassTime()   ->
    end
 
-   branch   TakeStar  :
+   branch   TakeStar
       &   inventory.star   +=   1
       ->   DisplayInventory()   ->
       ->   LoseTrust(   companion.O   )   ->
@@ -102,7 +102,7 @@ scene   Alley  :
    end
 end
 
-scene   LoseTrust(c: companion)  :
+scene   LoseTrust(c: companion)
    if   c.trust   ==   0   then
       {c.name} doesn't trust you at all.
    else
@@ -111,7 +111,7 @@ scene   LoseTrust(c: companion)  :
    end
 end
 
-scene   GainTrust(c: companion)  :
+scene   GainTrust(c: companion)
    if   c.trust   ==   MAX_TRUST   then
       {c.name} really trusts you.
    else
@@ -120,11 +120,11 @@ scene   GainTrust(c: companion)  :
    end
 end
 
-scene   DisplayInventory()  :
+scene   DisplayInventory()
    You now have {inventory.stars} {plural(inventory.stars){one="star",other="stars"}} and {inventory.coins} {plural(inventory.coins){one="coin",other="coins"}}.
 end
 
-scene   PassTime()  :
+scene   PassTime()
    %:   A few hours later...
    &   advance_time()
 end

@@ -1,4 +1,4 @@
-scene main:
+scene main
   if trust >= 1 or trust >= 2 then
     body
   end
