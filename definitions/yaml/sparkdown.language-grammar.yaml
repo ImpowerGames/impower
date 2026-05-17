@@ -153,15 +153,21 @@ variables:
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
-  # `match` and `plural` (the conditional alternator keywords) are
-  # intentionally NOT excluded here — they are reserved only at their
-  # specific alternator-opening syntactic positions (where the rule
-  # requires `keyword (condition)`). Everywhere else they parse as
-  # ordinary identifiers, so authors can write `plural.category(n)`,
-  # `local plural = 5`, `function plural(n) end`, etc. The alternator
-  # rules' begin patterns add a `(?=[(])` lookahead so `plural.X`
-  # (followed by `.`) won't be greedily matched as an alternator opening.
-  LUAU_IDENTIFIER: (?:(?!{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})[a-zA-Z_][a-zA-Z0-9_]*\b)
+  # Plain identifier shape. The sequential-alternator keywords
+  # (`queue` / `cycle` / `chain` / `shuffle`) used to be excluded here
+  # via a negative lookahead, but reservation now lives structurally
+  # in `LuauSequentialAlternatorKeyword` (included from
+  # `Luau(Sparkdown)?AlternatorBlocks`) — the keyword is consumed by
+  # that rule before any identifier-shaped rule is tried, so it
+  # can't be rebound as an identifier. `match` and `plural` (the
+  # conditional alternator keywords) remain unreserved here — they
+  # are matched only at their specific alternator-opening positions
+  # (where the rule requires `keyword (condition)`), so authors can
+  # still write `plural.category(n)`, `local plural = 5`, etc. The
+  # alternator rules' begin patterns add a `(?=[(])` lookahead so
+  # `plural.X` (followed by `.`) won't be greedily matched as an
+  # alternator opening.
+  LUAU_IDENTIFIER: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   LUAU_ASSIGNMENT_OPERATORS: (?:\+=|-=|\/=|\/\/=|\*=|%=|\^=|\.\.=|=(?!=))
   LUAU_COMPARE_OPERATORS: (?:==|~=|<=?|>=?)
@@ -3786,11 +3792,35 @@ repository:
       - { include: "#LuauSparkdownSingleLineSequentialAlternatorBlock" }
       - { include: "#LuauSparkdownConditionalAlternatorBlock" }
       - { include: "#LuauSparkdownSequentialAlternatorBlock" }
+      # Bare-keyword fallback: catches a sequential-alternator keyword
+      # (`queue` / `cycle` / `chain` / `shuffle`) that didn't match
+      # any full alternator-block shape above. Reserves the token at
+      # the structural level — i.e. `local queue = 5` can't rebind
+      # `queue` because this rule consumes it before any identifier
+      # / assignment rule is tried.
+      - { include: "#LuauSequentialAlternatorKeyword" }
 
   LuauAlternatorBlocks:
     patterns:
       - { include: "#LuauConditionalAlternatorBlock" }
       - { include: "#LuauSequentialAlternatorBlock" }
+      # See `LuauSparkdownAlternatorBlocks` — bare-keyword reservation.
+      - { include: "#LuauSequentialAlternatorKeyword" }
+
+  # Standalone match for the sequential-alternator keyword tokens.
+  # Used as the last fallback in `Luau(Sparkdown)?AlternatorBlocks`
+  # so the keyword is consumed structurally even when it appears
+  # outside a full alternator-block shape. This replaces a former
+  # negative-lookahead carve-out inside `LUAU_IDENTIFIER` that
+  # excluded the same keywords from the identifier pattern globally
+  # — see GRAMMAR.md §10.1 for the rationale (structural reservation
+  # over baked-in lookahead).
+  LuauSequentialAlternatorKeyword:
+    match: ({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauControlKeyword" }
 
   LuauAlternatorSeparator:
     match: ({{WS}}*)([|])({{WS}}*)(?:({{LUAU_IDENTIFIER}})({{WS}}*)([=])({{WS}}*))?
