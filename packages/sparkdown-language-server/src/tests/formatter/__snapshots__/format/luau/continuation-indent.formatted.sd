@@ -1,0 +1,21 @@
+function f()
+  local a = x + y
+    + z
+
+  local b = foo(
+    arg1,
+    arg2,
+  )
+
+  local c = "hello"
+    .. "world"
+
+  local d = {
+    a = 1,
+    b = 2,
+  }
+
+  obj
+    :m1()
+    :m2()
+end

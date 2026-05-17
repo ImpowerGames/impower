@@ -76,6 +76,12 @@ const INDENTING_BLOCKS = new Set<SparkdownNodeName>([
   "LuauMethodDefinition",
   "LuauTable",
   "LuauParenthetical",
+  // Multi-line function-call arg lists (`foo(\n  arg1,\n  arg2,\n)`)
+  // and function-definition parameter lists indent their body one
+  // level past the opener — same shape as `LuauParenthetical` and
+  // `LuauTable`.
+  "LuauFunctionCallParameters",
+  "LuauFunctionParameters",
   // NOTE: `Scene` and `Branch` end at the colon — they're single-line
   // tree nodes, not body wrappers. Their indent contributions are
   // tracked via `sceneActive` / `branchActive` state (see below)
@@ -215,6 +221,56 @@ function isHeaderOpenerLine(
       block.name === "LuauElseifBlock")
   ) {
     return true;
+  }
+  return false;
+}
+
+// Continuation-line indent bump: a line whose first non-WS token is
+// the operator of a binary `Luau*Operator` rule (arithmetic, compare,
+// logical, concat, type-cast, accessor for method chains) sits inside
+// an expression that started on a previous line. The structural tree
+// has no block boundary at the line-break — `computeBlockIndent` would
+// return the parent's depth and leave the continuation line aligned
+// with the opening line.
+//
+// Prettier and Lua's stylua both indent these continuations one level
+// past the opener:
+//
+//   local x = a + b
+//     + c + d
+//
+//   local s = "hello"
+//     .. "world"
+//
+//   obj
+//     :method1()
+//     :method2()
+//
+// Detection: the leaf at line-start sits underneath one of the
+// `Luau*Operator` rules whose own begin is on THIS line — meaning the
+// operator itself opens the line. Lines that merely happen to be
+// inside an operator scope (e.g. the RHS operand on the same line as
+// the operator) don't trigger; only lines that LEAD with the operator
+// token do.
+const CONTINUATION_OPERATOR_RULES = new Set<string>([
+  "LuauArithmeticOperator",
+  "LuauCompareOperator",
+  "LuauLogicalOperator",
+  "LuauConcatOperator",
+  "LuauTypeCastOperator",
+  "LuauAccessorOperator",
+]);
+function isContinuationLine(
+  stack: GrammarSyntaxNode<SparkdownNodeName>[],
+  lineStart: number,
+): boolean {
+  for (const node of stack) {
+    if (!node) continue;
+    if (!CONTINUATION_OPERATOR_RULES.has(node.name)) continue;
+    // Operator's own opening must be on the current line — i.e.
+    // its node.from >= lineStart. If the operator started on an
+    // earlier line, we're inside its scope but not leading with it.
+    if (node.from >= lineStart) return true;
   }
   return false;
 }
@@ -402,6 +458,13 @@ export const getFormatting = (
       const stack = getStack<SparkdownNodeName>(tree, stackPos, 1);
 
       newIndentLevel = computeBlockIndent(stack);
+      // Continuation lines: a line that LEADS with a binary operator
+      // (`+`, `..`, `:`, `and`, etc.) belongs to an expression that
+      // started on the previous line and should indent one level past
+      // the opener (see `isContinuationLine`'s comment).
+      if (isContinuationLine(stack, lineStart)) {
+        newIndentLevel += 1;
+      }
 
       // Blank lines: leave them entirely empty; don't sprinkle
       // ghost-indent whitespace on otherwise-empty rows.

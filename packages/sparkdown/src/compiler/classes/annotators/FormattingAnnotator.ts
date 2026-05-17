@@ -402,9 +402,37 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         // Suppress emissions adjacent to line breaks — line-leading
         // and line-trailing whitespace is handled by `indent` /
         // `trailing` dispatch, not by separator insertion.
-        const before = this.read(opStart - 1, opStart);
-        const after = this.read(opEnd, opEnd + 1);
+        //
+        // "Adjacent to a line break" includes the multi-line case
+        //   "hello"
+        //     .. "world"
+        // where the chars between the `..` and the previous newline
+        // are all horizontal whitespace (the indent). Scan past
+        // intervening spaces/tabs before deciding so the leading
+        // continuation-line `..` doesn't get a spurious `before`
+        // separator on top of the indent.
         const isLineBreak = (c: string) => c === "\n" || c === "\r" || c === "";
+        let beforeScan = opStart - 1;
+        while (beforeScan >= 0) {
+          const c = this.read(beforeScan, beforeScan + 1);
+          if (c === " " || c === "\t") {
+            beforeScan -= 1;
+            continue;
+          }
+          break;
+        }
+        const before =
+          beforeScan < 0 ? "" : this.read(beforeScan, beforeScan + 1);
+        let afterScan = opEnd;
+        while (true) {
+          const c = this.read(afterScan, afterScan + 1);
+          if (c === " " || c === "\t") {
+            afterScan += 1;
+            continue;
+          }
+          break;
+        }
+        const after = this.read(afterScan, afterScan + 1);
         if (!isLineBreak(before)) {
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
