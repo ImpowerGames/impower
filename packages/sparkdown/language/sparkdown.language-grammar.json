@@ -9036,7 +9036,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#RequiredWhitespace"
+              "include": "#OptionalWhitespace"
             }
           ]
         }

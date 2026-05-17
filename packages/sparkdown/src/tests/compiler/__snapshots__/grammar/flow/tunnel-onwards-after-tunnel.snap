@@ -2,6 +2,7 @@ sparkdown [0..16]
  ├─ Divert [0..15]
  │   ├─ Divert_begin [0..2]
  │   │   ├─ Divert_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   └─ Divert_begin_c2 [0..2]
  │   │       └─ DivertMark [0..2]: "->"
  │   ├─ Divert_content [2..15]

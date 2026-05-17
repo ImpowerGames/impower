@@ -2,6 +2,7 @@ sparkdown [0..56]
  ├─ LuauFunctionDefinition [0..55]
  │   ├─ LuauFunctionDefinition_begin [0..9]
  │   │   ├─ LuauFunctionDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauFunctionDefinition_begin_c2 0
  │   │   ├─ LuauFunctionDefinition_begin_c3 0
  │   │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
@@ -27,9 +28,10 @@ sparkdown [0..56]
  │   │   │   │       │   ├─ LuauTypeAnnotationOperator [20..22]
  │   │   │   │       │   │   ├─ LuauTypeAnnotationOperator_begin [20..22]
  │   │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 20
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace 20
  │   │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [20..21]: ":"
  │   │   │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [21..22]
- │   │   │   │       │   │   │       └─ RequiredWhitespace [21..22]: " "
+ │   │   │   │       │   │   │       └─ OptionalWhitespace [21..22]: " "
  │   │   │   │       │   │   └─ LuauTypeAnnotationOperator_end 22
  │   │   │   │       │   └─ LuauTypeLiteral [22..28]
  │   │   │   │       │       ├─ LuauTypeLiteral_begin 22

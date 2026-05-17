@@ -2,6 +2,7 @@ sparkdown [0..36]
  ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [0..35]
  │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [0..6]
  │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c2 0
  │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c3 0
  │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c4 [0..5]

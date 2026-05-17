@@ -2,6 +2,7 @@ sparkdown [0..23]
  └─ LuauExplicitStatement [0..23]
      ├─ LuauExplicitStatement_begin [0..2]
      │   ├─ LuauExplicitStatement_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
      │   └─ LuauExplicitStatement_begin_c3 [1..2]
@@ -25,6 +26,7 @@ sparkdown [0..23]
      │       │   ├─ LuauAssignmentOperator [4..6]
      │       │   │   ├─ LuauAssignmentOperator_begin [4..6]
      │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 4
+     │       │   │   │   │   └─ OptionalWhitespace 4
      │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [4..5]: "="
      │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [5..6]
      │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
@@ -48,6 +50,7 @@ sparkdown [0..23]
      │       │       │   ├─ LuauCompareOperator [8..11]
      │       │       │   │   ├─ LuauCompareOperator_begin [8..11]
      │       │       │   │   │   ├─ LuauCompareOperator_begin_c1 8
+     │       │       │   │   │   │   └─ OptionalWhitespace 8
      │       │       │   │   │   ├─ LuauCompareOperator_begin_c2 [8..10]: "=="
      │       │       │   │   │   └─ LuauCompareOperator_begin_c3 [10..11]
      │       │       │   │   │       └─ LuauCompareOperator_begin_c3 [10..11]
@@ -71,6 +74,7 @@ sparkdown [0..23]
      │       │       │       │   ├─ LuauLogicalOperator [13..17]
      │       │       │       │   │   ├─ LuauLogicalOperator_begin [13..17]
      │       │       │       │   │   │   ├─ LuauLogicalOperator_begin_c1 13
+     │       │       │       │   │   │   │   └─ OptionalWhitespace 13
      │       │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [13..16]: "and"
      │       │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [16..17]
      │       │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [16..17]
@@ -94,6 +98,7 @@ sparkdown [0..23]
      │       │       │       │       │   ├─ LuauCompareOperator [19..22]
      │       │       │       │       │   │   ├─ LuauCompareOperator_begin [19..22]
      │       │       │       │       │   │   │   ├─ LuauCompareOperator_begin_c1 19
+     │       │       │       │       │   │   │   │   └─ OptionalWhitespace 19
      │       │       │       │       │   │   │   ├─ LuauCompareOperator_begin_c2 [19..21]: "=="
      │       │       │       │       │   │   │   └─ LuauCompareOperator_begin_c3 [21..22]
      │       │       │       │       │   │   │       └─ LuauCompareOperator_begin_c3 [21..22]

@@ -2,6 +2,7 @@ sparkdown [0..25]
  ├─ LuauSparkdownIfBlock [0..24]
  │   ├─ LuauSparkdownIfBlock_begin [0..3]
  │   │   ├─ LuauSparkdownIfBlock_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauSparkdownIfBlock_begin_c2 [0..2]
  │   │   │   └─ LuauIfKeyword [0..2]: "if"
  │   │   └─ LuauSparkdownIfBlock_begin_c3 [2..3]
@@ -44,6 +45,7 @@ sparkdown [0..25]
  │   │   │   │       │   ├─ LuauAssignmentOperator [17..19]
  │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [17..19]
  │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 17
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace 17
  │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [17..18]: "="
  │   │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [18..19]
  │   │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [18..19]

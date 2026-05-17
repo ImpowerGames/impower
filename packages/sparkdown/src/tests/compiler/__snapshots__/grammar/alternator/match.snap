@@ -2,6 +2,7 @@ sparkdown [0..104]
  └─ LuauSparkdownConditionalAlternatorBlock [0..104]
      ├─ LuauSparkdownConditionalAlternatorBlock_begin [0..6]
      │   ├─ LuauSparkdownConditionalAlternatorBlock_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauSparkdownConditionalAlternatorBlock_begin_c2 [0..5]
      │   │   └─ LuauControlKeyword [0..5]: "match"
      │   └─ LuauSparkdownConditionalAlternatorBlock_begin_c3 [5..6]
@@ -51,10 +52,12 @@ sparkdown [0..104]
      │   ├─ ImplicitAction [35..51]
      │   │   ├─ ImplicitAction_begin 35
      │   │   │   └─ ImplicitAction_begin_c1 35
+     │   │   │       └─ OptionalWhitespace 35
      │   │   ├─ ImplicitAction_content [35..51]
      │   │   │   └─ LineEnd [35..51]
      │   │   │       ├─ LineEnd_begin 35
      │   │   │       │   └─ LineEnd_begin_c1 35
+     │   │   │       │       └─ OptionalWhitespace 35
      │   │   │       ├─ LineEnd_content [35..51]
      │   │   │       │   └─ TextChunk [35..51]
      │   │   │       │       ├─ TextChunk_begin 35
@@ -91,10 +94,12 @@ sparkdown [0..104]
      │   ├─ ImplicitAction [63..75]
      │   │   ├─ ImplicitAction_begin 63
      │   │   │   └─ ImplicitAction_begin_c1 63
+     │   │   │       └─ OptionalWhitespace 63
      │   │   ├─ ImplicitAction_content [63..75]
      │   │   │   └─ LineEnd [63..75]
      │   │   │       ├─ LineEnd_begin 63
      │   │   │       │   └─ LineEnd_begin_c1 63
+     │   │   │       │       └─ OptionalWhitespace 63
      │   │   │       ├─ LineEnd_content [63..75]
      │   │   │       │   └─ TextChunk [63..75]
      │   │   │       │       ├─ TextChunk_begin 63
@@ -129,10 +134,12 @@ sparkdown [0..104]
      │   ├─ ImplicitAction [88..100]
      │   │   ├─ ImplicitAction_begin 88
      │   │   │   └─ ImplicitAction_begin_c1 88
+     │   │   │       └─ OptionalWhitespace 88
      │   │   ├─ ImplicitAction_content [88..100]
      │   │   │   └─ LineEnd [88..100]
      │   │   │       ├─ LineEnd_begin 88
      │   │   │       │   └─ LineEnd_begin_c1 88
+     │   │   │       │       └─ OptionalWhitespace 88
      │   │   │       ├─ LineEnd_content [88..100]
      │   │   │       │   └─ TextChunk [88..100]
      │   │   │       │       ├─ TextChunk_begin 88

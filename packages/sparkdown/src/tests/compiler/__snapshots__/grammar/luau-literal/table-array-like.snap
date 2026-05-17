@@ -2,6 +2,7 @@ sparkdown [0..18]
  └─ LuauExplicitStatement [0..18]
      ├─ LuauExplicitStatement_begin [0..2]
      │   ├─ LuauExplicitStatement_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
      │   └─ LuauExplicitStatement_begin_c3 [1..2]
@@ -25,6 +26,7 @@ sparkdown [0..18]
      │       │   ├─ LuauAssignmentOperator [5..7]
      │       │   │   ├─ LuauAssignmentOperator_begin [5..7]
      │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 5
+     │       │   │   │   │   └─ OptionalWhitespace 5
      │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [5..6]: "="
      │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [6..7]
      │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [6..7]

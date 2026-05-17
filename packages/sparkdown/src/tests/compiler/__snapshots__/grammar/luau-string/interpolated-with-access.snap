@@ -2,6 +2,7 @@ sparkdown [0..41]
  └─ LuauExplicitStatement [0..41]
      ├─ LuauExplicitStatement_begin [0..2]
      │   ├─ LuauExplicitStatement_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
      │   └─ LuauExplicitStatement_begin_c3 [1..2]

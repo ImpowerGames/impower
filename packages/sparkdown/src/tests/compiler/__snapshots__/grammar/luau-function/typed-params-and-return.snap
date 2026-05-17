@@ -2,6 +2,7 @@ sparkdown [0..150]
  └─ LuauFunctionDefinition [0..150]
      ├─ LuauFunctionDefinition_begin [0..9]
      │   ├─ LuauFunctionDefinition_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauFunctionDefinition_begin_c2 0
      │   ├─ LuauFunctionDefinition_begin_c3 0
      │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
@@ -27,9 +28,10 @@ sparkdown [0..150]
      │   │   │   │   │   ├─ LuauTypeAnnotationOperator [30..32]
      │   │   │   │   │   │   ├─ LuauTypeAnnotationOperator_begin [30..32]
      │   │   │   │   │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 30
+     │   │   │   │   │   │   │   │   └─ OptionalWhitespace 30
      │   │   │   │   │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [30..31]: ":"
      │   │   │   │   │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [31..32]
-     │   │   │   │   │   │   │       └─ RequiredWhitespace [31..32]: " "
+     │   │   │   │   │   │   │       └─ OptionalWhitespace [31..32]: " "
      │   │   │   │   │   │   └─ LuauTypeAnnotationOperator_end 32
      │   │   │   │   │   └─ LuauTypeLiteral [32..38]
      │   │   │   │   │       ├─ LuauTypeLiteral_begin 32
@@ -53,9 +55,10 @@ sparkdown [0..150]
      │   │   │       │   ├─ LuauTypeAnnotationOperator [44..46]
      │   │   │       │   │   ├─ LuauTypeAnnotationOperator_begin [44..46]
      │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 44
+     │   │   │       │   │   │   │   └─ OptionalWhitespace 44
      │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [44..45]: ":"
      │   │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [45..46]
-     │   │   │       │   │   │       └─ RequiredWhitespace [45..46]: " "
+     │   │   │       │   │   │       └─ OptionalWhitespace [45..46]: " "
      │   │   │       │   │   └─ LuauTypeAnnotationOperator_end 46
      │   │   │       │   └─ LuauTypeLiteral [46..52]
      │   │   │       │       ├─ LuauTypeLiteral_begin 46
@@ -116,6 +119,7 @@ sparkdown [0..150]
      │   │   │   │   │       │   ├─ LuauCompareOperator [72..75]
      │   │   │   │   │       │   │   ├─ LuauCompareOperator_begin [72..75]
      │   │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c1 72
+     │   │   │   │   │       │   │   │   │   └─ OptionalWhitespace 72
      │   │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [72..74]: "=="
      │   │   │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [74..75]
      │   │   │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [74..75]
@@ -167,6 +171,7 @@ sparkdown [0..150]
      │   │   │   │   │       │   ├─ LuauCompareOperator [98..101]
      │   │   │   │   │       │   │   ├─ LuauCompareOperator_begin [98..101]
      │   │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c1 98
+     │   │   │   │   │       │   │   │   │   └─ OptionalWhitespace 98
      │   │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [98..100]: "=="
      │   │   │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [100..101]
      │   │   │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [100..101]
@@ -184,6 +189,7 @@ sparkdown [0..150]
      │   │   │   │   │       │       │   ├─ LuauLogicalOperator [103..107]
      │   │   │   │   │       │       │   │   ├─ LuauLogicalOperator_begin [103..107]
      │   │   │   │   │       │       │   │   │   ├─ LuauLogicalOperator_begin_c1 103
+     │   │   │   │   │       │       │   │   │   │   └─ OptionalWhitespace 103
      │   │   │   │   │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [103..106]: "and"
      │   │   │   │   │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [106..107]
      │   │   │   │   │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [106..107]
@@ -204,6 +210,7 @@ sparkdown [0..150]
      │   │   │   │   │       │       │   ├─ LuauLogicalOperator [113..116]
      │   │   │   │   │       │       │   │   ├─ LuauLogicalOperator_begin [113..116]
      │   │   │   │   │       │       │   │   │   ├─ LuauLogicalOperator_begin_c1 113
+     │   │   │   │   │       │       │   │   │   │   └─ OptionalWhitespace 113
      │   │   │   │   │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [113..115]: "or"
      │   │   │   │   │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [115..116]
      │   │   │   │   │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [115..116]

@@ -2,6 +2,7 @@ sparkdown [0..35]
  └─ LuauVariableDefinition [0..35]
      ├─ LuauVariableDefinition_begin [0..6]
      │   ├─ LuauVariableDefinition_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauVariableDefinition_begin_c2 [0..5]
      │   │   └─ LuauScopeModifier [0..5]: "local"
      │   └─ LuauVariableDefinition_begin_c3 [5..6]
@@ -22,6 +23,7 @@ sparkdown [0..35]
      │       │       │   ├─ LuauAssignmentOperator [15..17]
      │       │       │   │   ├─ LuauAssignmentOperator_begin [15..17]
      │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 15
+     │       │       │   │   │   │   └─ OptionalWhitespace 15
      │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [15..16]: "="
      │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [16..17]
      │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [16..17]

@@ -2,6 +2,7 @@ sparkdown [0..77]
  └─ LuauFunctionDefinition [0..77]
      ├─ LuauFunctionDefinition_begin [0..9]
      │   ├─ LuauFunctionDefinition_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauFunctionDefinition_begin_c2 0
      │   ├─ LuauFunctionDefinition_begin_c3 0
      │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
@@ -27,9 +28,10 @@ sparkdown [0..77]
      │   │   │   │   │   ├─ LuauTypeAnnotationOperator [20..22]
      │   │   │   │   │   │   ├─ LuauTypeAnnotationOperator_begin [20..22]
      │   │   │   │   │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 20
+     │   │   │   │   │   │   │   │   └─ OptionalWhitespace 20
      │   │   │   │   │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [20..21]: ":"
      │   │   │   │   │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [21..22]
-     │   │   │   │   │   │   │       └─ RequiredWhitespace [21..22]: " "
+     │   │   │   │   │   │   │       └─ OptionalWhitespace [21..22]: " "
      │   │   │   │   │   │   └─ LuauTypeAnnotationOperator_end 22
      │   │   │   │   │   └─ LuauTypeLiteral [22..42]
      │   │   │   │   │       ├─ LuauTypeLiteral_begin 22
@@ -62,9 +64,10 @@ sparkdown [0..77]
      │   │   │   │   │       │       │   │   │   ├─ LuauTypeAnnotationOperator [32..34]
      │   │   │   │   │       │       │   │   │   │   ├─ LuauTypeAnnotationOperator_begin [32..34]
      │   │   │   │   │       │       │   │   │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 32
+     │   │   │   │   │       │       │   │   │   │   │   │   └─ OptionalWhitespace 32
      │   │   │   │   │       │       │   │   │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [32..33]: ":"
      │   │   │   │   │       │       │   │   │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [33..34]
-     │   │   │   │   │       │       │   │   │   │   │       └─ RequiredWhitespace [33..34]: " "
+     │   │   │   │   │       │       │   │   │   │   │       └─ OptionalWhitespace [33..34]: " "
      │   │   │   │   │       │       │   │   │   │   └─ LuauTypeAnnotationOperator_end 34
      │   │   │   │   │       │       │   │   │   └─ LuauTypeLiteral [34..40]
      │   │   │   │   │       │       │   │   │       ├─ LuauTypeLiteral_begin 34
@@ -95,9 +98,10 @@ sparkdown [0..77]
      │   │   │       │   ├─ LuauTypeAnnotationOperator [49..51]
      │   │   │       │   │   ├─ LuauTypeAnnotationOperator_begin [49..51]
      │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 49
+     │   │   │       │   │   │   │   └─ OptionalWhitespace 49
      │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [49..50]: ":"
      │   │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [50..51]
-     │   │   │       │   │   │       └─ RequiredWhitespace [50..51]: " "
+     │   │   │       │   │   │       └─ OptionalWhitespace [50..51]: " "
      │   │   │       │   │   └─ LuauTypeAnnotationOperator_end 51
      │   │   │       │   └─ LuauTypeLiteral [51..57]
      │   │   │       │       ├─ LuauTypeLiteral_begin 51

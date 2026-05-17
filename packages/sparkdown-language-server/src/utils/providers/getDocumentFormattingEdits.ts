@@ -244,6 +244,30 @@ export const getFormatting = (
     }
   };
 
+  // Ensures exactly one blank line precedes `pos`. If the previous
+  // line is non-blank (and we're not at the file start), inserts a
+  // `\n` at the start of the line containing `pos`. Used to enforce
+  // visual separation between top-level constructs (scenes,
+  // functions, defines) — prettier-style.
+  //
+  // Exception: doc comments (`-- …`) directly above a construct stay
+  // attached to it without an inserted blank line.
+  const ensureBlankLineBefore = (pos: number) => {
+    const line = document.positionAt(pos).line;
+    if (line <= 0) return;
+    const prevLine = document.getLineText(line - 1).trim();
+    if (!prevLine) return;
+    if (prevLine.startsWith("--")) return;
+    const insertPos: Position = { line, character: 0 };
+    pushIfInRange({
+      lineNumber: line + 1,
+      range: { start: insertPos, end: insertPos },
+      oldText: "",
+      newText: "\n",
+      type: "blankline_insert",
+    });
+  };
+
   const processIndent = (from: number, to: number) => {
     // Zero-width indent at end-of-doc — skip so we don't emit a
     // ghost trailing-whitespace line.
@@ -305,15 +329,19 @@ export const getFormatting = (
       // Stray `end` closing scene/branch: sparkdown's `Scene` /
       // `Branch` grammar rules end at the colon, so a top-level
       // `end` keyword written by the user (intending to close the
-      // scope) is just a free-standing token in the tree. If the
-      // tree shows no enclosing indenting block AND we have an
-      // active scene/branch, this `end` pops one scope level.
-      const lineLeadText = lineText.slice(firstNonWs);
+      // scope) is just a free-standing token in the tree.
+      // Recognize it via the leaf token's grammar type
+      // (`LuauEndKeyword`) rather than a source-text regex — the
+      // regex would silently misfire on top-level `end` keywords
+      // the parser DID match to a block (e.g. an if-block whose
+      // recognition we hadn't predicted).
+      const leaf = stack[0];
       const isStrayEnd =
-        firstNonWs >= 0 &&
-        /^end\b/.test(lineLeadText) &&
+        !!leaf &&
+        leaf.name === "LuauEndKeyword" &&
         !stack.some(
-          (n) =>
+          (n, i) =>
+            i > 0 &&
             n &&
             (INDENTING_BLOCKS.has(n.name) ||
               n.name.endsWith("_content") ||
@@ -466,6 +494,21 @@ export const getFormatting = (
           });
         }
       }
+    } else if (cur.value.type === "keyword_separator") {
+      // Always exactly one space — bypasses the call-like-opener
+      // tightening that would otherwise glue `if`/`for`/`match` to
+      // a following `(`.
+      const text = document.getText(range);
+      const expectedText = " ";
+      if (text !== expectedText) {
+        pushIfInRange({
+          lineNumber: range.start.line + 1,
+          range,
+          oldText: document.getText(range),
+          newText: expectedText,
+          type: cur.value.type,
+        });
+      }
     } else if (cur.value.type === "extra") {
       const text = document.getText(range);
       const expectedText = "";
@@ -529,6 +572,9 @@ export const getFormatting = (
       // implicit body begins. Subsequent lines indent +1 until the
       // scope closes (next scene, top-level Luau decl, stray `end`).
       sceneActive = true;
+      ensureBlankLineBefore(cur.from);
+    } else if (cur.value.type === "top_level_begin") {
+      ensureBlankLineBefore(cur.from);
     } else if (cur.value.type === "scene_end") {
       const text = document.getText(range);
       const expectedText = ":";
@@ -626,6 +672,114 @@ export const getFormatting = (
     }
   }
 
+  // Inline alternator comma-form → pipe-form. The grammar accepts
+  // both `plural(n){one="is",other="are"}` (table-literal sugar)
+  // and `plural(n)|one="is"|other="are"` as identical alternator
+  // expressions; we normalize to pipe-form. This is a structural
+  // rewrite (removes braces, swaps commas for pipes), so we drive
+  // it off the parse tree, not source regex.
+  if (tree) {
+    // Inline alternators (the ones without `Sparkdown` in the name)
+    // wrap their pipe-or-table arms via these block names. When the
+    // parser saw a `{...}` arm-table instead of `|`, the LuauTable
+    // shows up as a descendant — we walk up the ancestor chain to
+    // see if it's inside one of these constructs.
+    const INLINE_ALTERNATOR_BLOCKS = new Set([
+      "LuauConditionalAlternatorBlock",
+      "LuauSequentialAlternatorBlock",
+    ]);
+    tree.iterate({
+      enter: (nodeRef) => {
+        if (nodeRef.name !== "LuauTable") return;
+        // Walk up the ancestor chain looking for an inline-alternator
+        // wrapper. If found, this table represents the alternator's
+        // arms and gets rewritten to pipe-form.
+        let ancestor = nodeRef.node.parent;
+        let insideInlineAlternator = false;
+        while (ancestor) {
+          if (INLINE_ALTERNATOR_BLOCKS.has(ancestor.name)) {
+            insideInlineAlternator = true;
+            break;
+          }
+          ancestor = ancestor.parent;
+        }
+        if (!insideInlineAlternator) return;
+        const tableNode = nodeRef.node;
+        // Compute the boundary positions: `{` of LuauTable_begin,
+        // each top-level `,` (LuauCommaSeparator) inside content,
+        // and `}` of LuauTable_end.
+        let openBracePos: number | undefined;
+        let closeBracePos: number | undefined;
+        const commaPositions: { from: number; to: number }[] = [];
+        tableNode.cursor().iterate((inner) => {
+          if (inner.node === tableNode) return true;
+          if (inner.name === "LuauTable_begin") {
+            // Find the `{` character at the begin range start.
+            if (document.read(inner.from, inner.from + 1) === "{") {
+              openBracePos = inner.from;
+            }
+            return false;
+          }
+          if (inner.name === "LuauTable_end") {
+            if (document.read(inner.from, inner.from + 1) === "}") {
+              closeBracePos = inner.from;
+            }
+            return false;
+          }
+          if (inner.name === "LuauCommaSeparator") {
+            // Top-level comma between arms — find the `,` character.
+            let c = inner.from;
+            while (c < inner.to && document.read(c, c + 1) !== ",") c += 1;
+            if (document.read(c, c + 1) === ",") {
+              commaPositions.push({ from: c, to: c + 1 });
+            }
+            return false;
+          }
+          // Don't descend into nested tables / function calls — their
+          // commas are unrelated to our alternator arms.
+          if (inner.name === "LuauTable" || inner.name === "LuauFunctionCall") {
+            return false;
+          }
+          return true;
+        });
+        if (openBracePos == null || closeBracePos == null) return;
+        const pushTreeEdit = (
+          from: number,
+          to: number,
+          newText: string,
+          type: string,
+        ) => {
+          const range: Range = {
+            start: document.positionAt(from),
+            end: document.positionAt(to),
+          };
+          pushIfInRange({
+            lineNumber: range.start.line + 1,
+            range,
+            oldText: document.getText(range),
+            newText,
+            type,
+          });
+        };
+        pushTreeEdit(
+          openBracePos,
+          openBracePos + 1,
+          "|",
+          "alternator_open",
+        );
+        for (const c of commaPositions) {
+          pushTreeEdit(c.from, c.to, "|", "alternator_comma");
+        }
+        pushTreeEdit(
+          closeBracePos,
+          closeBracePos + 1,
+          "",
+          "alternator_close",
+        );
+      },
+    });
+  }
+
   edits.sort(
     (a, b) =>
       document.offsetAt(a.range.start) - document.offsetAt(b.range.start),
@@ -657,8 +811,39 @@ export const resolveFormattingConflicts = (
       const prevFrom = document.offsetAt(prev.range.start);
       const currOldText = document.getText(curr.range);
       const prevOldText = document.getText(prev.range);
+      // Normalize for symmetric handling: treat `keyword_separator`
+      // and `separator` together when checking conflicts so the
+      // pair-permutation list below stays short. `keyword_separator`
+      // ALWAYS wins.
       if (prevTo >= currFrom) {
-        if (curr.type === "separator" && prev.type === "separator") {
+        if (
+          (curr.type === "keyword_separator" && prev.type === "separator") ||
+          (curr.type === "separator" && prev.type === "keyword_separator") ||
+          (curr.type === "keyword_separator" &&
+            prev.type === "keyword_separator")
+        ) {
+          // Use the keyword_separator's newText (always " "), merging
+          // ranges so we don't leave a duplicate edit.
+          const keep = curr.type === "keyword_separator" ? curr : prev;
+          const drop = curr.type === "keyword_separator" ? prev : curr;
+          if (
+            document.offsetAt(drop.range.start) <
+            document.offsetAt(keep.range.start)
+          ) {
+            keep.range.start = drop.range.start;
+          }
+          if (
+            document.offsetAt(drop.range.end) >
+            document.offsetAt(keep.range.end)
+          ) {
+            keep.range.end = drop.range.end;
+          }
+          if (curr.type === "keyword_separator") {
+            result.pop();
+          } else {
+            continue;
+          }
+        } else if (curr.type === "separator" && prev.type === "separator") {
           if (
             document.offsetAt(curr.range.start) <
             document.offsetAt(prev.range.start)

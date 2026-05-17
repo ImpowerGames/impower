@@ -7,6 +7,7 @@ sparkdown [0..24]
  │   │   └─ LuauSequentialAlternatorBlock [1..22]
  │   │       ├─ LuauSequentialAlternatorBlock_begin [1..7]
  │   │       │   ├─ LuauSequentialAlternatorBlock_begin_c1 1
+ │   │       │   │   └─ OptionalWhitespace 1
  │   │       │   ├─ LuauSequentialAlternatorBlock_begin_c2 1
  │   │       │   ├─ LuauSequentialAlternatorBlock_begin_c3 1
  │   │       │   ├─ LuauSequentialAlternatorBlock_begin_c4 [1..6]

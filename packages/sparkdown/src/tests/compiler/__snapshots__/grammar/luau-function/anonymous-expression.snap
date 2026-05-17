@@ -2,6 +2,7 @@ sparkdown [0..124]
  └─ LuauFunctionDefinition [0..124]
      ├─ LuauFunctionDefinition_begin [0..9]
      │   ├─ LuauFunctionDefinition_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauFunctionDefinition_begin_c2 0
      │   ├─ LuauFunctionDefinition_begin_c3 0
      │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
@@ -27,9 +28,10 @@ sparkdown [0..124]
      │   │   │       │   ├─ LuauTypeAnnotationOperator [17..19]
      │   │   │       │   │   ├─ LuauTypeAnnotationOperator_begin [17..19]
      │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 17
+     │   │   │       │   │   │   │   └─ OptionalWhitespace 17
      │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [17..18]: ":"
      │   │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [18..19]
-     │   │   │       │   │   │       └─ RequiredWhitespace [18..19]: " "
+     │   │   │       │   │   │       └─ OptionalWhitespace [18..19]: " "
      │   │   │       │   │   └─ LuauTypeAnnotationOperator_end 19
      │   │   │       │   └─ LuauTypeLiteral [19..25]
      │   │   │       │       ├─ LuauTypeLiteral_begin 19
@@ -56,6 +58,7 @@ sparkdown [0..124]
      │   │   │   └─ LuauFunctionDefinition [36..120]
      │   │   │       ├─ LuauFunctionDefinition_begin [36..45]
      │   │   │       │   ├─ LuauFunctionDefinition_begin_c1 36
+     │   │   │       │   │   └─ OptionalWhitespace 36
      │   │   │       │   ├─ LuauFunctionDefinition_begin_c2 36
      │   │   │       │   ├─ LuauFunctionDefinition_begin_c3 36
      │   │   │       │   ├─ LuauFunctionDefinition_begin_c4 [36..44]
@@ -77,9 +80,10 @@ sparkdown [0..124]
      │   │   │       │   │   │       │   ├─ LuauTypeAnnotationOperator [60..62]
      │   │   │       │   │   │       │   │   ├─ LuauTypeAnnotationOperator_begin [60..62]
      │   │   │       │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 60
+     │   │   │       │   │   │       │   │   │   │   └─ OptionalWhitespace 60
      │   │   │       │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [60..61]: ":"
      │   │   │       │   │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [61..62]
-     │   │   │       │   │   │       │   │   │       └─ RequiredWhitespace [61..62]: " "
+     │   │   │       │   │   │       │   │   │       └─ OptionalWhitespace [61..62]: " "
      │   │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperator_end 62
      │   │   │       │   │   │       │   └─ LuauTypeLiteral [62..80]
      │   │   │       │   │   │       │       ├─ LuauTypeLiteral_begin 62
@@ -111,9 +115,10 @@ sparkdown [0..124]
      │   │   │       │   │   │       │       │       │       │   ├─ LuauTypeAnnotationOperator [71..73]
      │   │   │       │   │   │       │       │       │       │   │   ├─ LuauTypeAnnotationOperator_begin [71..73]
      │   │   │       │   │   │       │       │       │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 71
+     │   │   │       │   │   │       │       │       │       │   │   │   │   └─ OptionalWhitespace 71
      │   │   │       │   │   │       │       │       │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [71..72]: ":"
      │   │   │       │   │   │       │       │       │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [72..73]
-     │   │   │       │   │   │       │       │       │       │   │   │       └─ RequiredWhitespace [72..73]: " "
+     │   │   │       │   │   │       │       │       │       │   │   │       └─ OptionalWhitespace [72..73]: " "
      │   │   │       │   │   │       │       │       │       │   │   └─ LuauTypeAnnotationOperator_end 73
      │   │   │       │   │   │       │       │       │       │   └─ LuauTypeLiteral [73..79]
      │   │   │       │   │   │       │       │       │       │       ├─ LuauTypeLiteral_begin 73

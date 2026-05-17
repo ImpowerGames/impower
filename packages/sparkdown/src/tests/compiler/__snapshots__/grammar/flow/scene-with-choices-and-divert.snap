@@ -2,6 +2,7 @@ sparkdown [0..96]
  ├─ Scene [0..13]
  │   ├─ Scene_begin [0..6]
  │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ Scene_begin_c2 [0..5]
  │   │   │   └─ SceneKeyword [0..5]: "scene"
  │   │   └─ Scene_begin_c3 [5..6]
@@ -39,6 +40,7 @@ sparkdown [0..96]
  │   │   └─ LineEnd [20..34]
  │   │       ├─ LineEnd_begin 20
  │   │       │   └─ LineEnd_begin_c1 20
+ │   │       │       └─ OptionalWhitespace 20
  │   │       ├─ LineEnd_content [20..34]
  │   │       │   └─ TextChunk [20..34]
  │   │       │       ├─ TextChunk_begin 20
@@ -85,6 +87,7 @@ sparkdown [0..96]
  │   │           └─ Divert [51..65]
  │   │               ├─ Divert_begin [51..53]
  │   │               │   ├─ Divert_begin_c1 51
+ │   │               │   │   └─ OptionalWhitespace 51
  │   │               │   └─ Divert_begin_c2 [51..53]
  │   │               │       └─ DivertMark [51..53]: "->"
  │   │               ├─ Divert_content [53..65]
@@ -134,6 +137,7 @@ sparkdown [0..96]
      │           └─ Divert [82..96]
      │               ├─ Divert_begin [82..84]
      │               │   ├─ Divert_begin_c1 82
+     │               │   │   └─ OptionalWhitespace 82
      │               │   └─ Divert_begin_c2 [82..84]
      │               │       └─ DivertMark [82..84]: "->"
      │               ├─ Divert_content [84..96]

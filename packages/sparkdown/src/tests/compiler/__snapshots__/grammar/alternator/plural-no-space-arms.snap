@@ -2,6 +2,7 @@ sparkdown [0..94]
  ├─ LuauFunctionDefinition [0..93]
  │   ├─ LuauFunctionDefinition_begin [0..9]
  │   │   ├─ LuauFunctionDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauFunctionDefinition_begin_c2 0
  │   │   ├─ LuauFunctionDefinition_begin_c3 0
  │   │   ├─ LuauFunctionDefinition_begin_c4 [0..8]
@@ -27,9 +28,10 @@ sparkdown [0..94]
  │   │   │   │       │   ├─ LuauTypeAnnotationOperator [22..24]
  │   │   │   │       │   │   ├─ LuauTypeAnnotationOperator_begin [22..24]
  │   │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c1 22
+ │   │   │   │       │   │   │   │   └─ OptionalWhitespace 22
  │   │   │   │       │   │   │   ├─ LuauTypeAnnotationOperator_begin_c2 [22..23]: ":"
  │   │   │   │       │   │   │   └─ LuauTypeAnnotationOperator_begin_c3 [23..24]
- │   │   │   │       │   │   │       └─ RequiredWhitespace [23..24]: " "
+ │   │   │   │       │   │   │       └─ OptionalWhitespace [23..24]: " "
  │   │   │   │       │   │   └─ LuauTypeAnnotationOperator_end 24
  │   │   │   │       │   └─ LuauTypeLiteral [24..30]
  │   │   │   │       │       ├─ LuauTypeLiteral_begin 24
@@ -68,6 +70,7 @@ sparkdown [0..94]
  │   │   │   │       │   │   │   └─ LuauConditionalAlternatorBlock [49..82]
  │   │   │   │       │   │   │       ├─ LuauConditionalAlternatorBlock_begin [49..55]
  │   │   │   │       │   │   │       │   ├─ LuauConditionalAlternatorBlock_begin_c1 49
+ │   │   │   │       │   │   │       │   │   └─ OptionalWhitespace 49
  │   │   │   │       │   │   │       │   ├─ LuauConditionalAlternatorBlock_begin_c2 [49..55]
  │   │   │   │       │   │   │       │   │   └─ LuauControlKeyword [49..55]: "plural"
  │   │   │   │       │   │   │       │   └─ LuauConditionalAlternatorBlock_begin_c3 55

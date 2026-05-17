@@ -2,6 +2,7 @@ sparkdown [0..87]
  ├─ LuauVariableDefinition [0..27]
  │   ├─ LuauVariableDefinition_begin [0..6]
  │   │   ├─ LuauVariableDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauVariableDefinition_begin_c2 [0..5]
  │   │   │   └─ LuauScopeModifier [0..5]: "store"
  │   │   └─ LuauVariableDefinition_begin_c3 [5..6]
@@ -22,6 +23,7 @@ sparkdown [0..87]
  │   │       │       │   ├─ LuauAssignmentOperator [16..18]
  │   │       │       │   │   ├─ LuauAssignmentOperator_begin [16..18]
  │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 16
+ │   │       │       │   │   │   │   └─ OptionalWhitespace 16
  │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [16..17]: "="
  │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [17..18]
  │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [17..18]
@@ -50,6 +52,7 @@ sparkdown [0..87]
  │   │       │       │       │       │   ├─ LuauAssignmentOperator [24..25]
  │   │       │       │       │       │   │   ├─ LuauAssignmentOperator_begin [24..25]
  │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 24
+ │   │       │       │       │       │   │   │   │   └─ OptionalWhitespace 24
  │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [24..25]: "="
  │   │       │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 25
  │   │       │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 25
@@ -75,6 +78,7 @@ sparkdown [0..87]
  │   │   └─ LuauConditionalAlternatorBlock [29..85]
  │   │       ├─ LuauConditionalAlternatorBlock_begin [29..35]
  │   │       │   ├─ LuauConditionalAlternatorBlock_begin_c1 29
+ │   │       │   │   └─ OptionalWhitespace 29
  │   │       │   ├─ LuauConditionalAlternatorBlock_begin_c2 [29..35]
  │   │       │   │   └─ LuauControlKeyword [29..35]: "plural"
  │   │       │   └─ LuauConditionalAlternatorBlock_begin_c3 35

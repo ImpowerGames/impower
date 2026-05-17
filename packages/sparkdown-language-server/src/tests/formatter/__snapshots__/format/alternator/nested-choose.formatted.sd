@@ -12,6 +12,6 @@ choose
     then
       He sits down.
     end
-then(label)
+then (label)
   "Either way, I'm not leaving."
 end

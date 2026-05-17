@@ -121,7 +121,7 @@ scene GainTrust(c:companion):
 end
 
 scene DisplayInventory():
-  You now have {inventory.stars} {plural(inventory.stars){one="star",other="stars"}} and {inventory.coins} {plural(inventory.coins){one="coin",other="coins"}}.
+  You now have {inventory.stars} {plural(inventory.stars)|one="star"|other="stars"} and {inventory.coins} {plural(inventory.coins)|one="coin"|other="coins"}.
 end
 
 scene PassTime():

@@ -18,6 +18,37 @@ import { SparkdownAnnotator } from "../SparkdownAnnotator";
 // / `LuauConditionalAlternatorBlock`, no `Sparkdown` prefix) are the
 // shape that appears inside `{...}` interpolations — that's where the
 // pacing concern lives, since the surrounding context is display text.
+// Control / alternator keywords whose trailing whitespace MUST be
+// at least one space, even when followed by `(`. Prettier-style
+// `if (cond)` / `match (player_class)` separation — these aren't
+// function calls, the parens are arg grouping, so the keyword
+// shouldn't tighten against them like `foo(x)` does. Only triggers
+// for the multi-line / block forms; inline alternators inside `{}`
+// interpolations stay collapsed via `isInsideInlineAlternator`.
+const KEYWORDS_REQUIRING_TRAILING_SPACE = new Set([
+  "LuauIfKeyword",
+  "LuauElseifKeyword",
+  "LuauForKeyword",
+  "LuauWhileKeyword",
+  "LuauRepeatKeyword",
+  "LuauChooseKeyword",
+  "LuauThenKeyword",
+  "LuauControlKeyword",
+  "LuauReturnKeyword",
+  "LuauDoKeyword",
+  "LuauWithKeyword",
+  "LuauNewKeyword",
+  "LuauLocalKeyword",
+  "LuauStoreKeyword",
+  "LuauConstKeyword",
+  "LuauFunctionKeyword",
+  "LuauDefineKeyword",
+  "LuauAsKeyword",
+  "LuauInKeyword",
+  "SceneKeyword",
+  "BranchKeyword",
+]);
+
 const INLINE_ALTERNATOR_NAMES = new Set([
   "LuauSequentialAlternatorBlock",
   "LuauConditionalAlternatorBlock",
@@ -49,6 +80,12 @@ function isInsideInlineAlternator(
 
 export type FormatType =
   | "separator"
+  // Like `separator` but always normalizes to one space — bypasses
+  // `shouldInsertSpaceBetween`'s call-like-opener rule. Used right
+  // after control keywords (`if`, `for`, `match`, etc.) so that
+  // `match(x)` formats to `match (x)` even though `(` after a word
+  // char would normally be tightened (function-call style).
+  | "keyword_separator"
   | "extra"
   | "trailing"
   | "newline"
@@ -220,45 +257,122 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    // Prettier-style: ensure a single space after `:` in Luau type
-    // annotations (`c: companion`). The grammar's capture-3 of
-    // `LuauTypeAnnotationOperator_begin` is zero-width when no
-    // whitespace was written, so the universal mid-line dispatch
-    // never fires there. Emit a zero-width "separator" annotation
-    // explicitly so the formatter's insertion logic kicks in.
-    if (nodeRef.name === "LuauTypeAnnotationOperator") {
-      const colonEnd = this.read(nodeRef.from, nodeRef.from + 1) === ":"
-        ? nodeRef.from + 1
-        : -1;
-      if (colonEnd >= 0) {
-        annotations.push(
-          SparkdownAnnotation.mark<FormatType>("separator").range(
-            colonEnd,
-            colonEnd,
-          ),
-        );
+    // Wordlike binary operators (`and`, `or`, `not`) — the
+    // operator's trailing-WS capture sits between the keyword and
+    // its right operand. When the operand begins with `(`, the
+    // default separator would tighten (`and(y or z)` instead of
+    // `and (y or z)`). Emit `keyword_separator` right after the
+    // keyword text to force the space.
+    if (nodeRef.name === "LuauLogicalOperator") {
+      // Skip leading WS captured inside the operator's range to find
+      // the keyword's start.
+      let kwStart = nodeRef.from;
+      while (
+        kwStart < nodeRef.to &&
+        (this.read(kwStart, kwStart + 1) === " " ||
+          this.read(kwStart, kwStart + 1) === "\t")
+      ) {
+        kwStart += 1;
+      }
+      for (const kw of ["and", "or", "not"]) {
+        const slice = this.read(kwStart, kwStart + kw.length);
+        if (slice !== kw) continue;
+        const kwEnd = kwStart + kw.length;
+        // Only emit when the operand starts with `(` — other operand
+        // shapes are handled fine by the default separator dispatch.
+        let scan = kwEnd;
+        while (
+          this.read(scan, scan + 1) === " " ||
+          this.read(scan, scan + 1) === "\t"
+        ) {
+          scan += 1;
+        }
+        if (this.read(scan, scan + 1) === "(") {
+          annotations.push(
+            SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+              kwEnd,
+              kwEnd,
+            ),
+          );
+        }
+        break;
       }
     }
-    // Compound assignment operators (`=`, `+=`, `-=`, etc.) want a
-    // space on BOTH sides. The grammar's begin pattern captures
-    // optional WS on each side, but textmate-grammar-tree doesn't
-    // reliably emit nodes for zero-width captures inside a begin
-    // group — so when the source has `x=1` (no spaces), neither
-    // capture fires and the mid-line dispatch never runs. Emit
-    // synthetic separators at the operator boundary directly.
-    if (nodeRef.name === "LuauAssignmentOperator") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("separator").range(
-          nodeRef.from,
-          nodeRef.from,
-        ),
-      );
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("separator").range(
-          nodeRef.to,
-          nodeRef.to,
-        ),
-      );
+    // Binary operators whose character spelling would trip the
+    // default `separator` dispatch (because of `NO_SPACE_AFTER`/
+    // `NO_SPACE_BEFORE` rules for `.`). Emit `keyword_separator`
+    // at the actual operator-token boundaries so the formatter
+    // forces single spaces regardless of the `.` rule.
+    // `..` (concat) is the main one — `"a".."b"` should be
+    // `"a" .. "b"`.
+    if (nodeRef.name === "LuauConcatOperator") {
+      // Find the `..` position by scanning past any leading WS the
+      // operator scope captured into its begin pattern.
+      let opStart = nodeRef.from;
+      while (
+        opStart < nodeRef.to &&
+        (this.read(opStart, opStart + 1) === " " ||
+          this.read(opStart, opStart + 1) === "\t")
+      ) {
+        opStart += 1;
+      }
+      if (this.read(opStart, opStart + 2) === "..") {
+        const opEnd = opStart + 2;
+        // Suppress emissions adjacent to line breaks — line-leading
+        // and line-trailing whitespace is handled by `indent` /
+        // `trailing` dispatch, not by separator insertion.
+        const before = this.read(opStart - 1, opStart);
+        const after = this.read(opEnd, opEnd + 1);
+        const isLineBreak = (c: string) => c === "\n" || c === "\r" || c === "";
+        if (!isLineBreak(before)) {
+          annotations.push(
+            SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+              opStart,
+              opStart,
+            ),
+          );
+        }
+        if (!isLineBreak(after)) {
+          annotations.push(
+            SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+              opEnd,
+              opEnd,
+            ),
+          );
+        }
+      }
+    }
+    // Keyword-trailing-space marker: only fires when the keyword is
+    // followed by `(` — that's the case where the default
+    // `separator` dispatch would tighten (function-call style) and
+    // produce `if(cond)` / `match(x)`. For other followers the
+    // existing mid-line separator dispatch handles spacing fine.
+    // Inline alternators inside `{...}` interpolations skip this
+    // so the collapsed form stays intact.
+    if (KEYWORDS_REQUIRING_TRAILING_SPACE.has(nodeRef.name)) {
+      let scanPos = nodeRef.to;
+      while (true) {
+        const ch = this.read(scanPos, scanPos + 1);
+        if (ch === " " || ch === "\t") {
+          scanPos += 1;
+          continue;
+        }
+        break;
+      }
+      const nextChar = this.read(scanPos, scanPos + 1);
+      if (nextChar === "(") {
+        const insideInline =
+          nodeRef.name === "LuauControlKeyword" &&
+          isInsideInlineAlternator(nodeRef, (from, to) => this.read(from, to));
+        if (!insideInline) {
+          annotations.push(
+            SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+              nodeRef.to,
+              nodeRef.to,
+            ),
+          );
+        }
+      }
     }
     if (nodeRef.name === "ChoiceMark") {
       annotations.push(
@@ -281,17 +395,6 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
     }
     if (nodeRef.name === "Divert") {
-      // Insert a zero-width separator just before the `->` so the
-      // formatter inserts a space when the source lacks one (e.g.
-      // `[Foo]->Bar`). The grammar's leading-WS capture inside
-      // Divert isn't reliably emitted as a tree node when it
-      // captures zero characters.
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("separator").range(
-          nodeRef.from,
-          nodeRef.from,
-        ),
-      );
       const tunnelMarkNode = getDescendent("TunnelMark", nodeRef.node);
       if (!tunnelMarkNode) {
         annotations.push(

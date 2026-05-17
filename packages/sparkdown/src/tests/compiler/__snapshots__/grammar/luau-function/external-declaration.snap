@@ -2,6 +2,7 @@ sparkdown [0..67]
  ├─ LuauExternalDeclaration [0..19]
  │   ├─ LuauExternalDeclaration_begin [0..9]
  │   │   ├─ LuauExternalDeclaration_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauExternalDeclaration_begin_c2 [0..8]
  │   │   │   └─ LuauExternalKeyword [0..8]: "external"
  │   │   └─ LuauExternalDeclaration_begin_c3 [8..9]
@@ -26,6 +27,7 @@ sparkdown [0..67]
  ├─ LuauExternalDeclaration [20..43]
  │   ├─ LuauExternalDeclaration_begin [20..29]
  │   │   ├─ LuauExternalDeclaration_begin_c1 20
+ │   │   │   └─ OptionalWhitespace 20
  │   │   ├─ LuauExternalDeclaration_begin_c2 [20..28]
  │   │   │   └─ LuauExternalKeyword [20..28]: "external"
  │   │   └─ LuauExternalDeclaration_begin_c3 [28..29]
@@ -57,6 +59,7 @@ sparkdown [0..67]
  ├─ LuauExternalDeclaration [44..66]
  │   ├─ LuauExternalDeclaration_begin [44..53]
  │   │   ├─ LuauExternalDeclaration_begin_c1 44
+ │   │   │   └─ OptionalWhitespace 44
  │   │   ├─ LuauExternalDeclaration_begin_c2 [44..52]
  │   │   │   └─ LuauExternalKeyword [44..52]: "external"
  │   │   └─ LuauExternalDeclaration_begin_c3 [52..53]

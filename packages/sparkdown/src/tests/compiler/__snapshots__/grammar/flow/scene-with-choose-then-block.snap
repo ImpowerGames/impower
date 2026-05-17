@@ -2,6 +2,7 @@ sparkdown [0..87]
  ├─ Scene [0..10]
  │   ├─ Scene_begin [0..6]
  │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ Scene_begin_c2 [0..5]
  │   │   │   └─ SceneKeyword [0..5]: "scene"
  │   │   └─ Scene_begin_c3 [5..6]
@@ -104,6 +105,7 @@ sparkdown [0..87]
  │   │       │   │   │   └─ LineEnd [61..70]
  │   │       │   │   │       ├─ LineEnd_begin 61
  │   │       │   │   │       │   └─ LineEnd_begin_c1 61
+ │   │       │   │   │       │       └─ OptionalWhitespace 61
  │   │       │   │   │       ├─ LineEnd_content [61..70]
  │   │       │   │   │       │   └─ TextChunk [61..70]
  │   │       │   │   │       │       ├─ TextChunk_begin 61

@@ -2,6 +2,7 @@ sparkdown [0..97]
  ├─ Branch [0..16]
  │   ├─ Branch_begin [0..7]
  │   │   ├─ Branch_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ Branch_begin_c2 [0..6]
  │   │   │   └─ BranchKeyword [0..6]: "branch"
  │   │   └─ Branch_begin_c3 [6..7]
@@ -46,6 +47,7 @@ sparkdown [0..97]
      │   │   │       │   ├─ LuauCompareOperator [29..32]
      │   │   │       │   │   ├─ LuauCompareOperator_begin [29..32]
      │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c1 29
+     │   │   │       │   │   │   │   └─ OptionalWhitespace 29
      │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [29..31]: ">="
      │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [31..32]
      │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [31..32]
@@ -86,6 +88,7 @@ sparkdown [0..97]
      │   │   │   └─ LineEnd [47..56]
      │   │   │       ├─ LineEnd_begin 47
      │   │   │       │   └─ LineEnd_begin_c1 47
+     │   │   │       │       └─ OptionalWhitespace 47
      │   │   │       ├─ LineEnd_content [47..56]
      │   │   │       │   └─ TextChunk [47..56]
      │   │   │       │       ├─ TextChunk_begin 47

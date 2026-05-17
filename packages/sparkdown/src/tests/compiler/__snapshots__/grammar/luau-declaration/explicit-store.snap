@@ -2,6 +2,7 @@ sparkdown [0..14]
  ├─ LuauExplicitStatement [0..13]
  │   ├─ LuauExplicitStatement_begin [0..2]
  │   │   ├─ LuauExplicitStatement_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauExplicitStatement_begin_c2 [0..1]
  │   │   │   └─ LuauExplicitStatementMark [0..1]: "&"
  │   │   └─ LuauExplicitStatement_begin_c3 [1..2]
@@ -10,6 +11,7 @@ sparkdown [0..14]
  │   │   └─ LuauVariableDefinition [2..13]
  │   │       ├─ LuauVariableDefinition_begin [2..8]
  │   │       │   ├─ LuauVariableDefinition_begin_c1 2
+ │   │       │   │   └─ OptionalWhitespace 2
  │   │       │   ├─ LuauVariableDefinition_begin_c2 [2..7]
  │   │       │   │   └─ LuauScopeModifier [2..7]: "store"
  │   │       │   └─ LuauVariableDefinition_begin_c3 [7..8]
@@ -30,6 +32,7 @@ sparkdown [0..14]
  │   │       │       │       │   ├─ LuauAssignmentOperator [10..12]
  │   │       │       │       │   │   ├─ LuauAssignmentOperator_begin [10..12]
  │   │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 10
+ │   │       │       │       │   │   │   │   └─ OptionalWhitespace 10
  │   │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [10..11]: "="
  │   │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [11..12]
  │   │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [11..12]

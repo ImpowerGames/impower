@@ -2,6 +2,7 @@ sparkdown [0..56]
  └─ LuauDefine [0..56]
      ├─ LuauDefine_begin [0..7]
      │   ├─ LuauDefine_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauDefine_begin_c2 [0..6]
      │   │   └─ LuauDefineKeyword [0..6]: "define"
      │   └─ LuauDefine_begin_c3 [6..7]
@@ -57,6 +58,7 @@ sparkdown [0..56]
      │   │   │       │       │   ├─ LuauAssignmentOperator [49..51]
      │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [49..51]
      │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 49
+     │   │   │       │       │   │   │   │   └─ OptionalWhitespace 49
      │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [49..50]: "="
      │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [50..51]
      │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [50..51]

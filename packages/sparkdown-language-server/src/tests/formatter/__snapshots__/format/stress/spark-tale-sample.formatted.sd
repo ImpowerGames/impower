@@ -121,7 +121,7 @@ scene GainTrust(c: companion):
 end
 
 scene DisplayInventory():
-  You now have {inventory.stars} {plural(inventory.stars){one = "star",other = "stars"}} and {inventory.coins} {plural(inventory.coins){one = "coin",other = "coins"}}.
+  You now have {inventory.stars} {plural(inventory.stars)|one="star"|other="stars"} and {inventory.coins} {plural(inventory.coins)|one="coin"|other="coins"}.
 end
 
 scene PassTime():
@@ -160,7 +160,7 @@ end
 -- Matching --
 -- Useful for reacting to distinct, non-linear player states (class, background, faction). --
 The captain inspects your weaponry.
-match(player_class)
+match (player_class)
   | warrior = "Ah, a front-line meat shield," she notes.
   | mage = "Ah, a scholar of the arcane," she notes.
   | rogue = "Ah, someone who prefers the shadows," she notes.
@@ -170,7 +170,7 @@ end
 -- Pluralization --
 -- Useful for dynamic inventory or party-size descriptions without awkward "(s)" suffixes. --
 You check your leather pouch.
-plural(potion_count)
+plural (potion_count)
   | zero = It's completely empty.
   | one = There is only one health potion left.
   | other = It rattles with {potion_count} health potions.
@@ -250,7 +250,7 @@ end
 
 -- (Remember that functions can only display strings by returning them)
 function interrogate()
-  return(
+  return (
     chain
       | `"I don't know what you're talking about," he sneers.`
       | `"I swear, I wasn't there!" he sweats.`
@@ -261,8 +261,8 @@ function interrogate()
 end
 
 function check_inventory()
-  return(
-    plural(potion_count)
+  return (
+    plural (potion_count)
       | zero = `It's completely empty.`
       | one = `There is only one health potion left.`
       | other = `It rattles with {potion_count} health potions.`
@@ -332,7 +332,7 @@ choose
     then
       He sits down without being asked.
     end
-then(optional_label)
+then (optional_label)
   "Either way, I'm not leaving until I hear it."
 end
 -> DONE

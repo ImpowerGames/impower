@@ -2,10 +2,12 @@ sparkdown [0..41]
  ├─ ImplicitAction [0..40]
  │   ├─ ImplicitAction_begin 0
  │   │   └─ ImplicitAction_begin_c1 0
+ │   │       └─ OptionalWhitespace 0
  │   ├─ ImplicitAction_content [0..40]
  │   │   └─ LineEnd [0..40]
  │   │       ├─ LineEnd_begin 0
  │   │       │   └─ LineEnd_begin_c1 0
+ │   │       │       └─ OptionalWhitespace 0
  │   │       ├─ LineEnd_content [0..40]
  │   │       │   ├─ TextChunk [0..38]
  │   │       │   │   ├─ TextChunk_begin 0

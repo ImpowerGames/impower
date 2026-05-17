@@ -2,6 +2,7 @@ sparkdown [0..166]
  └─ LuauSparkdownConditionalAlternatorBlock [0..166]
      ├─ LuauSparkdownConditionalAlternatorBlock_begin [0..7]
      │   ├─ LuauSparkdownConditionalAlternatorBlock_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauSparkdownConditionalAlternatorBlock_begin_c2 [0..6]
      │   │   └─ LuauControlKeyword [0..6]: "plural"
      │   └─ LuauSparkdownConditionalAlternatorBlock_begin_c3 [6..7]
@@ -51,10 +52,12 @@ sparkdown [0..166]
      │   ├─ ImplicitAction [33..55]
      │   │   ├─ ImplicitAction_begin 33
      │   │   │   └─ ImplicitAction_begin_c1 33
+     │   │   │       └─ OptionalWhitespace 33
      │   │   ├─ ImplicitAction_content [33..55]
      │   │   │   └─ LineEnd [33..55]
      │   │   │       ├─ LineEnd_begin 33
      │   │   │       │   └─ LineEnd_begin_c1 33
+     │   │   │       │       └─ OptionalWhitespace 33
      │   │   │       ├─ LineEnd_content [33..55]
      │   │   │       │   └─ TextChunk [33..55]
      │   │   │       │       ├─ TextChunk_begin 33
@@ -91,10 +94,12 @@ sparkdown [0..166]
      │   ├─ ImplicitAction [66..103]
      │   │   ├─ ImplicitAction_begin 66
      │   │   │   └─ ImplicitAction_begin_c1 66
+     │   │   │       └─ OptionalWhitespace 66
      │   │   ├─ ImplicitAction_content [66..103]
      │   │   │   └─ LineEnd [66..103]
      │   │   │       ├─ LineEnd_begin 66
      │   │   │       │   └─ LineEnd_begin_c1 66
+     │   │   │       │       └─ OptionalWhitespace 66
      │   │   │       ├─ LineEnd_content [66..103]
      │   │   │       │   └─ TextChunk [66..103]
      │   │   │       │       ├─ TextChunk_begin 66
@@ -137,10 +142,12 @@ sparkdown [0..166]
      │   ├─ ImplicitAction [116..162]
      │   │   ├─ ImplicitAction_begin 116
      │   │   │   └─ ImplicitAction_begin_c1 116
+     │   │   │       └─ OptionalWhitespace 116
      │   │   ├─ ImplicitAction_content [116..162]
      │   │   │   └─ LineEnd [116..162]
      │   │   │       ├─ LineEnd_begin 116
      │   │   │       │   └─ LineEnd_begin_c1 116
+     │   │   │       │       └─ OptionalWhitespace 116
      │   │   │       ├─ LineEnd_content [116..162]
      │   │   │       │   └─ TextChunk [116..162]
      │   │   │       │       ├─ TextChunk_begin 116

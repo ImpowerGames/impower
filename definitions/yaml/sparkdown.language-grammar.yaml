@@ -5433,10 +5433,12 @@ repository:
         name: keyword.operator.type.luau
       3:
         # Prettier-style: one space after `:` in type annotations
-        # (`c: companion`). RequiredWhitespace normalizes existing
-        # whitespace to one space and inserts one if zero-width.
+        # (`c: companion`). OptionalWhitespace's zero-width match
+        # still emits an empty node (see textmate-grammar-tree's
+        # MatchRule), so the formatter's mid-line "separator"
+        # dispatch fires and inserts the space.
         patterns:
-          - { include: "#RequiredWhitespace" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#OptionalWhitespace" }
       - { include: "#Newline" }

@@ -2,6 +2,7 @@ sparkdown [0..27]
  └─ LuauSparkdownSequentialAlternatorBlock [0..27]
      ├─ LuauSparkdownSequentialAlternatorBlock_begin [0..5]
      │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
      │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c2 0
      │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c3 0
      │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c4 [0..5]
@@ -25,10 +26,12 @@ sparkdown [0..27]
      │   ├─ ImplicitAction [10..11]
      │   │   ├─ ImplicitAction_begin 10
      │   │   │   └─ ImplicitAction_begin_c1 10
+     │   │   │       └─ OptionalWhitespace 10
      │   │   ├─ ImplicitAction_content [10..11]
      │   │   │   └─ LineEnd [10..11]
      │   │   │       ├─ LineEnd_begin 10
      │   │   │       │   └─ LineEnd_begin_c1 10
+     │   │   │       │       └─ OptionalWhitespace 10
      │   │   │       ├─ LineEnd_content [10..11]
      │   │   │       │   └─ TextChunk [10..11]
      │   │   │       │       ├─ TextChunk_begin 10
@@ -52,10 +55,12 @@ sparkdown [0..27]
      │   ├─ ImplicitAction [16..17]
      │   │   ├─ ImplicitAction_begin 16
      │   │   │   └─ ImplicitAction_begin_c1 16
+     │   │   │       └─ OptionalWhitespace 16
      │   │   ├─ ImplicitAction_content [16..17]
      │   │   │   └─ LineEnd [16..17]
      │   │   │       ├─ LineEnd_begin 16
      │   │   │       │   └─ LineEnd_begin_c1 16
+     │   │   │       │       └─ OptionalWhitespace 16
      │   │   │       ├─ LineEnd_content [16..17]
      │   │   │       │   └─ TextChunk [16..17]
      │   │   │       │       ├─ TextChunk_begin 16
@@ -79,10 +84,12 @@ sparkdown [0..27]
      │   ├─ ImplicitAction [22..23]
      │   │   ├─ ImplicitAction_begin 22
      │   │   │   └─ ImplicitAction_begin_c1 22
+     │   │   │       └─ OptionalWhitespace 22
      │   │   ├─ ImplicitAction_content [22..23]
      │   │   │   └─ LineEnd [22..23]
      │   │   │       ├─ LineEnd_begin 22
      │   │   │       │   └─ LineEnd_begin_c1 22
+     │   │   │       │       └─ OptionalWhitespace 22
      │   │   │       ├─ LineEnd_content [22..23]
      │   │   │       │   └─ TextChunk [22..23]
      │   │   │       │       ├─ TextChunk_begin 22

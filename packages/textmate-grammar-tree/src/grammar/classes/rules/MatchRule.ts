@@ -85,7 +85,15 @@ export class MatchRule implements Rule {
           if (capture) {
             if (capture instanceof SwitchRule) {
               const children: Matched[] = [];
-              if (resultStr != null && resultStr.length === 0 && capture.emit) {
+              // Zero-width capture: try to match the inner patterns
+              // once against the empty string. Patterns that can match
+              // zero-width (e.g. `OptionalWhitespace` with `*`) emit a
+              // node here, so downstream formatters can detect every
+              // capture boundary even when the source has no
+              // whitespace there. Patterns that can't match
+              // zero-width (e.g. `RequiredWhitespace` with `+`) return
+              // null and nothing is pushed.
+              if (resultStr != null && resultStr.length === 0) {
                 const matched = capture.match(state, 0);
                 if (matched) {
                   matched.offset(pos);

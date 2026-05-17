@@ -2,6 +2,7 @@ sparkdown [0..206]
  ├─ LuauDefine [0..205]
  │   ├─ LuauDefine_begin [0..7]
  │   │   ├─ LuauDefine_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
  │   │   ├─ LuauDefine_begin_c2 [0..6]
  │   │   │   └─ LuauDefineKeyword [0..6]: "define"
  │   │   └─ LuauDefine_begin_c3 [6..7]
@@ -56,6 +57,7 @@ sparkdown [0..206]
  │   │   │   │       │       │   ├─ LuauAssignmentOperator [37..39]
  │   │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [37..39]
  │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 37
+ │   │   │   │       │       │   │   │   │   └─ OptionalWhitespace 37
  │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [37..38]: "="
  │   │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [38..39]
  │   │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [38..39]
@@ -91,6 +93,7 @@ sparkdown [0..206]
  │   │   │   │       │       │   ├─ LuauAssignmentOperator [58..60]
  │   │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [58..60]
  │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 58
+ │   │   │   │       │       │   │   │   │   └─ OptionalWhitespace 58
  │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [58..59]: "="
  │   │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [59..60]
  │   │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [59..60]
@@ -219,6 +222,7 @@ sparkdown [0..206]
  │   │   │   │   │   │       │   ├─ LuauAssignmentOperator [144..146]
  │   │   │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [144..146]
  │   │   │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 144
+ │   │   │   │   │   │       │   │   │   │   └─ OptionalWhitespace 144
  │   │   │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [144..145]: "="
  │   │   │   │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [145..146]
  │   │   │   │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [145..146]
