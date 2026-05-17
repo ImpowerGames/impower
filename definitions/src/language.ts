@@ -179,6 +179,36 @@ export const updateGrammarVariables = (
     }
   }
 
+  // Enforce the naming convention for capturing variables: any variable
+  // whose value contains an unescaped *capturing* group `(...)` must have
+  // a name wrapped in underscores like `_NAME_`. The underscore wrap is a
+  // visible flag at every call site that "this variable adds capture
+  // group(s) to the host rule's regex." See GRAMMAR.md §4.4.
+  //
+  // The check is build-time-only — it doesn't affect parsing, just refuses
+  // to compile a grammar that violates the convention. Both directions
+  // are checked: a capturing-but-not-underscored variable AND an
+  // underscored-but-not-capturing variable both throw.
+  for (const [name, value] of Object.entries(rawPatterns)) {
+    const captures = countCapturingGroups(value);
+    const isUnderscoreWrapped = name.startsWith("_") && name.endsWith("_");
+    if (captures > 0 && !isUnderscoreWrapped) {
+      throw new Error(
+        `Grammar variable "${name}" contains ${captures} capturing group(s) but its name isn't wrapped in underscores. ` +
+          `Either change the capture(s) to non-capturing (\`(?:...)\`) or rename to \`_${name}_\` ` +
+          `to signal at every use site that the variable adds capture indices to the host rule. ` +
+          `See GRAMMAR.md §4.4.`,
+      );
+    }
+    if (captures === 0 && isUnderscoreWrapped) {
+      throw new Error(
+        `Grammar variable "${name}" is underscore-wrapped (which signals "contains capture groups") ` +
+          `but its resolved value has no capturing groups. Rename to drop the underscores. ` +
+          `See GRAMMAR.md §4.4.`,
+      );
+    }
+  }
+
   // Build the replacer list now that all values are fully resolved.
   const variableReplacers: VariableReplacer[] = Object.entries(rawPatterns).map(
     ([name, value]) => [new RegExp(`{{${name}}}`, "gim"), value],
@@ -216,6 +246,73 @@ const replacePatternVariables = (
   }
   return result;
 };
+
+/**
+ * Counts unescaped *capturing* groups in a regex source string. Capturing
+ * groups are `(` followed by a non-special char — i.e. NOT `(?:`, `(?=`,
+ * `(?!`, `(?<=`, `(?<!`, `(?<name>` (Python-style named — we treat these
+ * as capturing too since they take a capture-index slot), or backslash-
+ * escaped `\(`. Character-class parens `[(...]` don't count because `(`
+ * inside a character class is literal.
+ *
+ * Used by `updateGrammarVariables` to enforce the underscore-wrap naming
+ * convention for variables that contain captures (see GRAMMAR.md §4.4).
+ */
+function countCapturingGroups(pattern: string): number {
+  let count = 0;
+  let inCharClass = false;
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i]!;
+    // Skip escaped characters: `\(`, `\)`, `\[`, `\]`, etc. don't carry
+    // their structural meaning.
+    if (ch === "\\") {
+      i++; // skip the next char regardless of what it is
+      continue;
+    }
+    if (inCharClass) {
+      if (ch === "]") inCharClass = false;
+      continue;
+    }
+    if (ch === "[") {
+      inCharClass = true;
+      continue;
+    }
+    if (ch === "(") {
+      // Non-capturing constructs: `(?:`, `(?=`, `(?!`, `(?<=`, `(?<!`.
+      // Named captures `(?<name>...)` and `(?P<name>...)` DO take an index
+      // so we count them as capturing.
+      const next = pattern[i + 1];
+      if (next !== "?") {
+        count++;
+        continue;
+      }
+      const after = pattern[i + 2];
+      if (after === ":" || after === "=" || after === "!") {
+        // non-capturing or lookahead — skip
+        continue;
+      }
+      if (after === "<") {
+        const after2 = pattern[i + 3];
+        if (after2 === "=" || after2 === "!") {
+          // lookbehind — skip
+          continue;
+        }
+        // `(?<name>...)` — named capture, counts.
+        count++;
+        continue;
+      }
+      if (after === "P") {
+        // `(?P<name>...)` Python-style — named capture, counts.
+        count++;
+        continue;
+      }
+      // `(?...)` with an unrecognized modifier — treat conservatively as
+      // capturing so suspicious patterns trip the check rather than slip.
+      count++;
+    }
+  }
+  return count;
+}
 
 const replaceScopes = (
   pattern: string,
