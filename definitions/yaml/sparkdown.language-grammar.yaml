@@ -823,9 +823,15 @@ repository:
     patterns:
       - { include: "#SceneWithParametersDeclaration" }
       - { include: "#SceneWithoutParametersDeclaration" }
-    end: $|([:])
+    # End on `$` or `:` — but tolerate optional whitespace before
+    # the colon (`scene Foo(x: int)   :`) so the parser doesn't get
+    # stuck after the parameter-decl rule returns to the trailing WS.
+    end: $|({{WS}}*)([:])
     endCaptures:
       1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
         patterns:
           - { include: "#ColonOperator" }
 
@@ -878,9 +884,12 @@ repository:
       - { include: "#Annotation" }
       - { include: "#BranchWithParametersDeclaration" }
       - { include: "#BranchWithoutParametersDeclaration" }
-    end: $|([:])
+    end: $|({{WS}}*)([:])
     endCaptures:
       1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
         patterns:
           - { include: "#ColonOperator" }
 
@@ -3196,11 +3205,15 @@ repository:
   LuauForCondition:
     begin: (?<=for\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
     patterns:
+      - { include: "#LuauInKeyword" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
-      - { include: "#ExtraWhitespace" }
+      - { include: "#RequiredWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    # Multi-variable for-in (`for k, v in iter() do`) needs to consume
+    # commas, spaces, the `in` keyword, and call expressions before
+    # terminating. End on `do` keyword instead of the first whitespace.
+    end: (?={{BEAT}})|(?=$|{{WS}}+do\b)
 
   # ----------------------------------------------------------------------------
   # While Loop

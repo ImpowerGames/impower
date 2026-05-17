@@ -1197,9 +1197,16 @@
           "include": "#SceneWithoutParametersDeclaration"
         }
       ],
-      "end": "$|([:])",
+      "end": "$|((?:[^\\S\\n\\r])*)([:])",
       "endCaptures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
           "patterns": [
             {
               "include": "#ColonOperator"
@@ -1298,9 +1305,16 @@
           "include": "#BranchWithoutParametersDeclaration"
         }
       ],
-      "end": "$|([:])",
+      "end": "$|((?:[^\\S\\n\\r])*)([:])",
       "endCaptures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
           "patterns": [
             {
               "include": "#ColonOperator"
@@ -5256,19 +5270,22 @@
       "begin": "(?<=for\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|(?:[^\\S\\n\\r]))",
       "patterns": [
         {
+          "include": "#LuauInKeyword"
+        },
+        {
           "include": "#LuauExpression"
         },
         {
           "include": "#LuauCommaSeparator"
         },
         {
-          "include": "#ExtraWhitespace"
+          "include": "#RequiredWhitespace"
         },
         {
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])+do\\b)"
     },
     "LuauSparkdownWhileLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(while)\\b((?:[^\\S\\n\\r])*)",

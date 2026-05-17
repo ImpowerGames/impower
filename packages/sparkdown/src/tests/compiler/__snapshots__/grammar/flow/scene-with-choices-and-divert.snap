@@ -12,7 +12,8 @@ sparkdown [0..96]
  │   │       │   └─ SceneDeclarationName [6..13]: "Rooftop"
  │   │       └─ SceneWithoutParametersDeclaration_c2 13
  │   └─ Scene_end 13
- │       └─ Scene_end_c1 13
+ │       ├─ Scene_end_c1 13
+ │       └─ Scene_end_c2 13
  ├─ Newline [13..15]: "\r\n"
  ├─ InlineDialogue [15..34]
  │   ├─ InlineDialogue_begin [15..20]

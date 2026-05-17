@@ -12,7 +12,8 @@ sparkdown [0..97]
  │   │       │   └─ BranchDeclarationName [7..16]: "AfterWish"
  │   │       └─ BranchWithoutParametersDeclaration_c2 16
  │   └─ Branch_end 16
- │       └─ Branch_end_c1 16
+ │       ├─ Branch_end_c1 16
+ │       └─ Branch_end_c2 16
  ├─ Newline [16..18]: "\r\n"
  └─ LuauSparkdownIfBlock [18..97]
      ├─ LuauSparkdownIfBlock_begin [18..23]

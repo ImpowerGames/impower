@@ -15,9 +15,9 @@ text.source.sparkdown [0..76]
  │   ├─ keyword.operator.comma.luau [24..25]: ","
  │   ├─ punctuation.whitespace.optional.sd [25..26]: " "
  │   ├─ variable.other.readwrite.luau [26..27]: "v"
- │   ├─ punctuation.whitespace.extra.sd [27..28]: " "
+ │   ├─ punctuation.whitespace.required.sd [27..28]: " "
  │   ├─ keyword.control.end.luau [28..30]: "in"
- │   ├─ punctuation.whitespace.extra.sd [30..31]: " "
+ │   ├─ punctuation.whitespace.required.sd [30..31]: " "
  │   ├─ support.function.luau [31..36]: "pairs"
  │   ├─ meta.parameter.luau [36..47]
  │   │   ├─ punctuation.definition.template-expression.begin.sd [36..37]: "("

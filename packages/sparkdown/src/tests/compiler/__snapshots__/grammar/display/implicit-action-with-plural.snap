@@ -22,7 +22,8 @@ sparkdown [0..187]
  │   │       │               └─ PunctuationParenClose [23..24]: ")"
  │   │       └─ SceneWithParametersDeclaration_end 24
  │   └─ Scene_end 24
- │       └─ Scene_end_c1 24
+ │       ├─ Scene_end_c1 24
+ │       └─ Scene_end_c2 24
  ├─ Newline [24..26]: "\r\n"
  ├─ ImplicitAction [26..185]
  │   ├─ ImplicitAction_begin [26..28]

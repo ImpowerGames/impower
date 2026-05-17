@@ -56,6 +56,14 @@ for (const fixture of fixtures) {
   byCategory.set(fixture.category, list);
 }
 
+// Variant fixtures share a base name with a canonical fixture but
+// have one of these suffixes. They're expected to format to *the
+// same* output as the canonical — they exist to stress-test that
+// the formatter normalizes back to one shape regardless of how
+// "messy" or "tight" the source is. Add suffixes here to register
+// new variant kinds.
+const VARIANT_SUFFIXES = ["-messy", "-tight"];
+
 describe("format snapshots", () => {
   for (const [category, list] of byCategory) {
     describe(category, () => {
@@ -65,6 +73,23 @@ describe("format snapshots", () => {
           await expect(formatted).toMatchFileSnapshot(
             join(fixture.dir, `${fixture.name}.formatted.sd`),
           );
+          // Variant cross-check: if this fixture is a variant, its
+          // formatted output must match the canonical's formatted
+          // output exactly. That's the actual assertion variants
+          // exist for — the snapshot alone could drift in lockstep
+          // and hide a real bug.
+          for (const suffix of VARIANT_SUFFIXES) {
+            if (!fixture.name.endsWith(suffix)) continue;
+            const canonicalName = fixture.name.slice(0, -suffix.length);
+            const canonical = list.find((f) => f.name === canonicalName);
+            if (!canonical) break;
+            const canonicalFormatted = formatSource(canonical.source);
+            expect(
+              formatted,
+              `${fixture.name} should format identically to ${canonicalName}`,
+            ).toBe(canonicalFormatted);
+            break;
+          }
           // Idempotency: formatting an already-formatted file must
           // be a no-op. Two passes that disagree are almost always a
           // bug (an edit that shifts a position the second pass then

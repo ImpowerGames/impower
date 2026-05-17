@@ -1,0 +1,17 @@
+choose
+  * "What do you want?"
+    "An explanation."
+  * [Wait him out.]
+    The silence stretches.
+    "Tell me what happened."
+    choose
+      * "Nothing happened."
+        He laughs once.
+      * "I can't talk about it."
+        "You can."
+    then
+      He sits down.
+    end
+then(label)
+  "Either way, I'm not leaving."
+end

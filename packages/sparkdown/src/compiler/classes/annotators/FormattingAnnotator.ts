@@ -27,9 +27,22 @@ const INLINE_ALTERNATOR_NAMES = new Set([
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
 ]);
 
-function isInsideInlineAlternator(node: SparkdownSyntaxNodeRef): boolean {
+function isInsideInlineAlternator(
+  node: SparkdownSyntaxNodeRef,
+  read: (from: number, to: number) => string,
+): boolean {
   for (const ancestor of getContextStack(node.node)) {
-    if (INLINE_ALTERNATOR_NAMES.has(ancestor.name)) return true;
+    if (!INLINE_ALTERNATOR_NAMES.has(ancestor.name)) continue;
+    // Same-rule grammar names cover BOTH the single-line inline form
+    // (`{queue|a|b}` or `queue | a | b end`) and the multi-line
+    // block form written inside a Luau expression like
+    // `return ( chain | ... end )`. Only the single-line form
+    // carries runtime typing-pacing significance — multi-line
+    // blocks should be normalized like any other body content. We
+    // distinguish by checking whether the ancestor spans a newline.
+    const span = read(ancestor.from, ancestor.to);
+    if (span.includes("\n")) continue;
+    return true;
   }
   return false;
 }
@@ -51,15 +64,10 @@ export type FormatType =
   | "eol_divert"
   | "blankline"
   | "frontmatter"
-  | "block_declaration"
-  | "block_declaration_begin"
-  | "block_declaration_end"
   // A top-level Luau declaration (function / define) starts here.
   // Sparkdown's scene/branch have no explicit body terminator, so the
-  // formatter's `scene_begin`/`branch_begin` indent push would
-  // otherwise persist forever; the consumer resets the indent stack
-  // when it sees this so subsequent top-level constructs format
-  // against column 0.
+  // formatter resets its scene/branch state when it sees this so
+  // subsequent top-level constructs format against column 0.
   | "top_level_begin";
 
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -146,22 +154,6 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (
-      nodeRef.name === "BlockTitle_begin" ||
-      nodeRef.name === "BlockHeading_begin" ||
-      nodeRef.name === "BlockTransitional_begin" ||
-      nodeRef.name === "BlockWrite_begin" ||
-      nodeRef.name === "BlockDialogue_begin" ||
-      nodeRef.name === "BlockAction_begin"
-    ) {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("block_declaration_begin").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
     if (nodeRef.name === "FrontMatter_begin") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("frontmatter_begin").range(
@@ -247,6 +239,27 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         );
       }
     }
+    // Compound assignment operators (`=`, `+=`, `-=`, etc.) want a
+    // space on BOTH sides. The grammar's begin pattern captures
+    // optional WS on each side, but textmate-grammar-tree doesn't
+    // reliably emit nodes for zero-width captures inside a begin
+    // group — so when the source has `x=1` (no spaces), neither
+    // capture fires and the mid-line dispatch never runs. Emit
+    // synthetic separators at the operator boundary directly.
+    if (nodeRef.name === "LuauAssignmentOperator") {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("separator").range(
+          nodeRef.from,
+          nodeRef.from,
+        ),
+      );
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("separator").range(
+          nodeRef.to,
+          nodeRef.to,
+        ),
+      );
+    }
     if (nodeRef.name === "ChoiceMark") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("choice_mark").range(
@@ -268,6 +281,17 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
     }
     if (nodeRef.name === "Divert") {
+      // Insert a zero-width separator just before the `->` so the
+      // formatter inserts a space when the source lacks one (e.g.
+      // `[Foo]->Bar`). The grammar's leading-WS capture inside
+      // Divert isn't reliably emitted as a tree node when it
+      // captures zero characters.
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("separator").range(
+          nodeRef.from,
+          nodeRef.from,
+        ),
+      );
       const tunnelMarkNode = getDescendent("TunnelMark", nodeRef.node);
       if (!tunnelMarkNode) {
         annotations.push(
@@ -290,7 +314,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       nodeRef.name === "RequiredWhitespace" ||
       nodeRef.name === "OptionalWhitespace"
     ) {
-      if (isInsideInlineAlternator(nodeRef)) return annotations;
+      if (isInsideInlineAlternator(nodeRef, (from, to) => this.read(from, to)))
+        return annotations;
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("separator").range(
           nodeRef.from,
@@ -300,7 +325,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       return annotations;
     }
     if (nodeRef.name === "ExtraWhitespace") {
-      if (isInsideInlineAlternator(nodeRef)) return annotations;
+      if (isInsideInlineAlternator(nodeRef, (from, to) => this.read(from, to)))
+        return annotations;
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("extra").range(
           nodeRef.from,
@@ -337,62 +363,6 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<FormatType>>[],
     nodeRef: SyntaxNodeRef,
   ): Range<SparkdownAnnotation<FormatType>>[] {
-    if (
-      nodeRef.name === "BlockTitle" ||
-      nodeRef.name === "BlockHeading" ||
-      nodeRef.name === "BlockTransitional" ||
-      nodeRef.name === "BlockWrite" ||
-      nodeRef.name === "BlockDialogue" ||
-      nodeRef.name === "BlockAction" ||
-      // Luau block scopes — emit a block_declaration_end so the
-      // formatter's indent stack pops the entries pushed by the
-      // corresponding `processBlockDeclaration` calls in
-      // `getDocumentFormattingEdits.processIndent`.
-      nodeRef.name === "LuauFunctionDefinition" ||
-      nodeRef.name === "LuauSparkdownIfBlock" ||
-      nodeRef.name === "LuauSparkdownElseifBlock" ||
-      nodeRef.name === "LuauSparkdownElseBlock" ||
-      nodeRef.name === "LuauSparkdownForLoop" ||
-      nodeRef.name === "LuauSparkdownWhileLoop" ||
-      nodeRef.name === "LuauSparkdownRepeatLoop" ||
-      nodeRef.name === "LuauSparkdownDoBlock" ||
-      // Non-Sparkdown Luau variants used inside function bodies.
-      nodeRef.name === "LuauIfBlock" ||
-      nodeRef.name === "LuauElseifBlock" ||
-      nodeRef.name === "LuauElseBlock" ||
-      nodeRef.name === "LuauForLoop" ||
-      nodeRef.name === "LuauWhileLoop" ||
-      nodeRef.name === "LuauRepeatLoop" ||
-      nodeRef.name === "LuauDoBlock" ||
-      // Sparkdown alternator + choose blocks. Same indent stack model
-      // as the Luau control-flow scopes above.
-      nodeRef.name === "LuauSparkdownChooseBlock" ||
-      nodeRef.name === "LuauSparkdownChooseThenClause" ||
-      nodeRef.name === "LuauSparkdownConditionalAlternatorBlock" ||
-      nodeRef.name === "LuauSparkdownSequentialAlternatorBlock" ||
-      // Non-Sparkdown alternator variants — pure-Luau expression
-      // contexts like `return ( chain | ... end )`.
-      nodeRef.name === "LuauSequentialAlternatorBlock" ||
-      nodeRef.name === "LuauConditionalAlternatorBlock" ||
-      // Luau class-style declarations and table literals — body is
-      // indented +1 from the `define` / opening `{` line.
-      nodeRef.name === "LuauDefine" ||
-      nodeRef.name === "LuauMethodDefinition" ||
-      nodeRef.name === "LuauTable" ||
-      nodeRef.name === "LuauParenthetical" ||
-      // Sparkdown flow containers — scene / branch wrap a body that's
-      // indented one level deeper.
-      nodeRef.name === "Scene" ||
-      nodeRef.name === "Branch"
-    ) {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("block_declaration_end").range(
-          nodeRef.to,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
     if (nodeRef.name === "FrontMatter") {
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("frontmatter_end").range(

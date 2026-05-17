@@ -43,7 +43,8 @@ sparkdown [0..172]
  │   │       │               └─ PunctuationParenClose [28..29]: ")"
  │   │       └─ SceneWithParametersDeclaration_end 29
  │   └─ Scene_end 29
- │       └─ Scene_end_c1 29
+ │       ├─ Scene_end_c1 29
+ │       └─ Scene_end_c2 29
  ├─ Newline [29..31]: "\r\n"
  ├─ LuauSparkdownIfBlock [31..170]
  │   ├─ LuauSparkdownIfBlock_begin [31..36]

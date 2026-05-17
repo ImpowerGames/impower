@@ -15,12 +15,6 @@ import { type Range } from "vscode-languageserver-textdocument";
 const WHITESPACE_REGEX = /[\t ]*/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
 
-// Decision helpers for "should this zero-width mid-line separator
-// synthesize a space?". The rules are asymmetric — `,` wants no space
-// before but YES space after; `(` after a word is a function call (no
-// space) but `(` after an operator is grouping (space). See trace
-// table in `shouldInsertSpaceBetween` below.
-
 // Right-side: nextChar = these → never insert space BEFORE them.
 const NO_SPACE_BEFORE = new Set([")", "]", "}", ",", ";", ":", "."]);
 // Left-side: prevChar = these → never insert space AFTER them.
@@ -37,18 +31,153 @@ function shouldInsertSpaceBetween(
   prevChar: string,
   nextChar: string,
 ): boolean {
-  // If there's already a space on either side, don't synthesize
-  // another one — the adjacent separator's normalize pass will
-  // handle it. Without this guard, two zero-width-adjacent
-  // separators (e.g. one trailing rule + one leading-`with` rule
-  // both capture the same gap) would each insert and produce two
-  // spaces between tokens.
   if (prevChar === " " || prevChar === "\t") return false;
   if (nextChar === " " || nextChar === "\t") return false;
   if (NO_SPACE_BEFORE.has(nextChar)) return false;
   if (NO_SPACE_AFTER.has(prevChar)) return false;
   if (CALL_LIKE_OPENERS.has(nextChar) && isWordChar(prevChar)) return false;
   return true;
+}
+
+// Every grammar rule that visually indents its body content by one level.
+// The body is recognized as the `_content` child of the named root —
+// e.g. `LuauSparkdownIfBlock_content`. The header / footer (`_begin` /
+// `_end`) stays at the parent level, so the closing `end` keyword
+// aligns with the opening `if`.
+const INDENTING_BLOCKS = new Set<SparkdownNodeName>([
+  "BlockTitle",
+  "BlockHeading",
+  "BlockTransitional",
+  "BlockWrite",
+  "BlockDialogue",
+  "BlockAction",
+  "LuauFunctionDefinition",
+  // `for`/`while`/`repeat` loops are NOT in this set: their grammar
+  // rules end at `$` / `until`, so the inner `DoBlock` (which owns
+  // the visible `end` keyword) is what we count. Listing both the
+  // loop and the DoBlock would double-indent.
+  "LuauSparkdownRepeatLoop",
+  "LuauSparkdownDoBlock",
+  "LuauSparkdownIfBlock",
+  "LuauSparkdownElseifBlock",
+  "LuauSparkdownElseBlock",
+  "LuauRepeatLoop",
+  "LuauDoBlock",
+  "LuauIfBlock",
+  "LuauElseifBlock",
+  "LuauElseBlock",
+  "LuauSparkdownChooseBlock",
+  "LuauSparkdownChooseThenClause",
+  "LuauSparkdownConditionalAlternatorBlock",
+  "LuauSparkdownSequentialAlternatorBlock",
+  "LuauSequentialAlternatorBlock",
+  "LuauConditionalAlternatorBlock",
+  "LuauDefine",
+  "LuauMethodDefinition",
+  "LuauTable",
+  "LuauParenthetical",
+  // NOTE: `Scene` and `Branch` end at the colon — they're single-line
+  // tree nodes, not body wrappers. Their indent contributions are
+  // tracked via `sceneActive` / `branchActive` state (see below)
+  // since the body lines are top-level siblings in the tree.
+] as SparkdownNodeName[]);
+
+// When a sibling clause (`else`, `elseif`, `then` after a `choose`)
+// shows up inside the parent block's body, the parent's contribution
+// is replaced by the sibling's own — otherwise both would stack and
+// the clause body would indent +1 too deep.
+const SIBLING_CLAUSES: Record<string, string[]> = {
+  LuauSparkdownIfBlock: [
+    "LuauSparkdownElseifBlock",
+    "LuauSparkdownElseBlock",
+  ],
+  LuauIfBlock: ["LuauElseifBlock", "LuauElseBlock"],
+  LuauSparkdownChooseBlock: ["LuauSparkdownChooseThenClause"],
+};
+
+// Walking back past one of these aborts the choice-body lookup.
+// `Choice` ends at the marker line's EOL so a free-standing `Scene`
+// or `LuauFunctionDefinition` after some top-level choices isn't
+// inside any choice's "body" — it's started a new top-level scope.
+const CHOICE_SCOPE_TERMINATORS = new Set<string>([
+  "Scene",
+  "Branch",
+  "LuauFunctionDefinition",
+  "LuauDefine",
+  "FrontMatter",
+]);
+
+// Counts the number of "I'm in a Choice's body" levels active at
+// `pos`. The tree models Choice as a single-line node that ends at
+// EOL, so the body lines that follow are tree-level *siblings* of
+// the marker. We walk each ancestor's prevSibling chain looking for
+// a preceding Choice; stops at scope-changing constructs so a
+// function declaration written after top-level choices doesn't
+// get credited with their indent.
+function countChoiceBodies(
+  stack: GrammarSyntaxNode<SparkdownNodeName>[],
+): number {
+  let count = 0;
+  for (const node of stack) {
+    if (!node || !node.node) continue;
+    // Skip Choice itself (we're ON a marker line, not in a body)
+    // and ChooseThenClause (the `then` keyword line replaces the
+    // body of preceding choices — it's at the choose's level, not
+    // the choice's body).
+    if (node.name === "Choice") continue;
+    if (node.name === "LuauSparkdownChooseThenClause") continue;
+    // Hitting a scope-changing construct in our ancestor chain means
+    // the choice bodies before it don't apply to us — break out.
+    if (CHOICE_SCOPE_TERMINATORS.has(node.name)) break;
+
+    let sibling = node.node.prevSibling;
+    while (sibling) {
+      if (CHOICE_SCOPE_TERMINATORS.has(sibling.name)) break;
+      if (sibling.name === "Choice") {
+        count += 1;
+        break;
+      }
+      sibling = sibling.prevSibling;
+    }
+  }
+  return count;
+}
+
+// Tree-walking indent: returns the count of ancestor blocks whose
+// `_content` contains `pos`, minus header/footer adjustments. No
+// stack state, no annotation queue — just the tree.
+function computeBlockIndent(
+  stack: GrammarSyntaxNode<SparkdownNodeName>[],
+): number {
+  let level = 0;
+  for (let i = 0; i < stack.length; i++) {
+    const node = stack[i];
+    if (!node) continue;
+    if (!INDENTING_BLOCKS.has(node.name)) continue;
+
+    // `getStack` returns leaf-first: stack[i-1] is the immediate
+    // child of stack[i] on the path to the leaf. We're in this
+    // block's body iff that immediate child is its `_content`.
+    const innerChild = stack[i - 1];
+    if (!innerChild) continue;
+    if (innerChild.name !== `${node.name}_content`) continue;
+
+    // Sibling-clause override: when the immediate child of this
+    // block's `_content` is one of its sibling clauses (`ElseBlock`
+    // for `IfBlock`, `ChooseThenClause` for `ChooseBlock`), the
+    // clause owns the indent — our `+1` would double-count. We
+    // check stack[i-2] (the direct child of stack[i-1]=content) so
+    // a clause nested inside a deeper instance of the SAME rule
+    // doesn't suppress this outer one.
+    const siblings = SIBLING_CLAUSES[node.name];
+    if (siblings) {
+      const directChild = stack[i - 2];
+      if (directChild && siblings.includes(directChild.name)) continue;
+    }
+
+    level += 1;
+  }
+  return level;
 }
 
 const isInRange = (
@@ -86,11 +215,17 @@ export const getFormatting = (
 
   const lines: { range: Range; text: string }[] = [];
 
-  const indentStack: {
-    type: FormatType;
-    marks?: string[];
-    level: number;
-  }[] = [];
+  // Persistent state across lines — only for things the tree alone
+  // can't tell us:
+  //   - `Scene` / `Branch` aren't body wrappers; their bodies are
+  //     top-level siblings in the tree. We track them as booleans
+  //     that flip on scene_begin / branch_begin and back off when
+  //     the implicit body ends (next scene, top-level Luau decl, or
+  //     a stray `end` keyword closing the scope).
+  //   - `Choice` body indent is derived from the tree by walking
+  //     prev-siblings (see `countChoiceBodies`). No state needed.
+  let sceneActive = false;
+  let branchActive = false;
 
   let tempIndentLevel: number | undefined = undefined;
   let matchNextIndentLevel: { from: number; to: number } | undefined =
@@ -109,509 +244,114 @@ export const getFormatting = (
     }
   };
 
-  const resetIndent = () => {
-    indentStack.length = 0;
-  };
-
-  const setIndent = (indent: {
-    type: FormatType;
-    marks?: string[];
-    level: number;
-  }) => {
-    indentStack[Math.max(0, indentStack.length - 1)] = indent;
-  };
-
-  const indent = (indent: {
-    type: FormatType;
-    marks?: string[];
-    level?: number;
-  }) => {
-    let newIndentLevel =
-      indent.level == null
-        ? (indentStack.at(-1)?.level ?? 0) + 1
-        : indent.level;
-    indentStack.push({ type: indent.type, level: newIndentLevel });
-  };
-
-  const outdent = () => {
-    indentStack.pop();
-  };
-
-  // Maps a "parent" block to the list of sibling clauses inside its
-  // content that *visually replace* it. For an `else` keyword or its
-  // body, the tree puts us inside `IfBlock_content`, but visually
-  // we've popped out of the if-body and are starting a new sibling
-  // at the IF's level. The ElseBlock/ElseifBlock contribution
-  // SUPERSEDES the IfBlock_content contribution so we don't
-  // double-count.
-  const TRANSPARENT_OVERRIDES: Record<string, string[]> = {
-    LuauSparkdownIfBlock: [
-      "LuauSparkdownElseifBlock",
-      "LuauSparkdownElseBlock",
-    ],
-    LuauIfBlock: ["LuauElseifBlock", "LuauElseBlock"],
-    LuauSparkdownChooseBlock: ["LuauSparkdownChooseThenClause"],
-  };
-
-  const processBlockDeclaration = (
-    stack: GrammarSyntaxNode<SparkdownNodeName>[],
-    rootNodeName: SparkdownNodeName,
-    contentNodeName: SparkdownNodeName,
-    currentIndentation: string,
-    currentIndentLevel: number,
-    strict: boolean,
-  ) => {
-    // If any of this rule's transparent overrides is in the stack,
-    // the override owns the indent contribution and this rule must
-    // stay silent. Otherwise an `else` keyword would inherit the
-    // IF-body indent on top of the ELSE-body indent.
-    const overrides = TRANSPARENT_OVERRIDES[rootNodeName];
-    if (overrides) {
-      for (const o of overrides) {
-        if (stack.some((n) => n?.name === o)) {
-          return currentIndentLevel;
-        }
-      }
-    }
-    // `stack` is innermost-first: [leaf, ..., outermost]. So for a
-    // given root at index i, its matching `_content` lives at an
-    // *earlier* index (smaller i, deeper in the tree). Find every
-    // (root, content?) pair so nested instances of the same rule
-    // (nested if-blocks, choose inside choose, etc.) each contribute
-    // their own indent level.
-    const pairs: {
-      rootNode: GrammarSyntaxNode<SparkdownNodeName>;
-      contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined;
-    }[] = [];
-    for (let i = 0; i < stack.length; i++) {
-      const rootNode = stack[i];
-      if (!rootNode || rootNode.name !== rootNodeName) continue;
-      // Walk toward the leaf looking for this root's `_content`.
-      // Stop if we cross another instance of the same root (that's
-      // a nested sibling, not this one's content).
-      let contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined;
-      for (let j = i - 1; j >= 0; j--) {
-        const candidate = stack[j];
-        if (!candidate) continue;
-        if (candidate.name === rootNodeName) break;
-        if (candidate.name === contentNodeName) {
-          contentNode = candidate;
-          break;
-        }
-      }
-      pairs.push({ rootNode, contentNode });
-    }
-    if (pairs.length === 0) return currentIndentLevel;
-
-    // Start from the current top of the indent stack — *including*
-    // any `block_declaration` entries pushed by earlier
-    // `processBlockDeclaration` calls in this same `processIndent`
-    // pass. We want this call's contribution to STACK on top of those,
-    // not replace them. (An if-block inside a function body should
-    // contribute its own +1 on top of the function's +1, producing a
-    // total of 2 levels of indent for the body content.)
-    let level = indentStack.at(-1)?.level ?? 0;
-
-    // For each nesting level: when this position is inside the
-    // block's `_content`, indent +1. When the position is in the
-    // block's `_begin`/`_end`, no contribution (the keyword line
-    // stays at the parent's level).
-    for (const { rootNode, contentNode } of pairs) {
-      // In strict mode (the only mode we use today, since the
-      // grammar's flexible-indent blocks were removed), every nested
-      // block adds exactly +1 to the body indent regardless of how
-      // the source already looked. The non-strict branch lives on
-      // for future use.
-      // Always +1 per nesting level. The historic non-strict mode
-      // walked the block's leading whitespace via `getDescendent
-      // ("Indent", rootNode)` to derive a different offset; the
-      // `Indent` rule has been removed from the grammar in favor of
-      // a position-based check in `FormattingAnnotator`, so we
-      // can't recover that here without re-adding source-walking
-      // logic. Strict-only is the only callsite anyway.
-      void rootNode;
-      void strict;
-      if (contentNode) level += 1;
-    }
-    level = Math.max(0, level);
-    indent({ type: "block_declaration", level });
-    return level;
-  };
-
   const processIndent = (from: number, to: number) => {
-    // The annotator emits a zero-width "indent" annotation immediately
-    // after every Newline, marking the spot where the next line's
-    // indentation should land. For the *final* newline that has no
-    // line of content following it, we'd be writing indent whitespace
-    // into a position that's about to be end-of-doc — pure noise that
-    // produces ghost trailing-whitespace lines. Skip that case.
+    // Zero-width indent at end-of-doc — skip so we don't emit a
+    // ghost trailing-whitespace line.
     if (from === to && from >= document.length) {
       return;
     }
-    // Each `processIndent` rebuilds its own view of the tree at the
-    // current position via the `processBlockDeclaration` calls below.
-    // Entries pushed by the *previous* line's calls — and the
-    // `choice_mark` frame the `cur` handler installed — are no longer
-    // load-bearing (anything still in scope will push itself again on
-    // this pass). Pop them so they don't compound. We deliberately
-    // preserve `frontmatter` / `scene_begin` / `branch_begin` — those
-    // are long-lived contexts emitted by separate annotators and not
-    // re-derived per indent.
-    while (
-      indentStack.at(-1)?.type === "block_declaration" ||
-      indentStack.at(-1)?.type === "choice_mark"
-    ) {
-      indentStack.pop();
-    }
     const range = document.range(from, to);
-    let text = document.read(from, to);
+    const text = document.read(from, to);
     const indentMatch = text.match(INDENT_REGEX);
     const currentIndentation = indentMatch?.[0] || "";
     const indentRange = {
-      start: {
-        line: range.start.line,
-        character: range.start.character,
-      },
+      start: { line: range.start.line, character: range.start.character },
       end: {
         line: range.start.line,
         character: currentIndentation.length,
       },
     };
 
-    const currentIndent = indentStack.at(-1);
-    let newIndentLevel = tempIndentLevel ?? currentIndent?.level ?? 0;
+    let newIndentLevel = tempIndentLevel ?? 0;
     tempIndentLevel = undefined;
+
     if (tree) {
-      // Skip past any leading whitespace on the current line when
-      // reading the tree-context stack: when pass 1 wrote `  )`, pass
-      // 2's parser puts those `  ` inside `LuauParenthetical_content`
-      // (matched by `ExtraWhitespace`), but the `)` itself lives in
-      // `LuauParenthetical_end`. Reading the stack at the WS position
-      // would credit the parens-content's `+1` and double-indent the
-      // `)`. Use the position of the line's first non-whitespace
-      // character instead so both passes derive the same context.
+      // Use the first non-whitespace character on this line as the
+      // tree-context anchor. Reading the stack at the leading-WS
+      // position would credit the enclosing block's `_content`
+      // contribution even for the closing `}` / `)` / `end` keyword,
+      // which should align with the OPENING line one level shallower.
       const lineStart = document.offsetAt({
-        line: document.positionAt(from).line,
+        line: range.start.line,
         character: 0,
       });
       const lineEnd = document.offsetAt({
-        line: document.positionAt(from).line + 1,
+        line: range.start.line + 1,
         character: 0,
       });
       const lineText = document.read(lineStart, lineEnd);
       const firstNonWs = lineText.search(/\S/);
-      const stackPos =
-        firstNonWs >= 0 ? lineStart + firstNonWs : from;
+      const stackPos = firstNonWs >= 0 ? lineStart + firstNonWs : from;
       const stack = getStack<SparkdownNodeName>(tree, stackPos, 1);
-      // Block Declaration properties are indented relative to root node
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "BlockTitle",
-        "BlockTitle_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
+
+      newIndentLevel = computeBlockIndent(stack);
+
+      // Blank lines: leave them entirely empty; don't sprinkle
+      // ghost-indent whitespace on otherwise-empty rows.
+      if (firstNonWs < 0) {
+        const expectedIndentation = "";
+        if (currentIndentation !== expectedIndentation) {
+          pushIfInRange({
+            lineNumber: indentRange.start.line + 1,
+            range: indentRange,
+            oldText: document.getText(indentRange),
+            newText: expectedIndentation,
+            type: "indent",
+          });
+        }
+        return;
+      }
+
+      // Stray `end` closing scene/branch: sparkdown's `Scene` /
+      // `Branch` grammar rules end at the colon, so a top-level
+      // `end` keyword written by the user (intending to close the
+      // scope) is just a free-standing token in the tree. If the
+      // tree shows no enclosing indenting block AND we have an
+      // active scene/branch, this `end` pops one scope level.
+      const lineLeadText = lineText.slice(firstNonWs);
+      const isStrayEnd =
+        firstNonWs >= 0 &&
+        /^end\b/.test(lineLeadText) &&
+        !stack.some(
+          (n) =>
+            n &&
+            (INDENTING_BLOCKS.has(n.name) ||
+              n.name.endsWith("_content") ||
+              n.name.endsWith("_end")),
+        );
+      if (isStrayEnd) {
+        if (branchActive) {
+          branchActive = false;
+        } else if (sceneActive) {
+          sceneActive = false;
+        }
+      }
+
+      newIndentLevel += sceneActive ? 1 : 0;
+      newIndentLevel += branchActive ? 1 : 0;
+      newIndentLevel += countChoiceBodies(stack);
+
+      // FrontMatter is special-cased: field bodies are at level 1,
+      // headers at level 0. Anything inside an `Unknown` node (a
+      // parse failure region) keeps the source's existing indent.
+      const frontMatterNode = stack.find(
+        (n) => n && n.name === "FrontMatter",
       );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "BlockHeading",
-        "BlockHeading_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "BlockTransitional",
-        "BlockTransitional_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "BlockWrite",
-        "BlockWrite_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "BlockDialogue",
-        "BlockDialogue_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "BlockAction",
-        "BlockAction_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      // Luau block scopes. Each call pops any prior `block_declaration`
-      // entries before reading the base level, so calling them in
-      // outer-to-inner order makes the nested case (e.g. an
-      // `LuauSparkdownElseBlock` inside `LuauSparkdownIfBlock_content`)
-      // resolve to the right indent: the `else` / `elseif` / `end`
-      // keyword lives at the *parent IfBlock's* level, while the
-      // nested body lives one level deeper.
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauFunctionDefinition",
-        "LuauFunctionDefinition_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownForLoop",
-        "LuauSparkdownForLoop_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownWhileLoop",
-        "LuauSparkdownWhileLoop_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownRepeatLoop",
-        "LuauSparkdownRepeatLoop_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownDoBlock",
-        "LuauSparkdownDoBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownIfBlock",
-        "LuauSparkdownIfBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownElseifBlock",
-        "LuauSparkdownElseifBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownElseBlock",
-        "LuauSparkdownElseBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      // Non-Sparkdown Luau variants — these appear inside
-      // `LuauFunctionDefinition_content` and other pure-Luau scopes
-      // where the body can hold control flow without `&`-prefixed
-      // statement markers.
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauForLoop",
-        "LuauForLoop_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauWhileLoop",
-        "LuauWhileLoop_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauRepeatLoop",
-        "LuauRepeatLoop_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauDoBlock",
-        "LuauDoBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauIfBlock",
-        "LuauIfBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauElseifBlock",
-        "LuauElseifBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauElseBlock",
-        "LuauElseBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      // Sparkdown alternator + choose blocks. Same nested-children
-      // pattern as the if/elseif/else case: `then` inside a `choose`
-      // sits at the choose's level (not nested under choose_content).
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownChooseBlock",
-        "LuauSparkdownChooseBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownChooseThenClause",
-        "LuauSparkdownChooseThenClause_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownConditionalAlternatorBlock",
-        "LuauSparkdownConditionalAlternatorBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSparkdownSequentialAlternatorBlock",
-        "LuauSparkdownSequentialAlternatorBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      // Non-Sparkdown alternator variants — appear in pure-Luau
-      // expression contexts like `return ( chain | ... end )`.
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauSequentialAlternatorBlock",
-        "LuauSequentialAlternatorBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauConditionalAlternatorBlock",
-        "LuauConditionalAlternatorBlock_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      // Luau class-style `define ... end` and table literal
-      // `{ ... }`. Body content is indented one level relative to
-      // the opening keyword / brace line.
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauDefine",
-        "LuauDefine_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauMethodDefinition",
-        "LuauMethodDefinition_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauTable",
-        "LuauTable_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "LuauParenthetical",
-        "LuauParenthetical_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      // Sparkdown flow containers. The scene/branch declaration line
-      // sits at the parent level (or root); their bodies are
-      // indented one level deeper, so a `*`/`+` choice or a Luau
-      // block inside the scene body inherits that +1.
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "Scene",
-        "Scene_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      newIndentLevel = processBlockDeclaration(
-        stack,
-        "Branch",
-        "Branch_content",
-        currentIndentation,
-        newIndentLevel,
-        true,
-      );
-      // FrontMatter field content are indented by 1
-      const unknownNode = stack.find((n) => n.name === "Unknown");
-      const frontMatterNode = stack.find((n) => n.name === "FrontMatter");
       if (frontMatterNode) {
-        let indentLevel = Math.max(
-          0,
-          currentIndentation.includes("\t")
-            ? currentIndentation.split("\t").length - 1
-            : Math.round(currentIndentation.length / options.tabSize),
-        );
+        const unknownNode = stack.find((n) => n && n.name === "Unknown");
         const frontMatterFieldContentNode = stack.find(
-          (n) => n.name === "FrontMatterField_content",
+          (n) => n && n.name === "FrontMatterField_content",
         );
-        newIndentLevel = unknownNode
-          ? indentLevel
-          : frontMatterFieldContentNode
-            ? 1
-            : 0;
-        setIndent({ type: "frontmatter", level: newIndentLevel });
+        if (unknownNode) {
+          newIndentLevel = currentIndentation.includes("\t")
+            ? Math.max(0, currentIndentation.split("\t").length - 1)
+            : Math.round(currentIndentation.length / options.tabSize);
+        } else {
+          newIndentLevel = frontMatterFieldContentNode ? 1 : 0;
+        }
       }
     }
+
     const validIndentLevel = Math.max(0, newIndentLevel);
     const expectedIndentation = options.insertSpaces
       ? " ".repeat(validIndentLevel * options.tabSize)
@@ -635,15 +375,15 @@ export const getFormatting = (
       : document.length
     : undefined;
   aheadCur.next();
+
   while (cur.value) {
     if (formattingTo != null && cur.from > formattingTo) {
       break;
     }
-    // Lookahead in case we need to indent or outdent a certain type of node
+    // Lookahead — drives sol_comment indent-matching and (just for
+    // resets) scene/branch transitions.
     while (aheadCur.value) {
       if (aheadCur.value.type === "sol_comment") {
-        // Start of line comments are generally associated with the next non-blank line
-        // So have them match the indentation of the next non-blank line
         if (!matchNextIndentLevel) {
           matchNextIndentLevel = { from: aheadCur.from, to: aheadCur.to };
         }
@@ -661,57 +401,23 @@ export const getFormatting = (
           );
         }
       } else if (aheadCur.value.type === "scene_begin") {
-        resetIndent();
-      } else if (aheadCur.value.type === "top_level_begin") {
-        // A top-level Luau declaration (function / define) starts
-        // here — the previous scene's implicit body is over, so drop
-        // the lingering scene_begin / branch_begin frames before the
-        // declaration's own indent context takes effect.
-        resetIndent();
-      } else if (aheadCur.value.type === "block_declaration_end") {
-        while (indentStack.at(-1)?.type === "block_declaration") {
-          indentStack.pop();
-        }
-      } else if (aheadCur.value.type === "frontmatter_end") {
-        while (indentStack.at(-1)?.type === "frontmatter") {
-          indentStack.pop();
-        }
+        // New scene declaration — reset prior scene/branch state.
+        sceneActive = false;
+        branchActive = false;
       } else if (aheadCur.value.type === "branch_begin") {
-        resetIndent();
-        indent({ type: aheadCur.value.type });
-      } else if (aheadCur.value.type === "choice_mark") {
-        const text = document.read(aheadCur.from, aheadCur.to);
-        const marks = text.split(WHITESPACE_REGEX).filter((m) => Boolean(m));
-        if (marks.length > 0) {
-          const top = indentStack.at(-1);
-          // If the previous frame is a sibling choice_mark, REPLACE
-          // it (siblings share the same indent slot). Otherwise PUSH
-          // — we don't want to clobber a parent scene_begin /
-          // branch_begin frame and lose its indent contribution for
-          // the choice line.
-          if (top?.type === "choice_mark") {
-            const indentOffset =
-              marks.length - (top.marks?.length ?? 0) - 1;
-            const newIndentLevel = (top.level ?? 0) + indentOffset;
-            setIndent({
-              type: aheadCur.value.type,
-              marks,
-              level: Math.max(0, newIndentLevel),
-            });
-          } else {
-            const parentLevel = top?.level ?? 0;
-            indentStack.push({
-              type: aheadCur.value.type,
-              marks,
-              level: parentLevel,
-            });
-          }
-        }
+        // New branch declaration. Branches sit inside a scene body
+        // (sceneActive stays as-is). Reset any prior branch state.
+        branchActive = false;
+      } else if (aheadCur.value.type === "top_level_begin") {
+        // Top-level Luau decl (function / define) ends any implicit
+        // scene/branch body — they have no explicit terminator in
+        // the grammar.
+        sceneActive = false;
+        branchActive = false;
       }
       break;
     }
 
-    // Process current
     const range = document.range(cur.from, cur.to);
     if (cur.value.type === "indent") {
       if (!matchNextIndentLevel || cur.from >= matchNextIndentLevel.to) {
@@ -725,28 +431,31 @@ export const getFormatting = (
         indentsToProcessLater.push({ from: cur.from, to: cur.to });
       }
     } else if (cur.value.type === "separator") {
-      // Zero-width separators are a no-op normalize but a candidate
-      // insert. We insert only when the surrounding chars look like
-      // an operator boundary (`x=1` → `x = 1`); we leave the
-      // separator alone when it's at line start or when it sits
-      // against attaching punctuation (`plural(cond)`, `obj.method`,
-      // `foo(a,b)`).
-      const isZeroWidth = cur.from === cur.to;
-      let shouldSkip = false;
-      if (isZeroWidth) {
-        if (range.start.character === 0) {
-          shouldSkip = true;
-        } else {
-          const nextChar = document.read(cur.to, cur.to + 1);
-          const prevChar = document.read(cur.from - 1, cur.from);
-          if (!shouldInsertSpaceBetween(prevChar, nextChar)) {
-            shouldSkip = true;
-          }
-        }
+      // Separator decision is the same whether the span is empty
+      // (insert one space?) or already-spaces (collapse to what?):
+      // look at the neighboring characters and let
+      // `shouldInsertSpaceBetween` decide. If it says no, collapse
+      // to empty; if yes, normalize to exactly one space.
+      const atLineStart =
+        range.start.character === 0 && cur.from === cur.to;
+      let expectedText: string;
+      if (atLineStart) {
+        // Zero-width separator at column 0 — never insert leading
+        // whitespace (`indent` handles the row's leading WS).
+        expectedText = "";
+      } else {
+        const nextChar = document.read(cur.to, cur.to + 1);
+        const prevChar = document.read(cur.from - 1, cur.from);
+        expectedText = shouldInsertSpaceBetween(prevChar, nextChar)
+          ? " "
+          : "";
       }
-      if (!shouldSkip) {
+      // Skip the no-op zero-width insert (avoid creating a useless
+      // empty-text edit).
+      if (cur.from === cur.to && expectedText === "") {
+        // no-op
+      } else {
         const text = document.getText(range);
-        const expectedText = " ";
         if (text !== expectedText) {
           pushIfInRange({
             lineNumber: range.start.line + 1,
@@ -782,35 +491,13 @@ export const getFormatting = (
         });
       }
     } else if (cur.value.type === "choice_mark") {
-      // The preceding `processIndent` pushed `block_declaration`
-      // entries for this line's tree-derived indent. Drop them so
-      // they don't compound with the choice_mark frame.
-      while (indentStack.at(-1)?.type === "block_declaration") {
-        indentStack.pop();
-      }
       const text = document.getText(range);
       const marks = text.split(WHITESPACE_REGEX).filter((m) => Boolean(m));
-      // Bump the existing `choice_mark` frame (pushed by aheadCur)
-      // to "body level" — content lines INSIDE the choice indent one
-      // deeper than the choice line itself. We mutate the frame in
-      // place rather than replacing the stack top so the parent
-      // scene_begin / branch_begin frame below stays intact for the
-      // NEXT sibling choice line.
-      const top = indentStack.at(-1);
-      if (top?.type === "choice_mark") {
-        top.marks = marks;
-        top.level = (top.level ?? 0) + 1;
-      } else {
-        const parentLevel = top?.level ?? 0;
-        indentStack.push({
-          type: cur.value.type,
-          marks,
-          level: parentLevel + 1,
-        });
-      }
+      // Normalize the marker text itself ("*  " → "* ") — the indent
+      // for the marker line is already computed from the tree by
+      // `processIndent` above.
       const expectedText = marks.join(" ") + " ";
       if (text !== expectedText) {
-        // Omit first char to avoid overlapping with indent edits
         const editRange = {
           start: {
             line: range.start.line,
@@ -832,13 +519,16 @@ export const getFormatting = (
           .getLineText(document.range(cur.from, cur.to).start.line + 1)
           .trim()
       ) {
-        // If next line is blank, unindent only it
-        const currentIndent = indentStack.at(-1);
-        const newIndentLevel = Math.max(0, (currentIndent?.level ?? 0) - 1);
-        tempIndentLevel = newIndentLevel;
+        // Blank line after a divert outdents by 1 (visual paragraph
+        // break before the next statement). Stay at 0 if we're
+        // already at the outermost level.
+        tempIndentLevel = 0;
       }
     } else if (cur.value.type === "scene_begin") {
-      indent({ type: cur.value.type });
+      // After processing the scene declaration line itself, the
+      // implicit body begins. Subsequent lines indent +1 until the
+      // scope closes (next scene, top-level Luau decl, stray `end`).
+      sceneActive = true;
     } else if (cur.value.type === "scene_end") {
       const text = document.getText(range);
       const expectedText = ":";
@@ -852,7 +542,7 @@ export const getFormatting = (
         });
       }
     } else if (cur.value.type === "branch_begin") {
-      indent({ type: cur.value.type });
+      branchActive = true;
     } else if (cur.value.type === "branch_end") {
       const text = document.getText(range);
       const expectedText = ":";
@@ -873,11 +563,6 @@ export const getFormatting = (
       if (!text.trim()) {
         if (formattingOnType?.line !== range.start.line) {
           if (prevLine && !prevLine.text.trim()) {
-            // Delete extra blank lines. `lineRange` covers just the
-            // line's content (no trailing newline) — for a blank line
-            // that's a zero-width range, which would no-op. Extend it
-            // through the next-line start so the trailing `\n` is
-            // included in the deletion.
             const deleteRange: Range = {
               start: lineRange.start,
               end: { line: lineRange.start.line + 1, character: 0 },
@@ -904,12 +589,6 @@ export const getFormatting = (
     options.insertFinalNewline &&
     formattingOnType?.line !== lastPosition.line
   ) {
-    // Only insert a final `\n` if the document doesn't already end in
-    // one. The previous check used `lastLine.range.end.line <
-    // lastPosition.line`, which is *true* even when the doc ends in a
-    // single `\n` (`lastLine` ends just before that newline, on a
-    // strictly lower line than `lastPosition`) — so it kept inserting
-    // a redundant trailing blank line on every format pass.
     const lastChar =
       document.length > 0
         ? document.read(document.length - 1, document.length)
@@ -929,15 +608,8 @@ export const getFormatting = (
     }
 
     if (options.trimFinalNewlines) {
-      // Strip trailing *blank* lines only. The previous implementation
-      // deleted any line whose end sat at `docLength - 1` (i.e. the
-      // last content line), which silently ate the final line of every
-      // single-line document.
       let lastLine = lines.pop();
       while (lastLine && !lastLine.text.trim()) {
-        // Cover the line's trailing newline too — `lastLine.range`
-        // (= `getLineRange(n)`) ends just before the `\n`, so on a
-        // blank line it's zero-width and a no-op delete.
         const editRange: Range = {
           start: lastLine.range.start,
           end: { line: lastLine.range.start.line + 1, character: 0 },
@@ -962,8 +634,8 @@ export const getFormatting = (
   return {
     edits,
     lines,
-    indentStack,
-    indentLevel: indentStack.at(-1)?.level ?? 0,
+    indentStack: [] as { type: FormatType; level: number }[],
+    indentLevel: 0,
   };
 };
 
@@ -986,9 +658,7 @@ export const resolveFormattingConflicts = (
       const currOldText = document.getText(curr.range);
       const prevOldText = document.getText(prev.range);
       if (prevTo >= currFrom) {
-        // Overlap detected
         if (curr.type === "separator" && prev.type === "separator") {
-          // combine separators
           if (
             document.offsetAt(curr.range.start) <
             document.offsetAt(prev.range.start)
@@ -1003,20 +673,14 @@ export const resolveFormattingConflicts = (
           }
           continue;
         } else if (curr.type === "indent" && prev.type === "separator") {
-          // Indent takes precedence over separator
           result.pop();
         } else if (prev.type === "indent" && curr.type === "separator") {
-          // Indent takes precedence over separator
           continue;
         } else if (curr.type === "indent" && prev.type === "extra") {
-          // Indent takes precedence over extra
           result.pop();
         } else if (prev.type === "indent" && curr.type === "extra") {
-          // Indent takes precedence over extra
           continue;
         } else if (curr.type === "separator" && prev.type === "extra") {
-          // Separator takes precedence over extra
-          // Keep curr
           if (
             document.offsetAt(prev.range.start) <
             document.offsetAt(curr.range.start)
@@ -1029,11 +693,8 @@ export const resolveFormattingConflicts = (
           ) {
             curr.range.end = prev.range.end;
           }
-          // Remove prev
           result.pop();
         } else if (prev.type === "separator" && curr.type === "extra") {
-          // Separator takes precedence over extra
-          // Keep prev
           if (
             document.offsetAt(curr.range.start) <
             document.offsetAt(prev.range.start)
@@ -1046,10 +707,8 @@ export const resolveFormattingConflicts = (
           ) {
             prev.range.end = curr.range.end;
           }
-          // Don't add curr
           continue;
         } else if (curr.type === "blankline" && prev.type === "indent") {
-          // Delete blank line and add indent
           if (
             document.offsetAt(prev.range.start) <
             document.offsetAt(curr.range.start)
@@ -1064,7 +723,6 @@ export const resolveFormattingConflicts = (
           }
           result.pop();
         } else if (prev.type === "blankline" && curr.type === "indent") {
-          // Delete blank line and add indent
           if (
             document.offsetAt(curr.range.end) >
             document.offsetAt(prev.range.end)
@@ -1079,22 +737,17 @@ export const resolveFormattingConflicts = (
           }
           continue;
         } else if (curr.type === "blankline" && prev.type === "separator") {
-          // Deleting blank line takes precedence over separator
           result.pop();
         } else if (prev.type === "blankline" && curr.type === "separator") {
-          // Deleting blank line takes precedence over separator
           continue;
         } else if (curr.newText === "" && prev.newText === "") {
-          // Combine overlapping deletion edits
           prev.range.end = curr.range.end;
           continue;
         } else if (prevTo === currFrom) {
-          // Combine consecutive edits
           prev.newText += curr.newText;
           prev.range.end = curr.range.end;
           continue;
         } else {
-          // Couldn't resolve the conflict!
           console.error(
             "ERROR:",
             JSON.stringify({
@@ -1135,7 +788,7 @@ export const getDocumentFormattingEdits = (
     return undefined;
   }
 
-  const { edits, lines } = getFormatting(
+  const { edits } = getFormatting(
     document,
     tree,
     annotations,

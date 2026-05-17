@@ -12,7 +12,8 @@ sparkdown [0..45]
  │   │       │   └─ SceneDeclarationName [6..10]: "main"
  │   │       └─ SceneWithoutParametersDeclaration_c2 10
  │   └─ Scene_end 10
- │       └─ Scene_end_c1 10
+ │       ├─ Scene_end_c1 10
+ │       └─ Scene_end_c2 10
  ├─ Newline [10..11]: "\n"
  ├─ ImplicitAction [11..44]
  │   ├─ ImplicitAction_begin [11..13]

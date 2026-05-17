@@ -4,11 +4,11 @@ scene start:
       N: You unlock the door.
       if enemy_count < 3 then
         N: The room is quiet.
-  else
-    N: Danger ahead.
+      else
+        N: Danger ahead.
       end
-  else
-    N: You need a key.
+    else
+      N: You need a key.
     end
   else
     N: You've fallen.

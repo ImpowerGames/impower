@@ -68,31 +68,31 @@ sparkdown [0..112]
  │   │   │   │       └─ LuauForLoop_begin_c3 [39..40]
  │   │   │   │           └─ OptionalWhitespace [39..40]: " "
  │   │   │   ├─ LuauForLoop_content [40..92]
- │   │   │   │   ├─ LuauForCondition [40..41]
+ │   │   │   │   ├─ LuauForCondition [40..50]
  │   │   │   │   │   ├─ LuauForCondition_begin 40
- │   │   │   │   │   ├─ LuauForCondition_content [40..41]
- │   │   │   │   │   │   └─ LuauAccessPath [40..41]
- │   │   │   │   │   │       ├─ LuauAccessPath_begin 40
- │   │   │   │   │   │       ├─ LuauAccessPath_content [40..41]
- │   │   │   │   │   │       │   └─ LuauAccessPart [40..41]
- │   │   │   │   │   │       │       └─ LuauVariable [40..41]
- │   │   │   │   │   │       │           └─ LuauVariable_c1 [40..41]
- │   │   │   │   │   │       │               └─ LuauVariableName [40..41]: "i"
- │   │   │   │   │   │       └─ LuauAccessPath_end 41
- │   │   │   │   │   │           └─ LuauAccessPath_end_c1 41
- │   │   │   │   │   └─ LuauForCondition_end 41
- │   │   │   │   ├─ ExtraWhitespace [41..42]: " "
- │   │   │   │   ├─ LuauInKeyword [42..44]: "in"
- │   │   │   │   ├─ ExtraWhitespace [44..45]: " "
- │   │   │   │   ├─ LuauAccessPath [45..50]
- │   │   │   │   │   ├─ LuauAccessPath_begin 45
- │   │   │   │   │   ├─ LuauAccessPath_content [45..50]
- │   │   │   │   │   │   └─ LuauAccessPart [45..50]
- │   │   │   │   │   │       └─ LuauVariable [45..50]
- │   │   │   │   │   │           └─ LuauVariable_c1 [45..50]
- │   │   │   │   │   │               └─ LuauVariableName [45..50]: "items"
- │   │   │   │   │   └─ LuauAccessPath_end 50
- │   │   │   │   │       └─ LuauAccessPath_end_c1 50
+ │   │   │   │   │   ├─ LuauForCondition_content [40..50]
+ │   │   │   │   │   │   ├─ LuauAccessPath [40..41]
+ │   │   │   │   │   │   │   ├─ LuauAccessPath_begin 40
+ │   │   │   │   │   │   │   ├─ LuauAccessPath_content [40..41]
+ │   │   │   │   │   │   │   │   └─ LuauAccessPart [40..41]
+ │   │   │   │   │   │   │   │       └─ LuauVariable [40..41]
+ │   │   │   │   │   │   │   │           └─ LuauVariable_c1 [40..41]
+ │   │   │   │   │   │   │   │               └─ LuauVariableName [40..41]: "i"
+ │   │   │   │   │   │   │   └─ LuauAccessPath_end 41
+ │   │   │   │   │   │   │       └─ LuauAccessPath_end_c1 41
+ │   │   │   │   │   │   ├─ RequiredWhitespace [41..42]: " "
+ │   │   │   │   │   │   ├─ LuauInKeyword [42..44]: "in"
+ │   │   │   │   │   │   ├─ RequiredWhitespace [44..45]: " "
+ │   │   │   │   │   │   └─ LuauAccessPath [45..50]
+ │   │   │   │   │   │       ├─ LuauAccessPath_begin 45
+ │   │   │   │   │   │       ├─ LuauAccessPath_content [45..50]
+ │   │   │   │   │   │       │   └─ LuauAccessPart [45..50]
+ │   │   │   │   │   │       │       └─ LuauVariable [45..50]
+ │   │   │   │   │   │       │           └─ LuauVariable_c1 [45..50]
+ │   │   │   │   │   │       │               └─ LuauVariableName [45..50]: "items"
+ │   │   │   │   │   │       └─ LuauAccessPath_end 50
+ │   │   │   │   │   │           └─ LuauAccessPath_end_c1 50
+ │   │   │   │   │   └─ LuauForCondition_end 50
  │   │   │   │   └─ LuauDoBlock [50..92]
  │   │   │   │       ├─ LuauDoBlock_begin [50..53]
  │   │   │   │       │   ├─ LuauDoBlock_begin_c1 [50..51]
