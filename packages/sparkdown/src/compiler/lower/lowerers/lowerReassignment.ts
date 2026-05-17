@@ -14,7 +14,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // an `LuauAccessPath` (the target) and an immediately-following
 // `LuauAssignmentOperation` sibling (the operator + RHS). Both pieces come
 // from the *caller* (`lowerStatements`) which detected the sibling pair;
-// there is no dedicated `LuauImplicitAssignmentStatement` grammar node.
+// there is no dedicated `LuauReassignment` grammar node.
 //
 // This mirrors how Lua's recursive-descent parser disambiguates assignment
 // from expression-statement: it parses a suffixed expression first, then
@@ -27,7 +27,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 //   count += 1                    (compound, desugared to `count = count + 1`)
 //   obj.field = value             (property-target → StorePropertyAssignment)
 //   this.is["a"].access.path = v  (arbitrary mixed access path)
-export function lowerImplicitAssignmentStatement(
+export function lowerReassignment(
   lhsPath: SyntaxNode,
   opNode: SyntaxNode,
   ctx: LowerContext,

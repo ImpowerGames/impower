@@ -207,7 +207,7 @@ patterns:
   - { include: "#LuauExternalDeclaration" }
 
   - { include: "#LuauExplicitStatement" }
-  - { include: "#LuauImplicitStatement" }
+  - { include: "#LuauDeclarations" }
   - { include: "#LuauSparkdownControlBlock" }
   - { include: "#LuauInterpolatedStringExpression" }
   - { include: "#LuauEndKeyword" }
@@ -2601,7 +2601,7 @@ repository:
       # the arithmetic / compare operations so `->` isn't greedily split
       # into a `-` operator + `>` comparator.
       - { include: "#LuauDivertTargetLiteral" }
-      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauDeclarations" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauArithmeticOperation" }
       - { include: "#LuauCompareOperation" }
@@ -2631,7 +2631,7 @@ repository:
       - { include: "#LuauTypeAnnotationOperation" }
       - { include: "#LuauSemicolonSeparator" }
 
-  LuauImplicitStatement:
+  LuauDeclarations:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauShebang" }
@@ -2669,7 +2669,7 @@ repository:
       # `store` would degrade to a bare identifier reference. This makes
       # the explicit form (`& store x = 5`) interchangeable with the
       # implicit form (`store x = 5`).
-      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauDeclarations" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|$
@@ -2695,7 +2695,7 @@ repository:
   # convenience — the lowerer is the real source of truth.
   # ----------------------------------------------------------------------------
 
-  LuauImplicitAssignmentStatement:
+  LuauReassignment:
     begin: ({{WS}}*)(?={{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
     beginCaptures:
       1:
@@ -3028,7 +3028,7 @@ repository:
       - { include: "#LuauSparkdownElseifBlock" }
       - { include: "#LuauSparkdownElseBlock" }
       - { include: "#LuauSparkdownAlternatorBlocks" }
-      - { include: "#LuauImplicitAssignmentStatement" }
+      - { include: "#LuauReassignment" }
 
   LuauControlBlock:
     patterns:
@@ -3040,7 +3040,7 @@ repository:
       - { include: "#LuauElseifBlock" }
       - { include: "#LuauElseBlock" }
       - { include: "#LuauAlternatorBlocks" }
-      # `LuauImplicitStatement` covers declarations (`local x = …`,
+      # `LuauDeclarations` covers declarations (`local x = …`,
       # `function …`, `return`, `break`, `continue`, `goto`, labels,
       # type declarations). `LuauExplicitStatement` covers the `& …`
       # discard-call / assignment statement form. Both are valid inside
@@ -3050,9 +3050,9 @@ repository:
       # cannot match `& g()` inside the `if` body, so the if-block
       # terminates early and the discard-call ends up at the function
       # level (outside the conditional) — silently broken bytecode.
-      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauDeclarations" }
       - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitAssignmentStatement" }
+      - { include: "#LuauReassignment" }
 
   # Shared body-content pattern set for every sparkdown-context block-shaped
   # rule (`LuauSparkdownIfBlock`, `LuauSparkdownForLoop`, etc.). Each of
@@ -3069,7 +3069,7 @@ repository:
   LuauSparkdownBlockBody:
     patterns:
       - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauDeclarations" }
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#SparkdownStatement" }
       - { include: "#LuauExpression" }
@@ -3079,7 +3079,7 @@ repository:
   # Pure-Luau counterpart of `LuauSparkdownBlockBody`. Used inside every
   # Luau-only block rule (`LuauIfBlock`, `LuauForLoop`, `LuauFunctionDefinition`,
   # etc.). `LuauControlBlock` already transitively includes
-  # `LuauImplicitStatement` / `LuauExplicitStatement` / etc., so the
+  # `LuauDeclarations` / `LuauExplicitStatement` / etc., so the
   # body tail here is shorter than the Sparkdown variant.
   #
   # `LuauCommaSeparator` is included as a forgiveness measure — bare
@@ -3524,7 +3524,7 @@ repository:
         patterns:
           - { include: "#OptionalSeparator" }
     # Order matters: the `then` clause must be checked before
-    # `SparkdownStatement` / `LuauImplicitStatement`, otherwise a bare
+    # `SparkdownStatement` / `LuauDeclarations`, otherwise a bare
     # `then` line gets swallowed as display text. Similarly `Choice`
     # comes first so `*`-prefixed lines don't get re-routed elsewhere.
     # Free-form lines like `      foo` (a plain action under a choice)
@@ -3536,7 +3536,7 @@ repository:
       - { include: "#LuauSparkdownChooseThenClause" }
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauDeclarations" }
       - { include: "#FlowStatements" }
       - { include: "#DisplayStatements" }
       - { include: "#LuauExpression" }
@@ -3576,7 +3576,7 @@ repository:
           - { include: "#Label" }
     patterns:
       - { include: "#LuauExplicitStatement" }
-      - { include: "#LuauImplicitStatement" }
+      - { include: "#LuauDeclarations" }
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#FlowStatements" }
       - { include: "#DisplayStatements" }
@@ -4030,7 +4030,7 @@ repository:
   # (via the regular `LuauFunctionParameters`). No body — the declaration
   # ends at the closing `)` (in practice at the trailing line break, since
   # the parameters rule consumes the paren pair). Only legal at top level
-  # (included from the file-scope pattern list, not from `LuauImplicitStatement`).
+  # (included from the file-scope pattern list, not from `LuauDeclarations`).
   LuauExternalDeclaration:
     tag: meta
     name: meta.function.external.sd

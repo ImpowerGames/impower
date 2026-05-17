@@ -32,7 +32,7 @@ import { lowerDivert } from "./lowerers/lowerDivert";
 import { lowerExplicitStatement } from "./lowerers/lowerExplicitStatement";
 import { lowerGlue } from "./lowerers/lowerGlue";
 import { lowerLabelAnchor } from "./lowerers/lowerLabelAnchor";
-import { lowerImplicitAssignmentStatement } from "./lowerers/lowerImplicitAssignmentStatement";
+import { lowerReassignment } from "./lowerers/lowerReassignment";
 import { lowerInclude } from "./lowerers/lowerInclude";
 import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
@@ -139,7 +139,7 @@ function lowerInner(
       return lowerExplicitStatement(nodeRef, ctx);
     case "Glue":
       return lowerGlue(nodeRef, ctx);
-    case "LuauImplicitAssignmentStatement": {
+    case "LuauReassignment": {
       // The grammar wraps `x = 5` (bare) inside this node. The lowerer
       // helper takes the LuauAccessPath + LuauAssignmentOperation as
       // separate args, so dig them out of the wrapper here. (The same
@@ -158,7 +158,7 @@ function lowerInner(
       if (!pathChild || !opChild) {
         const content = findChildByName(
           nodeRef.node,
-          "LuauImplicitAssignmentStatement_content",
+          "LuauReassignment_content",
         );
         if (content) {
           let c = content.firstChild;
@@ -171,7 +171,7 @@ function lowerInner(
         }
       }
       if (!pathChild || !opChild) return {};
-      return lowerImplicitAssignmentStatement(pathChild, opChild, ctx);
+      return lowerReassignment(pathChild, opChild, ctx);
     }
     case "LuauSparkdownChooseBlock":
       return lowerSparkdownChooseBlock(nodeRef, ctx);
@@ -246,7 +246,7 @@ export function lowerStatements(
       if (child.name === "LuauAccessPath") {
         const opSibling = findAssignmentOperationAfter(child);
         if (opSibling) {
-          const block = lowerImplicitAssignmentStatement(child, opSibling, ctx);
+          const block = lowerReassignment(child, opSibling, ctx);
           appendBlockContent(result, block);
           child = opSibling.nextSibling;
           continue;

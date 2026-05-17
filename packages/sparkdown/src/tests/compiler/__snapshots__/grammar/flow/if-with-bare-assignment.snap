@@ -21,11 +21,11 @@ sparkdown [0..25]
  │   │   │       └─ LuauIfBlockCondition_end_c2 [8..12]
  │   │   │           └─ LuauThenKeyword [8..12]: "then"
  │   │   ├─ Newline [12..13]: "\n"
- │   │   ├─ LuauImplicitAssignmentStatement [13..20]
- │   │   │   ├─ LuauImplicitAssignmentStatement_begin [13..15]
- │   │   │   │   └─ LuauImplicitAssignmentStatement_begin_c1 [13..15]
+ │   │   ├─ LuauReassignment [13..20]
+ │   │   │   ├─ LuauReassignment_begin [13..15]
+ │   │   │   │   └─ LuauReassignment_begin_c1 [13..15]
  │   │   │   │       └─ Indent [13..15]: "  "
- │   │   │   ├─ LuauImplicitAssignmentStatement_content [15..20]
+ │   │   │   ├─ LuauReassignment_content [15..20]
  │   │   │   │   ├─ LuauAccessPath [15..17]
  │   │   │   │   │   ├─ LuauAccessPath_begin 15
  │   │   │   │   │   ├─ LuauAccessPath_content [15..16]
@@ -53,7 +53,7 @@ sparkdown [0..25]
  │   │   │   │       │       ├─ LuauNumericDecimal_c1 [19..20]: "5"
  │   │   │   │       │       └─ LuauNumericDecimal_c2 20
  │   │   │   │       └─ LuauAssignmentOperation_end 20
- │   │   │   └─ LuauImplicitAssignmentStatement_end 20
+ │   │   │   └─ LuauReassignment_end 20
  │   │   └─ Newline [20..21]: "\n"
  │   └─ LuauSparkdownIfBlock_end [21..24]
  │       ├─ LuauSparkdownIfBlock_end_c1 21

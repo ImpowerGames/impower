@@ -252,7 +252,7 @@
       "include": "#LuauExplicitStatement"
     },
     {
-      "include": "#LuauImplicitStatement"
+      "include": "#LuauDeclarations"
     },
     {
       "include": "#LuauSparkdownControlBlock"
@@ -4289,7 +4289,7 @@
           "include": "#LuauDivertTargetLiteral"
         },
         {
-          "include": "#LuauImplicitStatement"
+          "include": "#LuauDeclarations"
         },
         {
           "include": "#LuauAssignmentOperation"
@@ -4359,7 +4359,7 @@
         }
       ]
     },
-    "LuauImplicitStatement": {
+    "LuauDeclarations": {
       "patterns": [
         {
           "include": "#LuauComment"
@@ -4429,7 +4429,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauImplicitStatement"
+          "include": "#LuauDeclarations"
         },
         {
           "include": "#LuauExpression"
@@ -4445,7 +4445,7 @@
       "name": "keyword.other.statement.explicit.luau.mark.sd",
       "match": "(.+)"
     },
-    "LuauImplicitAssignmentStatement": {
+    "LuauReassignment": {
       "begin": "((?:[^\\S\\n\\r])*)(?=(?:(?!\\b(?:queue|cycle|chain)\\b|\\b(?:shuffle)\\b)[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.](?:[^\\S\\n\\r])*(?:(?!\\b(?:queue|cycle|chain)\\b|\\b(?:shuffle)\\b)[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]))*(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))",
       "beginCaptures": {
         "1": {
@@ -5034,7 +5034,7 @@
           "include": "#LuauSparkdownAlternatorBlocks"
         },
         {
-          "include": "#LuauImplicitAssignmentStatement"
+          "include": "#LuauReassignment"
         }
       ]
     },
@@ -5065,13 +5065,13 @@
           "include": "#LuauAlternatorBlocks"
         },
         {
-          "include": "#LuauImplicitStatement"
+          "include": "#LuauDeclarations"
         },
         {
           "include": "#LuauExplicitStatement"
         },
         {
-          "include": "#LuauImplicitAssignmentStatement"
+          "include": "#LuauReassignment"
         }
       ]
     },
@@ -5081,7 +5081,7 @@
           "include": "#LuauExplicitStatement"
         },
         {
-          "include": "#LuauImplicitStatement"
+          "include": "#LuauDeclarations"
         },
         {
           "include": "#LuauSparkdownControlBlock"
@@ -5873,7 +5873,7 @@
           "include": "#LuauExplicitStatement"
         },
         {
-          "include": "#LuauImplicitStatement"
+          "include": "#LuauDeclarations"
         },
         {
           "include": "#FlowStatements"
@@ -5948,7 +5948,7 @@
           "include": "#LuauExplicitStatement"
         },
         {
-          "include": "#LuauImplicitStatement"
+          "include": "#LuauDeclarations"
         },
         {
           "include": "#LuauSparkdownControlBlock"

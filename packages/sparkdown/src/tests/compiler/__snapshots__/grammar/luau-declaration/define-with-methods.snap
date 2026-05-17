@@ -188,11 +188,11 @@ sparkdown [0..206]
  │   │   │   │   │       └─ LuauFunctionParameters_end_c1 [122..123]
  │   │   │   │   │           └─ PunctuationParenClose [122..123]: ")"
  │   │   │   │   ├─ Newline [123..124]: "\n"
- │   │   │   │   ├─ LuauImplicitAssignmentStatement [124..150]
- │   │   │   │   │   ├─ LuauImplicitAssignmentStatement_begin [124..128]
- │   │   │   │   │   │   └─ LuauImplicitAssignmentStatement_begin_c1 [124..128]
+ │   │   │   │   ├─ LuauReassignment [124..150]
+ │   │   │   │   │   ├─ LuauReassignment_begin [124..128]
+ │   │   │   │   │   │   └─ LuauReassignment_begin_c1 [124..128]
  │   │   │   │   │   │       └─ Indent [124..128]: "    "
- │   │   │   │   │   ├─ LuauImplicitAssignmentStatement_content [128..150]
+ │   │   │   │   │   ├─ LuauReassignment_content [128..150]
  │   │   │   │   │   │   ├─ LuauAccessPath [128..144]
  │   │   │   │   │   │   │   ├─ LuauAccessPath_begin 128
  │   │   │   │   │   │   │   ├─ LuauAccessPath_content [128..143]
@@ -228,7 +228,7 @@ sparkdown [0..206]
  │   │   │   │   │   │       │       ├─ LuauBoolean_c1 [146..150]: "true"
  │   │   │   │   │   │       │       └─ LuauBoolean_c2 150
  │   │   │   │   │   │       └─ LuauAssignmentOperation_end 150
- │   │   │   │   │   └─ LuauImplicitAssignmentStatement_end 150
+ │   │   │   │   │   └─ LuauReassignment_end 150
  │   │   │   │   ├─ Newline [150..151]: "\n"
  │   │   │   │   ├─ ExtraWhitespace [151..155]: "    "
  │   │   │   │   ├─ LuauAccessPath [155..195]

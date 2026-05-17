@@ -104,11 +104,11 @@ sparkdown [0..76]
      │   │   │       │           └─ OptionalSeparator 50
      │   │   │       ├─ LuauDoBlock_content [50..67]
      │   │   │       │   ├─ Newline [50..51]: "\n"
-     │   │   │       │   ├─ LuauImplicitAssignmentStatement [51..66]
-     │   │   │       │   │   ├─ LuauImplicitAssignmentStatement_begin [51..55]
-     │   │   │       │   │   │   └─ LuauImplicitAssignmentStatement_begin_c1 [51..55]
+     │   │   │       │   ├─ LuauReassignment [51..66]
+     │   │   │       │   │   ├─ LuauReassignment_begin [51..55]
+     │   │   │       │   │   │   └─ LuauReassignment_begin_c1 [51..55]
      │   │   │       │   │   │       └─ Indent [51..55]: "    "
-     │   │   │       │   │   ├─ LuauImplicitAssignmentStatement_content [55..66]
+     │   │   │       │   │   ├─ LuauReassignment_content [55..66]
      │   │   │       │   │   │   ├─ LuauAccessPath [55..63]
      │   │   │       │   │   │   │   ├─ LuauAccessPath_begin 55
      │   │   │       │   │   │   │   ├─ LuauAccessPath_content [55..62]
@@ -144,7 +144,7 @@ sparkdown [0..76]
      │   │   │       │   │   │       │       ├─ LuauNumericDecimal_c1 [65..66]: "0"
      │   │   │       │   │   │       │       └─ LuauNumericDecimal_c2 66
      │   │   │       │   │   │       └─ LuauAssignmentOperation_end 66
-     │   │   │       │   │   └─ LuauImplicitAssignmentStatement_end 66
+     │   │   │       │   │   └─ LuauReassignment_end 66
      │   │   │       │   └─ Newline [66..67]: "\n"
      │   │   │       └─ LuauDoBlock_end [67..72]
      │   │   │           ├─ LuauDoBlock_end_c1 [67..69]

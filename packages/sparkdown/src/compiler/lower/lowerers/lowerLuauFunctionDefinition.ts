@@ -72,14 +72,14 @@ const LEGITIMATE_FUNCTION_BODY_CHILDREN: ReadonlySet<string> = new Set([
   // `store` prefix). The grammar bundles the access-path LHS with the
   // assignment operator under this single statement node — accept it
   // here as one legitimate child.
-  "LuauImplicitAssignmentStatement",
+  "LuauReassignment",
   "LuauIfBlock",
   "LuauForLoop",
   "LuauWhileLoop",
   "LuauRepeatLoop",
   "LuauDoBlock",
   "LuauExplicitStatement",
-  "LuauImplicitStatement",
+  "LuauDeclarations",
   "LuauFunctionDefinition",
   "LuauBreakStatement",
   "LuauContinueStatement",
