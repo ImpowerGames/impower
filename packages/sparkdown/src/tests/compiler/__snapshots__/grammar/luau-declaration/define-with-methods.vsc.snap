@@ -1,29 +1,29 @@
 text.source.sparkdown [0..206]
  ├─ meta.function.luau [0..27]
  │   ├─ keyword.control.define.luau [0..6]: "define"
- │   ├─ punctuation.whitespace.separator.optional.sd [6..7]: " "
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
  │   ├─ entity.name.type.define.luau [7..14]: "Penguin"
- │   ├─ punctuation.whitespace.separator.optional.sd [14..15]: " "
+ │   ├─ punctuation.whitespace.optional.sd [14..15]: " "
  │   ├─ keyword.control.as.luau [15..17]: "as"
- │   ├─ punctuation.whitespace.separator.optional.sd [17..18]: " "
+ │   ├─ punctuation.whitespace.optional.sd [17..18]: " "
  │   ├─ entity.name.type.define.parent.luau [18..22]: "Bird"
- │   ├─ punctuation.whitespace.separator.optional.sd [22..23]: " "
+ │   ├─ punctuation.whitespace.optional.sd [22..23]: " "
  │   └─ keyword.control.as.luau [23..27]: "with"
  ├─ Newline [27..28]: "\n"
  ├─ meta.function.luau [28..44]
  │   ├─ punctuation.whitespace.indent.sd [28..30]: "  "
  │   ├─ variable.other.readwrite.luau [30..36]: "canFly"
- │   ├─ punctuation.whitespace.separator.optional.sd [36..37]: " "
+ │   ├─ punctuation.whitespace.optional.sd [36..37]: " "
  │   ├─ keyword.operator.assignment.luau [37..38]: "="
- │   ├─ punctuation.whitespace.separator.optional.sd [38..39]: " "
+ │   ├─ punctuation.whitespace.optional.sd [38..39]: " "
  │   └─ constant.language.boolean.luau [39..44]: "false"
  ├─ Newline [44..45]: "\n"
  ├─ meta.function.luau [45..65]
  │   ├─ punctuation.whitespace.indent.sd [45..47]: "  "
  │   ├─ variable.other.readwrite.luau [47..57]: "isSwimming"
- │   ├─ punctuation.whitespace.separator.optional.sd [57..58]: " "
+ │   ├─ punctuation.whitespace.optional.sd [57..58]: " "
  │   ├─ keyword.operator.assignment.luau [58..59]: "="
- │   ├─ punctuation.whitespace.separator.optional.sd [59..60]: " "
+ │   ├─ punctuation.whitespace.optional.sd [59..60]: " "
  │   └─ constant.language.boolean.luau [60..65]: "false"
  ├─ Newline [65..66]: "\n"
  ├─ meta.function.luau [66..73]
@@ -57,7 +57,7 @@ text.source.sparkdown [0..206]
  ├─ Newline [108..109]: "\n"
  ├─ meta.function.luau [109..114]
  │   └─ meta.function.luau [109..114]
- │       ├─ punctuation.whitespace.separator.optional.sd [109..111]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [109..111]: "  "
  │       └─ keyword.control.end.luau [111..114]: "end"
  ├─ Newline [114..115]: "\n"
  ├─ meta.function.luau [115..123]
@@ -74,9 +74,9 @@ text.source.sparkdown [0..206]
  │       ├─ variable.language.self.luau [128..132]: "self"
  │       ├─ meta.template.expression.accessor.sd [132..133]: "."
  │       ├─ variable.other.property.luau [133..143]: "isSwimming"
- │       ├─ punctuation.whitespace.separator.optional.sd [143..144]: " "
+ │       ├─ punctuation.whitespace.optional.sd [143..144]: " "
  │       ├─ keyword.operator.assignment.luau [144..145]: "="
- │       ├─ punctuation.whitespace.separator.optional.sd [145..146]: " "
+ │       ├─ punctuation.whitespace.optional.sd [145..146]: " "
  │       └─ constant.language.boolean.luau [146..150]: "true"
  ├─ Newline [150..151]: "\n"
  ├─ meta.function.luau [151..195]
@@ -108,7 +108,7 @@ text.source.sparkdown [0..206]
  ├─ Newline [195..196]: "\n"
  ├─ meta.function.luau [196..201]
  │   └─ meta.function.luau [196..201]
- │       ├─ punctuation.whitespace.separator.optional.sd [196..198]: "  "
+ │       ├─ punctuation.whitespace.optional.sd [196..198]: "  "
  │       └─ keyword.control.end.luau [198..201]: "end"
  ├─ Newline [201..202]: "\n"
  ├─ meta.function.luau [202..205]

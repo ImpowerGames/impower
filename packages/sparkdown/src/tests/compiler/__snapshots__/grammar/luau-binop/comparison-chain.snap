@@ -5,7 +5,7 @@ sparkdown [0..23]
      │   ├─ LuauExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
      │   └─ LuauExplicitStatement_begin_c3 [1..2]
-     │       └─ Separator [1..2]: " "
+     │       └─ RequiredWhitespace [1..2]: " "
      ├─ LuauExplicitStatement_content [2..23]
      │   ├─ LuauAccessPath [2..4]
      │   │   ├─ LuauAccessPath_begin 2
@@ -17,7 +17,7 @@ sparkdown [0..23]
      │   │   └─ LuauAccessPath_end [3..4]
      │   │       └─ LuauAccessPath_end_c1 [3..4]
      │   │           └─ LuauAccessPath_end_c1 [3..4]
-     │   │               └─ OptionalSeparator [3..4]: " "
+     │   │               └─ OptionalWhitespace [3..4]: " "
      │   └─ LuauAssignmentOperation [4..23]
      │       ├─ LuauAssignmentOperation_begin 4
      │       │   └─ LuauAssignmentOperation_begin_c1 4
@@ -28,7 +28,7 @@ sparkdown [0..23]
      │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [4..5]: "="
      │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [5..6]
      │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
-     │       │   │   │           └─ OptionalSeparator [5..6]: " "
+     │       │   │   │           └─ OptionalWhitespace [5..6]: " "
      │       │   │   └─ LuauAssignmentOperator_end 6
      │       │   ├─ LuauAccessPath [6..8]
      │       │   │   ├─ LuauAccessPath_begin 6
@@ -40,7 +40,7 @@ sparkdown [0..23]
      │       │   │   └─ LuauAccessPath_end [7..8]
      │       │   │       └─ LuauAccessPath_end_c1 [7..8]
      │       │   │           └─ LuauAccessPath_end_c1 [7..8]
-     │       │   │               └─ OptionalSeparator [7..8]: " "
+     │       │   │               └─ OptionalWhitespace [7..8]: " "
      │       │   └─ LuauCompareOperation [8..23]
      │       │       ├─ LuauCompareOperation_begin 8
      │       │       │   └─ LuauCompareOperation_begin_c1 8
@@ -51,7 +51,7 @@ sparkdown [0..23]
      │       │       │   │   │   ├─ LuauCompareOperator_begin_c2 [8..10]: "=="
      │       │       │   │   │   └─ LuauCompareOperator_begin_c3 [10..11]
      │       │       │   │   │       └─ LuauCompareOperator_begin_c3 [10..11]
-     │       │       │   │   │           └─ OptionalSeparator [10..11]: " "
+     │       │       │   │   │           └─ OptionalWhitespace [10..11]: " "
      │       │       │   │   └─ LuauCompareOperator_end 11
      │       │       │   ├─ LuauAccessPath [11..13]
      │       │       │   │   ├─ LuauAccessPath_begin 11
@@ -63,7 +63,7 @@ sparkdown [0..23]
      │       │       │   │   └─ LuauAccessPath_end [12..13]
      │       │       │   │       └─ LuauAccessPath_end_c1 [12..13]
      │       │       │   │           └─ LuauAccessPath_end_c1 [12..13]
-     │       │       │   │               └─ OptionalSeparator [12..13]: " "
+     │       │       │   │               └─ OptionalWhitespace [12..13]: " "
      │       │       │   └─ LuauLogicalOperation [13..23]
      │       │       │       ├─ LuauLogicalOperation_begin 13
      │       │       │       │   └─ LuauLogicalOperation_begin_c1 13
@@ -74,7 +74,7 @@ sparkdown [0..23]
      │       │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [13..16]: "and"
      │       │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [16..17]
      │       │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [16..17]
-     │       │       │       │   │   │           └─ OptionalSeparator [16..17]: " "
+     │       │       │       │   │   │           └─ OptionalWhitespace [16..17]: " "
      │       │       │       │   │   └─ LuauLogicalOperator_end 17
      │       │       │       │   ├─ LuauAccessPath [17..19]
      │       │       │       │   │   ├─ LuauAccessPath_begin 17
@@ -86,7 +86,7 @@ sparkdown [0..23]
      │       │       │       │   │   └─ LuauAccessPath_end [18..19]
      │       │       │       │   │       └─ LuauAccessPath_end_c1 [18..19]
      │       │       │       │   │           └─ LuauAccessPath_end_c1 [18..19]
-     │       │       │       │   │               └─ OptionalSeparator [18..19]: " "
+     │       │       │       │   │               └─ OptionalWhitespace [18..19]: " "
      │       │       │       │   └─ LuauCompareOperation [19..23]
      │       │       │       │       ├─ LuauCompareOperation_begin 19
      │       │       │       │       │   └─ LuauCompareOperation_begin_c1 19
@@ -97,7 +97,7 @@ sparkdown [0..23]
      │       │       │       │       │   │   │   ├─ LuauCompareOperator_begin_c2 [19..21]: "=="
      │       │       │       │       │   │   │   └─ LuauCompareOperator_begin_c3 [21..22]
      │       │       │       │       │   │   │       └─ LuauCompareOperator_begin_c3 [21..22]
-     │       │       │       │       │   │   │           └─ OptionalSeparator [21..22]: " "
+     │       │       │       │       │   │   │           └─ OptionalWhitespace [21..22]: " "
      │       │       │       │       │   │   └─ LuauCompareOperator_end 22
      │       │       │       │       │   └─ LuauAccessPath [22..23]
      │       │       │       │       │       ├─ LuauAccessPath_begin 22

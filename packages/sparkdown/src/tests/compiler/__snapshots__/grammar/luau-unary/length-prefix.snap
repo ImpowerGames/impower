@@ -5,7 +5,7 @@ sparkdown [0..18]
      │   ├─ LuauExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
      │   └─ LuauExplicitStatement_begin_c3 [1..2]
-     │       └─ Separator [1..2]: " "
+     │       └─ RequiredWhitespace [1..2]: " "
      ├─ LuauExplicitStatement_content [2..18]
      │   ├─ LuauAccessPath [2..4]
      │   │   ├─ LuauAccessPath_begin 2
@@ -17,7 +17,7 @@ sparkdown [0..18]
      │   │   └─ LuauAccessPath_end [3..4]
      │   │       └─ LuauAccessPath_end_c1 [3..4]
      │   │           └─ LuauAccessPath_end_c1 [3..4]
-     │   │               └─ OptionalSeparator [3..4]: " "
+     │   │               └─ OptionalWhitespace [3..4]: " "
      │   └─ LuauAssignmentOperation [4..18]
      │       ├─ LuauAssignmentOperation_begin 4
      │       │   └─ LuauAssignmentOperation_begin_c1 4
@@ -28,7 +28,7 @@ sparkdown [0..18]
      │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [4..5]: "="
      │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [5..6]
      │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
-     │       │   │   │           └─ OptionalSeparator [5..6]: " "
+     │       │   │   │           └─ OptionalWhitespace [5..6]: " "
      │       │   │   └─ LuauAssignmentOperator_end 6
      │       │   └─ LuauLengthOperation [6..18]
      │       │       ├─ LuauLengthOperation_begin 6
@@ -40,7 +40,7 @@ sparkdown [0..18]
      │       │       │   │   │   ├─ LuauLengthOperator_begin_c2 [6..7]: "#"
      │       │       │   │   │   └─ LuauLengthOperator_begin_c3 7
      │       │       │   │   │       └─ LuauLengthOperator_begin_c3 7
-     │       │       │   │   │           └─ OptionalSeparator 7
+     │       │       │   │   │           └─ OptionalWhitespace 7
      │       │       │   │   └─ LuauLengthOperator_end 7
      │       │       │   └─ LuauAccessPath [7..18]
      │       │       │       ├─ LuauAccessPath_begin 7

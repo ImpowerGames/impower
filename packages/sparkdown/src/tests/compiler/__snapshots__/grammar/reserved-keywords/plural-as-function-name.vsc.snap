@@ -1,7 +1,7 @@
 text.source.sparkdown [0..41]
  ├─ meta.function.luau [0..26]
  │   ├─ keyword.control.luau [0..8]: "function"
- │   ├─ punctuation.whitespace.separator.optional.sd [8..9]: " "
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
  │   ├─ entity.name.function.luau [9..15]: "plural"
  │   └─ meta.parameter.luau [15..26]
  │       ├─ punctuation.definition.template-expression.begin.sd [15..16]: "("
@@ -15,7 +15,7 @@ text.source.sparkdown [0..41]
  │   └─ meta.function.luau [27..37]
  │       ├─ punctuation.whitespace.indent.sd [27..29]: "  "
  │       ├─ keyword.control.luau [29..35]: "return"
- │       ├─ punctuation.whitespace.separator.optional.sd [35..36]: " "
+ │       ├─ punctuation.whitespace.optional.sd [35..36]: " "
  │       └─ variable.other.readwrite.luau [36..37]: "n"
  ├─ Newline [37..38]: "\n"
  └─ meta.function.luau [38..41]

@@ -1,7 +1,7 @@
 text.source.sparkdown [0..56]
  ├─ meta.function.luau [0..40]
  │   ├─ keyword.control.luau [0..8]: "function"
- │   ├─ punctuation.whitespace.separator.optional.sd [8..9]: " "
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
  │   ├─ entity.name.function.luau [9..18]: "get_thing"
  │   ├─ meta.parameter.luau [18..29]
  │   │   ├─ punctuation.definition.template-expression.begin.sd [18..19]: "("
@@ -11,7 +11,7 @@ text.source.sparkdown [0..56]
  │   │   ├─ support.type.primitive.luau [22..28]: "number"
  │   │   └─ punctuation.definition.template-expression.end.sd [28..29]: ")"
  │   ├─ keyword.operator.type.luau [29..30]: ":"
- │   ├─ punctuation.whitespace.separator.optional.sd [30..31]: " "
+ │   ├─ punctuation.whitespace.optional.sd [30..31]: " "
  │   ├─ support.function.luau [31..37]: "typeof"
  │   ├─ punctuation.definition.template-expression.begin.sd [37..38]: "("
  │   ├─ variable.other.readwrite.luau [38..39]: "x"
@@ -21,7 +21,7 @@ text.source.sparkdown [0..56]
  │   └─ meta.function.luau [41..51]
  │       ├─ punctuation.whitespace.indent.sd [41..43]: "  "
  │       ├─ keyword.control.luau [43..49]: "return"
- │       ├─ punctuation.whitespace.separator.optional.sd [49..50]: " "
+ │       ├─ punctuation.whitespace.optional.sd [49..50]: " "
  │       └─ variable.other.readwrite.luau [50..51]: "x"
  ├─ Newline [51..52]: "\n"
  ├─ meta.function.luau [52..55]

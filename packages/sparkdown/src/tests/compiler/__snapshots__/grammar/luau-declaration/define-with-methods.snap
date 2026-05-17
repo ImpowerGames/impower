@@ -6,7 +6,7 @@ sparkdown [0..206]
  │   │   │   └─ LuauDefineKeyword [0..6]: "define"
  │   │   └─ LuauDefine_begin_c3 [6..7]
  │   │       └─ LuauDefine_begin_c3 [6..7]
- │   │           └─ OptionalSeparator [6..7]: " "
+ │   │           └─ OptionalWhitespace [6..7]: " "
  │   ├─ LuauDefine_content [7..202]
  │   │   ├─ LuauDefineNameAndInheritance [7..27]
  │   │   │   ├─ LuauDefineNameAndInheritance_begin [7..14]
@@ -15,21 +15,21 @@ sparkdown [0..206]
  │   │   │   ├─ LuauDefineNameAndInheritance_content [14..23]
  │   │   │   │   └─ LuauInheritanceOperation [14..23]
  │   │   │   │       ├─ LuauInheritanceOperation_c1 [14..15]
- │   │   │   │       │   └─ OptionalSeparator [14..15]: " "
+ │   │   │   │       │   └─ OptionalWhitespace [14..15]: " "
  │   │   │   │       ├─ LuauInheritanceOperation_c2 [15..17]
  │   │   │   │       │   └─ LuauAsKeyword [15..17]: "as"
  │   │   │   │       ├─ LuauInheritanceOperation_c3 [17..18]
  │   │   │   │       │   └─ LuauInheritanceOperation_c3 [17..18]
- │   │   │   │       │       └─ OptionalSeparator [17..18]: " "
+ │   │   │   │       │       └─ OptionalWhitespace [17..18]: " "
  │   │   │   │       ├─ LuauInheritanceOperation_c4 [18..22]
  │   │   │   │       │   └─ LuauDefineParentName [18..22]: "Bird"
  │   │   │   │       └─ LuauInheritanceOperation_c5 [22..23]
  │   │   │   │           └─ LuauInheritanceOperation_c5 [22..23]
- │   │   │   │               └─ OptionalSeparator [22..23]: " "
+ │   │   │   │               └─ OptionalWhitespace [22..23]: " "
  │   │   │   └─ LuauDefineNameAndInheritance_end [23..27]
  │   │   │       ├─ LuauDefineNameAndInheritance_end_c1 23
  │   │   │       │   └─ LuauDefineNameAndInheritance_end_c1 23
- │   │   │       │       └─ OptionalSeparator 23
+ │   │   │       │       └─ OptionalWhitespace 23
  │   │   │       └─ LuauDefineNameAndInheritance_end_c2 [23..27]
  │   │   │           └─ LuauWithKeyword [23..27]: "with"
  │   │   ├─ Newline [27..28]: "\n"
@@ -40,14 +40,14 @@ sparkdown [0..206]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 30
  │   │   │   │   └─ LuauPropertyDefinition_begin_c3 30
  │   │   │   │       └─ LuauPropertyDefinition_begin_c3 30
- │   │   │   │           └─ OptionalSeparator 30
+ │   │   │   │           └─ OptionalWhitespace 30
  │   │   │   ├─ LuauPropertyDefinition_content [30..44]
  │   │   │   │   └─ LuauVariableAssignment [30..44]
  │   │   │   │       ├─ LuauVariableAssignment_begin [30..37]
  │   │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [30..36]
  │   │   │   │       │   │   └─ LuauVariableName [30..36]: "canFly"
  │   │   │   │       │   └─ LuauVariableAssignment_begin_c2 [36..37]
- │   │   │   │       │       └─ OptionalSeparator [36..37]: " "
+ │   │   │   │       │       └─ OptionalWhitespace [36..37]: " "
  │   │   │   │       ├─ LuauVariableAssignment_content [37..44]
  │   │   │   │       │   └─ LuauAssignmentOperation [37..44]
  │   │   │   │       │       ├─ LuauAssignmentOperation_begin 37
@@ -59,7 +59,7 @@ sparkdown [0..206]
  │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [37..38]: "="
  │   │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [38..39]
  │   │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [38..39]
- │   │   │   │       │       │   │   │           └─ OptionalSeparator [38..39]: " "
+ │   │   │   │       │       │   │   │           └─ OptionalWhitespace [38..39]: " "
  │   │   │   │       │       │   │   └─ LuauAssignmentOperator_end 39
  │   │   │   │       │       │   └─ LuauBoolean [39..44]
  │   │   │   │       │       │       ├─ LuauBoolean_c1 [39..44]: "false"
@@ -75,14 +75,14 @@ sparkdown [0..206]
  │   │   │   │   ├─ LuauPropertyDefinition_begin_c2 47
  │   │   │   │   └─ LuauPropertyDefinition_begin_c3 47
  │   │   │   │       └─ LuauPropertyDefinition_begin_c3 47
- │   │   │   │           └─ OptionalSeparator 47
+ │   │   │   │           └─ OptionalWhitespace 47
  │   │   │   ├─ LuauPropertyDefinition_content [47..65]
  │   │   │   │   └─ LuauVariableAssignment [47..65]
  │   │   │   │       ├─ LuauVariableAssignment_begin [47..58]
  │   │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [47..57]
  │   │   │   │       │   │   └─ LuauVariableName [47..57]: "isSwimming"
  │   │   │   │       │   └─ LuauVariableAssignment_begin_c2 [57..58]
- │   │   │   │       │       └─ OptionalSeparator [57..58]: " "
+ │   │   │   │       │       └─ OptionalWhitespace [57..58]: " "
  │   │   │   │       ├─ LuauVariableAssignment_content [58..65]
  │   │   │   │       │   └─ LuauAssignmentOperation [58..65]
  │   │   │   │       │       ├─ LuauAssignmentOperation_begin 58
@@ -94,7 +94,7 @@ sparkdown [0..206]
  │   │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [58..59]: "="
  │   │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [59..60]
  │   │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [59..60]
- │   │   │   │       │       │   │   │           └─ OptionalSeparator [59..60]: " "
+ │   │   │   │       │       │   │   │           └─ OptionalWhitespace [59..60]: " "
  │   │   │   │       │       │   │   └─ LuauAssignmentOperator_end 60
  │   │   │   │       │       │   └─ LuauBoolean [60..65]
  │   │   │   │       │       │       ├─ LuauBoolean_c1 [60..65]: "false"
@@ -111,7 +111,7 @@ sparkdown [0..206]
  │   │   │   │   │   └─ LuauFunctionName [68..71]: "fly"
  │   │   │   │   └─ LuauMethodDefinition_begin_c3 71
  │   │   │   │       └─ LuauMethodDefinition_begin_c3 71
- │   │   │   │           └─ OptionalSeparator 71
+ │   │   │   │           └─ OptionalWhitespace 71
  │   │   │   ├─ LuauMethodDefinition_content [71..109]
  │   │   │   │   ├─ LuauFunctionParameters [71..73]
  │   │   │   │   │   ├─ LuauFunctionParameters_begin [71..72]
@@ -166,7 +166,7 @@ sparkdown [0..206]
  │   │   │   └─ LuauMethodDefinition_end [109..114]
  │   │   │       ├─ LuauMethodDefinition_end_c1 [109..111]
  │   │   │       │   └─ LuauMethodDefinition_end_c1 [109..111]
- │   │   │       │       └─ OptionalSeparator [109..111]: "  "
+ │   │   │       │       └─ OptionalWhitespace [109..111]: "  "
  │   │   │       └─ LuauMethodDefinition_end_c2 [111..114]
  │   │   │           └─ LuauEndKeyword [111..114]: "end"
  │   │   ├─ Newline [114..115]: "\n"
@@ -178,7 +178,7 @@ sparkdown [0..206]
  │   │   │   │   │   └─ LuauFunctionName [117..121]: "swim"
  │   │   │   │   └─ LuauMethodDefinition_begin_c3 121
  │   │   │   │       └─ LuauMethodDefinition_begin_c3 121
- │   │   │   │           └─ OptionalSeparator 121
+ │   │   │   │           └─ OptionalWhitespace 121
  │   │   │   ├─ LuauMethodDefinition_content [121..196]
  │   │   │   │   ├─ LuauFunctionParameters [121..123]
  │   │   │   │   │   ├─ LuauFunctionParameters_begin [121..122]
@@ -211,7 +211,7 @@ sparkdown [0..206]
  │   │   │   │   │   │   │   └─ LuauAccessPath_end [143..144]
  │   │   │   │   │   │   │       └─ LuauAccessPath_end_c1 [143..144]
  │   │   │   │   │   │   │           └─ LuauAccessPath_end_c1 [143..144]
- │   │   │   │   │   │   │               └─ OptionalSeparator [143..144]: " "
+ │   │   │   │   │   │   │               └─ OptionalWhitespace [143..144]: " "
  │   │   │   │   │   │   └─ LuauAssignmentOperation [144..150]
  │   │   │   │   │   │       ├─ LuauAssignmentOperation_begin 144
  │   │   │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 144
@@ -222,7 +222,7 @@ sparkdown [0..206]
  │   │   │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [144..145]: "="
  │   │   │   │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [145..146]
  │   │   │   │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [145..146]
- │   │   │   │   │   │       │   │   │           └─ OptionalSeparator [145..146]: " "
+ │   │   │   │   │   │       │   │   │           └─ OptionalWhitespace [145..146]: " "
  │   │   │   │   │   │       │   │   └─ LuauAssignmentOperator_end 146
  │   │   │   │   │   │       │   └─ LuauBoolean [146..150]
  │   │   │   │   │   │       │       ├─ LuauBoolean_c1 [146..150]: "true"
@@ -281,14 +281,14 @@ sparkdown [0..206]
  │   │   │   └─ LuauMethodDefinition_end [196..201]
  │   │   │       ├─ LuauMethodDefinition_end_c1 [196..198]
  │   │   │       │   └─ LuauMethodDefinition_end_c1 [196..198]
- │   │   │       │       └─ OptionalSeparator [196..198]: "  "
+ │   │   │       │       └─ OptionalWhitespace [196..198]: "  "
  │   │   │       └─ LuauMethodDefinition_end_c2 [198..201]
  │   │   │           └─ LuauEndKeyword [198..201]: "end"
  │   │   └─ Newline [201..202]: "\n"
  │   └─ LuauDefine_end [202..205]
  │       ├─ LuauDefine_end_c1 202
  │       │   └─ LuauDefine_end_c1 202
- │       │       └─ OptionalSeparator 202
+ │       │       └─ OptionalWhitespace 202
  │       └─ LuauDefine_end_c2 [202..205]
  │           └─ LuauEndKeyword [202..205]: "end"
  └─ Newline [205..206]: "\n"

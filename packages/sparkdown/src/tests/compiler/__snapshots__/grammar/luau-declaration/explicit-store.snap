@@ -5,7 +5,7 @@ sparkdown [0..14]
  │   │   ├─ LuauExplicitStatement_begin_c2 [0..1]
  │   │   │   └─ LuauExplicitStatementMark [0..1]: "&"
  │   │   └─ LuauExplicitStatement_begin_c3 [1..2]
- │   │       └─ Separator [1..2]: " "
+ │   │       └─ RequiredWhitespace [1..2]: " "
  │   ├─ LuauExplicitStatement_content [2..13]
  │   │   └─ LuauVariableDefinition [2..13]
  │   │       ├─ LuauVariableDefinition_begin [2..8]
@@ -14,14 +14,14 @@ sparkdown [0..14]
  │   │       │   │   └─ LuauScopeModifier [2..7]: "store"
  │   │       │   └─ LuauVariableDefinition_begin_c3 [7..8]
  │   │       │       └─ LuauVariableDefinition_begin_c3 [7..8]
- │   │       │           └─ OptionalSeparator [7..8]: " "
+ │   │       │           └─ OptionalWhitespace [7..8]: " "
  │   │       ├─ LuauVariableDefinition_content [8..13]
  │   │       │   └─ LuauVariableAssignment [8..13]
  │   │       │       ├─ LuauVariableAssignment_begin [8..10]
  │   │       │       │   ├─ LuauVariableAssignment_begin_c1 [8..9]
  │   │       │       │   │   └─ LuauVariableName [8..9]: "x"
  │   │       │       │   └─ LuauVariableAssignment_begin_c2 [9..10]
- │   │       │       │       └─ OptionalSeparator [9..10]: " "
+ │   │       │       │       └─ OptionalWhitespace [9..10]: " "
  │   │       │       ├─ LuauVariableAssignment_content [10..13]
  │   │       │       │   └─ LuauAssignmentOperation [10..13]
  │   │       │       │       ├─ LuauAssignmentOperation_begin 10
@@ -33,7 +33,7 @@ sparkdown [0..14]
  │   │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [10..11]: "="
  │   │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [11..12]
  │   │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [11..12]
- │   │       │       │       │   │   │           └─ OptionalSeparator [11..12]: " "
+ │   │       │       │       │   │   │           └─ OptionalWhitespace [11..12]: " "
  │   │       │       │       │   │   └─ LuauAssignmentOperator_end 12
  │   │       │       │       │   └─ LuauNumericDecimal [12..13]
  │   │       │       │       │       ├─ LuauNumericDecimal_c1 [12..13]: "5"

@@ -1,7 +1,7 @@
 text.source.sparkdown [0..94]
  ├─ meta.function.luau [0..31]
  │   ├─ keyword.control.luau [0..8]: "function"
- │   ├─ punctuation.whitespace.separator.optional.sd [8..9]: " "
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
  │   ├─ entity.name.function.luau [9..20]: "count_geese"
  │   └─ meta.parameter.luau [20..31]
  │       ├─ punctuation.definition.template-expression.begin.sd [20..21]: "("
@@ -15,7 +15,7 @@ text.source.sparkdown [0..94]
  │   └─ meta.function.luau [32..89]
  │       ├─ punctuation.whitespace.indent.sd [32..34]: "  "
  │       ├─ keyword.control.luau [34..40]: "return"
- │       ├─ punctuation.whitespace.separator.optional.sd [40..41]: " "
+ │       ├─ punctuation.whitespace.optional.sd [40..41]: " "
  │       └─ string.interpolated.luau [41..89]
  │           ├─ punctuation.definition.string.backtick.begin.sd [41..42]: "`"
  │           ├─ markup.raw.text.sd [42..47]: "There"
@@ -35,11 +35,11 @@ text.source.sparkdown [0..94]
  │           │   │   │   ├─ markup.raw.text.sd [64..66]: "is"
  │           │   │   │   └─ punctuation.definition.string.double.end.sd [66..67]: "\""
  │           │   │   ├─ keyword.operator.alternator.luau [67..68]: "|"
- │           │   │   ├─ punctuation.whitespace.separator.optional.sd [68..69]: " "
+ │           │   │   ├─ punctuation.whitespace.optional.sd [68..69]: " "
  │           │   │   ├─ variable.other.readwrite.luau [69..74]: "other"
- │           │   │   ├─ punctuation.whitespace.separator.optional.sd [74..75]: " "
+ │           │   │   ├─ punctuation.whitespace.optional.sd [74..75]: " "
  │           │   │   ├─ keyword.operator.equal.luau [75..76]: "="
- │           │   │   ├─ punctuation.whitespace.separator.optional.sd [76..77]: " "
+ │           │   │   ├─ punctuation.whitespace.optional.sd [76..77]: " "
  │           │   │   └─ string.quoted.double.luau [77..82]
  │           │   │       ├─ punctuation.definition.string.double.begin.sd [77..78]: "\""
  │           │   │       ├─ markup.raw.text.sd [78..81]: "are"

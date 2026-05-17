@@ -88,6 +88,8 @@ const LEGITIMATE_FUNCTION_BODY_CHILDREN: ReadonlySet<string> = new Set([
   "ExtraWhitespace",
   "Newline",
   "Whitespace",
+  "OptionalWhitespace",
+  "RequiredWhitespace",
 ]);
 
 // `LuauAccessPath` at function-body statement position is special: it

@@ -1,7 +1,7 @@
 text.source.sparkdown [0..124]
  ├─ meta.function.luau [0..26]
  │   ├─ keyword.control.luau [0..8]: "function"
- │   ├─ punctuation.whitespace.separator.optional.sd [8..9]: " "
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
  │   ├─ entity.name.function.luau [9..15]: "plural"
  │   └─ meta.parameter.luau [15..26]
  │       ├─ punctuation.definition.template-expression.begin.sd [15..16]: "("
@@ -15,10 +15,10 @@ text.source.sparkdown [0..124]
  │   └─ meta.function.luau [27..81]
  │       ├─ punctuation.whitespace.indent.sd [27..29]: "  "
  │       ├─ keyword.control.luau [29..35]: "return"
- │       ├─ punctuation.whitespace.separator.optional.sd [35..36]: " "
+ │       ├─ punctuation.whitespace.optional.sd [35..36]: " "
  │       └─ meta.function.luau [36..81]
  │           ├─ keyword.control.luau [36..44]: "function"
- │           ├─ punctuation.whitespace.separator.optional.sd [44..45]: " "
+ │           ├─ punctuation.whitespace.optional.sd [44..45]: " "
  │           └─ meta.parameter.luau [45..81]
  │               ├─ punctuation.definition.template-expression.begin.sd [45..46]: "("
  │               ├─ variable.parameter.function.luau [46..60]: "pluralizations"
@@ -40,7 +40,7 @@ text.source.sparkdown [0..124]
  │           └─ meta.function.luau [82..114]
  │               ├─ punctuation.whitespace.indent.sd [82..86]: "    "
  │               ├─ keyword.control.luau [86..92]: "return"
- │               ├─ punctuation.whitespace.separator.optional.sd [92..93]: " "
+ │               ├─ punctuation.whitespace.optional.sd [92..93]: " "
  │               ├─ variable.other.readwrite.luau [93..107]: "pluralizations"
  │               ├─ punctuation.definition.template-expression.begin.sd [107..108]: "["
  │               ├─ string.quoted.double.luau [108..113]
@@ -52,7 +52,7 @@ text.source.sparkdown [0..124]
  ├─ meta.function.luau [115..120]
  │   └─ meta.function.luau [115..120]
  │       └─ meta.function.luau [115..120]
- │           ├─ punctuation.whitespace.separator.optional.sd [115..117]: "  "
+ │           ├─ punctuation.whitespace.optional.sd [115..117]: "  "
  │           └─ keyword.control.end.luau [117..120]: "end"
  ├─ Newline [120..121]: "\n"
  └─ meta.function.luau [121..124]

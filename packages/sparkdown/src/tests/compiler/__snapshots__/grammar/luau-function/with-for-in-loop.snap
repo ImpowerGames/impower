@@ -8,7 +8,7 @@ sparkdown [0..76]
      │   │   └─ LuauFunctionKeyword [0..8]: "function"
      │   └─ LuauFunctionDefinition_begin_c5 [8..9]
      │       └─ LuauFunctionDefinition_begin_c5 [8..9]
-     │           └─ OptionalSeparator [8..9]: " "
+     │           └─ OptionalWhitespace [8..9]: " "
      ├─ LuauFunctionDefinition_content [9..73]
      │   ├─ LuauFunctionDeclarationName [9..14]
      │   │   ├─ LuauFunctionDeclarationName_c1 [9..14]
@@ -30,7 +30,7 @@ sparkdown [0..76]
      │   │   │   │   └─ LuauForKeyword [19..22]: "for"
      │   │   │   └─ LuauForLoop_begin_c3 [22..23]
      │   │   │       └─ LuauForLoop_begin_c3 [22..23]
-     │   │   │           └─ OptionalSeparator [22..23]: " "
+     │   │   │           └─ OptionalWhitespace [22..23]: " "
      │   │   ├─ LuauForLoop_content [23..72]
      │   │   │   ├─ LuauForCondition [23..27]
      │   │   │   │   ├─ LuauForCondition_begin 23
@@ -49,7 +49,7 @@ sparkdown [0..76]
      │   │   │   │   │   │   ├─ LuauCommaSeparator_c2 [24..25]: ","
      │   │   │   │   │   │   └─ LuauCommaSeparator_c3 [25..26]
      │   │   │   │   │   │       └─ LuauCommaSeparator_c3 [25..26]
-     │   │   │   │   │   │           └─ OptionalSeparator [25..26]: " "
+     │   │   │   │   │   │           └─ OptionalWhitespace [25..26]: " "
      │   │   │   │   │   └─ LuauAccessPath [26..27]
      │   │   │   │   │       ├─ LuauAccessPath_begin 26
      │   │   │   │   │       ├─ LuauAccessPath_content [26..27]
@@ -101,7 +101,7 @@ sparkdown [0..76]
      │   │   │       │   │   └─ LuauDoKeyword [48..50]: "do"
      │   │   │       │   └─ LuauDoBlock_begin_c3 50
      │   │   │       │       └─ LuauDoBlock_begin_c3 50
-     │   │   │       │           └─ OptionalSeparator 50
+     │   │   │       │           └─ OptionalWhitespace 50
      │   │   │       ├─ LuauDoBlock_content [50..67]
      │   │   │       │   ├─ Newline [50..51]: "\n"
      │   │   │       │   ├─ LuauReassignment [51..66]
@@ -127,7 +127,7 @@ sparkdown [0..76]
      │   │   │       │   │   │   │   └─ LuauAccessPath_end [62..63]
      │   │   │       │   │   │   │       └─ LuauAccessPath_end_c1 [62..63]
      │   │   │       │   │   │   │           └─ LuauAccessPath_end_c1 [62..63]
-     │   │   │       │   │   │   │               └─ OptionalSeparator [62..63]: " "
+     │   │   │       │   │   │   │               └─ OptionalWhitespace [62..63]: " "
      │   │   │       │   │   │   └─ LuauAssignmentOperation [63..66]
      │   │   │       │   │   │       ├─ LuauAssignmentOperation_begin 63
      │   │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 63
@@ -138,7 +138,7 @@ sparkdown [0..76]
      │   │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [63..64]: "="
      │   │   │       │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [64..65]
      │   │   │       │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [64..65]
-     │   │   │       │   │   │       │   │   │           └─ OptionalSeparator [64..65]: " "
+     │   │   │       │   │   │       │   │   │           └─ OptionalWhitespace [64..65]: " "
      │   │   │       │   │   │       │   │   └─ LuauAssignmentOperator_end 65
      │   │   │       │   │   │       │   └─ LuauNumericDecimal [65..66]
      │   │   │       │   │   │       │       ├─ LuauNumericDecimal_c1 [65..66]: "0"
@@ -149,7 +149,7 @@ sparkdown [0..76]
      │   │   │       └─ LuauDoBlock_end [67..72]
      │   │   │           ├─ LuauDoBlock_end_c1 [67..69]
      │   │   │           │   └─ LuauDoBlock_end_c1 [67..69]
-     │   │   │           │       └─ OptionalSeparator [67..69]: "  "
+     │   │   │           │       └─ OptionalWhitespace [67..69]: "  "
      │   │   │           └─ LuauDoBlock_end_c2 [69..72]
      │   │   │               └─ LuauEndKeyword [69..72]: "end"
      │   │   └─ LuauForLoop_end 72
@@ -157,6 +157,6 @@ sparkdown [0..76]
      └─ LuauFunctionDefinition_end [73..76]
          ├─ LuauFunctionDefinition_end_c1 73
          │   └─ LuauFunctionDefinition_end_c1 73
-         │       └─ OptionalSeparator 73
+         │       └─ OptionalWhitespace 73
          └─ LuauFunctionDefinition_end_c2 [73..76]
              └─ LuauEndKeyword [73..76]: "end"

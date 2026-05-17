@@ -1,6 +1,6 @@
 text.source.sparkdown [0..185]
  ├─ keyword.control.scene.sd [0..5]: "scene"
- ├─ punctuation.whitespace.separator.sd [5..6]: " "
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..22]: "DisplayInventory"
  ├─ meta.parameter.luau [22..24]
  │   ├─ punctuation.definition.template-expression.begin.sd [22..23]: "("

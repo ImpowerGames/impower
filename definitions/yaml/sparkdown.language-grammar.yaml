@@ -271,7 +271,7 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Tag" }
     end: (?=$)
@@ -311,7 +311,7 @@ repository:
           - { include: "#IncludeKeyword" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#IncludeContent" }
@@ -341,7 +341,7 @@ repository:
           - { include: "#LoadKeyword" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#LoadName" }
@@ -386,7 +386,7 @@ repository:
           - { include: "#ExtraWhitespace" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
 
   ########## Glue ##########
 
@@ -443,7 +443,7 @@ repository:
       7:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownInlineGluedAlternatorArm" }
@@ -476,7 +476,7 @@ repository:
       5:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
@@ -612,7 +612,7 @@ repository:
       5:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       6:
         patterns:
           - { include: "#ChoiceCondition" }
@@ -674,7 +674,7 @@ repository:
           - { include: "#ExtraWhitespace" }
       7:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
       8:
         patterns:
           - { include: "#Divert" }
@@ -694,7 +694,7 @@ repository:
           - { include: "#ExtraWhitespace" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
       4:
         patterns:
           - { include: "#Divert" }
@@ -756,7 +756,7 @@ repository:
           - { include: "#LuauLabelKeyword" }
       3:
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#LabelDeclarationName" }
@@ -792,7 +792,7 @@ repository:
       6:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LabelBeginMark:
     tag: keyword
@@ -819,7 +819,7 @@ repository:
           - { include: "#SceneKeyword" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#SceneWithParametersDeclaration" }
       - { include: "#SceneWithoutParametersDeclaration" }
@@ -873,7 +873,7 @@ repository:
           - { include: "#BranchKeyword" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#BranchWithParametersDeclaration" }
@@ -940,7 +940,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#DivertMark" }
@@ -999,7 +999,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#End" }
@@ -1047,6 +1047,23 @@ repository:
     name: punctuation.whitespace.newline.sd
     match: ({{NL}})
 
+  # Whitespace taxonomy (see GRAMMAR.md §12). The formatter dispatches
+  # by node name to decide how to handle each run of whitespace:
+  #   - Indent             — line-leading whitespace (anchored to `^`).
+  #                          Normalized to the right block-indent depth.
+  #   - TrailingWhitespace — trailing whitespace before a line break.
+  #                          Trimmed when `trimTrailingWhitespace` is on.
+  #   - Whitespace         — preserve as-is (dialogue body text,
+  #                          glue/break pacing).
+  #   - ExtraWhitespace    — collapse to nothing.
+  #   - RequiredWhitespace — normalize to exactly one space; insert
+  #                          one if the capture matched zero chars.
+  #   - OptionalWhitespace — normalize to exactly one space; insert
+  #                          one if the capture matched zero chars.
+  #
+  # `RequiredWhitespace` (regex `+`) and `OptionalWhitespace` (regex
+  # `*`) are grammar-side documentation of the rule author's intent;
+  # the formatter treats them identically.
   Indent:
     tag: special(content)
     name: punctuation.whitespace.indent.sd
@@ -1067,14 +1084,14 @@ repository:
     name: punctuation.whitespace.sd
     match: ({{WS}}+)
 
-  Separator:
+  RequiredWhitespace:
     tag: definition(content)
-    name: punctuation.whitespace.separator.sd
+    name: punctuation.whitespace.required.sd
     match: ({{WS}}+)
 
-  OptionalSeparator:
+  OptionalWhitespace:
     tag: definition(content)
-    name: punctuation.whitespace.separator.optional.sd
+    name: punctuation.whitespace.optional.sd
     match: ({{WS}}*)
 
   EndOfLine:
@@ -1286,7 +1303,7 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
       2:
         patterns:
           - { include: "#FrontMatterString" }
@@ -1362,7 +1379,7 @@ repository:
           - { include: "#ColonOperator" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1426,7 +1443,7 @@ repository:
           - { include: "#ColonOperator" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1493,7 +1510,7 @@ repository:
           - { include: "#ColonOperator" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1530,7 +1547,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#WriteTarget" }
@@ -1562,7 +1579,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#WriteTarget" }
@@ -1571,7 +1588,7 @@ repository:
           - { include: "#ColonSeparator" }
       6:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1640,7 +1657,7 @@ repository:
           - { include: "#ColonSeparator" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1785,7 +1802,7 @@ repository:
           - { include: "#ColonOperator" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -2067,7 +2084,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   ImageCommandContent:
     match: ((?:\\.|[^\]])*?)(?=$|{{WS}}*\]\])
@@ -2101,7 +2118,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   AudioCommandContent:
     match: ((?:\\.|[^)])*?)(?=$|{{WS}}*[)][)])
@@ -2115,12 +2132,12 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
           - { include: "#AssetCommandInstruction" }
       2:
         patterns:
           - { include: "#Annotation" }
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
           - { include: "#AssetCommandClauseKeyword" }
           - { include: "#TimeValue" }
           - { include: "#NumberValue" }
@@ -2134,18 +2151,18 @@ repository:
           - { include: "#AssetCommandControl" }
       2:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
       3:
         patterns:
           - { include: "#AssetCommandTarget" }
       4:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
       5:
         patterns:
           - { include: "#AssetCommandAddOperator" }
           - { include: "#AssetCommandName" }
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
           - { include: "#IllegalChar" }
 
   ImageBeginMark:
@@ -2182,7 +2199,7 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
           - { include: "#LuauString" }
           - { include: "#AssetCommandKeywordNone" }
           - { include: "#AssetCommandFilteredFileName" }
@@ -2611,7 +2628,7 @@ repository:
           - { include: "#DivertMark" }
       3:
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#DivertPath" }
@@ -2691,7 +2708,7 @@ repository:
           - { include: "#LuauExplicitStatementMark" }
       3:
         patterns:
-          - { include: "#Separator" }
+          - { include: "#RequiredWhitespace" }
     patterns:
       # Declarations need to come before LuauExpression so `& store x = 5`
       # parses as a `LuauVariableDefinition` rather than an expression where
@@ -2754,7 +2771,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauDefineNameAndInheritance" }
@@ -2767,7 +2784,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -2797,7 +2814,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauFunctionParameters" }
@@ -2808,7 +2825,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -2827,7 +2844,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauWithKeyword" }
@@ -2840,21 +2857,21 @@ repository:
         # space), not ExtraWhitespace (collapse). Without this, the
         # formatter eats the space producing `companionas`.
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauAsKeyword" }
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#LuauDefineParentName" }
       5:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauPropertyDefinition:
     begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})?({{WS}}*)(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
@@ -2869,7 +2886,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauVariableAssignment" }
@@ -2919,14 +2936,14 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#LuauFunctionKeyword" }
       5:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauGenericsDeclaration" }
@@ -2939,7 +2956,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -2992,7 +3009,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
@@ -3021,7 +3038,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauVariableAssignment" }
@@ -3040,7 +3057,7 @@ repository:
         # otherwise eat the space between the variable name and the
         # following `=` / `+=` / `-=` operator, producing `x= 1`.
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauTypeAnnotationOperation" }
       - { include: "#LuauAssignmentOperation" }
@@ -3145,7 +3162,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauForCondition" }
       - { include: "#LuauSparkdownBlockBody" }
@@ -3163,7 +3180,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauForCondition" }
       - { include: "#LuauBlockBody" }
@@ -3194,7 +3211,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauWhileCondition" }
       - { include: "#LuauSparkdownBlockBody" }
@@ -3212,7 +3229,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauWhileCondition" }
       - { include: "#LuauBlockBody" }
@@ -3243,7 +3260,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*(?:until)\b)
@@ -3260,7 +3277,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*(?:until)\b)
@@ -3277,7 +3294,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -3299,7 +3316,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -3307,7 +3324,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -3324,7 +3341,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -3332,7 +3349,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -3353,7 +3370,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauIfBlockCondition" }
       - { include: "#LuauSparkdownBlockBody" }
@@ -3362,7 +3379,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -3379,7 +3396,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauIfBlockCondition" }
       - { include: "#LuauBlockBody" }
@@ -3388,7 +3405,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -3405,7 +3422,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauThenKeyword" }
@@ -3435,7 +3452,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauElseifBlockCondition" }
       - { include: "#LuauSparkdownBlockBody" }
@@ -3453,7 +3470,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauElseifBlockCondition" }
       - { include: "#LuauBlockBody" }
@@ -3471,7 +3488,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauThenKeyword" }
@@ -3492,7 +3509,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauSparkdownBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
@@ -3509,7 +3526,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
@@ -3557,7 +3574,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     # Order matters: the `then` clause must be checked before
     # `SparkdownStatement` / `LuauDeclarations`, otherwise a bare
     # `then` line gets swallowed as display text. Similarly `Choice`
@@ -3588,7 +3605,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -3605,7 +3622,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#Label" }
@@ -3645,7 +3662,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauIfExpressionCondition" }
       - { include: "#LuauThenExpression" }
@@ -3673,7 +3690,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -3696,7 +3713,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -3736,21 +3753,21 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#LuauAlternatorAssignmentName" }
       5:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       6:
         patterns:
           - { include: "#LuauAlternatorAssignmentOperator" }
       7:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauAlternatorAssignmentName:
     tag: variableName
@@ -3782,7 +3799,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#Newline" }
@@ -3795,7 +3812,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -3816,7 +3833,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
@@ -3826,7 +3843,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -3862,14 +3879,14 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#LuauControlKeyword" }
       5:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownBlockBody" }
@@ -3878,7 +3895,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -3904,14 +3921,14 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#LuauControlKeyword" }
       5:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownAlternatorArm" }
@@ -3921,7 +3938,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -3944,7 +3961,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauConditionalAlternatorCondition" }
       - { include: "#LuauAlternatorSeparator" }
@@ -3955,7 +3972,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -3972,14 +3989,14 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#LuauControlKeyword" }
       5:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauBlockBody" }
@@ -3988,7 +4005,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
@@ -4031,7 +4048,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauLabelName" }
@@ -4052,7 +4069,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
@@ -4080,7 +4097,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauFunctionDeclarationName" }
@@ -4242,7 +4259,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauAccessPart:
     emit: true
@@ -4509,7 +4526,7 @@ repository:
       4:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauBlockCommentContent:
     tag: definition(blockComment)
@@ -4623,7 +4640,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauNumericBinary:
     match: (0_*[bB][01_]+(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{_LUAU_BINARY_OPERATOR_AHEAD_}}
@@ -4634,7 +4651,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauNumericDecimal:
     match: ((?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{_LUAU_BINARY_OPERATOR_AHEAD_}}
@@ -4645,7 +4662,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauNaN:
     tag: atom
@@ -4688,7 +4705,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauSingleQuotedString:
     tag: definition(string)
@@ -4710,7 +4727,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauMultilineString:
     tag: definition(string)
@@ -4745,7 +4762,7 @@ repository:
       4:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauInterpolatedString:
     tag: definition(string)
@@ -4768,7 +4785,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauInterpolatedStringExpression:
     tag: meta
@@ -4842,7 +4859,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauNil:
     match: (nil(?!:))\b{{_LUAU_BINARY_OPERATOR_AHEAD_}}
@@ -4853,7 +4870,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   # ----------------------------------------------------------------------------
   # Table Value
@@ -4881,7 +4898,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauTableIndexDeclaration:
     brackets: true
@@ -4925,7 +4942,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   # ----------------------------------------------------------------------------
   # Operations
@@ -4955,7 +4972,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -4985,7 +5002,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -5015,7 +5032,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -5045,7 +5062,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -5075,7 +5092,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -5105,7 +5122,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -5135,7 +5152,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -5157,7 +5174,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauSemicolonSeparator:
     match: ({{WS}}*)([;])({{WS}}*)
@@ -5171,7 +5188,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   # ----------------------------------------------------------------------------
   # Types and Generics
@@ -5225,13 +5242,13 @@ repository:
           - { include: "#LuauExportModifier" }
       3:
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#LuauTypeKeyword" }
       5:
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       6:
         patterns:
           - { include: "#LuauFunctionKeyword" }
@@ -5253,13 +5270,13 @@ repository:
           - { include: "#LuauExportModifier" }
       3:
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
       4:
         patterns:
           - { include: "#LuauTypeKeyword" }
       5:
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
@@ -5275,7 +5292,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauTypeLiteral" }
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}>=])
@@ -5289,7 +5306,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauExportModifier:
     tag: modifier
@@ -5308,7 +5325,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauTypeLiteral:
     begin: (?={{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>])
@@ -5364,7 +5381,7 @@ repository:
       3:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Indent" }
       - { include: "#Newline" }
@@ -5407,7 +5424,7 @@ repository:
         name: support.type.primitive.luau
       2:
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauTypeofFunction:
     begin: (typeof|type)\b({{WS}}*)(?=[(])
@@ -5441,7 +5458,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauTypeofFunctionName:
     tag: function(typeName)
@@ -5470,7 +5487,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauTypeTableStruct:
     brackets: true
@@ -5497,7 +5514,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauTypeTableIndexer:
     brackets: true
@@ -5556,7 +5573,7 @@ repository:
       2:
         emit: true
         patterns:
-          - { include: "#OptionalSeparator" }
+          - { include: "#OptionalWhitespace" }
 
   LuauTypeNamedFunctionParameter:
     begin: ({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[:])

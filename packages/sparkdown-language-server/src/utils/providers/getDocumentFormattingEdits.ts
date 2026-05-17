@@ -218,17 +218,25 @@ export const getFormatting = (
     // block's `_begin`/`_end`, no contribution (the keyword line
     // stays at the parent's level).
     for (const { rootNode, contentNode } of pairs) {
-      const indentLevel = currentIndentation.includes("\t")
-        ? currentIndentation.split("\t").length - 1
-        : Math.round(currentIndentation.length / options.tabSize);
-      const rootIndentNode = getDescendent("Indent", rootNode);
-      const rootNodeIndentText = rootIndentNode
-        ? document.read(rootIndentNode.from, rootIndentNode.to)
-        : "";
-      const rootNodeIndentLevel = rootNodeIndentText.includes("\t")
-        ? rootNodeIndentText.split("\t").length - 1
-        : Math.round(rootNodeIndentText.length / options.tabSize);
-      const indentOffset = strict ? 0 : indentLevel - rootNodeIndentLevel;
+      // In strict mode (the only mode we use today, since the
+      // grammar's flexible-indent blocks were removed), every nested
+      // block adds exactly +1 to the body indent regardless of how
+      // the source already looked. The non-strict branch lives on
+      // for future use.
+      let indentOffset = 0;
+      if (!strict) {
+        const indentLevel = currentIndentation.includes("\t")
+          ? currentIndentation.split("\t").length - 1
+          : Math.round(currentIndentation.length / options.tabSize);
+        const rootIndentNode = getDescendent("Indent", rootNode);
+        const rootNodeIndentText = rootIndentNode
+          ? document.read(rootIndentNode.from, rootIndentNode.to)
+          : "";
+        const rootNodeIndentLevel = rootNodeIndentText.includes("\t")
+          ? rootNodeIndentText.split("\t").length - 1
+          : Math.round(rootNodeIndentText.length / options.tabSize);
+        indentOffset = indentLevel - rootNodeIndentLevel;
+      }
       if (contentNode) level += indentOffset + 1;
     }
     level = Math.max(0, level);

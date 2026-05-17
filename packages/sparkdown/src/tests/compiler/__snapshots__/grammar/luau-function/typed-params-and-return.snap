@@ -8,7 +8,7 @@ sparkdown [0..150]
      │   │   └─ LuauFunctionKeyword [0..8]: "function"
      │   └─ LuauFunctionDefinition_begin_c5 [8..9]
      │       └─ LuauFunctionDefinition_begin_c5 [8..9]
-     │           └─ OptionalSeparator [8..9]: " "
+     │           └─ OptionalWhitespace [8..9]: " "
      ├─ LuauFunctionDefinition_content [9..147]
      │   ├─ LuauFunctionDeclarationName [9..28]
      │   │   ├─ LuauFunctionDeclarationName_c1 [9..28]
@@ -44,7 +44,7 @@ sparkdown [0..150]
      │   │   │   │   ├─ LuauCommaSeparator_c2 [38..39]: ","
      │   │   │   │   └─ LuauCommaSeparator_c3 [39..40]
      │   │   │   │       └─ LuauCommaSeparator_c3 [39..40]
-     │   │   │   │           └─ OptionalSeparator [39..40]: " "
+     │   │   │   │           └─ OptionalWhitespace [39..40]: " "
      │   │   │   ├─ LuauFunctionParameter [40..44]: "lang"
      │   │   │   └─ LuauTypeAnnotationOperation [44..52]
      │   │   │       ├─ LuauTypeAnnotationOperation_begin 44
@@ -74,7 +74,7 @@ sparkdown [0..150]
      │   │   │   │   └─ LuauTypeOperator [53..54]: ":"
      │   │   │   └─ LuauFunctionReturnType_begin_c2 [54..55]
      │   │   │       └─ LuauFunctionReturnType_begin_c2 [54..55]
-     │   │   │           └─ OptionalSeparator [54..55]: " "
+     │   │   │           └─ OptionalWhitespace [54..55]: " "
      │   │   ├─ LuauFunctionReturnType_content [55..61]
      │   │   │   └─ LuauTypeLiteral [55..61]
      │   │   │       ├─ LuauTypeLiteral_begin 55
@@ -93,7 +93,7 @@ sparkdown [0..150]
      │   │   │   │   └─ LuauIfKeyword [64..66]: "if"
      │   │   │   └─ LuauIfBlock_begin_c3 [66..67]
      │   │   │       └─ LuauIfBlock_begin_c3 [66..67]
-     │   │   │           └─ OptionalSeparator [66..67]: " "
+     │   │   │           └─ OptionalWhitespace [66..67]: " "
      │   │   ├─ LuauIfBlock_content [67..124]
      │   │   │   ├─ LuauIfBlockCondition [67..84]
      │   │   │   │   ├─ LuauIfBlockCondition_begin 67
@@ -108,7 +108,7 @@ sparkdown [0..150]
      │   │   │   │   │   │   └─ LuauAccessPath_end [71..72]
      │   │   │   │   │   │       └─ LuauAccessPath_end_c1 [71..72]
      │   │   │   │   │   │           └─ LuauAccessPath_end_c1 [71..72]
-     │   │   │   │   │   │               └─ OptionalSeparator [71..72]: " "
+     │   │   │   │   │   │               └─ OptionalWhitespace [71..72]: " "
      │   │   │   │   │   └─ LuauCompareOperation [72..79]
      │   │   │   │   │       ├─ LuauCompareOperation_begin 72
      │   │   │   │   │       │   └─ LuauCompareOperation_begin_c1 72
@@ -119,7 +119,7 @@ sparkdown [0..150]
      │   │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [72..74]: "=="
      │   │   │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [74..75]
      │   │   │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [74..75]
-     │   │   │   │   │       │   │   │           └─ OptionalSeparator [74..75]: " "
+     │   │   │   │   │       │   │   │           └─ OptionalWhitespace [74..75]: " "
      │   │   │   │   │       │   │   └─ LuauCompareOperator_end 75
      │   │   │   │   │       │   └─ LuauDoubleQuotedString [75..79]
      │   │   │   │   │       │       ├─ LuauDoubleQuotedString_begin [75..76]
@@ -135,7 +135,7 @@ sparkdown [0..150]
      │   │   │   │   └─ LuauIfBlockCondition_end [79..84]
      │   │   │   │       ├─ LuauIfBlockCondition_end_c1 [79..80]
      │   │   │   │       │   └─ LuauIfBlockCondition_end_c1 [79..80]
-     │   │   │   │       │       └─ OptionalSeparator [79..80]: " "
+     │   │   │   │       │       └─ OptionalWhitespace [79..80]: " "
      │   │   │   │       └─ LuauIfBlockCondition_end_c2 [80..84]
      │   │   │   │           └─ LuauThenKeyword [80..84]: "then"
      │   │   │   ├─ Newline [84..85]: "\n"
@@ -147,7 +147,7 @@ sparkdown [0..150]
      │   │   │   │   │   │   └─ LuauControlKeyword [89..95]: "return"
      │   │   │   │   │   └─ LuauReturnStatement_begin_c3 [95..96]
      │   │   │   │   │       └─ LuauReturnStatement_begin_c3 [95..96]
-     │   │   │   │   │           └─ OptionalSeparator [95..96]: " "
+     │   │   │   │   │           └─ OptionalWhitespace [95..96]: " "
      │   │   │   │   ├─ LuauReturnStatement_content [96..123]
      │   │   │   │   │   ├─ LuauAccessPath [96..98]
      │   │   │   │   │   │   ├─ LuauAccessPath_begin 96
@@ -159,7 +159,7 @@ sparkdown [0..150]
      │   │   │   │   │   │   └─ LuauAccessPath_end [97..98]
      │   │   │   │   │   │       └─ LuauAccessPath_end_c1 [97..98]
      │   │   │   │   │   │           └─ LuauAccessPath_end_c1 [97..98]
-     │   │   │   │   │   │               └─ OptionalSeparator [97..98]: " "
+     │   │   │   │   │   │               └─ OptionalWhitespace [97..98]: " "
      │   │   │   │   │   └─ LuauCompareOperation [98..123]
      │   │   │   │   │       ├─ LuauCompareOperation_begin 98
      │   │   │   │   │       │   └─ LuauCompareOperation_begin_c1 98
@@ -170,13 +170,13 @@ sparkdown [0..150]
      │   │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [98..100]: "=="
      │   │   │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [100..101]
      │   │   │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [100..101]
-     │   │   │   │   │       │   │   │           └─ OptionalSeparator [100..101]: " "
+     │   │   │   │   │       │   │   │           └─ OptionalWhitespace [100..101]: " "
      │   │   │   │   │       │   │   └─ LuauCompareOperator_end 101
      │   │   │   │   │       │   ├─ LuauNumericDecimal [101..103]
      │   │   │   │   │       │   │   ├─ LuauNumericDecimal_c1 [101..102]: "1"
      │   │   │   │   │       │   │   └─ LuauNumericDecimal_c2 [102..103]
      │   │   │   │   │       │   │       └─ LuauNumericDecimal_c2 [102..103]
-     │   │   │   │   │       │   │           └─ OptionalSeparator [102..103]: " "
+     │   │   │   │   │       │   │           └─ OptionalWhitespace [102..103]: " "
      │   │   │   │   │       │   └─ LuauLogicalOperation [103..123]
      │   │   │   │   │       │       ├─ LuauLogicalOperation_begin 103
      │   │   │   │   │       │       │   └─ LuauLogicalOperation_begin_c1 103
@@ -187,7 +187,7 @@ sparkdown [0..150]
      │   │   │   │   │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [103..106]: "and"
      │   │   │   │   │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [106..107]
      │   │   │   │   │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [106..107]
-     │   │   │   │   │       │       │   │   │           └─ OptionalSeparator [106..107]: " "
+     │   │   │   │   │       │       │   │   │           └─ OptionalWhitespace [106..107]: " "
      │   │   │   │   │       │       │   │   └─ LuauLogicalOperator_end 107
      │   │   │   │   │       │       │   ├─ LuauDoubleQuotedString [107..113]
      │   │   │   │   │       │       │   │   ├─ LuauDoubleQuotedString_begin [107..108]
@@ -200,14 +200,14 @@ sparkdown [0..150]
      │   │   │   │   │       │       │   │       │   └─ PunctuationStringDoubleQuoteClose [111..112]: "\""
      │   │   │   │   │       │       │   │       └─ LuauDoubleQuotedString_end_c2 [112..113]
      │   │   │   │   │       │       │   │           └─ LuauDoubleQuotedString_end_c2 [112..113]
-     │   │   │   │   │       │       │   │               └─ OptionalSeparator [112..113]: " "
+     │   │   │   │   │       │       │   │               └─ OptionalWhitespace [112..113]: " "
      │   │   │   │   │       │       │   ├─ LuauLogicalOperator [113..116]
      │   │   │   │   │       │       │   │   ├─ LuauLogicalOperator_begin [113..116]
      │   │   │   │   │       │       │   │   │   ├─ LuauLogicalOperator_begin_c1 113
      │   │   │   │   │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [113..115]: "or"
      │   │   │   │   │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [115..116]
      │   │   │   │   │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [115..116]
-     │   │   │   │   │       │       │   │   │           └─ OptionalSeparator [115..116]: " "
+     │   │   │   │   │       │       │   │   │           └─ OptionalWhitespace [115..116]: " "
      │   │   │   │   │       │       │   │   └─ LuauLogicalOperator_end 116
      │   │   │   │   │       │       │   └─ LuauDoubleQuotedString [116..123]
      │   │   │   │   │       │       │       ├─ LuauDoubleQuotedString_begin [116..117]
@@ -226,7 +226,7 @@ sparkdown [0..150]
      │   │   └─ LuauIfBlock_end [124..129]
      │   │       ├─ LuauIfBlock_end_c1 [124..126]
      │   │       │   └─ LuauIfBlock_end_c1 [124..126]
-     │   │       │       └─ OptionalSeparator [124..126]: "  "
+     │   │       │       └─ OptionalWhitespace [124..126]: "  "
      │   │       └─ LuauIfBlock_end_c2 [126..129]
      │   │           └─ LuauEndKeyword [126..129]: "end"
      │   ├─ Newline [129..130]: "\n"
@@ -238,7 +238,7 @@ sparkdown [0..150]
      │   │   │   │   └─ LuauControlKeyword [132..138]: "return"
      │   │   │   └─ LuauReturnStatement_begin_c3 [138..139]
      │   │   │       └─ LuauReturnStatement_begin_c3 [138..139]
-     │   │   │           └─ OptionalSeparator [138..139]: " "
+     │   │   │           └─ OptionalWhitespace [138..139]: " "
      │   │   ├─ LuauReturnStatement_content [139..146]
      │   │   │   └─ LuauDoubleQuotedString [139..146]
      │   │   │       ├─ LuauDoubleQuotedString_begin [139..140]
@@ -255,6 +255,6 @@ sparkdown [0..150]
      └─ LuauFunctionDefinition_end [147..150]
          ├─ LuauFunctionDefinition_end_c1 147
          │   └─ LuauFunctionDefinition_end_c1 147
-         │       └─ OptionalSeparator 147
+         │       └─ OptionalWhitespace 147
          └─ LuauFunctionDefinition_end_c2 [147..150]
              └─ LuauEndKeyword [147..150]: "end"

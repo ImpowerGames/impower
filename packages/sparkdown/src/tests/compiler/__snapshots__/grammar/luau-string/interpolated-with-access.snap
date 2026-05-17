@@ -5,7 +5,7 @@ sparkdown [0..41]
      │   ├─ LuauExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
      │   └─ LuauExplicitStatement_begin_c3 [1..2]
-     │       └─ Separator [1..2]: " "
+     │       └─ RequiredWhitespace [1..2]: " "
      ├─ LuauExplicitStatement_content [2..41]
      │   └─ LuauAccessPath [2..41]
      │       ├─ LuauAccessPath_begin 2

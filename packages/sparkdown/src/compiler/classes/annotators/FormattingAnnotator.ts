@@ -70,26 +70,24 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<FormatType>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<FormatType>>[] {
-    // Universal line-start whitespace handling. Any whitespace-type
-    // node that lands at the start of a fresh line gets treated as
-    // INDENT, regardless of which grammar rule captured it
-    // (`#Indent`, `#Whitespace`, `#ExtraWhitespace`, `#Separator`,
-    // `#OptionalSeparator`). This is what gives the formatter
-    // idempotency on lines whose leading whitespace the grammar
-    // marks under a non-Indent capture (e.g. the indent before `|`
-    // in a multi-line alternator, or before `end` in a body block).
-    // Without this normalization, pass 1 would collapse the leading
-    // whitespace to nothing and pass 2 would re-add it — and round
-    // and round.
+    // Universal whitespace dispatch keyed on POSITION first, then name.
+    // Any whitespace-class node — `Indent`, `TrailingWhitespace`,
+    // `Whitespace`, `ExtraWhitespace`, `RequiredWhitespace`,
+    // `OptionalWhitespace` — gets the same line-start / line-end /
+    // mid-line decision tree here. That's what gives the formatter
+    // idempotency: pass 1 emits the right annotation regardless of
+    // which rule the grammar author chose, so pass 2 sees the same
+    // text and produces the same output.
     if (
       nodeRef.name === "Indent" ||
+      nodeRef.name === "TrailingWhitespace" ||
       nodeRef.name === "Whitespace" ||
       nodeRef.name === "ExtraWhitespace" ||
-      nodeRef.name === "OptionalSeparator" ||
-      nodeRef.name === "Separator" ||
-      nodeRef.name === "TrailingWhitespace"
+      nodeRef.name === "OptionalWhitespace" ||
+      nodeRef.name === "RequiredWhitespace"
     ) {
       const currentLine = this.getLineAt(nodeRef.from);
+      // Line start → treat as indent regardless of which rule captured it.
       if (currentLine.from === nodeRef.from) {
         if (this.processedLineFrom < currentLine.from) {
           this.processedLineFrom = currentLine.from;
@@ -104,9 +102,12 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         }
         return annotations;
       }
-      if (nodeRef.name === "Indent") {
+      // Line end (next char is a newline or end-of-doc) → trailing
+      // whitespace, trim if `trimTrailingWhitespace` is on.
+      const nextChar = this.read(nodeRef.to, nodeRef.to + 1);
+      if (nextChar === "\n" || nextChar === "\r" || nextChar === "") {
         annotations.push(
-          SparkdownAnnotation.mark<FormatType>("separator").range(
+          SparkdownAnnotation.mark<FormatType>("trailing").range(
             nodeRef.from,
             nodeRef.to,
           ),
@@ -207,7 +208,17 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
       return annotations;
     }
-    if (nodeRef.name === "Separator") {
+    // Mid-line dispatch for the whitespace classes the universal
+    // line-start / line-end check above didn't claim:
+    //   - RequiredWhitespace / OptionalWhitespace → "separator"
+    //     (normalize to one space, insert one if zero-width via
+    //     the formatter's shouldInsertSpaceBetween rules).
+    //   - ExtraWhitespace → "extra" (collapse to nothing).
+    //   - Whitespace → preserve, no annotation.
+    if (
+      nodeRef.name === "RequiredWhitespace" ||
+      nodeRef.name === "OptionalWhitespace"
+    ) {
       if (isInsideInlineAlternator(nodeRef)) return annotations;
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("separator").range(
@@ -217,42 +228,10 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "OptionalSeparator") {
-      if (isInsideInlineAlternator(nodeRef)) return annotations;
-      const nextChar = this.read(nodeRef.to, nodeRef.to + 1);
-      if (nextChar === "\n" || nextChar === "\r") {
-        // An optional separator at end of line is just extra whitespace —
-        // collapse it to nothing.
-        annotations.push(
-          SparkdownAnnotation.mark<FormatType>("extra").range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-      } else {
-        // Mid-line, an OptionalSeparator becomes a normalized one-space separator.
-        annotations.push(
-          SparkdownAnnotation.mark<FormatType>("separator").range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-      }
-      return annotations;
-    }
     if (nodeRef.name === "ExtraWhitespace") {
       if (isInsideInlineAlternator(nodeRef)) return annotations;
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("extra").range(
-          nodeRef.from,
-          nodeRef.to,
-        ),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "TrailingWhitespace") {
-      annotations.push(
-        SparkdownAnnotation.mark<FormatType>("trailing").range(
           nodeRef.from,
           nodeRef.to,
         ),

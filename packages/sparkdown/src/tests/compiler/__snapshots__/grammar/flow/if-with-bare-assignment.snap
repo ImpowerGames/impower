@@ -6,7 +6,7 @@ sparkdown [0..25]
  │   │   │   └─ LuauIfKeyword [0..2]: "if"
  │   │   └─ LuauSparkdownIfBlock_begin_c3 [2..3]
  │   │       └─ LuauSparkdownIfBlock_begin_c3 [2..3]
- │   │           └─ OptionalSeparator [2..3]: " "
+ │   │           └─ OptionalWhitespace [2..3]: " "
  │   ├─ LuauSparkdownIfBlock_content [3..21]
  │   │   ├─ LuauIfBlockCondition [3..12]
  │   │   │   ├─ LuauIfBlockCondition_begin 3
@@ -17,7 +17,7 @@ sparkdown [0..25]
  │   │   │   └─ LuauIfBlockCondition_end [7..12]
  │   │   │       ├─ LuauIfBlockCondition_end_c1 [7..8]
  │   │   │       │   └─ LuauIfBlockCondition_end_c1 [7..8]
- │   │   │       │       └─ OptionalSeparator [7..8]: " "
+ │   │   │       │       └─ OptionalWhitespace [7..8]: " "
  │   │   │       └─ LuauIfBlockCondition_end_c2 [8..12]
  │   │   │           └─ LuauThenKeyword [8..12]: "then"
  │   │   ├─ Newline [12..13]: "\n"
@@ -36,7 +36,7 @@ sparkdown [0..25]
  │   │   │   │   │   └─ LuauAccessPath_end [16..17]
  │   │   │   │   │       └─ LuauAccessPath_end_c1 [16..17]
  │   │   │   │   │           └─ LuauAccessPath_end_c1 [16..17]
- │   │   │   │   │               └─ OptionalSeparator [16..17]: " "
+ │   │   │   │   │               └─ OptionalWhitespace [16..17]: " "
  │   │   │   │   └─ LuauAssignmentOperation [17..20]
  │   │   │   │       ├─ LuauAssignmentOperation_begin 17
  │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 17
@@ -47,7 +47,7 @@ sparkdown [0..25]
  │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [17..18]: "="
  │   │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [18..19]
  │   │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [18..19]
- │   │   │   │       │   │   │           └─ OptionalSeparator [18..19]: " "
+ │   │   │   │       │   │   │           └─ OptionalWhitespace [18..19]: " "
  │   │   │   │       │   │   └─ LuauAssignmentOperator_end 19
  │   │   │   │       │   └─ LuauNumericDecimal [19..20]
  │   │   │   │       │       ├─ LuauNumericDecimal_c1 [19..20]: "5"
@@ -58,7 +58,7 @@ sparkdown [0..25]
  │   └─ LuauSparkdownIfBlock_end [21..24]
  │       ├─ LuauSparkdownIfBlock_end_c1 21
  │       │   └─ LuauSparkdownIfBlock_end_c1 21
- │       │       └─ OptionalSeparator 21
+ │       │       └─ OptionalWhitespace 21
  │       └─ LuauSparkdownIfBlock_end_c2 [21..24]
  │           └─ LuauEndKeyword [21..24]: "end"
  └─ Newline [24..25]: "\n"

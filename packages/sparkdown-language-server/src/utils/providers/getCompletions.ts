@@ -77,9 +77,10 @@ const INSERT_TEXT_CURSOR_REGEX = /[$]\d+/g;
 const isPrefilteredName = (name: string) => name.includes("~");
 
 const isWhitespaceNode = (name?: SparkdownNodeName) =>
-  name === "Separator" ||
-  name === "OptionalSeparator" ||
-  name === "ExtraWhitespace";
+  name === "RequiredWhitespace" ||
+  name === "OptionalWhitespace" ||
+  name === "ExtraWhitespace" ||
+  name === "Whitespace";
 
 const traverse = <T>(
   obj: T,

@@ -45,7 +45,7 @@ sparkdown [0..67]
  │   │       │   │   │       │   │   └─ LuauControlKeyword [16..22]: "plural"
  │   │       │   │   │       │   └─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c5 22
  │   │       │   │   │       │       └─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c5 22
- │   │       │   │   │       │           └─ OptionalSeparator 22
+ │   │       │   │   │       │           └─ OptionalWhitespace 22
  │   │       │   │   │       ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_content [22..48]
  │   │       │   │   │       │   ├─ LuauConditionalAlternatorCondition [22..25]
  │   │       │   │   │       │   │   ├─ LuauConditionalAlternatorCondition_begin 22
@@ -74,17 +74,17 @@ sparkdown [0..67]
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [25..26]: "|"
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 26
  │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 26
- │   │       │   │   │       │   │   │       └─ OptionalSeparator 26
+ │   │       │   │   │       │   │   │       └─ OptionalWhitespace 26
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 [26..29]
  │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentName [26..29]: "one"
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 29
  │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c5 29
- │   │       │   │   │       │   │   │       └─ OptionalSeparator 29
+ │   │       │   │   │       │   │   │       └─ OptionalWhitespace 29
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 [29..30]
  │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [29..30]: "="
  │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 30
  │   │       │   │   │       │   │       └─ LuauAlternatorSeparator_c7 30
- │   │       │   │   │       │   │           └─ OptionalSeparator 30
+ │   │       │   │   │       │   │           └─ OptionalWhitespace 30
  │   │       │   │   │       │   ├─ LuauSparkdownInlineGluedAlternatorArm [30..35]
  │   │       │   │   │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 30
  │   │       │   │   │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [30..35]
@@ -95,17 +95,17 @@ sparkdown [0..67]
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [35..36]: "|"
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 36
  │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 36
- │   │       │   │   │       │   │   │       └─ OptionalSeparator 36
+ │   │       │   │   │       │   │   │       └─ OptionalWhitespace 36
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 [36..41]
  │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentName [36..41]: "other"
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 41
  │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c5 41
- │   │       │   │   │       │   │   │       └─ OptionalSeparator 41
+ │   │       │   │   │       │   │   │       └─ OptionalWhitespace 41
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 [41..42]
  │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [41..42]: "="
  │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 42
  │   │       │   │   │       │   │       └─ LuauAlternatorSeparator_c7 42
- │   │       │   │   │       │   │           └─ OptionalSeparator 42
+ │   │       │   │   │       │   │           └─ OptionalWhitespace 42
  │   │       │   │   │       │   └─ LuauSparkdownInlineGluedAlternatorArm [42..48]
  │   │       │   │   │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 42
  │   │       │   │   │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [42..48]

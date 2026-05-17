@@ -1,7 +1,7 @@
 text.source.sparkdown [0..40]
  ├─ meta.function.luau [0..25]
  │   ├─ keyword.control.luau [0..8]: "function"
- │   ├─ punctuation.whitespace.separator.optional.sd [8..9]: " "
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
  │   ├─ entity.name.function.luau [9..14]: "check"
  │   └─ meta.parameter.luau [14..25]
  │       ├─ punctuation.definition.template-expression.begin.sd [14..15]: "("

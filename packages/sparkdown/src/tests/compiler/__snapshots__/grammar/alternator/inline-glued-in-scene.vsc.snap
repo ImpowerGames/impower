@@ -1,6 +1,6 @@
 text.source.sparkdown [0..45]
  ├─ keyword.control.scene.sd [0..5]: "scene"
- ├─ punctuation.whitespace.separator.sd [5..6]: " "
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..10]: "main"
  ├─ Newline [10..11]: "\n"
  ├─ punctuation.whitespace.indent.sd [11..13]: "  "

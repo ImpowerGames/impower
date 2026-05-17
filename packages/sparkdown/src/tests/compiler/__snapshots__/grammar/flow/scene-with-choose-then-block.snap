@@ -5,7 +5,7 @@ sparkdown [0..87]
  │   │   ├─ Scene_begin_c2 [0..5]
  │   │   │   └─ SceneKeyword [0..5]: "scene"
  │   │   └─ Scene_begin_c3 [5..6]
- │   │       └─ Separator [5..6]: " "
+ │   │       └─ RequiredWhitespace [5..6]: " "
  │   ├─ Scene_content [6..10]
  │   │   └─ SceneWithoutParametersDeclaration [6..10]
  │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..10]
@@ -22,7 +22,7 @@ sparkdown [0..87]
  │   │   │   └─ LuauChooseKeyword [13..19]: "choose"
  │   │   └─ LuauSparkdownChooseBlock_begin_c3 19
  │   │       └─ LuauSparkdownChooseBlock_begin_c3 19
- │   │           └─ OptionalSeparator 19
+ │   │           └─ OptionalWhitespace 19
  │   ├─ LuauSparkdownChooseBlock_content [19..71]
  │   │   ├─ Newline [19..20]: "\n"
  │   │   ├─ Choice [20..28]
@@ -79,7 +79,7 @@ sparkdown [0..87]
  │   │       │   │   └─ LuauThenKeyword [41..45]: "then"
  │   │       │   ├─ LuauSparkdownChooseThenClause_begin_c3 [45..46]
  │   │       │   │   └─ LuauSparkdownChooseThenClause_begin_c3 [45..46]
- │   │       │   │       └─ OptionalSeparator [45..46]: " "
+ │   │       │   │       └─ OptionalWhitespace [45..46]: " "
  │   │       │   └─ LuauSparkdownChooseThenClause_begin_c4 [46..56]
  │   │       │       └─ Label [46..56]
  │   │       │           ├─ Label_c1 [46..47]
@@ -92,7 +92,7 @@ sparkdown [0..87]
  │   │       │           │   └─ LabelEndMark [55..56]: ")"
  │   │       │           └─ Label_c6 56
  │   │       │               └─ Label_c6 56
- │   │       │                   └─ OptionalSeparator 56
+ │   │       │                   └─ OptionalWhitespace 56
  │   │       ├─ LuauSparkdownChooseThenClause_content [56..71]
  │   │       │   ├─ Newline [56..57]: "\n"
  │   │       │   ├─ ImplicitAction [57..70]
@@ -119,7 +119,7 @@ sparkdown [0..87]
  │   └─ LuauSparkdownChooseBlock_end [71..76]
  │       ├─ LuauSparkdownChooseBlock_end_c1 [71..73]
  │       │   └─ LuauSparkdownChooseBlock_end_c1 [71..73]
- │       │       └─ OptionalSeparator [71..73]: "  "
+ │       │       └─ OptionalWhitespace [71..73]: "  "
  │       └─ LuauSparkdownChooseBlock_end_c2 [73..76]
  │           └─ LuauEndKeyword [73..76]: "end"
  ├─ Newline [76..77]: "\n"
@@ -134,7 +134,7 @@ sparkdown [0..87]
  │   │       ├─ DivertTarget_begin [81..82]
  │   │       │   └─ DivertTarget_begin_c1 [81..82]
  │   │       │       └─ DivertTarget_begin_c1 [81..82]
- │   │       │           └─ OptionalSeparator [81..82]: " "
+ │   │       │           └─ OptionalWhitespace [81..82]: " "
  │   │       ├─ DivertTarget_content [82..86]
  │   │       │   └─ Done [82..86]: "DONE"
  │   │       └─ DivertTarget_end 86

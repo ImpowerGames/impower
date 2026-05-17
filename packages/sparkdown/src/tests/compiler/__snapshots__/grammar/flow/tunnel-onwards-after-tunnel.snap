@@ -9,7 +9,7 @@ sparkdown [0..16]
  │   │   │   ├─ DivertTarget_begin [2..3]
  │   │   │   │   └─ DivertTarget_begin_c1 [2..3]
  │   │   │   │       └─ DivertTarget_begin_c1 [2..3]
- │   │   │   │           └─ OptionalSeparator [2..3]: " "
+ │   │   │   │           └─ OptionalWhitespace [2..3]: " "
  │   │   │   ├─ DivertTarget_content [3..10]
  │   │   │   │   └─ DivertPath [3..10]
  │   │   │   │       ├─ DivertPath_begin 3
@@ -22,7 +22,7 @@ sparkdown [0..16]
  │   │       ├─ Tunnel_begin [10..13]
  │   │       │   ├─ Tunnel_begin_c1 [10..11]
  │   │       │   │   └─ Tunnel_begin_c1 [10..11]
- │   │       │   │       └─ OptionalSeparator [10..11]: " "
+ │   │       │   │       └─ OptionalWhitespace [10..11]: " "
  │   │       │   └─ Tunnel_begin_c2 [11..13]
  │   │       │       └─ DivertMark [11..13]: "->"
  │   │       ├─ Tunnel_content [13..15]
@@ -30,7 +30,7 @@ sparkdown [0..16]
  │   │       │       ├─ Tunnel_begin [13..15]
  │   │       │       │   ├─ Tunnel_begin_c1 13
  │   │       │       │   │   └─ Tunnel_begin_c1 13
- │   │       │       │   │       └─ OptionalSeparator 13
+ │   │       │       │   │       └─ OptionalWhitespace 13
  │   │       │       │   └─ Tunnel_begin_c2 [13..15]
  │   │       │       │       └─ DivertMark [13..15]: "->"
  │   │       │       └─ Tunnel_end 15

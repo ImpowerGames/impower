@@ -1,23 +1,23 @@
 text.source.sparkdown [0..35]
  ├─ keyword.control.luau [0..7]: "shuffle"
- ├─ punctuation.whitespace.separator.optional.sd [7..8]: " "
+ ├─ punctuation.whitespace.optional.sd [7..8]: " "
  ├─ keyword.control.luau [8..13]: "queue"
  ├─ Newline [13..14]: "\n"
  ├─ punctuation.whitespace.extra.sd [14..16]: "  "
  ├─ keyword.operator.alternator.luau [16..17]: "|"
- ├─ punctuation.whitespace.separator.optional.sd [17..18]: " "
+ ├─ punctuation.whitespace.optional.sd [17..18]: " "
  ├─ string.display.text.chunk.sd [18..19]
  │   └─ markup.raw.text.sd [18..19]: "A"
  ├─ Newline [19..20]: "\n"
  ├─ punctuation.whitespace.extra.sd [20..22]: "  "
  ├─ keyword.operator.alternator.luau [22..23]: "|"
- ├─ punctuation.whitespace.separator.optional.sd [23..24]: " "
+ ├─ punctuation.whitespace.optional.sd [23..24]: " "
  ├─ string.display.text.chunk.sd [24..25]
  │   └─ markup.raw.text.sd [24..25]: "B"
  ├─ Newline [25..26]: "\n"
  ├─ punctuation.whitespace.extra.sd [26..28]: "  "
  ├─ keyword.operator.alternator.luau [28..29]: "|"
- ├─ punctuation.whitespace.separator.optional.sd [29..30]: " "
+ ├─ punctuation.whitespace.optional.sd [29..30]: " "
  ├─ string.display.text.chunk.sd [30..31]
  │   └─ markup.raw.text.sd [30..31]: "C"
  ├─ Newline [31..32]: "\n"

@@ -5,7 +5,7 @@ sparkdown [0..100]
  │   │   ├─ Scene_begin_c2 [0..5]
  │   │   │   └─ SceneKeyword [0..5]: "scene"
  │   │   └─ Scene_begin_c3 [5..6]
- │   │       └─ Separator [5..6]: " "
+ │   │       └─ RequiredWhitespace [5..6]: " "
  │   ├─ Scene_content [6..29]
  │   │   └─ SceneWithParametersDeclaration [6..29]
  │   │       ├─ SceneWithParametersDeclaration_begin [6..15]
@@ -53,7 +53,7 @@ sparkdown [0..100]
      │   │   └─ LuauIfKeyword [33..35]: "if"
      │   └─ LuauSparkdownIfBlock_begin_c3 [35..36]
      │       └─ LuauSparkdownIfBlock_begin_c3 [35..36]
-     │           └─ OptionalSeparator [35..36]: " "
+     │           └─ OptionalWhitespace [35..36]: " "
      ├─ LuauSparkdownIfBlock_content [36..95]
      │   ├─ LuauIfBlockCondition [36..53]
      │   │   ├─ LuauIfBlockCondition_begin 36
@@ -76,7 +76,7 @@ sparkdown [0..100]
      │   │   │   │   └─ LuauAccessPath_end [43..44]
      │   │   │   │       └─ LuauAccessPath_end_c1 [43..44]
      │   │   │   │           └─ LuauAccessPath_end_c1 [43..44]
-     │   │   │   │               └─ OptionalSeparator [43..44]: " "
+     │   │   │   │               └─ OptionalWhitespace [43..44]: " "
      │   │   │   └─ LuauCompareOperation [44..48]
      │   │   │       ├─ LuauCompareOperation_begin 44
      │   │   │       │   └─ LuauCompareOperation_begin_c1 44
@@ -87,7 +87,7 @@ sparkdown [0..100]
      │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [44..46]: "=="
      │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [46..47]
      │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [46..47]
-     │   │   │       │   │   │           └─ OptionalSeparator [46..47]: " "
+     │   │   │       │   │   │           └─ OptionalWhitespace [46..47]: " "
      │   │   │       │   │   └─ LuauCompareOperator_end 47
      │   │   │       │   └─ LuauNumericDecimal [47..48]
      │   │   │       │       ├─ LuauNumericDecimal_c1 [47..48]: "0"
@@ -96,7 +96,7 @@ sparkdown [0..100]
      │   │   └─ LuauIfBlockCondition_end [48..53]
      │   │       ├─ LuauIfBlockCondition_end_c1 [48..49]
      │   │       │   └─ LuauIfBlockCondition_end_c1 [48..49]
-     │   │       │       └─ OptionalSeparator [48..49]: " "
+     │   │       │       └─ OptionalWhitespace [48..49]: " "
      │   │       └─ LuauIfBlockCondition_end_c2 [49..53]
      │   │           └─ LuauThenKeyword [49..53]: "then"
      │   ├─ Newline [53..55]: "\r\n"
@@ -157,6 +157,6 @@ sparkdown [0..100]
      └─ LuauSparkdownIfBlock_end [95..100]
          ├─ LuauSparkdownIfBlock_end_c1 [95..97]
          │   └─ LuauSparkdownIfBlock_end_c1 [95..97]
-         │       └─ OptionalSeparator [95..97]: "  "
+         │       └─ OptionalWhitespace [95..97]: "  "
          └─ LuauSparkdownIfBlock_end_c2 [97..100]
              └─ LuauEndKeyword [97..100]: "end"

@@ -5,7 +5,7 @@ sparkdown [0..22]
      │   ├─ LuauExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
      │   └─ LuauExplicitStatement_begin_c3 [1..2]
-     │       └─ Separator [1..2]: " "
+     │       └─ RequiredWhitespace [1..2]: " "
      ├─ LuauExplicitStatement_content [2..22]
      │   ├─ LuauAccessPath [2..4]
      │   │   ├─ LuauAccessPath_begin 2
@@ -17,7 +17,7 @@ sparkdown [0..22]
      │   │   └─ LuauAccessPath_end [3..4]
      │   │       └─ LuauAccessPath_end_c1 [3..4]
      │   │           └─ LuauAccessPath_end_c1 [3..4]
-     │   │               └─ OptionalSeparator [3..4]: " "
+     │   │               └─ OptionalWhitespace [3..4]: " "
      │   └─ LuauAssignmentOperation [4..22]
      │       ├─ LuauAssignmentOperation_begin 4
      │       │   └─ LuauAssignmentOperation_begin_c1 4
@@ -28,7 +28,7 @@ sparkdown [0..22]
      │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [4..5]: "="
      │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [5..6]
      │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
-     │       │   │   │           └─ OptionalSeparator [5..6]: " "
+     │       │   │   │           └─ OptionalWhitespace [5..6]: " "
      │       │   │   └─ LuauAssignmentOperator_end 6
      │       │   └─ LuauLogicalOperation [6..22]
      │       │       ├─ LuauLogicalOperation_begin 6
@@ -40,7 +40,7 @@ sparkdown [0..22]
      │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [6..9]: "not"
      │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [9..10]
      │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [9..10]
-     │       │       │   │   │           └─ OptionalSeparator [9..10]: " "
+     │       │       │   │   │           └─ OptionalWhitespace [9..10]: " "
      │       │       │   │   └─ LuauLogicalOperator_end 10
      │       │       │   ├─ LuauAccessPath [10..12]
      │       │       │   │   ├─ LuauAccessPath_begin 10
@@ -52,14 +52,14 @@ sparkdown [0..22]
      │       │       │   │   └─ LuauAccessPath_end [11..12]
      │       │       │   │       └─ LuauAccessPath_end_c1 [11..12]
      │       │       │   │           └─ LuauAccessPath_end_c1 [11..12]
-     │       │       │   │               └─ OptionalSeparator [11..12]: " "
+     │       │       │   │               └─ OptionalWhitespace [11..12]: " "
      │       │       │   ├─ LuauLogicalOperator [12..16]
      │       │       │   │   ├─ LuauLogicalOperator_begin [12..16]
      │       │       │   │   │   ├─ LuauLogicalOperator_begin_c1 12
      │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [12..15]: "and"
      │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [15..16]
      │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [15..16]
-     │       │       │   │   │           └─ OptionalSeparator [15..16]: " "
+     │       │       │   │   │           └─ OptionalWhitespace [15..16]: " "
      │       │       │   │   └─ LuauLogicalOperator_end 16
      │       │       │   ├─ LuauAccessPath [16..18]
      │       │       │   │   ├─ LuauAccessPath_begin 16
@@ -71,14 +71,14 @@ sparkdown [0..22]
      │       │       │   │   └─ LuauAccessPath_end [17..18]
      │       │       │   │       └─ LuauAccessPath_end_c1 [17..18]
      │       │       │   │           └─ LuauAccessPath_end_c1 [17..18]
-     │       │       │   │               └─ OptionalSeparator [17..18]: " "
+     │       │       │   │               └─ OptionalWhitespace [17..18]: " "
      │       │       │   ├─ LuauLogicalOperator [18..21]
      │       │       │   │   ├─ LuauLogicalOperator_begin [18..21]
      │       │       │   │   │   ├─ LuauLogicalOperator_begin_c1 18
      │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [18..20]: "or"
      │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [20..21]
      │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [20..21]
-     │       │       │   │   │           └─ OptionalSeparator [20..21]: " "
+     │       │       │   │   │           └─ OptionalWhitespace [20..21]: " "
      │       │       │   │   └─ LuauLogicalOperator_end 21
      │       │       │   └─ LuauAccessPath [21..22]
      │       │       │       ├─ LuauAccessPath_begin 21

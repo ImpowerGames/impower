@@ -117,8 +117,10 @@ function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
 function isSkippableName(name: string): boolean {
   return (
     name === "ExtraWhitespace" ||
+    name === "Whitespace" ||
     name === "Newline" ||
     name === "LuauComment" ||
-    name === "OptionalSeparator"
+    name === "OptionalWhitespace" ||
+    name === "RequiredWhitespace"
   );
 }

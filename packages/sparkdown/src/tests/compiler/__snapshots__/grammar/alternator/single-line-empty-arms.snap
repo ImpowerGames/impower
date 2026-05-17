@@ -8,14 +8,14 @@ sparkdown [0..20]
  │   │   │   └─ LuauControlKeyword [0..5]: "chain"
  │   │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [5..6]
  │   │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [5..6]
- │   │           └─ OptionalSeparator [5..6]: " "
+ │   │           └─ OptionalWhitespace [5..6]: " "
  │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_content [6..15]
  │   │   ├─ LuauAlternatorSeparator [6..8]
  │   │   │   ├─ LuauAlternatorSeparator_c1 6
  │   │   │   ├─ LuauAlternatorSeparator_c2 [6..7]: "|"
  │   │   │   ├─ LuauAlternatorSeparator_c3 [7..8]
  │   │   │   │   └─ LuauAlternatorSeparator_c3 [7..8]
- │   │   │   │       └─ OptionalSeparator [7..8]: " "
+ │   │   │   │       └─ OptionalWhitespace [7..8]: " "
  │   │   │   ├─ LuauAlternatorSeparator_c4 8
  │   │   │   ├─ LuauAlternatorSeparator_c5 8
  │   │   │   ├─ LuauAlternatorSeparator_c6 8
@@ -31,7 +31,7 @@ sparkdown [0..20]
  │   │   │   ├─ LuauAlternatorSeparator_c2 [10..11]: "|"
  │   │   │   ├─ LuauAlternatorSeparator_c3 [11..12]
  │   │   │   │   └─ LuauAlternatorSeparator_c3 [11..12]
- │   │   │   │       └─ OptionalSeparator [11..12]: " "
+ │   │   │   │       └─ OptionalWhitespace [11..12]: " "
  │   │   │   ├─ LuauAlternatorSeparator_c4 12
  │   │   │   ├─ LuauAlternatorSeparator_c5 12
  │   │   │   ├─ LuauAlternatorSeparator_c6 12
@@ -41,7 +41,7 @@ sparkdown [0..20]
  │   │   │   ├─ LuauAlternatorSeparator_c2 [12..13]: "|"
  │   │   │   ├─ LuauAlternatorSeparator_c3 [13..14]
  │   │   │   │   └─ LuauAlternatorSeparator_c3 [13..14]
- │   │   │   │       └─ OptionalSeparator [13..14]: " "
+ │   │   │   │       └─ OptionalWhitespace [13..14]: " "
  │   │   │   ├─ LuauAlternatorSeparator_c4 14
  │   │   │   ├─ LuauAlternatorSeparator_c5 14
  │   │   │   ├─ LuauAlternatorSeparator_c6 14
@@ -54,7 +54,7 @@ sparkdown [0..20]
  │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end [15..19]
  │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [15..16]
  │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [15..16]
- │       │       └─ OptionalSeparator [15..16]: " "
+ │       │       └─ OptionalWhitespace [15..16]: " "
  │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [16..19]
  │           └─ LuauEndKeyword [16..19]: "end"
  └─ Newline [19..20]: "\n"

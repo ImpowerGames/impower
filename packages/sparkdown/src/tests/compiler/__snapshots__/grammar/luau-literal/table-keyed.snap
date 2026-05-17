@@ -5,7 +5,7 @@ sparkdown [0..23]
      │   ├─ LuauExplicitStatement_begin_c2 [0..1]
      │   │   └─ LuauExplicitStatementMark [0..1]: "&"
      │   └─ LuauExplicitStatement_begin_c3 [1..2]
-     │       └─ Separator [1..2]: " "
+     │       └─ RequiredWhitespace [1..2]: " "
      ├─ LuauExplicitStatement_content [2..23]
      │   ├─ LuauAccessPath [2..7]
      │   │   ├─ LuauAccessPath_begin 2
@@ -17,7 +17,7 @@ sparkdown [0..23]
      │   │   └─ LuauAccessPath_end [6..7]
      │   │       └─ LuauAccessPath_end_c1 [6..7]
      │   │           └─ LuauAccessPath_end_c1 [6..7]
-     │   │               └─ OptionalSeparator [6..7]: " "
+     │   │               └─ OptionalWhitespace [6..7]: " "
      │   └─ LuauAssignmentOperation [7..23]
      │       ├─ LuauAssignmentOperation_begin 7
      │       │   └─ LuauAssignmentOperation_begin_c1 7
@@ -28,7 +28,7 @@ sparkdown [0..23]
      │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [7..8]: "="
      │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [8..9]
      │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [8..9]
-     │       │   │   │           └─ OptionalSeparator [8..9]: " "
+     │       │   │   │           └─ OptionalWhitespace [8..9]: " "
      │       │   │   └─ LuauAssignmentOperator_end 9
      │       │   └─ LuauTable [9..23]
      │       │       ├─ LuauTable_begin [9..10]
@@ -45,7 +45,7 @@ sparkdown [0..23]
      │       │       │   │   └─ LuauAccessPath_end [11..12]
      │       │       │   │       └─ LuauAccessPath_end_c1 [11..12]
      │       │       │   │           └─ LuauAccessPath_end_c1 [11..12]
-     │       │       │   │               └─ OptionalSeparator [11..12]: " "
+     │       │       │   │               └─ OptionalWhitespace [11..12]: " "
      │       │       │   ├─ LuauAssignmentOperation [12..15]
      │       │       │   │   ├─ LuauAssignmentOperation_begin 12
      │       │       │   │   │   └─ LuauAssignmentOperation_begin_c1 12
@@ -56,7 +56,7 @@ sparkdown [0..23]
      │       │       │   │   │   │   │   ├─ LuauAssignmentOperator_begin_c2 [12..13]: "="
      │       │       │   │   │   │   │   └─ LuauAssignmentOperator_begin_c3 [13..14]
      │       │       │   │   │   │   │       └─ LuauAssignmentOperator_begin_c3 [13..14]
-     │       │       │   │   │   │   │           └─ OptionalSeparator [13..14]: " "
+     │       │       │   │   │   │   │           └─ OptionalWhitespace [13..14]: " "
      │       │       │   │   │   │   └─ LuauAssignmentOperator_end 14
      │       │       │   │   │   └─ LuauNumericDecimal [14..15]
      │       │       │   │   │       ├─ LuauNumericDecimal_c1 [14..15]: "1"
@@ -67,7 +67,7 @@ sparkdown [0..23]
      │       │       │   │   ├─ LuauCommaSeparator_c2 [15..16]: ","
      │       │       │   │   └─ LuauCommaSeparator_c3 [16..17]
      │       │       │   │       └─ LuauCommaSeparator_c3 [16..17]
-     │       │       │   │           └─ OptionalSeparator [16..17]: " "
+     │       │       │   │           └─ OptionalWhitespace [16..17]: " "
      │       │       │   ├─ LuauAccessPath [17..19]
      │       │       │   │   ├─ LuauAccessPath_begin 17
      │       │       │   │   ├─ LuauAccessPath_content [17..18]
@@ -78,7 +78,7 @@ sparkdown [0..23]
      │       │       │   │   └─ LuauAccessPath_end [18..19]
      │       │       │   │       └─ LuauAccessPath_end_c1 [18..19]
      │       │       │   │           └─ LuauAccessPath_end_c1 [18..19]
-     │       │       │   │               └─ OptionalSeparator [18..19]: " "
+     │       │       │   │               └─ OptionalWhitespace [18..19]: " "
      │       │       │   └─ LuauAssignmentOperation [19..22]
      │       │       │       ├─ LuauAssignmentOperation_begin 19
      │       │       │       │   └─ LuauAssignmentOperation_begin_c1 19
@@ -89,7 +89,7 @@ sparkdown [0..23]
      │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [19..20]: "="
      │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [20..21]
      │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [20..21]
-     │       │       │       │   │   │           └─ OptionalSeparator [20..21]: " "
+     │       │       │       │   │   │           └─ OptionalWhitespace [20..21]: " "
      │       │       │       │   │   └─ LuauAssignmentOperator_end 21
      │       │       │       │   └─ LuauNumericDecimal [21..22]
      │       │       │       │       ├─ LuauNumericDecimal_c1 [21..22]: "2"

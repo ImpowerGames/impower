@@ -6,14 +6,14 @@ sparkdown [0..35]
      │   │   └─ LuauScopeModifier [0..5]: "local"
      │   └─ LuauVariableDefinition_begin_c3 [5..6]
      │       └─ LuauVariableDefinition_begin_c3 [5..6]
-     │           └─ OptionalSeparator [5..6]: " "
+     │           └─ OptionalWhitespace [5..6]: " "
      ├─ LuauVariableDefinition_content [6..35]
      │   └─ LuauVariableAssignment [6..35]
      │       ├─ LuauVariableAssignment_begin [6..15]
      │       │   ├─ LuauVariableAssignment_begin_c1 [6..14]
      │       │   │   └─ LuauVariableName [6..14]: "category"
      │       │   └─ LuauVariableAssignment_begin_c2 [14..15]
-     │       │       └─ OptionalSeparator [14..15]: " "
+     │       │       └─ OptionalWhitespace [14..15]: " "
      │       ├─ LuauVariableAssignment_content [15..35]
      │       │   └─ LuauAssignmentOperation [15..35]
      │       │       ├─ LuauAssignmentOperation_begin 15
@@ -25,7 +25,7 @@ sparkdown [0..35]
      │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [15..16]: "="
      │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [16..17]
      │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [16..17]
-     │       │       │   │   │           └─ OptionalSeparator [16..17]: " "
+     │       │       │   │   │           └─ OptionalWhitespace [16..17]: " "
      │       │       │   │   └─ LuauAssignmentOperator_end 17
      │       │       │   ├─ LuauAccessPath [17..32]
      │       │       │   │   ├─ LuauAccessPath_begin 17

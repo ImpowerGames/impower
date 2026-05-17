@@ -6,14 +6,14 @@ sparkdown [0..87]
  │   │   │   └─ LuauScopeModifier [0..5]: "store"
  │   │   └─ LuauVariableDefinition_begin_c3 [5..6]
  │   │       └─ LuauVariableDefinition_begin_c3 [5..6]
- │   │           └─ OptionalSeparator [5..6]: " "
+ │   │           └─ OptionalWhitespace [5..6]: " "
  │   ├─ LuauVariableDefinition_content [6..27]
  │   │   └─ LuauVariableAssignment [6..27]
  │   │       ├─ LuauVariableAssignment_begin [6..16]
  │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..15]
  │   │       │   │   └─ LuauVariableName [6..15]: "inventory"
  │   │       │   └─ LuauVariableAssignment_begin_c2 [15..16]
- │   │       │       └─ OptionalSeparator [15..16]: " "
+ │   │       │       └─ OptionalWhitespace [15..16]: " "
  │   │       ├─ LuauVariableAssignment_content [16..27]
  │   │       │   └─ LuauAssignmentOperation [16..27]
  │   │       │       ├─ LuauAssignmentOperation_begin 16
@@ -25,7 +25,7 @@ sparkdown [0..87]
  │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [16..17]: "="
  │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [17..18]
  │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [17..18]
- │   │       │       │   │   │           └─ OptionalSeparator [17..18]: " "
+ │   │       │       │   │   │           └─ OptionalWhitespace [17..18]: " "
  │   │       │       │   │   └─ LuauAssignmentOperator_end 18
  │   │       │       │   └─ LuauTable [18..27]
  │   │       │       │       ├─ LuauTable_begin [18..19]
@@ -42,7 +42,7 @@ sparkdown [0..87]
  │   │       │       │       │   │   └─ LuauAccessPath_end 24
  │   │       │       │       │   │       └─ LuauAccessPath_end_c1 24
  │   │       │       │       │   │           └─ LuauAccessPath_end_c1 24
- │   │       │       │       │   │               └─ OptionalSeparator 24
+ │   │       │       │       │   │               └─ OptionalWhitespace 24
  │   │       │       │       │   └─ LuauAssignmentOperation [24..26]
  │   │       │       │       │       ├─ LuauAssignmentOperation_begin 24
  │   │       │       │       │       │   └─ LuauAssignmentOperation_begin_c1 24
@@ -53,7 +53,7 @@ sparkdown [0..87]
  │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [24..25]: "="
  │   │       │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 25
  │   │       │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 25
- │   │       │       │       │       │   │   │           └─ OptionalSeparator 25
+ │   │       │       │       │       │   │   │           └─ OptionalWhitespace 25
  │   │       │       │       │       │   │   └─ LuauAssignmentOperator_end 25
  │   │       │       │       │       │   └─ LuauNumericDecimal [25..26]
  │   │       │       │       │       │       ├─ LuauNumericDecimal_c1 [25..26]: "1"
@@ -79,7 +79,7 @@ sparkdown [0..87]
  │   │       │   │   └─ LuauControlKeyword [29..35]: "plural"
  │   │       │   └─ LuauConditionalAlternatorBlock_begin_c3 35
  │   │       │       └─ LuauConditionalAlternatorBlock_begin_c3 35
- │   │       │           └─ OptionalSeparator 35
+ │   │       │           └─ OptionalWhitespace 35
  │   │       ├─ LuauConditionalAlternatorBlock_content [35..81]
  │   │       │   ├─ LuauConditionalAlternatorCondition [35..52]
  │   │       │   │   ├─ LuauConditionalAlternatorCondition_begin 35
@@ -117,17 +117,17 @@ sparkdown [0..87]
  │   │       │   │   ├─ LuauAlternatorSeparator_c2 [53..54]: "|"
  │   │       │   │   ├─ LuauAlternatorSeparator_c3 [54..55]
  │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [54..55]
- │   │       │   │   │       └─ OptionalSeparator [54..55]: " "
+ │   │       │   │   │       └─ OptionalWhitespace [54..55]: " "
  │   │       │   │   ├─ LuauAlternatorSeparator_c4 [55..58]
  │   │       │   │   │   └─ LuauAlternatorAssignmentName [55..58]: "one"
  │   │       │   │   ├─ LuauAlternatorSeparator_c5 58
  │   │       │   │   │   └─ LuauAlternatorSeparator_c5 58
- │   │       │   │   │       └─ OptionalSeparator 58
+ │   │       │   │   │       └─ OptionalWhitespace 58
  │   │       │   │   ├─ LuauAlternatorSeparator_c6 [58..59]
  │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [58..59]: "="
  │   │       │   │   └─ LuauAlternatorSeparator_c7 59
  │   │       │   │       └─ LuauAlternatorSeparator_c7 59
- │   │       │   │           └─ OptionalSeparator 59
+ │   │       │   │           └─ OptionalWhitespace 59
  │   │       │   ├─ LuauDoubleQuotedString [59..65]
  │   │       │   │   ├─ LuauDoubleQuotedString_begin [59..60]
  │   │       │   │   │   └─ LuauDoubleQuotedString_begin_c1 [59..60]
@@ -144,17 +144,17 @@ sparkdown [0..87]
  │   │       │   │   ├─ LuauAlternatorSeparator_c2 [66..67]: "|"
  │   │       │   │   ├─ LuauAlternatorSeparator_c3 [67..68]
  │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [67..68]
- │   │       │   │   │       └─ OptionalSeparator [67..68]: " "
+ │   │       │   │   │       └─ OptionalWhitespace [67..68]: " "
  │   │       │   │   ├─ LuauAlternatorSeparator_c4 [68..73]
  │   │       │   │   │   └─ LuauAlternatorAssignmentName [68..73]: "other"
  │   │       │   │   ├─ LuauAlternatorSeparator_c5 73
  │   │       │   │   │   └─ LuauAlternatorSeparator_c5 73
- │   │       │   │   │       └─ OptionalSeparator 73
+ │   │       │   │   │       └─ OptionalWhitespace 73
  │   │       │   │   ├─ LuauAlternatorSeparator_c6 [73..74]
  │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [73..74]: "="
  │   │       │   │   └─ LuauAlternatorSeparator_c7 74
  │   │       │   │       └─ LuauAlternatorSeparator_c7 74
- │   │       │   │           └─ OptionalSeparator 74
+ │   │       │   │           └─ OptionalWhitespace 74
  │   │       │   └─ LuauDoubleQuotedString [74..81]
  │   │       │       ├─ LuauDoubleQuotedString_begin [74..75]
  │   │       │       │   └─ LuauDoubleQuotedString_begin_c1 [74..75]
@@ -168,7 +168,7 @@ sparkdown [0..87]
  │   │       └─ LuauConditionalAlternatorBlock_end [81..85]
  │   │           ├─ LuauConditionalAlternatorBlock_end_c1 [81..82]
  │   │           │   └─ LuauConditionalAlternatorBlock_end_c1 [81..82]
- │   │           │       └─ OptionalSeparator [81..82]: " "
+ │   │           │       └─ OptionalWhitespace [81..82]: " "
  │   │           └─ LuauConditionalAlternatorBlock_end_c2 [82..85]
  │   │               └─ LuauEndKeyword [82..85]: "end"
  │   └─ LuauInterpolatedStringExpression_end [85..86]

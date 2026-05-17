@@ -8,7 +8,7 @@ sparkdown [0..94]
  │   │   │   └─ LuauFunctionKeyword [0..8]: "function"
  │   │   └─ LuauFunctionDefinition_begin_c5 [8..9]
  │   │       └─ LuauFunctionDefinition_begin_c5 [8..9]
- │   │           └─ OptionalSeparator [8..9]: " "
+ │   │           └─ OptionalWhitespace [8..9]: " "
  │   ├─ LuauFunctionDefinition_content [9..90]
  │   │   ├─ LuauFunctionDeclarationName [9..20]
  │   │   │   ├─ LuauFunctionDeclarationName_c1 [9..20]
@@ -51,7 +51,7 @@ sparkdown [0..94]
  │   │   │   │   │   └─ LuauControlKeyword [34..40]: "return"
  │   │   │   │   └─ LuauReturnStatement_begin_c3 [40..41]
  │   │   │   │       └─ LuauReturnStatement_begin_c3 [40..41]
- │   │   │   │           └─ OptionalSeparator [40..41]: " "
+ │   │   │   │           └─ OptionalWhitespace [40..41]: " "
  │   │   │   ├─ LuauReturnStatement_content [41..89]
  │   │   │   │   └─ LuauInterpolatedString [41..89]
  │   │   │   │       ├─ LuauInterpolatedString_begin [41..42]
@@ -72,7 +72,7 @@ sparkdown [0..94]
  │   │   │   │       │   │   │       │   │   └─ LuauControlKeyword [49..55]: "plural"
  │   │   │   │       │   │   │       │   └─ LuauConditionalAlternatorBlock_begin_c3 55
  │   │   │   │       │   │   │       │       └─ LuauConditionalAlternatorBlock_begin_c3 55
- │   │   │   │       │   │   │       │           └─ OptionalSeparator 55
+ │   │   │   │       │   │   │       │           └─ OptionalWhitespace 55
  │   │   │   │       │   │   │       ├─ LuauConditionalAlternatorBlock_content [55..82]
  │   │   │   │       │   │   │       │   ├─ LuauConditionalAlternatorCondition [55..58]
  │   │   │   │       │   │   │       │   │   ├─ LuauConditionalAlternatorCondition_begin 55
@@ -101,17 +101,17 @@ sparkdown [0..94]
  │   │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [58..59]: "|"
  │   │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 59
  │   │   │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 59
- │   │   │   │       │   │   │       │   │   │       └─ OptionalSeparator 59
+ │   │   │   │       │   │   │       │   │   │       └─ OptionalWhitespace 59
  │   │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 [59..62]
  │   │   │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentName [59..62]: "one"
  │   │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 62
  │   │   │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c5 62
- │   │   │   │       │   │   │       │   │   │       └─ OptionalSeparator 62
+ │   │   │   │       │   │   │       │   │   │       └─ OptionalWhitespace 62
  │   │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 [62..63]
  │   │   │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [62..63]: "="
  │   │   │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 63
  │   │   │   │       │   │   │       │   │       └─ LuauAlternatorSeparator_c7 63
- │   │   │   │       │   │   │       │   │           └─ OptionalSeparator 63
+ │   │   │   │       │   │   │       │   │           └─ OptionalWhitespace 63
  │   │   │   │       │   │   │       │   ├─ LuauDoubleQuotedString [63..67]
  │   │   │   │       │   │   │       │   │   ├─ LuauDoubleQuotedString_begin [63..64]
  │   │   │   │       │   │   │       │   │   │   └─ LuauDoubleQuotedString_begin_c1 [63..64]
@@ -127,17 +127,17 @@ sparkdown [0..94]
  │   │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [67..68]: "|"
  │   │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 [68..69]
  │   │   │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [68..69]
- │   │   │   │       │   │   │       │   │   │       └─ OptionalSeparator [68..69]: " "
+ │   │   │   │       │   │   │       │   │   │       └─ OptionalWhitespace [68..69]: " "
  │   │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 [69..74]
  │   │   │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentName [69..74]: "other"
  │   │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 [74..75]
  │   │   │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c5 [74..75]
- │   │   │   │       │   │   │       │   │   │       └─ OptionalSeparator [74..75]: " "
+ │   │   │   │       │   │   │       │   │   │       └─ OptionalWhitespace [74..75]: " "
  │   │   │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 [75..76]
  │   │   │   │       │   │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [75..76]: "="
  │   │   │   │       │   │   │       │   │   └─ LuauAlternatorSeparator_c7 [76..77]
  │   │   │   │       │   │   │       │   │       └─ LuauAlternatorSeparator_c7 [76..77]
- │   │   │   │       │   │   │       │   │           └─ OptionalSeparator [76..77]: " "
+ │   │   │   │       │   │   │       │   │           └─ OptionalWhitespace [76..77]: " "
  │   │   │   │       │   │   │       │   └─ LuauDoubleQuotedString [77..82]
  │   │   │   │       │   │   │       │       ├─ LuauDoubleQuotedString_begin [77..78]
  │   │   │   │       │   │   │       │       │   └─ LuauDoubleQuotedString_begin_c1 [77..78]
@@ -182,7 +182,7 @@ sparkdown [0..94]
  │   └─ LuauFunctionDefinition_end [90..93]
  │       ├─ LuauFunctionDefinition_end_c1 90
  │       │   └─ LuauFunctionDefinition_end_c1 90
- │       │       └─ OptionalSeparator 90
+ │       │       └─ OptionalWhitespace 90
  │       └─ LuauFunctionDefinition_end_c2 [90..93]
  │           └─ LuauEndKeyword [90..93]: "end"
  └─ Newline [93..94]: "\n"

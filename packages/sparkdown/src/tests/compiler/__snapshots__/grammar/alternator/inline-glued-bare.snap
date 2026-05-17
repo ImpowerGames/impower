@@ -27,14 +27,14 @@ sparkdown [0..20]
  │   │       │   │   │       │   │   └─ LuauControlKeyword [5..10]: "queue"
  │   │       │   │   │       │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 10
  │   │       │   │   │       │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 10
- │   │       │   │   │       │           └─ OptionalSeparator 10
+ │   │       │   │   │       │           └─ OptionalWhitespace 10
  │   │       │   │   │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [10..16]
  │   │       │   │   │       │   ├─ LuauAlternatorSeparator [10..11]
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c1 10
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [10..11]: "|"
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 11
  │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 11
- │   │       │   │   │       │   │   │       └─ OptionalSeparator 11
+ │   │       │   │   │       │   │   │       └─ OptionalWhitespace 11
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 11
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 11
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 11
@@ -49,7 +49,7 @@ sparkdown [0..20]
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [12..13]: "|"
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 13
  │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 13
- │   │       │   │   │       │   │   │       └─ OptionalSeparator 13
+ │   │       │   │   │       │   │   │       └─ OptionalWhitespace 13
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 13
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 13
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 13
@@ -64,7 +64,7 @@ sparkdown [0..20]
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c2 [14..15]: "|"
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c3 15
  │   │       │   │   │       │   │   │   └─ LuauAlternatorSeparator_c3 15
- │   │       │   │   │       │   │   │       └─ OptionalSeparator 15
+ │   │       │   │   │       │   │   │       └─ OptionalWhitespace 15
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c4 15
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c5 15
  │   │       │   │   │       │   │   ├─ LuauAlternatorSeparator_c6 15

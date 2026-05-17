@@ -1,6 +1,6 @@
 text.source.sparkdown [0..41]
  ├─ keyword.other.statement.explicit.luau.mark.sd [0..1]: "&"
- ├─ punctuation.whitespace.separator.sd [1..2]: " "
+ ├─ punctuation.whitespace.required.sd [1..2]: " "
  ├─ entity.name.function.luau [2..5]: "log"
  └─ meta.parameter.luau [5..41]
      ├─ punctuation.definition.template-expression.begin.sd [5..6]: "("

@@ -8,7 +8,7 @@ sparkdown [0..40]
      │   │   └─ LuauFunctionKeyword [0..8]: "function"
      │   └─ LuauFunctionDefinition_begin_c5 [8..9]
      │       └─ LuauFunctionDefinition_begin_c5 [8..9]
-     │           └─ OptionalSeparator [8..9]: " "
+     │           └─ OptionalWhitespace [8..9]: " "
      ├─ LuauFunctionDefinition_content [9..40]
      │   ├─ LuauFunctionDeclarationName [9..14]
      │   │   ├─ LuauFunctionDeclarationName_c1 [9..14]
@@ -51,7 +51,7 @@ sparkdown [0..40]
      │       │   │   └─ LuauControlKeyword [28..33]: "match"
      │       │   └─ LuauConditionalAlternatorBlock_begin_c3 33
      │       │       └─ LuauConditionalAlternatorBlock_begin_c3 33
-     │       │           └─ OptionalSeparator 33
+     │       │           └─ OptionalWhitespace 33
      │       ├─ LuauConditionalAlternatorBlock_content [33..37]
      │       │   ├─ LuauConditionalAlternatorCondition [33..36]
      │       │   │   ├─ LuauConditionalAlternatorCondition_begin 33
@@ -79,7 +79,7 @@ sparkdown [0..40]
      │       └─ LuauConditionalAlternatorBlock_end [37..40]
      │           ├─ LuauConditionalAlternatorBlock_end_c1 37
      │           │   └─ LuauConditionalAlternatorBlock_end_c1 37
-     │           │       └─ OptionalSeparator 37
+     │           │       └─ OptionalWhitespace 37
      │           └─ LuauConditionalAlternatorBlock_end_c2 [37..40]
      │               └─ LuauEndKeyword [37..40]: "end"
      └─ ERROR_INCOMPLETE 40

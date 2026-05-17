@@ -6,7 +6,7 @@ sparkdown [0..56]
      │   │   └─ LuauDefineKeyword [0..6]: "define"
      │   └─ LuauDefine_begin_c3 [6..7]
      │       └─ LuauDefine_begin_c3 [6..7]
-     │           └─ OptionalSeparator [6..7]: " "
+     │           └─ OptionalWhitespace [6..7]: " "
      ├─ LuauDefine_content [7..53]
      │   ├─ LuauDefineNameAndInheritance [7..34]
      │   │   ├─ LuauDefineNameAndInheritance_begin [7..16]
@@ -15,21 +15,21 @@ sparkdown [0..56]
      │   │   ├─ LuauDefineNameAndInheritance_content [16..30]
      │   │   │   └─ LuauInheritanceOperation [16..30]
      │   │   │       ├─ LuauInheritanceOperation_c1 [16..17]
-     │   │   │       │   └─ OptionalSeparator [16..17]: " "
+     │   │   │       │   └─ OptionalWhitespace [16..17]: " "
      │   │   │       ├─ LuauInheritanceOperation_c2 [17..19]
      │   │   │       │   └─ LuauAsKeyword [17..19]: "as"
      │   │   │       ├─ LuauInheritanceOperation_c3 [19..20]
      │   │   │       │   └─ LuauInheritanceOperation_c3 [19..20]
-     │   │   │       │       └─ OptionalSeparator [19..20]: " "
+     │   │   │       │       └─ OptionalWhitespace [19..20]: " "
      │   │   │       ├─ LuauInheritanceOperation_c4 [20..29]
      │   │   │       │   └─ LuauDefineParentName [20..29]: "character"
      │   │   │       └─ LuauInheritanceOperation_c5 [29..30]
      │   │   │           └─ LuauInheritanceOperation_c5 [29..30]
-     │   │   │               └─ OptionalSeparator [29..30]: " "
+     │   │   │               └─ OptionalWhitespace [29..30]: " "
      │   │   └─ LuauDefineNameAndInheritance_end [30..34]
      │   │       ├─ LuauDefineNameAndInheritance_end_c1 30
      │   │       │   └─ LuauDefineNameAndInheritance_end_c1 30
-     │   │       │       └─ OptionalSeparator 30
+     │   │       │       └─ OptionalWhitespace 30
      │   │       └─ LuauDefineNameAndInheritance_end_c2 [30..34]
      │   │           └─ LuauWithKeyword [30..34]: "with"
      │   ├─ Newline [34..35]: "\n"
@@ -41,14 +41,14 @@ sparkdown [0..56]
      │   │   │   │   └─ LuauScopeModifier [37..42]: "store"
      │   │   │   └─ LuauPropertyDefinition_begin_c3 [42..43]
      │   │   │       └─ LuauPropertyDefinition_begin_c3 [42..43]
-     │   │   │           └─ OptionalSeparator [42..43]: " "
+     │   │   │           └─ OptionalWhitespace [42..43]: " "
      │   │   ├─ LuauPropertyDefinition_content [43..52]
      │   │   │   └─ LuauVariableAssignment [43..52]
      │   │   │       ├─ LuauVariableAssignment_begin [43..49]
      │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [43..48]
      │   │   │       │   │   └─ LuauVariableName [43..48]: "trust"
      │   │   │       │   └─ LuauVariableAssignment_begin_c2 [48..49]
-     │   │   │       │       └─ OptionalSeparator [48..49]: " "
+     │   │   │       │       └─ OptionalWhitespace [48..49]: " "
      │   │   │       ├─ LuauVariableAssignment_content [49..52]
      │   │   │       │   └─ LuauAssignmentOperation [49..52]
      │   │   │       │       ├─ LuauAssignmentOperation_begin 49
@@ -60,7 +60,7 @@ sparkdown [0..56]
      │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [49..50]: "="
      │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [50..51]
      │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [50..51]
-     │   │   │       │       │   │   │           └─ OptionalSeparator [50..51]: " "
+     │   │   │       │       │   │   │           └─ OptionalWhitespace [50..51]: " "
      │   │   │       │       │   │   └─ LuauAssignmentOperator_end 51
      │   │   │       │       │   └─ LuauNumericDecimal [51..52]
      │   │   │       │       │       ├─ LuauNumericDecimal_c1 [51..52]: "0"
@@ -72,6 +72,6 @@ sparkdown [0..56]
      └─ LuauDefine_end [53..56]
          ├─ LuauDefine_end_c1 53
          │   └─ LuauDefine_end_c1 53
-         │       └─ OptionalSeparator 53
+         │       └─ OptionalWhitespace 53
          └─ LuauDefine_end_c2 [53..56]
              └─ LuauEndKeyword [53..56]: "end"

@@ -8,7 +8,7 @@ sparkdown [0..90]
      │   │   └─ LuauFunctionKeyword [0..8]: "function"
      │   └─ LuauFunctionDefinition_begin_c5 [8..9]
      │       └─ LuauFunctionDefinition_begin_c5 [8..9]
-     │           └─ OptionalSeparator [8..9]: " "
+     │           └─ OptionalWhitespace [8..9]: " "
      ├─ LuauFunctionDefinition_content [9..87]
      │   ├─ LuauFunctionDeclarationName [9..28]
      │   │   ├─ LuauFunctionDeclarationName_c1 [9..28]
@@ -51,14 +51,14 @@ sparkdown [0..90]
      │   │   │   │   └─ LuauScopeModifier [42..47]: "local"
      │   │   │   └─ LuauVariableDefinition_begin_c3 [47..48]
      │   │   │       └─ LuauVariableDefinition_begin_c3 [47..48]
-     │   │   │           └─ OptionalSeparator [47..48]: " "
+     │   │   │           └─ OptionalWhitespace [47..48]: " "
      │   │   ├─ LuauVariableDefinition_content [48..64]
      │   │   │   └─ LuauVariableAssignment [48..64]
      │   │   │       ├─ LuauVariableAssignment_begin [48..61]
      │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [48..60]
      │   │   │       │   │   └─ LuauVariableName [48..60]: "check_plural"
      │   │   │       │   └─ LuauVariableAssignment_begin_c2 [60..61]
-     │   │   │       │       └─ OptionalSeparator [60..61]: " "
+     │   │   │       │       └─ OptionalWhitespace [60..61]: " "
      │   │   │       ├─ LuauVariableAssignment_content [61..64]
      │   │   │       │   └─ LuauAssignmentOperation [61..64]
      │   │   │       │       ├─ LuauAssignmentOperation_begin 61
@@ -70,7 +70,7 @@ sparkdown [0..90]
      │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [61..62]: "="
      │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [62..63]
      │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [62..63]
-     │   │   │       │       │   │   │           └─ OptionalSeparator [62..63]: " "
+     │   │   │       │       │   │   │           └─ OptionalWhitespace [62..63]: " "
      │   │   │       │       │   │   └─ LuauAssignmentOperator_end 63
      │   │   │       │       │   └─ LuauAccessPath [63..64]
      │   │   │       │       │       ├─ LuauAccessPath_begin 63
@@ -93,7 +93,7 @@ sparkdown [0..90]
      │   │   │   │   └─ LuauControlKeyword [67..73]: "return"
      │   │   │   └─ LuauReturnStatement_begin_c3 [73..74]
      │   │   │       └─ LuauReturnStatement_begin_c3 [73..74]
-     │   │   │           └─ OptionalSeparator [73..74]: " "
+     │   │   │           └─ OptionalWhitespace [73..74]: " "
      │   │   ├─ LuauReturnStatement_content [74..86]
      │   │   │   └─ LuauAccessPath [74..86]
      │   │   │       ├─ LuauAccessPath_begin 74
@@ -109,6 +109,6 @@ sparkdown [0..90]
      └─ LuauFunctionDefinition_end [87..90]
          ├─ LuauFunctionDefinition_end_c1 87
          │   └─ LuauFunctionDefinition_end_c1 87
-         │       └─ OptionalSeparator 87
+         │       └─ OptionalWhitespace 87
          └─ LuauFunctionDefinition_end_c2 [87..90]
              └─ LuauEndKeyword [87..90]: "end"

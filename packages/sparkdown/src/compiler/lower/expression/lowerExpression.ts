@@ -905,8 +905,10 @@ function lowerCallArguments(
 function isSkippableName(name: string): boolean {
   return (
     name === "ExtraWhitespace" ||
+    name === "Whitespace" ||
     name === "Newline" ||
     name === "LuauComment" ||
-    name === "OptionalSeparator"
+    name === "OptionalWhitespace" ||
+    name === "RequiredWhitespace"
   );
 }

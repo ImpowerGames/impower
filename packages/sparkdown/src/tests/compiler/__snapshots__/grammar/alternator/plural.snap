@@ -6,7 +6,7 @@ sparkdown [0..166]
      │   │   └─ LuauControlKeyword [0..6]: "plural"
      │   └─ LuauSparkdownConditionalAlternatorBlock_begin_c3 [6..7]
      │       └─ LuauSparkdownConditionalAlternatorBlock_begin_c3 [6..7]
-     │           └─ OptionalSeparator [6..7]: " "
+     │           └─ OptionalWhitespace [6..7]: " "
      ├─ LuauSparkdownConditionalAlternatorBlock_content [7..163]
      │   ├─ LuauConditionalAlternatorCondition [7..21]
      │   │   ├─ LuauConditionalAlternatorCondition_begin 7
@@ -37,17 +37,17 @@ sparkdown [0..166]
      │   │   ├─ LuauAlternatorSeparator_c2 [24..25]: "|"
      │   │   ├─ LuauAlternatorSeparator_c3 [25..26]
      │   │   │   └─ LuauAlternatorSeparator_c3 [25..26]
-     │   │   │       └─ OptionalSeparator [25..26]: " "
+     │   │   │       └─ OptionalWhitespace [25..26]: " "
      │   │   ├─ LuauAlternatorSeparator_c4 [26..30]
      │   │   │   └─ LuauAlternatorAssignmentName [26..30]: "zero"
      │   │   ├─ LuauAlternatorSeparator_c5 [30..31]
      │   │   │   └─ LuauAlternatorSeparator_c5 [30..31]
-     │   │   │       └─ OptionalSeparator [30..31]: " "
+     │   │   │       └─ OptionalWhitespace [30..31]: " "
      │   │   ├─ LuauAlternatorSeparator_c6 [31..32]
      │   │   │   └─ LuauAlternatorAssignmentOperator [31..32]: "="
      │   │   └─ LuauAlternatorSeparator_c7 [32..33]
      │   │       └─ LuauAlternatorSeparator_c7 [32..33]
-     │   │           └─ OptionalSeparator [32..33]: " "
+     │   │           └─ OptionalWhitespace [32..33]: " "
      │   ├─ ImplicitAction [33..55]
      │   │   ├─ ImplicitAction_begin 33
      │   │   │   └─ ImplicitAction_begin_c1 33
@@ -77,17 +77,17 @@ sparkdown [0..166]
      │   │   ├─ LuauAlternatorSeparator_c2 [58..59]: "|"
      │   │   ├─ LuauAlternatorSeparator_c3 [59..60]
      │   │   │   └─ LuauAlternatorSeparator_c3 [59..60]
-     │   │   │       └─ OptionalSeparator [59..60]: " "
+     │   │   │       └─ OptionalWhitespace [59..60]: " "
      │   │   ├─ LuauAlternatorSeparator_c4 [60..63]
      │   │   │   └─ LuauAlternatorAssignmentName [60..63]: "one"
      │   │   ├─ LuauAlternatorSeparator_c5 [63..64]
      │   │   │   └─ LuauAlternatorSeparator_c5 [63..64]
-     │   │   │       └─ OptionalSeparator [63..64]: " "
+     │   │   │       └─ OptionalWhitespace [63..64]: " "
      │   │   ├─ LuauAlternatorSeparator_c6 [64..65]
      │   │   │   └─ LuauAlternatorAssignmentOperator [64..65]: "="
      │   │   └─ LuauAlternatorSeparator_c7 [65..66]
      │   │       └─ LuauAlternatorSeparator_c7 [65..66]
-     │   │           └─ OptionalSeparator [65..66]: " "
+     │   │           └─ OptionalWhitespace [65..66]: " "
      │   ├─ ImplicitAction [66..103]
      │   │   ├─ ImplicitAction_begin 66
      │   │   │   └─ ImplicitAction_begin_c1 66
@@ -123,17 +123,17 @@ sparkdown [0..166]
      │   │   ├─ LuauAlternatorSeparator_c2 [106..107]: "|"
      │   │   ├─ LuauAlternatorSeparator_c3 [107..108]
      │   │   │   └─ LuauAlternatorSeparator_c3 [107..108]
-     │   │   │       └─ OptionalSeparator [107..108]: " "
+     │   │   │       └─ OptionalWhitespace [107..108]: " "
      │   │   ├─ LuauAlternatorSeparator_c4 [108..113]
      │   │   │   └─ LuauAlternatorAssignmentName [108..113]: "other"
      │   │   ├─ LuauAlternatorSeparator_c5 [113..114]
      │   │   │   └─ LuauAlternatorSeparator_c5 [113..114]
-     │   │   │       └─ OptionalSeparator [113..114]: " "
+     │   │   │       └─ OptionalWhitespace [113..114]: " "
      │   │   ├─ LuauAlternatorSeparator_c6 [114..115]
      │   │   │   └─ LuauAlternatorAssignmentOperator [114..115]: "="
      │   │   └─ LuauAlternatorSeparator_c7 [115..116]
      │   │       └─ LuauAlternatorSeparator_c7 [115..116]
-     │   │           └─ OptionalSeparator [115..116]: " "
+     │   │           └─ OptionalWhitespace [115..116]: " "
      │   ├─ ImplicitAction [116..162]
      │   │   ├─ ImplicitAction_begin 116
      │   │   │   └─ ImplicitAction_begin_c1 116
@@ -180,6 +180,6 @@ sparkdown [0..166]
      └─ LuauSparkdownConditionalAlternatorBlock_end [163..166]
          ├─ LuauSparkdownConditionalAlternatorBlock_end_c1 163
          │   └─ LuauSparkdownConditionalAlternatorBlock_end_c1 163
-         │       └─ OptionalSeparator 163
+         │       └─ OptionalWhitespace 163
          └─ LuauSparkdownConditionalAlternatorBlock_end_c2 [163..166]
              └─ LuauEndKeyword [163..166]: "end"

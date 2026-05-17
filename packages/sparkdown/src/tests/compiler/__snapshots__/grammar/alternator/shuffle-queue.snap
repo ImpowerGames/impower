@@ -6,12 +6,12 @@ sparkdown [0..35]
      │   │   └─ LuauControlKeyword [0..7]: "shuffle"
      │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c3 [7..8]
      │   │   └─ LuauSparkdownSequentialAlternatorBlock_begin_c3 [7..8]
-     │   │       └─ OptionalSeparator [7..8]: " "
+     │   │       └─ OptionalWhitespace [7..8]: " "
      │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c4 [8..13]
      │   │   └─ LuauControlKeyword [8..13]: "queue"
      │   └─ LuauSparkdownSequentialAlternatorBlock_begin_c5 13
      │       └─ LuauSparkdownSequentialAlternatorBlock_begin_c5 13
-     │           └─ OptionalSeparator 13
+     │           └─ OptionalWhitespace 13
      ├─ LuauSparkdownSequentialAlternatorBlock_content [13..32]
      │   ├─ Newline [13..14]: "\n"
      │   ├─ LuauAlternatorSeparator [14..18]
@@ -20,7 +20,7 @@ sparkdown [0..35]
      │   │   ├─ LuauAlternatorSeparator_c2 [16..17]: "|"
      │   │   ├─ LuauAlternatorSeparator_c3 [17..18]
      │   │   │   └─ LuauAlternatorSeparator_c3 [17..18]
-     │   │   │       └─ OptionalSeparator [17..18]: " "
+     │   │   │       └─ OptionalWhitespace [17..18]: " "
      │   │   ├─ LuauAlternatorSeparator_c4 18
      │   │   ├─ LuauAlternatorSeparator_c5 18
      │   │   ├─ LuauAlternatorSeparator_c6 18
@@ -47,7 +47,7 @@ sparkdown [0..35]
      │   │   ├─ LuauAlternatorSeparator_c2 [22..23]: "|"
      │   │   ├─ LuauAlternatorSeparator_c3 [23..24]
      │   │   │   └─ LuauAlternatorSeparator_c3 [23..24]
-     │   │   │       └─ OptionalSeparator [23..24]: " "
+     │   │   │       └─ OptionalWhitespace [23..24]: " "
      │   │   ├─ LuauAlternatorSeparator_c4 24
      │   │   ├─ LuauAlternatorSeparator_c5 24
      │   │   ├─ LuauAlternatorSeparator_c6 24
@@ -74,7 +74,7 @@ sparkdown [0..35]
      │   │   ├─ LuauAlternatorSeparator_c2 [28..29]: "|"
      │   │   ├─ LuauAlternatorSeparator_c3 [29..30]
      │   │   │   └─ LuauAlternatorSeparator_c3 [29..30]
-     │   │   │       └─ OptionalSeparator [29..30]: " "
+     │   │   │       └─ OptionalWhitespace [29..30]: " "
      │   │   ├─ LuauAlternatorSeparator_c4 30
      │   │   ├─ LuauAlternatorSeparator_c5 30
      │   │   ├─ LuauAlternatorSeparator_c6 30
@@ -98,6 +98,6 @@ sparkdown [0..35]
      └─ LuauSparkdownSequentialAlternatorBlock_end [32..35]
          ├─ LuauSparkdownSequentialAlternatorBlock_end_c1 32
          │   └─ LuauSparkdownSequentialAlternatorBlock_end_c1 32
-         │       └─ OptionalSeparator 32
+         │       └─ OptionalWhitespace 32
          └─ LuauSparkdownSequentialAlternatorBlock_end_c2 [32..35]
              └─ LuauEndKeyword [32..35]: "end"

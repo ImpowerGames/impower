@@ -8,7 +8,7 @@ sparkdown [0..124]
      │   │   └─ LuauFunctionKeyword [0..8]: "function"
      │   └─ LuauFunctionDefinition_begin_c5 [8..9]
      │       └─ LuauFunctionDefinition_begin_c5 [8..9]
-     │           └─ OptionalSeparator [8..9]: " "
+     │           └─ OptionalWhitespace [8..9]: " "
      ├─ LuauFunctionDefinition_content [9..121]
      │   ├─ LuauFunctionDeclarationName [9..15]
      │   │   ├─ LuauFunctionDeclarationName_c1 [9..15]
@@ -51,7 +51,7 @@ sparkdown [0..124]
      │   │   │   │   └─ LuauControlKeyword [29..35]: "return"
      │   │   │   └─ LuauReturnStatement_begin_c3 [35..36]
      │   │   │       └─ LuauReturnStatement_begin_c3 [35..36]
-     │   │   │           └─ OptionalSeparator [35..36]: " "
+     │   │   │           └─ OptionalWhitespace [35..36]: " "
      │   │   ├─ LuauReturnStatement_content [36..120]
      │   │   │   └─ LuauFunctionDefinition [36..120]
      │   │   │       ├─ LuauFunctionDefinition_begin [36..45]
@@ -62,7 +62,7 @@ sparkdown [0..124]
      │   │   │       │   │   └─ LuauFunctionKeyword [36..44]: "function"
      │   │   │       │   └─ LuauFunctionDefinition_begin_c5 [44..45]
      │   │   │       │       └─ LuauFunctionDefinition_begin_c5 [44..45]
-     │   │   │       │           └─ OptionalSeparator [44..45]: " "
+     │   │   │       │           └─ OptionalWhitespace [44..45]: " "
      │   │   │       ├─ LuauFunctionDefinition_content [45..115]
      │   │   │       │   ├─ LuauFunctionParameters [45..81]
      │   │   │       │   │   ├─ LuauFunctionParameters_begin [45..46]
@@ -141,7 +141,7 @@ sparkdown [0..124]
      │   │   │       │   │   │   │   └─ LuauControlKeyword [86..92]: "return"
      │   │   │       │   │   │   └─ LuauReturnStatement_begin_c3 [92..93]
      │   │   │       │   │   │       └─ LuauReturnStatement_begin_c3 [92..93]
-     │   │   │       │   │   │           └─ OptionalSeparator [92..93]: " "
+     │   │   │       │   │   │           └─ OptionalWhitespace [92..93]: " "
      │   │   │       │   │   ├─ LuauReturnStatement_content [93..114]
      │   │   │       │   │   │   └─ LuauAccessPath [93..114]
      │   │   │       │   │   │       ├─ LuauAccessPath_begin 93
@@ -177,7 +177,7 @@ sparkdown [0..124]
      │   │   │       └─ LuauFunctionDefinition_end [115..120]
      │   │   │           ├─ LuauFunctionDefinition_end_c1 [115..117]
      │   │   │           │   └─ LuauFunctionDefinition_end_c1 [115..117]
-     │   │   │           │       └─ OptionalSeparator [115..117]: "  "
+     │   │   │           │       └─ OptionalWhitespace [115..117]: "  "
      │   │   │           └─ LuauFunctionDefinition_end_c2 [117..120]
      │   │   │               └─ LuauEndKeyword [117..120]: "end"
      │   │   └─ LuauReturnStatement_end 120
@@ -185,6 +185,6 @@ sparkdown [0..124]
      └─ LuauFunctionDefinition_end [121..124]
          ├─ LuauFunctionDefinition_end_c1 121
          │   └─ LuauFunctionDefinition_end_c1 121
-         │       └─ OptionalSeparator 121
+         │       └─ OptionalWhitespace 121
          └─ LuauFunctionDefinition_end_c2 [121..124]
              └─ LuauEndKeyword [121..124]: "end"

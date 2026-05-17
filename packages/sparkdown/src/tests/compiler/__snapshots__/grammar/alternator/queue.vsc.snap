@@ -3,19 +3,19 @@ text.source.sparkdown [0..27]
  ├─ Newline [5..6]: "\n"
  ├─ punctuation.whitespace.extra.sd [6..8]: "  "
  ├─ keyword.operator.alternator.luau [8..9]: "|"
- ├─ punctuation.whitespace.separator.optional.sd [9..10]: " "
+ ├─ punctuation.whitespace.optional.sd [9..10]: " "
  ├─ string.display.text.chunk.sd [10..11]
  │   └─ markup.raw.text.sd [10..11]: "A"
  ├─ Newline [11..12]: "\n"
  ├─ punctuation.whitespace.extra.sd [12..14]: "  "
  ├─ keyword.operator.alternator.luau [14..15]: "|"
- ├─ punctuation.whitespace.separator.optional.sd [15..16]: " "
+ ├─ punctuation.whitespace.optional.sd [15..16]: " "
  ├─ string.display.text.chunk.sd [16..17]
  │   └─ markup.raw.text.sd [16..17]: "B"
  ├─ Newline [17..18]: "\n"
  ├─ punctuation.whitespace.extra.sd [18..20]: "  "
  ├─ keyword.operator.alternator.luau [20..21]: "|"
- ├─ punctuation.whitespace.separator.optional.sd [21..22]: " "
+ ├─ punctuation.whitespace.optional.sd [21..22]: " "
  ├─ string.display.text.chunk.sd [22..23]
  │   └─ markup.raw.text.sd [22..23]: "C"
  ├─ Newline [23..24]: "\n"

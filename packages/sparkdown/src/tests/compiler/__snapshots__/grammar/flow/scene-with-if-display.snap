@@ -5,7 +5,7 @@ sparkdown [0..172]
  │   │   ├─ Scene_begin_c2 [0..5]
  │   │   │   └─ SceneKeyword [0..5]: "scene"
  │   │   └─ Scene_begin_c3 [5..6]
- │   │       └─ Separator [5..6]: " "
+ │   │       └─ RequiredWhitespace [5..6]: " "
  │   ├─ Scene_content [6..29]
  │   │   └─ SceneWithParametersDeclaration [6..29]
  │   │       ├─ SceneWithParametersDeclaration_begin [6..15]
@@ -53,7 +53,7 @@ sparkdown [0..172]
  │   │   │   └─ LuauIfKeyword [33..35]: "if"
  │   │   └─ LuauSparkdownIfBlock_begin_c3 [35..36]
  │   │       └─ LuauSparkdownIfBlock_begin_c3 [35..36]
- │   │           └─ OptionalSeparator [35..36]: " "
+ │   │           └─ OptionalWhitespace [35..36]: " "
  │   ├─ LuauSparkdownIfBlock_content [36..165]
  │   │   ├─ LuauIfBlockCondition [36..53]
  │   │   │   ├─ LuauIfBlockCondition_begin 36
@@ -76,7 +76,7 @@ sparkdown [0..172]
  │   │   │   │   │   └─ LuauAccessPath_end [43..44]
  │   │   │   │   │       └─ LuauAccessPath_end_c1 [43..44]
  │   │   │   │   │           └─ LuauAccessPath_end_c1 [43..44]
- │   │   │   │   │               └─ OptionalSeparator [43..44]: " "
+ │   │   │   │   │               └─ OptionalWhitespace [43..44]: " "
  │   │   │   │   └─ LuauCompareOperation [44..48]
  │   │   │   │       ├─ LuauCompareOperation_begin 44
  │   │   │   │       │   └─ LuauCompareOperation_begin_c1 44
@@ -87,7 +87,7 @@ sparkdown [0..172]
  │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [44..46]: "=="
  │   │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [46..47]
  │   │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [46..47]
- │   │   │   │       │   │   │           └─ OptionalSeparator [46..47]: " "
+ │   │   │   │       │   │   │           └─ OptionalWhitespace [46..47]: " "
  │   │   │   │       │   │   └─ LuauCompareOperator_end 47
  │   │   │   │       │   └─ LuauNumericDecimal [47..48]
  │   │   │   │       │       ├─ LuauNumericDecimal_c1 [47..48]: "0"
@@ -96,7 +96,7 @@ sparkdown [0..172]
  │   │   │   └─ LuauIfBlockCondition_end [48..53]
  │   │   │       ├─ LuauIfBlockCondition_end_c1 [48..49]
  │   │   │       │   └─ LuauIfBlockCondition_end_c1 [48..49]
- │   │   │       │       └─ OptionalSeparator [48..49]: " "
+ │   │   │       │       └─ OptionalWhitespace [48..49]: " "
  │   │   │       └─ LuauIfBlockCondition_end_c2 [49..53]
  │   │   │           └─ LuauThenKeyword [49..53]: "then"
  │   │   ├─ Newline [53..55]: "\r\n"
@@ -162,7 +162,7 @@ sparkdown [0..172]
  │   │       │   │   └─ LuauElseKeyword [97..101]: "else"
  │   │       │   └─ LuauSparkdownElseBlock_begin_c3 101
  │   │       │       └─ LuauSparkdownElseBlock_begin_c3 101
- │   │       │           └─ OptionalSeparator 101
+ │   │       │           └─ OptionalWhitespace 101
  │   │       ├─ LuauSparkdownElseBlock_content [101..165]
  │   │       │   ├─ Newline [101..103]: "\r\n"
  │   │       │   ├─ LuauExplicitStatement [103..121]
@@ -172,7 +172,7 @@ sparkdown [0..172]
  │   │       │   │   │   ├─ LuauExplicitStatement_begin_c2 [107..108]
  │   │       │   │   │   │   └─ LuauExplicitStatementMark [107..108]: "&"
  │   │       │   │   │   └─ LuauExplicitStatement_begin_c3 [108..109]
- │   │       │   │   │       └─ Separator [108..109]: " "
+ │   │       │   │   │       └─ RequiredWhitespace [108..109]: " "
  │   │       │   │   ├─ LuauExplicitStatement_content [109..121]
  │   │       │   │   │   ├─ LuauAccessPath [109..117]
  │   │       │   │   │   │   ├─ LuauAccessPath_begin 109
@@ -192,7 +192,7 @@ sparkdown [0..172]
  │   │       │   │   │   │   └─ LuauAccessPath_end [116..117]
  │   │       │   │   │   │       └─ LuauAccessPath_end_c1 [116..117]
  │   │       │   │   │   │           └─ LuauAccessPath_end_c1 [116..117]
- │   │       │   │   │   │               └─ OptionalSeparator [116..117]: " "
+ │   │       │   │   │   │               └─ OptionalWhitespace [116..117]: " "
  │   │       │   │   │   └─ LuauAssignmentOperation [117..121]
  │   │       │   │   │       ├─ LuauAssignmentOperation_begin 117
  │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 117
@@ -203,7 +203,7 @@ sparkdown [0..172]
  │   │       │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [117..119]: "-="
  │   │       │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [119..120]
  │   │       │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [119..120]
- │   │       │   │   │       │   │   │           └─ OptionalSeparator [119..120]: " "
+ │   │       │   │   │       │   │   │           └─ OptionalWhitespace [119..120]: " "
  │   │       │   │   │       │   │   └─ LuauAssignmentOperator_end 120
  │   │       │   │   │       │   └─ LuauNumericDecimal [120..121]
  │   │       │   │   │       │       ├─ LuauNumericDecimal_c1 [120..121]: "1"
@@ -269,7 +269,7 @@ sparkdown [0..172]
  │   └─ LuauSparkdownIfBlock_end [165..170]
  │       ├─ LuauSparkdownIfBlock_end_c1 [165..167]
  │       │   └─ LuauSparkdownIfBlock_end_c1 [165..167]
- │       │       └─ OptionalSeparator [165..167]: "  "
+ │       │       └─ OptionalWhitespace [165..167]: "  "
  │       └─ LuauSparkdownIfBlock_end_c2 [167..170]
  │           └─ LuauEndKeyword [167..170]: "end"
  └─ Newline [170..172]: "\r\n"

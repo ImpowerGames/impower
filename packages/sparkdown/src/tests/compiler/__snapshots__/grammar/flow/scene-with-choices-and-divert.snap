@@ -5,7 +5,7 @@ sparkdown [0..96]
  │   │   ├─ Scene_begin_c2 [0..5]
  │   │   │   └─ SceneKeyword [0..5]: "scene"
  │   │   └─ Scene_begin_c3 [5..6]
- │   │       └─ Separator [5..6]: " "
+ │   │       └─ RequiredWhitespace [5..6]: " "
  │   ├─ Scene_content [6..13]
  │   │   └─ SceneWithoutParametersDeclaration [6..13]
  │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..13]
@@ -33,7 +33,7 @@ sparkdown [0..96]
  │   │   ├─ InlineDialogue_begin_c3 [18..19]
  │   │   │   └─ ColonSeparator [18..19]: ":"
  │   │   └─ InlineDialogue_begin_c4 [19..20]
- │   │       └─ Separator [19..20]: " "
+ │   │       └─ RequiredWhitespace [19..20]: " "
  │   ├─ InlineDialogue_content [20..34]
  │   │   └─ LineEnd [20..34]
  │   │       ├─ LineEnd_begin 20
@@ -79,7 +79,7 @@ sparkdown [0..96]
  │   │       ├─ ChoiceWithSuppressedText_c5 50
  │   │       ├─ ChoiceWithSuppressedText_c6 50
  │   │       ├─ ChoiceWithSuppressedText_c7 [50..51]
- │   │       │   └─ Separator [50..51]: " "
+ │   │       │   └─ RequiredWhitespace [50..51]: " "
  │   │       └─ ChoiceWithSuppressedText_c8 [51..65]
  │   │           └─ Divert [51..65]
  │   │               ├─ Divert_begin [51..53]
@@ -91,7 +91,7 @@ sparkdown [0..96]
  │   │               │       ├─ DivertTarget_begin [53..54]
  │   │               │       │   └─ DivertTarget_begin_c1 [53..54]
  │   │               │       │       └─ DivertTarget_begin_c1 [53..54]
- │   │               │       │           └─ OptionalSeparator [53..54]: " "
+ │   │               │       │           └─ OptionalWhitespace [53..54]: " "
  │   │               │       ├─ DivertTarget_content [54..65]
  │   │               │       │   └─ DivertPath [54..65]
  │   │               │       │       ├─ DivertPath_begin 54
@@ -128,7 +128,7 @@ sparkdown [0..96]
      │       ├─ ChoiceWithSuppressedText_c5 81
      │       ├─ ChoiceWithSuppressedText_c6 81
      │       ├─ ChoiceWithSuppressedText_c7 [81..82]
-     │       │   └─ Separator [81..82]: " "
+     │       │   └─ RequiredWhitespace [81..82]: " "
      │       └─ ChoiceWithSuppressedText_c8 [82..96]
      │           └─ Divert [82..96]
      │               ├─ Divert_begin [82..84]
@@ -140,7 +140,7 @@ sparkdown [0..96]
      │               │       ├─ DivertTarget_begin [84..85]
      │               │       │   └─ DivertTarget_begin_c1 [84..85]
      │               │       │       └─ DivertTarget_begin_c1 [84..85]
-     │               │       │           └─ OptionalSeparator [84..85]: " "
+     │               │       │           └─ OptionalWhitespace [84..85]: " "
      │               │       ├─ DivertTarget_content [85..96]
      │               │       │   └─ DivertPath [85..96]
      │               │       │       ├─ DivertPath_begin 85

@@ -607,8 +607,8 @@ function hasAdjacentInterpolationSibling(node: SyntaxNode): boolean {
     if (
       cursor.name === "Whitespace" ||
       cursor.name === "ExtraWhitespace" ||
-      cursor.name === "Separator" ||
-      cursor.name === "OptionalSeparator"
+      cursor.name === "RequiredWhitespace" ||
+      cursor.name === "OptionalWhitespace"
     ) {
       cursor = cursor.nextSibling;
       continue;

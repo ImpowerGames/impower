@@ -1,10 +1,10 @@
 text.source.sparkdown [0..16]
  ├─ keyword.control.divert.mark.sd [0..2]: "->"
  ├─ keyword.control.divert.path.sd [2..10]
- │   ├─ punctuation.whitespace.separator.optional.sd [2..3]: " "
+ │   ├─ punctuation.whitespace.optional.sd [2..3]: " "
  │   └─ keyword.control.divert.path.sd [3..10]
  │       └─ keyword.control.divert.path.sd [3..10]: "tunnel2"
- ├─ punctuation.whitespace.separator.optional.sd [10..11]: " "
+ ├─ punctuation.whitespace.optional.sd [10..11]: " "
  ├─ keyword.control.divert.mark.sd [11..13]: "->"
  ├─ keyword.control.divert.mark.sd [13..15]: "->"
  └─ Newline [15..16]: "\n"

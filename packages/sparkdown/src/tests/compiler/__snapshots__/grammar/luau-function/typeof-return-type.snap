@@ -8,7 +8,7 @@ sparkdown [0..56]
  │   │   │   └─ LuauFunctionKeyword [0..8]: "function"
  │   │   └─ LuauFunctionDefinition_begin_c5 [8..9]
  │   │       └─ LuauFunctionDefinition_begin_c5 [8..9]
- │   │           └─ OptionalSeparator [8..9]: " "
+ │   │           └─ OptionalWhitespace [8..9]: " "
  │   ├─ LuauFunctionDefinition_content [9..52]
  │   │   ├─ LuauFunctionDeclarationName [9..18]
  │   │   │   ├─ LuauFunctionDeclarationName_c1 [9..18]
@@ -48,7 +48,7 @@ sparkdown [0..56]
  │   │   │   │   │   └─ LuauTypeOperator [29..30]: ":"
  │   │   │   │   └─ LuauFunctionReturnType_begin_c2 [30..31]
  │   │   │   │       └─ LuauFunctionReturnType_begin_c2 [30..31]
- │   │   │   │           └─ OptionalSeparator [30..31]: " "
+ │   │   │   │           └─ OptionalWhitespace [30..31]: " "
  │   │   │   ├─ LuauFunctionReturnType_content [31..40]
  │   │   │   │   └─ LuauTypeLiteral [31..40]
  │   │   │   │       ├─ LuauTypeLiteral_begin 31
@@ -89,7 +89,7 @@ sparkdown [0..56]
  │   │   │   │   │   └─ LuauControlKeyword [43..49]: "return"
  │   │   │   │   └─ LuauReturnStatement_begin_c3 [49..50]
  │   │   │   │       └─ LuauReturnStatement_begin_c3 [49..50]
- │   │   │   │           └─ OptionalSeparator [49..50]: " "
+ │   │   │   │           └─ OptionalWhitespace [49..50]: " "
  │   │   │   ├─ LuauReturnStatement_content [50..51]
  │   │   │   │   └─ LuauAccessPath [50..51]
  │   │   │   │       ├─ LuauAccessPath_begin 50
@@ -105,7 +105,7 @@ sparkdown [0..56]
  │   └─ LuauFunctionDefinition_end [52..55]
  │       ├─ LuauFunctionDefinition_end_c1 52
  │       │   └─ LuauFunctionDefinition_end_c1 52
- │       │       └─ OptionalSeparator 52
+ │       │       └─ OptionalWhitespace 52
  │       └─ LuauFunctionDefinition_end_c2 [52..55]
  │           └─ LuauEndKeyword [52..55]: "end"
  └─ Newline [55..56]: "\n"

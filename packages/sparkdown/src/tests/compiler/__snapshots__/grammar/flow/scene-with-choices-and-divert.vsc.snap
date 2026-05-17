@@ -1,6 +1,6 @@
 text.source.sparkdown [0..93]
  ├─ keyword.control.scene.sd [0..5]: "scene"
- ├─ punctuation.whitespace.separator.sd [5..6]: " "
+ ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..13]: "Rooftop"
  ├─ Newline [13..14]: "\n"
  ├─ string.display.dialogue.inline.sd [14..33]
@@ -8,7 +8,7 @@ text.source.sparkdown [0..93]
  │   ├─ entity.name.type.dialogue.character.name.sd [16..17]
  │   │   └─ markup.raw.text.sd [16..17]: "N"
  │   ├─ meta.template.expression.operator.colon.sd [17..18]: ":"
- │   ├─ punctuation.whitespace.separator.sd [18..19]: " "
+ │   ├─ punctuation.whitespace.required.sd [18..19]: " "
  │   └─ string.display.text.chunk.sd [19..33]
  │       ├─ markup.raw.text.sd [19..21]: "Do"
  │       ├─ markup.raw.space.sd [21..22]: " "
@@ -27,10 +27,10 @@ text.source.sparkdown [0..93]
  │   │   ├─ markup.raw.text.sd [39..46]: "Courage"
  │   │   └─ markup.raw.punctuation.sd [46..47]: "."
  │   ├─ punctuation.definition.template-expression.end.choice.suppression.sd [47..48]: "]"
- │   ├─ punctuation.whitespace.separator.sd [48..49]: " "
+ │   ├─ punctuation.whitespace.required.sd [48..49]: " "
  │   ├─ keyword.control.divert.mark.sd [49..51]: "->"
  │   └─ keyword.control.divert.path.sd [51..63]
- │       ├─ punctuation.whitespace.separator.optional.sd [51..52]: " "
+ │       ├─ punctuation.whitespace.optional.sd [51..52]: " "
  │       └─ keyword.control.divert.path.sd [52..63]
  │           └─ keyword.control.divert.path.sd [52..63]: "WishCourage"
  ├─ Newline [63..64]: "\n"
@@ -42,9 +42,9 @@ text.source.sparkdown [0..93]
      │   ├─ markup.raw.text.sd [69..76]: "Answers"
      │   └─ markup.raw.punctuation.sd [76..77]: "."
      ├─ punctuation.definition.template-expression.end.choice.suppression.sd [77..78]: "]"
-     ├─ punctuation.whitespace.separator.sd [78..79]: " "
+     ├─ punctuation.whitespace.required.sd [78..79]: " "
      ├─ keyword.control.divert.mark.sd [79..81]: "->"
      └─ keyword.control.divert.path.sd [81..93]
-         ├─ punctuation.whitespace.separator.optional.sd [81..82]: " "
+         ├─ punctuation.whitespace.optional.sd [81..82]: " "
          └─ keyword.control.divert.path.sd [82..93]
              └─ keyword.control.divert.path.sd [82..93]: "WishAnswers"

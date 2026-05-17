@@ -1,10 +1,10 @@
 text.source.sparkdown [0..15]
  ├─ keyword.other.statement.explicit.luau.mark.sd [0..1]: "&"
- ├─ punctuation.whitespace.separator.sd [1..2]: " "
+ ├─ punctuation.whitespace.required.sd [1..2]: " "
  ├─ variable.other.readwrite.luau [2..3]: "v"
- ├─ punctuation.whitespace.separator.optional.sd [3..4]: " "
+ ├─ punctuation.whitespace.optional.sd [3..4]: " "
  ├─ keyword.operator.assignment.luau [4..5]: "="
- ├─ punctuation.whitespace.separator.optional.sd [5..6]: " "
+ ├─ punctuation.whitespace.optional.sd [5..6]: " "
  ├─ variable.other.readwrite.luau [6..10]: "opts"
  ├─ punctuation.definition.template-expression.begin.sd [10..11]: "["
  ├─ variable.other.readwrite.luau [11..14]: "key"
