@@ -73,7 +73,6 @@ variables:
       "system",
       "count",
       "lang",
-      "plural",
     ]
   LUAU_STANDARD_LIB_FUNCTIONS:
     [

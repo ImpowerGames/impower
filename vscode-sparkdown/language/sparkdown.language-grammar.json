@@ -151,8 +151,7 @@
       "vector",
       "system",
       "count",
-      "lang",
-      "plural"
+      "lang"
     ],
     "LUAU_STANDARD_LIB_FUNCTIONS": [
       "assert",
@@ -7343,7 +7342,7 @@
     "LuauStdLibConstants": {
       "tag": "standard(variableName)",
       "name": "support.type.standard.sd",
-      "match": "(\\b(?:bit32|coroutine|debug|math|os|string|table|task|utf8|buffer|vector|system|count|lang|plural)\\b)"
+      "match": "(\\b(?:bit32|coroutine|debug|math|os|string|table|task|utf8|buffer|vector|system|count|lang)\\b)"
     },
     "LuauStdLibMethods": {
       "tag": "standard(function(name))",
