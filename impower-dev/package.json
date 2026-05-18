@@ -46,6 +46,7 @@
     "@impower/sparkdown-language-server": "file:../packages/sparkdown-language-server",
     "@impower/sparkdown-screenplay-pdf": "file:../packages/sparkdown-screenplay-pdf",
     "@impower/sparkle": "file:../packages/sparkle",
+    "@impower/impower-ui": "file:../packages/impower-ui",
     "dotenv": "^16.3.1",
     "fastify": "^5.8.4",
     "googleapis": "^159.0.0",
@@ -70,6 +71,7 @@
     "npm-run-all": "^4.1.5",
     "parse5": "^7.1.2",
     "pino-pretty": "^10.0.0",
+    "preact-render-to-string": "^6.5.0",
     "tiny-glob": "^0.2.9",
     "tsx": "^4.19.1",
     "typescript": "^5.6.2"
