@@ -6407,7 +6407,7 @@
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])|[,;)\\]}|])"
     },
     "LuauSparkdownSequentialAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*))?(\\b(?:queue|cycle|chain)\\b)((?:[^\\S\\n\\r])*)",
+      "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b))(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*))?(\\b(?:queue|cycle|chain)\\b)?((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6475,7 +6475,7 @@
       }
     },
     "LuauSparkdownSingleLineSequentialAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*))?(\\b(?:queue|cycle|chain)\\b)((?:[^\\S\\n\\r])*)(?=[|])",
+      "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b))(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*))?(\\b(?:queue|cycle|chain)\\b)?((?:[^\\S\\n\\r])*)(?=[|])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6605,7 +6605,7 @@
       }
     },
     "LuauSequentialAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*))?(\\b(?:queue|cycle|chain)\\b)((?:[^\\S\\n\\r])*)",
+      "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b))(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*))?(\\b(?:queue|cycle|chain)\\b)?((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [

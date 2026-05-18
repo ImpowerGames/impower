@@ -40,11 +40,15 @@ export function lowerSparkdownSequentialAlternatorBlock(
       )
     : [];
 
+  // Bare `shuffle` (no following alternator keyword) defaults to
+  // `cycle`. The author's intent for bare `shuffle | a | b end` is
+  // "pick a random arm each time around" — cycle-with-shuffle, not
+  // queue-with-shuffle (which would play through once and stop).
   let isShuffle = false;
   let mainKeyword = keywords[0] ?? "";
-  if (keywords[0] === "shuffle" && keywords[1]) {
+  if (keywords[0] === "shuffle") {
     isShuffle = true;
-    mainKeyword = keywords[1];
+    mainKeyword = keywords[1] ?? "cycle";
   }
 
   let seqType = TYPE_BY_KEYWORD[mainKeyword] ?? SequenceType.Once;
