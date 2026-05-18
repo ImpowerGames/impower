@@ -1,0 +1,44 @@
+{
+  "name": "@impower/impower-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/impower-ui.umd.js",
+  "module": "./dist/impower-ui.js",
+  "types": "./dist/impower-ui.d.ts",
+  "exports": {
+    "./components": {
+      "development": "./src/components/index.ts",
+      "import": "./dist/impower-ui.js",
+      "require": "./dist/impower-ui.umd.js",
+      "types": "./dist/impower-ui.d.ts"
+    },
+    "./style.css": {
+      "development": "./src/style.css",
+      "default": "./dist/impower-ui.css"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.0.0",
+    "@tailwindcss/vite": "^4.2.2",
+    "tailwindcss": "^4.2.2"
+  },
+  "devDependencies": {
+    "@microsoft/api-extractor": "^7.58.7",
+    "@preact/preset-vite": "^2.10.5",
+    "@types/node": "^24.12.2",
+    "tailwind-scrollbar": "^4.0.2",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.9",
+    "vite-plugin-dts": "^5.0.0"
+  },
+  "peerDependencies": {
+    "preact": "^10.29.1",
+    "preact-custom-element": "^4.6.0"
+  }
+}
