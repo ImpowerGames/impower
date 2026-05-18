@@ -33,7 +33,16 @@ variables:
   LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
   LUAU_MODULE_KEYWORDS: ["require", "export"]
   LUAU_GLOBAL_DECLARATION_KEYWORDS: ["define"]
-  LUAU_LOCAL_DECLARATION_KEYWORDS: ["local", "const", "function", "type"]
+  # `type` is intentionally NOT included here. It IS a declaration
+  # keyword for `type X = ...` type aliases (handled by the
+  # `LuauDataTypeDeclaration` rule with a `(?!{{WS}}*[(])` lookahead),
+  # but it's ALSO a Luau stdlib function (`type(x)` returns the
+  # type-name string). Including it in `LUAU_LOCAL_DECLARATION_KEYWORDS`
+  # would let `LUAU_TERMINATOR_KEYWORDS` reject `type` from
+  # `LuauAccessPath`, killing the function-call path in expressions.
+  # The disambiguation lives in `LuauDataTypeDeclaration`'s lookahead,
+  # not here.
+  LUAU_LOCAL_DECLARATION_KEYWORDS: ["local", "const", "function"]
   LUAU_PRIMITIVE_TYPES:
     [
       "nil",
@@ -2692,7 +2701,13 @@ repository:
       - { include: "#LuauKeyword" }
       - { include: "#LuauStdLibGlobals" }
       - { include: "#LuauGenericsInstantiation" }
-      - { include: "#LuauTypeofFunction" }
+      # `LuauTypeofFunction` is intentionally NOT included in value
+      # expressions: in value context, `type(x)` and `typeof(x)` are
+      # Luau stdlib function calls returning the type-name string,
+      # and route through `LuauFunctionCall` like any other call.
+      # The type-context inclusion (in `LuauTypeName`'s pattern list)
+      # handles the `local x: typeof(y) = ...` type-inference form
+      # where `typeof(y)` is a type expression.
       - { include: "#LuauAccessPath" }
       - { include: "#LuauTable" }
       # `LuauChainedFunctionCall` must come BEFORE
@@ -5378,7 +5393,12 @@ repository:
     end: (?={{BEAT}})|(?<=[\)\-{}\[\]"'])
 
   LuauDataTypeDeclaration:
-    begin: ({{WS}}*)(?:(export)\b({{WS}}*))?(type)\b({{WS}}*)
+    # Negative lookahead `(?!{{WS}}*[(])` after `type\b` rejects
+    # `type(x)` / `typeof(x)` so the function-call grammar handles
+    # them as stdlib calls. Without this, the rule swallows the
+    # `type` keyword even when followed by a parenthesized
+    # call-argument list, leaving `(x)` as orphan syntax.
+    begin: ({{WS}}*)(?:(export)\b({{WS}}*))?(type)\b(?!{{WS}}*[(])({{WS}}*)
     beginCaptures:
       1:
         patterns:

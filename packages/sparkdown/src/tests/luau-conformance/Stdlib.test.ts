@@ -89,13 +89,14 @@ end
     expect(recorded).toEqual(["42", "true", "hi"]);
   });
 
-  test.skip("type returns Lua-style type names", () => {
-    // Skipped: `type(x)` is currently swallowed by the
-    // `LuauDataTypeDeclaration` grammar rule (matches `type\b` for
-    // `type X = ...` type aliases) before the function-call grammar
-    // gets a chance. Fix: add a `(?!{{WS}}*\()` lookahead on the
-    // type-alias rule so `type(x)` falls through to the function-call
-    // path. Same issue affects `typeof(x)`.
+  test("type / typeof return Lua-style type names", () => {
+    // Two grammar changes were needed to unblock `type(x)`:
+    //   1. `LuauDataTypeDeclaration` got a `(?!{{WS}}*[(])`
+    //      lookahead so `type(x)` falls through to the function-call
+    //      path (not consumed as a type-alias declaration start).
+    //   2. `LUAU_LOCAL_DECLARATION_KEYWORDS` no longer includes
+    //      `type`, so `LUAU_TERMINATOR_KEYWORDS` doesn't reject
+    //      `type` from `LuauAccessPath` in expression contexts.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -104,10 +105,18 @@ function run()
 & host_record(type(1))
 & host_record(type("s"))
 & host_record(type(true))
+& host_record(typeof(1))
+& host_record(typeof("s"))
 end
 `);
     expect(errors).toEqual([]);
-    expect(recorded).toEqual(["number", "string", "boolean"]);
+    expect(recorded).toEqual([
+      "number",
+      "string",
+      "boolean",
+      "number",
+      "string",
+    ]);
   });
 });
 
