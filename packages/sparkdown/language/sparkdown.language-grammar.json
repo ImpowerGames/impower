@@ -4427,9 +4427,6 @@
           "include": "#LuauKeyword"
         },
         {
-          "include": "#LuauStdLibGlobals"
-        },
-        {
           "include": "#LuauGenericsInstantiation"
         },
         {
@@ -7249,6 +7246,9 @@
             },
             {
               "include": "#LuauStdLibConstants"
+            },
+            {
+              "include": "#LuauStdLibGlobals"
             },
             {
               "include": "#LuauVariableName"

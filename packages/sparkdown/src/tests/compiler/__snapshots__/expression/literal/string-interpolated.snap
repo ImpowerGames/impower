@@ -1,1 +1,1 @@
-String["hello ", Var(name), ", score = "]
+String["hello ", Var(name), ", score = ", (Var(count) + Number(1, int))]

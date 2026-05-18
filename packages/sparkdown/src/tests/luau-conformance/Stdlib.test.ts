@@ -120,6 +120,51 @@ end
   });
 });
 
+describe("stdlib string.char + select + raw*", () => {
+  test("string.char produces single-byte string from codepoints", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+& host_record(string.char(65))
+& host_record(string.char(72, 105))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["A", "Hi"]);
+  });
+
+  test('select("#", ...) returns the variadic arg count', () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+& host_record(select("#", 1, 2, 3))
+& host_record(select("#"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([3, 0]);
+  });
+
+  test("utf8.charpattern constant is accessible", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+& host_record(utf8.charpattern)
+end
+`);
+    expect(errors).toEqual([]);
+    // The exact pattern string — see STDLIB_CONSTANTS in StdLib.ts.
+    expect(typeof recorded[0]).toBe("string");
+    expect((recorded[0] as string).length).toBeGreaterThan(0);
+  });
+});
+
 describe("stdlib bit32", () => {
   test("bit32 variadic ops fold across args", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)

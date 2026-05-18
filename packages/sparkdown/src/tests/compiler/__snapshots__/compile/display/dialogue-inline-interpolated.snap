@@ -30,6 +30,12 @@
           "text": ", you have "
         },
         {
+          "type": "VariableReference",
+          "path": [
+            "count"
+          ]
+        },
+        {
           "type": "Text",
           "text": " messages."
         },

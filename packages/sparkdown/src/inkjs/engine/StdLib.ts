@@ -555,9 +555,108 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
+  // `select("#", ...)` — count of additional arguments. The
+  // `select(n, ...)` form is part of the Lua API but produces
+  // multiple return values; that variant is blocked on multi-return
+  // (see task #80) and errors out for now with an explanatory
+  // message.
+  select: {
+    arity: -1,
+    fn: (story, args) => {
+      if (args.length === 0) {
+        story.Error("select: missing first argument");
+        return 0;
+      }
+      const first = coerceString(args[0]);
+      if (first === "#") {
+        return args.length - 1;
+      }
+      const n = coerceNumber(args[0]);
+      if (n === null) {
+        story.Error(
+          'select: first argument must be a positive integer or "#"',
+        );
+        return 0;
+      }
+      // The `select(n, ...)` form returns multiple values starting
+      // from index n. Without multi-return infra, we'd silently
+      // drop all but the first — too confusing. Surface the
+      // limitation explicitly until task #80 lands.
+      story.Error(
+        "select(n, ...): multi-return form is not yet implemented (task #80). Use `select('#', ...)` for the count form.",
+      );
+      return 0;
+    },
+  },
+
+  // `rawget(t, k)` — index `t` by `k` bypassing the `__index`
+  // metamethod. Sparkdown's `ObjectValue` doesn't have metamethods
+  // today, so this is equivalent to `t[k]` — but registering it
+  // means user code that calls `rawget` as a function works
+  // verbatim.
+  rawget: {
+    arity: 2,
+    fn: (story, [t, k]) => {
+      if (t == null || typeof t !== "object" || !("value" in t)) {
+        story.Error("rawget: first argument must be a table");
+        return null;
+      }
+      const map = (t as any).value;
+      if (!(map instanceof Map)) {
+        story.Error("rawget: first argument must be a table");
+        return null;
+      }
+      // Normalize the key to a string — sparkdown's ObjectValue is
+      // string-keyed even for numeric indices.
+      const key =
+        coerceString(k) ??
+        (coerceNumber(k) !== null ? String(coerceNumber(k)) : null);
+      if (key === null) return null;
+      return map.get(key) ?? null;
+    },
+  },
+
+  // `rawset(t, k, v)` — set `t[k] = v` bypassing the `__newindex`
+  // metamethod. Returns `t`. As with `rawget`, sparkdown has no
+  // metamethods so this is equivalent to plain assignment, but
+  // having the function form lets user code use it verbatim.
+  rawset: {
+    arity: 3,
+    fn: (story, [t, k, v]) => {
+      if (t == null || typeof t !== "object" || !("value" in t)) {
+        story.Error("rawset: first argument must be a table");
+        return null;
+      }
+      const map = (t as any).value;
+      if (!(map instanceof Map)) {
+        story.Error("rawset: first argument must be a table");
+        return null;
+      }
+      const key =
+        coerceString(k) ??
+        (coerceNumber(k) !== null ? String(coerceNumber(k)) : null);
+      if (key === null) {
+        story.Error("rawset: key must be a string or number");
+        return null;
+      }
+      map.set(key, v);
+      return t;
+    },
+  },
+
   // ============================================================
   // `string.*` — state-aware string helpers
   // ============================================================
+  // `string.char(...)` — variadic. Each arg is a byte value (0-255);
+  // Lua's interpretation is byte-oriented, not Unicode-codepoint.
+  // `String.fromCharCode` matches that for the byte range (it
+  // interprets each value as a UTF-16 code unit, which coincides
+  // with bytes for U+0000–U+00FF).
+  "string.char": {
+    arity: -1,
+    pure: true,
+    fn: (_, args: number[]) => String.fromCharCode(...args),
+  },
   "string.len": {
     arity: 1,
     fn: (_, [s]) => (coerceString(s) ?? "").length,
@@ -916,6 +1015,13 @@ export const STDLIB_CONSTANTS: Record<string, number | string | boolean> = {
   // Standard Luau math constants.
   "math.pi": Math.PI,
   "math.huge": Infinity,
+
+  // UTF-8 helper constant. Lua's `utf8.charpattern` is a Lua-pattern
+  // that matches a single UTF-8 character: `[\0-\x7F\xC2-\xFD][\x80-\xBF]*`.
+  // Sparkdown doesn't have Lua-pattern matching yet, but the string
+  // constant itself is accessible — useful for code that introspects
+  // the value or for forward-compat with future pattern support.
+  "utf8.charpattern": "[\0-\x7F\xC2-\xFD][\x80-\xBF]*",
 
   // Globals (non-namespaced) — single-identifier access.
   // `_VERSION` is the language version string; sparkdown reports

@@ -781,7 +781,17 @@ export function lowerSimpleAccessPath(
     if (!inner) continue;
     switch (inner.name) {
       case "LuauVariable": {
-        const nameNode = getDescendent("LuauVariableName", inner);
+        // The grammar tags stdlib namespaces (`math`, `string`,
+        // `utf8`, ...) as `LuauStdLibConstants` and top-level
+        // globals (`_G`, `_VERSION`) as `LuauStdLibGlobals`, both
+        // alongside the regular `LuauVariableName` capture. Look
+        // for any of the three so paths like `math.pi`,
+        // `utf8.charpattern`, and standalone `_VERSION` all feed
+        // into the constant short-circuit below.
+        const nameNode =
+          getDescendent("LuauVariableName", inner) ??
+          getDescendent("LuauStdLibConstants", inner) ??
+          getDescendent("LuauStdLibGlobals", inner);
         if (nameNode) {
           identifiers.push(
             new Identifier(ctx.read(nameNode.from, nameNode.to)),

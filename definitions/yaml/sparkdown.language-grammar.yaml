@@ -2699,7 +2699,11 @@ repository:
       - { include: "#LuauBoolean" }
       - { include: "#LuauNil" }
       - { include: "#LuauKeyword" }
-      - { include: "#LuauStdLibGlobals" }
+      # `LuauStdLibGlobals` is reached via `LuauVariable`'s capture
+      # patterns when `_G` / `_VERSION` appear in expression context.
+      # Including it standalone here too would short-circuit the
+      # access-path lowerer (which needs to see them as identifiers
+      # for the `STDLIB_CONSTANTS` short-circuit).
       - { include: "#LuauGenericsInstantiation" }
       # `LuauTypeofFunction` is intentionally NOT included in value
       # expressions: in value context, `type(x)` and `typeof(x)` are
@@ -4458,6 +4462,11 @@ repository:
         patterns:
           - { include: "#LuauSelfKeyword" }
           - { include: "#LuauStdLibConstants" }
+          # `LuauStdLibGlobals` tags `_G` / `_VERSION` so they get
+          # the `constant.language.luau` highlight even when used in
+          # access-path context (e.g. as standalone `_VERSION` or
+          # the receiver of a `_G.foo` access).
+          - { include: "#LuauStdLibGlobals" }
           - { include: "#LuauVariableName" }
 
   LuauPropertyAccessor:

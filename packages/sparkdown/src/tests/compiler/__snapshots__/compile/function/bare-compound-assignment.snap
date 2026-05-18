@@ -10,7 +10,12 @@
       "body": [
         {
           "type": "ReturnType",
-          "expression": null
+          "expression": {
+            "type": "VariableReference",
+            "path": [
+              "count"
+            ]
+          }
         }
       ]
     }
