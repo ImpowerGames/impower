@@ -1,7 +1,9 @@
 // End-to-end test for native `assert(cond [, message])`. The
-// implementation routes `assert` through `GLOBAL_STDLIB_ALIASES`
-// (StdLib.ts) → `"ASSERT"` ControlCommand → runtime handler that
-// calls `story.AddError` on falsy condition.
+// implementation routes `assert` through the `GLOBAL_STDLIB` registry
+// (StdLib.ts) → generic `RunStdLibFunction` ControlCommand →
+// runtime dispatcher that calls `entry.fn(story, args)`, which in
+// `assert`'s case raises a runtime error via `story.AddError` on
+// falsy condition.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";

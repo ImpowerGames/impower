@@ -2000,22 +2000,33 @@ export class Story extends InkObject {
           break;
         }
 
-        case ControlCommand.CommandType.Assert: {
-          // Pops the message (top), then the condition, and delegates
-          // to `GLOBAL_STDLIB.assert.fn(story, [cond, msg])` — the
-          // registry holds the single source of truth for assert's
-          // behavior so the per-function ControlCommand dispatch
-          // stays a thin wrapper. When #77's generic `RunStdLibFunction`
-          // dispatcher lands, this entire case can be replaced by one
-          // generic handler that does the same registry lookup for
-          // any state-aware builtin.
-          const messageVal = this.state.PopEvaluationStack();
-          const condVal = this.state.PopEvaluationStack();
-          const entry = lookupStateAwareStdLib("assert");
-          if (entry) {
-            // Lowerer pads to exactly 2 args; runtime hands them to
-            // the JS function in source order (cond first, msg second).
-            entry.fn(this, [condVal, messageVal]);
+        case ControlCommand.CommandType.RunStdLibFunction: {
+          // Generic dispatcher for state-aware Luau builtins. Reads
+          // the function name + arity off the ControlCommand instance
+          // (set at lower time and round-tripped through the
+          // `stdlib:<name>:<arity>` JSON token), looks up the registry,
+          // pops `arity` values, and calls the JS implementation
+          // with `(story, args)`. If `fn` returns a non-undefined
+          // value, push it back onto the eval stack. This replaces
+          // the entire per-function ControlCommand boilerplate —
+          // adding a new state-aware builtin is now one entry in
+          // `GLOBAL_STDLIB` in StdLib.ts.
+          const name = evalCommand._stdLibName;
+          const arity = evalCommand._stdLibArity;
+          const entry = lookupStateAwareStdLib(name);
+          if (!entry) {
+            this.Error(`Unknown stdlib function '${name}'`);
+            break;
+          }
+          // Pop args off the stack in LIFO order, then reverse to
+          // hand them to the function in source order (arg 0 first).
+          const args: any[] = [];
+          for (let i = 0; i < arity; i++) {
+            args.unshift(this.state.PopEvaluationStack());
+          }
+          const result = entry.fn(this, args);
+          if (result !== undefined) {
+            this.state.PushEvaluationStack(result);
           }
           break;
         }

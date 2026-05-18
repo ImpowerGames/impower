@@ -7,6 +7,15 @@ export class ControlCommand extends InkObject {
     return this._commandType;
   }
 
+  // For `RunStdLibFunction` ControlCommands — carry the source-level
+  // builtin name (e.g. `"assert"`, `"plural.category"`) and the call-
+  // site arity. These are populated by `RunStdLib(name, arity)` and
+  // read by both the runtime dispatcher (looks up `GLOBAL_STDLIB[name]`
+  // and pops `arity` args) and the JSON serializer (encodes as
+  // `"stdlib:<name>:<arity>"`). Unused for other ControlCommand types.
+  public _stdLibName: string = "";
+  public _stdLibArity: number = 0;
+
   constructor(
     commandType: ControlCommand.CommandType = ControlCommand.CommandType.NotSet,
   ) {
@@ -15,7 +24,10 @@ export class ControlCommand extends InkObject {
   }
 
   public Copy() {
-    return new ControlCommand(this.commandType);
+    const copy = new ControlCommand(this.commandType);
+    copy._stdLibName = this._stdLibName;
+    copy._stdLibArity = this._stdLibArity;
+    return copy;
   }
   public static EvalStart() {
     return new ControlCommand(ControlCommand.CommandType.EvalStart);
@@ -124,16 +136,21 @@ export class ControlCommand extends InkObject {
   public static PluralCategory() {
     return new ControlCommand(ControlCommand.CommandType.PluralCategory);
   }
-  // Luau-style `assert(cond [, message])` — pops a message value and a
-  // condition value off the eval stack; if the condition is falsy,
-  // raises a runtime error with the message text. Falsy follows
-  // sparkdown's coercion rules (nil/0/false/empty string are falsy).
-  // The compiler always emits exactly two stack pushes before this
-  // command: source-level `assert(cond)` is auto-padded with a
-  // default `"assertion failed"` message string at lowering time so
-  // the runtime can always pop a fixed pair.
-  public static Assert() {
-    return new ControlCommand(ControlCommand.CommandType.Assert);
+  // Generic state-aware stdlib call. Pops `arity` args from the eval
+  // stack and calls `GLOBAL_STDLIB[name].fn(story, args)`. The
+  // registered function may push a return value back onto the stack
+  // (for value-returning builtins like `tostring`) or return
+  // undefined (for side-effecting ones like `assert`). See StdLib.ts
+  // for the registry. Adding a new state-aware Luau builtin is a
+  // one-line entry there — no new ControlCommand opcode, no
+  // FunctionCall dispatch branch, no Story.ts runtime case.
+  public static RunStdLib(name: string, arity: number) {
+    const cmd = new ControlCommand(
+      ControlCommand.CommandType.RunStdLibFunction,
+    );
+    cmd._stdLibName = name;
+    cmd._stdLibArity = arity;
+    return cmd;
   }
   public toString() {
     return "ControlCommand " + this.commandType.toString();
@@ -201,12 +218,12 @@ export namespace ControlCommand {
     // `plural(n)|one=...|other=...` desugar.
     PluralCategory, // 33
 
-    // Luau-style `assert(cond [, message])` — see `Assert()` factory.
-    // Pops two values from the eval stack (message then condition),
-    // raises a runtime error on falsy condition. The compiler always
-    // emits both pushes; bare `assert(cond)` is padded with a default
-    // message string at lowering time.
-    Assert, // 34
+    // Generic dispatcher for state-aware Luau builtins. Carries the
+    // function name + arity as instance data (`_stdLibName`,
+    // `_stdLibArity`) — JSON serialization encodes both into a single
+    // `"stdlib:<name>:<arity>"` token. Runtime looks up the name in
+    // `GLOBAL_STDLIB` and pops `arity` args. See `RunStdLib()`.
+    RunStdLibFunction, // 34
 
     TOTAL_VALUES,
   }

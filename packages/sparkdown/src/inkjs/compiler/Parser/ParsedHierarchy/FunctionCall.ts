@@ -1,5 +1,6 @@
 ﻿import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
+import { lookupStateAwareStdLib } from "../../../engine/StdLib";
 import { Divert } from "./Divert/Divert";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
@@ -32,10 +33,10 @@ export class FunctionCall extends Expression {
       name === "LIST_RANDOM" ||
       name === "READ_COUNT" ||
       name === "plural.category" ||
-      // State-aware Luau globals keep their lowercase source names
-      // end-to-end (no case-mismatch alias). New entries land here as
-      // they're added to `GLOBAL_STDLIB` in StdLib.ts.
-      name === "assert"
+      // State-aware Luau globals registered in `GLOBAL_STDLIB` in
+      // StdLib.ts. Adding a new entry there immediately makes it a
+      // recognized builtin here — no list to update.
+      lookupStateAwareStdLib(name) !== null
     );
   };
 
@@ -99,13 +100,12 @@ export class FunctionCall extends Expression {
     return this.name === "plural.category";
   }
 
-  // Luau-style `assert(cond [, message])` global. The lowerer keeps
-  // the source name verbatim (`"assert"`) since `GLOBAL_STDLIB` is the
-  // single source of truth for behavior — see StdLib.ts. Always
-  // emitted with exactly two args (the lowerer pads a missing message
-  // with `"assertion failed"`).
-  get isAssert(): boolean {
-    return this.name === "assert";
+  // True when `this.name` is registered as a state-aware global in
+  // `GLOBAL_STDLIB` (StdLib.ts). Used by `GenerateIntoContainer` to
+  // route the call through the generic `RunStdLibFunction` dispatch
+  // instead of treating it as a user-defined knot reference.
+  get isStateAwareStdLib(): boolean {
+    return lookupStateAwareStdLib(this.name) !== null;
   }
 
   public shouldPopReturnedValue: boolean = false;
@@ -235,21 +235,25 @@ export class FunctionCall extends Expression {
       this.args[0].GenerateIntoContainer(container);
 
       container.AddContent(RuntimeControlCommand.PluralCategory());
-    } else if (this.isAssert) {
-      // `assert(cond)` or `assert(cond, message)`. The lowerer always
-      // pads a missing message with the default `"assertion failed"`
-      // string before constructing this FunctionCall, so we always
-      // see exactly two args. The runtime handler pops both in this
-      // order: message first (top of stack), then condition.
-      if (this.args.length !== 2) {
-        this.Error("assert should take 1 or 2 arguments: a condition and an optional message");
-      } else {
-        // Push condition, then message. Runtime pops them off in
-        // reverse order (message first, condition second).
-        this.args[0].GenerateIntoContainer(container);
-        this.args[1].GenerateIntoContainer(container);
-        container.AddContent(RuntimeControlCommand.Assert());
+    } else if (this.isStateAwareStdLib) {
+      // Generic state-aware stdlib dispatch. Push args in source
+      // order, then emit a `RunStdLibFunction` ControlCommand
+      // carrying the function name + arity. Runtime pops the args,
+      // looks up `GLOBAL_STDLIB[name]`, and calls
+      // `fn(story, args)`. Optional return value is pushed back.
+      //
+      // The lowerer (`makeGlobalFunctionCall` in lowerExpression.ts)
+      // normalizes the call site before reaching here — e.g.
+      // pads `assert(cond)` to `assert(cond, "assertion failed")`
+      // so the runtime always sees the registered arity. This means
+      // we don't need per-function arity validation here — the
+      // lowerer or the registered `fn` handles it.
+      for (const arg of this.args) {
+        arg.GenerateIntoContainer(container);
       }
+      container.AddContent(
+        RuntimeControlCommand.RunStdLib(this.name, this.args.length),
+      );
     } else if (NativeFunctionCall.CallExistsWithName(this.name)) {
       const nativeCall = NativeFunctionCall.CallWithName(this.name);
       // Variadic natives (currently the `__method_*` builtin-method

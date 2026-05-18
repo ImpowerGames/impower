@@ -247,6 +247,20 @@ export class JsonSerialisation {
 
     let controlCmd = asOrNull(obj, ControlCommand);
     if (controlCmd) {
+      // Data-carrying generic dispatcher: encode the function name
+      // and arity into the token so the deserializer can reconstruct
+      // the call site. Format: `stdlib:<name>:<arity>`. Function
+      // names are alphanumeric + dot (e.g. `assert`, `plural.category`)
+      // so a colon separator is unambiguous.
+      if (
+        controlCmd.commandType ===
+        ControlCommand.CommandType.RunStdLibFunction
+      ) {
+        writer.Write(
+          `stdlib:${controlCmd._stdLibName}:${controlCmd._stdLibArity}`,
+        );
+        return;
+      }
       writer.Write(
         JsonSerialisation._controlCommandNames[controlCmd.commandType]!,
       );
@@ -376,6 +390,22 @@ export class JsonSerialisation {
 
       // Glue
       if (str == "<>") return new Glue();
+
+      // Generic stdlib dispatcher: encoded as `stdlib:<name>:<arity>`.
+      // Mirror of the writer above. Function names may contain dots
+      // (e.g. `plural.category`), so split on the LAST colon to pull
+      // arity off the end and treat everything before as the name.
+      if (str.startsWith("stdlib:")) {
+        const lastColon = str.lastIndexOf(":");
+        if (lastColon > "stdlib:".length - 1) {
+          const arityRaw = str.slice(lastColon + 1);
+          const arity = parseInt(arityRaw, 10);
+          if (Number.isFinite(arity)) {
+            const name = str.slice("stdlib:".length, lastColon);
+            return ControlCommand.RunStdLib(name, arity);
+          }
+        }
+      }
 
       // Control commands (would looking up in a hash set be faster?)
       for (let i = 0; i < JsonSerialisation._controlCommandNames.length; ++i) {
@@ -854,7 +884,13 @@ export class JsonSerialisation {
     _controlCommandNames[ControlCommand.CommandType.BeginScope] = "scope{";
     _controlCommandNames[ControlCommand.CommandType.EndScope] = "}scope";
     _controlCommandNames[ControlCommand.CommandType.PluralCategory] = "pcat";
-    _controlCommandNames[ControlCommand.CommandType.Assert] = "assert";
+    // Placeholder — actual serialization uses the dynamic
+    // `stdlib:<name>:<arity>` form (see WriteRuntimeObject's special
+    // case for RunStdLibFunction). The placeholder satisfies the
+    // validation loop at the bottom of this builder that every enum
+    // value has a name.
+    _controlCommandNames[ControlCommand.CommandType.RunStdLibFunction] =
+      "stdlib:?";
 
     for (let i = 0; i < ControlCommand.CommandType.TOTAL_VALUES; ++i) {
       if (_controlCommandNames[i] == null)
