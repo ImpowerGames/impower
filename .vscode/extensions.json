@@ -12,6 +12,7 @@
     "esbenp.prettier-vscode",
     "bierner.lit-html",
     "yoavbls.pretty-ts-errors",
-    "dbaeumer.vscode-eslint"
+    "dbaeumer.vscode-eslint",
+    "vitest.explorer"
   ]
 }
