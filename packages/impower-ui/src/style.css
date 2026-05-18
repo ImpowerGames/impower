@@ -2,18 +2,260 @@
 @plugin 'tailwind-scrollbar';
 @source ".";
 
+/* ----------------------------------------------------------------------------
+ * Base theme variables.
+ *
+ * Defined as CSS custom properties so theme switching at runtime works via the
+ * `theme-light` / `theme-dark` class (or `[theme="..."]` attribute) on any
+ * ancestor. The @theme block below aliases these into Tailwind tokens so
+ * utility classes like `bg-fg`, `text-fg-80`, `bg-primary` resolve correctly
+ * for the active theme.
+ * --------------------------------------------------------------------------*/
+
+:root,
+.theme-light,
+[theme="light"] {
+  color-scheme: light;
+
+  /* Surface */
+  --theme-color-bg: rgb(255 255 255);
+  --theme-color-fg: rgb(0 0 0);
+
+  /* Foreground opacity scale */
+  --theme-color-fg-05: rgb(0 0 0 / 0.05);
+  --theme-color-fg-10: rgb(0 0 0 / 0.1);
+  --theme-color-fg-15: rgb(0 0 0 / 0.15);
+  --theme-color-fg-20: rgb(0 0 0 / 0.2);
+  --theme-color-fg-25: rgb(0 0 0 / 0.25);
+  --theme-color-fg-30: rgb(0 0 0 / 0.3);
+  --theme-color-fg-40: rgb(0 0 0 / 0.4);
+  --theme-color-fg-50: rgb(0 0 0 / 0.5);
+  --theme-color-fg-60: rgb(0 0 0 / 0.6);
+  --theme-color-fg-70: rgb(0 0 0 / 0.7);
+  --theme-color-fg-80: rgb(0 0 0 / 0.8);
+  --theme-color-fg-90: rgb(0 0 0 / 0.9);
+
+  /* Background opacity scale */
+  --theme-color-bg-05: rgb(255 255 255 / 0.05);
+  --theme-color-bg-10: rgb(255 255 255 / 0.1);
+  --theme-color-bg-15: rgb(255 255 255 / 0.15);
+  --theme-color-bg-20: rgb(255 255 255 / 0.2);
+  --theme-color-bg-25: rgb(255 255 255 / 0.25);
+  --theme-color-bg-30: rgb(255 255 255 / 0.3);
+  --theme-color-bg-40: rgb(255 255 255 / 0.4);
+  --theme-color-bg-50: rgb(255 255 255 / 0.5);
+  --theme-color-bg-60: rgb(255 255 255 / 0.6);
+  --theme-color-bg-70: rgb(255 255 255 / 0.7);
+  --theme-color-bg-80: rgb(255 255 255 / 0.8);
+  --theme-color-bg-90: rgb(255 255 255 / 0.9);
+
+  /* Surface composites */
+  --theme-color-surface: rgb(247 247 247); /* neutral-100 */
+  --theme-color-surface-border: rgb(0 0 0 / 0.12);
+  --theme-color-divider: rgb(0 0 0 / 0.13);
+
+  /* Scrollbars */
+  --theme-color-scrollbar-thumb: rgb(0 0 0 / 0.25);
+  --theme-color-scrollbar-thumb-hover: rgb(0 0 0 / 0.5);
+  --theme-color-scrollbar-track: rgb(255 255 255 / 0.1);
+
+  --theme-opacity-overlay: 0.25;
+}
+
+.theme-dark,
+[theme="dark"] {
+  color-scheme: dark;
+
+  /* Surface */
+  --theme-color-bg: rgb(0 0 0);
+  --theme-color-fg: rgb(255 255 255);
+
+  /* Foreground opacity scale */
+  --theme-color-fg-05: rgb(255 255 255 / 0.05);
+  --theme-color-fg-10: rgb(255 255 255 / 0.1);
+  --theme-color-fg-15: rgb(255 255 255 / 0.15);
+  --theme-color-fg-20: rgb(255 255 255 / 0.2);
+  --theme-color-fg-25: rgb(255 255 255 / 0.25);
+  --theme-color-fg-30: rgb(255 255 255 / 0.3);
+  --theme-color-fg-40: rgb(255 255 255 / 0.4);
+  --theme-color-fg-50: rgb(255 255 255 / 0.5);
+  --theme-color-fg-60: rgb(255 255 255 / 0.6);
+  --theme-color-fg-70: rgb(255 255 255 / 0.7);
+  --theme-color-fg-80: rgb(255 255 255 / 0.8);
+  --theme-color-fg-90: rgb(255 255 255 / 0.9);
+
+  /* Background opacity scale */
+  --theme-color-bg-05: rgb(0 0 0 / 0.05);
+  --theme-color-bg-10: rgb(0 0 0 / 0.1);
+  --theme-color-bg-15: rgb(0 0 0 / 0.15);
+  --theme-color-bg-20: rgb(0 0 0 / 0.2);
+  --theme-color-bg-25: rgb(0 0 0 / 0.25);
+  --theme-color-bg-30: rgb(0 0 0 / 0.3);
+  --theme-color-bg-40: rgb(0 0 0 / 0.4);
+  --theme-color-bg-50: rgb(0 0 0 / 0.5);
+  --theme-color-bg-60: rgb(0 0 0 / 0.6);
+  --theme-color-bg-70: rgb(0 0 0 / 0.7);
+  --theme-color-bg-80: rgb(0 0 0 / 0.8);
+  --theme-color-bg-90: rgb(0 0 0 / 0.9);
+
+  /* Surface composites */
+  --theme-color-surface: rgb(37 37 37); /* neutral-950 */
+  --theme-color-surface-border: rgb(255 255 255 / 0.12);
+  --theme-color-divider: rgb(255 255 255 / 0.12);
+
+  /* Scrollbars */
+  --theme-color-scrollbar-thumb: rgb(255 255 255 / 0.15);
+  --theme-color-scrollbar-thumb-hover: rgb(255 255 255 / 0.5);
+  --theme-color-scrollbar-track: rgb(0 0 0 / 0.15);
+
+  --theme-opacity-overlay: 0.5;
+}
+
+/* ----------------------------------------------------------------------------
+ * Tailwind theme tokens
+ *
+ * Each entry registers a utility class. Color tokens alias the per-theme CSS
+ * variables above so `bg-fg` / `text-fg-50` / `bg-primary` resolve correctly
+ * under either theme.
+ * --------------------------------------------------------------------------*/
+
 @theme {
-  /* Placeholder palette — will be replaced with impower's theme tokens
-     as components are ported over from sparkle/spec-component. */
-  --color-engine-50: hsl(210.6, 20%, 96%);
-  --color-engine-100: hsl(210.6, 22%, 90%);
-  --color-engine-200: hsl(210.6, 24%, 80%);
-  --color-engine-300: hsl(210.6, 25%, 70%);
-  --color-engine-400: hsl(210.6, 25%, 60%);
-  --color-engine-500: hsl(211, 26%, 48%);
-  --color-engine-600: hsl(210.7, 35%, 41%);
-  --color-engine-700: hsl(210.8, 44.9%, 34.9%);
-  --color-engine-800: hsl(210.7, 89.1%, 18%);
-  --color-engine-900: hsl(210.6, 100%, 10%);
-  --color-engine-950: hsl(210.6, 100%, 7%);
+  /* Fonts */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol";
+  --font-mono:
+    "Courier Prime Sans", SFMono-Regular, Consolas, "Liberation Mono", Menlo,
+    monospace;
+  --font-serif: Georgia, "Times New Roman", serif;
+
+  /* Custom spacing (3xs..4xl) — keeps Tailwind's numeric scale alongside */
+  --spacing-3xs: 2px;
+  --spacing-2xs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 28px;
+  --spacing-2xl: 36px;
+  --spacing-3xl: 48px;
+  --spacing-4xl: 72px;
+
+  /* Component sizing */
+  --size-icon: 1.25rem; /* 20px */
+  --size-toggle-sm: 0.875rem;
+  --size-toggle-md: 1.125rem;
+  --size-toggle-lg: 1.375rem;
+  --size-input-sm: 28px;
+  --size-input-md: 40px;
+  --size-input-lg: 48px;
+  --size-thumb: 16px;
+  --size-checkbox: 16px;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Transitions */
+  --duration-x-fast: 50ms;
+  --duration-fast: 150ms;
+  --duration-medium: 250ms;
+  --duration-slow: 500ms;
+  --duration-x-slow: 1000ms;
+
+  /* Z-indexes */
+  --z-index-drawer: 700;
+  --z-index-dialog: 800;
+  --z-index-dropdown: 900;
+  --z-index-toast: 950;
+  --z-index-tooltip: 1000;
+
+  /* Surface colors — bridge to runtime CSS vars for theme switching */
+  --color-bg: var(--theme-color-bg);
+  --color-fg: var(--theme-color-fg);
+  --color-surface: var(--theme-color-surface);
+  --color-surface-border: var(--theme-color-surface-border);
+  --color-divider: var(--theme-color-divider);
+
+  --color-fg-05: var(--theme-color-fg-05);
+  --color-fg-10: var(--theme-color-fg-10);
+  --color-fg-15: var(--theme-color-fg-15);
+  --color-fg-20: var(--theme-color-fg-20);
+  --color-fg-25: var(--theme-color-fg-25);
+  --color-fg-30: var(--theme-color-fg-30);
+  --color-fg-40: var(--theme-color-fg-40);
+  --color-fg-50: var(--theme-color-fg-50);
+  --color-fg-60: var(--theme-color-fg-60);
+  --color-fg-70: var(--theme-color-fg-70);
+  --color-fg-80: var(--theme-color-fg-80);
+  --color-fg-90: var(--theme-color-fg-90);
+
+  --color-bg-05: var(--theme-color-bg-05);
+  --color-bg-10: var(--theme-color-bg-10);
+  --color-bg-15: var(--theme-color-bg-15);
+  --color-bg-20: var(--theme-color-bg-20);
+  --color-bg-25: var(--theme-color-bg-25);
+  --color-bg-30: var(--theme-color-bg-30);
+  --color-bg-40: var(--theme-color-bg-40);
+  --color-bg-50: var(--theme-color-bg-50);
+  --color-bg-60: var(--theme-color-bg-60);
+  --color-bg-70: var(--theme-color-bg-70);
+  --color-bg-80: var(--theme-color-bg-80);
+  --color-bg-90: var(--theme-color-bg-90);
+
+  /* Semantic color aliases — map onto Tailwind's stock palette
+     (sparkle's -10..-99 scale maps to Tailwind's -50..-950) */
+  --color-primary-10: var(--color-sky-50);
+  --color-primary-20: var(--color-sky-100);
+  --color-primary-30: var(--color-sky-200);
+  --color-primary-40: var(--color-sky-300);
+  --color-primary-50: var(--color-sky-400);
+  --color-primary-60: var(--color-sky-500);
+  --color-primary-70: var(--color-sky-600);
+  --color-primary-80: var(--color-sky-700);
+  --color-primary-90: var(--color-sky-800);
+  --color-primary-95: var(--color-sky-900);
+  --color-primary-99: var(--color-sky-950);
+  --color-primary: var(--color-sky-400);
+
+  --color-success-10: var(--color-green-50);
+  --color-success-20: var(--color-green-100);
+  --color-success-30: var(--color-green-200);
+  --color-success-40: var(--color-green-300);
+  --color-success-50: var(--color-green-400);
+  --color-success-60: var(--color-green-500);
+  --color-success-70: var(--color-green-600);
+  --color-success-80: var(--color-green-700);
+  --color-success-90: var(--color-green-800);
+  --color-success-95: var(--color-green-900);
+  --color-success-99: var(--color-green-950);
+  --color-success: var(--color-green-400);
+
+  --color-warning-10: var(--color-amber-50);
+  --color-warning-20: var(--color-amber-100);
+  --color-warning-30: var(--color-amber-200);
+  --color-warning-40: var(--color-amber-300);
+  --color-warning-50: var(--color-amber-400);
+  --color-warning-60: var(--color-amber-500);
+  --color-warning-70: var(--color-amber-600);
+  --color-warning-80: var(--color-amber-700);
+  --color-warning-90: var(--color-amber-800);
+  --color-warning-95: var(--color-amber-900);
+  --color-warning-99: var(--color-amber-950);
+  --color-warning: var(--color-amber-400);
+
+  --color-danger-10: var(--color-red-50);
+  --color-danger-20: var(--color-red-100);
+  --color-danger-30: var(--color-red-200);
+  --color-danger-40: var(--color-red-300);
+  --color-danger-50: var(--color-red-400);
+  --color-danger-60: var(--color-red-500);
+  --color-danger-70: var(--color-red-600);
+  --color-danger-80: var(--color-red-700);
+  --color-danger-90: var(--color-red-800);
+  --color-danger-95: var(--color-red-900);
+  --color-danger-99: var(--color-red-950);
+  --color-danger: var(--color-red-400);
 }

@@ -21,7 +21,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "gen:icons": "node --disable-warning=ExperimentalWarning src/icons/generate.ts"
   },
   "dependencies": {
     "@preact/signals": "^2.0.0",

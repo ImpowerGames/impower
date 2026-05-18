@@ -22,13 +22,15 @@ export interface PreactElementConstructor<Props> {
 export function PreactComponent<Props>(
   Component: FunctionComponent<Props> | ComponentClass<Props>,
   defaultTagName: string,
-  observedAttributes: (keyof Props)[],
+  propDefaults: Partial<Props>,
   options: Options,
 ): PreactElementConstructor<Props> {
+  const observedAttributes = Object.keys(propDefaults as object) as (keyof Props)[];
+
   const BaseElement = register(
     Component,
     defaultTagName,
-    observedAttributes as (keyof Props)[],
+    observedAttributes,
     options,
   );
 
