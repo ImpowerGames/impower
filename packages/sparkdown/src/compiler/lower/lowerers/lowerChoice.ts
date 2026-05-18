@@ -146,7 +146,15 @@ export function lowerChoice(
     // with `\n` like a regular display line (matches inkjs's
     // weave_options test: `* Hello[.], world.` produces
     // `"Hello, world.\n"` after choosing).
-    innerContent.AddContent(new Text("\n"));
+    //
+    // Skip the newline append when the next significant sibling is a
+    // `DoneStatement` / `FinStatement` — those keywords replace the
+    // old inline `-> DONE` / `-> END` forms, and matching the inline
+    // form's "no trailing newline" semantics keeps `* "X"\n  fin`
+    // producing the same chosen output as the old `* "X" -> END`.
+    if (!nextSignificantSiblingIsTerminator(nodeRef.node)) {
+      innerContent.AddContent(new Text("\n"));
+    }
   }
   // If `divertNode` was present but `buildDivert` returned undefined
   // (empty target `* ->`), leave `innerContent` empty — the choice
@@ -466,4 +474,30 @@ function collectTrailingWhitespace(
     break;
   }
   return ctx.read(i, pivot);
+}
+
+
+// Returns true if the next significant sibling of `choiceNode` (i.e.
+// the next-line statement that forms the choice's body once
+// `parseIncrementally` attaches it) is a `done` / `fin` keyword.
+// In that case the choice's chosen-output should NOT receive an
+// extra trailing newline — the terminator runs immediately, matching
+// what the legacy inline `* "X" -> END` form used to emit.
+const CHOICE_BODY_SKIP: ReadonlySet<string> = new Set([
+  "Newline",
+  "Whitespace",
+  "ExtraWhitespace",
+  "OptionalWhitespace",
+  "RequiredWhitespace",
+  "EndOfLine",
+  "LuauComment",
+  "Annotation",
+]);
+
+function nextSignificantSiblingIsTerminator(choiceNode: SyntaxNode): boolean {
+  let cur = choiceNode.nextSibling;
+  while (cur && CHOICE_BODY_SKIP.has(cur.name)) {
+    cur = cur.nextSibling;
+  }
+  return cur?.name === "DoneStatement" || cur?.name === "FinStatement";
 }

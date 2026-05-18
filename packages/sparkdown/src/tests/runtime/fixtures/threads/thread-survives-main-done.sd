@@ -1,12 +1,13 @@
 -> main
 scene main
   <- side
-  -> DONE
+  done
 
 end
 scene side
   choose
-    * "Survivor choice" -> END
+    * "Survivor choice"
+      fin
   end
-  -> DONE
+  done
 end

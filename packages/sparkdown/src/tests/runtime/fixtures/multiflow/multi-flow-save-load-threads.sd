@@ -5,14 +5,14 @@ scene red
   Hello I'm red
   <- thread1("red")
   <- thread2("red")
-  -> DONE
+  done
 
 end
 scene blue
   Hello I'm blue
   <- thread1("blue")
   <- thread2("blue")
-  -> DONE
+  done
 
 end
 scene thread1(name)
@@ -33,10 +33,10 @@ scene thread2(name)
 end
 scene thread1Choice(name)
   After thread 1 choice ({name})
-  -> END
+  fin
 
 end
 scene thread2Choice(name)
   After thread 2 choice ({name})
-  -> END
+  fin
 end

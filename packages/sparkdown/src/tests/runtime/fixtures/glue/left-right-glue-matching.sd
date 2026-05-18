@@ -4,7 +4,7 @@ scene main
   if f() then
     Another line.
   end
-  -> DONE
+  done
 
 end
 function f()

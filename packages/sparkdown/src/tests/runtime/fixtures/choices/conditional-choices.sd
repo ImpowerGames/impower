@@ -8,5 +8,5 @@ scene main
     * if true three
     * if true four
   end
-  -> DONE
+  done
 end

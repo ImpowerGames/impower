@@ -4,10 +4,10 @@ scene knot
   choose
     * option text[]. {true and "Conditional bit." or ""} -> next
   end
-  -> DONE
+  done
 
 end
 scene next
   Next.
-  -> DONE
+  done
 end

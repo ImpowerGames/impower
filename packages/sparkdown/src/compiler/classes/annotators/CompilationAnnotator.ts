@@ -25,6 +25,10 @@ export interface InkDiagnostic {
   message: string;
   severity: ErrorType;
   source: SourceMetadata | null;
+  // Optional LSP `DiagnosticTag` values (1 = Unnecessary, 2 = Deprecated).
+  // The Unnecessary tag is what VS Code uses to render diagnostics
+  // faded out — used here for unreachable code after `done` / `fin`.
+  tags?: number[];
 }
 
 export interface CompiledBlock {

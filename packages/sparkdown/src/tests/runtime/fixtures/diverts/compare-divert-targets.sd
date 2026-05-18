@@ -32,15 +32,15 @@ scene main
   else
     different knot
   end
-  -> DONE
+  done
 
 end
 scene one
   One
-  -> DONE
+  done
 
 end
 scene two
   Two
-  -> DONE
+  done
 end

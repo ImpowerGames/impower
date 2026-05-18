@@ -4,11 +4,12 @@ scene main
   <- side
   After threading.
   choose
-    * "Continue" -> END
+    * "Continue"
+      fin
 
   end
 end
 scene side
   In the thread.
-  -> DONE
+  done
 end

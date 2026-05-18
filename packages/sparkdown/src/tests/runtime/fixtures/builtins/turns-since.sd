@@ -15,7 +15,7 @@ scene main
   then
     {count.turns(-> test)}
   end
-  -> END
+  fin
 
 end
 function test() end

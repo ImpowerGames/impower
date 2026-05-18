@@ -2,7 +2,8 @@
 scene outer
   <- middle
   choose
-    * "Leave" -> END
+    * "Leave"
+      fin
 
   end
 end
@@ -12,7 +13,8 @@ scene middle
 end
 scene inner
   choose
-    * "From inner" -> END
+    * "From inner"
+      fin
   end
-  -> DONE
+  done
 end

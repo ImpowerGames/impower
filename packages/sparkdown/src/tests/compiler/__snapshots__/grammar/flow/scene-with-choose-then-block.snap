@@ -1,4 +1,4 @@
-sparkdown [0..99]
+sparkdown [0..96]
  ├─ Scene [0..10]
  │   ├─ Scene_begin [0..6]
  │   │   ├─ Scene_begin_c1 0
@@ -124,22 +124,13 @@ sparkdown [0..99]
  │       └─ LuauSparkdownChooseBlock_end_c2 [79..82]
  │           └─ LuauEndKeyword [79..82]: "end"
  ├─ Newline [82..84]: "\r\n"
- ├─ Divert [84..93]
- │   ├─ Divert_begin [84..88]
- │   │   ├─ Divert_begin_c1 [84..86]
- │   │   │   └─ OptionalWhitespace [84..86]: "  "
- │   │   └─ Divert_begin_c2 [86..88]
- │   │       └─ DivertMark [86..88]: "->"
- │   ├─ Divert_content [88..93]
- │   │   └─ DivertTarget [88..93]
- │   │       ├─ DivertTarget_begin [88..89]
- │   │       │   └─ DivertTarget_begin_c1 [88..89]
- │   │       │       └─ DivertTarget_begin_c1 [88..89]
- │   │       │           └─ OptionalWhitespace [88..89]: " "
- │   │       ├─ DivertTarget_content [89..93]
- │   │       │   └─ Done [89..93]: "DONE"
- │   │       └─ DivertTarget_end 93
- │   └─ Divert_end 93
- ├─ Newline [93..95]: "\r\n"
- ├─ LuauEndKeyword [95..98]: "end"
- └─ Newline [98..99]: "\n"
+ ├─ DoneStatement [84..90]
+ │   ├─ DoneStatement_c1 [84..86]
+ │   │   └─ OptionalWhitespace [84..86]: "  "
+ │   ├─ DoneStatement_c2 [86..90]
+ │   │   └─ DoneKeyword [86..90]: "done"
+ │   └─ DoneStatement_c3 90
+ │       └─ OptionalWhitespace 90
+ ├─ Newline [90..92]: "\r\n"
+ ├─ LuauEndKeyword [92..95]: "end"
+ └─ Newline [95..96]: "\n"

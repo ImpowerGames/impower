@@ -306,6 +306,12 @@
     "FlowStatements": {
       "patterns": [
         {
+          "include": "#DoneStatement"
+        },
+        {
+          "include": "#FinStatement"
+        },
+        {
           "include": "#Divert"
         },
         {
@@ -1465,15 +1471,67 @@
       "name": "keyword.control.thread.mark.sd",
       "match": "([<][-])"
     },
-    "End": {
-      "tag": "keyword",
-      "name": "constant.language.end.sd",
-      "match": "\\b(END)\\b"
+    "DoneStatement": {
+      "match": "^((?:[^\\S\\n\\r])*)(done)((?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-]))))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DoneKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      }
     },
-    "Done": {
-      "tag": "keyword",
-      "name": "constant.language.done.sd",
-      "match": "\\b(DONE)\\b"
+    "FinStatement": {
+      "match": "^((?:[^\\S\\n\\r])*)(fin)((?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-]))))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#FinKeyword"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "DoneKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.divert.done.sd",
+      "match": "(.+)"
+    },
+    "FinKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.divert.fin.sd",
+      "match": "(.+)"
     },
     "DivertTarget": {
       "tag": "heading",
@@ -1492,12 +1550,6 @@
       "patterns": [
         {
           "include": "#Annotation"
-        },
-        {
-          "include": "#End"
-        },
-        {
-          "include": "#Done"
         },
         {
           "include": "#LuauFunctionCall"

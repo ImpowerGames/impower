@@ -3,7 +3,7 @@ scene first
   1) Seen first {first} times.
   -> second ->
   2) Seen first {first} times.
-  -> DONE
+  done
 
 end
 scene second

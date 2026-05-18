@@ -11,5 +11,5 @@ scene cut_to(escape)
 end
 scene the_esc
   This is the_esc
-  -> END
+  fin
 end

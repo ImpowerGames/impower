@@ -7,13 +7,15 @@ scene hub
     <- companion
   end
   choose
-    * "Enter alone" -> END
+    * "Enter alone"
+      fin
 
   end
 end
 scene companion
   choose
-    * "Talk to companion" -> END
+    * "Talk to companion"
+      fin
   end
-  -> DONE
+  done
 end

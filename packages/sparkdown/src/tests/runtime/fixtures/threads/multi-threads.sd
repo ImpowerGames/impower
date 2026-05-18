@@ -4,20 +4,23 @@ scene hub
   <- merchant
   <- guard
   choose
-    * "Leave town" -> END
+    * "Leave town"
+      fin
 
   end
 end
 scene merchant
   choose
-    * "What do you sell?" -> END
+    * "What do you sell?"
+      fin
   end
-  -> DONE
+  done
 
 end
 scene guard
   choose
-    * "Any news?" -> END
+    * "Any news?"
+      fin
   end
-  -> DONE
+  done
 end

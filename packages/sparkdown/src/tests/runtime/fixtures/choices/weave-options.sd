@@ -3,5 +3,5 @@ scene test
   choose
     * Hello[.], world.
   end
-  -> DONE
+  done
 end

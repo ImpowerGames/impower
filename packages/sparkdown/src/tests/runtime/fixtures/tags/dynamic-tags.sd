@@ -1,4 +1,4 @@
 store color = "red"
 store amount = 8
 tag # pic{amount}{color}.jpg
--> DONE
+done

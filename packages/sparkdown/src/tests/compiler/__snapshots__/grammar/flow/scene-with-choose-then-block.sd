@@ -5,5 +5,5 @@ scene main
   then (greeting)
     She nods.
   end
-  -> DONE
+  done
 end

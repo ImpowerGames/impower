@@ -9,5 +9,5 @@ choose
 then
   & testVar = 25
   & testVar2 = 200
-  -> END
+  fin
 end

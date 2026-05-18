@@ -9,5 +9,5 @@ scene start
 end
 scene next
   {count.turns(-> start)}
-  -> END
+  fin
 end

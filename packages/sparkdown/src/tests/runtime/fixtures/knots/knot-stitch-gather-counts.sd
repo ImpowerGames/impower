@@ -11,7 +11,7 @@ scene main
   & knotCount = 0
   -> knot_count_test ->
   -> stitch_count_test ->
-  -> DONE
+  done
 
 end
 scene gather_count_test

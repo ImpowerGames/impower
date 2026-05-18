@@ -10,6 +10,6 @@ scene knot
     label gather
     gather
     chain | -> knot.stitch.choice | second time round end
-    -> END
+    fin
   end
 end

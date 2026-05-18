@@ -1,5 +1,5 @@
 {factorial(5)}
--> DONE
+done
 
 function factorial(n)
   if n == 1 then

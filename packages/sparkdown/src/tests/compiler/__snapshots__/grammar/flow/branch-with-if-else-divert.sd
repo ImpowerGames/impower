@@ -4,7 +4,7 @@ scene Main
       N: Let's go.
       -> Alley
     else
-      -> END
+      fin
     end
   end
 end

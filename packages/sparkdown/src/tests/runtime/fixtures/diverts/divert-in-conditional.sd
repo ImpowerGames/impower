@@ -3,7 +3,7 @@ scene top
   if count.visits(-> main) > 0 then
     & -> done
   end
-  -> END
+  fin
 
 end
 scene main
@@ -11,5 +11,5 @@ scene main
 
 end
 scene done
-  -> END
+  fin
 end

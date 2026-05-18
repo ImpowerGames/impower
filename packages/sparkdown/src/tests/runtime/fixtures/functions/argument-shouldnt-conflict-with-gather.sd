@@ -1,7 +1,7 @@
 -> main
 scene main
   label x
-  -> DONE
+  done
 
 end
 function f(x) end

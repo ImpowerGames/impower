@@ -4,7 +4,7 @@
 . {print_num(101)} .
 . {print_num(222)} .
 . {print_num(1234)} .
--> DONE
+done
 
 function print_num(x)
   if x >= 1000 then

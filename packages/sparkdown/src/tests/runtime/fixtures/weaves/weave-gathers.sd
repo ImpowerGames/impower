@@ -12,5 +12,5 @@ scene main
   then
     six
   end
-  -> DONE
+  done
 end

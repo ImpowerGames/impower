@@ -1,4 +1,4 @@
 I have {five()} eggs.
--> DONE
+done
 
 function five() return "five" end

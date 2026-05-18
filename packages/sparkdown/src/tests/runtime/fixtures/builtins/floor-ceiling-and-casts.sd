@@ -6,5 +6,5 @@ scene main
   {math.ceil(0.3)}
   {math.floor(math.ceil(1.2))}
   {math.floor(1)}
-  -> DONE
+  done
 end

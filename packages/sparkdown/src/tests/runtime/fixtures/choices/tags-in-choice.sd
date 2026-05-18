@@ -1,10 +1,11 @@
 -> main
 scene main
   choose
-    + one # one [two # two] three # three -> END
+    + one # one [two # two] three # three
+      fin
   end
 
 end
 scene END
-  -> DONE
+  done
 end

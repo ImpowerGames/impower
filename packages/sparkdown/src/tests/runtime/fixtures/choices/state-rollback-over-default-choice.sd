@@ -6,6 +6,6 @@ scene make_default_choice
     + ->
   then
     {5}
-    -> END
+    fin
   end
 end

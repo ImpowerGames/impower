@@ -9,5 +9,5 @@ scene a
 end
 scene b(x)
   {x}
-  -> DONE
+  done
 end

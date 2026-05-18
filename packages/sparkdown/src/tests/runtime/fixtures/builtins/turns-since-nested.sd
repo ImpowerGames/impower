@@ -9,7 +9,7 @@ scene empty_world
       + more stuff
     then
       {count.turns(-> then)} = 1
-      -> DONE
+      done
     end
   end
 end

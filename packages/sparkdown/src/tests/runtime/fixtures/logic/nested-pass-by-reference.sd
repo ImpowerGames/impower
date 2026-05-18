@@ -2,7 +2,7 @@ store globalVal = { value = 5 }
 {globalVal.value}
 & squaresquare(globalVal)
 {globalVal.value}
--> DONE
+done
 
 function squaresquare(x)
   & square(x)

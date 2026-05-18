@@ -23,5 +23,5 @@ scene main
   {n:padend(5, "_")}
   {s:at(1)}
   {s:at(-1)}
-  -> DONE
+  done
 end

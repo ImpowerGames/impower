@@ -5,5 +5,5 @@ scene firstKnot
 end
 scene secondKnot
   World.
-  -> END
+  fin
 end

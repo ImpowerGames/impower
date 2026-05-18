@@ -1,17 +1,18 @@
 -> hub
 scene hub
   <- side
-  -> DONE
+  done
 
 end
 scene side
   choose
-    * if false "Unreachable" -> END
+    * if false "Unreachable"
+      fin
     * -> defaulted
 
   end
 end
 scene defaulted
   Fallback fired.
-  -> END
+  fin
 end

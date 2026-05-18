@@ -5,5 +5,5 @@ scene main
   then
     x
   end
-  -> DONE
+  done
 end

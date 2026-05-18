@@ -9,7 +9,7 @@ scene main
   {plural.category(2)}
   {plural.category(5)}
   {plural.category(15)}
-  -> END
+  fin
 
 end
 store lang = { current = "en" }

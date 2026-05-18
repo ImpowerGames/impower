@@ -4,9 +4,9 @@ scene main
     * if not test visible choice
     * if test visible choice
   end
-  -> DONE
+  done
 
 end
 scene test
-  -> DONE
+  done
 end

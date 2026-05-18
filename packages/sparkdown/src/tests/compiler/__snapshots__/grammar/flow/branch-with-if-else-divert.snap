@@ -1,4 +1,4 @@
-sparkdown [0..127]
+sparkdown [0..124]
  ├─ Scene [0..10]
  │   ├─ Scene_begin [0..6]
  │   │   ├─ Scene_begin_c1 0
@@ -29,7 +29,7 @@ sparkdown [0..127]
  │   │       └─ BranchWithoutParametersDeclaration_c2 29
  │   └─ Branch_end 29
  ├─ Newline [29..30]: "\n"
- ├─ LuauSparkdownIfBlock [30..116]
+ ├─ LuauSparkdownIfBlock [30..113]
  │   ├─ LuauSparkdownIfBlock_begin [30..37]
  │   │   ├─ LuauSparkdownIfBlock_begin_c1 [30..34]
  │   │   │   └─ OptionalWhitespace [30..34]: "    "
@@ -38,7 +38,7 @@ sparkdown [0..127]
  │   │   └─ LuauSparkdownIfBlock_begin_c3 [36..37]
  │   │       └─ LuauSparkdownIfBlock_begin_c3 [36..37]
  │   │           └─ OptionalWhitespace [36..37]: " "
- │   ├─ LuauSparkdownIfBlock_content [37..109]
+ │   ├─ LuauSparkdownIfBlock_content [37..106]
  │   │   ├─ LuauIfBlockCondition [37..52]
  │   │   │   ├─ LuauIfBlockCondition_begin 37
  │   │   │   ├─ LuauIfBlockCondition_content [37..47]
@@ -138,7 +138,7 @@ sparkdown [0..127]
  │   │   │   │       └─ DivertTarget_end 86
  │   │   │   └─ Divert_end 86
  │   │   ├─ Newline [86..87]: "\n"
- │   │   └─ LuauSparkdownElseBlock [87..109]
+ │   │   └─ LuauSparkdownElseBlock [87..106]
  │   │       ├─ LuauSparkdownElseBlock_begin [87..95]
  │   │       │   ├─ LuauSparkdownElseBlock_begin_c1 [87..91]
  │   │       │   │   └─ OptionalWhitespace [87..91]: "    "
@@ -147,35 +147,26 @@ sparkdown [0..127]
  │   │       │   └─ LuauSparkdownElseBlock_begin_c3 95
  │   │       │       └─ LuauSparkdownElseBlock_begin_c3 95
  │   │       │           └─ OptionalWhitespace 95
- │   │       ├─ LuauSparkdownElseBlock_content [95..109]
+ │   │       ├─ LuauSparkdownElseBlock_content [95..106]
  │   │       │   ├─ Newline [95..96]: "\n"
- │   │       │   ├─ Divert [96..108]
- │   │       │   │   ├─ Divert_begin [96..104]
- │   │       │   │   │   ├─ Divert_begin_c1 [96..102]
- │   │       │   │   │   │   └─ OptionalWhitespace [96..102]: "      "
- │   │       │   │   │   └─ Divert_begin_c2 [102..104]
- │   │       │   │   │       └─ DivertMark [102..104]: "->"
- │   │       │   │   ├─ Divert_content [104..108]
- │   │       │   │   │   └─ DivertTarget [104..108]
- │   │       │   │   │       ├─ DivertTarget_begin [104..105]
- │   │       │   │   │       │   └─ DivertTarget_begin_c1 [104..105]
- │   │       │   │   │       │       └─ DivertTarget_begin_c1 [104..105]
- │   │       │   │   │       │           └─ OptionalWhitespace [104..105]: " "
- │   │       │   │   │       ├─ DivertTarget_content [105..108]
- │   │       │   │   │       │   └─ End [105..108]: "END"
- │   │       │   │   │       └─ DivertTarget_end 108
- │   │       │   │   └─ Divert_end 108
- │   │       │   └─ Newline [108..109]: "\n"
- │   │       └─ LuauSparkdownElseBlock_end 109
- │   └─ LuauSparkdownIfBlock_end [109..116]
- │       ├─ LuauSparkdownIfBlock_end_c1 [109..113]
- │       │   └─ LuauSparkdownIfBlock_end_c1 [109..113]
- │       │       └─ OptionalWhitespace [109..113]: "    "
- │       └─ LuauSparkdownIfBlock_end_c2 [113..116]
- │           └─ LuauEndKeyword [113..116]: "end"
- ├─ Newline [116..117]: "\n"
- ├─ Whitespace [117..119]: "  "
- ├─ LuauEndKeyword [119..122]: "end"
- ├─ Newline [122..123]: "\n"
- ├─ LuauEndKeyword [123..126]: "end"
- └─ Newline [126..127]: "\n"
+ │   │       │   ├─ FinStatement [96..105]
+ │   │       │   │   ├─ FinStatement_c1 [96..102]
+ │   │       │   │   │   └─ OptionalWhitespace [96..102]: "      "
+ │   │       │   │   ├─ FinStatement_c2 [102..105]
+ │   │       │   │   │   └─ FinKeyword [102..105]: "fin"
+ │   │       │   │   └─ FinStatement_c3 105
+ │   │       │   │       └─ OptionalWhitespace 105
+ │   │       │   └─ Newline [105..106]: "\n"
+ │   │       └─ LuauSparkdownElseBlock_end 106
+ │   └─ LuauSparkdownIfBlock_end [106..113]
+ │       ├─ LuauSparkdownIfBlock_end_c1 [106..110]
+ │       │   └─ LuauSparkdownIfBlock_end_c1 [106..110]
+ │       │       └─ OptionalWhitespace [106..110]: "    "
+ │       └─ LuauSparkdownIfBlock_end_c2 [110..113]
+ │           └─ LuauEndKeyword [110..113]: "end"
+ ├─ Newline [113..114]: "\n"
+ ├─ Whitespace [114..116]: "  "
+ ├─ LuauEndKeyword [116..119]: "end"
+ ├─ Newline [119..120]: "\n"
+ ├─ LuauEndKeyword [120..123]: "end"
+ └─ Newline [123..124]: "\n"

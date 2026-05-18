@@ -7,5 +7,5 @@ scene main
 end
 scene world
   world
-  -> DONE
+  done
 end

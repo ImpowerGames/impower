@@ -1,5 +1,5 @@
 if trust >= 1 then
   -> Alley
 else
-  -> END
+  fin
 end

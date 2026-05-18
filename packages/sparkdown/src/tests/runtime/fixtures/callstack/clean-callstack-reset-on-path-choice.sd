@@ -3,10 +3,10 @@
 scene RunAThing
   The first line.
   The second line.
-  -> DONE
+  done
 
 end
 scene SomewhereElse
   somewhere else
-  -> END
+  fin
 end

@@ -1,5 +1,5 @@
 A {if f() then "B"}
 X
--> DONE
+done
 
 function f() return false end

@@ -1,4 +1,4 @@
-text.source.sparkdown [0..91]
+text.source.sparkdown [0..88]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..10]: "main"
@@ -36,10 +36,7 @@ text.source.sparkdown [0..91]
  ├─ keyword.control.end.luau [73..76]: "end"
  ├─ Newline [76..77]: "\n"
  ├─ punctuation.whitespace.optional.sd [77..79]: "  "
- ├─ keyword.control.divert.mark.sd [79..81]: "->"
- ├─ keyword.control.divert.path.sd [81..86]
- │   ├─ punctuation.whitespace.optional.sd [81..82]: " "
- │   └─ constant.language.done.sd [82..86]: "DONE"
- ├─ Newline [86..87]: "\n"
- ├─ keyword.control.end.luau [87..90]: "end"
- └─ Newline [90..91]: "\n"
+ ├─ keyword.control.divert.done.sd [79..83]: "done"
+ ├─ Newline [83..84]: "\n"
+ ├─ keyword.control.end.luau [84..87]: "end"
+ └─ Newline [87..88]: "\n"

@@ -358,13 +358,16 @@ export class SparkdownCompiler {
       message: string,
       type: ErrorType,
       source: SourceMetadata | null,
+      tags?: number[],
     ) => {
       const severity =
         type === ErrorType.Error
           ? DiagnosticSeverity.Error
           : type === ErrorType.Warning
             ? DiagnosticSeverity.Warning
-            : DiagnosticSeverity.Information;
+            : type === ErrorType.Hint
+              ? DiagnosticSeverity.Hint
+              : DiagnosticSeverity.Information;
       // Surface inkjs's `ExportRuntime` diagnostics that have proper
       // source metadata from the parsed object's DebugMetadata.
       // Diagnostics without `filePath` are silently dropped: they're
@@ -405,6 +408,7 @@ export class SparkdownCompiler {
         startCharacter,
         endLine,
         endCharacter,
+        tags,
       );
       if (docDiagnostic) {
         program.diagnostics ??= {};
@@ -538,6 +542,7 @@ export class SparkdownCompiler {
       message: string,
       type: ErrorType,
       source: SourceMetadata | null,
+      tags?: number[],
     ) => void,
   ) {
     const version = this.documents.get(uri)?.version ?? 0;
@@ -663,7 +668,12 @@ export class SparkdownCompiler {
             offsetSource.endLineNumber += lineNumberOffset;
             offsetSource.fileName ??= fileName;
             offsetSource.filePath ??= uri;
-            onDiagnostic(diagnostic.message, diagnostic.severity, offsetSource);
+            onDiagnostic(
+              diagnostic.message,
+              diagnostic.severity,
+              offsetSource,
+              diagnostic.tags,
+            );
           }
         }
       }
@@ -1904,6 +1914,7 @@ export class SparkdownCompiler {
     startCharacter: number,
     endLine: number,
     endCharacter: number,
+    tags?: number[],
   ): SparkDiagnostic | null {
     if (startCharacter < 0) {
       // This error is occurring in a part of the script that was automatically added during transpilation
@@ -1966,6 +1977,9 @@ export class SparkdownCompiler {
       relatedInformation,
       source,
     };
+    if (tags && tags.length > 0) {
+      diagnostic.tags = tags;
+    }
     return diagnostic;
   }
 }

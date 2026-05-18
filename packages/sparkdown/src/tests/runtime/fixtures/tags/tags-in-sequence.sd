@@ -6,7 +6,7 @@ scene main
   if i < 2 then
     -> start
   end
-  -> END
+  fin
 
 end
 store i = 0

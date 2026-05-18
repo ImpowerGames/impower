@@ -4,5 +4,5 @@ scene main
   choose
     * 'Hello {name}[, your name is {name}.'],' I said, knowing full well that his name was {name}.
   end
-  -> DONE
+  done
 end

@@ -5,5 +5,5 @@ scene main
 end
 scene place(value)
   {value}
-  -> DONE
+  done
 end

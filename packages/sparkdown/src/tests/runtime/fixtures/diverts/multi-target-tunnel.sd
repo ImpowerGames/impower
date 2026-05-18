@@ -2,7 +2,7 @@
 scene main
   -> first -> second -> third
   Back at start.
-  -> DONE
+  done
 
 end
 scene first
@@ -17,5 +17,5 @@ scene second
 end
 scene third
   In third.
-  -> DONE
+  done
 end

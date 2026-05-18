@@ -193,10 +193,17 @@ function runCompiledStory(
         }
       }
       const severity = (diag as { severity?: number }).severity;
-      // 1 = Error, 2 = Warning (DiagnosticSeverity from vscode-languageserver)
+      // 1 = Error, 2 = Warning, 3 = Information, 4 = Hint
+      // (DiagnosticSeverity from vscode-languageserver). Hint-severity
+      // diagnostics (e.g. "Unreachable statement detected." with the
+      // `Unnecessary` tag) are informational — VS Code renders them
+      // faded — and tests treat them as non-fatal, so they're silently
+      // dropped here rather than surfaced through `errorMessages`.
       if (severity === 1) errorMessages.push(message);
       else if (severity === 2) warningMessages.push(message);
-      else errorMessages.push(message); // unknown severity, surface as error
+      else if (severity === 4) {
+        // Hint — drop silently.
+      } else errorMessages.push(message); // unknown severity, surface as error
     }
   }
 

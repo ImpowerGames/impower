@@ -10,7 +10,7 @@ scene main
       -> start
     end
   end
-  -> DONE
+  done
 
 end
 store x = 5

@@ -6,5 +6,5 @@ scene main
   then
     She nods.
   end
-  -> DONE
+  done
 end

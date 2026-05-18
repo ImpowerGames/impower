@@ -11,5 +11,5 @@ scene tunnel
 end
 scene elsewhere(x)
   {x}
-  -> DONE
+  done
 end

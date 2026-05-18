@@ -4,11 +4,12 @@ scene main
   <- aside
   {count.visits(-> aside)}
   choose
-    * "Continue" -> END
+    * "Continue"
+      fin
 
   end
 end
 scene aside
   Inside aside.
-  -> DONE
+  done
 end

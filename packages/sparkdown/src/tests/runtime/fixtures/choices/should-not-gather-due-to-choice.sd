@@ -5,7 +5,8 @@ scene main
       text
       choose
         * if false impossible
-        * -> DONE
+        *
+          done
       end
   then
     gather

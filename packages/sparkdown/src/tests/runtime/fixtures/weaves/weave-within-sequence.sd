@@ -2,5 +2,5 @@ choose
   + choice
 then
   nextline
-  -> END
+  fin
 end

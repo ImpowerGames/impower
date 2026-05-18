@@ -3,5 +3,5 @@ scene knot
   -> knot.gather
   label gather
     g
-  -> DONE
+  done
 end

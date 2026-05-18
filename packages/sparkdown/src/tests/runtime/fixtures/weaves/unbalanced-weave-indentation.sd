@@ -9,5 +9,5 @@ scene main
   then
     End
   end
-  -> DONE
+  done
 end

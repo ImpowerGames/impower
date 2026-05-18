@@ -6,7 +6,8 @@ scene main
   <- threaded
   After thread.
   choose
-    * "End" -> END
+    * "End"
+      fin
 
   end
 end
@@ -17,5 +18,5 @@ scene tunneled
 end
 scene threaded
   In thread.
-  -> DONE
+  done
 end

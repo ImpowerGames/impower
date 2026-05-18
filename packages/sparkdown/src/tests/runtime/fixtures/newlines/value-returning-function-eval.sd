@@ -4,6 +4,6 @@ B
 A
 {getNumber()}
 B
--> DONE
+done
 
 function getNumber() return 3 end

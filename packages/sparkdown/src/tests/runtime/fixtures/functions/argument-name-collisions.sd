@@ -6,4 +6,4 @@ function pass_divert(aTarget) return aTarget end
 
 function variable_param_test(global_var) return global_var end
 
--> DONE
+done

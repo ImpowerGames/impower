@@ -2,7 +2,7 @@
 scene main
   -> tunnel1 ->
   The End.
-  -> DONE
+  done
 
 end
 scene tunnel1

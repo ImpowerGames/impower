@@ -2,7 +2,7 @@
 scene main
   -> f ->
   .. world
-  -> DONE
+  done
 
 end
 scene f

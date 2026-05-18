@@ -10,7 +10,7 @@ scene main
   if i < 5 then
     -> start
   end
-  -> END
+  fin
 
 end
 store i = 0

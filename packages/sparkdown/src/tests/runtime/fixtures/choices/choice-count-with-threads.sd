@@ -4,14 +4,17 @@ scene hub
   <- side
   {count.choices()}
   choose
-    * "Hub one" -> END
-    * "Hub two" -> END
+    * "Hub one"
+      fin
+    * "Hub two"
+      fin
 
   end
 end
 scene side
   choose
-    * "Side one" -> END
+    * "Side one"
+      fin
   end
-  -> DONE
+  done
 end

@@ -3,9 +3,9 @@ gather should be seen
 choose
   + if true [go to a stitch] -> a_stitch
 end
--> DONE
+done
 
 scene a_stitch
   result
-  -> END
+  fin
 end

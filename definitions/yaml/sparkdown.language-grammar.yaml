@@ -235,6 +235,8 @@ repository:
 
   FlowStatements:
     patterns:
+      - { include: "#DoneStatement" }
+      - { include: "#FinStatement" }
       - { include: "#Divert" }
       - { include: "#Thread" }
       - { include: "#LabelAnchor" }
@@ -975,15 +977,39 @@ repository:
     name: keyword.control.thread.mark.sd
     match: ([<][-])
 
-  End:
-    tag: keyword
-    name: constant.language.end.sd
-    match: \b(END)\b
+  DoneStatement:
+    match: ^({{WS}}*)(done)({{EOK}})
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#DoneKeyword" }
+      3:
+        patterns:
+          - { include: "#OptionalWhitespace" }
 
-  Done:
-    tag: keyword
-    name: constant.language.done.sd
-    match: \b(DONE)\b
+  FinStatement:
+    match: ^({{WS}}*)(fin)({{EOK}})
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#FinKeyword" }
+      3:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  DoneKeyword:
+    tag: controlKeyword
+    name: keyword.control.divert.done.sd
+
+  FinKeyword:
+    tag: controlKeyword
+    name: keyword.control.divert.fin.sd
 
   DivertTarget:
     tag: heading
@@ -996,8 +1022,6 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#End" }
-      - { include: "#Done" }
       - { include: "#LuauFunctionCall" }
       - { include: "#DivertPath" }
     end: (?=$)|(?!{{IDENTIFIER}}|[.^])

@@ -4,6 +4,6 @@ Phrase 1
 if TRUE() then
   Phrase 2
 end
--> END
+fin
 
 function TRUE() return true end

@@ -29,6 +29,10 @@ import {
   lowerLuauInterpolatedStringExpression,
 } from "./lowerers/lowerDisplay";
 import { lowerDivert } from "./lowerers/lowerDivert";
+import {
+  lowerDoneStatement,
+  lowerFinStatement,
+} from "./lowerers/lowerDoneOrFin";
 import { lowerExplicitStatement } from "./lowerers/lowerExplicitStatement";
 import { lowerGlue } from "./lowerers/lowerGlue";
 import { lowerLabelAnchor } from "./lowerers/lowerLabelAnchor";
@@ -87,6 +91,10 @@ function lowerInner(
       // `end` boundaries inside an alternator instead of running to
       // end-of-line.
       return lowerDivert(nodeRef, ctx);
+    case "DoneStatement":
+      return lowerDoneStatement(nodeRef, ctx);
+    case "FinStatement":
+      return lowerFinStatement(nodeRef, ctx);
     case "Thread":
       return lowerThread(nodeRef, ctx);
     case "LabelAnchor":

@@ -1,5 +1,5 @@
 -> main
 scene main
   {count.turns()}
-  -> DONE
+  done
 end
