@@ -12,7 +12,7 @@ import { Path } from "./Path";
 import { InkList, InkListItem } from "./InkList";
 import { InkObject } from "./Object";
 import {
-  NAMESPACED_STDLIB,
+  getPureStdLibEntries,
   VARIADIC_ARITY,
   NumericBinary,
   NumericUnary,
@@ -592,24 +592,24 @@ export class NativeFunctionCall extends InkObject {
         divertTargetsNotEqual,
       );
 
-      // Luau stdlib (`math.floor`, `math.ceil`, `math.pow`, ...). The
-      // table of JS implementations lives in `StdLib.ts` — adding a new
-      // entry there auto-registers it here. Arity is inferred from
-      // `fn.length`; each function is registered for both int and float
+      // Pure-numeric Luau stdlib (`math.floor`, `math.ceil`, ...). The
+      // unified STDLIB registry in `StdLib.ts` holds these as entries
+      // with `pure: true`. Adding a new pure entry there auto-registers
+      // it here. Each function is registered for both int and float
       // operand types so the runtime's type-dispatcher resolves it
-      // regardless of how the caller's number is typed.
-      for (const [namespace, methods] of Object.entries(NAMESPACED_STDLIB)) {
-        for (const [methodName, fn] of Object.entries(methods)) {
-          const fullName = `${namespace}.${methodName}`;
-          if (fn.length === 1) {
-            const unary = fn as NumericUnary;
-            this.AddIntUnaryOp(fullName, unary);
-            this.AddFloatUnaryOp(fullName, unary);
-          } else if (fn.length === 2) {
-            const binary = fn as NumericBinary;
-            this.AddIntBinaryOp(fullName, binary);
-            this.AddFloatBinaryOp(fullName, binary);
-          }
+      // regardless of how the caller's number is typed. The wrapper
+      // converts the registry's `(_, args)` signature into the
+      // operator-style `(a)` / `(a, b)` calling convention.
+      for (const [fullName, entry] of getPureStdLibEntries()) {
+        if (entry.arity === 1) {
+          const unary: NumericUnary = (v: number) => entry.fn(null, [v]);
+          this.AddIntUnaryOp(fullName, unary);
+          this.AddFloatUnaryOp(fullName, unary);
+        } else if (entry.arity === 2) {
+          const binary: NumericBinary = (a: number, b: number) =>
+            entry.fn(null, [a, b]);
+          this.AddIntBinaryOp(fullName, binary);
+          this.AddFloatBinaryOp(fullName, binary);
         }
       }
 

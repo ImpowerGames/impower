@@ -23,12 +23,12 @@ import {
 } from "../../../inkjs/engine/StdLib";
 
 // Wrap the lowerer's `new FunctionCall(name, args)` site so that
-// bare (unnamespaced) source names registered in `GLOBAL_STDLIB`
+// bare (unnamespaced) source names registered in `STDLIB`
 // (StdLib.ts) get arg-normalized (e.g. `assert(cond)` is padded
 // with a default message) before construction. The source name is
 // preserved verbatim — the registry uses the lowercase Luau-style
 // name as both lookup key and runtime identifier. Adding a new
-// state-aware builtin is one entry in `GLOBAL_STDLIB`; if it needs
+// state-aware builtin is one entry in `STDLIB`; if it needs
 // arg-normalization (defaulting, padding) the special case lives
 // here.
 function makeGlobalFunctionCall(

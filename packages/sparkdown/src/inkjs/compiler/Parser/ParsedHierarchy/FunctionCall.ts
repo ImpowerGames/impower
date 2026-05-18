@@ -25,7 +25,7 @@ export class FunctionCall extends Expression {
 
     return (
       // Legacy per-function ControlCommand builtins that still have
-      // compile-time setup not yet migrated to the GLOBAL_STDLIB
+      // compile-time setup not yet migrated to the STDLIB
       // dispatcher: TURNS_SINCE / READ_COUNT need DivertTarget
       // container-counting setup in `ResolveReferences`; LIST_*
       // builtins are list-runtime-native.
@@ -35,7 +35,7 @@ export class FunctionCall extends Expression {
       name === "LIST_RANDOM" ||
       // State-aware Luau globals + namespaced state-aware functions
       // (e.g. `plural.category`, `math.random`, `assert`, ...)
-      // registered in `GLOBAL_STDLIB` in StdLib.ts. Adding a new
+      // registered in `STDLIB` in StdLib.ts. Adding a new
       // entry there immediately makes it a recognized builtin here
       // — no list to update.
       lookupStateAwareStdLib(name) !== null
@@ -78,7 +78,7 @@ export class FunctionCall extends Expression {
   }
 
   // True when `this.name` is registered as a state-aware global in
-  // `GLOBAL_STDLIB` (StdLib.ts). Used by `GenerateIntoContainer` to
+  // `STDLIB` (StdLib.ts). Used by `GenerateIntoContainer` to
   // route the call through the generic `RunStdLibFunction` dispatch
   // instead of treating it as a user-defined knot reference.
   get isStateAwareStdLib(): boolean {
@@ -162,7 +162,7 @@ export class FunctionCall extends Expression {
       // Generic state-aware stdlib dispatch. Push args in source
       // order, then emit a `RunStdLibFunction` ControlCommand
       // carrying the function name + arity. Runtime pops the args,
-      // looks up `GLOBAL_STDLIB[name]`, and calls
+      // looks up `STDLIB[name]`, and calls
       // `fn(story, args)`. Optional return value is pushed back.
       //
       // The lowerer (`makeGlobalFunctionCall` in lowerExpression.ts)

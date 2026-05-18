@@ -10,7 +10,7 @@ export class ControlCommand extends InkObject {
   // For `RunStdLibFunction` ControlCommands — carry the source-level
   // builtin name (e.g. `"assert"`, `"plural.category"`) and the call-
   // site arity. These are populated by `RunStdLib(name, arity)` and
-  // read by both the runtime dispatcher (looks up `GLOBAL_STDLIB[name]`
+  // read by both the runtime dispatcher (looks up `STDLIB[name]`
   // and pops `arity` args) and the JSON serializer (encodes as
   // `"stdlib:<name>:<arity>"`). Unused for other ControlCommand types.
   public _stdLibName: string = "";
@@ -117,7 +117,7 @@ export class ControlCommand extends InkObject {
     return new ControlCommand(ControlCommand.CommandType.EndScope);
   }
   // Generic state-aware stdlib call. Pops `arity` args from the eval
-  // stack and calls `GLOBAL_STDLIB[name].fn(story, args)`. The
+  // stack and calls `STDLIB[name].fn(story, args)`. The
   // registered function may push a return value back onto the stack
   // (for value-returning builtins like `tostring`) or return
   // undefined (for side-effecting ones like `assert`). See StdLib.ts
@@ -190,7 +190,7 @@ export namespace ControlCommand {
     // function name + arity as instance data (`_stdLibName`,
     // `_stdLibArity`) — JSON serialization encodes both into a single
     // `"stdlib:<name>:<arity>"` token. Runtime looks up the name in
-    // `GLOBAL_STDLIB` and pops `arity` args. See `RunStdLib()`.
+    // `STDLIB` and pops `arity` args. See `RunStdLib()`.
     RunStdLibFunction, // 29
 
     TOTAL_VALUES,

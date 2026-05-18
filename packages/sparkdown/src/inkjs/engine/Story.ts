@@ -1870,7 +1870,7 @@ export class Story extends InkObject {
           // JS primitives via `Value.Create`). This replaces the
           // entire per-function ControlCommand boilerplate —
           // adding a new state-aware builtin is now one entry in
-          // `GLOBAL_STDLIB` in StdLib.ts.
+          // `STDLIB` in StdLib.ts.
           const name = evalCommand._stdLibName;
           const arity = evalCommand._stdLibArity;
           const entry = lookupStateAwareStdLib(name);

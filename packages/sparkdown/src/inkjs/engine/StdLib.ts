@@ -3,18 +3,23 @@ import { PRNG } from "./PRNG";
 
 // Sparkdown's Luau-standard-library bridge. Three tables drive everything:
 //
-//   - `NAMESPACED_STDLIB` — pure numeric JS functions (`math.floor`,
-//     `math.cos`, ...). Adding a method here auto-registers it with
-//     `NativeFunctionCall` under its dotted full name, and the lowerer
-//     picks it up via `lookupStdLibBuiltin`.
+//   - `STDLIB` — the unified registry of every Luau stdlib function,
+//     keyed by dotted full name (`"math.abs"`, `"plural.category"`,
+//     `"assert"`, ...). Each entry carries `{arity, pure?, fn}`. Pure
+//     entries (`pure: true`) are auto-registered with
+//     `NativeFunctionCall` at engine init and benefit from the
+//     type-coercion fast path; state-aware entries route through the
+//     generic `RunStdLibFunction` ControlCommand dispatcher in
+//     Story.ts. Adding a new function — pure or state-aware — is one
+//     entry here.
 //
-//   - `INK_BUILTIN_ALIASES` — Luau-style names that *alias* an existing
-//     ink runtime builtin (e.g. `story.turns` → `TURNS`,
-//     `math.random` → `RANDOM`). These call into ControlCommand-backed
-//     paths in `FunctionCall.ts` rather than `NativeFunctionCall`, so
-//     they don't get auto-registered — only the *name mapping* matters,
-//     and `FunctionCall.GenerateIntoContainer` dispatches on the
-//     resolved ink name.
+//   - `INK_BUILTIN_ALIASES` — legacy per-function ControlCommand
+//     bindings that still need compile-time setup the generic
+//     dispatcher can't do (currently `count.turns(-> t)` →
+//     `TURNS_SINCE` and `count.visits(-> t)` → `READ_COUNT`, which
+//     mark the target container for visit-counting in
+//     `FunctionCall.ResolveReferences`). Migration goal: shrink this
+//     table to empty.
 //
 //   - `METHOD_DISPATCH` (in `MethodDispatch.ts`) — builtin method-call
 //     receivers for `obj:method(args)`. The lowerer prefixes method
@@ -24,10 +29,9 @@ import { PRNG } from "./PRNG";
 //     `VARIADIC_ARITY` = -1) and bypass the operator-style type coercion
 //     in favor of receiver-type branching inside each impl.
 //
-// The first two tables feed `lookupStdLibBuiltin` — the compiler's
-// call-site mapper checks both, so source like `story.turns()` or
-// `math.floor(x)` works regardless of which one the entry lives in. The
-// third feeds the lowerer's separate method-name check.
+// `STDLIB` + `INK_BUILTIN_ALIASES` feed `lookupStdLibBuiltin` — the
+// compiler's call-site mapper checks both. `METHOD_DISPATCH` feeds the
+// lowerer's separate method-name check.
 
 export type NumericUnary = (v: number) => number;
 export type NumericBinary = (a: number, b: number) => number;
@@ -39,21 +43,39 @@ export type StdLibFn = NumericUnary | NumericBinary;
 // back onto the stack. Used for global Luau builtins that need
 // access to runtime state — `assert` calls `story.AddError`,
 // `plural.category` reads `lang.current` from `state.variablesState`,
-// etc. — and therefore can't live in the pure-numeric `NAMESPACED_STDLIB` table.
+// etc. — and therefore need `pure: false` (the default) so the
+// generic dispatcher passes them the `story` reference.
 export type StateAwareStdLibFn = (story: any, args: any[]) => any | undefined;
 
-export interface StateAwareStdLibEntry {
+export interface StdLibEntry {
   /** Number of stack values to pop before calling `fn`. */
   arity: number;
   /**
+   * Pure entries (`pure: true`) ignore the `story` arg, take + return
+   * raw JS numbers, and get auto-registered with `NativeFunctionCall`
+   * at engine init — preserving the type-coercion fast path for math
+   * ops. Non-pure entries (`pure` omitted / false) route through the
+   * generic `RunStdLibFunction` dispatcher in Story.ts.
+   *
+   * The dispatch decision happens in `FunctionCall.GenerateIntoContainer`:
+   * pure entries fall through to the existing `NativeFunctionCall`
+   * branch (because they're registered there); non-pure entries match
+   * `isStateAwareStdLib` and emit `RunStdLibFunction`.
+   */
+  pure?: boolean;
+  /**
    * Implementation. Receives popped args in source order (arg 0 first,
    * arg 1 second, …) — the runtime handler reverses the pop order so
-   * implementations don't have to think about stack direction. May
-   * return a value to push back onto the eval stack, or `undefined`
-   * for void/no-return semantics.
+   * implementations don't have to think about stack direction. For
+   * pure entries, `story` is `null`. May return a value to push back
+   * onto the eval stack, or `undefined` for void/no-return semantics.
    */
   fn: StateAwareStdLibFn;
 }
+
+// Backwards-compat alias — every consumer was migrated already; this
+// is just an export rename guard for future refactors.
+export type StateAwareStdLibEntry = StdLibEntry;
 
 // Sentinel for native functions whose arity can't be statically checked
 // (currently: the `__method_*` builtin-method family, which validates
@@ -135,33 +157,6 @@ export {
   METHOD_PREFIX,
 } from "./MethodDispatch";
 
-// Namespaced pure-numeric functions (`math.floor`, `math.cos`, ...).
-// Adding a new entry here auto-registers it with `NativeFunctionCall`
-// at engine init. Use this table only for functions that:
-//   - Live under a namespace (`math.*`, future `bit32.*`, etc.)
-//   - Are pure: no story access, no side effects
-//   - Take + return numbers (the arity is inferred from `fn.length`)
-// For state-aware globals (`assert`, `error`, `print`, ...) use
-// `GLOBAL_STDLIB` below. For namespaced functions that need
-// story access (`math.random` reads RNG state), use `GLOBAL_STDLIB`
-// with the dotted full name as the key.
-export const NAMESPACED_STDLIB: Record<string, Record<string, StdLibFn>> = {
-  math: {
-    abs: (v) => Math.abs(v),
-    ceil: (v) => Math.ceil(v),
-    cos: (v) => Math.cos(v),
-    exp: (v) => Math.exp(v),
-    floor: (v) => Math.floor(v),
-    log: (v) => Math.log(v),
-    max: (a, b) => Math.max(a, b),
-    min: (a, b) => Math.min(a, b),
-    pow: (a, b) => Math.pow(a, b),
-    sin: (v) => Math.sin(v),
-    sqrt: (v) => Math.sqrt(v),
-    tan: (v) => Math.tan(v),
-  },
-};
-
 // An alias entry resolves a Luau-style source name to an ink-runtime
 // builtin name. Most entries are a single fixed string. Some methods
 // dispatch on arg count (e.g. `story.turns()` → `TURNS`,
@@ -170,26 +165,49 @@ export const NAMESPACED_STDLIB: Record<string, Record<string, StdLibFn>> = {
 // name (or `null` if the arity isn't supported).
 export type InkBuiltinAlias = string | ((argCount: number) => string | null);
 
-// Global (unnamespaced) Luau builtins that need access to runtime
-// state. Each entry is a one-line registration: the registry is the
-// single source of truth for source-level name → runtime behavior.
+// Unified Luau standard library. Each entry is a one-line
+// registration; the `pure?` flag controls the dispatch path:
 //
-// Adding a new state-aware builtin is just:
-//   tostring: { arity: 1, fn: (story, [v]) => stringify(v) },
+// - `pure: true` — `fn` is a pure JS function `(_, [a, b]) => number`
+//   (ignores `story`). Auto-registered with `NativeFunctionCall` at
+//   engine init so it benefits from the type-coercion fast path
+//   (int/float operand dispatch, list-membership flag, etc.). Used
+//   for `math.*` numeric helpers.
 //
-// At lowering, `makeGlobalFunctionCall` (lowerExpression.ts) checks
-// this table when a bare function-call name has no namespace
-// receiver, and produces a `FunctionCall` whose name carries the
-// stdlib id verbatim (lowercase, source form). The runtime's
-// generic `RunStdLibFunction` ControlCommand pops `arity` values
-// off the eval stack, calls `fn(story, args)`, and pushes the
-// return value if it's non-undefined.
+// - `pure` omitted — `fn` is state-aware `(story, args) => result`
+//   and routes through the generic `RunStdLibFunction` ControlCommand
+//   dispatcher. Used for `assert`, `plural.category`, `math.random`,
+//   `count.*`, and (future) `error`, `tostring`, etc.
 //
-// This replaces the older per-builtin pattern of (ControlCommand
-// enum entry + JsonSerialisation name + FunctionCall dispatch
-// branch + Story.ts runtime case) with a single registry plus one
-// generic dispatcher. See task #77.
-export const GLOBAL_STDLIB: Record<string, StateAwareStdLibEntry> = {
+// Adding a new entry — pure or state-aware — is one line:
+//   "math.atan2": { arity: 2, pure: true, fn: (_, [y, x]) => Math.atan2(y, x) },
+//   tostring:     { arity: 1, fn: (_, [v]) => String(coerceNumber(v) ?? v) },
+//
+// At lowering, `makeGlobalFunctionCall` (lowerExpression.ts) and
+// `lookupStdLibBuiltin` (below) consult this table by dotted full
+// name. The `FunctionCall` constructed carries that name verbatim;
+// dispatch in `GenerateIntoContainer` branches on `pure`.
+export const STDLIB: Record<string, StdLibEntry> = {
+  // ============================================================
+  // `math.*` — pure numeric helpers (auto-registered with NativeFunctionCall)
+  // ============================================================
+  "math.abs": { arity: 1, pure: true, fn: (_, [v]) => Math.abs(v) },
+  "math.ceil": { arity: 1, pure: true, fn: (_, [v]) => Math.ceil(v) },
+  "math.cos": { arity: 1, pure: true, fn: (_, [v]) => Math.cos(v) },
+  "math.exp": { arity: 1, pure: true, fn: (_, [v]) => Math.exp(v) },
+  "math.floor": { arity: 1, pure: true, fn: (_, [v]) => Math.floor(v) },
+  "math.log": { arity: 1, pure: true, fn: (_, [v]) => Math.log(v) },
+  "math.max": { arity: 2, pure: true, fn: (_, [a, b]) => Math.max(a, b) },
+  "math.min": { arity: 2, pure: true, fn: (_, [a, b]) => Math.min(a, b) },
+  "math.pow": { arity: 2, pure: true, fn: (_, [a, b]) => Math.pow(a, b) },
+  "math.sin": { arity: 1, pure: true, fn: (_, [v]) => Math.sin(v) },
+  "math.sqrt": { arity: 1, pure: true, fn: (_, [v]) => Math.sqrt(v) },
+  "math.tan": { arity: 1, pure: true, fn: (_, [v]) => Math.tan(v) },
+
+  // ============================================================
+  // State-aware entries (route through `RunStdLibFunction`)
+  // ============================================================
+
   // `plural.category(n)` — CLDR plural category for `n` in the
   // active language (`lang.current` store; defaults to `"en"`).
   // Used directly (`{plural.category(n)}`) and as the desugar
@@ -339,7 +357,7 @@ export const GLOBAL_STDLIB: Record<string, StateAwareStdLibEntry> = {
 // at the source level. `math.random` / `math.randomseed` are
 // technically math operations but they mutate the runtime's random-
 // state and can't be modelled as pure functions, so they live here too
-// rather than in NAMESPACED_STDLIB.
+// rather than as pure entries.
 //
 // `count.turns` is overloaded by arity:
 //   - `count.turns()` (no args)       → `TURNS`        (total turns elapsed)
@@ -353,9 +371,9 @@ export const INK_BUILTIN_ALIASES: Record<
   count: {
     // `count.turns(-> target)` 1-arg form maps to `TURNS_SINCE`
     // (legacy per-function ControlCommand). The 0-arg form lives
-    // in `GLOBAL_STDLIB` as `"count.turns"`; the alias function
-    // returns `null` for `argCount === 0` so `lookupStdLibBuiltin`
-    // falls through to the GLOBAL_STDLIB lookup. `count.visits(-> t)`
+    // in `STDLIB` as `"count.turns"`; the alias function returns
+    // `null` for `argCount === 0` so `lookupStdLibBuiltin` falls
+    // through to the STDLIB lookup. `count.visits(-> t)`
     // → `READ_COUNT` likewise stays legacy because of compile-time
     // container-counting setup in `FunctionCall.ResolveReferences`
     // that doesn't fit the generic dispatcher.
@@ -368,71 +386,73 @@ export const INK_BUILTIN_ALIASES: Record<
 // call if one is registered, or `null` otherwise. Used by the lowerer to
 // decide whether to translate a method-call into a direct builtin call.
 //
-// For NAMESPACED_STDLIB entries, the returned name is the dotted full name
+// For STDLIB entries, the returned name is the dotted full name
 // (`"math.floor"`) which `NativeFunctionCall` dispatches on. For
 // INK_BUILTIN_ALIASES entries, it's the ink name (`"TURNS"`) which
 // `FunctionCall.GenerateIntoContainer` dispatches on.
 //
 // `argCount` lets a single Luau-style method name resolve to different
-// ink builtins based on arity (see `story.turns` above). NAMESPACED_STDLIB entries
-// don't consult `argCount` — `NativeFunctionCall` enforces the
-// registered arity itself at the runtime.
+// ink builtins based on arity (see `count.turns` in
+// `INK_BUILTIN_ALIASES`). Unified STDLIB entries don't consult
+// `argCount` — pure entries enforce their arity via NativeFunctionCall,
+// state-aware entries via the registered `arity` field.
 export function lookupStdLibBuiltin(
   receiverName: string,
   methodName: string,
   argCount: number,
 ): string | null {
-  if (NAMESPACED_STDLIB[receiverName]?.[methodName] != null) {
-    return `${receiverName}.${methodName}`;
-  }
-  // Check INK_BUILTIN_ALIASES first — arity-overloaded entries
-  // like `count.turns` can return null for some arg counts, letting
-  // GLOBAL_STDLIB pick those up below. (`count.turns(0)` falls
-  // through to GLOBAL_STDLIB["count.turns"]; `count.turns(1, t)`
-  // resolves to "TURNS_SINCE" here.)
+  // Check INK_BUILTIN_ALIASES first — arity-overloaded entries like
+  // `count.turns` can return null for some arg counts, letting the
+  // unified STDLIB pick those up below. (`count.turns(0)` falls
+  // through to STDLIB["count.turns"]; `count.turns(1, t)` resolves
+  // to "TURNS_SINCE" here.)
   const alias = INK_BUILTIN_ALIASES[receiverName]?.[methodName];
   if (alias != null) {
     const resolved = typeof alias === "string" ? alias : alias(argCount);
     if (resolved !== null) return resolved;
   }
-  // State-aware namespaced builtins live in `GLOBAL_STDLIB` under
-  // the dotted full name (e.g. `"plural.category"`, `"math.random"`,
-  // `"count.choices"`). The compiler returns the same dotted name
-  // as the FunctionCall name, and `FunctionCall.isStateAwareStdLib`
-  // picks it up via the registry.
+  // Unified registry: pure-numeric and state-aware entries alike
+  // are keyed by dotted full name. The compiler returns the same
+  // name as the FunctionCall's; pure entries dispatch through
+  // NativeFunctionCall (auto-registered at engine init), state-aware
+  // entries through `RunStdLibFunction`.
   const fullName = `${receiverName}.${methodName}`;
-  if (GLOBAL_STDLIB[fullName] != null) {
+  if (STDLIB[fullName] != null) {
     return fullName;
   }
   return null;
 }
 
-// Returns the resolved name for a bare (unnamespaced) source-level
-// call to a state-aware stdlib builtin, or `null` if the name isn't
-// registered. Today the resolved name equals the source name —
-// `assert` stays `assert` end-to-end. The function exists so the
-// lowerer can ask "is this a registered global stdlib?" without
-// importing the full registry object. After #77's generic
-// dispatcher lands, the FunctionCall dispatch branch checks the
-// same registry directly and this helper goes away.
+// Resolves a bare (unnamespaced) source-level call to its stdlib
+// builtin name, or `null` if the name isn't registered. Today the
+// resolved name equals the source name — `assert` stays `assert`
+// end-to-end. Used by the lowerer to ask "is this a registered
+// global stdlib?" without importing the full registry object.
 export function lookupGlobalStdLibBuiltin(
   name: string,
   _argCount: number,
 ): string | null {
-  return GLOBAL_STDLIB[name] != null ? name : null;
+  return STDLIB[name] != null ? name : null;
 }
 
 // Direct registry lookup for state-aware builtins. Returns the
-// registered entry (`{arity, fn}`) or `null` if the name isn't
-// known. Used today by the per-function ControlCommand runtime
-// handlers as the single source of truth for behavior — e.g.
-// the Assert ControlCommand case in Story.ts delegates to
-// `lookupStateAwareStdLib("assert").fn(story, args)` rather than
-// inlining the logic. After #77's generic dispatcher lands, the
-// runtime will call this directly from the generic handler and
-// the per-function handlers can be removed.
-export function lookupStateAwareStdLib(
-  name: string,
-): StateAwareStdLibEntry | null {
-  return GLOBAL_STDLIB[name] ?? null;
+// registered entry (`{arity, fn}`) or `null` if the name isn't a
+// state-aware entry. Pure entries (`pure: true`) are intentionally
+// excluded here — they dispatch through `NativeFunctionCall` and the
+// generic `RunStdLibFunction` runtime handler should never receive
+// them. Used by `FunctionCall.isStateAwareStdLib` (compile-time) and
+// the generic dispatcher in Story.ts (runtime) to route only the
+// non-pure entries through the generic path.
+export function lookupStateAwareStdLib(name: string): StdLibEntry | null {
+  const entry = STDLIB[name];
+  if (entry == null || entry.pure) return null;
+  return entry;
+}
+
+// Returns the entry for a pure-numeric stdlib function, or `null`
+// otherwise. Used by `NativeFunctionCall.GenerateNativeFunctionsIfNecessary`
+// at engine init to iterate the pure entries and register them with
+// the operator-style dispatch path.
+export function getPureStdLibEntries(): Array<[string, StdLibEntry]> {
+  return Object.entries(STDLIB).filter(([, entry]) => entry.pure === true);
 }
