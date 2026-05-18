@@ -299,12 +299,7 @@ end
     expect(recorded).toEqual(["abc", "a-b-c", "b,c", "1+2+3"]);
   });
 
-  test("table.find returns first matching index (or 0 for missing — see #82)", () => {
-    // The "missing" case should return nil, but sparkdown's stdlib
-    // dispatcher currently coerces JS `null` to `IntValue(0)` because
-    // there's no `NullValue` type — pre-existing limitation tracked
-    // as task #82. Flip the third expectation to `null` once that
-    // lands.
+  test("table.find returns first matching index, or nil if absent", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -317,6 +312,6 @@ local t = { "x", "y", "z", "y" }
 end
 `);
     expect(errors).toEqual([]);
-    expect(recorded).toEqual([2, 4, 0]);
+    expect(recorded).toEqual([2, 4, null]);
   });
 });

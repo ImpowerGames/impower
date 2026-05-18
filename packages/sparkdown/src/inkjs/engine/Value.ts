@@ -35,6 +35,14 @@ export abstract class AbstractValue extends InkObject {
       }
     }
 
+    // Lua/Luau `nil`. Has to be checked BEFORE the integer branch
+    // below because `Number(null) === 0` and `Number.isInteger(0)`
+    // is true — without this guard a stdlib fn that returns JS `null`
+    // would silently become `IntValue(0)`.
+    if (val === null) {
+      return new NullValue();
+    }
+
     if (typeof val === "boolean") {
       return new BoolValue(Boolean(val));
     }
@@ -125,6 +133,37 @@ export class BoolValue extends Value<boolean> {
 
   public toString() {
     return this.value ? "true" : "false";
+  }
+}
+
+// Lua/Luau `nil` — the explicit "no value" value. Distinct from JS
+// `undefined` (which means "no return"), distinct from `Void` (which
+// is an inkjs control marker for "function returned nothing"). Sparkdown
+// stdlib fns that fail (`tonumber("xyz")`, `rawget(t, missing)`,
+// `table.find(t, missing)`, `utf8.offset` out of range) return `null`
+// from JS; the dispatcher wraps that via `Value.Create`, which routes
+// here. `valueObject` is `null` so external function calls see `null`.
+export class NullValue extends Value<any> {
+  constructor() {
+    super(null);
+  }
+  public get isTruthy(): boolean {
+    return false;
+  }
+  public get valueType(): ValueType {
+    return ValueType.Null;
+  }
+  public Cast(newType: ValueType): Value<any> {
+    if (newType === this.valueType) return this;
+    if (newType === ValueType.String) return new StringValue("nil");
+    if (newType === ValueType.Bool) return new BoolValue(false);
+    throw this.BadCastException(newType);
+  }
+  public toString(): string {
+    return "nil";
+  }
+  public Copy(): InkObject {
+    return new NullValue();
   }
 }
 
@@ -460,4 +499,7 @@ export enum ValueType {
   DivertTarget = 4,
   VariablePointer = 5,
   Object = 6,
+  // Appended (rather than renumbered) so existing serialized save
+  // states keep their numeric ValueType indices.
+  Null = 7,
 }

@@ -8,6 +8,7 @@ import {
   VariablePointerValue,
   ListValue,
   BoolValue,
+  NullValue,
   ObjectValue,
   AbstractValue,
 } from "./Value";
@@ -156,6 +157,15 @@ export class JsonSerialisation {
       writer.WriteProperty("*", choicePoint.pathStringOnChoice);
       writer.WriteIntProperty("flg", choicePoint.flags);
       writer.WriteObjectEnd();
+      return;
+    }
+
+    let nullVal = asOrNull(obj, NullValue);
+    if (nullVal) {
+      // Serialize Lua `nil` as the literal token `"nil"` — mirrors
+      // the way `Void` writes itself as `"void"`. Reader picks this
+      // up in the string-token branch below.
+      writer.Write("nil");
       return;
     }
 
@@ -437,6 +447,9 @@ export class JsonSerialisation {
 
       // Void
       if (str == "void") return new Void();
+
+      // Lua `nil` — see write path for the matching literal token.
+      if (str == "nil") return new NullValue();
     }
 
     if (typeof token === "object" && !Array.isArray(token)) {
