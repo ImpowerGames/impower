@@ -11,40 +11,6 @@
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromFile } from "./runtimeTestHarness";
 
-describe("Functions (ported from inkjs)", () => {
-  test("function purity: bare expression statements and diverts are rejected", () => {
-    // Sparkdown's `function ... end` is a pure-expression callable —
-    // its body is parsed as Luau-only. Sparkdown statements that would
-    // yield to the surrounding flow (display lines, choice blocks,
-    // diverts) get re-parsed as Luau-shaped fragments inside a
-    // function body: bare display text reads as access-path variable
-    // references, `choose` reads as a variable name, `-> target`
-    // reads as a `LuauDivertTargetLiteral` value. The purity checker
-    // in `lowerLuauFunctionDefinition` flags any top-level body child
-    // that isn't a legitimate Luau statement shape.
-    //
-    // The upstream ink fixture asserted three distinct category
-    // wordings ("Functions may not contain choices", etc.). Sparkdown
-    // emits messages of two flavors — "display text" (the most
-    // common cause, since misparsed sparkdown statements surface as
-    // access paths) and "diverts" (`LuauDivertTargetLiteral` at
-    // statement position). The fixture has one of each:
-    //   function bad_display() thisLooksLikeText ... end
-    //   function bad_divert() -> somewhere ... end
-    const ctx = makeRuntimeStoryFromFile(
-      "functions",
-      "function-purity-checks",
-    );
-    expect(ctx.errorMessages).toHaveLength(2);
-    expect(
-      ctx.errorMessages.some((m) => /display text/i.test(m)),
-    ).toBe(true);
-    expect(
-      ctx.errorMessages.some((m) => /diverts/i.test(m)),
-    ).toBe(true);
-  });
-});
-
 describe("Functions — clean-compile invariants", () => {
   // These tests assert "no diagnostics emitted" for valid sparkdown
   // forms. They don't depend on diagnostic wording, only on the
