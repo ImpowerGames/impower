@@ -325,48 +325,73 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `math.random(min, max)` — integer in `[min, max]` (inclusive).
-  // Uses `story.state.storySeed + previousRandom` as PRNG seed and
-  // updates `previousRandom` so successive calls are deterministic
-  // given the seed. Both args must be integers; non-integer or
-  // missing values are a runtime error.
+  // `math.random([m [, n]])` — Lua/Luau's polymorphic RNG.
+  //   0 args:   float in `[0, 1)`
+  //   1 arg:    integer in `[1, m]`
+  //   2 args:   integer in `[m, n]`
+  // All three forms share the same PRNG, seeded from
+  // `state.storySeed + previousRandom` so successive calls are
+  // deterministic given the seed. `previousRandom` is updated on
+  // every call regardless of form.
   "math.random": {
-    arity: 2,
-    fn: (story, [minVal, maxVal]) => {
-      const min = coerceNumber(minVal);
-      const max = coerceNumber(maxVal);
-      if (min === null || !Number.isInteger(min)) {
-        story.Error(
-          "Invalid value for minimum parameter of math.random(min, max)",
-        );
-        return 0;
+    arity: -1,
+    fn: (story, args) => {
+      const seed = story.state.storySeed + story.state.previousRandom;
+      const prng = new PRNG(seed);
+      const next = prng.next();
+      story.state.previousRandom = next;
+
+      if (args.length === 0) {
+        // `next` is a 32-bit unsigned int — divide by 2^32 to get
+        // a float in `[0, 1)`. Matches Luau's no-arg form.
+        return next / 0x100000000;
       }
-      if (max === null || !Number.isInteger(max)) {
-        story.Error(
-          "Invalid value for maximum parameter of math.random(min, max)",
-        );
-        return 0;
+
+      // Integer forms. Resolve min/max based on arity.
+      let min: number;
+      let max: number;
+      if (args.length === 1) {
+        const m = coerceNumber(args[0]);
+        if (m === null || !Number.isInteger(m)) {
+          story.Error("math.random(m): argument must be an integer");
+          return 0;
+        }
+        min = 1;
+        max = m;
+      } else {
+        const m = coerceNumber(args[0]);
+        const n = coerceNumber(args[1]);
+        if (m === null || !Number.isInteger(m)) {
+          story.Error(
+            "Invalid value for minimum parameter of math.random(min, max)",
+          );
+          return 0;
+        }
+        if (n === null || !Number.isInteger(n)) {
+          story.Error(
+            "Invalid value for maximum parameter of math.random(min, max)",
+          );
+          return 0;
+        }
+        min = m;
+        max = n;
       }
+
       // JS has no true integers, so guard against overflow when
       // (max - min + 1) exceeds safe-integer range.
-      let randomRange = max - min + 1;
-      if (!isFinite(randomRange) || randomRange > Number.MAX_SAFE_INTEGER) {
-        randomRange = Number.MAX_SAFE_INTEGER;
+      let range = max - min + 1;
+      if (!isFinite(range) || range > Number.MAX_SAFE_INTEGER) {
+        range = Number.MAX_SAFE_INTEGER;
         story.Error(
           "math.random was called with a range that exceeds the size that ink numbers can use.",
         );
       }
-      if (randomRange <= 0) {
+      if (range <= 0) {
         story.Error(
           `math.random was called with minimum as ${min} and maximum as ${max}. The maximum must be larger`,
         );
       }
-      const seed = story.state.storySeed + story.state.previousRandom;
-      const prng = new PRNG(seed);
-      const next = prng.next();
-      const chosen = (next % randomRange) + min;
-      story.state.previousRandom = next;
-      return chosen;
+      return (next % range) + min;
     },
   },
 
