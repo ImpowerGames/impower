@@ -169,6 +169,29 @@ export function isTruthy(v: any): boolean {
   return true;
 }
 
+/**
+ * Walk `s` and produce the byte offset (0-based, into the UTF-8
+ * encoding) of each code-point boundary, plus a trailing entry for
+ * the end of the string. Used by `utf8.len` and `utf8.offset` to
+ * answer "what byte position is the n-th character at?" without
+ * eagerly building the full byte array. The second tuple element is
+ * the total UTF-8 byte length of `s`.
+ */
+function utf8CodepointOffsets(s: string): [number[], number] {
+  const offsets: number[] = [];
+  let bo = 0;
+  for (const cp of s) {
+    offsets.push(bo);
+    const code = cp.codePointAt(0)!;
+    if (code < 0x80) bo += 1;
+    else if (code < 0x800) bo += 2;
+    else if (code < 0x10000) bo += 3;
+    else bo += 4;
+  }
+  offsets.push(bo);
+  return [offsets, bo];
+}
+
 // Re-export the method-dispatch surface so external callers
 // (compiler, runtime engine) see one entry point. The actual table
 // and helpers live in `MethodDispatch.ts` to keep this file small.
@@ -677,10 +700,20 @@ export const STDLIB: Record<string, StdLibEntry> = {
         .reverse()
         .join(""),
   },
+  // `string.rep(s, n [, sep])` — repeat `s` `n` times. Lua 5.3+ accepts
+  // an optional `sep` argument inserted between copies (e.g.
+  // `string.rep("ab", 3, "-") == "ab-ab-ab"`).
   "string.rep": {
-    arity: 2,
-    fn: (_, [s, n]) =>
-      (coerceString(s) ?? "").repeat(Math.max(0, coerceNumber(n) ?? 0)),
+    arity: -1,
+    fn: (_, args) => {
+      const s = coerceString(args[0]) ?? "";
+      const n = Math.max(0, Math.floor(coerceNumber(args[1]) ?? 0));
+      if (n === 0) return "";
+      if (args.length < 3) return s.repeat(n);
+      const sep = coerceString(args[2]) ?? "";
+      if (sep === "") return s.repeat(n);
+      return new Array(n).fill(s).join(sep);
+    },
   },
   // `string.sub(s, i [, j])` — Lua 1-based inclusive substring with
   // support for negative indices counting from the end. `j` defaults
@@ -846,6 +879,112 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
 
   // ============================================================
+  // `table.*` — read-only table helpers. Mutating fns (`insert`,
+  // `remove`, `sort`, `clear`) and constructors (`pack`, `clone`,
+  // `create`, `move`) are blocked on an ObjectValue mutation/
+  // construction API.
+  // ============================================================
+  // `table.getn(t)` — Lua 5.1 / Luau. Length of the array portion
+  // of `t`, equivalent to `#t`. Walks consecutive integer keys
+  // ("1", "2", ...) until the first gap. Linear in the array length;
+  // good enough for sparkdown's typical narrative-fiction tables.
+  "table.getn": {
+    arity: 1,
+    fn: (story, [t]) => {
+      const map =
+        t != null && typeof t === "object" && "value" in t
+          ? (t as any).value
+          : null;
+      if (!(map instanceof Map)) {
+        story.Error("table.getn: argument must be a table");
+        return 0;
+      }
+      let n = 0;
+      while (map.has(String(n + 1))) n++;
+      return n;
+    },
+  },
+  // `table.concat(t [, sep [, i [, j]]])` — join the array portion
+  // of `t` (1-based indices i..j) into a single string, with `sep`
+  // between elements. Numeric elements are stringified; non-string,
+  // non-number elements raise an error (matches Lua).
+  "table.concat": {
+    arity: -1,
+    fn: (story, args) => {
+      const t = args[0];
+      const map =
+        t != null && typeof t === "object" && "value" in t
+          ? (t as any).value
+          : null;
+      if (!(map instanceof Map)) {
+        story.Error("table.concat: first argument must be a table");
+        return "";
+      }
+      const sep = args.length > 1 ? (coerceString(args[1]) ?? "") : "";
+      const i = args.length > 2 ? (coerceNumber(args[2]) ?? 1) : 1;
+      let len = 0;
+      while (map.has(String(len + 1))) len++;
+      const j = args.length > 3 ? (coerceNumber(args[3]) ?? len) : len;
+      const parts: string[] = [];
+      for (let k = i; k <= j; k++) {
+        const v = map.get(String(k));
+        const sv = coerceString(v);
+        if (sv !== null) {
+          parts.push(sv);
+          continue;
+        }
+        const nv = coerceNumber(v);
+        if (nv !== null) {
+          parts.push(String(nv));
+          continue;
+        }
+        story.Error(
+          `table.concat: invalid value (not a string or number) at index ${k}`,
+        );
+        return "";
+      }
+      return parts.join(sep);
+    },
+  },
+  // `table.find(t, value [, init])` — Luau-only. Linear search of
+  // `t`'s array portion for the first index `k >= init` whose value
+  // equals `value` (using rawequal-style strict equality on
+  // unwrapped primitives). Returns the index, or `null` (nil) if
+  // not found. `init` defaults to 1.
+  "table.find": {
+    arity: -1,
+    fn: (story, args) => {
+      const t = args[0];
+      const map =
+        t != null && typeof t === "object" && "value" in t
+          ? (t as any).value
+          : null;
+      if (!(map instanceof Map)) {
+        story.Error("table.find: first argument must be a table");
+        return null;
+      }
+      const target = args[1];
+      const targetRaw =
+        target != null && typeof target === "object" && "value" in target
+          ? (target as any).value
+          : target;
+      const init =
+        args.length > 2 ? Math.max(1, coerceNumber(args[2]) ?? 1) : 1;
+      let k = init;
+      while (map.has(String(k))) {
+        const v = map.get(String(k));
+        const raw =
+          v != null && typeof v === "object" && "value" in v
+            ? (v as any).value
+            : v;
+        if (raw === targetRaw) return k;
+        k++;
+      }
+      return null;
+    },
+  },
+
+  // ============================================================
   // `os.*` — wall-clock helpers. Sparkdown's runtime has no
   // dedicated clock subsystem; these delegate to the host's
   // `Date.now()` / `performance.now()`. Results are NOT
@@ -859,9 +998,44 @@ export const STDLIB: Record<string, StdLibEntry> = {
         ? performance.now() / 1000
         : Date.now() / 1000,
   },
+  // `os.time([t])` — Unix timestamp. With no arg, current time. With
+  // a table arg `{year, month, day [, hour, min, sec]}`, treat the
+  // fields as **local time** (matches Lua/Luau) and convert to a
+  // Unix timestamp. `month` is 1-indexed per Lua (JS Date is 0-indexed,
+  // so we subtract 1 when handing off). Defaults: `hour=12`, `min=0`,
+  // `sec=0` — matching Lua's `os.time` documentation.
   "os.time": {
     arity: -1,
-    fn: (_, _args) => Math.floor(Date.now() / 1000),
+    fn: (story, args) => {
+      if (args.length === 0 || args[0] == null) {
+        return Math.floor(Date.now() / 1000);
+      }
+      const t = args[0];
+      const map =
+        t != null && typeof t === "object" && "value" in t
+          ? (t as any).value
+          : null;
+      if (!(map instanceof Map)) {
+        story.Error("os.time: argument must be a table");
+        return 0;
+      }
+      const field = (k: string): number | null => {
+        const v = map.get(k);
+        return v == null ? null : coerceNumber(v);
+      };
+      const year = field("year");
+      const month = field("month");
+      const day = field("day");
+      if (year === null || month === null || day === null) {
+        story.Error("os.time: table must have year, month, day fields");
+        return 0;
+      }
+      const hour = field("hour") ?? 12;
+      const min = field("min") ?? 0;
+      const sec = field("sec") ?? 0;
+      const d = new Date(year, month - 1, day, hour, min, sec);
+      return Math.floor(d.getTime() / 1000);
+    },
   },
   "os.difftime": { arity: 2, pure: true, fn: (_, [t2, t1]) => t2 - t1 },
 
@@ -885,15 +1059,100 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return String.fromCodePoint(...codepoints);
     },
   },
+  // `utf8.len(s [, i [, j]])` — number of UTF-8 code points in `s`
+  // from byte position `i` (default 1) to byte position `j` (default
+  // -1, end of string). Negative indices count from the end.
+  // Sparkdown's JS strings are always valid Unicode (UTF-16), so the
+  // "first invalid byte" error path Lua specifies never triggers.
   "utf8.len": {
-    arity: 1,
-    fn: (_, [s]) => {
-      const str = coerceString(s) ?? "";
-      // Iterating a JS string yields code points (surrogate pairs
-      // become a single iteration step). `[...str]` is the
-      // idiomatic Unicode-aware length.
-      return [...str].length;
+    arity: -1,
+    fn: (story, args) => {
+      const str = coerceString(args[0]) ?? "";
+      const [cpOffsets, totalBytes] = utf8CodepointOffsets(str);
+      let i = args.length > 1 ? (coerceNumber(args[1]) ?? 1) : 1;
+      let j = args.length > 2 ? (coerceNumber(args[2]) ?? -1) : -1;
+      if (i < 0) i = totalBytes + 1 + i;
+      if (j < 0) j = totalBytes + 1 + j;
+      if (i < 1) i = 1;
+      if (j > totalBytes) j = totalBytes;
+      if (i > totalBytes + 1) {
+        story.Error("utf8.len: starting position out of bounds");
+        return null;
+      }
+      let count = 0;
+      // `cpOffsets` has one entry per code point plus a terminal offset.
+      for (let k = 0; k < cpOffsets.length - 1; k++) {
+        if (cpOffsets[k] >= i - 1 && cpOffsets[k] <= j - 1) count++;
+      }
+      return count;
     },
+  },
+  // `utf8.offset(s, n [, i])` — byte position where the n-th UTF-8
+  // character (counting from byte position `i`) starts. `n` may be
+  // negative (count backward) or zero (return the start of the
+  // character containing byte `i`). Default `i` is 1 when n >= 0,
+  // otherwise `#s + 1`. Returns `null` (nil) when out of range.
+  "utf8.offset": {
+    arity: -1,
+    fn: (story, args) => {
+      const s = coerceString(args[0]) ?? "";
+      const nArg = coerceNumber(args[1]);
+      if (nArg === null) {
+        story.Error("utf8.offset: second argument must be a number");
+        return null;
+      }
+      const n = Math.trunc(nArg);
+      const [cpOffsets, totalBytes] = utf8CodepointOffsets(s);
+      const defaultI = n >= 0 ? 1 : totalBytes + 1;
+      let iArg = args.length > 2 ? (coerceNumber(args[2]) ?? defaultI) : defaultI;
+      let i = Math.trunc(iArg);
+      if (i < 0) i = totalBytes + 1 + i;
+      if (i < 1 || i > totalBytes + 1) {
+        story.Error("utf8.offset: position out of bounds");
+        return null;
+      }
+      const byteI = i - 1;
+      if (n === 0) {
+        // Return position (1-based) of the character whose encoding
+        // contains byte `byteI`. Walk forward through code-point
+        // boundaries until we'd pass it.
+        let result = 0;
+        for (const off of cpOffsets) {
+          if (off > byteI) break;
+          result = off;
+        }
+        return result + 1;
+      }
+      // Locate the code-point boundary at `byteI`. `i` is required
+      // to sit on a boundary (or at the one-past-end position) for
+      // n != 0.
+      let cpIdx = -1;
+      for (let k = 0; k < cpOffsets.length; k++) {
+        if (cpOffsets[k] === byteI) {
+          cpIdx = k;
+          break;
+        }
+      }
+      if (cpIdx === -1) {
+        story.Error("utf8.offset: position is not at a character boundary");
+        return null;
+      }
+      // n=1 → current boundary; n=2 → next; n=-1 → previous; etc.
+      const targetIdx = n > 0 ? cpIdx + n - 1 : cpIdx + n;
+      if (targetIdx < 0 || targetIdx >= cpOffsets.length) return null;
+      return cpOffsets[targetIdx] + 1;
+    },
+  },
+  // `utf8.nfcnormalize(s)` / `utf8.nfdnormalize(s)` — Luau-only.
+  // Unicode Normalization Form C / D. JS strings expose this directly
+  // via `String.prototype.normalize`.
+  "utf8.nfcnormalize": {
+    arity: 1,
+    fn: (_, [s]) => (coerceString(s) ?? "").normalize("NFC"),
+  },
+  "utf8.nfdnormalize": {
+    arity: 1,
+    fn: (_, [s]) => (coerceString(s) ?? "").normalize("NFD"),
   },
 
   // `assert(cond [, message])` — Luau-style assertion. Raises a
