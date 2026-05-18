@@ -610,6 +610,150 @@ end
   });
 });
 
+describe("multi-RHS positional assignment", () => {
+  test("local a, b = 10, 20 — basic multi-RHS", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local a, b = 10, 20
+& host_record(a)
+& host_record(b)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20]);
+  });
+
+  test("local a, b = f(), g() — multi-RHS with function calls", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function f()
+return 10
+end
+
+function g()
+return 99
+end
+
+function run()
+local a, b = f(), g()
+& host_record(a)
+& host_record(b)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 99]);
+  });
+
+  test("local a, b, c = 10, 20 — pads missing RHS with nil", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local a, b, c = 10, 20
+& host_record(a)
+& host_record(b)
+& host_record(c)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20, null]);
+  });
+
+  test("local a, b = 10, multi() — last expression spreads", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 20, 30
+end
+
+function run()
+-- Targets: 2. RHS: 2 (10, multi()). multi() is last → first spread
+-- value fills b. Extras (30) are discarded since there are only 2 targets.
+local a, b = 10, multi()
+& host_record(a)
+& host_record(b)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20]);
+  });
+
+  test("local a, b, c = 10, multi() — spread fills remaining targets", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 20, 30, 40
+end
+
+function run()
+-- 3 targets, 2 RHS. multi() spreads to fill b, c (and discards 40).
+local a, b, c = 10, multi()
+& host_record(a)
+& host_record(b)
+& host_record(c)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20, 30]);
+  });
+
+  test("local a, b = multi(), 99 — non-last multi-return truncates", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 10, 20, 30
+end
+
+function run()
+-- multi() is non-last → truncates to first value (10). b gets 99.
+local a, b = multi(), 99
+& host_record(a)
+& host_record(b)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 99]);
+  });
+});
+
+describe("multi-target globals (store)", () => {
+  test("store a, b = 10, 20 declares two globals positionally", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+store a, b = 10, 20
+
+& host_record(a)
+& host_record(b)
+done
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20]);
+  });
+
+  test("store a, b = 10, 20, 30 ignores extras", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+store a, b = 10, 20, 30
+
+& host_record(a)
+& host_record(b)
+done
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20]);
+  });
+});
+
 describe("multi-target padding and truncation", () => {
   test("multi-target with single-value RHS pads remaining with nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)

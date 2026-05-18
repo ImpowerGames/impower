@@ -3085,14 +3085,37 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # Multi-target multi-RHS shape (`local a, b = 10, 20`): each
+    # `LuauVariableAssignment` terminates at `,` so the comma + any
+    # subsequent expressions live at the `LuauVariableDefinition`
+    # level. `LuauCommaSeparator` handles the comma between targets
+    # AND the comma between RHS values; `LuauExpression` (added here
+    # rather than only inside `LuauVariableAssignment`) captures
+    # trailing RHS values after the assignment's `= <first-value>`
+    # has terminated at the first comma. The lowerer reassembles the
+    # multi-RHS list by walking the def's content children.
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauVariableAssignment" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauExpression" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
 
   LuauVariableAssignment:
-    begin: ({{LUAU_IDENTIFIER}})({{WS}}*)
+    # The lookahead `(?={{WS}}*[,:=])` distinguishes a TARGET
+    # identifier from an identifier appearing as part of a trailing
+    # RHS expression in multi-RHS syntax (`local a, b = 10, g()` —
+    # `g` must NOT match as a target since the next char after it
+    # is `(`, not `,`/`:`/`=`). Target-shape identifiers are
+    # always followed by one of:
+    #   `,` — continuing target list (`a, b = …`)
+    #   `:` — type annotation (`a: number = …`)
+    #   `=` — assignment operator
+    # Anything else (`g(`, `g.h`, `g[k]`, etc.) means the identifier
+    # is actually an expression — fall through to `LuauExpression`
+    # at the outer `LuauVariableDefinition` level.
+    begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*[,:=])
     beginCaptures:
       1:
         patterns:
@@ -3108,8 +3131,12 @@ repository:
       - { include: "#LuauTypeAnnotationOperation" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauFunctionDefinition" }
-      - { include: "#LuauCommaSeparator" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    # Terminate at `,` (in addition to WS / EOL / `BEAT`) so the
+    # outer `LuauVariableDefinition` owns the comma between
+    # multi-RHS values. Previously the VA's own `LuauCommaSeparator`
+    # pattern consumed the comma and an `ERROR_INCOMPLETE` followed —
+    # the trailing RHS values were silently dropped from the tree.
+    end: (?={{BEAT}})|(?=$|{{WS}}|,)
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
