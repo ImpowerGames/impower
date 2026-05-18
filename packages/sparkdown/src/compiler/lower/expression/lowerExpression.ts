@@ -19,6 +19,7 @@ import { mapStdLibCallToBuiltin } from "../utils/stdlibMapping";
 import {
   isBuiltinMethod,
   lookupGlobalStdLibBuiltin,
+  lookupStdLibConstant,
   METHOD_PREFIX,
 } from "../../../inkjs/engine/StdLib";
 
@@ -821,6 +822,27 @@ export function lowerSimpleAccessPath(
   }
 
   if (identifiers.length > 0) {
+    // Stdlib constant short-circuit: when the dotted path matches a
+    // registered constant (`math.pi`, `math.huge`, `_VERSION`, ...),
+    // emit the value directly instead of a `VariableReference` that
+    // would fail to resolve at runtime. Compile-time substitution —
+    // no runtime dispatch needed.
+    const dotted = identifiers.map((id) => id.name).join(".");
+    const constVal = lookupStdLibConstant(dotted);
+    if (constVal !== undefined) {
+      if (typeof constVal === "number") {
+        return new NumberExpression(
+          constVal,
+          Number.isInteger(constVal) && Number.isFinite(constVal) ? "int" : "float",
+        );
+      }
+      if (typeof constVal === "string") {
+        return new StringExpression([new Text(constVal)]);
+      }
+      if (typeof constVal === "boolean") {
+        return new NumberExpression(constVal, "bool");
+      }
+    }
     return new VariableReference(identifiers);
   }
   return null;

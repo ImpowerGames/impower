@@ -216,7 +216,15 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "math.abs": { arity: 1, pure: true, fn: (_, [v]) => Math.abs(v) },
   "math.acos": { arity: 1, pure: true, fn: (_, [v]) => Math.acos(v) },
   "math.asin": { arity: 1, pure: true, fn: (_, [v]) => Math.asin(v) },
-  "math.atan": { arity: 1, pure: true, fn: (_, [v]) => Math.atan(v) },
+  // `math.atan(x)` / `math.atan(y, x)` — the 2-arg form was added
+  // in Lua 5.3 (replacing `math.atan2`) and is also in Luau. Routes
+  // through `Math.atan2` when both args are present.
+  "math.atan": {
+    arity: -1,
+    pure: true,
+    fn: (_, args: number[]) =>
+      args.length >= 2 ? Math.atan2(args[0], args[1]) : Math.atan(args[0]),
+  },
   "math.atan2": { arity: 2, pure: true, fn: (_, [y, x]) => Math.atan2(y, x) },
   "math.ceil": { arity: 1, pure: true, fn: (_, [v]) => Math.ceil(v) },
   "math.cos": { arity: 1, pure: true, fn: (_, [v]) => Math.cos(v) },
@@ -233,7 +241,15 @@ export const STDLIB: Record<string, StdLibEntry> = {
     pure: true,
     fn: (_, [m, e]) => m * Math.pow(2, e),
   },
-  "math.log": { arity: 1, pure: true, fn: (_, [v]) => Math.log(v) },
+  // `math.log(x [, base])` — Lua 5.2+ / Luau accept an optional
+  // base. With one arg, returns natural log. With two args, returns
+  // `log(x) / log(base)`.
+  "math.log": {
+    arity: -1,
+    pure: true,
+    fn: (_, args: number[]) =>
+      args.length >= 2 ? Math.log(args[0]) / Math.log(args[1]) : Math.log(args[0]),
+  },
   "math.log10": { arity: 1, pure: true, fn: (_, [v]) => Math.log10(v) },
   // `math.max(a, b, ...)` / `math.min(a, b, ...)` — Luau variadic.
   // Pure: NativeFunctionCall registers them with VARIADIC_ARITY; the
@@ -850,6 +866,30 @@ export function lookupGlobalStdLibBuiltin(
   _argCount: number,
 ): string | null {
   return STDLIB[name] != null ? name : null;
+}
+
+// Stdlib constants — identifiers that evaluate to a fixed value at
+// compile time. The lowerer (`lowerSimpleAccessPath`) checks the
+// dotted name of an access path against this table and emits the
+// value directly (as a `NumberExpression` / `StringExpression`)
+// instead of a `VariableReference`. No runtime dispatch needed —
+// the value is baked into the compiled IR. Keys are dotted full
+// names (`"math.pi"`, `"math.huge"`, `"_VERSION"`).
+export const STDLIB_CONSTANTS: Record<string, number | string | boolean> = {
+  // Standard Luau math constants.
+  "math.pi": Math.PI,
+  "math.huge": Infinity,
+
+  // Globals (non-namespaced) — single-identifier access.
+  // `_VERSION` is the language version string; sparkdown reports
+  // "Luau" since it aspires to Luau-superset semantics.
+  _VERSION: "Luau",
+};
+
+export function lookupStdLibConstant(
+  name: string,
+): number | string | boolean | undefined {
+  return STDLIB_CONSTANTS[name];
 }
 
 // Direct registry lookup for state-aware builtins. Returns the
