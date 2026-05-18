@@ -62,7 +62,23 @@ export function lowerExplicitStatement(
     // returning null. `lowerExpressionFromNodes([path])` routes the
     // node through `lowerAccessPath` which returns a `FunctionCall`
     // when the path is a single call form.
-    const callExpr = lowerExpressionFromNodes([lhsPath], ctx);
+    //
+    // Method-call shape: `& table.insert(t, 40)` parses the access
+    // path (`table.insert`) and the call args (`(t, 40)`) as
+    // ADJACENT siblings — `LuauAccessPath` ending in
+    // `LuauFunctionAccessor`, followed by `LuauParenthetical`. The
+    // grammar uses the same `LuauFunctionAccessor` rule for `.` and
+    // `:`, so namespaced stdlib calls (`table.insert`, `math.floor`)
+    // travel this path too. `lowerExpressionFromNodes`'s method-call
+    // combining only fires when both nodes are in the input list —
+    // pass any sibling parenthetical alongside the access path.
+    const nodes: SyntaxNode[] = [lhsPath];
+    let next: SyntaxNode | null = lhsPath.nextSibling;
+    while (next && next.name !== "LuauParenthetical") {
+      next = next.nextSibling;
+    }
+    if (next) nodes.push(next);
+    const callExpr = lowerExpressionFromNodes(nodes, ctx);
     if (callExpr instanceof FunctionCall) {
       callExpr.shouldPopReturnedValue = true;
       return wrapInWeave([callExpr]);

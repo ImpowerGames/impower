@@ -299,6 +299,163 @@ end
     expect(recorded).toEqual(["abc", "a-b-c", "b,c", "1+2+3"]);
   });
 
+  test("table.insert appends or inserts shifting later elements", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { 10, 20, 30 }
+& table.insert(t, 40)
+& host_record(table.concat(t, ","))
+& table.insert(t, 1, 5)
+& host_record(table.concat(t, ","))
+& table.insert(t, 3, 15)
+& host_record(table.concat(t, ","))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["10,20,30,40", "5,10,20,30,40", "5,10,15,20,30,40"]);
+  });
+
+  test("table.remove pops last by default, or at given index", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { 10, 20, 30, 40 }
+& host_record(table.remove(t))
+& host_record(table.concat(t, ","))
+& host_record(table.remove(t, 1))
+& host_record(table.concat(t, ","))
+& host_record(table.remove(t, 5))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([40, "10,20,30", 10, "20,30", null]);
+  });
+
+  test("table.clear empties a table", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { 1, 2, 3 }
+& host_record(table.getn(t))
+& table.clear(t)
+& host_record(table.getn(t))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([3, 0]);
+  });
+
+  test("table.clone makes a shallow copy", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { 1, 2, 3 }
+local c = table.clone(t)
+& table.insert(c, 4)
+& host_record(table.concat(t, ","))
+& host_record(table.concat(c, ","))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["1,2,3", "1,2,3,4"]);
+  });
+
+  test("table.create builds an n-entry table sharing one value", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = table.create(3, "x")
+& host_record(table.concat(t, ","))
+& host_record(table.getn(t))
+local empty = table.create(0)
+& host_record(table.getn(empty))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["x,x,x", 3, 0]);
+  });
+
+  test("table.pack collects variadic args plus n field", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = table.pack(10, 20, 30)
+& host_record(rawget(t, "n"))
+& host_record(rawget(t, "1"))
+& host_record(rawget(t, "3"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([3, 10, 30]);
+  });
+
+  test("table.move copies an index range into another table", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local a = { 1, 2, 3, 4, 5 }
+local b = { 0, 0, 0, 0, 0 }
+& table.move(a, 2, 4, 1, b)
+& host_record(table.concat(b, ","))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["2,3,4,0,0"]);
+  });
+
+  test("table.freeze blocks mutation and table.isfrozen reports it", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { 1, 2, 3 }
+& host_record(table.isfrozen(t))
+& table.freeze(t)
+& host_record(table.isfrozen(t))
+& table.insert(t, 4)
+end
+`);
+    // The insert into the frozen table should error; everything
+    // up to that point should still record cleanly.
+    expect(recorded).toEqual([false, true]);
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toMatch(/frozen/);
+  });
+
+  test("table.clone of a frozen table is unfrozen", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { 1, 2 }
+& table.freeze(t)
+local c = table.clone(t)
+& host_record(table.isfrozen(c))
+& table.insert(c, 3)
+& host_record(table.concat(c, ","))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([false, "1,2,3"]);
+  });
+
   test("table.find returns first matching index, or nil if absent", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()

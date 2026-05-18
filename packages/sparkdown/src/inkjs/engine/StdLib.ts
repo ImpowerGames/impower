@@ -1,5 +1,6 @@
 import { getPluralCategory } from "./PluralRules";
 import { PRNG } from "./PRNG";
+import { ObjectValue, IntValue, AbstractValue } from "./Value";
 
 // Sparkdown's Luau-standard-library bridge. Three tables drive everything:
 //
@@ -643,16 +644,16 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // metamethod. Returns `t`. As with `rawget`, sparkdown has no
   // metamethods so this is equivalent to plain assignment, but
   // having the function form lets user code use it verbatim.
+  // Refuses to mutate a `table.freeze(t)`-frozen table.
   rawset: {
     arity: 3,
     fn: (story, [t, k, v]) => {
-      if (t == null || typeof t !== "object" || !("value" in t)) {
+      if (!(t instanceof ObjectValue) || !(t.value instanceof Map)) {
         story.Error("rawset: first argument must be a table");
         return null;
       }
-      const map = (t as any).value;
-      if (!(map instanceof Map)) {
-        story.Error("rawset: first argument must be a table");
+      if (t.isFrozen) {
+        story.Error("rawset: cannot mutate a frozen table");
         return null;
       }
       const key =
@@ -662,7 +663,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("rawset: key must be a string or number");
         return null;
       }
-      map.set(key, v);
+      t.value.set(key, v as AbstractValue);
       return t;
     },
   },
@@ -982,6 +983,242 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       return null;
     },
+  },
+  // `table.insert(t [, pos], value)` — append (2-arg) or insert at
+  // `pos` shifting later elements right (3-arg). Refuses if `t` is
+  // frozen. Returns nothing.
+  "table.insert": {
+    arity: -1,
+    fn: (story, args) => {
+      if (!(args[0] instanceof ObjectValue)) {
+        story.Error("table.insert: first argument must be a table");
+        return undefined;
+      }
+      const t = args[0];
+      if (t.isFrozen) {
+        story.Error("table.insert: cannot mutate a frozen table");
+        return undefined;
+      }
+      const map = t.value!;
+      let len = 0;
+      while (map.has(String(len + 1))) len++;
+      let pos: number;
+      let value: any;
+      if (args.length === 2) {
+        pos = len + 1;
+        value = args[1];
+      } else if (args.length >= 3) {
+        const p = coerceNumber(args[1]);
+        if (p === null || !Number.isInteger(p) || p < 1 || p > len + 1) {
+          story.Error("table.insert: position out of bounds");
+          return undefined;
+        }
+        pos = p;
+        value = args[2];
+        for (let k = len; k >= pos; k--) {
+          const existing = map.get(String(k));
+          if (existing !== undefined) {
+            map.set(String(k + 1), existing);
+          }
+        }
+      } else {
+        story.Error("table.insert: missing value argument");
+        return undefined;
+      }
+      map.set(String(pos), value);
+      return undefined;
+    },
+  },
+  // `table.remove(t [, pos])` — remove element at `pos` (default
+  // last) and shift later elements left. Returns the removed value
+  // or nil. Refuses on a frozen table.
+  "table.remove": {
+    arity: -1,
+    fn: (story, args) => {
+      if (!(args[0] instanceof ObjectValue)) {
+        story.Error("table.remove: first argument must be a table");
+        return null;
+      }
+      const t = args[0];
+      if (t.isFrozen) {
+        story.Error("table.remove: cannot mutate a frozen table");
+        return null;
+      }
+      const map = t.value!;
+      let len = 0;
+      while (map.has(String(len + 1))) len++;
+      if (len === 0) return null;
+      let pos: number;
+      if (args.length < 2) {
+        pos = len;
+      } else {
+        const p = coerceNumber(args[1]);
+        if (p === null || !Number.isInteger(p)) {
+          story.Error("table.remove: position must be an integer");
+          return null;
+        }
+        pos = p;
+      }
+      if (pos < 1 || pos > len) return null;
+      const removed = map.get(String(pos)) ?? null;
+      for (let k = pos; k < len; k++) {
+        const next = map.get(String(k + 1));
+        if (next !== undefined) {
+          map.set(String(k), next);
+        } else {
+          map.delete(String(k));
+        }
+      }
+      map.delete(String(len));
+      return removed;
+    },
+  },
+  // `table.clear(t)` — Luau-only. Empty all entries (array + hash
+  // portion). Refuses on a frozen table.
+  "table.clear": {
+    arity: 1,
+    fn: (story, [t]) => {
+      if (!(t instanceof ObjectValue)) {
+        story.Error("table.clear: argument must be a table");
+        return undefined;
+      }
+      if (t.isFrozen) {
+        story.Error("table.clear: cannot mutate a frozen table");
+        return undefined;
+      }
+      t.value!.clear();
+      return undefined;
+    },
+  },
+  // `table.clone(t)` — Luau-only. Shallow copy. Returns a NEW
+  // table with the same entries; the new table is **not** frozen
+  // even if the source was (matches Luau).
+  "table.clone": {
+    arity: 1,
+    fn: (story, [t]) => {
+      if (!(t instanceof ObjectValue)) {
+        story.Error("table.clone: argument must be a table");
+        return null;
+      }
+      const next = new Map<string, AbstractValue>();
+      for (const [k, v] of t.value!) next.set(k, v);
+      return new ObjectValue(next);
+    },
+  },
+  // `table.create(count [, value])` — Luau-only. New table with
+  // `count` entries at keys "1".."count", each holding `value`
+  // (defaults to nil — entries are omitted in that case since Lua
+  // nil ≡ absent key). Shares one reference across all slots
+  // (Lua semantics; mutations to a shared table propagate).
+  "table.create": {
+    arity: -1,
+    fn: (story, args) => {
+      const count = coerceNumber(args[0]);
+      if (count === null || !Number.isInteger(count) || count < 0) {
+        story.Error(
+          "table.create: first argument must be a non-negative integer",
+        );
+        return null;
+      }
+      const map = new Map<string, AbstractValue>();
+      const value = args.length > 1 ? args[1] : null;
+      const valueIsNil =
+        value === null ||
+        value === undefined ||
+        (value != null &&
+          typeof value === "object" &&
+          "value" in value &&
+          (value as any).value === null);
+      if (!valueIsNil) {
+        for (let k = 1; k <= count; k++) {
+          map.set(String(k), value as AbstractValue);
+        }
+      }
+      return new ObjectValue(map);
+    },
+  },
+  // `table.pack(...)` — variadic. Returns a new table holding each
+  // arg at "1".."N" plus an integer `n = N` field — the standard
+  // way Lua callers can recover the original arg count when nil
+  // values are present.
+  "table.pack": {
+    arity: -1,
+    fn: (_, args) => {
+      const map = new Map<string, AbstractValue>();
+      for (let i = 0; i < args.length; i++) {
+        map.set(String(i + 1), args[i] as AbstractValue);
+      }
+      map.set("n", new IntValue(args.length));
+      return new ObjectValue(map);
+    },
+  },
+  // `table.move(a1, f, e, t [, a2])` — Lua 5.3+. Copy elements
+  // `a1[f..e]` to `a2[t..t+e-f]`. `a2` defaults to `a1` (in-place
+  // move). Returns `a2`. Handles overlapping ranges by picking the
+  // safe iteration direction. Refuses if `a2` is frozen.
+  "table.move": {
+    arity: -1,
+    fn: (story, args) => {
+      if (args.length < 4) {
+        story.Error("table.move: requires at least 4 arguments");
+        return null;
+      }
+      if (!(args[0] instanceof ObjectValue)) {
+        story.Error("table.move: first argument must be a table");
+        return null;
+      }
+      const a1 = args[0];
+      const f = coerceNumber(args[1]);
+      const e = coerceNumber(args[2]);
+      const tPos = coerceNumber(args[3]);
+      if (f === null || e === null || tPos === null) {
+        story.Error("table.move: f, e, t must be numbers");
+        return null;
+      }
+      const a2 =
+        args.length > 4 && args[4] instanceof ObjectValue ? args[4] : a1;
+      if (a2.isFrozen) {
+        story.Error("table.move: destination table is frozen");
+        return null;
+      }
+      const src = a1.value!;
+      const dst = a2.value!;
+      if (e < f) return a2;
+      if (tPos > f && src === dst) {
+        for (let i = e; i >= f; i--) {
+          const v = src.get(String(i));
+          if (v !== undefined) dst.set(String(tPos + (i - f)), v);
+        }
+      } else {
+        for (let i = f; i <= e; i++) {
+          const v = src.get(String(i));
+          if (v !== undefined) dst.set(String(tPos + (i - f)), v);
+        }
+      }
+      return a2;
+    },
+  },
+  // `table.freeze(t)` — Luau-only. Marks `t` read-only. Subsequent
+  // calls to `rawset`/`table.insert`/`table.remove`/`table.clear`/
+  // `table.move` (when targeting this table) will error. Returns
+  // the same `t` so call sites can chain (`local t = table.freeze({...})`).
+  "table.freeze": {
+    arity: 1,
+    fn: (story, [t]) => {
+      if (!(t instanceof ObjectValue)) {
+        story.Error("table.freeze: argument must be a table");
+        return t;
+      }
+      t.Freeze();
+      return t;
+    },
+  },
+  // `table.isfrozen(t)` — Luau-only. True if `t` has been
+  // `table.freeze`d. Non-table arguments return false rather than
+  // raising (mirrors Luau's tolerant behavior).
+  "table.isfrozen": {
+    arity: 1,
+    fn: (_, [t]) => t instanceof ObjectValue && t.isFrozen,
   },
 
   // ============================================================

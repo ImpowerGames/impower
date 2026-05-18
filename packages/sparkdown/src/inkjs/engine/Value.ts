@@ -384,6 +384,12 @@ export class VariablePointerValue extends Value<string> {
 // StringValue(key) followed by the evaluated value; EndObject walks back to
 // the marker collecting pairs, builds the ObjectValue, and pushes it.
 export class ObjectValue extends Value<Map<string, AbstractValue>> {
+  // Luau `table.freeze(t)` marks a table read-only. Stdlib mutation
+  // fns (`table.insert`, `table.remove`, `rawset`, ...) check this
+  // flag and refuse to mutate. `table.clone` on a frozen table
+  // returns an *unfrozen* shallow copy — matching Luau.
+  private _frozen: boolean = false;
+
   constructor(entries?: Map<string, AbstractValue> | null) {
     super(entries ?? new Map<string, AbstractValue>());
   }
@@ -392,6 +398,12 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
   }
   public get isTruthy() {
     return this.value !== null && this.value.size > 0;
+  }
+  public get isFrozen(): boolean {
+    return this._frozen;
+  }
+  public Freeze(): void {
+    this._frozen = true;
   }
   public Cast(newType: ValueType): Value<any> {
     if (newType == this.valueType) return this;
