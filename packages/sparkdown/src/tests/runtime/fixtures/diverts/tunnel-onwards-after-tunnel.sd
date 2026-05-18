@@ -4,10 +4,13 @@ scene main
   The End.
   -> DONE
 
+end
 scene tunnel1
   Hello...
   -> tunnel2 ->->
 
+end
 scene tunnel2
   ...world.
   ->->
+end

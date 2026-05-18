@@ -4,5 +4,7 @@ scene main
     + one # one [two # two] three # three -> END
   end
 
+end
 scene END
   -> DONE
+end

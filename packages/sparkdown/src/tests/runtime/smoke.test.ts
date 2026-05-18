@@ -38,7 +38,7 @@ describe("runtime test harness smoke", () => {
     // `TunnelOnwards` / `ReturnType`. Authors get to skip the trailing
     // `-> DONE` boilerplate on most scenes.
     const ctx = makeRuntimeStoryFromSource(
-      `-> main\nscene main\n  Hello world.\n`,
+      `-> main\nscene main\n  Hello world.\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.warningMessages).toEqual([]);
@@ -49,7 +49,7 @@ describe("runtime test harness smoke", () => {
   test("branches without explicit `-> DONE` auto-terminate cleanly", () => {
     // Same auto-DONE behavior applies to `branch` (stitch) blocks.
     const ctx = makeRuntimeStoryFromSource(
-      `-> main.opener\nscene main\n  branch opener\n    Greetings.\n`,
+      `-> main.opener\nscene main\n  branch opener\n    Greetings.\n  end\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.warningMessages).toEqual([]);
@@ -68,13 +68,16 @@ describe("runtime test harness smoke", () => {
 scene outer
   This is outer
   -> cut_to(-> the_esc)
+end
 
 scene cut_to(escape: ->)
   ->-> escape
+end
 
 scene the_esc
   This is the_esc
   -> END
+end
 `);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toMatch(
@@ -140,10 +143,12 @@ scene main
   start
   {chain | -> next | second visit end}
   -> DONE
+end
 
 scene next
   arrived
   -> DONE
+end
 `,
     );
     expect(ctx.errorMessages).toEqual([]);
@@ -164,6 +169,8 @@ scene main
   branch sub
     label hello_label
     Hello.
+  end
+end
 `);
     expect(ctxGather.errorMessages).toEqual([]);
 
@@ -174,6 +181,8 @@ scene main
       + (target) hello
     end
     after
+  end
+end
 `);
     expect(ctxChoice.errorMessages).toEqual([]);
   });

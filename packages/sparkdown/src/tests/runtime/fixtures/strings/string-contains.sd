@@ -4,3 +4,4 @@ scene main
   {s:find("World")}
   {s:find("zzz")}
   -> DONE
+end

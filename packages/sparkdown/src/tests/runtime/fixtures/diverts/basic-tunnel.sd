@@ -4,6 +4,8 @@ scene main
   .. world
   -> DONE
 
+end
 scene f
   Hello
   ->->
+end

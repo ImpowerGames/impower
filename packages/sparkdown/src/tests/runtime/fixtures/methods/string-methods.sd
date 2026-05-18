@@ -24,3 +24,4 @@ scene main
   {s:at(1)}
   {s:at(-1)}
   -> DONE
+end

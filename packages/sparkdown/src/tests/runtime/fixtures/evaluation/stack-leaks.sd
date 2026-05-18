@@ -6,6 +6,8 @@ scene main
   -> onceTest ->
   -> DONE
 
+end
 scene onceTest
   queue | hi end
   ->->
+end

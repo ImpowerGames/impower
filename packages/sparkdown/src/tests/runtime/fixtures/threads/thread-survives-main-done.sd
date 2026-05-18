@@ -3,8 +3,10 @@ scene main
   <- side
   -> DONE
 
+end
 scene side
   choose
     * "Survivor choice" -> END
   end
   -> DONE
+end

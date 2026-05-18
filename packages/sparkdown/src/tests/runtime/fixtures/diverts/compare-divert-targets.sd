@@ -34,10 +34,13 @@ scene main
   end
   -> DONE
 
+end
 scene one
   One
   -> DONE
 
+end
 scene two
   Two
   -> DONE
+end

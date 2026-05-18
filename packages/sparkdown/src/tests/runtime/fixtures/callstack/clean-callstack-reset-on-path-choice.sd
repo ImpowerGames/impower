@@ -5,6 +5,8 @@ scene RunAThing
   The second line.
   -> DONE
 
+end
 scene SomewhereElse
   somewhere else
   -> END
+end

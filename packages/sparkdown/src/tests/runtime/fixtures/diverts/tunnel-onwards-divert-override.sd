@@ -3,10 +3,13 @@ scene main
   -> A ->
   We will never return to here!
 
+end
 scene A
   This is A
   ->-> B
 
+end
 scene B
   Now in B.
   -> DONE
+end

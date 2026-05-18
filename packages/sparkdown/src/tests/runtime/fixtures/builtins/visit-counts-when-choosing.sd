@@ -4,6 +4,8 @@ scene TestKnot
     + [Next] -> TestKnot2
   end
 
+end
 scene TestKnot2
   this is the end
   -> END
+end

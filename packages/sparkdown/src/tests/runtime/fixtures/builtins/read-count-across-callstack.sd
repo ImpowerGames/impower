@@ -5,6 +5,8 @@ scene first
   2) Seen first {first} times.
   -> DONE
 
+end
 scene second
   In second.
   ->->
+end

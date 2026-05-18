@@ -12,5 +12,6 @@ scene main
   end
   -> DONE
 
+end
 store x = 5
 store i = 0

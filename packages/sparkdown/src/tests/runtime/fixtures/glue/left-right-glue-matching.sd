@@ -6,6 +6,7 @@ scene main
   end
   -> DONE
 
+end
 function f()
   return true
 end

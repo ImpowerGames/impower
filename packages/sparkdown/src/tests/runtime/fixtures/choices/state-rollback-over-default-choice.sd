@@ -8,3 +8,4 @@ scene make_default_choice
     {5}
     -> END
   end
+end

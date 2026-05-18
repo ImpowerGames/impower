@@ -17,4 +17,5 @@ scene main
   end
   -> END
 
+end
 function test() end

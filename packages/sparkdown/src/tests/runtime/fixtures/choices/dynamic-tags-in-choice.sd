@@ -7,3 +7,4 @@ scene main
     + [choice # tag {var1}{var2}]
   end
   -> DONE
+end

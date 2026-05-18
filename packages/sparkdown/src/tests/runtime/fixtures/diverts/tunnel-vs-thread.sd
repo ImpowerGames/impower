@@ -9,10 +9,13 @@ scene main
     * "End" -> END
 
   end
+end
 scene tunneled
   In tunnel.
   ->->
 
+end
 scene threaded
   In thread.
   -> DONE
+end

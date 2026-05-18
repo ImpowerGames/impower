@@ -7,6 +7,8 @@ scene main
     * "Continue" -> END
 
   end
+end
 scene aside
   Inside aside.
   -> DONE
+end

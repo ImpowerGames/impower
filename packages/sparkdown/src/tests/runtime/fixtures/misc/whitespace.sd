@@ -2,6 +2,8 @@
 scene firstKnot
   Hello!
   -> secondKnot
+end
 scene secondKnot
   World.
   -> END
+end

@@ -6,6 +6,7 @@ scene hub
     * "Leave" -> END
 
   end
+end
 scene inventory
   choose
     * "Check pack" -> pack
@@ -13,6 +14,8 @@ scene inventory
   end
   -> DONE
 
+end
 scene pack
   Pack has a torch.
   -> END
+end

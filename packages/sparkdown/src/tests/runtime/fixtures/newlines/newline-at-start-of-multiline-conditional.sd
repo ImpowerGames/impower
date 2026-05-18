@@ -6,6 +6,8 @@ scene main
   end
   -> END
 
+end
 scene emitX
   X
   ->->
+end

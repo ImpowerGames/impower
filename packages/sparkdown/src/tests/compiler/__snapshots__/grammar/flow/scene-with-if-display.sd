@@ -5,3 +5,4 @@ scene LoseTrust(c: companion)
     & c.trust -= 1
     {c.name} trusts you a little less...
   end
+end

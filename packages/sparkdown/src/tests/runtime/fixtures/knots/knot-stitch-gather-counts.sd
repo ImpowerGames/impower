@@ -13,6 +13,7 @@ scene main
   -> stitch_count_test ->
   -> DONE
 
+end
 scene gather_count_test
   & gatherCount = 0
   label loop
@@ -23,6 +24,7 @@ scene gather_count_test
   end
   ->->
 
+end
 scene knot_count_test
   & knotCount = knotCount + 1
   {knotCount} {knot_count_test}
@@ -31,6 +33,7 @@ scene knot_count_test
   end
   ->->
 
+end
 scene stitch_count_test
   & stitchCount = 0
   -> stitch_count_test.stitch ->
@@ -45,3 +48,5 @@ scene stitch_count_test
       -> stitch_count_test.stitch
     end
     ->->
+  end
+end

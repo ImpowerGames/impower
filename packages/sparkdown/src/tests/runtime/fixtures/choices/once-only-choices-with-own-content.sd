@@ -9,6 +9,7 @@ scene home
   I've finished eating now.
   -> END
 
+end
 scene eat
   This is the {chain | "first" | "second" | "third" end} time.
   choose
@@ -18,3 +19,4 @@ scene eat
   then
     -> home
   end
+end

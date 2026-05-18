@@ -798,6 +798,16 @@ repository:
   ########## Scene ##########
 
   Scene:
+    # Scenes are *boundary-only* Scoped rules — they cover the
+    # declaration line and nothing more. The scene body lives at root
+    # so an edit inside a large scene doesn't force a re-parse of the
+    # whole scene. See GRAMMAR.md §16.3 (the canonical "don't wrap
+    # potentially-large regions" example) and §16.4 (why
+    # LuauFunctionDefinition gets to break this rule but Scene
+    # doesn't). The terminating `end` keyword is matched separately
+    # by `LuauEndKeyword` at the top-level patterns list; the lowerer
+    # pairs declarations with their matching `end` to reconstruct
+    # scope hierarchy.
     begin: ^({{WS}}*)(scene)({{EOK}})
     beginCaptures:
       1:
@@ -848,6 +858,9 @@ repository:
   ########## Branch ##########
 
   Branch:
+    # Like `Scene`, branch is a boundary-only Scoped rule — declaration
+    # line only, body at root, lowerer pairs with `end` keyword. See
+    # GRAMMAR.md §16.3.
     begin: ^({{WS}}*)(branch)({{EOK}})
     beginCaptures:
       1:

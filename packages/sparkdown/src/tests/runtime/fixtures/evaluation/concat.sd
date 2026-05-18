@@ -5,3 +5,4 @@ scene main
   store greeting = a .. ", " .. b .. "!"
   {greeting}
   -> DONE
+end

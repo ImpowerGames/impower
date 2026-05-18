@@ -3,6 +3,8 @@ scene main
   choose
     * hello -> world
   end
+end
 scene world
   world
   -> DONE
+end

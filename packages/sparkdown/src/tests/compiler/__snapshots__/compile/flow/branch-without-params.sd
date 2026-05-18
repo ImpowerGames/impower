@@ -1,1 +1,4 @@
-branch WishCourage
+scene Main
+  branch WishCourage
+  end
+end

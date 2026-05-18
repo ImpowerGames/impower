@@ -4,6 +4,8 @@ store x = -> here
 scene there
   -> x
 
+end
 scene here
   Here.
   -> DONE
+end

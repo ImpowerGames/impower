@@ -10,8 +10,10 @@ scene hub
     * "Enter alone" -> END
 
   end
+end
 scene companion
   choose
     * "Talk to companion" -> END
   end
   -> DONE
+end

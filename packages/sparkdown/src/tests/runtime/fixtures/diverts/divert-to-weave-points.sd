@@ -11,3 +11,5 @@ scene knot
     gather
     chain | -> knot.stitch.choice | second time round end
     -> END
+  end
+end

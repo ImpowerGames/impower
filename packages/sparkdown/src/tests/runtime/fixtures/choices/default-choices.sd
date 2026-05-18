@@ -11,6 +11,8 @@ scene main
   end
   -> start
 
+end
 scene default
   This is default.
   -> DONE
+end

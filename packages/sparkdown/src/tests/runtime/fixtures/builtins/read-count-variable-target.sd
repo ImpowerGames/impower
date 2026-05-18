@@ -8,6 +8,8 @@ scene main
   Count end - {READ_COUNT(x)} {READ_COUNT(-> knot)} {knot}
   -> DONE
 
+end
 scene knot(a)
   {a}
   ->->
+end

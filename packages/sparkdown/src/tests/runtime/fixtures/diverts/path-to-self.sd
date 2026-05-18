@@ -4,8 +4,10 @@ scene main
   -> tunnel ->
   -> dododo
 
+end
 scene tunnel
   choose
     + A
   end
   ->->
+end

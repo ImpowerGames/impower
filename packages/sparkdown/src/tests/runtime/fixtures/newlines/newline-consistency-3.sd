@@ -4,6 +4,8 @@ scene main
     * hello
       -> world
   end
+end
 scene world
   world
   -> DONE
+end

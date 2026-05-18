@@ -7,14 +7,17 @@ scene hub
     * "Leave town" -> END
 
   end
+end
 scene merchant
   choose
     * "What do you sell?" -> END
   end
   -> DONE
 
+end
 scene guard
   choose
     * "Any news?" -> END
   end
   -> DONE
+end

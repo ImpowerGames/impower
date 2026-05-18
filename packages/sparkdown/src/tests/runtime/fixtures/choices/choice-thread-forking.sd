@@ -5,16 +5,20 @@ scene hub
     * "Hub leave" -> END
 
   end
+end
 scene side
   choose
     * "Side enter" -> side_resume
 
   end
+end
 scene side_resume
   -> deep ->
   Back in side_resume.
   -> END
 
+end
 scene deep
   Going deep.
   ->->
+end

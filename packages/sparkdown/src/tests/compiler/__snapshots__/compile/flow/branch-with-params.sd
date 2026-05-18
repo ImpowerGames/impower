@@ -1,1 +1,4 @@
-branch GainTrust(c: companion)
+scene Main
+  branch GainTrust(c: companion)
+  end
+end

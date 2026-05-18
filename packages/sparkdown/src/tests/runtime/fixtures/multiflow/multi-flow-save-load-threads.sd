@@ -7,12 +7,14 @@ scene red
   <- thread2("red")
   -> DONE
 
+end
 scene blue
   Hello I'm blue
   <- thread1("blue")
   <- thread2("blue")
   -> DONE
 
+end
 scene thread1(name)
   choose
     + Thread 1 {name} choice
@@ -20,6 +22,7 @@ scene thread1(name)
     -> thread1Choice(name)
   end
 
+end
 scene thread2(name)
   choose
     + Thread 2 {name} choice
@@ -27,10 +30,13 @@ scene thread2(name)
     -> thread2Choice(name)
   end
 
+end
 scene thread1Choice(name)
   After thread 1 choice ({name})
   -> END
 
+end
 scene thread2Choice(name)
   After thread 2 choice ({name})
   -> END
+end

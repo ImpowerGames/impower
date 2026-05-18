@@ -170,9 +170,11 @@ describe("Evaluation (ported from inkjs)", () => {
 scene main
   Top level content
   -> DONE
+end
 
 scene somewhere
   -> DONE
+end
 
 function test()
   return -> somewhere
@@ -193,6 +195,7 @@ end
     const src = `-> main
 scene main
   -> DONE
+end
 
 function add(x, y)
   return x + y

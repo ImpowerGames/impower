@@ -8,8 +8,10 @@ scene hub
     * "Hub two" -> END
 
   end
+end
 scene side
   choose
     * "Side one" -> END
   end
   -> DONE
+end

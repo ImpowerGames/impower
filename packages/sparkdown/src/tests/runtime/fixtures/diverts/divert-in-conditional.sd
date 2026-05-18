@@ -5,8 +5,11 @@ scene top
   end
   -> END
 
+end
 scene main
   -> top
 
+end
 scene done
   -> END
+end

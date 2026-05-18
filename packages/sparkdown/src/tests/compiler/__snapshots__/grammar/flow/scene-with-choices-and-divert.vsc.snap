@@ -1,4 +1,4 @@
-text.source.sparkdown [0..112]
+text.source.sparkdown [0..116]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..13]: "Rooftop"
@@ -53,4 +53,6 @@ text.source.sparkdown [0..112]
  │           └─ keyword.control.divert.path.sd [95..106]: "WishAnswers"
  ├─ Newline [106..107]: "\n"
  ├─ punctuation.whitespace.optional.sd [107..109]: "  "
- └─ keyword.control.end.luau [109..112]: "end"
+ ├─ keyword.control.end.luau [109..112]: "end"
+ ├─ Newline [112..113]: "\n"
+ └─ keyword.control.end.luau [113..116]: "end"

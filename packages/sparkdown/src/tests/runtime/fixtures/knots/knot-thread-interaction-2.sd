@@ -5,11 +5,14 @@ scene outer
     * "Leave" -> END
 
   end
+end
 scene middle
   -> inner
 
+end
 scene inner
   choose
     * "From inner" -> END
   end
   -> DONE
+end

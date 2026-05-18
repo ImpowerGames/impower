@@ -22,6 +22,7 @@ scene main
   & inc()
   count is {counter}
   -> DONE
+end
 
 function inc()
   counter = counter + 1

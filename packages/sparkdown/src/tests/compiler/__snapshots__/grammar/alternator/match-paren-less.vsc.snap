@@ -1,4 +1,4 @@
-text.source.sparkdown [0..200]
+text.source.sparkdown [0..204]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..10]: "main"
@@ -86,4 +86,6 @@ text.source.sparkdown [0..200]
  ├─ Newline [193..194]: "\n"
  ├─ punctuation.whitespace.optional.sd [194..196]: "  "
  ├─ keyword.control.end.luau [196..199]: "end"
- └─ Newline [199..200]: "\n"
+ ├─ Newline [199..200]: "\n"
+ ├─ keyword.control.end.luau [200..203]: "end"
+ └─ Newline [203..204]: "\n"

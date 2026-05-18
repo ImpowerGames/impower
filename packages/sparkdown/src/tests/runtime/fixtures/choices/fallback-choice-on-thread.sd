@@ -3,12 +3,15 @@ scene hub
   <- side
   -> DONE
 
+end
 scene side
   choose
     * if false "Unreachable" -> END
     * -> defaulted
 
   end
+end
 scene defaulted
   Fallback fired.
   -> END
+end

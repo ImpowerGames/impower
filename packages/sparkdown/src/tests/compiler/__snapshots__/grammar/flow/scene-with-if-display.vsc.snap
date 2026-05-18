@@ -1,4 +1,4 @@
-text.source.sparkdown [0..165]
+text.source.sparkdown [0..169]
  ├─ keyword.control.scene.sd [0..5]: "scene"
  ├─ punctuation.whitespace.required.sd [5..6]: " "
  ├─ keyword.control.section.sd [6..15]: "LoseTrust"
@@ -85,4 +85,6 @@ text.source.sparkdown [0..165]
  ├─ Newline [158..159]: "\n"
  ├─ punctuation.whitespace.optional.sd [159..161]: "  "
  ├─ keyword.control.end.luau [161..164]: "end"
- └─ Newline [164..165]: "\n"
+ ├─ Newline [164..165]: "\n"
+ ├─ keyword.control.end.luau [165..168]: "end"
+ └─ Newline [168..169]: "\n"

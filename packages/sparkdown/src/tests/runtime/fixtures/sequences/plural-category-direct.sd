@@ -11,4 +11,5 @@ scene main
   {plural.category(15)}
   -> END
 
+end
 store lang = { current = "en" }

@@ -5,3 +5,4 @@ scene main
     | rogue = "someone who prefers the shadows"
     | other = "a fresh recruit"
   end
+end

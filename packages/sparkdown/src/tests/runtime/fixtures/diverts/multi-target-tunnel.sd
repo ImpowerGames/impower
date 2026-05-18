@@ -4,14 +4,18 @@ scene main
   Back at start.
   -> DONE
 
+end
 scene first
   In first.
   ->->
 
+end
 scene second
   In second.
   ->->
 
+end
 scene third
   In third.
   -> DONE
+end

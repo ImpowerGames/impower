@@ -8,3 +8,5 @@ scene hi
   branch stitch_to_count
     hi
     ->->
+  end
+end

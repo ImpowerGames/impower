@@ -9,5 +9,6 @@ scene main
   end
   -> END
 
+end
 store n = 0
 store lang = { current = "en" }

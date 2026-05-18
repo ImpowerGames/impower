@@ -6,6 +6,8 @@ scene start
     + [Choice] -> next
   end
 
+end
 scene next
   {count.turns(-> start)}
   -> END
+end
