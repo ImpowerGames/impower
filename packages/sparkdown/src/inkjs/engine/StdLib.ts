@@ -119,6 +119,28 @@ export function coerceString(v: any): string | null {
 }
 
 /**
+ * Lua/Luau `type(v)` semantics: returns one of `"nil"`, `"number"`,
+ * `"string"`, `"boolean"`, `"table"`, `"function"`, `"userdata"`.
+ * Approximated for sparkdown's runtime by inspecting the wrapped
+ * `.value` field. Used by both `type` and `typeof` registry entries.
+ */
+export function luauTypeOf(v: any): string {
+  if (v == null) return "nil";
+  if (typeof v === "object" && "value" in v) {
+    const raw = (v as any).value;
+    if (raw == null) return "nil";
+    if (typeof raw === "number") return "number";
+    if (typeof raw === "string") return "string";
+    if (typeof raw === "boolean") return "boolean";
+    if (raw instanceof Map || typeof raw === "object") return "table";
+  }
+  if (typeof v === "number") return "number";
+  if (typeof v === "string") return "string";
+  if (typeof v === "boolean") return "boolean";
+  return "userdata";
+}
+
+/**
  * Sparkdown truthiness check. Returns `false` for: `nil`/`null`/
  * `undefined`, JS `false`, numeric `0`, empty string `""`, `Void`
  * instances, and any wrapped Value whose `.value` is one of the
@@ -192,17 +214,38 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // `math.*` — pure numeric helpers (auto-registered with NativeFunctionCall)
   // ============================================================
   "math.abs": { arity: 1, pure: true, fn: (_, [v]) => Math.abs(v) },
+  "math.acos": { arity: 1, pure: true, fn: (_, [v]) => Math.acos(v) },
+  "math.asin": { arity: 1, pure: true, fn: (_, [v]) => Math.asin(v) },
+  "math.atan": { arity: 1, pure: true, fn: (_, [v]) => Math.atan(v) },
+  "math.atan2": { arity: 2, pure: true, fn: (_, [y, x]) => Math.atan2(y, x) },
   "math.ceil": { arity: 1, pure: true, fn: (_, [v]) => Math.ceil(v) },
   "math.cos": { arity: 1, pure: true, fn: (_, [v]) => Math.cos(v) },
+  "math.cosh": { arity: 1, pure: true, fn: (_, [v]) => Math.cosh(v) },
+  "math.deg": { arity: 1, pure: true, fn: (_, [v]) => (v * 180) / Math.PI },
   "math.exp": { arity: 1, pure: true, fn: (_, [v]) => Math.exp(v) },
   "math.floor": { arity: 1, pure: true, fn: (_, [v]) => Math.floor(v) },
+  // `math.fmod(a, b)` matches Lua's truncate-toward-zero remainder,
+  // which is the same behavior as JavaScript's `%` operator (sign
+  // follows dividend).
+  "math.fmod": { arity: 2, pure: true, fn: (_, [a, b]) => a % b },
+  "math.ldexp": {
+    arity: 2,
+    pure: true,
+    fn: (_, [m, e]) => m * Math.pow(2, e),
+  },
   "math.log": { arity: 1, pure: true, fn: (_, [v]) => Math.log(v) },
+  "math.log10": { arity: 1, pure: true, fn: (_, [v]) => Math.log10(v) },
   "math.max": { arity: 2, pure: true, fn: (_, [a, b]) => Math.max(a, b) },
   "math.min": { arity: 2, pure: true, fn: (_, [a, b]) => Math.min(a, b) },
   "math.pow": { arity: 2, pure: true, fn: (_, [a, b]) => Math.pow(a, b) },
+  "math.rad": { arity: 1, pure: true, fn: (_, [v]) => (v * Math.PI) / 180 },
+  "math.round": { arity: 1, pure: true, fn: (_, [v]) => Math.round(v) },
+  "math.sign": { arity: 1, pure: true, fn: (_, [v]) => Math.sign(v) },
   "math.sin": { arity: 1, pure: true, fn: (_, [v]) => Math.sin(v) },
+  "math.sinh": { arity: 1, pure: true, fn: (_, [v]) => Math.sinh(v) },
   "math.sqrt": { arity: 1, pure: true, fn: (_, [v]) => Math.sqrt(v) },
   "math.tan": { arity: 1, pure: true, fn: (_, [v]) => Math.tan(v) },
+  "math.tanh": { arity: 1, pure: true, fn: (_, [v]) => Math.tanh(v) },
 
   // ============================================================
   // State-aware entries (route through `RunStdLibFunction`)
@@ -325,6 +368,199 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "count.turns": {
     arity: 0,
     fn: (story) => story.state.currentTurnIndex + 1,
+  },
+
+  // `math.clamp(x, min, max)` — Luau-only. Routes through the
+  // state-aware path because NativeFunctionCall only supports
+  // arity 1 or 2 numeric ops; the fn itself doesn't touch story.
+  "math.clamp": {
+    arity: 3,
+    fn: (_, [vVal, minVal, maxVal]) => {
+      const v = coerceNumber(vVal) ?? 0;
+      const min = coerceNumber(minVal) ?? 0;
+      const max = coerceNumber(maxVal) ?? 0;
+      return Math.min(Math.max(v, min), max);
+    },
+  },
+
+  // `math.map(x, inMin, inMax, outMin, outMax)` — Luau-only.
+  // Linearly remap `x` from input range to output range.
+  "math.map": {
+    arity: 5,
+    fn: (_, args) => {
+      const x = coerceNumber(args[0]) ?? 0;
+      const iMin = coerceNumber(args[1]) ?? 0;
+      const iMax = coerceNumber(args[2]) ?? 0;
+      const oMin = coerceNumber(args[3]) ?? 0;
+      const oMax = coerceNumber(args[4]) ?? 0;
+      if (iMax === iMin) return oMin;
+      return oMin + ((x - iMin) / (iMax - iMin)) * (oMax - oMin);
+    },
+  },
+
+  // `tostring(v)` — coerce to display string. Mirrors Luau:
+  // numbers → JS String(), booleans → "true"/"false", nil → "nil",
+  // strings unchanged. ObjectValues / other userdata fall back to
+  // their JS string form.
+  tostring: {
+    arity: 1,
+    fn: (_, [v]) => {
+      if (v == null) return "nil";
+      if (typeof v === "object" && "value" in v) {
+        const raw = (v as any).value;
+        if (raw == null) return "nil";
+        if (typeof raw === "boolean") return raw ? "true" : "false";
+        return String(raw);
+      }
+      if (typeof v === "boolean") return v ? "true" : "false";
+      return String(v);
+    },
+  },
+
+  // `tonumber(e [, base])` — parse a string or pass-through a number.
+  // Returns `null` (nil) on failure, matching Luau semantics. Base
+  // arg supported for integer parsing (`tonumber("ff", 16) == 255`).
+  tonumber: {
+    arity: 1,
+    fn: (_, args) => {
+      const v = args[0];
+      const baseVal = args.length > 1 ? coerceNumber(args[1]) : null;
+      const n = coerceNumber(v);
+      if (n !== null && baseVal === null) return n;
+      const s = coerceString(v);
+      if (s === null) return null;
+      const parsed =
+        baseVal !== null ? parseInt(s, baseVal) : Number(s);
+      return Number.isFinite(parsed) ? parsed : null;
+    },
+  },
+
+  // `type(v)` — Lua-style type-of string: `"nil"` / `"number"` /
+  // `"string"` / `"boolean"` / `"table"` / `"function"` / `"userdata"`.
+  // Approximated via the runtime Value subclass's `.value` shape.
+  type: {
+    arity: 1,
+    fn: (_, [v]) => luauTypeOf(v),
+  },
+
+  // `typeof(v)` — Luau extension: `type(v)` for primitives, otherwise
+  // the userdata typeName. Sparkdown doesn't have userdata yet, so
+  // it behaves identically to `type` for now.
+  typeof: {
+    arity: 1,
+    fn: (_, [v]) => luauTypeOf(v),
+  },
+
+  // `error(message [, level])` — raise a runtime error. The `level`
+  // arg controls the source location attribution in real Lua/Luau;
+  // sparkdown ignores it (we don't track call-frame depth in error
+  // messages). Force-ends the story like `assert`'s failure path.
+  error: {
+    arity: 1,
+    fn: (story, [msg]) => {
+      const message = coerceString(msg) ?? "error";
+      story.AddError(message);
+    },
+  },
+
+  // `rawequal(a, b)` — strict equality bypassing metamethods.
+  // Sparkdown has no metamethods today, so this is just `===`
+  // on the underlying primitive values.
+  rawequal: {
+    arity: 2,
+    fn: (_, [a, b]) => {
+      const av =
+        a != null && typeof a === "object" && "value" in a
+          ? (a as any).value
+          : a;
+      const bv =
+        b != null && typeof b === "object" && "value" in b
+          ? (b as any).value
+          : b;
+      return av === bv;
+    },
+  },
+
+  // `print(...)` — Luau's variadic console output. Sparkdown's
+  // narrative-fiction runtime has no implicit stdout, so this is a
+  // no-op by default. Variadic: pops `arity` args set at compile
+  // time (the call-site arg count). Users who want output should
+  // emit display text via sparkdown's regular `:` / `..` syntax.
+  print: {
+    arity: -1, // variadic — actual count comes from compile-site capture
+    fn: (_, _args) => {
+      // intentional no-op; could route to a host hook if needed
+    },
+  },
+
+  // ============================================================
+  // `string.*` — state-aware string helpers
+  // ============================================================
+  "string.len": {
+    arity: 1,
+    fn: (_, [s]) => (coerceString(s) ?? "").length,
+  },
+  "string.upper": {
+    arity: 1,
+    fn: (_, [s]) => (coerceString(s) ?? "").toUpperCase(),
+  },
+  "string.lower": {
+    arity: 1,
+    fn: (_, [s]) => (coerceString(s) ?? "").toLowerCase(),
+  },
+  "string.reverse": {
+    arity: 1,
+    fn: (_, [s]) =>
+      (coerceString(s) ?? "")
+        .split("")
+        .reverse()
+        .join(""),
+  },
+  "string.rep": {
+    arity: 2,
+    fn: (_, [s, n]) =>
+      (coerceString(s) ?? "").repeat(Math.max(0, coerceNumber(n) ?? 0)),
+  },
+  // `string.sub(s, i [, j])` — Lua 1-based inclusive substring with
+  // support for negative indices counting from the end. `j` defaults
+  // to -1 (end of string). Variadic at the call site (2 or 3 args);
+  // the registry uses `-1` so the dispatcher passes through whatever
+  // the caller provided.
+  "string.sub": {
+    arity: -1,
+    fn: (_, args) => {
+      const str = coerceString(args[0]) ?? "";
+      let i = coerceNumber(args[1]) ?? 1;
+      let j = args.length > 2 ? (coerceNumber(args[2]) ?? -1) : -1;
+      if (i < 0) i = Math.max(str.length + i + 1, 1);
+      else if (i === 0) i = 1;
+      if (j < 0) j = str.length + j + 1;
+      else if (j > str.length) j = str.length;
+      if (j < i) return "";
+      return str.slice(i - 1, j);
+    },
+  },
+
+  // ============================================================
+  // `bit32.*` — 32-bit integer ops. JS bitwise operators already
+  // operate on signed 32-bit ints; `>>> 0` coerces back to unsigned
+  // for Lua-style unsigned semantics.
+  // ============================================================
+  "bit32.bnot": { arity: 1, pure: true, fn: (_, [v]) => (~v) >>> 0 },
+  "bit32.lshift": {
+    arity: 2,
+    pure: true,
+    fn: (_, [v, n]) => (v << n) >>> 0,
+  },
+  "bit32.rshift": {
+    arity: 2,
+    pure: true,
+    fn: (_, [v, n]) => v >>> n,
+  },
+  "bit32.arshift": {
+    arity: 2,
+    pure: true,
+    fn: (_, [v, n]) => (v >> n) >>> 0,
   },
 
   // `assert(cond [, message])` — Luau-style assertion. Raises a
