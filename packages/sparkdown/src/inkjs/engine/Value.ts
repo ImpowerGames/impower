@@ -136,6 +136,61 @@ export class BoolValue extends Value<boolean> {
   }
 }
 
+// Lua/Luau multi-return values. Sparkdown's eval stack normally
+// holds one value per slot; multi-return packs an ordered list of
+// values into a single `MultiValue` slot so existing
+// single-value consumers continue to work unchanged. Transparency is
+// the design goal: `valueObject` / `isTruthy` / `valueType` / `Cast`
+// all forward to the FIRST inner value, matching Lua's "truncate to 1"
+// rule for callers that don't ask for the rest.
+//
+// Three call sites participate:
+//   - Stdlib fns returning a JS array (e.g. `math.modf` → `[i, f]`)
+//     — wrapped here by the dispatcher and pushed as a single slot.
+//   - `PackTuple(N)` ControlCommand — pops N values, pushes one
+//     MultiValue. Emitted by `return a, b, c`.
+//   - `UnpackTuple(N)` ControlCommand — pops one (MultiValue or
+//     plain), pushes N values padded with nil. Emitted by
+//     `local a, b = expr`.
+//
+// `MultiValue` does not currently round-trip through JSON: it's a
+// transient stack value, not something that gets stored in
+// variables (single-target `VariableAssignment` auto-unwraps it
+// before storage). If/when sparkdown gains first-class function
+// values that can return-and-store tuples, serialization will need
+// a literal token like `"^tuple"`.
+export class MultiValue extends Value<any> {
+  public values: AbstractValue[];
+  constructor(values: AbstractValue[]) {
+    super(null);
+    this.values = values;
+  }
+  public get valueType(): ValueType {
+    return this.values[0]?.valueType ?? ValueType.Null;
+  }
+  public get valueObject(): any {
+    return this.values[0]?.valueObject ?? null;
+  }
+  public get isTruthy(): boolean {
+    const first = this.values[0];
+    return first != null && first.isTruthy;
+  }
+  public Cast(newType: ValueType): Value<any> {
+    if (newType === ValueType.Multi) return this;
+    const first = this.values[0];
+    if (!first) return new NullValue();
+    return first.Cast(newType);
+  }
+  public toString(): string {
+    return this.values[0]?.toString() ?? "nil";
+  }
+  public Copy(): InkObject {
+    return new MultiValue(
+      this.values.map((v) => v.Copy() as AbstractValue),
+    );
+  }
+}
+
 // Lua/Luau `nil` — the explicit "no value" value. Distinct from JS
 // `undefined` (which means "no return"), distinct from `Void` (which
 // is an inkjs control marker for "function returned nothing"). Sparkdown
@@ -514,4 +569,5 @@ export enum ValueType {
   // Appended (rather than renumbered) so existing serialized save
   // states keep their numeric ValueType indices.
   Null = 7,
+  Multi = 8,
 }

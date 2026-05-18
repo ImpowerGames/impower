@@ -265,6 +265,22 @@ export const STDLIB: Record<string, StdLibEntry> = {
     pure: true,
     fn: (_, [m, e]) => m * Math.pow(2, e),
   },
+  // `math.modf(x)` — Lua/Luau multi-return: integer part and
+  // fractional part. The integer part has the same sign as `x` and
+  // its absolute value is `floor(|x|)`. Returning a JS array signals
+  // multi-return to the dispatcher, which wraps the elements as a
+  // `MultiValue` and pushes one stack slot. Consumers:
+  //   - `local i, f = math.modf(x)` — `UnpackTuple` distributes
+  //   - `local x = math.modf(3.7)` — auto-unwrap → first value (3)
+  //   - `print(math.modf(x))` — first value only (single-arg context)
+  "math.modf": {
+    arity: 1,
+    fn: (_, [x]) => {
+      const n = coerceNumber(x) ?? 0;
+      const intPart = n >= 0 ? Math.floor(n) : Math.ceil(n);
+      return [intPart, n - intPart];
+    },
+  },
   // `math.log(x [, base])` — Lua 5.2+ / Luau accept an optional
   // base. With one arg, returns natural log. With two args, returns
   // `log(x) / log(base)`.

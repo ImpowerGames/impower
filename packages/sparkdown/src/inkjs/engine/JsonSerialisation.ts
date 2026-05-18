@@ -271,6 +271,20 @@ export class JsonSerialisation {
         );
         return;
       }
+      // Multi-return tuple pack/unpack. Encode the arity into the
+      // token so the deserializer can reconstruct it.
+      if (
+        controlCmd.commandType === ControlCommand.CommandType.PackTuple
+      ) {
+        writer.Write(`pack:${controlCmd._tupleArity}`);
+        return;
+      }
+      if (
+        controlCmd.commandType === ControlCommand.CommandType.UnpackTuple
+      ) {
+        writer.Write(`unpack:${controlCmd._tupleArity}`);
+        return;
+      }
       writer.Write(
         JsonSerialisation._controlCommandNames[controlCmd.commandType]!,
       );
@@ -415,6 +429,16 @@ export class JsonSerialisation {
             return ControlCommand.RunStdLib(name, arity);
           }
         }
+      }
+
+      // Multi-return tuple pack/unpack: `pack:<n>` / `unpack:<n>`.
+      if (str.startsWith("pack:")) {
+        const arity = parseInt(str.slice("pack:".length), 10);
+        if (Number.isFinite(arity)) return ControlCommand.PackTuple(arity);
+      }
+      if (str.startsWith("unpack:")) {
+        const arity = parseInt(str.slice("unpack:".length), 10);
+        if (Number.isFinite(arity)) return ControlCommand.UnpackTuple(arity);
       }
 
       // Control commands (would looking up in a hash set be faster?)
@@ -899,6 +923,12 @@ export class JsonSerialisation {
     // value has a name.
     _controlCommandNames[ControlCommand.CommandType.RunStdLibFunction] =
       "stdlib:?";
+    // Placeholders — actual serialization uses the dynamic
+    // `pack:<n>` / `unpack:<n>` forms (see WriteRuntimeObject's
+    // special cases for PackTuple/UnpackTuple). These satisfy the
+    // "no missing names" validation loop below.
+    _controlCommandNames[ControlCommand.CommandType.PackTuple] = "pack:?";
+    _controlCommandNames[ControlCommand.CommandType.UnpackTuple] = "unpack:?";
 
     for (let i = 0; i < ControlCommand.CommandType.TOTAL_VALUES; ++i) {
       if (_controlCommandNames[i] == null)

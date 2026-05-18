@@ -18,6 +18,8 @@ import {
   ListValue,
   ObjectValue,
   AbstractValue,
+  MultiValue,
+  NullValue,
 } from "./Value";
 import { Path } from "./Path";
 import { Void } from "./Void";
@@ -1859,6 +1861,45 @@ export class Story extends InkObject {
           break;
         }
 
+        case ControlCommand.CommandType.PackTuple: {
+          // Pop N values and pack them into a single `MultiValue`,
+          // preserving push order (first-pushed at index 0).
+          // Emitted by multi-return lowering for `return a, b, c`.
+          const n = evalCommand._tupleArity;
+          const values: AbstractValue[] = [];
+          for (let i = 0; i < n; i++) {
+            // Pop in LIFO; reverse so the array reads in push-order.
+            const v = this.state.PopEvaluationStack();
+            values.unshift(v as AbstractValue);
+          }
+          this.state.PushEvaluationStack(new MultiValue(values));
+          break;
+        }
+
+        case ControlCommand.CommandType.UnpackTuple: {
+          // Pop the top eval-stack slot. If it's a `MultiValue`,
+          // push the first N inner values in REVERSE order so the
+          // next N pops match the original push order. If it's any
+          // other value, push it as value-0 plus N-1 NullValue
+          // placeholders. Emitted by multi-target assignment
+          // lowering for `local a, b = expr`.
+          const n = evalCommand._tupleArity;
+          const top = this.state.PopEvaluationStack();
+          let values: AbstractValue[];
+          if (top instanceof MultiValue) {
+            values = top.values.slice(0, n);
+          } else {
+            values = [top as AbstractValue];
+          }
+          while (values.length < n) {
+            values.push(new NullValue());
+          }
+          for (let i = values.length - 1; i >= 0; i--) {
+            this.state.PushEvaluationStack(values[i]!);
+          }
+          break;
+        }
+
         case ControlCommand.CommandType.RunStdLibFunction: {
           // Generic dispatcher for state-aware Luau builtins. Reads
           // the function name + arity off the ControlCommand instance
@@ -1886,14 +1927,35 @@ export class Story extends InkObject {
           }
           const result = entry.fn(this, args);
           if (result !== undefined) {
-            // If `fn` returned an InkObject (Value subclass, Void,
-            // etc.) push it directly. JS primitives get wrapped
-            // via `Value.Create` (number → IntValue/FloatValue,
-            // string → StringValue, boolean → BoolValue).
-            const wrapped =
-              result instanceof InkObject ? result : Value.Create(result);
-            if (wrapped !== null) {
-              this.state.PushEvaluationStack(wrapped);
+            // Multi-return: a JS array from the stdlib fn becomes a
+            // `MultiValue` slot. Each element is wrapped via
+            // `Value.Create` (so primitives auto-promote). Used by
+            // `math.modf`, `string.byte`, `utf8.codepoint`,
+            // `table.unpack`, etc. Single-value consumers see the
+            // first inner value via MultiValue's transparent
+            // `valueObject` getter; multi-target assignment uses an
+            // `UnpackTuple` ControlCommand to distribute the slots.
+            if (Array.isArray(result)) {
+              const wrappedValues: AbstractValue[] = [];
+              for (const r of result) {
+                if (r instanceof InkObject) {
+                  wrappedValues.push(r as AbstractValue);
+                } else {
+                  const w = Value.Create(r);
+                  if (w !== null) wrappedValues.push(w);
+                }
+              }
+              this.state.PushEvaluationStack(new MultiValue(wrappedValues));
+            } else {
+              // If `fn` returned an InkObject (Value subclass, Void,
+              // etc.) push it directly. JS primitives get wrapped
+              // via `Value.Create` (number → IntValue/FloatValue,
+              // string → StringValue, boolean → BoolValue).
+              const wrapped =
+                result instanceof InkObject ? result : Value.Create(result);
+              if (wrapped !== null) {
+                this.state.PushEvaluationStack(wrapped);
+              }
             }
           }
           break;
@@ -1911,6 +1973,16 @@ export class Story extends InkObject {
     else if (contentObj instanceof VariableAssignment) {
       let varAss = contentObj;
       let assignedVal = this.state.PopEvaluationStack();
+
+      // Lua/Luau `local x = f()` where `f` returns multiple values
+      // assigns only the FIRST value to `x` and discards the rest.
+      // Multi-target assignment uses an `UnpackTuple` ControlCommand
+      // upstream, so each `VariableAssignment` in that lowering
+      // already receives an unwrapped value — this guard is for the
+      // single-target case.
+      if (assignedVal instanceof MultiValue) {
+        assignedVal = assignedVal.values[0] ?? new NullValue();
+      }
 
       this.state.variablesState.Assign(varAss, assignedVal);
 

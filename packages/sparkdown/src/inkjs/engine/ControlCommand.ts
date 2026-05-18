@@ -16,6 +16,14 @@ export class ControlCommand extends InkObject {
   public _stdLibName: string = "";
   public _stdLibArity: number = 0;
 
+  // For `PackTuple` / `UnpackTuple` ControlCommands — carry the
+  // arity (number of values to pack into a `MultiValue`, or number
+  // of slots to unpack the top `MultiValue` into). Populated by
+  // `PackTuple(n)` / `UnpackTuple(n)` and read by both the runtime
+  // dispatcher and the JSON serializer (encoded as `"pack:<n>"` /
+  // `"unpack:<n>"`).
+  public _tupleArity: number = 0;
+
   constructor(
     commandType: ControlCommand.CommandType = ControlCommand.CommandType.NotSet,
   ) {
@@ -27,6 +35,7 @@ export class ControlCommand extends InkObject {
     const copy = new ControlCommand(this.commandType);
     copy._stdLibName = this._stdLibName;
     copy._stdLibArity = this._stdLibArity;
+    copy._tupleArity = this._tupleArity;
     return copy;
   }
   public static EvalStart() {
@@ -132,6 +141,26 @@ export class ControlCommand extends InkObject {
     cmd._stdLibArity = arity;
     return cmd;
   }
+  // `PackTuple(n)` — at runtime: pop `n` values off the eval stack
+  // and push one `MultiValue` wrapping them (in original push-order:
+  // first-pushed value at index 0). Emitted by the multi-return
+  // lowering for `return a, b, c`.
+  public static PackTuple(arity: number) {
+    const cmd = new ControlCommand(ControlCommand.CommandType.PackTuple);
+    cmd._tupleArity = arity;
+    return cmd;
+  }
+  // `UnpackTuple(n)` — at runtime: pop the top eval-stack slot.
+  // If it's a `MultiValue`, push the first `n` inner values in
+  // REVERSE order (so subsequent `Pop`s receive value-0 first).
+  // If it's a regular value, push it as value-0 followed by `n-1`
+  // `NullValue`s. Emitted by the multi-target assignment lowering
+  // for `local a, b = expr`.
+  public static UnpackTuple(arity: number) {
+    const cmd = new ControlCommand(ControlCommand.CommandType.UnpackTuple);
+    cmd._tupleArity = arity;
+    return cmd;
+  }
   public toString() {
     return "ControlCommand " + this.commandType.toString();
   }
@@ -192,6 +221,15 @@ export namespace ControlCommand {
     // `"stdlib:<name>:<arity>"` token. Runtime looks up the name in
     // `STDLIB` and pops `arity` args. See `RunStdLib()`.
     RunStdLibFunction, // 29
+
+    // Lua/Luau multi-return support. `PackTuple` pops N values and
+    // pushes one `MultiValue` wrapping them — emitted by
+    // `return a, b, c`. `UnpackTuple` pops the top slot (MultiValue
+    // or single) and pushes N values padded with nil — emitted by
+    // `local a, b = expr` so each target's `VariableAssignment` can
+    // pop one value as usual. Both carry their N as `_tupleArity`.
+    PackTuple, // 30
+    UnpackTuple, // 31
 
     TOTAL_VALUES,
   }
