@@ -26,6 +26,7 @@ import { Tag } from "./Tag";
 import { VariableAssignment } from "./VariableAssignment";
 import { VariableReference } from "./VariableReference";
 import { NativeFunctionCall } from "./NativeFunctionCall";
+import { lookupStateAwareStdLib } from "./StdLib";
 import { StoryException } from "./StoryException";
 import { PRNG } from "./PRNG";
 import { StringBuilder } from "./StringBuilder";
@@ -2000,31 +2001,21 @@ export class Story extends InkObject {
         }
 
         case ControlCommand.CommandType.Assert: {
-          // Pops the message (top), then the condition. Falsy
-          // values (nil / 0 / false / "") raise a runtime error via
-          // `AddError`, which routes to `onError` and force-ends the
-          // story. The lowerer guarantees both pushes are present.
+          // Pops the message (top), then the condition, and delegates
+          // to `GLOBAL_STDLIB.assert.fn(story, [cond, msg])` — the
+          // registry holds the single source of truth for assert's
+          // behavior so the per-function ControlCommand dispatch
+          // stays a thin wrapper. When #77's generic `RunStdLibFunction`
+          // dispatcher lands, this entire case can be replaced by one
+          // generic handler that does the same registry lookup for
+          // any state-aware builtin.
           const messageVal = this.state.PopEvaluationStack();
           const condVal = this.state.PopEvaluationStack();
-          // Truthiness mirrors sparkdown's coercion rules elsewhere:
-          // nil/Void is falsy; 0 / false / "" are falsy too.
-          let truthy = true;
-          if (
-            condVal == null ||
-            condVal instanceof Void ||
-            (condVal instanceof IntValue && condVal.value === 0) ||
-            (condVal instanceof FloatValue && condVal.value === 0) ||
-            (condVal instanceof StringValue && condVal.value === "") ||
-            (condVal instanceof BoolValue && condVal.value === false)
-          ) {
-            truthy = false;
-          }
-          if (!truthy) {
-            const message =
-              messageVal instanceof StringValue && messageVal.value != null
-                ? messageVal.value
-                : "assertion failed";
-            this.AddError(message);
+          const entry = lookupStateAwareStdLib("assert");
+          if (entry) {
+            // Lowerer pads to exactly 2 args; runtime hands them to
+            // the JS function in source order (cond first, msg second).
+            entry.fn(this, [condVal, messageVal]);
           }
           break;
         }

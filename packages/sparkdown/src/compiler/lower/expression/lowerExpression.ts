@@ -34,15 +34,15 @@ function makeGlobalFunctionCall(
   args: Expression[],
 ): FunctionCall {
   const resolved = lookupGlobalStdLibBuiltin(name.name, args.length);
-  if (resolved && resolved !== name.name) {
-    if (resolved === "ASSERT" && args.length === 1) {
-      // `assert(cond)` source form: pad with the default message so
-      // the runtime handler always sees exactly two stack pushes.
-      args = [...args, new StringExpression([new Text("assertion failed")])];
-    }
-    return new FunctionCall(new Identifier(resolved), args);
+  if (!resolved) return new FunctionCall(name, args);
+  // State-aware globals keep their source name verbatim — the lowerer
+  // just normalizes args. `assert(cond)` is padded with a default
+  // `"assertion failed"` message string so the runtime handler always
+  // sees exactly two stack pushes.
+  if (resolved === "assert" && args.length === 1) {
+    args = [...args, new StringExpression([new Text("assertion failed")])];
   }
-  return new FunctionCall(name, args);
+  return new FunctionCall(new Identifier(resolved), args);
 }
 
 // ============================================================================

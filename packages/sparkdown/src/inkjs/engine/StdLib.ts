@@ -30,6 +30,31 @@ export type NumericUnary = (v: number) => number;
 export type NumericBinary = (a: number, b: number) => number;
 export type StdLibFn = NumericUnary | NumericBinary;
 
+// State-aware stdlib function. Takes the running `story` (typed as
+// `any` here to avoid a circular import with `Story.ts`) and an
+// array of popped eval-stack values, and may push a return value
+// back onto the stack. Used for global Luau builtins that need
+// access to runtime state — `assert` calls `story.AddError`,
+// `plural.category` reads `lang.current` from `state.variablesState`,
+// etc. — and therefore can't live in the pure-numeric `STDLIB` table.
+export type StateAwareStdLibFn = (
+  story: any,
+  args: any[],
+) => any | undefined;
+
+export interface StateAwareStdLibEntry {
+  /** Number of stack values to pop before calling `fn`. */
+  arity: number;
+  /**
+   * Implementation. Receives popped args in source order (arg 0 first,
+   * arg 1 second, …) — the runtime handler reverses the pop order so
+   * implementations don't have to think about stack direction. May
+   * return a value to push back onto the eval stack, or `undefined`
+   * for void/no-return semantics.
+   */
+  fn: StateAwareStdLibFn;
+}
+
 // Sentinel for native functions whose arity can't be statically checked
 // (currently: the `__method_*` builtin-method family, which validates
 // arity inside each implementation). FunctionCall.GenerateIntoContainer
@@ -74,26 +99,63 @@ export const STDLIB: Record<string, Record<string, StdLibFn>> = {
 // name (or `null` if the arity isn't supported).
 export type InkBuiltinAlias = string | ((argCount: number) => string | null);
 
-// Global (unnamespaced) Luau builtins that resolve to ink-runtime
-// ControlCommand names. Used for source-level calls like `assert(...)`
-// where there's no namespace receiver. The lowerer (in
-// `lowerSimpleAccessPath`) consults this table when a bare function
-// call's name matches a global builtin, and rewrites the source name
-// (e.g. `assert`) to the runtime name (`ASSERT`) before constructing
-// the `FunctionCall`. Dispatch in `FunctionCall.GenerateIntoContainer`
-// happens on the resolved runtime name.
+// Global (unnamespaced) Luau builtins that need access to runtime
+// state. Each entry is a one-line registration: the registry is the
+// single source of truth for source-level name → runtime behavior.
 //
-// Same shape as `INK_BUILTIN_ALIASES` per-namespace entries: value is
-// either a fixed string or an arg-count function for arity-overloaded
-// builtins.
-export const GLOBAL_STDLIB_ALIASES: Record<string, InkBuiltinAlias> = {
+// Adding a new state-aware builtin is just:
+//   tostring: { arity: 1, fn: (story, [v]) => stringify(v) },
+//
+// At lowering, `makeGlobalFunctionCall` (lowerExpression.ts) checks
+// this table when a bare function-call name has no namespace
+// receiver, and produces a `FunctionCall` whose name carries the
+// stdlib id verbatim (lowercase, source form). The runtime's
+// generic `RunStdLibFunction` ControlCommand pops `arity` values
+// off the eval stack, calls `fn(story, args)`, and pushes the
+// return value if it's non-undefined.
+//
+// This replaces the older per-builtin pattern of (ControlCommand
+// enum entry + JsonSerialisation name + FunctionCall dispatch
+// branch + Story.ts runtime case) with a single registry plus one
+// generic dispatcher. See task #77.
+export const GLOBAL_STDLIB: Record<string, StateAwareStdLibEntry> = {
   // `assert(cond [, message])` — Luau-style assertion. Raises a
-  // runtime error via `story.AddError(message)` when `cond` is falsy
-  // (sparkdown's truthiness: nil/0/false/"" are falsy). The lowerer
-  // pads a missing message arg with the default `"assertion failed"`
-  // string so the runtime handler always sees exactly 2 args on the
-  // eval stack.
-  assert: "ASSERT",
+  // runtime error via `story.AddError(message)` when `cond` is
+  // falsy. Sparkdown truthiness: `nil` / `0` / `false` / `""` are
+  // falsy (documented divergence from Luau where `0` is truthy —
+  // see DIVERGENCES.md).
+  assert: {
+    arity: 2,
+    fn: (story, [cond, msg]) => {
+      let truthy = true;
+      // Mirror the per-Value checks used in the runtime — accept
+      // raw JS values too in case the lowerer passes primitives.
+      const v = cond;
+      if (
+        v == null ||
+        v === false ||
+        v === 0 ||
+        v === "" ||
+        (typeof v === "object" && "value" in v &&
+          ((v as any).value === 0 ||
+            (v as any).value === false ||
+            (v as any).value === "" ||
+            (v as any).value == null))
+      ) {
+        truthy = false;
+      }
+      if (!truthy) {
+        const message =
+          typeof msg === "string"
+            ? msg
+            : typeof msg === "object" && msg != null && "value" in msg &&
+                typeof (msg as any).value === "string"
+              ? (msg as any).value
+              : "assertion failed";
+        story.AddError(message);
+      }
+    },
+  },
 };
 
 // Luau-style names that resolve to ink-runtime builtin names. These
@@ -170,16 +232,32 @@ export function lookupStdLibBuiltin(
   return typeof alias === "string" ? alias : alias(argCount);
 }
 
-// Resolves an unnamespaced source name (e.g. `assert`) to its
-// ink-runtime ControlCommand name (`ASSERT`), or returns `null` if
-// the name isn't a registered global. Mirrors `lookupStdLibBuiltin`
-// but for `GLOBAL_STDLIB_ALIASES` — used by the lowerer when a bare
-// function-call name has no receiver.
+// Returns the resolved name for a bare (unnamespaced) source-level
+// call to a state-aware stdlib builtin, or `null` if the name isn't
+// registered. Today the resolved name equals the source name —
+// `assert` stays `assert` end-to-end. The function exists so the
+// lowerer can ask "is this a registered global stdlib?" without
+// importing the full registry object. After #77's generic
+// dispatcher lands, the FunctionCall dispatch branch checks the
+// same registry directly and this helper goes away.
 export function lookupGlobalStdLibBuiltin(
   name: string,
-  argCount: number,
+  _argCount: number,
 ): string | null {
-  const alias = GLOBAL_STDLIB_ALIASES[name];
-  if (alias == null) return null;
-  return typeof alias === "string" ? alias : alias(argCount);
+  return GLOBAL_STDLIB[name] != null ? name : null;
+}
+
+// Direct registry lookup for state-aware builtins. Returns the
+// registered entry (`{arity, fn}`) or `null` if the name isn't
+// known. Used today by the per-function ControlCommand runtime
+// handlers as the single source of truth for behavior — e.g.
+// the Assert ControlCommand case in Story.ts delegates to
+// `lookupStateAwareStdLib("assert").fn(story, args)` rather than
+// inlining the logic. After #77's generic dispatcher lands, the
+// runtime will call this directly from the generic handler and
+// the per-function handlers can be removed.
+export function lookupStateAwareStdLib(
+  name: string,
+): StateAwareStdLibEntry | null {
+  return GLOBAL_STDLIB[name] ?? null;
 }

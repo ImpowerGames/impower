@@ -32,7 +32,10 @@ export class FunctionCall extends Expression {
       name === "LIST_RANDOM" ||
       name === "READ_COUNT" ||
       name === "plural.category" ||
-      name === "ASSERT"
+      // State-aware Luau globals keep their lowercase source names
+      // end-to-end (no case-mismatch alias). New entries land here as
+      // they're added to `GLOBAL_STDLIB` in StdLib.ts.
+      name === "assert"
     );
   };
 
@@ -96,12 +99,13 @@ export class FunctionCall extends Expression {
     return this.name === "plural.category";
   }
 
-  // Luau-style `assert(cond [, message])` global. The lowerer rewrites
-  // source-level `assert(...)` calls to `FunctionCall("ASSERT", ...)`
-  // via `GLOBAL_STDLIB_ALIASES`. Always emitted with exactly two args
-  // (the lowerer pads a missing message with `"assertion failed"`).
+  // Luau-style `assert(cond [, message])` global. The lowerer keeps
+  // the source name verbatim (`"assert"`) since `GLOBAL_STDLIB` is the
+  // single source of truth for behavior — see StdLib.ts. Always
+  // emitted with exactly two args (the lowerer pads a missing message
+  // with `"assertion failed"`).
   get isAssert(): boolean {
-    return this.name === "ASSERT";
+    return this.name === "assert";
   }
 
   public shouldPopReturnedValue: boolean = false;
