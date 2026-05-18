@@ -59,23 +59,11 @@ export class ControlCommand extends InkObject {
   public static NoOp() {
     return new ControlCommand(ControlCommand.CommandType.NoOp);
   }
-  public static ChoiceCount() {
-    return new ControlCommand(ControlCommand.CommandType.ChoiceCount);
-  }
-  public static Turns() {
-    return new ControlCommand(ControlCommand.CommandType.Turns);
-  }
   public static TurnsSince() {
     return new ControlCommand(ControlCommand.CommandType.TurnsSince);
   }
   public static ReadCount() {
     return new ControlCommand(ControlCommand.CommandType.ReadCount);
-  }
-  public static Random() {
-    return new ControlCommand(ControlCommand.CommandType.Random);
-  }
-  public static SeedRandom() {
-    return new ControlCommand(ControlCommand.CommandType.SeedRandom);
   }
   public static VisitIndex() {
     return new ControlCommand(ControlCommand.CommandType.VisitIndex);
@@ -128,14 +116,6 @@ export class ControlCommand extends InkObject {
   public static EndScope() {
     return new ControlCommand(ControlCommand.CommandType.EndScope);
   }
-  // Pops a number `n` off the eval stack and pushes a `StringValue`
-  // holding the CLDR plural category for `n` ("zero" / "one" / "two" /
-  // "few" / "many" / "other") in the active language. The category
-  // is computed at runtime so it observes the current `lang.current`
-  // store and stays consistent across saves/restores.
-  public static PluralCategory() {
-    return new ControlCommand(ControlCommand.CommandType.PluralCategory);
-  }
   // Generic state-aware stdlib call. Pops `arity` args from the eval
   // stack and calls `GLOBAL_STDLIB[name].fn(story, args)`. The
   // registered function may push a return value back onto the stack
@@ -170,26 +150,22 @@ export namespace ControlCommand {
     BeginString, // 7
     EndString, // 8
     NoOp, // 9
-    ChoiceCount, // 10
-    Turns, // 11
-    TurnsSince, // 12
-    ReadCount, // 13
-    Random, // 14
-    SeedRandom, // 15
-    VisitIndex, // 16
-    SequenceShuffleIndex, // 17
-    StartThread, // 18
-    Done, // 19
-    End, // 20
-    ListFromInt, // 21
-    ListRange, // 22
-    ListRandom, // 23
-    BeginTag, // 24
-    EndTag, // 25
-    BeginObject, // 26
-    EndObject, // 27
-    IndexValue, // 28
-    StoreIndex, // 29
+    TurnsSince, // 10
+    ReadCount, // 11
+    VisitIndex, // 12
+    SequenceShuffleIndex, // 13
+    StartThread, // 14
+    Done, // 15
+    End, // 16
+    ListFromInt, // 17
+    ListRange, // 18
+    ListRandom, // 19
+    BeginTag, // 20
+    EndTag, // 21
+    BeginObject, // 22
+    EndObject, // 23
+    IndexValue, // 24
+    StoreIndex, // 25
     // Pops a `DivertTargetValue` off the eval stack, then pushes a Function
     // call-stack frame and diverts to the target's path. Args for the call
     // must already be on the eval stack below the target — they remain there
@@ -197,7 +173,7 @@ export namespace ControlCommand {
     // Used by the upcoming unified-ObjectValue method-dispatch design:
     // `obj:method(a, b)` evaluates to "push receiver, push a, push b,
     // load method as DivertTargetValue, CallValueAsFunction".
-    CallValueAsFunction, // 30
+    CallValueAsFunction, // 26
 
     // Push / pop a temporary-variable scope frame on the current call-
     // stack element. Sparkdown emits these around block bodies (`if`/
@@ -207,23 +183,15 @@ export namespace ControlCommand {
     // again after EndScope. Without these markers, sparkdown would
     // inherit ink's function-scoped `temp` semantics — surprising for
     // anyone writing luau-style code.
-    BeginScope, // 31
-    EndScope, // 32
-
-    // Pops a number `n` from the eval stack and pushes a `StringValue`
-    // holding the CLDR plural category for `n` in the active language
-    // (`lang.current` store; defaults to `"en"`). Emitted by
-    // `FunctionCall("plural.category", [n])` — see
-    // `lowerSparkdownConditionalAlternatorBlock.ts` for the
-    // `plural(n)|one=...|other=...` desugar.
-    PluralCategory, // 33
+    BeginScope, // 27
+    EndScope, // 28
 
     // Generic dispatcher for state-aware Luau builtins. Carries the
     // function name + arity as instance data (`_stdLibName`,
     // `_stdLibArity`) — JSON serialization encodes both into a single
     // `"stdlib:<name>:<arity>"` token. Runtime looks up the name in
     // `GLOBAL_STDLIB` and pops `arity` args. See `RunStdLib()`.
-    RunStdLibFunction, // 34
+    RunStdLibFunction, // 29
 
     TOTAL_VALUES,
   }

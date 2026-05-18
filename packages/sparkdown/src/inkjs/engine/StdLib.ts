@@ -1,4 +1,5 @@
 import { getPluralCategory } from "./PluralRules";
+import { PRNG } from "./PRNG";
 
 // Sparkdown's Luau-standard-library bridge. Three tables drive everything:
 //
@@ -39,10 +40,7 @@ export type StdLibFn = NumericUnary | NumericBinary;
 // access to runtime state — `assert` calls `story.AddError`,
 // `plural.category` reads `lang.current` from `state.variablesState`,
 // etc. — and therefore can't live in the pure-numeric `NAMESPACED_STDLIB` table.
-export type StateAwareStdLibFn = (
-  story: any,
-  args: any[],
-) => any | undefined;
+export type StateAwareStdLibFn = (story: any, args: any[]) => any | undefined;
 
 export interface StateAwareStdLibEntry {
   /** Number of stack values to pop before calling `fn`. */
@@ -131,10 +129,10 @@ export function isTruthy(v: any): boolean {
 // (compiler, runtime engine) see one entry point. The actual table
 // and helpers live in `MethodDispatch.ts` to keep this file small.
 export {
-  METHOD_DISPATCH,
-  METHOD_PREFIX,
   callBuiltinMethod,
   isBuiltinMethod,
+  METHOD_DISPATCH,
+  METHOD_PREFIX,
 } from "./MethodDispatch";
 
 // Namespaced pure-numeric functions (`math.floor`, `math.cos`, ...).
@@ -231,6 +229,86 @@ export const GLOBAL_STDLIB: Record<string, StateAwareStdLibEntry> = {
     },
   },
 
+  // `math.random(min, max)` — integer in `[min, max]` (inclusive).
+  // Uses `story.state.storySeed + previousRandom` as PRNG seed and
+  // updates `previousRandom` so successive calls are deterministic
+  // given the seed. Both args must be integers; non-integer or
+  // missing values are a runtime error.
+  "math.random": {
+    arity: 2,
+    fn: (story, [minVal, maxVal]) => {
+      const min = coerceNumber(minVal);
+      const max = coerceNumber(maxVal);
+      if (min === null || !Number.isInteger(min)) {
+        story.Error(
+          "Invalid value for minimum parameter of math.random(min, max)",
+        );
+        return 0;
+      }
+      if (max === null || !Number.isInteger(max)) {
+        story.Error(
+          "Invalid value for maximum parameter of math.random(min, max)",
+        );
+        return 0;
+      }
+      // JS has no true integers, so guard against overflow when
+      // (max - min + 1) exceeds safe-integer range.
+      let randomRange = max - min + 1;
+      if (!isFinite(randomRange) || randomRange > Number.MAX_SAFE_INTEGER) {
+        randomRange = Number.MAX_SAFE_INTEGER;
+        story.Error(
+          "math.random was called with a range that exceeds the size that ink numbers can use.",
+        );
+      }
+      if (randomRange <= 0) {
+        story.Error(
+          `math.random was called with minimum as ${min} and maximum as ${max}. The maximum must be larger`,
+        );
+      }
+      const seed = story.state.storySeed + story.state.previousRandom;
+      const prng = new PRNG(seed);
+      const next = prng.next();
+      const chosen = (next % randomRange) + min;
+      story.state.previousRandom = next;
+      return chosen;
+    },
+  },
+
+  // `math.randomseed(seed)` — set the PRNG seed and reset
+  // `previousRandom` to 0. Returns nothing (Void). Used to make
+  // RNG-dependent scripts deterministic across runs.
+  "math.randomseed": {
+    arity: 1,
+    fn: (story, [seedVal]) => {
+      const seed = coerceNumber(seedVal);
+      if (seed === null) {
+        story.Error("Invalid value passed to math.randomseed");
+        return;
+      }
+      story.state.storySeed = seed;
+      story.state.previousRandom = 0;
+    },
+  },
+
+  // `count.choices()` — number of currently-presented choices.
+  // Exposes ink's narrative-flow `state.generatedChoices.length`
+  // under a Luau-style name.
+  "count.choices": {
+    arity: 0,
+    fn: (story) => story.state.generatedChoices.length,
+  },
+
+  // `count.turns()` (0-arg form) — total turns elapsed since
+  // story start. Maps to `state.currentTurnIndex + 1`.
+  // The 1-arg form `count.turns(-> target)` (TURNS_SINCE) still
+  // routes through the legacy per-function ControlCommand path
+  // because it needs compile-time DivertTarget container-counting
+  // setup that doesn't fit the generic dispatcher.
+  "count.turns": {
+    arity: 0,
+    fn: (story) => story.state.currentTurnIndex + 1,
+  },
+
   // `assert(cond [, message])` — Luau-style assertion. Raises a
   // runtime error via `story.AddError(message)` when `cond` is
   // falsy. Sparkdown truthiness: `nil` / `0` / `false` / `""` are
@@ -268,20 +346,22 @@ export const GLOBAL_STDLIB: Record<string, StateAwareStdLibEntry> = {
 //   - `count.turns(-> target)` (1 arg) → `TURNS_SINCE`  (turns since target)
 // Same conceptual operation, "turn counter against a reference point",
 // disambiguated by whether a reference point was provided.
-export const INK_BUILTIN_ALIASES: Record<string, Record<string, InkBuiltinAlias>> = {
-  math: {
-    random: "RANDOM",
-    randomseed: "SEED_RANDOM",
-  },
+export const INK_BUILTIN_ALIASES: Record<
+  string,
+  Record<string, InkBuiltinAlias>
+> = {
   count: {
-    turns: (argCount) =>
-      argCount === 0 ? "TURNS" : argCount === 1 ? "TURNS_SINCE" : null,
+    // `count.turns(-> target)` 1-arg form maps to `TURNS_SINCE`
+    // (legacy per-function ControlCommand). The 0-arg form lives
+    // in `GLOBAL_STDLIB` as `"count.turns"`; the alias function
+    // returns `null` for `argCount === 0` so `lookupStdLibBuiltin`
+    // falls through to the GLOBAL_STDLIB lookup. `count.visits(-> t)`
+    // → `READ_COUNT` likewise stays legacy because of compile-time
+    // container-counting setup in `FunctionCall.ResolveReferences`
+    // that doesn't fit the generic dispatcher.
+    turns: (argCount) => (argCount === 1 ? "TURNS_SINCE" : null),
     visits: "READ_COUNT",
-    choices: "CHOICE_COUNT",
   },
-  // `plural.category(n)` migrated to `GLOBAL_STDLIB` (state-aware
-  // entry). The lowerer's `lookupStdLibBuiltin` falls back to the
-  // GLOBAL_STDLIB table for dotted names not found here.
 };
 
 // Returns the runtime builtin name for a `<receiver>.<method>(args)`
@@ -305,17 +385,26 @@ export function lookupStdLibBuiltin(
   if (NAMESPACED_STDLIB[receiverName]?.[methodName] != null) {
     return `${receiverName}.${methodName}`;
   }
+  // Check INK_BUILTIN_ALIASES first — arity-overloaded entries
+  // like `count.turns` can return null for some arg counts, letting
+  // GLOBAL_STDLIB pick those up below. (`count.turns(0)` falls
+  // through to GLOBAL_STDLIB["count.turns"]; `count.turns(1, t)`
+  // resolves to "TURNS_SINCE" here.)
+  const alias = INK_BUILTIN_ALIASES[receiverName]?.[methodName];
+  if (alias != null) {
+    const resolved = typeof alias === "string" ? alias : alias(argCount);
+    if (resolved !== null) return resolved;
+  }
   // State-aware namespaced builtins live in `GLOBAL_STDLIB` under
-  // the dotted full name (e.g. `"plural.category"`). The compiler
-  // returns the same dotted name as the FunctionCall name, and
-  // `FunctionCall.isStateAwareStdLib` picks it up via the registry.
+  // the dotted full name (e.g. `"plural.category"`, `"math.random"`,
+  // `"count.choices"`). The compiler returns the same dotted name
+  // as the FunctionCall name, and `FunctionCall.isStateAwareStdLib`
+  // picks it up via the registry.
   const fullName = `${receiverName}.${methodName}`;
   if (GLOBAL_STDLIB[fullName] != null) {
     return fullName;
   }
-  const alias = INK_BUILTIN_ALIASES[receiverName]?.[methodName];
-  if (alias == null) return null;
-  return typeof alias === "string" ? alias : alias(argCount);
+  return null;
 }
 
 // Returns the resolved name for a bare (unnamespaced) source-level

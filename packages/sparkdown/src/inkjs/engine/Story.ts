@@ -19,7 +19,6 @@ import {
   ObjectValue,
   AbstractValue,
 } from "./Value";
-import { getPluralCategory } from "./PluralRules";
 import { Path } from "./Path";
 import { Void } from "./Void";
 import { Tag } from "./Tag";
@@ -1645,17 +1644,6 @@ export class Story extends InkObject {
           this.state.callStack.currentElement.PopScope();
           break;
 
-        case ControlCommand.CommandType.ChoiceCount:
-          let choiceCount = this.state.generatedChoices.length;
-          this.state.PushEvaluationStack(new IntValue(choiceCount));
-          break;
-
-        case ControlCommand.CommandType.Turns:
-          this.state.PushEvaluationStack(
-            new IntValue(this.state.currentTurnIndex + 1),
-          );
-          break;
-
         case ControlCommand.CommandType.TurnsSince:
         case ControlCommand.CommandType.ReadCount:
           let target = this.state.PopEvaluationStack();
@@ -1703,81 +1691,6 @@ export class Story extends InkObject {
           }
 
           this.state.PushEvaluationStack(new IntValue(eitherCount));
-          break;
-
-        case ControlCommand.CommandType.Random: {
-          let maxInt = asOrNull(this.state.PopEvaluationStack(), IntValue);
-          let minInt = asOrNull(this.state.PopEvaluationStack(), IntValue);
-
-          if (minInt == null || minInt instanceof IntValue === false)
-            return this.Error(
-              "Invalid value for minimum parameter of RANDOM(min, max)",
-            );
-
-          if (maxInt == null || maxInt instanceof IntValue === false)
-            return this.Error(
-              "Invalid value for maximum parameter of RANDOM(min, max)",
-            );
-
-          // Originally a primitive type, but here, can be null.
-          // TODO: Replace by default value?
-          if (maxInt.value === null) {
-            return throwNullException("maxInt.value");
-          }
-          if (minInt.value === null) {
-            return throwNullException("minInt.value");
-          }
-
-          // This code is differs a bit from the reference implementation, since
-          // JavaScript has no true integers. Hence integer arithmetics and
-          // interger overflows don't apply here. A loss of precision can
-          // happen with big numbers however.
-          //
-          // The case where 'randomRange' is lower than zero is handled below,
-          // so there's no need to test against Number.MIN_SAFE_INTEGER.
-          let randomRange = maxInt.value - minInt.value + 1;
-          if (!isFinite(randomRange) || randomRange > Number.MAX_SAFE_INTEGER) {
-            randomRange = Number.MAX_SAFE_INTEGER;
-            this.Error(
-              "RANDOM was called with a range that exceeds the size that ink numbers can use.",
-            );
-          }
-          if (randomRange <= 0)
-            this.Error(
-              "RANDOM was called with minimum as " +
-                minInt.value +
-                " and maximum as " +
-                maxInt.value +
-                ". The maximum must be larger",
-            );
-
-          let resultSeed = this.state.storySeed + this.state.previousRandom;
-          let random = new PRNG(resultSeed);
-
-          let nextRandom = random.next();
-          let chosenValue = (nextRandom % randomRange) + minInt.value;
-          this.state.PushEvaluationStack(new IntValue(chosenValue));
-
-          // Next random number (rather than keeping the Random object around)
-          this.state.previousRandom = nextRandom;
-          break;
-        }
-
-        case ControlCommand.CommandType.SeedRandom:
-          let seed = asOrNull(this.state.PopEvaluationStack(), IntValue);
-          if (seed == null || seed instanceof IntValue === false)
-            return this.Error("Invalid value passed to SEED_RANDOM");
-
-          // Originally a primitive type, but here, can be null.
-          // TODO: Replace by default value?
-          if (seed.value === null) {
-            return throwNullException("minInt.value");
-          }
-
-          this.state.storySeed = seed.value;
-          this.state.previousRandom = 0;
-
-          this.state.PushEvaluationStack(new Void());
           break;
 
         case ControlCommand.CommandType.VisitIndex:
@@ -1943,60 +1856,6 @@ export class Story extends InkObject {
           }
 
           this.state.PushEvaluationStack(new ListValue(newList));
-          break;
-        }
-
-        case ControlCommand.CommandType.PluralCategory: {
-          // `plural.category(n)` — pops `n`, reads the active language
-          // from the `lang.current` store (defaulting to `"en"` when
-          // unset), and pushes the CLDR plural category as a string.
-          // Used both directly (`{plural.category(n)}` for explicit
-          // category lookup) and as the desugar target for
-          // `plural(n)|one=...|other=...` alternators.
-          const nVal = this.state.PopEvaluationStack();
-          if (!(nVal instanceof IntValue) && !(nVal instanceof FloatValue)) {
-            this.Error(
-              "plural.category expected a number, but got " + nVal,
-            );
-            this.state.PushEvaluationStack(new StringValue("other"));
-            break;
-          }
-          const n =
-            nVal.value === null
-              ? 0
-              : typeof nVal.value === "number"
-                ? nVal.value
-                : 0;
-
-          // Read `lang.current`. We try the dotted name first (in case
-          // a user is using a flat-namespace store) and fall back to
-          // looking up `lang` as an ObjectValue with a `current` key.
-          // When neither is set, default to English. The lookup is
-          // intentionally lenient — missing language data should not
-          // be a hard error in a creative-writing runtime.
-          let language = "en";
-          const langDirect = this.state.variablesState.GetVariableWithName(
-            "lang.current",
-          );
-          if (langDirect instanceof StringValue && langDirect.value !== null) {
-            language = langDirect.value;
-          } else {
-            const langContainer =
-              this.state.variablesState.GetVariableWithName("lang");
-            const obj = (langContainer as any)?.value;
-            if (obj instanceof Map) {
-              const inner = obj.get("current");
-              if (inner instanceof StringValue && inner.value !== null) {
-                language = inner.value;
-              } else if (typeof inner === "string") {
-                language = inner;
-              }
-            }
-          }
-
-          this.state.PushEvaluationStack(
-            new StringValue(getPluralCategory(n, language)),
-          );
           break;
         }
 

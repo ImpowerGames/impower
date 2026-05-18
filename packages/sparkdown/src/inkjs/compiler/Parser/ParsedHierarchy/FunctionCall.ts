@@ -24,18 +24,20 @@ export class FunctionCall extends Expression {
     }
 
     return (
-      name === "CHOICE_COUNT" ||
+      // Legacy per-function ControlCommand builtins that still have
+      // compile-time setup not yet migrated to the GLOBAL_STDLIB
+      // dispatcher: TURNS_SINCE / READ_COUNT need DivertTarget
+      // container-counting setup in `ResolveReferences`; LIST_*
+      // builtins are list-runtime-native.
       name === "TURNS_SINCE" ||
-      name === "TURNS" ||
-      name === "RANDOM" ||
-      name === "SEED_RANDOM" ||
+      name === "READ_COUNT" ||
       name === "LIST_VALUE" ||
       name === "LIST_RANDOM" ||
-      name === "READ_COUNT" ||
       // State-aware Luau globals + namespaced state-aware functions
-      // (e.g. `plural.category`) registered in `GLOBAL_STDLIB` in
-      // StdLib.ts. Adding a new entry there immediately makes it a
-      // recognized builtin here — no list to update.
+      // (e.g. `plural.category`, `math.random`, `assert`, ...)
+      // registered in `GLOBAL_STDLIB` in StdLib.ts. Adding a new
+      // entry there immediately makes it a recognized builtin here
+      // — no list to update.
       lookupStateAwareStdLib(name) !== null
     );
   };
@@ -59,24 +61,8 @@ export class FunctionCall extends Expression {
     return this._proxyDivert.runtimeDivert;
   }
 
-  get isChoiceCount(): boolean {
-    return this.name === "CHOICE_COUNT";
-  }
-
-  get isTurns(): boolean {
-    return this.name === "TURNS";
-  }
-
   get isTurnsSince(): boolean {
     return this.name === "TURNS_SINCE";
-  }
-
-  get isRandom(): boolean {
-    return this.name === "RANDOM";
-  }
-
-  get isSeedRandom(): boolean {
-    return this.name === "SEED_RANDOM";
   }
 
   get isListRange(): boolean {
@@ -121,19 +107,7 @@ export class FunctionCall extends Expression {
 
     let usingProxyDivert: boolean = false;
 
-    if (this.isChoiceCount) {
-      if (this.args.length > 0) {
-        this.Error("The CHOICE_COUNT() function shouldn't take any arguments");
-      }
-
-      container.AddContent(RuntimeControlCommand.ChoiceCount());
-    } else if (this.isTurns) {
-      if (this.args.length > 0) {
-        this.Error("The TURNS() function shouldn't take any arguments");
-      }
-
-      container.AddContent(RuntimeControlCommand.Turns());
-    } else if (this.isTurnsSince || this.isReadCount) {
+    if (this.isTurnsSince || this.isReadCount) {
       const divertTarget = asOrNull(this.args[0], DivertTarget);
       const variableDivertTarget = asOrNull(this.args[0], VariableReference);
 
@@ -164,38 +138,6 @@ export class FunctionCall extends Expression {
       } else {
         container.AddContent(RuntimeControlCommand.ReadCount());
       }
-    } else if (this.isRandom) {
-      if (this.args.length !== 2) {
-        this.Error(
-          "RANDOM should take 2 parameters: a minimum and a maximum integer",
-        );
-      }
-
-      // We can type check single values, but not complex expressions
-      for (let ii = 0; ii < this.args.length; ii += 1) {
-        const num = asOrNull(this.args[ii], NumberExpression);
-        if (num && !num.isInt()) {
-          const paramName: string = ii === 0 ? "minimum" : "maximum";
-          this.Error(`RANDOM's ${paramName} parameter should be an integer`);
-        }
-
-        this.args[ii].GenerateIntoContainer(container);
-      }
-
-      container.AddContent(RuntimeControlCommand.Random());
-    } else if (this.isSeedRandom) {
-      if (this.args.length !== 1) {
-        this.Error("SEED_RANDOM should take 1 parameter - an integer seed");
-      }
-
-      const num = asOrNull(this.args[0], NumberExpression);
-      if (num && !num.isInt()) {
-        this.Error("SEED_RANDOM's parameter should be an integer seed");
-      }
-
-      this.args[0].GenerateIntoContainer(container);
-
-      container.AddContent(RuntimeControlCommand.SeedRandom());
     } else if (this.isListRange) {
       if (this.args.length !== 3) {
         this.Error(

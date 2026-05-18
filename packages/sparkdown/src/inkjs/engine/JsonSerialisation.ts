@@ -858,12 +858,8 @@ export class JsonSerialisation {
     _controlCommandNames[ControlCommand.CommandType.BeginString] = "str";
     _controlCommandNames[ControlCommand.CommandType.EndString] = "/str";
     _controlCommandNames[ControlCommand.CommandType.NoOp] = "nop";
-    _controlCommandNames[ControlCommand.CommandType.ChoiceCount] = "choiceCnt";
-    _controlCommandNames[ControlCommand.CommandType.Turns] = "turn";
     _controlCommandNames[ControlCommand.CommandType.TurnsSince] = "turns";
     _controlCommandNames[ControlCommand.CommandType.ReadCount] = "readc";
-    _controlCommandNames[ControlCommand.CommandType.Random] = "rnd";
-    _controlCommandNames[ControlCommand.CommandType.SeedRandom] = "srnd";
     _controlCommandNames[ControlCommand.CommandType.VisitIndex] = "visit";
     _controlCommandNames[ControlCommand.CommandType.SequenceShuffleIndex] =
       "seq";
@@ -883,7 +879,6 @@ export class JsonSerialisation {
       "call";
     _controlCommandNames[ControlCommand.CommandType.BeginScope] = "scope{";
     _controlCommandNames[ControlCommand.CommandType.EndScope] = "}scope";
-    _controlCommandNames[ControlCommand.CommandType.PluralCategory] = "pcat";
     // Placeholder — actual serialization uses the dynamic
     // `stdlib:<name>:<arity>` form (see WriteRuntimeObject's special
     // case for RunStdLibFunction). The placeholder satisfies the
