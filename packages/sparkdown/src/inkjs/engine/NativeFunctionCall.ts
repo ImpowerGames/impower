@@ -12,7 +12,7 @@ import { Path } from "./Path";
 import { InkList, InkListItem } from "./InkList";
 import { InkObject } from "./Object";
 import {
-  STDLIB,
+  NAMESPACED_STDLIB,
   VARIADIC_ARITY,
   NumericBinary,
   NumericUnary,
@@ -598,7 +598,7 @@ export class NativeFunctionCall extends InkObject {
       // `fn.length`; each function is registered for both int and float
       // operand types so the runtime's type-dispatcher resolves it
       // regardless of how the caller's number is typed.
-      for (const [namespace, methods] of Object.entries(STDLIB)) {
+      for (const [namespace, methods] of Object.entries(NAMESPACED_STDLIB)) {
         for (const [methodName, fn] of Object.entries(methods)) {
           const fullName = `${namespace}.${methodName}`;
           if (fn.length === 1) {

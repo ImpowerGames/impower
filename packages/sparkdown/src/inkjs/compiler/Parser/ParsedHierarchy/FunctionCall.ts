@@ -32,8 +32,8 @@ export class FunctionCall extends Expression {
       name === "LIST_VALUE" ||
       name === "LIST_RANDOM" ||
       name === "READ_COUNT" ||
-      name === "plural.category" ||
-      // State-aware Luau globals registered in `GLOBAL_STDLIB` in
+      // State-aware Luau globals + namespaced state-aware functions
+      // (e.g. `plural.category`) registered in `GLOBAL_STDLIB` in
       // StdLib.ts. Adding a new entry there immediately makes it a
       // recognized builtin here — no list to update.
       lookupStateAwareStdLib(name) !== null
@@ -89,15 +89,6 @@ export class FunctionCall extends Expression {
 
   get isReadCount(): boolean {
     return this.name === "READ_COUNT";
-  }
-
-  // `plural.category(n)` — stdlib builtin that returns the CLDR plural
-  // category for `n` in the active language (`lang.current` store;
-  // defaults to `"en"`). Emitted by the lowerer when desugaring
-  // `plural(n)|one=...|other=...` and also callable directly from
-  // source as `plural.category(n)`.
-  get isPluralCategory(): boolean {
-    return this.name === "plural.category";
   }
 
   // True when `this.name` is registered as a state-aware global in
@@ -225,16 +216,6 @@ export class FunctionCall extends Expression {
       this.args[0].GenerateIntoContainer(container);
 
       container.AddContent(RuntimeControlCommand.ListRandom());
-    } else if (this.isPluralCategory) {
-      if (this.args.length !== 1) {
-        this.Error(
-          "plural.category should take 1 parameter - a number to classify",
-        );
-      }
-
-      this.args[0].GenerateIntoContainer(container);
-
-      container.AddContent(RuntimeControlCommand.PluralCategory());
     } else if (this.isStateAwareStdLib) {
       // Generic state-aware stdlib dispatch. Push args in source
       // order, then emit a `RunStdLibFunction` ControlCommand

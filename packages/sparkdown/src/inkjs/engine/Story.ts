@@ -2007,8 +2007,9 @@ export class Story extends InkObject {
           // `stdlib:<name>:<arity>` JSON token), looks up the registry,
           // pops `arity` values, and calls the JS implementation
           // with `(story, args)`. If `fn` returns a non-undefined
-          // value, push it back onto the eval stack. This replaces
-          // the entire per-function ControlCommand boilerplate —
+          // value, push it back onto the eval stack (auto-wrapping
+          // JS primitives via `Value.Create`). This replaces the
+          // entire per-function ControlCommand boilerplate —
           // adding a new state-aware builtin is now one entry in
           // `GLOBAL_STDLIB` in StdLib.ts.
           const name = evalCommand._stdLibName;
@@ -2026,7 +2027,15 @@ export class Story extends InkObject {
           }
           const result = entry.fn(this, args);
           if (result !== undefined) {
-            this.state.PushEvaluationStack(result);
+            // If `fn` returned an InkObject (Value subclass, Void,
+            // etc.) push it directly. JS primitives get wrapped
+            // via `Value.Create` (number → IntValue/FloatValue,
+            // string → StringValue, boolean → BoolValue).
+            const wrapped =
+              result instanceof InkObject ? result : Value.Create(result);
+            if (wrapped !== null) {
+              this.state.PushEvaluationStack(wrapped);
+            }
           }
           break;
         }

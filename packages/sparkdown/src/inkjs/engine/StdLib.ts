@@ -1,9 +1,11 @@
+import { getPluralCategory } from "./PluralRules";
+
 // Sparkdown's Luau-standard-library bridge. Three tables drive everything:
 //
-//   - `STDLIB` — pure numeric JS functions (`math.floor`, `math.cos`, ...).
-//     Adding a method here auto-registers it with `NativeFunctionCall`
-//     under its dotted full name, and the lowerer picks it up via
-//     `lookupStdLibBuiltin`.
+//   - `NAMESPACED_STDLIB` — pure numeric JS functions (`math.floor`,
+//     `math.cos`, ...). Adding a method here auto-registers it with
+//     `NativeFunctionCall` under its dotted full name, and the lowerer
+//     picks it up via `lookupStdLibBuiltin`.
 //
 //   - `INK_BUILTIN_ALIASES` — Luau-style names that *alias* an existing
 //     ink runtime builtin (e.g. `story.turns` → `TURNS`,
@@ -36,7 +38,7 @@ export type StdLibFn = NumericUnary | NumericBinary;
 // back onto the stack. Used for global Luau builtins that need
 // access to runtime state — `assert` calls `story.AddError`,
 // `plural.category` reads `lang.current` from `state.variablesState`,
-// etc. — and therefore can't live in the pure-numeric `STDLIB` table.
+// etc. — and therefore can't live in the pure-numeric `NAMESPACED_STDLIB` table.
 export type StateAwareStdLibFn = (
   story: any,
   args: any[],
@@ -62,6 +64,69 @@ export interface StateAwareStdLibEntry {
 // this value.
 export const VARIADIC_ARITY = -1;
 
+// ============================================================================
+// Type coercion helpers for stdlib fns
+// ============================================================================
+//
+// State-aware stdlib `fn`s receive popped eval-stack values, which are
+// `InkObject` instances (`IntValue`, `FloatValue`, `StringValue`, etc.)
+// wrapping JS primitives. Importing the concrete Value classes here
+// would force a circular dependency (Value.ts imports… eventually
+// circles back). So we duck-type on the `.value` field, which every
+// Value subclass exposes.
+//
+// All helpers return `null` when the value can't be coerced — callers
+// decide whether to raise an error or substitute a default.
+
+/** Pull a JS number out of an `IntValue` / `FloatValue`, or accept raw. */
+export function coerceNumber(v: any): number | null {
+  if (typeof v === "number") return v;
+  if (v != null && typeof v === "object" && "value" in v) {
+    const raw = (v as any).value;
+    if (typeof raw === "number") return raw;
+  }
+  return null;
+}
+
+/** Pull a JS string out of a `StringValue`, or accept raw. */
+export function coerceString(v: any): string | null {
+  if (typeof v === "string") return v;
+  if (v != null && typeof v === "object" && "value" in v) {
+    const raw = (v as any).value;
+    if (typeof raw === "string") return raw;
+  }
+  return null;
+}
+
+/**
+ * Sparkdown truthiness check. Returns `false` for: `nil`/`null`/
+ * `undefined`, JS `false`, numeric `0`, empty string `""`, `Void`
+ * instances, and any wrapped Value whose `.value` is one of the
+ * above. Used by `assert`, `if`, etc.
+ *
+ * Note: differs from Luau, where `0` and `""` are truthy. Documented
+ * divergence in DIVERGENCES.md.
+ */
+export function isTruthy(v: any): boolean {
+  if (v == null) return false;
+  if (v === false || v === 0 || v === "") return false;
+  if (typeof v === "object" && "value" in v) {
+    const raw = (v as any).value;
+    if (raw == null || raw === false || raw === 0 || raw === "") return false;
+  }
+  // Void from the runtime engine is treated as falsy (function returned
+  // nothing). Duck-typed via the constructor name to avoid the import.
+  if (
+    typeof v === "object" &&
+    v != null &&
+    v.constructor &&
+    v.constructor.name === "Void"
+  ) {
+    return false;
+  }
+  return true;
+}
+
 // Re-export the method-dispatch surface so external callers
 // (compiler, runtime engine) see one entry point. The actual table
 // and helpers live in `MethodDispatch.ts` to keep this file small.
@@ -72,9 +137,17 @@ export {
   isBuiltinMethod,
 } from "./MethodDispatch";
 
-// Pure numeric functions implemented directly in JS. Adding a new entry
-// here also adds it to `NativeFunctionCall`'s registry at engine init.
-export const STDLIB: Record<string, Record<string, StdLibFn>> = {
+// Namespaced pure-numeric functions (`math.floor`, `math.cos`, ...).
+// Adding a new entry here auto-registers it with `NativeFunctionCall`
+// at engine init. Use this table only for functions that:
+//   - Live under a namespace (`math.*`, future `bit32.*`, etc.)
+//   - Are pure: no story access, no side effects
+//   - Take + return numbers (the arity is inferred from `fn.length`)
+// For state-aware globals (`assert`, `error`, `print`, ...) use
+// `GLOBAL_STDLIB` below. For namespaced functions that need
+// story access (`math.random` reads RNG state), use `GLOBAL_STDLIB`
+// with the dotted full name as the key.
+export const NAMESPACED_STDLIB: Record<string, Record<string, StdLibFn>> = {
   math: {
     abs: (v) => Math.abs(v),
     ceil: (v) => Math.ceil(v),
@@ -119,6 +192,45 @@ export type InkBuiltinAlias = string | ((argCount: number) => string | null);
 // branch + Story.ts runtime case) with a single registry plus one
 // generic dispatcher. See task #77.
 export const GLOBAL_STDLIB: Record<string, StateAwareStdLibEntry> = {
+  // `plural.category(n)` — CLDR plural category for `n` in the
+  // active language (`lang.current` store; defaults to `"en"`).
+  // Used directly (`{plural.category(n)}`) and as the desugar
+  // target for `plural(n)|one=...|other=...` alternators. Returns
+  // a string (`"zero"` / `"one"` / `"two"` / `"few"` / `"many"` /
+  // `"other"`) which the generic dispatcher auto-wraps as a
+  // StringValue.
+  "plural.category": {
+    arity: 1,
+    fn: (story, [nVal]) => {
+      const n = coerceNumber(nVal);
+      if (n === null) {
+        story.Error("plural.category expected a number, but got " + nVal);
+        return "other";
+      }
+      // Read `lang.current`. Try the dotted name first (flat-namespace
+      // store case), fall back to `lang` as an ObjectValue with a
+      // `current` key. Default to English when neither is set —
+      // missing language data shouldn't be a hard error in a
+      // creative-writing runtime.
+      let language = "en";
+      const langDirect = coerceString(
+        story.state.variablesState.GetVariableWithName("lang.current"),
+      );
+      if (langDirect !== null) {
+        language = langDirect;
+      } else {
+        const langContainer =
+          story.state.variablesState.GetVariableWithName("lang");
+        const obj = (langContainer as any)?.value;
+        if (obj instanceof Map) {
+          const inner = coerceString(obj.get("current"));
+          if (inner !== null) language = inner;
+        }
+      }
+      return getPluralCategory(n, language);
+    },
+  },
+
   // `assert(cond [, message])` — Luau-style assertion. Raises a
   // runtime error via `story.AddError(message)` when `cond` is
   // falsy. Sparkdown truthiness: `nil` / `0` / `false` / `""` are
@@ -127,31 +239,8 @@ export const GLOBAL_STDLIB: Record<string, StateAwareStdLibEntry> = {
   assert: {
     arity: 2,
     fn: (story, [cond, msg]) => {
-      let truthy = true;
-      // Mirror the per-Value checks used in the runtime — accept
-      // raw JS values too in case the lowerer passes primitives.
-      const v = cond;
-      if (
-        v == null ||
-        v === false ||
-        v === 0 ||
-        v === "" ||
-        (typeof v === "object" && "value" in v &&
-          ((v as any).value === 0 ||
-            (v as any).value === false ||
-            (v as any).value === "" ||
-            (v as any).value == null))
-      ) {
-        truthy = false;
-      }
-      if (!truthy) {
-        const message =
-          typeof msg === "string"
-            ? msg
-            : typeof msg === "object" && msg != null && "value" in msg &&
-                typeof (msg as any).value === "string"
-              ? (msg as any).value
-              : "assertion failed";
+      if (!isTruthy(cond)) {
+        const message = coerceString(msg) ?? "assertion failed";
         story.AddError(message);
       }
     },
@@ -172,7 +261,7 @@ export const GLOBAL_STDLIB: Record<string, StateAwareStdLibEntry> = {
 // at the source level. `math.random` / `math.randomseed` are
 // technically math operations but they mutate the runtime's random-
 // state and can't be modelled as pure functions, so they live here too
-// rather than in STDLIB.
+// rather than in NAMESPACED_STDLIB.
 //
 // `count.turns` is overloaded by arity:
 //   - `count.turns()` (no args)       → `TURNS`        (total turns elapsed)
@@ -190,33 +279,22 @@ export const INK_BUILTIN_ALIASES: Record<string, Record<string, InkBuiltinAlias>
     visits: "READ_COUNT",
     choices: "CHOICE_COUNT",
   },
-  // `plural.category(n)` returns the CLDR plural category for `n`
-  // ("zero" / "one" / "two" / "few" / "many" / "other") in the active
-  // language. The runtime reads `lang.current` (default "en") to pick
-  // the rule set, so authors can switch locales at runtime with
-  // `lang.current = "fr"`. This is also the desugar target for
-  // `plural(n)|one=...|other=...` alternators — see
-  // `lowerSparkdownConditionalAlternatorBlock.ts`. The lookup returns
-  // the source name itself (rather than an ink-style ALL_CAPS alias)
-  // because `FunctionCall.isPluralCategory` checks for the source name
-  // directly — the dispatch happens at compile time via
-  // `RuntimeControlCommand.PluralCategory()`.
-  plural: {
-    category: "plural.category",
-  },
+  // `plural.category(n)` migrated to `GLOBAL_STDLIB` (state-aware
+  // entry). The lowerer's `lookupStdLibBuiltin` falls back to the
+  // GLOBAL_STDLIB table for dotted names not found here.
 };
 
 // Returns the runtime builtin name for a `<receiver>.<method>(args)`
 // call if one is registered, or `null` otherwise. Used by the lowerer to
 // decide whether to translate a method-call into a direct builtin call.
 //
-// For STDLIB entries, the returned name is the dotted full name
+// For NAMESPACED_STDLIB entries, the returned name is the dotted full name
 // (`"math.floor"`) which `NativeFunctionCall` dispatches on. For
 // INK_BUILTIN_ALIASES entries, it's the ink name (`"TURNS"`) which
 // `FunctionCall.GenerateIntoContainer` dispatches on.
 //
 // `argCount` lets a single Luau-style method name resolve to different
-// ink builtins based on arity (see `story.turns` above). STDLIB entries
+// ink builtins based on arity (see `story.turns` above). NAMESPACED_STDLIB entries
 // don't consult `argCount` — `NativeFunctionCall` enforces the
 // registered arity itself at the runtime.
 export function lookupStdLibBuiltin(
@@ -224,8 +302,16 @@ export function lookupStdLibBuiltin(
   methodName: string,
   argCount: number,
 ): string | null {
-  if (STDLIB[receiverName]?.[methodName] != null) {
+  if (NAMESPACED_STDLIB[receiverName]?.[methodName] != null) {
     return `${receiverName}.${methodName}`;
+  }
+  // State-aware namespaced builtins live in `GLOBAL_STDLIB` under
+  // the dotted full name (e.g. `"plural.category"`). The compiler
+  // returns the same dotted name as the FunctionCall name, and
+  // `FunctionCall.isStateAwareStdLib` picks it up via the registry.
+  const fullName = `${receiverName}.${methodName}`;
+  if (GLOBAL_STDLIB[fullName] != null) {
+    return fullName;
   }
   const alias = INK_BUILTIN_ALIASES[receiverName]?.[methodName];
   if (alias == null) return null;
