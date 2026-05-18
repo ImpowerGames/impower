@@ -236,31 +236,23 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "math.log": { arity: 1, pure: true, fn: (_, [v]) => Math.log(v) },
   "math.log10": { arity: 1, pure: true, fn: (_, [v]) => Math.log10(v) },
   // `math.max(a, b, ...)` / `math.min(a, b, ...)` — Luau variadic.
-  // State-aware because variadic numeric ops don't fit the
-  // NativeFunctionCall fast path (which is fixed arity 1 or 2).
-  // The dispatcher's compile-site arity capture gives us the actual
-  // arg count; the fn coerces each Value to a JS number.
+  // Pure: NativeFunctionCall registers them with VARIADIC_ARITY; the
+  // call site captures the actual arg count.
   "math.max": {
     arity: -1,
-    fn: (_, args) => {
+    pure: true,
+    fn: (_, args: number[]) => {
       let m = -Infinity;
-      for (const v of args) {
-        const n = coerceNumber(v);
-        if (n === null) continue;
-        if (n > m) m = n;
-      }
+      for (const n of args) if (n > m) m = n;
       return m;
     },
   },
   "math.min": {
     arity: -1,
-    fn: (_, args) => {
+    pure: true,
+    fn: (_, args: number[]) => {
       let m = Infinity;
-      for (const v of args) {
-        const n = coerceNumber(v);
-        if (n === null) continue;
-        if (n < m) m = n;
-      }
+      for (const n of args) if (n < m) m = n;
       return m;
     },
   },
@@ -397,32 +389,22 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (story) => story.state.currentTurnIndex + 1,
   },
 
-  // `math.clamp(x, min, max)` — Luau-only. Routes through the
-  // state-aware path because NativeFunctionCall only supports
-  // arity 1 or 2 numeric ops; the fn itself doesn't touch story.
+  // `math.clamp(x, min, max)` — Luau-only.
   "math.clamp": {
     arity: 3,
-    fn: (_, [vVal, minVal, maxVal]) => {
-      const v = coerceNumber(vVal) ?? 0;
-      const min = coerceNumber(minVal) ?? 0;
-      const max = coerceNumber(maxVal) ?? 0;
-      return Math.min(Math.max(v, min), max);
-    },
+    pure: true,
+    fn: (_, [v, min, max]) => Math.min(Math.max(v, min), max),
   },
 
   // `math.map(x, inMin, inMax, outMin, outMax)` — Luau-only.
   // Linearly remap `x` from input range to output range.
   "math.map": {
     arity: 5,
-    fn: (_, args) => {
-      const x = coerceNumber(args[0]) ?? 0;
-      const iMin = coerceNumber(args[1]) ?? 0;
-      const iMax = coerceNumber(args[2]) ?? 0;
-      const oMin = coerceNumber(args[3]) ?? 0;
-      const oMax = coerceNumber(args[4]) ?? 0;
-      if (iMax === iMin) return oMin;
-      return oMin + ((x - iMin) / (iMax - iMin)) * (oMax - oMin);
-    },
+    pure: true,
+    fn: (_, [x, iMin, iMax, oMin, oMax]) =>
+      iMax === iMin
+        ? oMin
+        : oMin + ((x - iMin) / (iMax - iMin)) * (oMax - oMin),
   },
 
   // `tostring(v)` — coerce to display string. Mirrors Luau:
@@ -640,54 +622,43 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return ((x >>> r) | (x << (32 - r))) >>> 0;
     },
   },
-  // Variadic bit32 ops — state-aware since NativeFunctionCall doesn't
-  // do variadic numeric. Each variadic op folds across all args.
+  // Variadic bit32 ops. Pure: NativeFunctionCall handles variadic
+  // via `VARIADIC_ARITY`; the per-call arity is captured at the
+  // FunctionCall site.
   "bit32.band": {
     arity: -1,
-    fn: (_, args) => {
+    pure: true,
+    fn: (_, args: number[]) => {
       let r = 0xffffffff;
-      for (const v of args) {
-        const n = coerceNumber(v);
-        if (n === null) continue;
-        r &= n >>> 0;
-      }
+      for (const n of args) r &= n >>> 0;
       return r >>> 0;
     },
   },
   "bit32.bor": {
     arity: -1,
-    fn: (_, args) => {
+    pure: true,
+    fn: (_, args: number[]) => {
       let r = 0;
-      for (const v of args) {
-        const n = coerceNumber(v);
-        if (n === null) continue;
-        r |= n >>> 0;
-      }
+      for (const n of args) r |= n >>> 0;
       return r >>> 0;
     },
   },
   "bit32.bxor": {
     arity: -1,
-    fn: (_, args) => {
+    pure: true,
+    fn: (_, args: number[]) => {
       let r = 0;
-      for (const v of args) {
-        const n = coerceNumber(v);
-        if (n === null) continue;
-        r ^= n >>> 0;
-      }
+      for (const n of args) r ^= n >>> 0;
       return r >>> 0;
     },
   },
   "bit32.btest": {
     arity: -1,
-    fn: (_, args) => {
+    pure: true,
+    fn: (_, args: number[]) => {
       // True iff the AND of all args is non-zero.
       let r = 0xffffffff;
-      for (const v of args) {
-        const n = coerceNumber(v);
-        if (n === null) continue;
-        r &= n >>> 0;
-      }
+      for (const n of args) r &= n >>> 0;
       return r !== 0;
     },
   },
@@ -695,10 +666,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // starting at `field` (LSB = 0). Default width is 1.
   "bit32.extract": {
     arity: -1,
-    fn: (_, args) => {
-      const n = (coerceNumber(args[0]) ?? 0) >>> 0;
-      const field = coerceNumber(args[1]) ?? 0;
-      const width = args.length > 2 ? (coerceNumber(args[2]) ?? 1) : 1;
+    pure: true,
+    fn: (_, args: number[]) => {
+      const n = (args[0] ?? 0) >>> 0;
+      const field = args[1] ?? 0;
+      const width = args.length > 2 ? (args[2] ?? 1) : 1;
       const mask = width >= 32 ? 0xffffffff : ((1 << width) - 1) >>> 0;
       return ((n >>> field) & mask) >>> 0;
     },
@@ -707,11 +679,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // at `field` with the low bits of `v`.
   "bit32.replace": {
     arity: -1,
-    fn: (_, args) => {
-      let n = (coerceNumber(args[0]) ?? 0) >>> 0;
-      const v = (coerceNumber(args[1]) ?? 0) >>> 0;
-      const field = coerceNumber(args[2]) ?? 0;
-      const width = args.length > 3 ? (coerceNumber(args[3]) ?? 1) : 1;
+    pure: true,
+    fn: (_, args: number[]) => {
+      let n = (args[0] ?? 0) >>> 0;
+      const v = (args[1] ?? 0) >>> 0;
+      const field = args[2] ?? 0;
+      const width = args.length > 3 ? (args[3] ?? 1) : 1;
       const mask = width >= 32 ? 0xffffffff : ((1 << width) - 1) >>> 0;
       const shiftedMask = (mask << field) >>> 0;
       n = (n & ~shiftedMask) >>> 0;
@@ -738,10 +711,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     fn: (_, _args) => Math.floor(Date.now() / 1000),
   },
-  "os.difftime": {
-    arity: 2,
-    fn: (_, [t2, t1]) => (coerceNumber(t2) ?? 0) - (coerceNumber(t1) ?? 0),
-  },
+  "os.difftime": { arity: 2, pure: true, fn: (_, [t2, t1]) => t2 - t1 },
 
   // ============================================================
   // `utf8.*` — Unicode helpers. `char`/`len`/`codepoint` are the

@@ -160,7 +160,18 @@ export class NativeFunctionCall extends InkObject {
       return callBuiltinMethod(this._name, parameters);
     }
 
-    if (this.numberOfParameters != parameters.length) {
+    // The call-site instance forwarded to its prototype via the
+    // `if (this._prototype) return this._prototype.Call(parameters)`
+    // guard above; by here `this` is the prototype itself. For
+    // variadic prototypes (`_numberOfParameters === VARIADIC_ARITY`),
+    // skip the arity check — the caller already popped the correct
+    // number of params using the call-site instance's overridden
+    // arity. The prototype just dispatches the type-coerced op,
+    // which handles any number of args via the variadic JS spread.
+    if (
+      this._numberOfParameters !== VARIADIC_ARITY &&
+      this.numberOfParameters != parameters.length
+    ) {
       throw new Error("Unexpected number of parameters");
     }
 
@@ -229,7 +240,7 @@ export class NativeFunctionCall extends InkObject {
 
     let paramCount = parametersOfSingleType.length;
 
-    if (paramCount == 2 || paramCount == 1) {
+    if (paramCount >= 1) {
       if (this._operationFuncs === null)
         return throwNullException("NativeFunctionCall._operationFuncs");
       let opForTypeObj = this._operationFuncs.get(valType);
@@ -238,6 +249,26 @@ export class NativeFunctionCall extends InkObject {
         throw new StoryException(
           "Cannot perform operation " + this.name + " on " + key,
         );
+      }
+
+      if (paramCount >= 3) {
+        // N-ary (arity >= 3) — extract all values and spread into the
+        // registered op. The op signature is `(...args: T[]) => any`,
+        // which subsumes the unary and binary cases below: calling
+        // `op(a)` is the same as `op(...[a])`, and the registered fn
+        // sees a fixed arity matching `numberOfParameters` (enforced
+        // upstream in `Call()`).
+        const values = parametersOfSingleType.map((p) => {
+          const v = (p as Value<T>).value;
+          if (v === null)
+            return throwNullException(
+              "NativeFunctionCall.Call N-ary param value",
+            );
+          return v;
+        });
+        const opForType = opForTypeObj as (...args: T[]) => any;
+        const resultVal = opForType(...(values as T[]));
+        return Value.Create(resultVal);
       }
 
       if (paramCount == 2) {
@@ -592,14 +623,15 @@ export class NativeFunctionCall extends InkObject {
         divertTargetsNotEqual,
       );
 
-      // Pure-numeric Luau stdlib (`math.floor`, `math.ceil`, ...). The
-      // unified STDLIB registry in `StdLib.ts` holds these as entries
-      // with `pure: true`. Adding a new pure entry there auto-registers
-      // it here. Each function is registered for both int and float
-      // operand types so the runtime's type-dispatcher resolves it
-      // regardless of how the caller's number is typed. The wrapper
-      // converts the registry's `(_, args)` signature into the
-      // operator-style `(a)` / `(a, b)` calling convention.
+      // Pure-numeric Luau stdlib (`math.floor`, `math.ceil`,
+      // `math.clamp`, `math.map`, ...). The unified STDLIB registry
+      // in `StdLib.ts` holds these as entries with `pure: true`.
+      // Adding a new pure entry there auto-registers it here. Each
+      // function is registered for both int and float operand types
+      // so the runtime's type-dispatcher resolves it regardless of
+      // how the caller's number is typed. The wrapper converts the
+      // registry's `(_, args)` signature into the operator-style
+      // calling convention (`(a)`, `(a, b)`, `(...args)` for n-ary).
       for (const [fullName, entry] of getPureStdLibEntries()) {
         if (entry.arity === 1) {
           const unary: NumericUnary = (v: number) => entry.fn(null, [v]);
@@ -610,6 +642,19 @@ export class NativeFunctionCall extends InkObject {
             entry.fn(null, [a, b]);
           this.AddIntBinaryOp(fullName, binary);
           this.AddFloatBinaryOp(fullName, binary);
+        } else if (entry.arity >= 3) {
+          const nary = (...args: number[]) => entry.fn(null, args);
+          this.AddIntNaryOp(fullName, entry.arity, nary);
+          this.AddFloatNaryOp(fullName, entry.arity, nary);
+        } else if (entry.arity === VARIADIC_ARITY) {
+          // Variadic pure-numeric (`math.max(...)`, `bit32.band(...)`,
+          // etc.). Registers a single prototype with VARIADIC_ARITY;
+          // `FunctionCall.GenerateIntoContainer` captures the call-site
+          // arg count via `CallWithName(name, args.length)` so the
+          // runtime knows how many params to pop.
+          const variadic = (...args: number[]) => entry.fn(null, args);
+          this.AddOpToNativeFunc(fullName, VARIADIC_ARITY, ValueType.Int, variadic as any);
+          this.AddOpToNativeFunc(fullName, VARIADIC_ARITY, ValueType.Float, variadic as any);
         }
       }
 
@@ -669,6 +714,25 @@ export class NativeFunctionCall extends InkObject {
   }
   public static AddFloatUnaryOp(name: string, op: UnaryOp<number>) {
     this.AddOpToNativeFunc(name, 1, ValueType.Float, op);
+  }
+
+  // N-ary (arity >= 3) numeric op. Used by `math.clamp`, `math.map`,
+  // and any future pure-numeric stdlib entry with more than two
+  // arguments. `CallType` spreads the coerced values into `op(...)`,
+  // so the registered fn receives them in source order.
+  public static AddIntNaryOp(
+    name: string,
+    arity: number,
+    op: (...args: number[]) => any,
+  ) {
+    this.AddOpToNativeFunc(name, arity, ValueType.Int, op as any);
+  }
+  public static AddFloatNaryOp(
+    name: string,
+    arity: number,
+    op: (...args: number[]) => any,
+  ) {
+    this.AddOpToNativeFunc(name, arity, ValueType.Float, op as any);
   }
 
   public static AddStringBinaryOp(name: string, op: BinaryOp<string>) {
