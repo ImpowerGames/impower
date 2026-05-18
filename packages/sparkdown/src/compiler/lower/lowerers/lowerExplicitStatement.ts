@@ -3,6 +3,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
@@ -43,6 +44,26 @@ export function lowerExplicitStatement(
       ctx,
     );
   }
+
+  // Multi-target reassignment detection: `& a, b = 99, 100` (and the
+  // single-RHS multi-target variant `& a, b = f()`). The grammar
+  // includes `LuauCommaSeparator` in `LuauExplicitStatement`'s
+  // patterns specifically to let multi-target statements parse —
+  // they appear as a flat sequence at the statement-content level:
+  //
+  //   LuauAccessPath (target 1)
+  //   LuauCommaSeparator
+  //   LuauAccessPath (target 2)
+  //   …
+  //   LuauAssignmentOperation (= <first RHS>)
+  //   LuauCommaSeparator
+  //   <RHS expression>
+  //   …
+  //
+  // Single-target statements (no comma before the assignment op)
+  // fall through to the existing path below.
+  const multiTargetResult = tryLowerMultiTargetReassignment(nodeRef.node, ctx);
+  if (multiTargetResult) return multiTargetResult;
 
   const lhsPath = getDescendent("LuauAccessPath", nodeRef.node);
   if (!lhsPath) return {};
@@ -130,6 +151,118 @@ export function lowerExplicitStatement(
     assignedExpression: expr ?? undefined,
   });
   return wrapInWeave([va]);
+}
+
+// Walk the explicit statement's content children. If there's at least
+// one comma BEFORE a `LuauAssignmentOperation`, treat the leading
+// access paths as multi-target reassignments and route through
+// `MultiVariableAssignment`. Returns `null` (and lets the caller take
+// the single-target path) for any other shape: single target, bare
+// call, function-call with parenthetical sibling, etc.
+function tryLowerMultiTargetReassignment(
+  stmtNode: SyntaxNode,
+  ctx: LowerContext,
+): CompiledBlock | null {
+  const content = findChildByName(stmtNode, "LuauExplicitStatement_content");
+  if (!content) return null;
+
+  // First pass: scan for the assignment op and decide whether to take
+  // the multi-target path. Multi-target requires at least one comma
+  // BEFORE the assignment op.
+  const targets: SyntaxNode[] = [];
+  let opNode: SyntaxNode | null = null;
+  let sawCommaBeforeOp = false;
+  let child = content.firstChild;
+  while (child) {
+    if (isSkippableName(child.name)) {
+      child = child.nextSibling;
+      continue;
+    }
+    if (child.name === "LuauAssignmentOperation") {
+      opNode = child;
+      break;
+    }
+    if (child.name === "LuauCommaSeparator") {
+      sawCommaBeforeOp = true;
+    } else if (child.name === "LuauAccessPath") {
+      targets.push(child);
+    } else {
+      // Any other node before the op — bail. Could be a parenthetical
+      // sibling for method calls, etc. The single-target path handles
+      // those.
+      return null;
+    }
+    child = child.nextSibling;
+  }
+  if (!opNode || !sawCommaBeforeOp || targets.length < 2) return null;
+
+  // Resolve each target's identifier. Only simple-name targets are
+  // supported in V1 (no `obj.field` multi-targets) — that pattern
+  // would route to `lowerPropertyTargetAssignment` per-target and
+  // is more involved.
+  const targetIdents: Identifier[] = [];
+  for (const tNode of targets) {
+    const nameNode = getDescendent("LuauVariableName", tNode);
+    if (!nameNode) return null;
+    targetIdents.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
+  }
+
+  // Collect RHS expressions: the first from the assignment op, and any
+  // trailing expressions that appear after the op (separated by commas).
+  const firstRhs = lowerExpressionFromContainer(opNode, ctx);
+  const trailingGroups: SyntaxNode[][] = [];
+  let trailingGroup: SyntaxNode[] = [];
+  let trailing = opNode.nextSibling;
+  while (trailing) {
+    if (isSkippableName(trailing.name)) {
+      trailing = trailing.nextSibling;
+      continue;
+    }
+    if (trailing.name === "LuauCommaSeparator") {
+      if (trailingGroup.length > 0) {
+        trailingGroups.push(trailingGroup);
+        trailingGroup = [];
+      }
+    } else {
+      trailingGroup.push(trailing);
+    }
+    trailing = trailing.nextSibling;
+  }
+  if (trailingGroup.length > 0) trailingGroups.push(trailingGroup);
+
+  const trailingExprs = trailingGroups
+    .map((nodes) => lowerExpressionFromNodes(nodes, ctx))
+    .filter((e): e is NonNullable<typeof e> => e != null);
+  const expressions = firstRhs ? [firstRhs, ...trailingExprs] : trailingExprs;
+
+  // Reassignment — `isTemporaryNewDeclaration: false` so the child
+  // VariableAssignments don't register new declarations but reassign
+  // existing variables. The runtime `RuntimeVariableAssignment` reads
+  // this flag to decide whether to allocate a new temp slot or
+  // overwrite an existing one.
+  return wrapInWeave([
+    new MultiVariableAssignment(targetIdents, expressions, false),
+  ]);
+}
+
+function isSkippableName(name: string): boolean {
+  return (
+    name === "ExtraWhitespace" ||
+    name === "Whitespace" ||
+    name === "Newline" ||
+    name === "LuauComment" ||
+    name === "OptionalWhitespace" ||
+    name === "RequiredWhitespace"
+  );
+}
+
+function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
+  let child = parent.firstChild;
+  while (child) {
+    if (child.name === name) return child;
+    child = child.nextSibling;
+  }
+  return null;
 }
 
 function readAssignmentOperatorText(

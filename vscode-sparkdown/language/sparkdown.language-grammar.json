@@ -4519,6 +4519,9 @@
           "include": "#LuauDeclarations"
         },
         {
+          "include": "#LuauCommaSeparator"
+        },
+        {
           "include": "#LuauExpression"
         },
         {

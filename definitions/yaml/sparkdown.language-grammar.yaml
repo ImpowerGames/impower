@@ -2756,6 +2756,12 @@ repository:
       3:
         patterns:
           - { include: "#RequiredWhitespace" }
+    # `LuauCommaSeparator` is in the pattern list so multi-target /
+    # multi-RHS reassignment statements (`& a, b = 10, 20`) can break
+    # across commas at the statement level. The lowerer reconstructs
+    # the target list from the siblings of the `LuauAssignmentOperation`.
+    # Function-call commas live inside `LuauFunctionCallParameters` and
+    # are scoped there — they don't reach this pattern.
     patterns:
       # Declarations need to come before LuauExpression so `& store x = 5`
       # parses as a `LuauVariableDefinition` rather than an expression where
@@ -2763,6 +2769,7 @@ repository:
       # the explicit form (`& store x = 5`) interchangeable with the
       # implicit form (`store x = 5`).
       - { include: "#LuauDeclarations" }
+      - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|$
