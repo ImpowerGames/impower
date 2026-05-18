@@ -69,9 +69,11 @@ variables:
       # it's also reserved as an identifier — users can't define a
       # variable named `count`, and syntax highlighting makes the
       # reserved status visible at the source level. `system.*` is
-      # reserved for runtime config (currently just `system.lang`).
-      "count",
+      # reserved for runtime config (currently just `lang.current`).
       "system",
+      "count",
+      "lang",
+      "plural",
     ]
   LUAU_STANDARD_LIB_FUNCTIONS:
     [
