@@ -3956,7 +3956,15 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauSparkdownSequentialAlternatorBlock:
-    begin: ({{WS}}*)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
+    # Three accepted shapes:
+    #   `queue | ...`            — alternator keyword alone.
+    #   `shuffle queue | ...`    — modifier + alternator keyword.
+    #   `shuffle | ...`          — modifier alone; defaults to `cycle`
+    #                              in the lowerer.
+    # The leading lookahead requires at least ONE of those two
+    # keyword sets so we don't match plain leading whitespace and
+    # open a spurious alternator scope.
+    begin: ({{WS}}*)(?=(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}))(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3998,7 +4006,11 @@ repository:
   # nested blocks, and other complex content require the multi-line
   # shape where each arm is its own statement).
   LuauSparkdownSingleLineSequentialAlternatorBlock:
-    begin: ({{WS}}*)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[|])
+    # See `LuauSparkdownSequentialAlternatorBlock` — same three shapes
+    # (alternator-alone, modifier+alternator, modifier-alone) gated by
+    # the trailing `(?=[|])` lookahead to keep this rule scoped to the
+    # single-line form only.
+    begin: ({{WS}}*)(?=(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}))(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)(?=[|])
     beginCaptures:
       1:
         patterns:
@@ -4066,7 +4078,9 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauSequentialAlternatorBlock:
-    begin: ({{WS}}*)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
+    # See `LuauSparkdownSequentialAlternatorBlock` for the three
+    # accepted shapes and the bare-`shuffle`-defaults-to-`cycle` rule.
+    begin: ({{WS}}*)(?=(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}))(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)
     beginCaptures:
       1:
         patterns:
