@@ -3,6 +3,25 @@
 @source ".";
 
 /* ----------------------------------------------------------------------------
+ * Baseline styling for custom-element tags.
+ *
+ * These rules apply pre-hydration so the SSR'd output renders close to its
+ * post-hydrate appearance. The build pipeline emits `style="font-size: <size>"`
+ * on the host element when a `size` attribute is present, and the SVG inside
+ * picks up that font-size via `width/height: 1em`.
+ * --------------------------------------------------------------------------*/
+
+s-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+s-icon > svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* ----------------------------------------------------------------------------
  * Base theme variables.
  *
  * Defined as CSS custom properties so theme switching at runtime works via the
