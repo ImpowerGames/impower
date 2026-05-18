@@ -1523,10 +1523,32 @@ export class Story extends InkObject {
           // between[0] is the BeginObject marker; the rest are alternating
           // key, value, key, value, ... pairs in push order.
           const entries = new Map<string, AbstractValue>();
+          const pairEnd = between.length - 1; // index of last value
           for (let i = 1; i + 1 < between.length; i += 2) {
             const keyObj = asOrNull(between[i], StringValue);
-            const valObj = asOrNull(between[i + 1], AbstractValue);
-            if (keyObj && keyObj.value !== null && valObj) {
+            let valObj = asOrNull(between[i + 1], AbstractValue);
+            if (!keyObj || keyObj.value === null || !valObj) continue;
+            // Lua-style table-spread: if this is the LAST entry, its
+            // key is a positive integer (array-style), AND its value
+            // is a MultiValue, expand into sequential array slots —
+            // `{a, b, f()}` where `f()` returns `(10, 20, 30)` lowers
+            // to a table with keys "1","2","3","4","5". Non-last
+            // MultiValues are truncated to their first inner value
+            // (matches Lua: only the last expression spreads).
+            const isLast = i + 1 === pairEnd;
+            if (
+              isLast &&
+              valObj instanceof MultiValue &&
+              /^[1-9]\d*$/.test(keyObj.value)
+            ) {
+              const startIdx = parseInt(keyObj.value, 10);
+              for (let k = 0; k < valObj.values.length; k++) {
+                entries.set(String(startIdx + k), valObj.values[k]!);
+              }
+            } else {
+              if (valObj instanceof MultiValue) {
+                valObj = valObj.values[0] ?? new NullValue();
+              }
               entries.set(keyObj.value, valObj);
             }
           }
@@ -1862,15 +1884,34 @@ export class Story extends InkObject {
         }
 
         case ControlCommand.CommandType.PackTuple: {
-          // Pop N values and pack them into a single `MultiValue`,
-          // preserving push order (first-pushed at index 0).
-          // Emitted by multi-return lowering for `return a, b, c`.
+          // Pop N expression results and pack them into one
+          // `MultiValue`. Lua/Luau "spread the last expression"
+          // semantics applies: the FIRST popped slot (which was
+          // the syntactically LAST expression evaluated) spreads
+          // its inner values if it's a `MultiValue`; all OTHER
+          // popped slots truncate a `MultiValue` to its first
+          // inner value. So `return a, b, f()` where f returns
+          // `(1, 2, 3)` packs as `MultiValue([a, b, 1, 2, 3])`,
+          // while `return f(), b` where f returns `(1, 2, 3)`
+          // packs as `MultiValue([1, b])` (f truncated since
+          // it's no longer in last position).
           const n = evalCommand._tupleArity;
           const values: AbstractValue[] = [];
           for (let i = 0; i < n; i++) {
-            // Pop in LIFO; reverse so the array reads in push-order.
-            const v = this.state.PopEvaluationStack();
-            values.unshift(v as AbstractValue);
+            const v = this.state.PopEvaluationStack() as AbstractValue;
+            if (i === 0 && v instanceof MultiValue) {
+              // Last expression spreads: prepend each inner value
+              // in original order.
+              for (let k = v.values.length - 1; k >= 0; k--) {
+                values.unshift(v.values[k]!);
+              }
+            } else if (v instanceof MultiValue) {
+              // Non-last expression truncates to its first value
+              // (or nil if it returned zero values).
+              values.unshift(v.values[0] ?? new NullValue());
+            } else {
+              values.unshift(v);
+            }
           }
           this.state.PushEvaluationStack(new MultiValue(values));
           break;
@@ -1924,6 +1965,24 @@ export class Story extends InkObject {
           const args: any[] = [];
           for (let i = 0; i < arity; i++) {
             args.unshift(this.state.PopEvaluationStack());
+          }
+          // Lua-style call-arg spread: the syntactically LAST arg
+          // (rightmost) spreads its MultiValue into multiple args;
+          // earlier args truncate any MultiValue to its first inner
+          // value. `print(math.modf(3.7))` → `print(3, 0.7)`;
+          // `f(math.modf(x), 1)` → `f(3, 1)` (modf truncated since
+          // it's not the last arg). Pure stdlib fns (registered with
+          // NativeFunctionCall) don't pass through here and continue
+          // to auto-unwrap via MultiValue's transparent valueObject.
+          for (let k = 0; k < args.length; k++) {
+            const a = args[k];
+            if (a instanceof MultiValue) {
+              if (k === args.length - 1) {
+                args.splice(k, 1, ...a.values);
+              } else {
+                args[k] = a.values[0] ?? new NullValue();
+              }
+            }
           }
           const result = entry.fn(this, args);
           if (result !== undefined) {

@@ -416,6 +416,200 @@ end
   });
 });
 
+describe("spread context — return", () => {
+  test("return f() (single expression) forwards all values", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function inner()
+return 1, 2, 3
+end
+
+function outer()
+return inner()
+end
+
+function run()
+local a, b, c = outer()
+& host_record(a)
+& host_record(b)
+& host_record(c)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 3]);
+  });
+
+  test("return a, b, f() spreads the last expression", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 30, 40, 50
+end
+
+function wrap()
+return 10, 20, multi()
+end
+
+function run()
+local a, b, c, d, e = wrap()
+& host_record(a)
+& host_record(b)
+& host_record(c)
+& host_record(d)
+& host_record(e)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20, 30, 40, 50]);
+  });
+
+  test("return f(), b truncates a non-last multi-return", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 10, 20, 30
+end
+
+function wrap()
+return multi(), 99
+end
+
+function run()
+local a, b, c = wrap()
+& host_record(a)
+& host_record(b)
+& host_record(c)
+end
+`);
+    expect(errors).toEqual([]);
+    // multi() truncates to 10 (not last), b = 99, c = nil (no third return).
+    expect(recorded).toEqual([10, 99, null]);
+  });
+});
+
+describe("spread context — table literal", () => {
+  test("{a, b, f()} spreads the last array-style entry", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 30, 40, 50
+end
+
+function run()
+local t = {10, 20, multi()}
+& host_record(table.concat(t, ","))
+& host_record(table.getn(t))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["10,20,30,40,50", 5]);
+  });
+
+  test("{f()} alone spreads", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 1, 2, 3, 4
+end
+
+function run()
+local t = {multi()}
+& host_record(table.concat(t, ","))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["1,2,3,4"]);
+  });
+
+  test("{f(), b} truncates non-last multi-return", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 10, 20, 30
+end
+
+function run()
+local t = {multi(), 99}
+& host_record(table.concat(t, ","))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["10,99"]);
+  });
+
+  test("named-key last entry does NOT spread (key is not numeric)", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 100, 200
+end
+
+function run()
+local t = {1, 2, name = multi()}
+& host_record(rawget(t, "name"))
+& host_record(table.getn(t))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([100, 2]);
+  });
+});
+
+describe("spread context — call args", () => {
+  test("last variadic-call arg spreads", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 100, 200, 300
+end
+
+function run()
+-- select's tail-args see the spread MultiValue: 4 trailing args.
+& host_record(select("#", "a", multi()))
+end
+`);
+    expect(errors).toEqual([]);
+    // select("#", ...) counts 4: "a", 100, 200, 300.
+    expect(recorded).toEqual([4]);
+  });
+
+  test("non-last arg truncates a multi-return", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 100, 200, 300
+end
+
+function run()
+-- multi() is in arg position 2 of 3 → truncates to 100.
+-- "tail" is in last position → unchanged.
+& host_record(select("#", "a", multi(), "tail"))
+end
+`);
+    expect(errors).toEqual([]);
+    // count: "a" + truncated-multi(100) + "tail" = 3 trailing args.
+    expect(recorded).toEqual([3]);
+  });
+});
+
 describe("multi-target padding and truncation", () => {
   test("multi-target with single-value RHS pads remaining with nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)

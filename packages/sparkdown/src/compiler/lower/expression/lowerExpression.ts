@@ -812,16 +812,16 @@ export function lowerSimpleAccessPath(
         if (i === 0) {
           // Grammar tags reserved stdlib names (`assert`, `print`,
           // `tostring`, ...) under `LuauStdLibFunctions` rather than
-          // `LuauFunctionName`. Look for either so global builtins
-          // and user-defined functions both resolve here.
-          const nameNode =
-            getDescendent("LuauFunctionName", inner) ??
-            getDescendent("LuauStdLibFunctions", inner);
-          const name = nameNode
-            ? new Identifier(ctx.read(nameNode.from, nameNode.to))
-            : null;
+          // `LuauFunctionName`. Look for either, BUT scope the
+          // search to the `_begin` subtree — a deep `getDescendent`
+          // can otherwise walk into nested calls' names inside
+          // `LuauFunctionCallParameters` and pick the wrong one
+          // (e.g. `select("#", multi())` resolving to `multi`).
+          const nameStr = readFunctionCallName(inner, ctx);
           const args = lowerCallArguments(inner, ctx);
-          if (name) return makeGlobalFunctionCall(name, args);
+          if (nameStr) {
+            return makeGlobalFunctionCall(new Identifier(nameStr), args);
+          }
         }
         break;
       }
@@ -875,11 +875,9 @@ export function lowerValueChainAccessPath(
 
   const firstInner = parts[0]?.firstChild;
   if (firstInner?.name === "LuauFunctionCall") {
-    const nameNode =
-      getDescendent("LuauFunctionName", firstInner) ??
-      getDescendent("LuauStdLibFunctions", firstInner);
-    if (!nameNode) return null;
-    const name = new Identifier(ctx.read(nameNode.from, nameNode.to));
+    const nameStr = readFunctionCallName(firstInner, ctx);
+    if (!nameStr) return null;
+    const name = new Identifier(nameStr);
     const args = lowerCallArguments(firstInner, ctx);
     current = makeGlobalFunctionCall(name, args);
     i = 1;
@@ -936,6 +934,31 @@ export function lowerValueChainAccessPath(
     return null;
   }
   return current;
+}
+
+// Resolve the function NAME of a `LuauFunctionCall` node by looking
+// inside its `_begin` subtree only. Without the scope restriction,
+// `getDescendent("LuauFunctionName", node)` would walk past the
+// function's begin block into its `LuauFunctionCallParameters` and
+// surface a nested call's name — e.g. `select("#", multi())` would
+// resolve to "multi" instead of "select" because select is captured
+// as `LuauStdLibFunctions` (not `LuauFunctionName`).
+function readFunctionCallName(
+  callNode: SyntaxNode,
+  ctx: LowerContext,
+): string | null {
+  // Scope the search to `_begin` so a deep descendant walk doesn't
+  // surface a nested call's name from inside the function's args
+  // (e.g. `select("#", multi())` would otherwise resolve to "multi"
+  // because select is captured as `LuauStdLibFunctions` while the
+  // inner `multi` is captured as `LuauFunctionName`, and the deep
+  // search hits LuauFunctionName first).
+  const begin = findChildByName(callNode, "LuauFunctionCall_begin");
+  const searchRoot = begin ?? callNode;
+  const nameNode =
+    getDescendent("LuauStdLibFunctions", searchRoot) ??
+    getDescendent("LuauFunctionName", searchRoot);
+  return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
 }
 
 function lowerCallArguments(
