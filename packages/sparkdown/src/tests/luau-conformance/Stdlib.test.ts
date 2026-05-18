@@ -259,11 +259,92 @@ end
   });
 });
 
-// Note: `os.time({year=..., month=..., day=...})` (table form) is
-// implemented in StdLib.ts but unreachable from user code today —
-// sparkdown's named-key table literals produce an empty Map (see
-// task #83). The 0-arg form is exercised in earlier coverage; add
-// a table-form test here once #83 lands.
+describe("bracket-key table literals", () => {
+  test('{ ["k"] = v } produces a named-key table', () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { ["name"] = "Anonymous", ["score"] = 42 }
+& host_record(rawget(t, "name"))
+& host_record(rawget(t, "score"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["Anonymous", 42]);
+  });
+
+  test("bracket-key + bare-key + array entries mix", () => {
+    // Array-style entries get auto-incremented int keys ("1", "2", …)
+    // independent of named keys, matching Lua semantics.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { 100, ["foo"] = "x", 200, bar = "y" }
+& host_record(rawget(t, "1"))
+& host_record(rawget(t, "2"))
+& host_record(rawget(t, "foo"))
+& host_record(rawget(t, "bar"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([100, 200, "x", "y"]);
+  });
+
+  test("bracket numeric key works for static integers", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { [5] = "five", [10] = "ten" }
+& host_record(rawget(t, "5"))
+& host_record(rawget(t, "10"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["five", "ten"]);
+  });
+});
+
+describe("stdlib os.time table form", () => {
+  test("os.time({year, month, day [, hour, min, sec]}) converts to a Unix timestamp", () => {
+    // Local-time semantics: the absolute timestamp depends on host
+    // TZ, so compare against a JS Date constructed the same way.
+    const expected = Math.floor(
+      new Date(2026, 0, 15, 12, 0, 0).getTime() / 1000,
+    );
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+& host_record(os.time({ year = 2026, month = 1, day = 15 }))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([expected]);
+  });
+
+  test("os.time accepts bracket-key table form too", () => {
+    const expected = Math.floor(
+      new Date(2026, 0, 15, 9, 30, 0).getTime() / 1000,
+    );
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+& host_record(os.time({ ["year"] = 2026, ["month"] = 1, ["day"] = 15, ["hour"] = 9, ["min"] = 30 }))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([expected]);
+  });
+});
 
 describe("stdlib table.* (read-only)", () => {
   test("table.getn counts the array portion", () => {

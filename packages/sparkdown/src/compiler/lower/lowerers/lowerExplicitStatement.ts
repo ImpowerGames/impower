@@ -45,8 +45,22 @@ export function lowerExplicitStatement(
   }
 
   const lhsPath = getDescendent("LuauAccessPath", nodeRef.node);
-  const opNode = getDescendent("LuauAssignmentOperation", nodeRef.node);
   if (!lhsPath) return {};
+  // Look for the assignment operator as a SIBLING of `lhsPath`, not a
+  // descendant — `getDescendent` is greedy and would otherwise walk into
+  // the access path itself (e.g. into a table literal inside call args
+  // like `& host_record({year = 2026})`) and surface the inner key
+  // `year = 2026` as the statement-level op, misclassifying the whole
+  // statement as `host_record = 2026`.
+  let opNode: SyntaxNode | null = null;
+  let sib: SyntaxNode | null = lhsPath.nextSibling;
+  while (sib) {
+    if (sib.name === "LuauAssignmentOperation") {
+      opNode = sib;
+      break;
+    }
+    sib = sib.nextSibling;
+  }
 
   // Bare function-call statement (no assignment operator). Lower the
   // access path as an expression; if it resolves to a `FunctionCall`,

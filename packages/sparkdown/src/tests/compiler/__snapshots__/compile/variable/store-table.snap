@@ -18,6 +18,14 @@
                     "red"
                   ]
                 }
+              },
+              {
+                "key": "count",
+                "value": {
+                  "type": "NumberExpression",
+                  "value": 3,
+                  "subtype": "int"
+                }
               }
             ]
           }
