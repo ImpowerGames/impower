@@ -12,6 +12,7 @@ import {
   StringValue,
   IntValue,
   FloatValue,
+  BoolValue,
   DivertTargetValue,
   VariablePointerValue,
   ListValue,
@@ -1995,6 +1996,36 @@ export class Story extends InkObject {
           this.state.PushEvaluationStack(
             new StringValue(getPluralCategory(n, language)),
           );
+          break;
+        }
+
+        case ControlCommand.CommandType.Assert: {
+          // Pops the message (top), then the condition. Falsy
+          // values (nil / 0 / false / "") raise a runtime error via
+          // `AddError`, which routes to `onError` and force-ends the
+          // story. The lowerer guarantees both pushes are present.
+          const messageVal = this.state.PopEvaluationStack();
+          const condVal = this.state.PopEvaluationStack();
+          // Truthiness mirrors sparkdown's coercion rules elsewhere:
+          // nil/Void is falsy; 0 / false / "" are falsy too.
+          let truthy = true;
+          if (
+            condVal == null ||
+            condVal instanceof Void ||
+            (condVal instanceof IntValue && condVal.value === 0) ||
+            (condVal instanceof FloatValue && condVal.value === 0) ||
+            (condVal instanceof StringValue && condVal.value === "") ||
+            (condVal instanceof BoolValue && condVal.value === false)
+          ) {
+            truthy = false;
+          }
+          if (!truthy) {
+            const message =
+              messageVal instanceof StringValue && messageVal.value != null
+                ? messageVal.value
+                : "assertion failed";
+            this.AddError(message);
+          }
           break;
         }
 

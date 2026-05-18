@@ -18,6 +18,12 @@ export interface SparkdownCompilerState {
    * relative to ITS URI, not the entry-point's URI). Updated and restored
    * by `SparkdownCompiler.parseIncrementally` around each recursive
    * descent.
+   *
+   * `runStack` tracks the resolved URIs of `.luau` files currently being
+   * loaded by `run` statements. If a `run` resolution finds its target
+   * URI already on the stack, that's a cycle and the compiler errors
+   * instead of recursing forever. Pushed before recursive descent and
+   * popped on return.
    */
-  fileResolutionState?: { currentParentUri: string };
+  fileResolutionState?: { currentParentUri: string; runStack?: string[] };
 }

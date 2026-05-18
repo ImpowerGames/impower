@@ -621,6 +621,7 @@ export class SparkdownCompiler {
     while (cur.value) {
       const {
         include,
+        run,
         diagnostics,
         content,
         context,
@@ -658,6 +659,111 @@ export class SparkdownCompiler {
             state.fileResolutionState.currentParentUri = previousParentUri;
           }
           topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
+        }
+      }
+      if (run) {
+        // `run "path"` — load `${path}.luau`, wrap its body in a
+        // function, splice a call to the function at this position,
+        // and hoist the function declaration to the end of the
+        // parent program. Uses the same `IncludedFile` plumbing as
+        // `include`, which already separates flow declarations
+        // (knots/functions — appended at end) from non-flow content
+        // (top-level statements — spliced inline). See
+        // `Story.PreProcessTopLevelObjects` for the split logic.
+        const previousParentUri =
+          state.fileResolutionState?.currentParentUri ?? uri;
+        if (state.fileResolutionState) {
+          state.fileResolutionState.currentParentUri = uri;
+        }
+        const luauFilename = `${run}.luau`;
+        let resolvedFilePath: string | null = null;
+        try {
+          resolvedFilePath = fileHandler.ResolveInkFilename(luauFilename);
+        } catch {}
+        // 1-based line/character — `onDiagnostic` subtracts 1 to
+        // produce 0-based values that pass `getDiagnostic`'s
+        // `startCharacter < 0` filter.
+        const sourceMetadata: SourceMetadata = {
+          fileName,
+          filePath: uri,
+          startLineNumber: lineNumberOffset + 1,
+          endLineNumber: lineNumberOffset + 1,
+          startCharacterNumber: 1,
+          endCharacterNumber: 1,
+        };
+        if (!resolvedFilePath) {
+          onDiagnostic(
+            `Could not find '${luauFilename}' for 'run' statement.`,
+            ErrorType.Error,
+            sourceMetadata,
+          );
+        } else if (
+          state.fileResolutionState?.runStack?.includes(resolvedFilePath)
+        ) {
+          onDiagnostic(
+            `'run' cycle detected: ${[
+              ...(state.fileResolutionState.runStack ?? []),
+              resolvedFilePath,
+            ].join(" -> ")}`,
+            ErrorType.Error,
+            sourceMetadata,
+          );
+        } else {
+          const rawContent = fileHandler.LoadInkFileContents(resolvedFilePath);
+          // Sanitize: identifier-safe name derived from the path so
+          // two `run` statements pointing at the same file collide
+          // into the same wrapper knot (cheap deduping). Sparkdown
+          // identifiers are `[A-Za-z_][A-Za-z0-9_]*`.
+          const sanitized = run.replace(/[^A-Za-z0-9_]/g, "_");
+          const wrapperName = `__run_${sanitized}`;
+          // The wrapper has TWO parts:
+          //   `& <wrapperName>()`  → top-level statement, gets
+          //                          spliced inline by IncludedFile
+          //                          processing.
+          //   `function <wrapperName>() <content> end`
+          //                       → flow declaration, hoisted to
+          //                          end of parent program.
+          // Together: the parent calls the wrapper at the run-site,
+          // and the wrapper definition lives at the end where it
+          // doesn't terminate the parent's main flow.
+          const wrapped = `& ${wrapperName}()\nfunction ${wrapperName}()\n${rawContent}\nend\n`;
+          // Stash the wrapped content under a virtual URI derived
+          // from the .luau file's URI. The `?run` query suffix
+          // keeps it distinct from any raw .luau document registered
+          // separately. The compiler treats it as a normal `.sd`
+          // source from this point on.
+          const virtualUri = `${resolvedFilePath}?run=${wrapperName}`;
+          this.documents.add({
+            textDocument: {
+              uri: virtualUri,
+              languageId: "sparkdown",
+              version: 1,
+              text: wrapped,
+            },
+          });
+          if (state.fileResolutionState) {
+            state.fileResolutionState.runStack ??= [];
+            state.fileResolutionState.runStack.push(resolvedFilePath);
+          }
+          let runStory: ReturnType<typeof this.parseIncrementally> | null = null;
+          try {
+            runStory = this.parseIncrementally(
+              virtualUri,
+              fileHandler,
+              true,
+              state,
+              program,
+              onDiagnostic,
+            );
+          } finally {
+            if (state.fileResolutionState?.runStack) {
+              state.fileResolutionState.runStack.pop();
+            }
+          }
+          topLevelIncludedFileObjs.push(new IncludedFile(runStory));
+        }
+        if (state.fileResolutionState) {
+          state.fileResolutionState.currentParentUri = previousParentUri;
         }
       }
       if (diagnostics) {

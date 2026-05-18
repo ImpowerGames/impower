@@ -854,6 +854,7 @@ export class JsonSerialisation {
     _controlCommandNames[ControlCommand.CommandType.BeginScope] = "scope{";
     _controlCommandNames[ControlCommand.CommandType.EndScope] = "}scope";
     _controlCommandNames[ControlCommand.CommandType.PluralCategory] = "pcat";
+    _controlCommandNames[ControlCommand.CommandType.Assert] = "assert";
 
     for (let i = 0; i < ControlCommand.CommandType.TOTAL_VALUES; ++i) {
       if (_controlCommandNames[i] == null)

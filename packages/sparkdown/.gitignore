@@ -10,3 +10,9 @@ node_modules
 # at `src/inkjs/LICENSE` covers the engine fork and the (untracked)
 # tests directory alike.
 src/inkjs/tests
+
+# Vendored upstream Luau conformance tests. Same pattern as inkjs:
+# the upstream `.luau` fixtures themselves stay on disk locally but
+# aren't tracked. `LICENSE.txt` and `VENDORING.md` are force-added so
+# we can document where the snapshot came from and how to refresh it.
+src/tests/luau-conformance/upstream/conformance

@@ -18,8 +18,32 @@ import { lowerTable } from "./lowerTable";
 import { mapStdLibCallToBuiltin } from "../utils/stdlibMapping";
 import {
   isBuiltinMethod,
+  lookupGlobalStdLibBuiltin,
   METHOD_PREFIX,
 } from "../../../inkjs/engine/StdLib";
+
+// Wrap the lowerer's `new FunctionCall(name, args)` site so that
+// bare (unnamespaced) source names like `assert` get rewritten to
+// their ink-runtime ControlCommand name (`ASSERT`) before construction.
+// All paths that create a FunctionCall from a parsed identifier
+// + arg list should funnel through this so the registry in
+// `StdLib.ts.GLOBAL_STDLIB_ALIASES` stays the single source of
+// truth for source→runtime name mapping.
+function makeGlobalFunctionCall(
+  name: Identifier,
+  args: Expression[],
+): FunctionCall {
+  const resolved = lookupGlobalStdLibBuiltin(name.name, args.length);
+  if (resolved && resolved !== name.name) {
+    if (resolved === "ASSERT" && args.length === 1) {
+      // `assert(cond)` source form: pad with the default message so
+      // the runtime handler always sees exactly two stack pushes.
+      args = [...args, new StringExpression([new Text("assertion failed")])];
+    }
+    return new FunctionCall(new Identifier(resolved), args);
+  }
+  return new FunctionCall(name, args);
+}
 
 // ============================================================================
 // Public entry points
@@ -773,12 +797,18 @@ export function lowerSimpleAccessPath(
       }
       case "LuauFunctionCall": {
         if (i === 0) {
-          const nameNode = getDescendent("LuauFunctionName", inner);
+          // Grammar tags reserved stdlib names (`assert`, `print`,
+          // `tostring`, ...) under `LuauStdLibFunctions` rather than
+          // `LuauFunctionName`. Look for either so global builtins
+          // and user-defined functions both resolve here.
+          const nameNode =
+            getDescendent("LuauFunctionName", inner) ??
+            getDescendent("LuauStdLibFunctions", inner);
           const name = nameNode
             ? new Identifier(ctx.read(nameNode.from, nameNode.to))
             : null;
           const args = lowerCallArguments(inner, ctx);
-          if (name) return new FunctionCall(name, args);
+          if (name) return makeGlobalFunctionCall(name, args);
         }
         break;
       }
@@ -811,11 +841,13 @@ export function lowerValueChainAccessPath(
 
   const firstInner = parts[0]?.firstChild;
   if (firstInner?.name === "LuauFunctionCall") {
-    const nameNode = getDescendent("LuauFunctionName", firstInner);
+    const nameNode =
+      getDescendent("LuauFunctionName", firstInner) ??
+      getDescendent("LuauStdLibFunctions", firstInner);
     if (!nameNode) return null;
     const name = new Identifier(ctx.read(nameNode.from, nameNode.to));
     const args = lowerCallArguments(firstInner, ctx);
-    current = new FunctionCall(name, args);
+    current = makeGlobalFunctionCall(name, args);
     i = 1;
   } else {
     // Gather the leading dot-path identifier run as the initial

@@ -44,7 +44,7 @@
     ],
     "FLOW_MODULE_KEYWORDS": [
       "include",
-      "load"
+      "run"
     ],
     "LUAU_SCOPE_MODIFIERS": [
       "store",
@@ -256,7 +256,7 @@
       "include": "#Include"
     },
     {
-      "include": "#Load"
+      "include": "#Run"
     },
     {
       "include": "#Scene"
@@ -454,10 +454,10 @@
       "name": "string.include.sd",
       "match": "(.+?)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))"
     },
-    "Load": {
+    "Run": {
       "tag": "meta",
-      "name": "meta.import.load.sd",
-      "begin": "^((?:[^\\S\\n\\r])*)(load)((?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-]))))",
+      "name": "meta.import.run.sd",
+      "begin": "^((?:[^\\S\\n\\r])*)(run)((?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-]))))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -469,7 +469,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#LoadKeyword"
+              "include": "#RunKeyword"
             }
           ]
         },
@@ -486,23 +486,20 @@
           "include": "#Annotation"
         },
         {
-          "include": "#LoadName"
-        },
-        {
-          "include": "#Whitespace"
+          "include": "#RunContent"
         }
       ],
       "end": "(?=$)"
     },
-    "LoadKeyword": {
+    "RunKeyword": {
       "tag": "controlKeyword",
-      "name": "keyword.control.definition.load.sd",
+      "name": "keyword.control.definition.run.sd",
       "match": "(.+)"
     },
-    "LoadName": {
-      "tag": "constant(variableName)",
-      "name": "variable.other.constant.load.name.sd",
-      "match": "(\\S+)"
+    "RunContent": {
+      "tag": "string",
+      "name": "string.run.luau.sd",
+      "match": "(.+?)(?=(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))"
     },
     "Break": {
       "tag": "special(content)",

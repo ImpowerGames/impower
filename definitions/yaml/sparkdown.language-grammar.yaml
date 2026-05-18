@@ -14,7 +14,7 @@ variables:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
 
   FLOW_BEAT_KEYWORDS: ["scene", "branch"]
-  FLOW_MODULE_KEYWORDS: ["include", "load"]
+  FLOW_MODULE_KEYWORDS: ["include", "run"]
 
   LUAU_SCOPE_MODIFIERS: ["store", "local", "const"]
   LUAU_ACCESS_MODIFIERS: ["read", "write"]
@@ -200,7 +200,7 @@ patterns:
   - { include: "#Annotation" }
 
   - { include: "#Include" }
-  - { include: "#Load" }
+  - { include: "#Run" }
 
   - { include: "#Scene" }
   - { include: "#Branch" }
@@ -322,36 +322,40 @@ repository:
     name: string.include.sd
     match: (.+?)(?={{EOL}})
 
-  ########## Load ##########
+  ########## Run ##########
 
-  Load:
+  # `run "path"` (extension implicit — always `.luau`). Top-level
+  # statement only. Reads the named `.luau` file, wraps its body in
+  # an anonymous function, and calls it immediately. dofile-style:
+  # no return value, no module binding. Lets authors splice verbatim
+  # Luau source into a sparkdown program by reference. Cycles error.
+  Run:
     tag: meta
-    name: meta.import.load.sd
-    begin: ^({{WS}}*)(load)({{EOK}})
+    name: meta.import.run.sd
+    begin: ^({{WS}}*)(run)({{EOK}})
     beginCaptures:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          - { include: "#LoadKeyword" }
+          - { include: "#RunKeyword" }
       3:
         patterns:
           - { include: "#RequiredWhitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#LoadName" }
-      - { include: "#Whitespace" }
+      - { include: "#RunContent" }
     end: (?=$)
 
-  LoadKeyword:
+  RunKeyword:
     tag: controlKeyword
-    name: keyword.control.definition.load.sd
+    name: keyword.control.definition.run.sd
 
-  LoadName:
-    tag: constant(variableName)
-    name: variable.other.constant.load.name.sd
-    match: (\S+)
+  RunContent:
+    tag: string
+    name: string.run.luau.sd
+    match: (.+?)(?={{EOL}})
 
   ########## Break ##########
 

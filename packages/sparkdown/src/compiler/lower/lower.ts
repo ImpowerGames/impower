@@ -1,10 +1,13 @@
 import { type SyntaxNode } from "@lezer/common";
+import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "./context";
 import { findChildByName } from "./utils/alternatorArms";
+import { lowerExpressionFromNodes } from "./expression/lowerExpression";
+import { wrapInWeave } from "./utils/wrapInWeave";
 import {
   lowerAudioLine,
   lowerImageAndAudioLine,
@@ -38,6 +41,7 @@ import { lowerGlue } from "./lowerers/lowerGlue";
 import { lowerLabelAnchor } from "./lowerers/lowerLabelAnchor";
 import { lowerReassignment } from "./lowerers/lowerReassignment";
 import { lowerInclude } from "./lowerers/lowerInclude";
+import { lowerRun } from "./lowerers/lowerRun";
 import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
 import { lowerLuauFunctionDefinition } from "./lowerers/lowerLuauFunctionDefinition";
@@ -79,6 +83,8 @@ function lowerInner(
   switch (nodeRef.name) {
     case "Include":
       return lowerInclude(nodeRef, ctx);
+    case "Run":
+      return lowerRun(nodeRef, ctx);
     case "Scene":
       return lowerScene(nodeRef, ctx);
     case "Branch":
@@ -257,6 +263,23 @@ export function lowerStatements(
           const block = lowerReassignment(child, opSibling, ctx);
           appendBlockContent(result, block);
           child = opSibling.nextSibling;
+          continue;
+        }
+        // Bare statement-level function call inside a Luau-context
+        // body (function/if/for/while/do/repeat). Luau allows
+        // `foo()` as a statement; sparkdown's `LuauExplicitStatement`
+        // covers the `& foo()` form, but inside function bodies the
+        // discard prefix is optional. Reuse the same lowering path
+        // as `& foo()` — produce a FunctionCall and flag
+        // `shouldPopReturnedValue` so the unused return is popped.
+        // Non-call paths (e.g. a bare `x` or `1 + 2`) lower to non-
+        // FunctionCall expressions and have no statement-level side
+        // effects, so they're silently dropped (matching Luau).
+        const callExpr = lowerExpressionFromNodes([child], ctx);
+        if (callExpr instanceof FunctionCall) {
+          callExpr.shouldPopReturnedValue = true;
+          appendBlockContent(result, wrapInWeave([callExpr]));
+          child = child.nextSibling;
           continue;
         }
       }

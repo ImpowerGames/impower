@@ -31,7 +31,8 @@ export class FunctionCall extends Expression {
       name === "LIST_VALUE" ||
       name === "LIST_RANDOM" ||
       name === "READ_COUNT" ||
-      name === "plural.category"
+      name === "plural.category" ||
+      name === "ASSERT"
     );
   };
 
@@ -93,6 +94,14 @@ export class FunctionCall extends Expression {
   // source as `plural.category(n)`.
   get isPluralCategory(): boolean {
     return this.name === "plural.category";
+  }
+
+  // Luau-style `assert(cond [, message])` global. The lowerer rewrites
+  // source-level `assert(...)` calls to `FunctionCall("ASSERT", ...)`
+  // via `GLOBAL_STDLIB_ALIASES`. Always emitted with exactly two args
+  // (the lowerer pads a missing message with `"assertion failed"`).
+  get isAssert(): boolean {
+    return this.name === "ASSERT";
   }
 
   public shouldPopReturnedValue: boolean = false;
@@ -222,6 +231,21 @@ export class FunctionCall extends Expression {
       this.args[0].GenerateIntoContainer(container);
 
       container.AddContent(RuntimeControlCommand.PluralCategory());
+    } else if (this.isAssert) {
+      // `assert(cond)` or `assert(cond, message)`. The lowerer always
+      // pads a missing message with the default `"assertion failed"`
+      // string before constructing this FunctionCall, so we always
+      // see exactly two args. The runtime handler pops both in this
+      // order: message first (top of stack), then condition.
+      if (this.args.length !== 2) {
+        this.Error("assert should take 1 or 2 arguments: a condition and an optional message");
+      } else {
+        // Push condition, then message. Runtime pops them off in
+        // reverse order (message first, condition second).
+        this.args[0].GenerateIntoContainer(container);
+        this.args[1].GenerateIntoContainer(container);
+        container.AddContent(RuntimeControlCommand.Assert());
+      }
     } else if (NativeFunctionCall.CallExistsWithName(this.name)) {
       const nativeCall = NativeFunctionCall.CallWithName(this.name);
       // Variadic natives (currently the `__method_*` builtin-method

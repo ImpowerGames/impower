@@ -74,6 +74,28 @@ export const STDLIB: Record<string, Record<string, StdLibFn>> = {
 // name (or `null` if the arity isn't supported).
 export type InkBuiltinAlias = string | ((argCount: number) => string | null);
 
+// Global (unnamespaced) Luau builtins that resolve to ink-runtime
+// ControlCommand names. Used for source-level calls like `assert(...)`
+// where there's no namespace receiver. The lowerer (in
+// `lowerSimpleAccessPath`) consults this table when a bare function
+// call's name matches a global builtin, and rewrites the source name
+// (e.g. `assert`) to the runtime name (`ASSERT`) before constructing
+// the `FunctionCall`. Dispatch in `FunctionCall.GenerateIntoContainer`
+// happens on the resolved runtime name.
+//
+// Same shape as `INK_BUILTIN_ALIASES` per-namespace entries: value is
+// either a fixed string or an arg-count function for arity-overloaded
+// builtins.
+export const GLOBAL_STDLIB_ALIASES: Record<string, InkBuiltinAlias> = {
+  // `assert(cond [, message])` — Luau-style assertion. Raises a
+  // runtime error via `story.AddError(message)` when `cond` is falsy
+  // (sparkdown's truthiness: nil/0/false/"" are falsy). The lowerer
+  // pads a missing message arg with the default `"assertion failed"`
+  // string so the runtime handler always sees exactly 2 args on the
+  // eval stack.
+  assert: "ASSERT",
+};
+
 // Luau-style names that resolve to ink-runtime builtin names. These
 // builtins have special handling in `FunctionCall.GenerateIntoContainer`
 // (they emit dedicated ControlCommands rather than NativeFunctionCall
@@ -144,6 +166,20 @@ export function lookupStdLibBuiltin(
     return `${receiverName}.${methodName}`;
   }
   const alias = INK_BUILTIN_ALIASES[receiverName]?.[methodName];
+  if (alias == null) return null;
+  return typeof alias === "string" ? alias : alias(argCount);
+}
+
+// Resolves an unnamespaced source name (e.g. `assert`) to its
+// ink-runtime ControlCommand name (`ASSERT`), or returns `null` if
+// the name isn't a registered global. Mirrors `lookupStdLibBuiltin`
+// but for `GLOBAL_STDLIB_ALIASES` — used by the lowerer when a bare
+// function-call name has no receiver.
+export function lookupGlobalStdLibBuiltin(
+  name: string,
+  argCount: number,
+): string | null {
+  const alias = GLOBAL_STDLIB_ALIASES[name];
   if (alias == null) return null;
   return typeof alias === "string" ? alias : alias(argCount);
 }

@@ -124,6 +124,17 @@ export class ControlCommand extends InkObject {
   public static PluralCategory() {
     return new ControlCommand(ControlCommand.CommandType.PluralCategory);
   }
+  // Luau-style `assert(cond [, message])` — pops a message value and a
+  // condition value off the eval stack; if the condition is falsy,
+  // raises a runtime error with the message text. Falsy follows
+  // sparkdown's coercion rules (nil/0/false/empty string are falsy).
+  // The compiler always emits exactly two stack pushes before this
+  // command: source-level `assert(cond)` is auto-padded with a
+  // default `"assertion failed"` message string at lowering time so
+  // the runtime can always pop a fixed pair.
+  public static Assert() {
+    return new ControlCommand(ControlCommand.CommandType.Assert);
+  }
   public toString() {
     return "ControlCommand " + this.commandType.toString();
   }
@@ -189,6 +200,13 @@ export namespace ControlCommand {
     // `lowerSparkdownConditionalAlternatorBlock.ts` for the
     // `plural(n)|one=...|other=...` desugar.
     PluralCategory, // 33
+
+    // Luau-style `assert(cond [, message])` — see `Assert()` factory.
+    // Pops two values from the eval stack (message then condition),
+    // raises a runtime error on falsy condition. The compiler always
+    // emits both pushes; bare `assert(cond)` is padded with a default
+    // message string at lowering time.
+    Assert, // 34
 
     TOTAL_VALUES,
   }
