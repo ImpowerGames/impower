@@ -165,6 +165,257 @@ end
   });
 });
 
+describe("math.frexp", () => {
+  test("frexp(8) = (0.5, 4) since 8 = 0.5 * 2^4", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local m, e = math.frexp(8)
+& host_record(m)
+& host_record(e)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded[0]).toBeCloseTo(0.5, 10);
+    expect(recorded[1]).toBe(4);
+  });
+
+  test("frexp(0) = (0, 0)", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local m, e = math.frexp(0)
+& host_record(m)
+& host_record(e)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([0, 0]);
+  });
+
+  test("frexp(-3) gives negative mantissa", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local m, e = math.frexp(-3)
+& host_record(m)
+& host_record(e)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded[0]).toBeCloseTo(-0.75, 10);
+    expect(recorded[1]).toBe(2);
+  });
+
+  test("frexp roundtrips via ldexp", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local m, e = math.frexp(42.5)
+& host_record(math.ldexp(m, e))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded[0]).toBeCloseTo(42.5, 10);
+  });
+});
+
+describe("string.byte", () => {
+  test("string.byte(s) returns first byte", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+& host_record(string.byte("A"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([65]);
+  });
+
+  test("string.byte(s, i, j) returns range", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local a, b, c = string.byte("ABC", 1, 3)
+& host_record(a)
+& host_record(b)
+& host_record(c)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([65, 66, 67]);
+  });
+
+  test("string.byte with negative index counts from end", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+& host_record(string.byte("hello", -1))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([111]); // 'o'
+  });
+});
+
+describe("utf8.codepoint", () => {
+  test("utf8.codepoint(s) returns first codepoint", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+& host_record(utf8.codepoint("A"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([65]);
+  });
+
+  test("utf8.codepoint over a multi-byte char", () => {
+    // "é" is U+00E9 = decimal 233, encoded as 2 UTF-8 bytes.
+    const s = "é";
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+& host_record(utf8.codepoint("${s}"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([0xe9]);
+  });
+
+  test("utf8.codepoint(s, i, j) returns multiple codepoints", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local a, b, c = utf8.codepoint("ABC", 1, 3)
+& host_record(a)
+& host_record(b)
+& host_record(c)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([65, 66, 67]);
+  });
+});
+
+describe("table.unpack / unpack", () => {
+  test("table.unpack returns array values as multi-return", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { 10, 20, 30 }
+local a, b, c = table.unpack(t)
+& host_record(a)
+& host_record(b)
+& host_record(c)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20, 30]);
+  });
+
+  test("table.unpack with i, j returns a slice", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { "a", "b", "c", "d" }
+local x, y = table.unpack(t, 2, 3)
+& host_record(x)
+& host_record(y)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["b", "c"]);
+  });
+
+  test("unpack global alias works identically", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { 100, 200, 300 }
+local a, b, c = unpack(t)
+& host_record(a)
+& host_record(b)
+& host_record(c)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([100, 200, 300]);
+  });
+});
+
+describe("select(n, ...)", () => {
+  test("select(2, a, b, c) returns b, c", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local a, b = select(2, "x", "y", "z")
+& host_record(a)
+& host_record(b)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["y", "z"]);
+  });
+
+  test("select(1, ...) returns all of the varargs", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local a, b, c = select(1, 10, 20, 30)
+& host_record(a)
+& host_record(b)
+& host_record(c)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20, 30]);
+  });
+
+  test("select(-1, ...) returns the last arg", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+& host_record(select(-1, "x", "y", "z"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["z"]);
+  });
+});
+
 describe("multi-target padding and truncation", () => {
   test("multi-target with single-value RHS pads remaining with nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)

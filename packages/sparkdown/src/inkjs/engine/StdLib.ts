@@ -171,6 +171,31 @@ export function isTruthy(v: any): boolean {
 }
 
 /**
+ * Shared implementation for `table.unpack` and global `unpack`.
+ * Returns the array slice `t[i..j]` as a JS array (which the
+ * stdlib dispatcher wraps as a `MultiValue`). Missing slots in the
+ * requested range become `null` so multi-target callers see them as
+ * nil rather than truncating the result.
+ */
+function unpackImpl(story: any, args: any[], fnName: string): any[] {
+  if (!(args[0] instanceof ObjectValue)) {
+    story.Error(`${fnName}: first argument must be a table`);
+    return [];
+  }
+  const map = args[0].value as Map<string, AbstractValue> | null;
+  if (!map) return [];
+  let len = 0;
+  while (map.has(String(len + 1))) len++;
+  const i = args.length > 1 ? (coerceNumber(args[1]) ?? 1) : 1;
+  const j = args.length > 2 ? (coerceNumber(args[2]) ?? len) : len;
+  const out: any[] = [];
+  for (let k = i; k <= j; k++) {
+    out.push(map.get(String(k)) ?? null);
+  }
+  return out;
+}
+
+/**
  * Walk `s` and produce the byte offset (0-based, into the UTF-8
  * encoding) of each code-point boundary, plus a trailing entry for
  * the end of the string. Used by `utf8.len` and `utf8.offset` to
@@ -279,6 +304,29 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const n = coerceNumber(x) ?? 0;
       const intPart = n >= 0 ? Math.floor(n) : Math.ceil(n);
       return [intPart, n - intPart];
+    },
+  },
+  // `math.frexp(x)` — multi-return: mantissa `m` and exponent `e`
+  // such that `x = m * 2^e`, with `0.5 <= |m| < 1` (or `m = 0`
+  // when `x = 0`). The inverse of `math.ldexp`.
+  "math.frexp": {
+    arity: 1,
+    fn: (_, [x]) => {
+      const n = coerceNumber(x) ?? 0;
+      if (n === 0 || !isFinite(n) || isNaN(n)) return [n, 0];
+      const sign = n < 0 ? -1 : 1;
+      const absX = Math.abs(n);
+      let e = Math.floor(Math.log2(absX)) + 1;
+      let m = absX / Math.pow(2, e);
+      // Boundary correction for log2 precision quirks.
+      if (m >= 1) {
+        m /= 2;
+        e += 1;
+      } else if (m < 0.5) {
+        m *= 2;
+        e -= 1;
+      }
+      return [sign * m, e];
     },
   },
   // `math.log(x [, base])` — Lua 5.2+ / Luau accept an optional
@@ -595,11 +643,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `select("#", ...)` — count of additional arguments. The
-  // `select(n, ...)` form is part of the Lua API but produces
-  // multiple return values; that variant is blocked on multi-return
-  // (see task #80) and errors out for now with an explanatory
-  // message.
+  // `select(n, ...)` — Lua's variadic-arg helper. Two forms:
+  //   - `select("#", ...)` → count of variadic args (single int return)
+  //   - `select(n, ...)`   → multi-return: the args starting at index n
+  // Negative `n` counts from the end (-1 is the last arg).
   select: {
     arity: -1,
     fn: (story, args) => {
@@ -618,14 +665,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
         );
         return 0;
       }
-      // The `select(n, ...)` form returns multiple values starting
-      // from index n. Without multi-return infra, we'd silently
-      // drop all but the first — too confusing. Surface the
-      // limitation explicitly until task #80 lands.
-      story.Error(
-        "select(n, ...): multi-return form is not yet implemented (task #80). Use `select('#', ...)` for the count form.",
-      );
-      return 0;
+      const rest = args.slice(1);
+      let idx = Math.trunc(n);
+      if (idx < 0) idx = rest.length + idx + 1;
+      if (idx < 1) {
+        story.Error("select: index out of range");
+        return [];
+      }
+      return rest.slice(idx - 1);
     },
   },
 
@@ -696,6 +743,30 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     pure: true,
     fn: (_, args: number[]) => String.fromCharCode(...args),
+  },
+  // `string.byte(s [, i [, j]])` — multi-return: the byte codes for
+  // each character in `s` from index `i` (default 1) to index `j`
+  // (default i). Lua-style 1-indexed; negative indices count from
+  // the end. Sparkdown strings are UTF-16 in JS; we use
+  // `charCodeAt()` which gives the code-unit value — matches Lua
+  // for ASCII, gives the surrogate code unit for higher planes.
+  "string.byte": {
+    arity: -1,
+    fn: (_, args) => {
+      const s = coerceString(args[0]) ?? "";
+      let i = args.length > 1 ? (coerceNumber(args[1]) ?? 1) : 1;
+      let j = args.length > 2 ? (coerceNumber(args[2]) ?? i) : i;
+      if (i < 0) i = Math.max(1, s.length + i + 1);
+      if (j < 0) j = Math.max(0, s.length + j + 1);
+      if (i < 1) i = 1;
+      if (j > s.length) j = s.length;
+      if (j < i) return [];
+      const out: number[] = [];
+      for (let k = i; k <= j; k++) {
+        out.push(s.charCodeAt(k - 1));
+      }
+      return out;
+    },
   },
   "string.len": {
     arity: 1,
@@ -1236,6 +1307,22 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: 1,
     fn: (_, [t]) => t instanceof ObjectValue && t.isFrozen,
   },
+  // `table.unpack(t [, i [, j]])` — multi-return: `t[i], t[i+1], …, t[j]`.
+  // Default `i = 1`, default `j = #t`. Missing slots in the range are
+  // emitted as nil so callers can detect holes via positional binding.
+  // Lua 5.1 had this as the global `unpack`; Luau exposes both names
+  // (see the `unpack` entry below).
+  "table.unpack": {
+    arity: -1,
+    fn: (story, args) => unpackImpl(story, args, "table.unpack"),
+  },
+  // `unpack(t [, i [, j]])` — Lua 5.1 / Luau global. Identical to
+  // `table.unpack` (moved into `table` in Lua 5.2 but kept as a
+  // global in Luau for backwards compat).
+  unpack: {
+    arity: -1,
+    fn: (story, args) => unpackImpl(story, args, "unpack"),
+  },
 
   // ============================================================
   // `os.*` — wall-clock helpers. Sparkdown's runtime has no
@@ -1317,6 +1404,39 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // -1, end of string). Negative indices count from the end.
   // Sparkdown's JS strings are always valid Unicode (UTF-16), so the
   // "first invalid byte" error path Lua specifies never triggers.
+  // `utf8.codepoint(s [, i [, j]])` — multi-return: codepoint
+  // integers for each UTF-8 character whose starting byte lies in
+  // `[i, j]` (1-indexed bytes, default `j = i`, default `i = 1`).
+  // Sparkdown's JS strings are always valid Unicode, so the
+  // "invalid UTF-8" error path Lua specifies never triggers.
+  "utf8.codepoint": {
+    arity: -1,
+    fn: (story, args) => {
+      const s = coerceString(args[0]) ?? "";
+      const [cpOffsets, totalBytes] = utf8CodepointOffsets(s);
+      const iArg = args.length > 1 ? coerceNumber(args[1]) : 1;
+      if (iArg === null) {
+        story.Error("utf8.codepoint: position must be a number");
+        return [];
+      }
+      const i = iArg;
+      const j = args.length > 2 ? (coerceNumber(args[2]) ?? i) : i;
+      if (i < 1 || i > totalBytes) {
+        story.Error("utf8.codepoint: position out of bounds");
+        return [];
+      }
+      const codepoints: number[] = [];
+      let idx = 0;
+      for (const cp of s) {
+        const offset = cpOffsets[idx]!;
+        if (offset >= i - 1 && offset <= j - 1) {
+          codepoints.push(cp.codePointAt(0)!);
+        }
+        idx++;
+      }
+      return codepoints;
+    },
+  },
   "utf8.len": {
     arity: -1,
     fn: (story, args) => {
