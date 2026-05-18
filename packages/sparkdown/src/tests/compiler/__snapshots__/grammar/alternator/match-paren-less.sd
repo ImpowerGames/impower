@@ -1,0 +1,7 @@
+scene main
+  match player_class
+    | warrior = "a front-line meat shield"
+    | mage = "a scholar of the arcane"
+    | rogue = "someone who prefers the shadows"
+    | other = "a fresh recruit"
+  end

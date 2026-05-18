@@ -3866,11 +3866,17 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauSparkdownConditionalAlternatorBlock:
-    # `(?=[(])` lookahead — see comment on
-    # `LuauSparkdownInlineGluedConditionalAlternatorBlock`. Keeps
-    # `plural.X` / `match.X` access-path forms from being absorbed by
-    # the alternator rule.
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(])
+    # Lookahead accepts either the paren form `match(cond)` or the
+    # bare form `match cond` (Lua-style — `if cond then`, `while
+    # cond do`, etc.). The negative-character-class second alternative
+    # `[^.\s(=,;:|]` excludes `.` so `plural.X` / `match.X` access
+    # paths don't trigger this rule, and excludes operator/separator
+    # chars so `plural = …` / `match , …` etc. fall through to their
+    # natural rules. The inline-glued form
+    # (`LuauSparkdownInlineGluedConditionalAlternatorBlock`) keeps the
+    # parens-required lookahead — there the `(…)` is what
+    # disambiguates the alternator opener from a function call.
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(]|[^.\s(=,;:|])
     beginCaptures:
       1:
         patterns:
@@ -3900,11 +3906,11 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauConditionalAlternatorBlock:
-    # `(?=[(])` lookahead — see comment on
-    # `LuauSparkdownInlineGluedConditionalAlternatorBlock`. Keeps
-    # `plural.X` / `match.X` access-path forms from being absorbed by
-    # the alternator rule.
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(])
+    # See `LuauSparkdownConditionalAlternatorBlock` for the lookahead
+    # rationale — paren-form `match(cond)` OR bare-form `match cond`,
+    # with `.` / operator / separator chars excluded so the access-path
+    # case stays unaffected.
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(]|[^.\s(=,;:|])
     beginCaptures:
       1:
         patterns:
@@ -4032,7 +4038,7 @@ repository:
   # `|` — distinguishing from `plural(n)\n  | one = ...\nend`
   # (multi-line) where the condition is followed by a newline.
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^)\n]*[)][^|\n]*[|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^)\n]*[)][^|\n]*[|]|[^.\s(=,;:|][^|\n]*[|])
     beginCaptures:
       1:
         patterns:

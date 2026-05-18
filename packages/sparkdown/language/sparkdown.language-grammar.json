@@ -6273,7 +6273,7 @@
       "match": "([=])"
     },
     "LuauSparkdownConditionalAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(])",
+      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(]|[^.\\s(=,;:|])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6336,7 +6336,7 @@
       }
     },
     "LuauConditionalAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(])",
+      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(]|[^.\\s(=,;:|])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6546,7 +6546,7 @@
       }
     },
     "LuauSparkdownSingleLineConditionalAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(][^)\\n]*[)][^|\\n]*[|])",
+      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(][^)\\n]*[)][^|\\n]*[|]|[^.\\s(=,;:|][^|\\n]*[|])",
       "beginCaptures": {
         "1": {
           "patterns": [
