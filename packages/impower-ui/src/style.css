@@ -3,12 +3,12 @@
 @source ".";
 
 /* ----------------------------------------------------------------------------
- * Baseline styling for custom-element tags.
+ * Styling for custom-element tags.
  *
- * These rules apply pre-hydration so the SSR'd output renders close to its
- * post-hydrate appearance. The build pipeline emits `style="font-size: <size>"`
- * on the host element when a `size` attribute is present, and the SVG inside
- * picks up that font-size via `width/height: 1em`.
+ * Custom elements own their styling here, not via a Preact wrapper. This way
+ * the SSR'd HTML renders correctly before JS upgrades the element, and the
+ * post-hydrate DOM has no extra wrapper nodes. Sizing follows font-size so
+ * Tailwind text-* utilities scale icons naturally: `<s-icon class="text-2xl">`.
  * --------------------------------------------------------------------------*/
 
 s-icon {

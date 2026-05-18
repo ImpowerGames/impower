@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { renderToString } from "preact-render-to-string";
 import "./components/icon/Icon.elem"; // registers <s-icon>
-import Icon from "./components/icon/Icon";
 import * as Icons from "./components/icon/icons.generated";
 
 const SAMPLE: Array<keyof typeof Icons> = [
@@ -30,16 +29,16 @@ const SAMPLE: Array<keyof typeof Icons> = [
   "Logo",
 ];
 
-// Simulate the build pipeline:
-//   1. Render only the *children* of the component to a string (not the
-//      component's outer wrapper — the custom-element tag IS the wrapper).
-//   2. Wrap in <s-icon size="..."> with inline font-size for pre-hydrate sizing.
-// On client load, <s-icon> upgrades, preact-custom-element captures children
-// as VNodes, Icon wraps them in its own <span>. Net DOM: <s-icon><span><svg></span></s-icon>.
-const SSR_SIZE = "2rem";
-const ssrIconHtml = `<s-icon size="${SSR_SIZE}" style="font-size: ${SSR_SIZE}">${renderToString(
-  <Icons.Check />,
-)}</s-icon>`;
+// Simulate the build pipeline: SSR the full <s-icon> element including its
+// children. <s-icon> owns its own styling (via CSS in style.css), so the SSR'd
+// HTML is self-rendering before JS upgrades it. On upgrade, preact-custom-element
+// captures children, wipes innerHTML, re-renders the Icon component (a Fragment
+// passthrough) — net result: same DOM, no extra wrapper.
+const ssrIconHtml = renderToString(
+  <s-icon class="text-3xl">
+    <Icons.Check />
+  </s-icon>,
+);
 
 export function App() {
   const ssrRef = useRef<HTMLDivElement>(null);
@@ -47,7 +46,6 @@ export function App() {
 
   useEffect(() => {
     if (!ssrRef.current) return;
-    // Capture the DOM after preact-custom-element has had a chance to upgrade.
     queueMicrotask(() => {
       if (ssrRef.current) setLiveDom(ssrRef.current.innerHTML);
     });
@@ -87,36 +85,34 @@ export function App() {
 
       <section class="mb-10">
         <h2 class="text-lg font-medium mb-4">
-          Wrapped:{" "}
+          As custom element:{" "}
           <code class="font-mono text-sm bg-neutral-200 px-2 py-0.5 rounded">
-            &lt;Icon size="2rem"&gt;&lt;Check /&gt;&lt;/Icon&gt;
+            &lt;s-icon class="text-2xl"&gt;&lt;Check /&gt;&lt;/s-icon&gt;
           </code>
         </h2>
         <div class="flex items-center gap-6">
-          <Icon size="1rem">
+          <s-icon class="text-base">
             <Icons.Check />
-          </Icon>
-          <Icon size="1.5rem">
+          </s-icon>
+          <s-icon class="text-xl">
             <Icons.Check />
-          </Icon>
-          <Icon size="2rem">
+          </s-icon>
+          <s-icon class="text-3xl">
             <Icons.Check />
-          </Icon>
-          <Icon size="3rem">
+          </s-icon>
+          <s-icon class="text-5xl">
             <Icons.Check />
-          </Icon>
+          </s-icon>
         </div>
       </section>
 
       <section>
         <h2 class="text-lg font-medium mb-4">SSR + Hydrate test</h2>
         <p class="text-sm text-neutral-600 mb-3">
-          The HTML below is the kind the build pipeline will emit: raw SSR'd
-          markup with the custom-element tag wrapping the rendered children.
-          When the <code class="font-mono text-xs">&lt;s-icon&gt;</code> custom
-          element upgrades, preact-custom-element captures the existing
-          children as VNodes and Icon wraps them in its own{" "}
-          <code class="font-mono text-xs">&lt;span&gt;</code>.
+          The HTML below is what the build pipeline will emit. On client load,
+          preact-custom-element captures children as VNodes and the Icon
+          component (a Fragment passthrough) re-renders them in place. The
+          SSR'd HTML and the live DOM should be effectively identical.
         </p>
 
         <div class="flex items-center gap-6 mb-4">

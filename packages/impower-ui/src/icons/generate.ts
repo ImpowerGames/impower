@@ -55,8 +55,11 @@ const components = parsed
   .map(({ component, attrs, inner }) => {
     const attrStr = renderAttrs(attrs);
     const escapedInner = JSON.stringify(inner);
+    // Default to decorative: aria-hidden, focusable=false. Consumers can
+    // override via props (spread comes after literals) for labelled icons:
+    //   <Check role="img" aria-label="confirm" />
     return `export const ${component}: IconComponent = (props) => (
-  <svg ${attrStr} {...props} dangerouslySetInnerHTML={{ __html: ${escapedInner} }} />
+  <svg ${attrStr} aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: ${escapedInner} }} />
 );`;
   })
   .join("\n\n");

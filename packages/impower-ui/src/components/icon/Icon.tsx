@@ -1,26 +1,43 @@
-import type { ComponentChildren } from "preact";
+import {
+  cloneElement,
+  type ComponentChildren,
+  isValidElement,
+  toChildArray,
+} from "preact";
 
-export const propDefaults = {
-  size: null as string | null,
-};
+export const propDefaults = {};
 
-export type IconProps = Partial<typeof propDefaults> & {
-  class?: string;
+export type IconProps = {
   children?: ComponentChildren;
 };
 
-export default function Icon({ size, class: className, children }: IconProps) {
-  const sizeValue = size || "1em";
+// Decorate raw <svg> children with sensible aria defaults so consumers don't
+// have to remember them. Components that render an <svg> (like the generated
+// icon library) carry their own aria defaults and pass through here unchanged.
+// User overrides win because their props spread comes AFTER ours.
+export default function Icon({ children }: IconProps) {
   return (
-    <span
-      role="img"
-      aria-hidden="true"
-      class={`inline-flex items-center justify-center [&>svg]:w-full [&>svg]:h-full${
-        className ? ` ${className}` : ""
-      }`}
-      style={{ width: sizeValue, height: sizeValue, fontSize: sizeValue }}
-    >
-      {children}
-    </span>
+    <>
+      {toChildArray(children).map((child) =>
+        isValidElement(child) && child.type === "svg"
+          ? cloneElement(
+              child,
+              {
+                "aria-hidden": "true",
+                focusable: "false",
+                ...child.props,
+              } as Record<string, unknown>,
+            )
+          : child,
+      )}
+    </>
   );
+}
+
+declare module "preact" {
+  namespace JSX {
+    interface IntrinsicElements {
+      "s-icon": JSX.HTMLAttributes<HTMLElement>;
+    }
+  }
 }
