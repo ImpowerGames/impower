@@ -1,0 +1,72 @@
+sparkdown [0..37]
+ ├─ LuauVariableDefinition [0..36]
+ │   ├─ LuauVariableDefinition_begin [0..6]
+ │   │   ├─ LuauVariableDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauVariableDefinition_begin_c2 [0..5]
+ │   │   │   └─ LuauScopeModifier [0..5]: "local"
+ │   │   └─ LuauVariableDefinition_begin_c3 [5..6]
+ │   │       └─ LuauVariableDefinition_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauVariableDefinition_content [6..36]
+ │   │   └─ LuauVariableAssignment [6..36]
+ │   │       ├─ LuauVariableAssignment_begin [6..15]
+ │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..14]
+ │   │       │   │   └─ LuauVariableName [6..14]: "category"
+ │   │       │   └─ LuauVariableAssignment_begin_c2 [14..15]
+ │   │       │       └─ OptionalWhitespace [14..15]: " "
+ │   │       ├─ LuauVariableAssignment_content [15..36]
+ │   │       │   └─ LuauAssignmentOperation [15..36]
+ │   │       │       ├─ LuauAssignmentOperation_begin 15
+ │   │       │       │   └─ LuauAssignmentOperation_begin_c1 15
+ │   │       │       ├─ LuauAssignmentOperation_content [15..36]
+ │   │       │       │   ├─ LuauAssignmentOperator [15..17]
+ │   │       │       │   │   ├─ LuauAssignmentOperator_begin [15..17]
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 15
+ │   │       │       │   │   │   │   └─ OptionalWhitespace 15
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [15..16]: "="
+ │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [16..17]
+ │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [16..17]
+ │   │       │       │   │   │           └─ OptionalWhitespace [16..17]: " "
+ │   │       │       │   │   └─ LuauAssignmentOperator_end 17
+ │   │       │       │   ├─ LuauAccessPath [17..33]
+ │   │       │       │   │   ├─ LuauAccessPath_begin 17
+ │   │       │       │   │   ├─ LuauAccessPath_content [17..33]
+ │   │       │       │   │   │   ├─ LuauAccessPart [17..23]
+ │   │       │       │   │   │   │   └─ LuauVariable [17..23]
+ │   │       │       │   │   │   │       └─ LuauVariable_c1 [17..23]
+ │   │       │       │   │   │   │           └─ LuauStdLibConstants [17..23]: "plural"
+ │   │       │       │   │   │   └─ LuauAccessPart [23..33]
+ │   │       │       │   │   │       └─ LuauFunctionAccessor [23..33]
+ │   │       │       │   │   │           ├─ LuauFunctionAccessor_c1 [23..24]
+ │   │       │       │   │   │           │   └─ ExtraWhitespace [23..24]: " "
+ │   │       │       │   │   │           ├─ LuauFunctionAccessor_c2 [24..25]
+ │   │       │       │   │   │           │   └─ LuauAccessorOperator [24..25]: "."
+ │   │       │       │   │   │           ├─ LuauFunctionAccessor_c3 25
+ │   │       │       │   │   │           ├─ LuauFunctionAccessor_c4 [25..33]
+ │   │       │       │   │   │           │   └─ LuauFunctionName [25..33]: "category"
+ │   │       │       │   │   │           └─ LuauFunctionAccessor_c5 33
+ │   │       │       │   │   └─ LuauAccessPath_end 33
+ │   │       │       │   │       └─ LuauAccessPath_end_c1 33
+ │   │       │       │   └─ LuauParenthetical [33..36]
+ │   │       │       │       ├─ LuauParenthetical_begin [33..34]
+ │   │       │       │       │   └─ LuauParenthetical_begin_c1 [33..34]
+ │   │       │       │       │       └─ PunctuationParenOpen [33..34]: "("
+ │   │       │       │       ├─ LuauParenthetical_content [34..35]
+ │   │       │       │       │   └─ LuauAccessPath [34..35]
+ │   │       │       │       │       ├─ LuauAccessPath_begin 34
+ │   │       │       │       │       ├─ LuauAccessPath_content [34..35]
+ │   │       │       │       │       │   └─ LuauAccessPart [34..35]
+ │   │       │       │       │       │       └─ LuauVariable [34..35]
+ │   │       │       │       │       │           └─ LuauVariable_c1 [34..35]
+ │   │       │       │       │       │               └─ LuauVariableName [34..35]: "n"
+ │   │       │       │       │       └─ LuauAccessPath_end 35
+ │   │       │       │       │           └─ LuauAccessPath_end_c1 35
+ │   │       │       │       └─ LuauParenthetical_end [35..36]
+ │   │       │       │           ├─ LuauParenthetical_end_c1 [35..36]
+ │   │       │       │           │   └─ PunctuationParenClose [35..36]: ")"
+ │   │       │       │           └─ LuauParenthetical_end_c2 36
+ │   │       │       └─ LuauAssignmentOperation_end 36
+ │   │       └─ LuauVariableAssignment_end 36
+ │   └─ LuauVariableDefinition_end 36
+ └─ Newline [36..37]: "\n"

@@ -1,0 +1,52 @@
+sparkdown [0..31]
+ ├─ LuauVariableDefinition [0..30]
+ │   ├─ LuauVariableDefinition_begin [0..6]
+ │   │   ├─ LuauVariableDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauVariableDefinition_begin_c2 [0..5]
+ │   │   │   └─ LuauScopeModifier [0..5]: "local"
+ │   │   └─ LuauVariableDefinition_begin_c3 [5..6]
+ │   │       └─ LuauVariableDefinition_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauVariableDefinition_content [6..30]
+ │   │   └─ LuauVariableAssignment [6..30]
+ │   │       ├─ LuauVariableAssignment_begin [6..14]
+ │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..13]
+ │   │       │   │   └─ LuauVariableName [6..13]: "current"
+ │   │       │   └─ LuauVariableAssignment_begin_c2 [13..14]
+ │   │       │       └─ OptionalWhitespace [13..14]: " "
+ │   │       ├─ LuauVariableAssignment_content [14..30]
+ │   │       │   └─ LuauAssignmentOperation [14..30]
+ │   │       │       ├─ LuauAssignmentOperation_begin 14
+ │   │       │       │   └─ LuauAssignmentOperation_begin_c1 14
+ │   │       │       ├─ LuauAssignmentOperation_content [14..30]
+ │   │       │       │   ├─ LuauAssignmentOperator [14..16]
+ │   │       │       │   │   ├─ LuauAssignmentOperator_begin [14..16]
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 14
+ │   │       │       │   │   │   │   └─ OptionalWhitespace 14
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [14..15]: "="
+ │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [15..16]
+ │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [15..16]
+ │   │       │       │   │   │           └─ OptionalWhitespace [15..16]: " "
+ │   │       │       │   │   └─ LuauAssignmentOperator_end 16
+ │   │       │       │   └─ LuauAccessPath [16..30]
+ │   │       │       │       ├─ LuauAccessPath_begin 16
+ │   │       │       │       ├─ LuauAccessPath_content [16..30]
+ │   │       │       │       │   ├─ LuauAccessPart [16..21]
+ │   │       │       │       │   │   └─ LuauVariable [16..21]
+ │   │       │       │       │   │       └─ LuauVariable_c1 [16..21]
+ │   │       │       │       │   │           └─ LuauVariableName [16..21]: "cycle"
+ │   │       │       │       │   └─ LuauAccessPart [21..30]
+ │   │       │       │       │       └─ LuauPropertyAccessor [21..30]
+ │   │       │       │       │           ├─ LuauPropertyAccessor_c1 21
+ │   │       │       │       │           ├─ LuauPropertyAccessor_c2 [21..22]
+ │   │       │       │       │           │   └─ LuauAccessorOperator [21..22]: "."
+ │   │       │       │       │           ├─ LuauPropertyAccessor_c3 22
+ │   │       │       │       │           └─ LuauPropertyAccessor_c4 [22..30]
+ │   │       │       │       │               └─ LuauPropertyName [22..30]: "position"
+ │   │       │       │       └─ LuauAccessPath_end 30
+ │   │       │       │           └─ LuauAccessPath_end_c1 30
+ │   │       │       └─ LuauAssignmentOperation_end 30
+ │   │       └─ LuauVariableAssignment_end 30
+ │   └─ LuauVariableDefinition_end 30
+ └─ Newline [30..31]: "\n"

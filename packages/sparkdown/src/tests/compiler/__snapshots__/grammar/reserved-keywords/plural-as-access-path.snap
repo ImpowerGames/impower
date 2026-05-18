@@ -35,7 +35,7 @@ sparkdown [0..36]
  │   │       │       │   │   │   ├─ LuauAccessPart [17..23]
  │   │       │       │   │   │   │   └─ LuauVariable [17..23]
  │   │       │       │   │   │   │       └─ LuauVariable_c1 [17..23]
- │   │       │       │   │   │   │           └─ LuauVariableName [17..23]: "plural"
+ │   │       │       │   │   │   │           └─ LuauStdLibConstants [17..23]: "plural"
  │   │       │       │   │   │   └─ LuauAccessPart [23..32]
  │   │       │       │   │   │       └─ LuauFunctionAccessor [23..32]
  │   │       │       │   │   │           ├─ LuauFunctionAccessor_c1 23

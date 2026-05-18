@@ -5,7 +5,7 @@ text.source.sparkdown [0..36]
  ├─ punctuation.whitespace.optional.sd [14..15]: " "
  ├─ keyword.operator.assignment.luau [15..16]: "="
  ├─ punctuation.whitespace.optional.sd [16..17]: " "
- ├─ variable.other.readwrite.luau [17..23]: "plural"
+ ├─ support.type.standard.sd [17..23]: "plural"
  ├─ meta.template.expression.accessor.sd [23..24]: "."
  ├─ entity.name.function.luau [24..32]: "category"
  ├─ punctuation.definition.template-expression.begin.sd [32..33]: "("

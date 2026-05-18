@@ -124,7 +124,13 @@ function lowerBaseFromParts(
   if (firstInner?.name !== "LuauVariable") {
     return lowerSimpleAccessPath(parts, ctx);
   }
-  const nameNode = getDescendent("LuauVariableName", firstInner);
+  // The base identifier can be tagged as either a plain `LuauVariableName`
+  // or a `LuauStdLibConstants` (for stdlib namespaces like `lang`, `count`).
+  // Both are valid roots for a property-target assignment — e.g.
+  // `lang.current = "ar"` must write into the `lang` store.
+  const nameNode =
+    getDescendent("LuauStdLibConstants", firstInner) ??
+    getDescendent("LuauVariableName", firstInner);
   if (!nameNode) return null;
   current = new VariableReference([
     new Identifier(ctx.read(nameNode.from, nameNode.to)),

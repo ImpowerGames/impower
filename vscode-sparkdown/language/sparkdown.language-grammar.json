@@ -151,7 +151,8 @@
       "vector",
       "system",
       "count",
-      "lang"
+      "lang",
+      "plural"
     ],
     "LUAU_STANDARD_LIB_FUNCTIONS": [
       "assert",
@@ -559,7 +560,7 @@
       }
     },
     "LuauSparkdownInlineGluedSequentialAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)((?<=^|(?:[^\\S\\n\\r]))(?:[.][.])(?=$|(?:[^\\S\\n\\r])))((?:[^\\S\\n\\r])+)(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])+))?(\\b(?:queue|cycle|chain)\\b)((?:[^\\S\\n\\r])*)",
+      "begin": "((?:[^\\S\\n\\r])*)((?<=^|(?:[^\\S\\n\\r]))(?:[.][.])(?=$|(?:[^\\S\\n\\r])))((?:[^\\S\\n\\r])+)(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])+))?(\\b(?:queue|cycle|chain)\\b)((?:[^\\S\\n\\r])*)(?!(?:[^\\S\\n\\r])*[.])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6178,9 +6179,6 @@
         },
         {
           "include": "#LuauSparkdownSequentialAlternatorBlock"
-        },
-        {
-          "include": "#LuauSequentialAlternatorKeyword"
         }
       ]
     },
@@ -6191,23 +6189,8 @@
         },
         {
           "include": "#LuauSequentialAlternatorBlock"
-        },
-        {
-          "include": "#LuauSequentialAlternatorKeyword"
         }
       ]
-    },
-    "LuauSequentialAlternatorKeyword": {
-      "match": "(\\b(?:queue|cycle|chain)\\b|\\b(?:shuffle)\\b)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#LuauControlKeyword"
-            }
-          ]
-        }
-      }
     },
     "LuauAlternatorSeparator": {
       "match": "((?:[^\\S\\n\\r])*)([|])((?:[^\\S\\n\\r])*)(?:((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*))?",
@@ -6274,7 +6257,7 @@
       "match": "([=])"
     },
     "LuauSparkdownConditionalAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(]|[^.\\s(=,;:|])",
+      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?!(?:[^\\S\\n\\r])*[.])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6337,7 +6320,7 @@
       }
     },
     "LuauConditionalAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(]|[^.\\s(=,;:|])",
+      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?!(?:[^\\S\\n\\r])*[.])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6408,7 +6391,7 @@
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])|[,;)\\]}|])"
     },
     "LuauSparkdownSequentialAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b))(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*))?(\\b(?:queue|cycle|chain)\\b)?((?:[^\\S\\n\\r])*)",
+      "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b)\\b(?!(?:[^\\S\\n\\r])*[.]))(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*))?(\\b(?:queue|cycle|chain)\\b)?((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6547,7 +6530,7 @@
       }
     },
     "LuauSparkdownSingleLineConditionalAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(][^)\\n]*[)][^|\\n]*[|]|[^.\\s(=,;:|][^|\\n]*[|])",
+      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:match|plural)\\b)((?:[^\\S\\n\\r])*)(?=[(][^()]*[)](?:[^\\S\\n\\r])*[|])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -6586,7 +6569,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "end": "$|(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
       "endCaptures": {
         "1": {
           "emit": true,
@@ -6606,7 +6589,7 @@
       }
     },
     "LuauSequentialAlternatorBlock": {
-      "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b))(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*))?(\\b(?:queue|cycle|chain)\\b)?((?:[^\\S\\n\\r])*)",
+      "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\b(?:shuffle)\\b|\\b(?:queue|cycle|chain)\\b)\\b(?!(?:[^\\S\\n\\r])*[.]))(?:(\\b(?:shuffle)\\b)((?:[^\\S\\n\\r])*))?(\\b(?:queue|cycle|chain)\\b)?((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7342,7 +7325,7 @@
     "LuauStdLibConstants": {
       "tag": "standard(variableName)",
       "name": "support.type.standard.sd",
-      "match": "(\\b(?:bit32|coroutine|debug|math|os|string|table|task|utf8|buffer|vector|system|count|lang)\\b)"
+      "match": "(\\b(?:bit32|coroutine|debug|math|os|string|table|task|utf8|buffer|vector|system|count|lang|plural)\\b)"
     },
     "LuauStdLibMethods": {
       "tag": "standard(function(name))",

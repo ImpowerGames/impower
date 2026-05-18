@@ -73,6 +73,7 @@ variables:
       "system",
       "count",
       "lang",
+      "plural",
     ]
   LUAU_STANDARD_LIB_FUNCTIONS:
     [
@@ -154,20 +155,6 @@ variables:
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
-  # Plain identifier shape. The sequential-alternator keywords
-  # (`queue` / `cycle` / `chain` / `shuffle`) used to be excluded here
-  # via a negative lookahead, but reservation now lives structurally
-  # in `LuauSequentialAlternatorKeyword` (included from
-  # `Luau(Sparkdown)?AlternatorBlocks`) — the keyword is consumed by
-  # that rule before any identifier-shaped rule is tried, so it
-  # can't be rebound as an identifier. `match` and `plural` (the
-  # conditional alternator keywords) remain unreserved here — they
-  # are matched only at their specific alternator-opening positions
-  # (where the rule requires `keyword (condition)`), so authors can
-  # still write `plural.category(n)`, `local plural = 5`, etc. The
-  # alternator rules' begin patterns add a `(?=[(])` lookahead so
-  # `plural.X` (followed by `.`) won't be greedily matched as an
-  # alternator opening.
   LUAU_IDENTIFIER: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   LUAU_ASSIGNMENT_OPERATORS: (?:\+=|-=|\/=|\/\/=|\*=|%=|\^=|\.\.=|=(?!=))
@@ -427,7 +414,7 @@ repository:
   # for the arms.
 
   LuauSparkdownInlineGluedSequentialAlternatorBlock:
-    begin: ({{WS}}*)({{GLUE}})({{WS}}+)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}+))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*)
+    begin: ({{WS}}*)({{GLUE}})({{WS}}+)(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}+))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?!{{WS}}*[.])
     beginCaptures:
       1:
         patterns:
@@ -461,11 +448,6 @@ repository:
           - { include: "#ExtraWhitespace" }
 
   LuauSparkdownInlineGluedConditionalAlternatorBlock:
-    # The `(?=[(])` lookahead ensures `plural` / `match` are matched as
-    # alternator openings only when followed by `(condition)`. Without
-    # the lookahead, expressions like `plural.category(n)` would be
-    # greedily consumed since the alternator's content/end patterns
-    # would absorb arbitrary content after `plural`.
     begin: ({{WS}}*)({{GLUE}})({{WS}}+)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(])
     beginCaptures:
       1:
@@ -3784,45 +3766,15 @@ repository:
 
   LuauSparkdownAlternatorBlocks:
     patterns:
-      # Single-line forms must come before multi-line forms — the
-      # single-line rule's begin pattern has a `(?=[|])` lookahead
-      # (sequential) / `(?=[(].*[|])` lookahead (conditional) that
-      # only matches when the keyword is followed by an arm-separator
-      # on the same line. If neither single-line lookahead matches,
-      # the parser falls through to the multi-line rules.
       - { include: "#LuauSparkdownSingleLineConditionalAlternatorBlock" }
       - { include: "#LuauSparkdownSingleLineSequentialAlternatorBlock" }
       - { include: "#LuauSparkdownConditionalAlternatorBlock" }
       - { include: "#LuauSparkdownSequentialAlternatorBlock" }
-      # Bare-keyword fallback: catches a sequential-alternator keyword
-      # (`queue` / `cycle` / `chain` / `shuffle`) that didn't match
-      # any full alternator-block shape above. Reserves the token at
-      # the structural level — i.e. `local queue = 5` can't rebind
-      # `queue` because this rule consumes it before any identifier
-      # / assignment rule is tried.
-      - { include: "#LuauSequentialAlternatorKeyword" }
 
   LuauAlternatorBlocks:
     patterns:
       - { include: "#LuauConditionalAlternatorBlock" }
       - { include: "#LuauSequentialAlternatorBlock" }
-      # See `LuauSparkdownAlternatorBlocks` — bare-keyword reservation.
-      - { include: "#LuauSequentialAlternatorKeyword" }
-
-  # Standalone match for the sequential-alternator keyword tokens.
-  # Used as the last fallback in `Luau(Sparkdown)?AlternatorBlocks`
-  # so the keyword is consumed structurally even when it appears
-  # outside a full alternator-block shape. This replaces a former
-  # negative-lookahead carve-out inside `LUAU_IDENTIFIER` that
-  # excluded the same keywords from the identifier pattern globally
-  # — see GRAMMAR.md §10.1 for the rationale (structural reservation
-  # over baked-in lookahead).
-  LuauSequentialAlternatorKeyword:
-    match: ({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})
-    captures:
-      1:
-        patterns:
-          - { include: "#LuauControlKeyword" }
 
   LuauAlternatorSeparator:
     match: ({{WS}}*)([|])({{WS}}*)(?:({{LUAU_IDENTIFIER}})({{WS}}*)([=])({{WS}}*))?
@@ -3867,17 +3819,7 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauSparkdownConditionalAlternatorBlock:
-    # Lookahead accepts either the paren form `match(cond)` or the
-    # bare form `match cond` (Lua-style — `if cond then`, `while
-    # cond do`, etc.). The negative-character-class second alternative
-    # `[^.\s(=,;:|]` excludes `.` so `plural.X` / `match.X` access
-    # paths don't trigger this rule, and excludes operator/separator
-    # chars so `plural = …` / `match , …` etc. fall through to their
-    # natural rules. The inline-glued form
-    # (`LuauSparkdownInlineGluedConditionalAlternatorBlock`) keeps the
-    # parens-required lookahead — there the `(…)` is what
-    # disambiguates the alternator opener from a function call.
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(]|[^.\s(=,;:|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?!{{WS}}*[.])
     beginCaptures:
       1:
         patterns:
@@ -3907,11 +3849,7 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauConditionalAlternatorBlock:
-    # See `LuauSparkdownConditionalAlternatorBlock` for the lookahead
-    # rationale — paren-form `match(cond)` OR bare-form `match cond`,
-    # with `.` / operator / separator chars excluded so the access-path
-    # case stays unaffected.
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(]|[^.\s(=,;:|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?!{{WS}}*[.])
     beginCaptures:
       1:
         patterns:
@@ -3943,13 +3881,6 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    # Close the condition when we see whitespace, a closing bracket,
-    # `,` / `;`, OR the alternator separator `|`. The `|` case matters
-    # when the condition is wrapped in parens with no trailing space:
-    # `{plural(n)|one="is"|other="are"}` — without `|` in the close
-    # lookahead, the condition would stay open at position `)|` and
-    # the `|` would never be picked up by the outer
-    # `LuauAlternatorSeparator` rule.
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}|])
 
   # ----------------------------------------------------------------------------
@@ -3957,15 +3888,15 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauSparkdownSequentialAlternatorBlock:
-    # Three accepted shapes:
-    #   `queue | ...`            — alternator keyword alone.
-    #   `shuffle queue | ...`    — modifier + alternator keyword.
-    #   `shuffle | ...`          — modifier alone; defaults to `cycle`
-    #                              in the lowerer.
-    # The leading lookahead requires at least ONE of those two
-    # keyword sets so we don't match plain leading whitespace and
-    # open a spurious alternator scope.
-    begin: ({{WS}}*)(?=(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}))(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)
+    # The leading lookahead does double duty: it gates the rule on a
+    # sequential keyword AND folds in the "not an access path" check.
+    # Putting `(?!{{WS}}*[.])` inside the leading lookahead (after the
+    # keyword + `\b`) ties the `.` exclusion to the keyword position,
+    # so backtracking through the trailing optional captures can't
+    # produce a zero-width match. A trailing `(?!{{WS}}*[.])` is
+    # reachable via backtracking that consumes nothing — see GRAMMAR.md
+    # §3.2 (zero-width Scoped rule → infinite loop).
+    begin: ({{WS}}*)(?=(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})\b(?!{{WS}}*[.]))(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3997,20 +3928,7 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # Single-line sequential alternator: `queue | A | B | C end` on one
-  # line. Distinguished from the multi-line shape by the `(?=[|])`
-  # lookahead — only matches when the keyword (plus optional WS) is
-  # immediately followed by `|`. Multi-line `queue\n  | A\n...` falls
-  # through to the multi-line rule because the position after `queue`
-  # is a newline, not `|`. Arms are wrapped in
-  # `LuauSparkdownAlternatorArm` (simple display text only — diverts,
-  # nested blocks, and other complex content require the multi-line
-  # shape where each arm is its own statement).
   LuauSparkdownSingleLineSequentialAlternatorBlock:
-    # See `LuauSparkdownSequentialAlternatorBlock` — same three shapes
-    # (alternator-alone, modifier+alternator, modifier-alone) gated by
-    # the trailing `(?=[|])` lookahead to keep this rule scoped to the
-    # single-line form only.
     begin: ({{WS}}*)(?=(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}))(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)(?=[|])
     beginCaptures:
       1:
@@ -4044,14 +3962,8 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # Single-line conditional alternator: `plural(n) | one = apple |
-  # other = apples end` on one line. The `(?=[(].*[|])` lookahead
-  # requires the keyword to be followed by a parenthesized condition
-  # whose closing paren is followed somewhere on the same line by
-  # `|` — distinguishing from `plural(n)\n  | one = ...\nend`
-  # (multi-line) where the condition is followed by a newline.
   LuauSparkdownSingleLineConditionalAlternatorBlock:
-    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^)\n]*[)][^|\n]*[|]|[^.\s(=,;:|][^|\n]*[|])
+    begin: ({{WS}}*)({{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}})({{WS}}*)(?=[(][^()]*[)]{{WS}}*[|])
     beginCaptures:
       1:
         patterns:
@@ -4068,7 +3980,7 @@ repository:
       - { include: "#LuauAlternatorSeparator" }
       - { include: "#LuauSparkdownAlternatorArm" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    end: $|(?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
       1:
         emit: true
@@ -4079,9 +3991,9 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauSequentialAlternatorBlock:
-    # See `LuauSparkdownSequentialAlternatorBlock` for the three
-    # accepted shapes and the bare-`shuffle`-defaults-to-`cycle` rule.
-    begin: ({{WS}}*)(?=(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}))(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)
+    # See `LuauSparkdownSequentialAlternatorBlock` for the leading-
+    # lookahead structure — same shape, same zero-width-match concern.
+    begin: ({{WS}}*)(?=(?:{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})\b(?!{{WS}}*[.]))(?:({{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}})({{WS}}*))?({{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}})?({{WS}}*)
     beginCaptures:
       1:
         patterns:

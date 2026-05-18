@@ -1,0 +1,11 @@
+text.source.sparkdown [0..24]
+ ├─ storage.modifier.scope.luau [0..5]: "local"
+ ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ ├─ variable.other.readwrite.luau [6..10]: "kind"
+ ├─ punctuation.whitespace.optional.sd [10..11]: " "
+ ├─ keyword.operator.assignment.luau [11..12]: "="
+ ├─ punctuation.whitespace.optional.sd [12..13]: " "
+ ├─ variable.other.readwrite.luau [13..18]: "match"
+ ├─ meta.template.expression.accessor.sd [18..19]: "."
+ ├─ variable.other.property.luau [19..23]: "kind"
+ └─ Newline [23..24]: "\n"

@@ -1,0 +1,11 @@
+text.source.sparkdown [0..25]
+ ├─ storage.modifier.scope.luau [0..5]: "local"
+ ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ ├─ variable.other.readwrite.luau [6..9]: "top"
+ ├─ punctuation.whitespace.optional.sd [9..10]: " "
+ ├─ keyword.operator.assignment.luau [10..11]: "="
+ ├─ punctuation.whitespace.optional.sd [11..12]: " "
+ ├─ variable.other.readwrite.luau [12..19]: "shuffle"
+ ├─ meta.template.expression.accessor.sd [19..20]: "."
+ ├─ variable.other.property.luau [20..24]: "deck"
+ └─ Newline [24..25]: "\n"
