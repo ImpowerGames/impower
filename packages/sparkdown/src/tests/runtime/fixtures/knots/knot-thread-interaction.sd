@@ -2,11 +2,15 @@
 scene hub
   At the hub.
   <- inventory
-  * "Leave" -> END
+  choose
+    * "Leave" -> END
 
+  end
 scene inventory
-  * "Check pack" -> pack
-  * "Check map" -> END
+  choose
+    * "Check pack" -> pack
+    * "Check map" -> END
+  end
   -> DONE
 
 scene pack

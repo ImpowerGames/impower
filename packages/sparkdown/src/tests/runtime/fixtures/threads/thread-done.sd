@@ -3,8 +3,10 @@ scene main
   Before threading.
   <- side
   After threading.
-  * "Continue" -> END
+  choose
+    * "Continue" -> END
 
+  end
 scene side
   In the thread.
   -> DONE

@@ -5,8 +5,10 @@ scene main
   After tunnel.
   <- threaded
   After thread.
-  * "End" -> END
+  choose
+    * "End" -> END
 
+  end
 scene tunneled
   In tunnel.
   ->->

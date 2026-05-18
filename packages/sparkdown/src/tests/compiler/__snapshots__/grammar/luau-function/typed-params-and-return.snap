@@ -107,7 +107,7 @@ sparkdown [0..150]
      │   │   │   │   │   │   │   └─ LuauAccessPart [67..71]
      │   │   │   │   │   │   │       └─ LuauVariable [67..71]
      │   │   │   │   │   │   │           └─ LuauVariable_c1 [67..71]
-     │   │   │   │   │   │   │               └─ LuauVariableName [67..71]: "lang"
+     │   │   │   │   │   │   │               └─ LuauStdLibConstants [67..71]: "lang"
      │   │   │   │   │   │   └─ LuauAccessPath_end [71..72]
      │   │   │   │   │   │       └─ LuauAccessPath_end_c1 [71..72]
      │   │   │   │   │   │           └─ LuauAccessPath_end_c1 [71..72]

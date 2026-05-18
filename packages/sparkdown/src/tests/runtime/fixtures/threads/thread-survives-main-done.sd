@@ -4,5 +4,7 @@ scene main
   -> DONE
 
 scene side
-  * "Survivor choice" -> END
+  choose
+    * "Survivor choice" -> END
+  end
   -> DONE

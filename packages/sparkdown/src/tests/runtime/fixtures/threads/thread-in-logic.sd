@@ -6,8 +6,12 @@ scene hub
   if has_companion then
     <- companion
   end
-  * "Enter alone" -> END
+  choose
+    * "Enter alone" -> END
 
+  end
 scene companion
-  * "Talk to companion" -> END
+  choose
+    * "Talk to companion" -> END
+  end
   -> DONE

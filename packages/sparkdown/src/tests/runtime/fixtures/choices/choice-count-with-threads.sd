@@ -3,9 +3,13 @@ scene hub
   {count.choices()}
   <- side
   {count.choices()}
-  * "Hub one" -> END
-  * "Hub two" -> END
+  choose
+    * "Hub one" -> END
+    * "Hub two" -> END
 
+  end
 scene side
-  * "Side one" -> END
+  choose
+    * "Side one" -> END
+  end
   -> DONE

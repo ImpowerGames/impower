@@ -1,4 +1,6 @@
 -> test
 scene test
-  * Hello[.], world.
+  choose
+    * Hello[.], world.
+  end
   -> DONE

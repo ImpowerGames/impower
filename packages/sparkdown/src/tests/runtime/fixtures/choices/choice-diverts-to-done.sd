@@ -1,3 +1,6 @@
 -> main
 scene main
-  * choice -> DONE
+  choose
+    * choice -> DONE
+
+  end

@@ -1,6 +1,8 @@
 -> main
 scene main
-  * hello -> world
+  choose
+    * hello -> world
+  end
 scene world
   world
   -> DONE

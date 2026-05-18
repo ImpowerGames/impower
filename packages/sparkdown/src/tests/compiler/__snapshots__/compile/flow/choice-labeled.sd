@@ -1,1 +1,3 @@
-* (firstChoice) [Hi] -> Foo
+choose
+  * (firstChoice) [Hi] -> Foo
+end

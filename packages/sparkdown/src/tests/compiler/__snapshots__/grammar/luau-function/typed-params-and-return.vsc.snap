@@ -24,7 +24,7 @@ text.source.sparkdown [0..150]
  │   ├─ punctuation.whitespace.optional.sd [62..64]: "  "
  │   ├─ keyword.control.if.luau [64..66]: "if"
  │   ├─ punctuation.whitespace.optional.sd [66..67]: " "
- │   ├─ variable.other.readwrite.luau [67..71]: "lang"
+ │   ├─ support.type.standard.sd [67..71]: "lang"
  │   ├─ punctuation.whitespace.optional.sd [71..72]: " "
  │   ├─ keyword.operator.comparison.luau [72..74]: "=="
  │   ├─ punctuation.whitespace.optional.sd [74..75]: " "

@@ -34,6 +34,25 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 //
 // For an unbracketed `* plain text -> target`, all the text goes in
 // `startContent` (label and chosen output are identical).
+// Walk up from `node` looking for a `choose`-related ancestor. A choice
+// (`* ...` / `+ ...`) only makes sense inside a `choose ... end` block;
+// at file or scene level it's almost always a typo (the author forgot
+// to wrap the choices in `choose`), so we want to flag it loudly
+// rather than let the grammar silently parse it as a top-level choice.
+function isInsideChoose(node: SyntaxNode): boolean {
+  let cur: SyntaxNode | null = node.parent;
+  while (cur) {
+    if (
+      cur.name === "LuauSparkdownChooseBlock" ||
+      cur.name === "LuauSparkdownChooseThenClause"
+    ) {
+      return true;
+    }
+    cur = cur.parent;
+  }
+  return false;
+}
+
 export function lowerChoice(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -173,6 +192,18 @@ export function lowerChoice(
   // sparkdown's grammar-tree pipeline. Surface them here in the lowerer
   // instead.
   const diagnostics: InkDiagnostic[] = [];
+  // Stray choice mark outside `choose ... end` — almost always a typo.
+  // The grammar permits `*` / `+` at scene level for legacy reasons
+  // (and to keep the parse tree well-formed for syntax highlighting),
+  // but at compile time it's an error.
+  if (!isInsideChoose(nodeRef.node)) {
+    diagnostics.push({
+      message:
+        "Choice mark (`*` / `+`) must appear inside a `choose ... end` block. Wrap the choices in `choose` or remove the mark.",
+      severity: ErrorType.Error,
+      source: makeSource(nodeRef.node, ctx),
+    });
+  }
   const onlyHasAutoNewline =
     innerContent.content.length === 1 &&
     innerContent.content[0] instanceof Text &&

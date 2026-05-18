@@ -3,12 +3,18 @@ scene hub
   You arrive at the town square.
   <- merchant
   <- guard
-  * "Leave town" -> END
+  choose
+    * "Leave town" -> END
 
+  end
 scene merchant
-  * "What do you sell?" -> END
+  choose
+    * "What do you sell?" -> END
+  end
   -> DONE
 
 scene guard
-  * "Any news?" -> END
+  choose
+    * "Any news?" -> END
+  end
   -> DONE

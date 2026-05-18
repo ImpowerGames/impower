@@ -4,9 +4,11 @@ scene hub
   -> DONE
 
 scene side
-  * if false "Unreachable" -> END
-  * -> defaulted
+  choose
+    * if false "Unreachable" -> END
+    * -> defaulted
 
+  end
 scene defaulted
   Fallback fired.
   -> END

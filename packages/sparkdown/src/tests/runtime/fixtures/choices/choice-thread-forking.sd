@@ -1,11 +1,15 @@
 -> hub
 scene hub
   <- side
-  * "Hub leave" -> END
+  choose
+    * "Hub leave" -> END
 
+  end
 scene side
-  * "Side enter" -> side_resume
+  choose
+    * "Side enter" -> side_resume
 
+  end
 scene side_resume
   -> deep ->
   Back in side_resume.
