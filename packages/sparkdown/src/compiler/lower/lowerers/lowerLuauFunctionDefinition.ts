@@ -8,7 +8,7 @@ import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
 import { lowerStatements } from "../lower";
-import { findChildByName } from "../utils/alternatorArms";
+import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 
 // `function name(args) BODY end` → Knot(name, [], args, isFunction=true) with
@@ -50,7 +50,7 @@ export function lowerLuauFunctionDefinition(
 
   const args = lowerArguments(nodeRef.node, ctx);
 
-  const content = findChildByName(nodeRef.node, "LuauFunctionDefinition_content");
+  const content = getFunctionBodyContent(nodeRef.node);
 
   // Open a per-function buffer for any nested callables (anonymous
   // function literals, future nested named functions) that appear

@@ -4901,6 +4901,9 @@
           "include": "#LuauFunctionParameters"
         },
         {
+          "include": "#LuauFunctionBody"
+        },
+        {
           "include": "#LuauBlockBody"
         }
       ],
@@ -4922,6 +4925,17 @@
           ]
         }
       }
+    },
+    "LuauFunctionBody": {
+      "tag": "meta",
+      "name": "meta.function.body.luau",
+      "begin": "(?<=\\w|\\))(?:[^\\S\\n\\r])*\\n",
+      "patterns": [
+        {
+          "include": "#LuauBlockBody"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:end|scene|branch)\\b))"
     },
     "LuauFunctionParameters": {
       "tag": "meta",

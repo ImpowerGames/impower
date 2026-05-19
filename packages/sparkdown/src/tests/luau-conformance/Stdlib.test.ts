@@ -387,11 +387,11 @@ done
 
 function run()
 local t = { 10, 20, 30 }
-& table.insert(t, 40)
+table.insert(t, 40)
 host_record(table.concat(t, ","))
-& table.insert(t, 1, 5)
+table.insert(t, 1, 5)
 host_record(table.concat(t, ","))
-& table.insert(t, 3, 15)
+table.insert(t, 3, 15)
 host_record(table.concat(t, ","))
 end
 `);
@@ -425,7 +425,7 @@ done
 function run()
 local t = { 1, 2, 3 }
 host_record(table.getn(t))
-& table.clear(t)
+table.clear(t)
 host_record(table.getn(t))
 end
 `);
@@ -441,7 +441,7 @@ done
 function run()
 local t = { 1, 2, 3 }
 local c = table.clone(t)
-& table.insert(c, 4)
+table.insert(c, 4)
 host_record(table.concat(t, ","))
 host_record(table.concat(c, ","))
 end
@@ -491,7 +491,7 @@ done
 function run()
 local a = { 1, 2, 3, 4, 5 }
 local b = { 0, 0, 0, 0, 0 }
-& table.move(a, 2, 4, 1, b)
+table.move(a, 2, 4, 1, b)
 host_record(table.concat(b, ","))
 end
 `);
@@ -507,9 +507,9 @@ done
 function run()
 local t = { 1, 2, 3 }
 host_record(table.isfrozen(t))
-& table.freeze(t)
+table.freeze(t)
 host_record(table.isfrozen(t))
-& table.insert(t, 4)
+table.insert(t, 4)
 end
 `);
     // The insert into the frozen table should error; everything
@@ -526,10 +526,10 @@ done
 
 function run()
 local t = { 1, 2 }
-& table.freeze(t)
+table.freeze(t)
 local c = table.clone(t)
 host_record(table.isfrozen(c))
-& table.insert(c, 3)
+table.insert(c, 3)
 host_record(table.concat(c, ","))
 end
 `);

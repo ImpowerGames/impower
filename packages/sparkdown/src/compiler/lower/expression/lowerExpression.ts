@@ -24,6 +24,7 @@ import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarch
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { LowerContext } from "../context";
 import { lowerStatements } from "../lower";
+import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { lowerTable } from "./lowerTable";
 import { mapStdLibCallToBuiltin } from "../utils/stdlibMapping";
@@ -690,7 +691,7 @@ function scanFreeVariables(
   ctx: LowerContext,
 ): string[] {
   const params = collectParameterNames(fnDef, ctx);
-  const bodyContent = findChildByName(fnDef, "LuauFunctionDefinition_content");
+  const bodyContent = getFunctionBodyContent(fnDef);
   if (!bodyContent) return [];
   const bound = new Set<string>(params);
   // Collect local-variable declarations inside the body. Walks the
@@ -896,7 +897,7 @@ function buildAnonymousFunction(
     (upvalName) => new Argument(new Identifier(upvalName), false, false),
   );
   const args = [...upvalArgs, ...userArgs];
-  const content = findChildByName(node, "LuauFunctionDefinition_content");
+  const content = getFunctionBodyContent(node);
   if (!content) return null;
 
   // Open a per-function buffer so anonymous / nested-named functions

@@ -21,60 +21,64 @@ text.source.sparkdown [0..150]
  │   └─ support.type.primitive.luau [55..61]: "string"
  ├─ Newline [61..62]: "\n"
  ├─ meta.function.luau [62..84]
- │   ├─ punctuation.whitespace.optional.sd [62..64]: "  "
- │   ├─ keyword.control.if.luau [64..66]: "if"
- │   ├─ punctuation.whitespace.optional.sd [66..67]: " "
- │   ├─ support.type.standard.sd [67..71]: "lang"
- │   ├─ punctuation.whitespace.optional.sd [71..72]: " "
- │   ├─ keyword.operator.comparison.luau [72..74]: "=="
- │   ├─ punctuation.whitespace.optional.sd [74..75]: " "
- │   ├─ string.quoted.double.luau [75..79]
- │   │   ├─ punctuation.definition.string.double.begin.sd [75..76]: "\""
- │   │   ├─ markup.raw.text.sd [76..78]: "en"
- │   │   └─ punctuation.definition.string.double.end.sd [78..79]: "\""
- │   ├─ punctuation.whitespace.optional.sd [79..80]: " "
- │   └─ keyword.control.then.luau [80..84]: "then"
+ │   └─ meta.function.body.luau [62..84]
+ │       ├─ punctuation.whitespace.optional.sd [62..64]: "  "
+ │       ├─ keyword.control.if.luau [64..66]: "if"
+ │       ├─ punctuation.whitespace.optional.sd [66..67]: " "
+ │       ├─ support.type.standard.sd [67..71]: "lang"
+ │       ├─ punctuation.whitespace.optional.sd [71..72]: " "
+ │       ├─ keyword.operator.comparison.luau [72..74]: "=="
+ │       ├─ punctuation.whitespace.optional.sd [74..75]: " "
+ │       ├─ string.quoted.double.luau [75..79]
+ │       │   ├─ punctuation.definition.string.double.begin.sd [75..76]: "\""
+ │       │   ├─ markup.raw.text.sd [76..78]: "en"
+ │       │   └─ punctuation.definition.string.double.end.sd [78..79]: "\""
+ │       ├─ punctuation.whitespace.optional.sd [79..80]: " "
+ │       └─ keyword.control.then.luau [80..84]: "then"
  ├─ Newline [84..85]: "\n"
  ├─ meta.function.luau [85..123]
- │   └─ meta.function.luau [85..123]
- │       ├─ punctuation.whitespace.optional.sd [85..89]: "    "
- │       ├─ keyword.control.luau [89..95]: "return"
- │       ├─ punctuation.whitespace.optional.sd [95..96]: " "
- │       ├─ variable.other.readwrite.luau [96..97]: "n"
- │       ├─ punctuation.whitespace.optional.sd [97..98]: " "
- │       ├─ keyword.operator.comparison.luau [98..100]: "=="
- │       ├─ punctuation.whitespace.optional.sd [100..101]: " "
- │       ├─ constant.numeric.decimal.luau [101..102]: "1"
- │       ├─ punctuation.whitespace.optional.sd [102..103]: " "
- │       ├─ keyword.operator.logical.luau [103..106]
- │       │   └─ keyword.operator.wordlike.luau [103..106]: "and"
- │       ├─ punctuation.whitespace.optional.sd [106..107]: " "
- │       ├─ string.quoted.double.luau [107..113]
- │       │   ├─ punctuation.definition.string.double.begin.sd [107..108]: "\""
- │       │   ├─ markup.raw.text.sd [108..111]: "one"
- │       │   ├─ punctuation.definition.string.double.end.sd [111..112]: "\""
- │       │   └─ punctuation.whitespace.optional.sd [112..113]: " "
- │       ├─ keyword.operator.logical.luau [113..115]
- │       │   └─ keyword.operator.wordlike.luau [113..115]: "or"
- │       ├─ punctuation.whitespace.optional.sd [115..116]: " "
- │       └─ string.quoted.double.luau [116..123]
- │           ├─ punctuation.definition.string.double.begin.sd [116..117]: "\""
- │           ├─ markup.raw.text.sd [117..122]: "other"
- │           └─ punctuation.definition.string.double.end.sd [122..123]: "\""
+ │   └─ meta.function.body.luau [85..123]
+ │       └─ meta.function.luau [85..123]
+ │           ├─ punctuation.whitespace.optional.sd [85..89]: "    "
+ │           ├─ keyword.control.luau [89..95]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [95..96]: " "
+ │           ├─ variable.other.readwrite.luau [96..97]: "n"
+ │           ├─ punctuation.whitespace.optional.sd [97..98]: " "
+ │           ├─ keyword.operator.comparison.luau [98..100]: "=="
+ │           ├─ punctuation.whitespace.optional.sd [100..101]: " "
+ │           ├─ constant.numeric.decimal.luau [101..102]: "1"
+ │           ├─ punctuation.whitespace.optional.sd [102..103]: " "
+ │           ├─ keyword.operator.logical.luau [103..106]
+ │           │   └─ keyword.operator.wordlike.luau [103..106]: "and"
+ │           ├─ punctuation.whitespace.optional.sd [106..107]: " "
+ │           ├─ string.quoted.double.luau [107..113]
+ │           │   ├─ punctuation.definition.string.double.begin.sd [107..108]: "\""
+ │           │   ├─ markup.raw.text.sd [108..111]: "one"
+ │           │   ├─ punctuation.definition.string.double.end.sd [111..112]: "\""
+ │           │   └─ punctuation.whitespace.optional.sd [112..113]: " "
+ │           ├─ keyword.operator.logical.luau [113..115]
+ │           │   └─ keyword.operator.wordlike.luau [113..115]: "or"
+ │           ├─ punctuation.whitespace.optional.sd [115..116]: " "
+ │           └─ string.quoted.double.luau [116..123]
+ │               ├─ punctuation.definition.string.double.begin.sd [116..117]: "\""
+ │               ├─ markup.raw.text.sd [117..122]: "other"
+ │               └─ punctuation.definition.string.double.end.sd [122..123]: "\""
  ├─ Newline [123..124]: "\n"
  ├─ meta.function.luau [124..129]
- │   ├─ punctuation.whitespace.optional.sd [124..126]: "  "
- │   └─ keyword.control.end.luau [126..129]: "end"
+ │   └─ meta.function.body.luau [124..129]
+ │       ├─ punctuation.whitespace.optional.sd [124..126]: "  "
+ │       └─ keyword.control.end.luau [126..129]: "end"
  ├─ Newline [129..130]: "\n"
  ├─ meta.function.luau [130..146]
- │   └─ meta.function.luau [130..146]
- │       ├─ punctuation.whitespace.optional.sd [130..132]: "  "
- │       ├─ keyword.control.luau [132..138]: "return"
- │       ├─ punctuation.whitespace.optional.sd [138..139]: " "
- │       └─ string.quoted.double.luau [139..146]
- │           ├─ punctuation.definition.string.double.begin.sd [139..140]: "\""
- │           ├─ markup.raw.text.sd [140..145]: "other"
- │           └─ punctuation.definition.string.double.end.sd [145..146]: "\""
+ │   └─ meta.function.body.luau [130..146]
+ │       └─ meta.function.luau [130..146]
+ │           ├─ punctuation.whitespace.optional.sd [130..132]: "  "
+ │           ├─ keyword.control.luau [132..138]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [138..139]: " "
+ │           └─ string.quoted.double.luau [139..146]
+ │               ├─ punctuation.definition.string.double.begin.sd [139..140]: "\""
+ │               ├─ markup.raw.text.sd [140..145]: "other"
+ │               └─ punctuation.definition.string.double.end.sd [145..146]: "\""
  ├─ Newline [146..147]: "\n"
  └─ meta.function.luau [147..150]
      └─ keyword.control.end.luau [147..150]: "end"

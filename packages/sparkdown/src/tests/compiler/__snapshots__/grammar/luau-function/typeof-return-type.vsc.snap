@@ -18,11 +18,12 @@ text.source.sparkdown [0..56]
  │   └─ punctuation.definition.template-expression.end.sd [39..40]: ")"
  ├─ Newline [40..41]: "\n"
  ├─ meta.function.luau [41..51]
- │   └─ meta.function.luau [41..51]
- │       ├─ punctuation.whitespace.optional.sd [41..43]: "  "
- │       ├─ keyword.control.luau [43..49]: "return"
- │       ├─ punctuation.whitespace.optional.sd [49..50]: " "
- │       └─ variable.other.readwrite.luau [50..51]: "x"
+ │   └─ meta.function.body.luau [41..51]
+ │       └─ meta.function.luau [41..51]
+ │           ├─ punctuation.whitespace.optional.sd [41..43]: "  "
+ │           ├─ keyword.control.luau [43..49]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [49..50]: " "
+ │           └─ variable.other.readwrite.luau [50..51]: "x"
  ├─ Newline [51..52]: "\n"
  ├─ meta.function.luau [52..55]
  │   └─ keyword.control.end.luau [52..55]: "end"
