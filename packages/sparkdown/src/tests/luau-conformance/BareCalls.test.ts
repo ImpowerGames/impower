@@ -70,7 +70,7 @@ end
 done
 
 function run()
-& host_record(99)
+host_record(99)
 end
 `;
     const { result, errs } = compileAndRun(src);

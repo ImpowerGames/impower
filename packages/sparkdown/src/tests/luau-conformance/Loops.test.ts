@@ -49,7 +49,7 @@ local n = 0
 while n < 3 do
 n = n + 1
 end
-& host_record(n)
+host_record(n)
 end
 `);
     expect(errors).toEqual([]);
@@ -64,7 +64,7 @@ done
 function run()
 local n = 0
 while n < 3 do
-& host_record(n)
+host_record(n)
 n = n + 1
 end
 end
@@ -83,7 +83,7 @@ local n = 100
 while n < 3 do
 n = n + 1
 end
-& host_record(n)
+host_record(n)
 end
 `);
     expect(errors).toEqual([]);
@@ -102,8 +102,8 @@ while i < 5 do
 total = total + i
 i = i + 1
 end
-& host_record(total)
-& host_record(i)
+host_record(total)
+host_record(i)
 end
 `);
     expect(errors).toEqual([]);
@@ -126,7 +126,7 @@ j = j + 1
 end
 i = i + 1
 end
-& host_record(sum)
+host_record(sum)
 end
 `);
     expect(errors).toEqual([]);

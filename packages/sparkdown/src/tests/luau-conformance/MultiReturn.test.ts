@@ -46,8 +46,8 @@ done
 
 function run()
 local i, f = math.modf(3.7)
-& host_record(i)
-& host_record(f)
+host_record(i)
+host_record(f)
 end
 `);
     expect(errors).toEqual([]);
@@ -65,8 +65,8 @@ done
 
 function run()
 local i, f = math.modf(-2.3)
-& host_record(i)
-& host_record(f)
+host_record(i)
+host_record(f)
 end
 `);
     expect(errors).toEqual([]);
@@ -82,7 +82,7 @@ done
 
 function run()
 local x = math.modf(3.7)
-& host_record(x)
+host_record(x)
 end
 `);
     expect(errors).toEqual([]);
@@ -98,7 +98,7 @@ end
 done
 
 function run()
-& host_record(math.modf(3.7))
+host_record(math.modf(3.7))
 end
 `);
     expect(errors).toEqual([]);
@@ -118,8 +118,8 @@ end
 
 function run()
 local a, b = pair()
-& host_record(a)
-& host_record(b)
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -137,7 +137,7 @@ end
 
 function run()
 local x = pair()
-& host_record(x)
+host_record(x)
 end
 `);
     expect(errors).toEqual([]);
@@ -155,9 +155,9 @@ end
 
 function run()
 local x, y, z = triple()
-& host_record(x)
-& host_record(y)
-& host_record(z)
+host_record(x)
+host_record(y)
+host_record(z)
 end
 `);
     expect(errors).toEqual([]);
@@ -173,8 +173,8 @@ done
 
 function run()
 local m, e = math.frexp(8)
-& host_record(m)
-& host_record(e)
+host_record(m)
+host_record(e)
 end
 `);
     expect(errors).toEqual([]);
@@ -189,8 +189,8 @@ done
 
 function run()
 local m, e = math.frexp(0)
-& host_record(m)
-& host_record(e)
+host_record(m)
+host_record(e)
 end
 `);
     expect(errors).toEqual([]);
@@ -204,8 +204,8 @@ done
 
 function run()
 local m, e = math.frexp(-3)
-& host_record(m)
-& host_record(e)
+host_record(m)
+host_record(e)
 end
 `);
     expect(errors).toEqual([]);
@@ -220,7 +220,7 @@ done
 
 function run()
 local m, e = math.frexp(42.5)
-& host_record(math.ldexp(m, e))
+host_record(math.ldexp(m, e))
 end
 `);
     expect(errors).toEqual([]);
@@ -235,7 +235,7 @@ describe("string.byte", () => {
 done
 
 function run()
-& host_record(string.byte("A"))
+host_record(string.byte("A"))
 end
 `);
     expect(errors).toEqual([]);
@@ -249,9 +249,9 @@ done
 
 function run()
 local a, b, c = string.byte("ABC", 1, 3)
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -264,7 +264,7 @@ end
 done
 
 function run()
-& host_record(string.byte("hello", -1))
+host_record(string.byte("hello", -1))
 end
 `);
     expect(errors).toEqual([]);
@@ -279,7 +279,7 @@ describe("utf8.codepoint", () => {
 done
 
 function run()
-& host_record(utf8.codepoint("A"))
+host_record(utf8.codepoint("A"))
 end
 `);
     expect(errors).toEqual([]);
@@ -294,7 +294,7 @@ end
 done
 
 function run()
-& host_record(utf8.codepoint("${s}"))
+host_record(utf8.codepoint("${s}"))
 end
 `);
     expect(errors).toEqual([]);
@@ -308,9 +308,9 @@ done
 
 function run()
 local a, b, c = utf8.codepoint("ABC", 1, 3)
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -327,9 +327,9 @@ done
 function run()
 local t = { 10, 20, 30 }
 local a, b, c = table.unpack(t)
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -344,8 +344,8 @@ done
 function run()
 local t = { "a", "b", "c", "d" }
 local x, y = table.unpack(t, 2, 3)
-& host_record(x)
-& host_record(y)
+host_record(x)
+host_record(y)
 end
 `);
     expect(errors).toEqual([]);
@@ -360,9 +360,9 @@ done
 function run()
 local t = { 100, 200, 300 }
 local a, b, c = unpack(t)
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -378,8 +378,8 @@ done
 
 function run()
 local a, b = select(2, "x", "y", "z")
-& host_record(a)
-& host_record(b)
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -393,9 +393,9 @@ done
 
 function run()
 local a, b, c = select(1, 10, 20, 30)
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -408,7 +408,7 @@ end
 done
 
 function run()
-& host_record(select(-1, "x", "y", "z"))
+host_record(select(-1, "x", "y", "z"))
 end
 `);
     expect(errors).toEqual([]);
@@ -432,9 +432,9 @@ end
 
 function run()
 local a, b, c = outer()
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -456,11 +456,11 @@ end
 
 function run()
 local a, b, c, d, e = wrap()
-& host_record(a)
-& host_record(b)
-& host_record(c)
-& host_record(d)
-& host_record(e)
+host_record(a)
+host_record(b)
+host_record(c)
+host_record(d)
+host_record(e)
 end
 `);
     expect(errors).toEqual([]);
@@ -482,9 +482,9 @@ end
 
 function run()
 local a, b, c = wrap()
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -505,8 +505,8 @@ end
 
 function run()
 local t = {10, 20, multi()}
-& host_record(table.concat(t, ","))
-& host_record(table.getn(t))
+host_record(table.concat(t, ","))
+host_record(table.getn(t))
 end
 `);
     expect(errors).toEqual([]);
@@ -524,7 +524,7 @@ end
 
 function run()
 local t = {multi()}
-& host_record(table.concat(t, ","))
+host_record(table.concat(t, ","))
 end
 `);
     expect(errors).toEqual([]);
@@ -542,7 +542,7 @@ end
 
 function run()
 local t = {multi(), 99}
-& host_record(table.concat(t, ","))
+host_record(table.concat(t, ","))
 end
 `);
     expect(errors).toEqual([]);
@@ -560,8 +560,8 @@ end
 
 function run()
 local t = {1, 2, name = multi()}
-& host_record(rawget(t, "name"))
-& host_record(table.getn(t))
+host_record(rawget(t, "name"))
+host_record(table.getn(t))
 end
 `);
     expect(errors).toEqual([]);
@@ -581,7 +581,7 @@ end
 
 function run()
 -- select's tail-args see the spread MultiValue: 4 trailing args.
-& host_record(select("#", "a", multi()))
+host_record(select("#", "a", multi()))
 end
 `);
     expect(errors).toEqual([]);
@@ -601,7 +601,7 @@ end
 function run()
 -- multi() is in arg position 2 of 3 → truncates to 100.
 -- "tail" is in last position → unchanged.
-& host_record(select("#", "a", multi(), "tail"))
+host_record(select("#", "a", multi(), "tail"))
 end
 `);
     expect(errors).toEqual([]);
@@ -618,8 +618,8 @@ done
 
 function run()
 local a, b = 10, 20
-& host_record(a)
-& host_record(b)
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -641,8 +641,8 @@ end
 
 function run()
 local a, b = f(), g()
-& host_record(a)
-& host_record(b)
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -656,9 +656,9 @@ done
 
 function run()
 local a, b, c = 10, 20
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -678,8 +678,8 @@ function run()
 -- Targets: 2. RHS: 2 (10, multi()). multi() is last → first spread
 -- value fills b. Extras (30) are discarded since there are only 2 targets.
 local a, b = 10, multi()
-& host_record(a)
-& host_record(b)
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -698,9 +698,9 @@ end
 function run()
 -- 3 targets, 2 RHS. multi() spreads to fill b, c (and discards 40).
 local a, b, c = 10, multi()
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -719,8 +719,8 @@ end
 function run()
 -- multi() is non-last → truncates to first value (10). b gets 99.
 local a, b = multi(), 99
-& host_record(a)
-& host_record(b)
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -737,9 +737,9 @@ done
 function run()
 local a = 1
 local b = 2
-& a, b = 99, 100
-& host_record(a)
-& host_record(b)
+a, b = 99, 100
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -758,9 +758,9 @@ end
 function run()
 local a = 1
 local b = 2
-& a, b = pair()
-& host_record(a)
-& host_record(b)
+a, b = pair()
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -780,10 +780,10 @@ function run()
 local a = 0
 local b = 0
 local c = 0
-& a, b, c = 10, multi()
-& host_record(a)
-& host_record(b)
-& host_record(c)
+a, b, c = 10, multi()
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -801,8 +801,8 @@ function run()
 local a = 1
 local b = 2
 a, b = 10, 20
-& host_record(a)
-& host_record(b)
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -822,8 +822,8 @@ function run()
 local a = 1
 local b = 2
 a, b = pair()
-& host_record(a)
-& host_record(b)
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -844,9 +844,9 @@ local a = 0
 local b = 0
 local c = 0
 a, b, c = 10, multi()
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -888,8 +888,8 @@ done
 
 function run()
 local a, b = 42
-& host_record(a)
-& host_record(b)
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);
@@ -907,10 +907,10 @@ end
 
 function run()
 local a, b, c, d = pair()
-& host_record(a)
-& host_record(b)
-& host_record(c)
-& host_record(d)
+host_record(a)
+host_record(b)
+host_record(c)
+host_record(d)
 end
 `);
     expect(errors).toEqual([]);
@@ -928,8 +928,8 @@ end
 
 function run()
 local a, b = quad()
-& host_record(a)
-& host_record(b)
+host_record(a)
+host_record(b)
 end
 `);
     expect(errors).toEqual([]);

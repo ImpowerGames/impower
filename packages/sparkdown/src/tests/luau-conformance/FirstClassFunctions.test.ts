@@ -53,7 +53,7 @@ done
 
 function run()
 local f = function(x) return x * 2 end
-& host_record(f(5))
+host_record(f(5))
 end
 `);
     expect(errors).toEqual([]);
@@ -70,7 +70,7 @@ return fn(5)
 end
 
 function run()
-& host_record(call_with_5(function(x) return x * 3 end))
+host_record(call_with_5(function(x) return x * 3 end))
 end
 `);
     expect(errors).toEqual([]);
@@ -85,9 +85,9 @@ done
 function run()
 local f = function() return 1, 2, 3 end
 local a, b, c = f()
-& host_record(a)
-& host_record(b)
-& host_record(c)
+host_record(a)
+host_record(b)
+host_record(c)
 end
 `);
     expect(errors).toEqual([]);
@@ -108,7 +108,7 @@ end
 
 function run()
 local f = -> double
-& host_record(f(5))
+host_record(f(5))
 end
 `);
     expect(errors).toEqual([]);
@@ -122,7 +122,7 @@ done
 
 function run()
 local add = function(a, b) return a + b end
-& host_record(add(7, 8))
+host_record(add(7, 8))
 end
 `);
     expect(errors).toEqual([]);
@@ -137,8 +137,8 @@ done
 function run()
 local doubler = function(x) return x * 2 end
 local tripler = function(x) return x * 3 end
-& host_record(doubler(5))
-& host_record(tripler(5))
+host_record(doubler(5))
+host_record(tripler(5))
 end
 `);
     expect(errors).toEqual([]);
@@ -158,7 +158,7 @@ end
 
 function run()
 local f = double
-& host_record(f(5))
+host_record(f(5))
 end
 `);
     expect(errors).toEqual([]);
@@ -179,7 +179,7 @@ return fn(arg)
 end
 
 function run()
-& host_record(call_it(double, 5))
+host_record(call_it(double, 5))
 end
 `);
     expect(errors).toEqual([]);
@@ -202,14 +202,14 @@ end
 function pick(use_double, x)
 local f = double
 if use_double == 0 then
-& f = triple
+f = triple
 end
 return f(x)
 end
 
 function run()
-& host_record(pick(1, 5))
-& host_record(pick(0, 5))
+host_record(pick(1, 5))
+host_record(pick(0, 5))
 end
 `);
     expect(errors).toEqual([]);
@@ -226,7 +226,7 @@ done
 function run()
 local n = 10
 local f = function() return n + 1 end
-& host_record(f())
+host_record(f())
 end
 `);
     expect(errors).toEqual([]);
@@ -241,7 +241,7 @@ done
 function run()
 local n = 10
 local f = function(x) return n + x end
-& host_record(f(5))
+host_record(f(5))
 end
 `);
     expect(errors).toEqual([]);
@@ -257,7 +257,7 @@ function run()
 local a = 3
 local b = 4
 local f = function() return a * b end
-& host_record(f())
+host_record(f())
 end
 `);
     expect(errors).toEqual([]);
@@ -278,7 +278,7 @@ function run()
 local n = 10
 local f = function() return n end
 n = 100
-& host_record(f())
+host_record(f())
 end
 `);
     expect(errors).toEqual([]);
@@ -299,7 +299,7 @@ local f = function(x)
 local y = x + 1
 return y * 2
 end
-& host_record(f(5))
+host_record(f(5))
 end
 `);
     expect(errors).toEqual([]);
@@ -322,10 +322,10 @@ local n = 0
 local incr = function()
 n = n + 1
 end
-& incr()
-& incr()
-& incr()
-& host_record(n)
+incr()
+incr()
+incr()
+host_record(n)
 end
 `);
     expect(errors).toEqual([]);
@@ -349,9 +349,9 @@ end
 local read = function()
 return n
 end
-& incr()
-& incr()
-& host_record(read())
+incr()
+incr()
+host_record(read())
 end
 `);
     expect(errors).toEqual([]);
@@ -370,9 +370,9 @@ done
 
 function driver()
 local g = make()
-& g()
-& g()
-& host_record(g())
+g()
+g()
+host_record(g())
 end
 
 function make()
@@ -402,9 +402,9 @@ function driver()
 local pair = make_totaler()
 local bump = pair.bump
 local peek = pair.peek
-& bump()
-& bump()
-& host_record(peek())
+bump()
+bump()
+host_record(peek())
 end
 
 function make_totaler()
@@ -433,7 +433,7 @@ function run()
 function helper()
 return 42
 end
-& host_record(helper())
+host_record(helper())
 end
 `);
     expect(errors).toEqual([]);
@@ -449,7 +449,7 @@ function run()
 function double(n)
 return n * 2
 end
-& host_record(double(7))
+host_record(double(7))
 end
 `);
     expect(errors).toEqual([]);
@@ -466,14 +466,14 @@ function a()
 function helper()
 return 1
 end
-& host_record(helper())
+host_record(helper())
 end
 
 function b()
 function helper()
 return 2
 end
-& host_record(helper())
+host_record(helper())
 end
 `);
     expect(errors).toEqual([]);
@@ -490,9 +490,9 @@ function middle()
 function inner()
 return 99
 end
-& host_record(inner())
+host_record(inner())
 end
-& middle()
+middle()
 end
 `);
     expect(errors).toEqual([]);

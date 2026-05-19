@@ -49,9 +49,9 @@ describe("stdlib n-ary numeric", () => {
 done
 
 function run()
-& host_record(math.clamp(5, 0, 10))
-& host_record(math.clamp(-3, 0, 10))
-& host_record(math.clamp(15, 0, 10))
+host_record(math.clamp(5, 0, 10))
+host_record(math.clamp(-3, 0, 10))
+host_record(math.clamp(15, 0, 10))
 end
 `);
     expect(errors).toEqual([]);
@@ -64,8 +64,8 @@ end
 done
 
 function run()
-& host_record(math.map(0.5, 0, 1, 0, 100))
-& host_record(math.map(5, 0, 10, -1, 1))
+host_record(math.map(0.5, 0, 1, 0, 100))
+host_record(math.map(5, 0, 10, -1, 1))
 end
 `);
     expect(errors).toEqual([]);
@@ -80,9 +80,9 @@ describe("stdlib globals", () => {
 done
 
 function run()
-& host_record(tostring(42))
-& host_record(tostring(true))
-& host_record(tostring("hi"))
+host_record(tostring(42))
+host_record(tostring(true))
+host_record(tostring("hi"))
 end
 `);
     expect(errors).toEqual([]);
@@ -102,11 +102,11 @@ end
 done
 
 function run()
-& host_record(type(1))
-& host_record(type("s"))
-& host_record(type(true))
-& host_record(typeof(1))
-& host_record(typeof("s"))
+host_record(type(1))
+host_record(type("s"))
+host_record(type(true))
+host_record(typeof(1))
+host_record(typeof("s"))
 end
 `);
     expect(errors).toEqual([]);
@@ -127,8 +127,8 @@ describe("stdlib string.char + select + raw*", () => {
 done
 
 function run()
-& host_record(string.char(65))
-& host_record(string.char(72, 105))
+host_record(string.char(65))
+host_record(string.char(72, 105))
 end
 `);
     expect(errors).toEqual([]);
@@ -141,8 +141,8 @@ end
 done
 
 function run()
-& host_record(select("#", 1, 2, 3))
-& host_record(select("#"))
+host_record(select("#", 1, 2, 3))
+host_record(select("#"))
 end
 `);
     expect(errors).toEqual([]);
@@ -155,7 +155,7 @@ end
 done
 
 function run()
-& host_record(utf8.charpattern)
+host_record(utf8.charpattern)
 end
 `);
     expect(errors).toEqual([]);
@@ -172,9 +172,9 @@ describe("stdlib bit32", () => {
 done
 
 function run()
-& host_record(bit32.band(0xFF, 0x0F, 0x07))
-& host_record(bit32.bor(0x01, 0x02, 0x04))
-& host_record(bit32.bxor(0xFF, 0x0F))
+host_record(bit32.band(0xFF, 0x0F, 0x07))
+host_record(bit32.bor(0x01, 0x02, 0x04))
+host_record(bit32.bxor(0xFF, 0x0F))
 end
 `);
     expect(errors).toEqual([]);
@@ -189,9 +189,9 @@ describe("stdlib string.rep + utf8 extras", () => {
 done
 
 function run()
-& host_record(string.rep("ab", 3))
-& host_record(string.rep("ab", 3, "-"))
-& host_record(string.rep("x", 0, "-"))
+host_record(string.rep("ab", 3))
+host_record(string.rep("ab", 3, "-"))
+host_record(string.rep("x", 0, "-"))
 end
 `);
     expect(errors).toEqual([]);
@@ -212,8 +212,8 @@ end
 done
 
 function run()
-& host_record(utf8.len(utf8.nfcnormalize("${combining}")))
-& host_record(utf8.len(utf8.nfdnormalize("${precomposed}")))
+host_record(utf8.len(utf8.nfcnormalize("${combining}")))
+host_record(utf8.len(utf8.nfdnormalize("${precomposed}")))
 end
 `);
     expect(errors).toEqual([]);
@@ -228,9 +228,9 @@ end
 done
 
 function run()
-& host_record(utf8.len("${s}"))
-& host_record(utf8.len("${s}", 1, 1))
-& host_record(utf8.len("${s}", 2, 3))
+host_record(utf8.len("${s}"))
+host_record(utf8.len("${s}", 1, 1))
+host_record(utf8.len("${s}", 2, 3))
 end
 `);
     expect(errors).toEqual([]);
@@ -246,10 +246,10 @@ end
 done
 
 function run()
-& host_record(utf8.offset("${s}", 1))
-& host_record(utf8.offset("${s}", 2))
-& host_record(utf8.offset("${s}", 3))
-& host_record(utf8.offset("${s}", 0, 3))
+host_record(utf8.offset("${s}", 1))
+host_record(utf8.offset("${s}", 2))
+host_record(utf8.offset("${s}", 3))
+host_record(utf8.offset("${s}", 0, 3))
 end
 `);
     expect(errors).toEqual([]);
@@ -267,8 +267,8 @@ done
 
 function run()
 local t = { ["name"] = "Anonymous", ["score"] = 42 }
-& host_record(rawget(t, "name"))
-& host_record(rawget(t, "score"))
+host_record(rawget(t, "name"))
+host_record(rawget(t, "score"))
 end
 `);
     expect(errors).toEqual([]);
@@ -284,10 +284,10 @@ done
 
 function run()
 local t = { 100, ["foo"] = "x", 200, bar = "y" }
-& host_record(rawget(t, "1"))
-& host_record(rawget(t, "2"))
-& host_record(rawget(t, "foo"))
-& host_record(rawget(t, "bar"))
+host_record(rawget(t, "1"))
+host_record(rawget(t, "2"))
+host_record(rawget(t, "foo"))
+host_record(rawget(t, "bar"))
 end
 `);
     expect(errors).toEqual([]);
@@ -301,8 +301,8 @@ done
 
 function run()
 local t = { [5] = "five", [10] = "ten" }
-& host_record(rawget(t, "5"))
-& host_record(rawget(t, "10"))
+host_record(rawget(t, "5"))
+host_record(rawget(t, "10"))
 end
 `);
     expect(errors).toEqual([]);
@@ -322,7 +322,7 @@ describe("stdlib os.time table form", () => {
 done
 
 function run()
-& host_record(os.time({ year = 2026, month = 1, day = 15 }))
+host_record(os.time({ year = 2026, month = 1, day = 15 }))
 end
 `);
     expect(errors).toEqual([]);
@@ -338,7 +338,7 @@ end
 done
 
 function run()
-& host_record(os.time({ ["year"] = 2026, ["month"] = 1, ["day"] = 15, ["hour"] = 9, ["min"] = 30 }))
+host_record(os.time({ ["year"] = 2026, ["month"] = 1, ["day"] = 15, ["hour"] = 9, ["min"] = 30 }))
 end
 `);
     expect(errors).toEqual([]);
@@ -354,9 +354,9 @@ done
 
 function run()
 local t = { 10, 20, 30 }
-& host_record(table.getn(t))
+host_record(table.getn(t))
 local empty = {}
-& host_record(table.getn(empty))
+host_record(table.getn(empty))
 end
 `);
     expect(errors).toEqual([]);
@@ -370,10 +370,10 @@ done
 
 function run()
 local t = { "a", "b", "c" }
-& host_record(table.concat(t))
-& host_record(table.concat(t, "-"))
-& host_record(table.concat(t, ",", 2))
-& host_record(table.concat({ 1, 2, 3 }, "+"))
+host_record(table.concat(t))
+host_record(table.concat(t, "-"))
+host_record(table.concat(t, ",", 2))
+host_record(table.concat({ 1, 2, 3 }, "+"))
 end
 `);
     expect(errors).toEqual([]);
@@ -388,11 +388,11 @@ done
 function run()
 local t = { 10, 20, 30 }
 & table.insert(t, 40)
-& host_record(table.concat(t, ","))
+host_record(table.concat(t, ","))
 & table.insert(t, 1, 5)
-& host_record(table.concat(t, ","))
+host_record(table.concat(t, ","))
 & table.insert(t, 3, 15)
-& host_record(table.concat(t, ","))
+host_record(table.concat(t, ","))
 end
 `);
     expect(errors).toEqual([]);
@@ -406,11 +406,11 @@ done
 
 function run()
 local t = { 10, 20, 30, 40 }
-& host_record(table.remove(t))
-& host_record(table.concat(t, ","))
-& host_record(table.remove(t, 1))
-& host_record(table.concat(t, ","))
-& host_record(table.remove(t, 5))
+host_record(table.remove(t))
+host_record(table.concat(t, ","))
+host_record(table.remove(t, 1))
+host_record(table.concat(t, ","))
+host_record(table.remove(t, 5))
 end
 `);
     expect(errors).toEqual([]);
@@ -424,9 +424,9 @@ done
 
 function run()
 local t = { 1, 2, 3 }
-& host_record(table.getn(t))
+host_record(table.getn(t))
 & table.clear(t)
-& host_record(table.getn(t))
+host_record(table.getn(t))
 end
 `);
     expect(errors).toEqual([]);
@@ -442,8 +442,8 @@ function run()
 local t = { 1, 2, 3 }
 local c = table.clone(t)
 & table.insert(c, 4)
-& host_record(table.concat(t, ","))
-& host_record(table.concat(c, ","))
+host_record(table.concat(t, ","))
+host_record(table.concat(c, ","))
 end
 `);
     expect(errors).toEqual([]);
@@ -457,10 +457,10 @@ done
 
 function run()
 local t = table.create(3, "x")
-& host_record(table.concat(t, ","))
-& host_record(table.getn(t))
+host_record(table.concat(t, ","))
+host_record(table.getn(t))
 local empty = table.create(0)
-& host_record(table.getn(empty))
+host_record(table.getn(empty))
 end
 `);
     expect(errors).toEqual([]);
@@ -474,9 +474,9 @@ done
 
 function run()
 local t = table.pack(10, 20, 30)
-& host_record(rawget(t, "n"))
-& host_record(rawget(t, "1"))
-& host_record(rawget(t, "3"))
+host_record(rawget(t, "n"))
+host_record(rawget(t, "1"))
+host_record(rawget(t, "3"))
 end
 `);
     expect(errors).toEqual([]);
@@ -492,7 +492,7 @@ function run()
 local a = { 1, 2, 3, 4, 5 }
 local b = { 0, 0, 0, 0, 0 }
 & table.move(a, 2, 4, 1, b)
-& host_record(table.concat(b, ","))
+host_record(table.concat(b, ","))
 end
 `);
     expect(errors).toEqual([]);
@@ -506,9 +506,9 @@ done
 
 function run()
 local t = { 1, 2, 3 }
-& host_record(table.isfrozen(t))
+host_record(table.isfrozen(t))
 & table.freeze(t)
-& host_record(table.isfrozen(t))
+host_record(table.isfrozen(t))
 & table.insert(t, 4)
 end
 `);
@@ -528,9 +528,9 @@ function run()
 local t = { 1, 2 }
 & table.freeze(t)
 local c = table.clone(t)
-& host_record(table.isfrozen(c))
+host_record(table.isfrozen(c))
 & table.insert(c, 3)
-& host_record(table.concat(c, ","))
+host_record(table.concat(c, ","))
 end
 `);
     expect(errors).toEqual([]);
@@ -544,9 +544,9 @@ done
 
 function run()
 local t = { "x", "y", "z", "y" }
-& host_record(table.find(t, "y"))
-& host_record(table.find(t, "y", 3))
-& host_record(table.find(t, "missing"))
+host_record(table.find(t, "y"))
+host_record(table.find(t, "y", 3))
+host_record(table.find(t, "missing"))
 end
 `);
     expect(errors).toEqual([]);

@@ -330,11 +330,28 @@ export function lowerStatements(
         // Non-call paths (e.g. a bare `x` or `1 + 2`) lower to non-
         // FunctionCall expressions and have no statement-level side
         // effects, so they're silently dropped (matching Luau).
-        const callExpr = lowerExpressionFromNodes([child], ctx);
+        //
+        // Method-call shape (`table.insert(t, 40)` etc.): the access
+        // path and the call args parse as ADJACENT siblings. Pair the
+        // access path with its sibling `LuauParenthetical` before
+        // lowering — without this pairing, dotted / namespaced calls
+        // produce a non-`FunctionCall` expression and get silently
+        // dropped. Mirrors `lowerExplicitStatement`'s combining.
+        const callNodes: SyntaxNode[] = [child];
+        let parenScan: SyntaxNode | null = child.nextSibling;
+        while (parenScan && ASSIGNMENT_PAIR_BRIDGE.has(parenScan.name)) {
+          parenScan = parenScan.nextSibling;
+        }
+        let consumedParen: SyntaxNode | null = null;
+        if (parenScan && parenScan.name === "LuauParenthetical") {
+          callNodes.push(parenScan);
+          consumedParen = parenScan;
+        }
+        const callExpr = lowerExpressionFromNodes(callNodes, ctx);
         if (callExpr instanceof FunctionCall) {
           callExpr.shouldPopReturnedValue = true;
           appendBlockContent(result, wrapInWeave([callExpr]));
-          child = child.nextSibling;
+          child = (consumedParen ?? child).nextSibling;
           continue;
         }
       }

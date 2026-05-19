@@ -28,7 +28,7 @@ describe("stdlib constants", () => {
 done
 
 function run()
-& host_record(math.pi)
+host_record(math.pi)
 end
 `);
     expect(errors).toEqual([]);
@@ -45,7 +45,7 @@ end
 done
 
 function run()
-& host_record(math.huge)
+host_record(math.huge)
 end
 `);
     expect(errors).toEqual([]);
@@ -58,7 +58,7 @@ end
 done
 
 function run()
-& host_record(_VERSION)
+host_record(_VERSION)
 end
 `);
     expect(errors).toEqual([]);
