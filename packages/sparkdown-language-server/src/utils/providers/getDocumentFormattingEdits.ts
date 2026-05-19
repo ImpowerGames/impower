@@ -11,6 +11,7 @@ import {
   type TextEdit,
 } from "vscode-languageserver";
 import { type Range } from "vscode-languageserver-textdocument";
+import { collectRedundantDiscardEdits } from "./collectRedundantDiscardEdits";
 
 const WHITESPACE_REGEX = /[\t ]*/;
 const INDENT_REGEX: RegExp = /^[ \t]*/;
@@ -1098,22 +1099,42 @@ export const getFormatting = (
         ]);
         let signatureEnd: number | undefined;
         let bodyHasContent = false;
+        const isInsignificant = (name: string): boolean =>
+          name === "Newline" ||
+          name === "Whitespace" ||
+          name === "ExtraWhitespace" ||
+          name === "OptionalWhitespace" ||
+          name === "RequiredWhitespace" ||
+          name === "TrailingWhitespace";
         let cc = contentNode.firstChild;
         while (cc) {
           if (SIGNATURE_NAMES.has(cc.name)) {
             signatureEnd = cc.to;
-          } else {
-            const insignificant =
-              cc.name === "Newline" ||
-              cc.name === "Whitespace" ||
-              cc.name === "ExtraWhitespace" ||
-              cc.name === "OptionalWhitespace" ||
-              cc.name === "RequiredWhitespace" ||
-              cc.name === "TrailingWhitespace";
-            if (!insignificant && signatureEnd != null) {
-              bodyHasContent = true;
-              break;
+          } else if (cc.name === "LuauFunctionBody") {
+            // After the LuauFunctionBody wrapper landed, body
+            // statements live one level deeper (inside
+            // LuauFunctionBody_content) instead of as direct children
+            // of `_content`. Descend so we can still tell whether the
+            // wrapped body is truly empty.
+            let bb = cc.firstChild;
+            while (bb) {
+              if (bb.name === "LuauFunctionBody_content") {
+                let bc = bb.firstChild;
+                while (bc) {
+                  if (!isInsignificant(bc.name) && signatureEnd != null) {
+                    bodyHasContent = true;
+                    break;
+                  }
+                  bc = bc.nextSibling;
+                }
+              }
+              if (bodyHasContent) break;
+              bb = bb.nextSibling;
             }
+            if (bodyHasContent) break;
+          } else if (!isInsignificant(cc.name) && signatureEnd != null) {
+            bodyHasContent = true;
+            break;
           }
           cc = cc.nextSibling;
         }
@@ -1731,5 +1752,10 @@ export const getDocumentFormattingEdits = (
 
   const result = resolveFormattingConflicts(edits, document, formattingOnType);
 
-  return result;
+  // Post-pass: strip redundant `& ` prefixes from explicit statements
+  // inside function bodies. Runs after the whitespace formatter so
+  // the discard-strip's delete edits don't interact with whitespace
+  // edits on the same line — the formatter is done by this point.
+  const discardEdits = collectRedundantDiscardEdits(document, tree);
+  return [...(result ?? []), ...discardEdits];
 };

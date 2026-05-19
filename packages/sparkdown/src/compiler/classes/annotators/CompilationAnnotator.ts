@@ -106,6 +106,12 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // `continue` lowerers to emit the right `Divert`. Each loop
       // pushes/pops its own entry.
       const loopStack: { continueLabel: string; breakLabel: string }[] = [];
+      // Diagnostics collected by lowerers nested below the chunk's
+      // dispatch level. They're attached to the chunk's annotation
+      // after lowering completes — `appendBlockContent` in
+      // `lowerStatements` doesn't propagate per-block diagnostics, so
+      // nested lowerers route through this buffer instead.
+      const chunkDiagnostics: InkDiagnostic[] = [];
       const lowered = lower(nodeRef, {
         read: (from, to) => this.read(from, to),
         lineNumber: (pos) =>
@@ -119,9 +125,18 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         hoistedKnots,
         functionScopeStack,
         loopStack,
+        diagnostics: chunkDiagnostics,
       });
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;
+      }
+      if (lowered && chunkDiagnostics.length > 0) {
+        // Merge any deep-nested-lowerer diagnostics with whatever
+        // diagnostics the chunk-level lowerer attached directly.
+        lowered.diagnostics = [
+          ...(lowered.diagnostics ?? []),
+          ...chunkDiagnostics,
+        ];
       }
       if (lowered !== undefined) {
         annotations.push(

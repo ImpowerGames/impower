@@ -51,6 +51,19 @@ export interface LowerContext {
    */
   functionScopeStack?: ParsedObject[][];
   /**
+   * Buffer for diagnostics produced by lowerers nested deep inside a
+   * top-level chunk's lowering tree. Top-level lowerers attach
+   * diagnostics directly to their returned `CompiledBlock`; that
+   * works for them because the annotator picks the block up from the
+   * chunk-level dispatch. But statement-level lowerers (e.g.
+   * `lowerExplicitStatement` for `& foo()` inside a function body)
+   * are called via `lowerStatements` and their `CompiledBlock` is
+   * unwrapped via `appendBlockContent` — which only copies content,
+   * dropping `block.diagnostics`. Routing through this buffer lets
+   * the chunk-level annotator collect everything before finalizing.
+   */
+  diagnostics?: import("../classes/annotators/CompilationAnnotator").InkDiagnostic[];
+  /**
    * Stack of loop-control targets, innermost-last. Each loop lowerer
    * (`while`, `for`, `repeat`) pushes an entry before lowering its
    * body and pops after. The body's `break` / `continue` lowerers

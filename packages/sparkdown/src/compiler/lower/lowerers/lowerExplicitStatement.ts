@@ -14,6 +14,7 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import { lowerPropertyTargetAssignment } from "../utils/lowerPropertyTargetAssignment";
+import { validateExplicitStatement } from "../utils/validateExplicitStatement";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerVariableDefinition } from "./lowerVariableDefinition";
 
@@ -33,6 +34,15 @@ export function lowerExplicitStatement(
   // and discard the return value. Lowered to a `FunctionCall` Expression
   // with `shouldPopReturnedValue = true` so the runtime pops the unused
   // return off the eval stack.
+
+  // Stylistic diagnostic: inside a function body, the `&` prefix is
+  // redundant. Route via `ctx.diagnostics` so it survives the
+  // unwrapping in `lowerStatements`/`appendBlockContent` (which only
+  // copies `content`, not `diagnostics`, from nested blocks).
+  const diagnostics = validateExplicitStatement(nodeRef.node, ctx);
+  if (diagnostics.length > 0 && ctx.diagnostics) {
+    ctx.diagnostics.push(...diagnostics);
+  }
 
   const varDef = getDescendent("LuauVariableDefinition", nodeRef.node);
   if (varDef) {
