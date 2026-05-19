@@ -1,3 +1,4 @@
+import { ConnectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage";
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
@@ -63,6 +64,13 @@ export default class LogicScriptEditor extends Component(spec) {
       }
       if (DidSaveTextDocumentMessage.type.is(e.detail)) {
         this.handleDidSaveTextDocument(e.detail);
+      }
+      if (ConnectedEditorMessage.type.is(e.detail)) {
+        // The inner script-editor's window listener attaches asynchronously
+        // (Preact mount + dynamic Controller import), so it may miss the
+        // startup LoadEditorMessage emitted in onConnected. Replay when the
+        // child signals it's ready.
+        this.loadFile();
       }
     }
   };

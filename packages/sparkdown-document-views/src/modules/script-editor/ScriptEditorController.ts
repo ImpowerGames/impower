@@ -13,6 +13,7 @@ import { TextDocumentSaveReason } from "@impower/spark-editor-protocol/src/enums
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ChangedEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorHighlightsMessage";
 import { ChangedEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorPinpointsMessage";
+import { ConnectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage";
 import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import {
   HideEditorStatusBarMessage,
@@ -87,109 +88,122 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/RequestMessage";
-import { Component } from "../../../../../spec-component/src/component";
-import { getBoxValues } from "../../../../../spec-component/src/utils/getBoxValues";
-import { getUnitlessValue } from "../../../../../spec-component/src/utils/getUnitlessValue";
-import { setHighlights } from "../../../cm-highlight-lines/highlightLines";
-import { setPinpoints } from "../../../cm-pinpoints/pinpoints";
-import { getScrollableParent } from "../../../utils/getScrollableParent";
-import { getScrollClientHeight } from "../../../utils/getScrollClientHeight";
-import { getScrollTop } from "../../../utils/getScrollTop";
-import { getVisibleRange } from "../../../utils/getVisibleRange";
-import { scrollY } from "../../../utils/scrollY";
-import { SparkdownCodemirrorWorkspace } from "../classes/SparkdownCodemirrorWorkspace";
+import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
+import { getUnitlessValue } from "../../../../spec-component/src/utils/getUnitlessValue";
+import { setHighlights } from "../../cm-highlight-lines/highlightLines";
+import { setPinpoints } from "../../cm-pinpoints/pinpoints";
+import { getScrollableParent } from "../../utils/getScrollableParent";
+import { getScrollClientHeight } from "../../utils/getScrollClientHeight";
+import { getScrollTop } from "../../utils/getScrollTop";
+import { getVisibleRange } from "../../utils/getVisibleRange";
+import { scrollY } from "../../utils/scrollY";
+import { SparkdownCodemirrorWorkspace } from "./classes/SparkdownCodemirrorWorkspace";
 import createEditorView, {
   editableConfig,
   readOnlyConfig,
-} from "../utils/createEditorView";
-import { customGotoLinePanelOpen } from "../utils/extensions/customSearch";
-import spec from "./_sparkdown-script-editor";
+} from "./utils/createEditorView";
+import { customGotoLinePanelOpen } from "./utils/extensions/customSearch";
 
-export default class SparkdownScriptEditor extends Component(spec) {
-  static languageServerWorker: Worker;
+export interface ScriptEditorRefs {
+  editor: HTMLElement;
+  loading: HTMLElement;
+  placeholder: HTMLElement;
+  main: HTMLElement;
+}
 
-  static languageServerConnection: MessageConnection;
+export interface ScriptEditorOptions {
+  readonly?: boolean;
+  scrollMargin?: string;
+  top?: string;
+  bottom?: string;
+  languageServerWorker: Worker;
+  languageServerConnection: MessageConnection;
+}
+
+export class ScriptEditorController {
+  protected host: HTMLElement;
+  protected refs: ScriptEditorRefs;
+  protected options: ScriptEditorOptions;
 
   protected _loadingRequest?: LoadEditorMessage.Request;
-
   protected _initialFocused?: boolean;
-
   protected _initialVisibleRange?:
     | Range
     | "nearest"
     | "start"
     | "end"
     | "center";
-
   protected _initialSelectedRange?: Range;
-
   protected _loaded = false;
-
   protected _editing = false;
-
   protected _textDocument?: TextDocumentItem;
-
   protected _view?: EditorView;
-
   protected _disposable?: { dispose: () => void };
-
   protected _scroller?: Window | Element | null;
-
   protected _visibleRange?: Range;
-
   protected _domClientY = 0;
-
   protected _userInitiatedScroll = false;
-
   protected _searching = false;
-
   protected _searchInputFocused = false;
-
   protected _breakpoints: number[] = [];
-
   protected _highlightedLines = new Set<number>();
-
   protected _scrollMargin: {
     top?: number;
     bottom?: number;
     left?: number;
     right?: number;
-  } = {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  };
-
+  } = { top: 0, bottom: 0, left: 0, right: 0 };
   protected _top: number = 0;
-
   protected _bottom: number = 0;
-
   protected _focusIntervalTimeout = 0;
 
-  override onConnected() {
-    this.root.addEventListener("touchstart", this.handlePointerEnterScroller, {
+  constructor(
+    host: HTMLElement,
+    refs: ScriptEditorRefs,
+    options: ScriptEditorOptions,
+  ) {
+    this.host = host;
+    this.refs = refs;
+    this.options = options;
+  }
+
+  // Replaces spec-component's `this.emit(type, detail)`.
+  protected emit<T>(type: string, detail: T): void {
+    this.host.dispatchEvent(
+      new CustomEvent(type, { detail, bubbles: true, composed: true }),
+    );
+  }
+
+  setup(): void {
+    this.host.addEventListener("touchstart", this.handlePointerEnterScroller, {
       passive: true,
     });
-    this.root.addEventListener("mouseenter", this.handlePointerEnterScroller, {
+    this.host.addEventListener("mouseenter", this.handlePointerEnterScroller, {
       passive: true,
     });
-    this.root.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
+    this.host.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
       passive: true,
     });
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
+    // Announce ourselves so the parent can replay any startup LoadEditorMessage
+    // it sent before our window listener was attached. (preact-custom-element
+    // mount + dynamic Controller import are several microtasks late.)
+    this.emit(
+      MessageProtocol.event,
+      ConnectedEditorMessage.type.notification({}),
+    );
   }
 
-  override onDisconnected() {
-    this.root.removeEventListener(
+  dispose(): void {
+    this.host.removeEventListener(
       "touchstart",
       this.handlePointerEnterScroller,
     );
-    this.root.removeEventListener(
+    this.host.removeEventListener(
       "mouseenter",
       this.handlePointerEnterScroller,
     );
-    this.root.removeEventListener(
+    this.host.removeEventListener(
       "mouseleave",
       this.handlePointerLeaveScroller,
     );
@@ -208,6 +222,13 @@ export default class SparkdownScriptEditor extends Component(spec) {
     if (view) {
       this.unbindView(view);
     }
+  }
+
+  // Called by the .tsx when the `readonly` prop changes. Replaces
+  // onAttributeChanged from the spec-component lifecycle.
+  setReadonly(readonly: boolean): void {
+    this.options.readonly = readonly;
+    this.allowEditing(!readonly);
   }
 
   protected handleProtocol = async (e: Event) => {
@@ -279,16 +300,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
       }
     }
   };
-
-  override onAttributeChanged(name: string, newValue: string) {
-    if (name === this.attrs.readonly) {
-      if (newValue != null) {
-        this.allowEditing(false);
-      } else {
-        this.allowEditing(true);
-      }
-    }
-  }
 
   protected bindView(view: EditorView) {
     this._domClientY = view.dom.offsetTop;
@@ -410,7 +421,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     >,
   ) => {
     const bottomPanels =
-      this.root.querySelector<HTMLElement>(".cm-panels-bottom");
+      this.host.querySelector<HTMLElement>(".cm-panels-bottom");
     if (bottomPanels) {
       bottomPanels.style.opacity = "0";
       bottomPanels.style.transition = "opacity 150ms";
@@ -436,7 +447,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     >,
   ) => {
     const bottomPanels =
-      this.root.querySelector<HTMLElement>(".cm-panels-bottom");
+      this.host.querySelector<HTMLElement>(".cm-panels-bottom");
     if (bottomPanels) {
       bottomPanels.hidden = true;
       this.refs.placeholder.hidden = false;
@@ -479,32 +490,32 @@ export default class SparkdownScriptEditor extends Component(spec) {
   };
 
   protected handleFocusFindInput = () => {
-    this.emit("input/focused");
+    this.emit("input/focused", {});
     this._searchInputFocused = true;
   };
 
   protected handleBlurFindInput = () => {
-    this.emit("input/unfocused");
+    this.emit("input/unfocused", {});
     this._searchInputFocused = false;
   };
 
   protected handleFocusReplaceInput = () => {
-    this.emit("input/focused");
+    this.emit("input/focused", {});
     this._searchInputFocused = true;
   };
 
   protected handleBlurReplaceInput = () => {
-    this.emit("input/unfocused");
+    this.emit("input/unfocused", {});
     this._searchInputFocused = false;
   };
 
   protected handleFocusGotoLineInput = () => {
-    this.emit("input/focused");
+    this.emit("input/focused", {});
     this._searchInputFocused = true;
   };
 
   protected handleBlurGotoLineInput = () => {
-    this.emit("input/unfocused");
+    this.emit("input/unfocused", {});
     this._searchInputFocused = false;
   };
 
@@ -572,12 +583,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
       this._textDocument = textDocument;
       const editorContainer = this.refs.editor;
       if (editorContainer) {
-        this._scrollMargin = getBoxValues(this.scrollMargin);
-        this._top = getUnitlessValue(this.top, 0);
-        this._bottom = getUnitlessValue(this.bottom, 0);
+        this._scrollMargin = getBoxValues(this.options.scrollMargin ?? "");
+        this._top = getUnitlessValue(this.options.top ?? "", 0);
+        this._bottom = getUnitlessValue(this.options.bottom ?? "", 0);
         [this._view, this._disposable] = createEditorView(editorContainer, {
-          serverWorker: SparkdownScriptEditor.languageServerWorker,
-          serverConnection: SparkdownScriptEditor.languageServerConnection,
+          serverWorker: this.options.languageServerWorker,
+          serverConnection: this.options.languageServerConnection,
           serverInitializeParams: languageServerInitializeParams,
           serverInitializeResult: languageServerInitializeResult,
           serverWorkspace: (client: LSPClient) =>
@@ -657,7 +668,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
                   textDocument: this._textDocument,
                 }),
               );
-              this.emit("input/focused");
+              this.emit("input/focused", {});
             }
           },
           onBlur: () => {
@@ -671,7 +682,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
                     textDocument: this._textDocument,
                   }),
                 );
-                this.emit("input/unfocused");
+                this.emit("input/unfocused", {});
               }
             }
           },
@@ -789,7 +800,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
             ) {
               if (!this._searching) {
                 // Opened panel
-                const findInput = this.root.querySelector(
+                const findInput = this.host.querySelector(
                   ".cm-search input[name='search']",
                 );
                 if (findInput) {
@@ -801,7 +812,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
                   // findInput starts focused
                   this.handleFocusFindInput();
                 }
-                const replaceInput = this.root.querySelector(
+                const replaceInput = this.host.querySelector(
                   ".cm-search input[name='replace']",
                 );
                 if (replaceInput) {
@@ -815,7 +826,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
                   );
                 }
                 const gotoLineInput =
-                  this.root.querySelector(".cm-gotoLine input");
+                  this.host.querySelector(".cm-gotoLine input");
                 if (gotoLineInput) {
                   gotoLineInput.addEventListener(
                     "focus",
@@ -848,70 +859,42 @@ export default class SparkdownScriptEditor extends Component(spec) {
       const courierPrimeSans = new FontFace(
         '"Courier Prime Sans"',
         'url("/fonts/courier-prime-sans.ttf") format("truetype")',
-        {
-          weight: "400",
-          display: "block",
-        },
+        { weight: "400", display: "block" },
       );
       const courierPrimeSansBold = new FontFace(
         '"Courier Prime Sans"',
         'url("/fonts/courier-prime-sans-bold.ttf") format("truetype")',
-        {
-          weight: "700",
-          display: "block",
-        },
+        { weight: "700", display: "block" },
       );
       const courierPrimeSansItalic = new FontFace(
         '"Courier Prime Sans"',
         'url("/fonts/courier-prime-sans-italic.ttf") format("truetype")',
-        {
-          style: "italic",
-          weight: "400",
-          display: "block",
-        },
+        { style: "italic", weight: "400", display: "block" },
       );
       const courierPrimeSansBoldItalic = new FontFace(
         '"Courier Prime Sans"',
         'url("/fonts/courier-prime-sans-bold-italic.ttf") format("truetype")',
-        {
-          style: "italic",
-          weight: "700",
-          display: "block",
-        },
+        { style: "italic", weight: "700", display: "block" },
       );
       const courierPrime = new FontFace(
         '"Courier Prime"',
         'url("/fonts/courier-prime.ttf") format("truetype")',
-        {
-          weight: "400",
-          display: "block",
-        },
+        { weight: "400", display: "block" },
       );
       const courierPrimeBold = new FontFace(
         '"Courier Prime"',
         'url("/fonts/courier-prime-bold.ttf") format("truetype")',
-        {
-          weight: "700",
-          display: "block",
-        },
+        { weight: "700", display: "block" },
       );
       const courierPrimeItalic = new FontFace(
         '"Courier Prime"',
         'url("/fonts/courier-prime-italic.ttf") format("truetype")',
-        {
-          style: "italic",
-          weight: "400",
-          display: "block",
-        },
+        { style: "italic", weight: "400", display: "block" },
       );
       const courierPrimeBoldItalic = new FontFace(
         '"Courier Prime"',
         'url("/fonts/courier-prime-bold-italic.ttf") format("truetype")',
-        {
-          style: "italic",
-          weight: "700",
-          display: "block",
-        },
+        { style: "italic", weight: "700", display: "block" },
       );
       await Promise.all(
         [
@@ -965,9 +948,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
           view.dispatch({
             effects: EditorView.scrollIntoView(
               EditorSelection.range(line.from, line.to),
-              {
-                y: strategy,
-              },
+              { y: strategy },
             ),
           });
         }
@@ -986,7 +967,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       const anchor = convertFromPosition(doc, range.start);
       const head = convertFromPosition(doc, range.end);
       if (takeFocus) {
-        this.focus({ preventScroll: true });
+        this.host.focus?.({ preventScroll: true });
         view.focus();
       }
       view.dispatch({
@@ -1166,11 +1147,5 @@ export default class SparkdownScriptEditor extends Component(spec) {
         ],
       });
     }
-  }
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    "sparkdown-script-editor": SparkdownScriptEditor;
   }
 }

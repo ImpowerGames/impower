@@ -225,9 +225,16 @@ const createEditorView = (
   document.body.style.setProperty("--cm-top-offset", `${top}px`);
   document.body.style.setProperty("--cm-bottom-offset", `${bottom}px`);
 
+  // Pin the EditorView's `root` to the parent's actual root at construction
+  // time so style-mod attaches theme stylesheets to the correct shadow root
+  // (it defaults to `document` otherwise, where adopted sheets are invisible
+  // to elements inside a shadow tree).
+  const root = parent.getRootNode() as Document | ShadowRoot;
+
   // Create Editor View
   const view: EditorView = new EditorView({
     parent,
+    root,
     scrollTo,
     state: EditorState.create({
       doc,

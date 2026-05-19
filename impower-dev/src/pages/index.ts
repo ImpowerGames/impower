@@ -1,4 +1,7 @@
-import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules/script-editor/index.js";
+import {
+  SparkdownScriptEditorElement,
+  setLanguageServer as setScriptEditorLanguageServer,
+} from "@impower/sparkdown-document-views/src/modules/script-editor";
 import Sparkle from "@impower/sparkle/src/index.js";
 import extractAllSVGs from "../build/extractAllSVGs";
 import SparkEditor from "../modules/spark-editor/index";
@@ -11,14 +14,15 @@ const load = async () => {
   Object.entries(svgs).forEach(([name, svg]) => {
     graphics[name] = svg;
   });
+  // Wire the LSP worker/connection before any <sparkdown-script-editor>
+  // instance mounts (Controller reads these at construction time).
+  setScriptEditorLanguageServer({
+    worker: Workspace.ls.worker,
+    connection: Workspace.ls.connection,
+  });
   await Promise.allSettled([
     Sparkle.init({ graphics }),
-    SparkdownScriptEditor.init({
-      languageServerWorker: Workspace.ls.worker,
-      languageServerConnection: Workspace.ls.connection,
-      graphics,
-    }),
-    // SparkEditor.init() also registers SparkdownScreenplayPreviewElement.
+    SparkdownScriptEditorElement.register(),
     SparkEditor.init({ graphics }),
   ]);
   // Once all web components (and their constructable stylesheets) are loaded,
