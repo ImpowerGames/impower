@@ -631,16 +631,17 @@ export class SparkdownCompiler {
         hoistedKnots,
       } = cur.value.type;
       const lineNumberOffset = document?.lineAt(cur.from) ?? 0;
-      // Anonymous function literals lowered inside this chunk produce
-      // synthetic knots that need to land at the story's top level.
-      // Each knot is a complete `Knot` ParsedObject (built by
-      // `buildAnonymousKnot` with the same shape as a regular
-      // `lowerLuauFunctionDefinition` result), so append directly to
-      // `topLevelFlowBaseObjs` without re-wrapping.
+      // Anonymous function literals lowered at chunk-top-level (i.e.
+      // outside any enclosing function definition) produce synthetic
+      // FlowBase objects that need to land at the story's top level.
+      // Anonymous fns lowered INSIDE another function body attach to
+      // that function as subFlows instead — they never reach this
+      // list. Both Knots (legacy path) and Functions (new path) are
+      // accepted.
       if (hoistedKnots) {
         remapContent(hoistedKnots, lineNumberOffset);
         for (const k of hoistedKnots) {
-          if (k instanceof Knot) {
+          if (k instanceof FlowBase) {
             topLevelFlowBaseObjs.push(k);
           }
         }
@@ -819,6 +820,15 @@ export class SparkdownCompiler {
             knot.debugMetadata = flow.debugMetadata;
             knot._rootWeave = rootWeave;
             knot.AddContent(rootWeave);
+            // Preserve nested subFlows that the lowerer attached (e.g.
+            // anonymous-function literals and nested named function
+            // definitions lower to `Function` subFlows so they live at
+            // their lexical position instead of hoisting to top-level).
+            // Re-add them as content so the runtime traversal sees them.
+            for (const [subName, subFlow] of flow._subFlowsByName) {
+              knot._subFlowsByName.set(subName, subFlow);
+              knot.AddContent(subFlow);
+            }
             topLevelFlowBaseObjs.push(knot);
             topLevelContent.push(knot);
           } else if (flow instanceof Stitch) {

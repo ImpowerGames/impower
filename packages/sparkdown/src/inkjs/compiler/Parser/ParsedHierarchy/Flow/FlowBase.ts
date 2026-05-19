@@ -373,18 +373,30 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     level: FlowLevel | null = null,
     deepSearch: boolean = false,
   ): ParsedObject | null => {
-    // Referencing self?
-    if (level === this.flowLevel || level === null) {
+    // The `level` parameter is interpreted as a *minimum* — i.e. the
+    // matched item's level must be `>= level`. This lets path
+    // resolution descend through an intermediate FlowLevel (e.g.
+    // Function) when looking for something deeper (e.g. a labeled
+    // weave point). Older code treated it as exact-match; with the
+    // introduction of `FlowLevel.Function` between Stitch and
+    // WeavePoint, exact-match would leave WeavePoints unreachable
+    // when the caller asked for "anything below a Stitch" (which
+    // resolves to `Function` via the `+1` rule in Path).
+    const ambiguousLevel = level === null;
+
+    // Referencing self? Self is a candidate iff it's at the asked
+    // level (self is not "deeper" than itself, so exact match here).
+    if (ambiguousLevel || level === this.flowLevel) {
       if (name === this.identifier?.name) {
         return this;
       }
     }
 
-    if (level === FlowLevel.WeavePoint || level === null) {
-      let weavePointResult: ParsedObject | null = null;
-
+    // Weave points live in this._rootWeave and are at level WeavePoint.
+    // They satisfy any `level <= WeavePoint` search.
+    if (ambiguousLevel || level! <= FlowLevel.WeavePoint) {
       if (this._rootWeave) {
-        weavePointResult = this._rootWeave.WeavePointNamed(
+        const weavePointResult = this._rootWeave.WeavePointNamed(
           name,
         ) as ParsedObject;
         if (weavePointResult) {
@@ -392,21 +404,22 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         }
       }
 
-      // Stop now if we only wanted a result if it's a weave point?
+      // If the caller specifically asked for a WeavePoint, give up
+      // here — the only place a WeavePoint could be has been checked.
       if (level === FlowLevel.WeavePoint) {
         return deepSearch ? this.DeepSearchForAnyLevelContent(name) : null;
       }
     }
 
     // If this flow would be incapable of containing the requested level, early out
-    // (e.g. asking for a Knot from a Stitch)
-    if (level !== null && level < this.flowLevel) {
+    // (e.g. asking for a Knot from a Stitch).
+    if (!ambiguousLevel && level! < this.flowLevel) {
       return null;
     }
 
-    let subFlow: FlowBase | null = this._subFlowsByName.get(name) || null;
+    const subFlow: FlowBase | null = this._subFlowsByName.get(name) || null;
 
-    if (subFlow && (level === null || level === subFlow.flowLevel)) {
+    if (subFlow && (ambiguousLevel || subFlow.flowLevel >= level!)) {
       return subFlow;
     }
 
@@ -486,15 +499,25 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   }
 
   public readonly CheckForDisallowedFunctionFlowControl = (): void => {
-    // if (!(this instanceof Knot)) { // cannont use Knot here because of circular dependancy
-    if (this.flowLevel !== FlowLevel.Knot) {
+    // Top-level functions parse as a Knot with `isFunction=true`.
+    // Nested functions parse as a `Function` (which always has
+    // `isFunction=true`). Anything else carrying `isFunction=true` is
+    // a misconfiguration — e.g. a Stitch being treated as a function.
+    if (
+      this.flowLevel !== FlowLevel.Knot &&
+      this.flowLevel !== FlowLevel.Function
+    ) {
       this.Error(
         "Functions cannot be stitches - i.e. they should be defined as '== function myFunc ==' rather than internal to another knot.",
       );
     }
 
-    // Not allowed sub-flows
+    // Non-function subflows aren't allowed in a function. Nested
+    // Functions are, since `Function` is the primitive for inline /
+    // nested callables (anonymous fns, nested function definitions,
+    // class methods).
     for (const [key, value] of this._subFlowsByName) {
+      if (value.flowLevel === FlowLevel.Function) continue;
       this.Error(
         `Functions may not contain stitches, but saw \`${key}\` within the function \`${this.identifier}\``,
         value,

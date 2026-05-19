@@ -97,6 +97,11 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // Names use the source position rather than a counter, so they
       // stay unique across chunks and stable across edits.
       const hoistedKnots: ParsedObject[] = [];
+      // Stack of nested-callable buffers. Starts empty (top-level
+      // scope). Function-definition lowerers push/pop their own buffer
+      // so nested callables (anonymous fns, nested named fns) live at
+      // their lexical position instead of hoisting to top-level.
+      const functionScopeStack: ParsedObject[][] = [];
       const lowered = lower(nodeRef, {
         read: (from, to) => this.read(from, to),
         lineNumber: (pos) =>
@@ -108,6 +113,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         },
         config: this.config,
         hoistedKnots,
+        functionScopeStack,
       });
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;

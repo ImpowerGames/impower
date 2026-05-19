@@ -13,6 +13,7 @@ import {
 import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
+import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Knot } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
@@ -634,11 +635,11 @@ function lowerAnonymousFunction(
   node: SyntaxNode,
   ctx: LowerContext,
 ): Expression | null {
-  if (!ctx.hoistedKnots) {
-    // Snapshot-only callers that don't wire up the hoist context
-    // can't support anonymous functions at runtime. Fall back to
-    // null so the surrounding expression-lowering machinery skips
-    // this primary cleanly.
+  if (!ctx.hoistedKnots && !ctx.functionScopeStack) {
+    // Snapshot-only callers that don't wire up either hoist target
+    // can't support anonymous functions at runtime. Fall back to null
+    // so the surrounding expression-lowering machinery skips this
+    // primary cleanly.
     return null;
   }
   // Skip named definitions — those are statement-level.
@@ -651,9 +652,21 @@ function lowerAnonymousFunction(
   // value at the closure-definition site.
   const upvals = scanFreeVariables(node, ctx);
 
-  const knot = buildAnonymousKnot(node, synthName, ctx, upvals);
-  if (!knot) return null;
-  ctx.hoistedKnots.push(knot);
+  const fn = buildAnonymousFunction(node, synthName, ctx, upvals);
+  if (!fn) return null;
+
+  // If we're inside another function's body, attach the anonymous
+  // function to the enclosing scope's buffer as a nested subFlow.
+  // Otherwise (top-level expression context) fall back to the chunk-
+  // wide hoist list so the anonymous knot still ends up addressable.
+  const stack = ctx.functionScopeStack;
+  if (stack && stack.length > 0) {
+    stack[stack.length - 1].push(fn);
+  } else if (ctx.hoistedKnots) {
+    ctx.hoistedKnots.push(fn);
+  } else {
+    return null;
+  }
 
   // No upvals → plain `DivertTarget(synthName)`; no closure wrapper
   // needed. This is the existing fast path; it keeps backwards
@@ -838,40 +851,53 @@ const ANON_FUNCTION_BODY_SKIP: ReadonlySet<string> = new Set([
   "LuauComment",
 ]);
 
-// Mirror of `lowerLuauFunctionDefinition` but builds the Knot with a
-// caller-provided synthetic name rather than reading one from the
-// source. The body content lives inside the same `_content` wrapper
-// so we reuse `lowerStatements` with the same skip-set to filter out
+// Mirror of `lowerLuauFunctionDefinition` but emits the new `Function`
+// FlowBase subclass (callable, nestable inside any other FlowBase) with
+// a caller-provided synthetic name rather than reading one from the
+// source. The body content lives inside the same `_content` wrapper so
+// we reuse `lowerStatements` with the same skip-set to filter out
 // parameter/return-type/etc. boilerplate.
 //
 // When `upvals` is non-empty, those names are PREPENDED to the user
-// parameters in the synthetic knot's signature — the closure-dispatch
-// path in `CallValueAsFunction` pushes them as the first N args at
-// call time. The body's references to captured names then resolve as
-// ordinary parameter reads, no rewriting required.
-function buildAnonymousKnot(
+// parameters in the synthetic function's signature — the closure-
+// dispatch path in `CallValueAsFunction` pushes them as the first N
+// args at call time. The body's references to captured names then
+// resolve as ordinary parameter reads, no rewriting required.
+//
+// Anonymous fns that themselves contain nested anonymous fns are
+// supported: we open a per-function scope buffer for the duration of
+// body lowering and attach any nested callables as subFlows.
+function buildAnonymousFunction(
   node: SyntaxNode,
   name: string,
   ctx: LowerContext,
   upvals: string[] = [],
-): Knot | null {
+): Function | null {
   const userArgs = lowerArguments(node, ctx);
   // Prepend upvals as parameters using the same `Argument` shape as
   // user params. At call time, the closure-dispatch path in
   // `CallValueAsFunction` pushes upvals before user args so the
   // parameter binding reads them in this order.
-  const upvalArgs = upvals.map((upvalName) =>
-    new Argument(new Identifier(upvalName), false, false),
+  const upvalArgs = upvals.map(
+    (upvalName) => new Argument(new Identifier(upvalName), false, false),
   );
   const args = [...upvalArgs, ...userArgs];
   const content = findChildByName(node, "LuauFunctionDefinition_content");
   if (!content) return null;
+
+  // Open a per-function buffer so anonymous / nested-named functions
+  // declared INSIDE this anonymous fn's body attach to it as subFlows
+  // instead of escaping to the enclosing scope.
+  const nested: ParsedObject[] = [];
+  ctx.functionScopeStack?.push(nested);
   const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP);
-  const knot = new Knot(new Identifier(name), [], args as any, true);
-  const rootWeave = new Weave(body);
-  (knot as any)._rootWeave = rootWeave;
-  knot.AddContent(rootWeave);
-  return knot;
+  ctx.functionScopeStack?.pop();
+
+  return new Function(
+    new Identifier(name),
+    [...body, ...nested],
+    args as Argument[],
+  );
 }
 
 function lowerDivertTargetLiteral(

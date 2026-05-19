@@ -36,6 +36,20 @@ export interface LowerContext {
    * omit it).
    */
   hoistedKnots?: ParsedObject[];
+  /**
+   * Stack of per-function buffers for nested callable definitions
+   * (anonymous function literals, nested named functions, class
+   * methods). When a function-definition lowerer enters, it pushes a
+   * new buffer onto this stack; inner lowerers that produce a nestable
+   * callable push the resulting `Function` (or other FlowBase) onto
+   * the top buffer instead of `hoistedKnots`. When the function-
+   * definition lowerer pops its buffer, it includes the collected
+   * children as subFlows of its own runtime container so they live at
+   * their lexical position rather than hoisted to top-level. If the
+   * stack is empty (top-level scope), callables fall back to
+   * `hoistedKnots`.
+   */
+  functionScopeStack?: ParsedObject[][];
 }
 
 // Builds a `LowerContext` from a raw source string. Used by the snapshot

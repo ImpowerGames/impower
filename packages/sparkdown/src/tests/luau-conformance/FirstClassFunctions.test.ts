@@ -305,3 +305,80 @@ end
     expect(recorded).toEqual([12]);
   });
 });
+
+describe("nested named function definitions", () => {
+  test("function defined inside another function is callable from its body", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+function helper()
+return 42
+end
+& host_record(helper())
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([42]);
+  });
+
+  test("nested function takes args and returns a computed value", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+function double(n)
+return n * 2
+end
+& host_record(double(7))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([14]);
+  });
+
+  test("nested function with the same name in two different functions does not collide", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& a()
+& b()
+done
+
+function a()
+function helper()
+return 1
+end
+& host_record(helper())
+end
+
+function b()
+function helper()
+return 2
+end
+& host_record(helper())
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2]);
+  });
+
+  test("three-level nesting: function inside function inside function", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& outer()
+done
+
+function outer()
+function middle()
+function inner()
+return 99
+end
+& host_record(inner())
+end
+& middle()
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([99]);
+  });
+});
