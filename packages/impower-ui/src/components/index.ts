@@ -4,5 +4,11 @@ export {
   default as LoadingBar,
   type LoadingBarProps,
 } from "./loading-bar/LoadingBar";
+export {
+  default as Tabs,
+  Tab,
+  type TabsProps,
+  type TabProps,
+} from "./tabs/Tabs";
 export * from "./icon/icons.generated";
 export * from "./registry";

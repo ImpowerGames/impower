@@ -1,6 +1,19 @@
-import { LoadingBar } from "./components";
+import { useState } from "preact/hooks";
+import {
+  Bolt,
+  BoltFill,
+  LoadingBar,
+  Photo,
+  PhotoFill,
+  Share,
+  ShareFill,
+  Tab,
+  Tabs,
+} from "./components";
 
 export function App() {
+  const [pane, setPane] = useState<string>("logic");
+  const [subPanel, setSubPanel] = useState<string>("main");
   return (
     <div class="min-h-screen w-full bg-neutral-50 text-neutral-800 font-sans p-8">
       <header class="mb-6">
@@ -35,6 +48,40 @@ export function App() {
         <Row label="Thicker bar (h-1)">
           <div class="w-96">
             <LoadingBar class="h-1" />
+          </div>
+        </Row>
+      </section>
+
+      <section class="mt-10 space-y-4">
+        <h2 class="text-lg font-medium">
+          <code class="font-mono text-sm bg-neutral-200 px-2 py-0.5 rounded">
+            &lt;Tabs&gt; / &lt;Tab&gt;
+          </code>
+        </h2>
+        <Row label="Top sub-tabs (underline indicator, plain labels)">
+          <div class="w-[480px] bg-neutral-100 border border-neutral-200 rounded">
+            <Tabs value={subPanel} onChange={setSubPanel}>
+              <Tab value="main">Main</Tab>
+              <Tab value="scripts">Scripts</Tab>
+            </Tabs>
+            <div class="p-4 text-sm text-neutral-600">
+              Active sub-panel: <strong>{subPanel}</strong>
+            </div>
+          </div>
+        </Row>
+        <Row label="Bottom nav (icons + active-icon swap, no indicator)">
+          <div class="w-[480px] bg-neutral-900 text-neutral-50 rounded">
+            <Tabs value={pane} onChange={setPane} indicator="none" class="py-2">
+              <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
+                Logic
+              </Tab>
+              <Tab value="assets" icon={Photo} activeIcon={PhotoFill}>
+                Assets
+              </Tab>
+              <Tab value="share" icon={Share} activeIcon={ShareFill}>
+                Share
+              </Tab>
+            </Tabs>
           </div>
         </Row>
       </section>
