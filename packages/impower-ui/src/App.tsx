@@ -7,6 +7,7 @@ import {
   PhotoFill,
   Share,
   ShareFill,
+  SplitPane,
   Tab,
   Tabs,
 } from "./components";
@@ -14,6 +15,7 @@ import {
 export function App() {
   const [pane, setPane] = useState<string>("logic");
   const [subPanel, setSubPanel] = useState<string>("main");
+  const [splitActive, setSplitActive] = useState<"start" | "end">("start");
   return (
     <div class="min-h-screen w-full bg-neutral-50 text-neutral-800 font-sans p-8">
       <header class="mb-6">
@@ -82,6 +84,56 @@ export function App() {
                 Share
               </Tab>
             </Tabs>
+          </div>
+        </Row>
+      </section>
+
+      <section class="mt-10 space-y-4">
+        <h2 class="text-lg font-medium">
+          <code class="font-mono text-sm bg-neutral-200 px-2 py-0.5 rounded">
+            &lt;SplitPane&gt;
+          </code>
+        </h2>
+        <Row label="Drag the divider to resize. Resize browser below 768px to test responsive collapse.">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="text-xs text-neutral-500">Mobile-active pane:</span>
+            <button
+              type="button"
+              class={`px-3 py-1 text-xs rounded ${
+                splitActive === "start"
+                  ? "bg-primary text-white"
+                  : "bg-neutral-200"
+              }`}
+              onClick={() => setSplitActive("start")}
+            >
+              Start
+            </button>
+            <button
+              type="button"
+              class={`px-3 py-1 text-xs rounded ${
+                splitActive === "end"
+                  ? "bg-primary text-white"
+                  : "bg-neutral-200"
+              }`}
+              onClick={() => setSplitActive("end")}
+            >
+              End
+            </button>
+          </div>
+          <div class="w-full h-72 border border-neutral-200 rounded overflow-hidden">
+            <SplitPane
+              activePanel={splitActive}
+              start={
+                <div class="flex h-full items-center justify-center bg-neutral-100 text-neutral-700">
+                  Start panel (e.g. editor)
+                </div>
+              }
+              end={
+                <div class="flex h-full items-center justify-center bg-neutral-800 text-neutral-100">
+                  End panel (e.g. preview)
+                </div>
+              }
+            />
           </div>
         </Row>
       </section>

@@ -5,6 +5,10 @@ export {
   type LoadingBarProps,
 } from "./loading-bar/LoadingBar";
 export {
+  default as SplitPane,
+  type SplitPaneProps,
+} from "./split-pane/SplitPane";
+export {
   default as Tabs,
   Tab,
   type TabsProps,
