@@ -92,8 +92,9 @@ const STYLE = `
     opacity: 0;
     transition: opacity 150ms ease-in-out;
   }
+  /* Use :focus-visible only — :focus would keep the indicator lit after a
+     mouse drag (the Separator stays focused for keyboard accessibility). */
   .swp-separator:hover::after,
-  .swp-separator:focus::after,
   .swp-separator:focus-visible::after,
   .swp-separator[data-separator="hover"]::after,
   .swp-separator[data-separator="active"]::after,
