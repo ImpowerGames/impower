@@ -14,8 +14,11 @@ export type SplitPaneProps = {
   end: ComponentChildren;
   /** Default sizes in percent. Defaults to [50, 50]. */
   defaultSizes?: [number, number];
-  /** Minimum percent each panel can shrink to. Default 15. */
-  minSize?: number;
+  /**
+   * Minimum size each panel can shrink to. Pass a number for percent
+   * (`15` → 15%), or a string with units (`"320px"`, `"20rem"`). Default 15%.
+   */
+  minSize?: number | string;
   /**
    * Collapse the split below this viewport-width breakpoint (px) and show
    * only the `activePanel` instead. Pass `null` to disable. Default 768
@@ -28,11 +31,85 @@ export type SplitPaneProps = {
   class?: string;
 };
 
+// VSCode-style divider behavior, ported from sparkle's <s-split-pane>:
+//   - the Separator is an 8px transparent grab strip (the hit area)
+//   - a 1px always-visible line sits centered inside
+//   - a 4px colored "indicator" fades in on hover/active/focus (150ms)
+// Width/height never change, so the layout doesn't shift during interaction.
+const SP_HIT_AREA = "8px";
+const SP_DIVIDER = "1px";
+const SP_INDICATOR = "4px";
+const STYLE = `
+  .swp-separator {
+    position: relative;
+    flex: 0 0 ${SP_HIT_AREA};
+    background-color: transparent;
+    align-self: stretch;
+  }
+  .swp-separator[data-orientation="horizontal"] {
+    width: ${SP_HIT_AREA};
+    cursor: col-resize;
+  }
+  .swp-separator[data-orientation="vertical"] {
+    height: ${SP_HIT_AREA};
+    cursor: row-resize;
+  }
+  .swp-separator::before,
+  .swp-separator::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+  }
+  .swp-separator[data-orientation="horizontal"]::before {
+    top: 0;
+    bottom: 0;
+    left: calc((${SP_HIT_AREA} - ${SP_DIVIDER}) / 2);
+    width: ${SP_DIVIDER};
+    background-color: var(--theme-color-divider, rgba(255, 255, 255, 0.1));
+  }
+  .swp-separator[data-orientation="vertical"]::before {
+    left: 0;
+    right: 0;
+    top: calc((${SP_HIT_AREA} - ${SP_DIVIDER}) / 2);
+    height: ${SP_DIVIDER};
+    background-color: var(--theme-color-divider, rgba(255, 255, 255, 0.1));
+  }
+  .swp-separator[data-orientation="horizontal"]::after {
+    top: 0;
+    bottom: 0;
+    left: calc((${SP_HIT_AREA} - ${SP_INDICATOR}) / 2);
+    width: ${SP_INDICATOR};
+    background-color: var(--theme-color-primary, #007acc);
+    opacity: 0;
+    transition: opacity 150ms ease-in-out;
+  }
+  .swp-separator[data-orientation="vertical"]::after {
+    left: 0;
+    right: 0;
+    top: calc((${SP_HIT_AREA} - ${SP_INDICATOR}) / 2);
+    height: ${SP_INDICATOR};
+    background-color: var(--theme-color-primary, #007acc);
+    opacity: 0;
+    transition: opacity 150ms ease-in-out;
+  }
+  .swp-separator:hover::after,
+  .swp-separator:focus::after,
+  .swp-separator:focus-visible::after,
+  .swp-separator[data-separator="hover"]::after,
+  .swp-separator[data-separator="active"]::after,
+  .swp-separator[data-resize-handle-active]::after {
+    opacity: 1;
+  }
+`;
+
 /**
  * Two-pane split with a drag-resize divider, mirroring sparkle's
  * `<s-split-pane>` behavior:
  *  - drag the divider to resize (keyboard arrows when focused — react-
  *    resizable-panels handles accessibility)
+ *  - VSCode-style: wide invisible hit area, thin always-visible divider
+ *    line, fatter colored indicator that fades in on hover/active/focus
+ *  - per-panel minimum size in % or px (e.g. `minSize="320px"`)
  *  - below `collapseBelow` px, the split collapses and only `activePanel`
  *    is visible — caller drives `activePanel` via a toggle on mobile.
  *
@@ -65,6 +142,7 @@ export default function SplitPane({
         className,
       )}
     >
+      <style>{STYLE}</style>
       {collapseBelow != null && (
         <style>{`
           @media (max-width: ${breakpoint}px) {
@@ -99,12 +177,8 @@ export default function SplitPane({
           {start}
         </Panel>
         <Separator
-          className={cn(
-            "bg-border/40 hover:bg-border transition-colors",
-            orientation === "horizontal"
-              ? "w-px hover:w-1 cursor-col-resize"
-              : "h-px hover:h-1 cursor-row-resize",
-          )}
+          data-orientation={orientation}
+          className="swp-separator"
         />
         <Panel minSize={minSize} className="overflow-hidden">
           {end}
