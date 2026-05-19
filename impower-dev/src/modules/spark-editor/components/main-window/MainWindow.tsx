@@ -10,6 +10,7 @@ import {
   Tabs,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { startTransition } from "preact/compat";
 import { Workspace } from "../../workspace/Workspace";
 import workspace from "../../workspace/WorkspaceStore";
 
@@ -141,7 +142,13 @@ export default function MainWindow(_props: MainWindowProps) {
   }, []);
 
   const onPaneChange = (next: string) => {
-    Workspace.window.openedPane(next as PaneType);
+    // Mark the workspace-store update (and the resulting <se-logic> /
+    // <se-assets> / <se-share> mount) as a low-priority transition, so the
+    // tab activation animation (color + scale) gets to paint before the
+    // potentially-heavy pane DOM is built.
+    startTransition(() => {
+      Workspace.window.openedPane(next as PaneType);
+    });
   };
 
   return (

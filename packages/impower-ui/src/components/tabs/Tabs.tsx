@@ -109,18 +109,24 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
+  // Active text color depends on indicator style:
+  //   - "underline" → text-primary (matches the bar, shadcn pattern)
+  //   - "none"      → text-fg (sparkle's brightness-only shift)
+  const activeColorClass =
+    ctx.indicator === "underline" ? "text-primary" : "text-fg";
   return (
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
-      {/* Radix injects data-state="active"|"inactive" on the rendered element,
-          which we use to drive the underline indicator and the icon swap.
-          Using `asChild` lets us render a real <button> with our classes
-          while still getting Radix's keyboard/ARIA wiring. */}
+      {/* Radix injects data-state="active"|"inactive" on the rendered element.
+          We don't drive color on the button itself — instead each icon and
+          label has TWO copies (inactive / active) crossfaded via opacity, so
+          the transition runs on the compositor thread and survives a
+          main-thread stall (e.g. <se-assets> mounting hundreds of rows).
+          Using `asChild` lets us render a real <button> while still getting
+          Radix's keyboard/ARIA wiring. */}
       <button
         type="button"
         class={cn(
-          "group relative flex flex-1 items-center justify-center gap-2 px-3 py-2 text-sm font-medium select-none",
-          "text-muted-foreground hover:text-foreground transition-colors",
-          "data-[state=active]:text-primary",
+          "group relative flex flex-1 items-center justify-center gap-x-2 gap-y-0.5 px-3 py-2 text-xs font-semibold select-none",
           "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
           ctx.vertical && "w-full",
           ctx.indicator === "underline" &&
@@ -132,29 +138,56 @@ export function Tab({
           className,
         )}
       >
-        {/* Render BOTH icons and toggle visibility via data-state, so the
-            active-icon swap doesn't briefly flash an empty slot. */}
         {(icon || activeIcon) && (
-          <span class="relative inline-flex size-4 items-center justify-center">
+          <span class="relative inline-flex size-5 items-center justify-center">
+            {/* Inactive icon copy — visible by default, fades out on active.
+                Color brightens on hover via text-fg (color transition is OK
+                on the main thread; hover doesn't trigger heavy mounts). */}
             {icon ? (
-              <span class="absolute inset-0 group-data-[state=active]:opacity-0 transition-opacity">
+              <span class="absolute inset-0 text-fg-60 group-hover:text-fg group-data-[state=active]:opacity-0 transition-opacity duration-100">
                 {(() => {
                   const Inactive = icon;
-                  return <Inactive class="size-4" />;
+                  return <Inactive class="size-5" />;
                 })()}
               </span>
             ) : null}
+            {/* Active icon copy — overlaid, fades in on active. */}
             {(activeIcon ?? icon) ? (
-              <span class="absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 transition-opacity">
+              <span
+                class={cn(
+                  "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 transition-opacity duration-100",
+                  activeColorClass,
+                )}
+              >
                 {(() => {
                   const Active = activeIcon ?? icon!;
-                  return <Active class="size-4" />;
+                  return <Active class="size-5" />;
                 })()}
               </span>
             ) : null}
           </span>
         )}
-        <span>{children}</span>
+        {/* sparkle's s-tab scaled the label 0.8 → 0.9 on activation. We
+            mirror that with 90 → 100. Transform runs on the compositor so
+            this transition survives a heavy mount, same as the icons. */}
+        <span class="relative inline-block scale-90 group-data-[state=active]:scale-100 transition-transform duration-100">
+          {/* Inactive label copy — takes layout space, fades out on active. */}
+          <span class="text-fg-60 group-hover:text-fg group-data-[state=active]:opacity-0 transition-opacity duration-100">
+            {children}
+          </span>
+          {/* Active label copy — overlaid, fades in on active. Using opacity
+              (compositor) instead of color (paint) means the crossfade
+              continues smoothly even while the main thread is busy mounting
+              the new pane's DOM. */}
+          <span
+            class={cn(
+              "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 transition-opacity duration-100",
+              activeColorClass,
+            )}
+          >
+            {children}
+          </span>
+        </span>
       </button>
     </RadixTabs.Trigger>
   );
