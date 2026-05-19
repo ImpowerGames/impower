@@ -2,7 +2,7 @@ import { PushPopType } from "./PushPop";
 import { Path } from "./Path";
 import { Story } from "./Story";
 import { JsonSerialisation } from "./JsonSerialisation";
-import { ListValue } from "./Value";
+import { ListValue, VariablePointerValue } from "./Value";
 import { StringBuilder } from "./StringBuilder";
 import { Pointer } from "./Pointer";
 import { InkObject } from "./Object";
@@ -167,11 +167,65 @@ export class CallStack {
   }
 
   public Pop(type: PushPopType | null = null) {
-    if (this.CanPop(type)) {
-      this.callStack.pop();
-      return;
-    } else {
+    if (!this.CanPop(type)) {
       throw new Error("Mismatched push/pop in Callstack");
+    }
+    // Close any open upvalues that point at the frame we're about to
+    // remove. After closing, the pointer becomes self-contained — its
+    // `closedValue` holds the snapshot of the variable, and subsequent
+    // reads/writes via `VariablesState` go through the closed cell
+    // rather than chasing a now-defunct contextIndex.
+    const top = this.callStack[this.callStack.length - 1];
+    if (top && top.openUpvalues.length > 0) {
+      for (const ptr of top.openUpvalues) {
+        if (ptr.isClosed) continue;
+        // Find the variable in this frame's temporary scopes.
+        // Innermost-first matches the lookup order used elsewhere.
+        let value: InkObject | null = null;
+        for (let i = top.temporaryScopes.length - 1; i >= 0; i--) {
+          const found = top.temporaryScopes[i]!.get(ptr.variableName);
+          if (found !== undefined) {
+            value = found;
+            break;
+          }
+        }
+        // If we couldn't find the slot (shouldn't happen if the
+        // pointer was correctly registered) leave the pointer in a
+        // "closed-but-null" state so reads return null rather than
+        // crashing on a dangling contextIndex.
+        ptr.closedValue = value ?? null;
+      }
+      // Drop the references so the frame element can be GC'd cleanly.
+      top.openUpvalues = [];
+    }
+    this.callStack.pop();
+  }
+
+  // Look for an existing open upvalue in the given frame matching
+  // `variableName`. Used by the auto-resolve path so multiple closures
+  // capturing the same variable share a single pointer (Lua semantics:
+  // when one closure writes, the others see the change).
+  public FindOpenUpvalue(
+    contextIndex: number,
+    variableName: string,
+  ): VariablePointerValue | null {
+    const frame = this.callStack[contextIndex - 1];
+    if (!frame) return null;
+    for (const ptr of frame.openUpvalues) {
+      if (!ptr.isClosed && ptr.variableName === variableName) return ptr;
+    }
+    return null;
+  }
+
+  // Register a newly-created open upvalue with its target frame so it
+  // gets closed when that frame pops.
+  public RegisterOpenUpvalue(
+    pointer: VariablePointerValue,
+    contextIndex: number,
+  ): void {
+    const frame = this.callStack[contextIndex - 1];
+    if (frame) {
+      frame.openUpvalues.push(pointer);
     }
   }
 
@@ -312,6 +366,18 @@ export namespace CallStack {
 
     public evaluationStackHeightWhenPushed: number = 0;
     public functionStartInOutputStream: number = 0;
+
+    // Lua-style open upvalues that reference variables in THIS frame.
+    // Populated by `Story`'s auto-resolve path when a
+    // `VariablePointerValue` with `contextIndex === -1` is pushed onto
+    // the evaluation stack and resolves to this frame's index. Drained
+    // and closed (snapshot value into `closedValue`) by `CallStack.Pop`
+    // immediately before the frame is removed.
+    //
+    // Closures that escape their lexical parent's lifetime (e.g. outer
+    // returns a function it constructed) work correctly because the
+    // captured pointer becomes self-contained at frame-pop time.
+    public openUpvalues: VariablePointerValue[] = [];
 
     constructor(
       type: PushPopType,

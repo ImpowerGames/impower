@@ -264,11 +264,12 @@ end
     expect(recorded).toEqual([12]);
   });
 
-  test("snapshot semantics: outer mutation doesn't propagate", () => {
-    // V1 captures by VALUE at definition time. Lua captures by
-    // reference (closure sees subsequent outer mutations). Document
-    // the divergence — closure stays at 10 even though outer `n`
-    // changed to 100.
+  test("live capture: closure sees outer mutations", () => {
+    // Lua-style open upvalue: the closure holds a live reference to
+    // `n` in run's frame, so subsequent mutations to `n` are visible
+    // through the closure. The captured pointer auto-resolves to
+    // run's frame at closure-creation time and stays open while run
+    // is on the call stack.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -281,7 +282,7 @@ n = 100
 end
 `);
     expect(errors).toEqual([]);
-    expect(recorded).toEqual([10]);
+    expect(recorded).toEqual([100]);
   });
 
   test("only locally-bound names ARE bound (params + locals don't capture)", () => {
@@ -303,6 +304,122 @@ end
 `);
     expect(errors).toEqual([]);
     expect(recorded).toEqual([12]);
+  });
+});
+
+describe("true lexical closures (open/close upvalues)", () => {
+  test("closure mutation propagates to outer scope", () => {
+    // Inner writes `n = n + 1` through its upval. Since the upval
+    // points to outer's `n` (open pointer), the write propagates back
+    // to outer's frame. Outer's read of `n` after the call sees the
+    // updated value.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local n = 0
+local incr = function()
+n = n + 1
+end
+& incr()
+& incr()
+& incr()
+& host_record(n)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([3]);
+  });
+
+  test("two closures sharing the same upval see each other's writes", () => {
+    // Both `incr` and `read` capture `n` from run's frame. The dedup
+    // path in Story.ts's auto-resolve gives them the SAME pointer
+    // object, so when `incr` writes through it, `read` sees the new
+    // value.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local n = 0
+local incr = function()
+n = n + 1
+end
+local read = function()
+return n
+end
+& incr()
+& incr()
+& host_record(read())
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([2]);
+  });
+
+  test("closure outlives its lexical parent (close-on-pop)", () => {
+    // outer returns `f`. By the time `f` is called, outer's frame
+    // has been popped, so its `total` no longer exists on the call
+    // stack. CallStack.Pop closes the open upvalue by snapshotting
+    // the current value into the pointer's `closedValue`, so the
+    // closure can still read and write through it.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& driver()
+done
+
+function driver()
+local g = make()
+& g()
+& g()
+& host_record(g())
+end
+
+function make()
+local total = 0
+local f = function()
+total = total + 1
+return total
+end
+return f
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([3]);
+  });
+
+  test("two closures share state via closed upval (table-routed)", () => {
+    // Both closures are returned (in a table) from make_totaler. By the
+    // time they're invoked, the parent frame is gone. They still share
+    // the same closed cell (dedup at pointer-creation time), so the
+    // bump closure's writes are visible to the peek closure even
+    // though both upvals are closed.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& driver()
+done
+
+function driver()
+local pair = make_totaler()
+local bump = pair.bump
+local peek = pair.peek
+& bump()
+& bump()
+& host_record(peek())
+end
+
+function make_totaler()
+local n = 0
+local bump = function()
+n = n + 1
+end
+local peek = function()
+return n
+end
+return { bump = bump, peek = peek }
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([2]);
   });
 });
 

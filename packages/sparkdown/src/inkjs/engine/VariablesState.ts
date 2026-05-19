@@ -346,6 +346,12 @@ export class VariablesState extends VariablesStateAccessor<
   }
 
   public ValueAtVariablePointer(pointer: VariablePointerValue) {
+    // Closed upvalue: the parent frame has been popped and the value
+    // was snapshotted into the pointer at pop time. Read directly from
+    // the closed cell, no call-stack lookup needed.
+    if (pointer.isClosed) {
+      return pointer.closedValue;
+    }
     return this.GetVariableWithName(pointer.variableName, pointer.contextIndex);
   }
 
@@ -380,6 +386,14 @@ export class VariablesState extends VariablesStateAccessor<
           VariablePointerValue,
         );
         if (existingPointer != null) {
+          // Closed upvalue: write directly to the snapshotted cell.
+          // The parent frame is gone; there's no slot to redirect to.
+          // Mutating the pointer's `closedValue` lets all closures
+          // sharing this pointer see the updated value.
+          if (existingPointer.isClosed) {
+            existingPointer.closedValue = value;
+            return;
+          }
           name = existingPointer.variableName;
           contextIndex = existingPointer.contextIndex;
           setGlobal = contextIndex == 0;
@@ -468,6 +482,12 @@ export class VariablesState extends VariablesStateAccessor<
   }
 
   public ResolveVariablePointer(varPointer: VariablePointerValue) {
+    // Already-closed pointer: it's heap-resident, no frame lookup
+    // needed and no further canonicalization possible. Return as-is
+    // so all references continue to share the same closed cell.
+    if (varPointer.isClosed) {
+      return varPointer;
+    }
     let contextIndex = varPointer.contextIndex;
 
     if (contextIndex == -1)
@@ -487,9 +507,19 @@ export class VariablesState extends VariablesStateAccessor<
     );
     if (doubleRedirectionPointer != null) {
       return doubleRedirectionPointer;
-    } else {
-      return new VariablePointerValue(varPointer.variableName, contextIndex);
     }
+    // If the pointer already has a canonical contextIndex (the
+    // auto-resolve path at content-push time has run), return the
+    // SAME object rather than a fresh copy. Sharing identity matters
+    // for Lua-style upvalue closing — the open-upvalue list in the
+    // target frame holds this object reference, and we need every
+    // place that holds the pointer (closure's __closure_upvals, the
+    // callee's param slot, etc.) to point at the same instance so
+    // close-on-pop is observable everywhere.
+    if (varPointer.contextIndex > 0) {
+      return varPointer;
+    }
+    return new VariablePointerValue(varPointer.variableName, contextIndex);
   }
 
   public GetContextIndexOfVariableNamed(varName: string) {

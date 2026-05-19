@@ -388,6 +388,25 @@ export class DivertTargetValue extends Value<Path> {
 export class VariablePointerValue extends Value<string> {
   public _contextIndex: number;
 
+  // Lua-style open/close upvalues. While the parent frame the pointer
+  // references is still on the call stack, `closedValue` is `null` and
+  // the pointer is "open" — reads/writes resolve through the frame's
+  // slot via `contextIndex`. When that frame pops, `CallStack.Pop`
+  // snapshots the current value into `closedValue`; the pointer is
+  // then "closed" and behaves like a heap cell — reads return
+  // `closedValue`, writes update it in place.
+  //
+  // Lua semantics: multiple closures that capture the same outer
+  // variable share ONE upvalue, so when one closure writes, the others
+  // see it. Dedup happens at pointer-creation time (the auto-resolve
+  // path in `Story.ts` looks up an existing open pointer for the
+  // target frame+name before creating a new one).
+  public closedValue: InkObject | null = null;
+
+  public get isClosed(): boolean {
+    return this.closedValue !== null;
+  }
+
   constructor(variableName: string, contextIndex: number = -1) {
     super(variableName);
 

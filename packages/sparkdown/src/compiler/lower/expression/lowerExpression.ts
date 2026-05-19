@@ -12,6 +12,7 @@ import {
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
+import { VariablePointerExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/VariablePointerExpression";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
@@ -819,6 +820,19 @@ function countUserParameters(
 //     __closure_upvals: { "0": <upval0>, "1": <upval1>, ... },
 //     __closure_user_arity: <K>,
 //   }
+//
+// Each upval value is a `VariablePointerExpression` — at runtime that
+// emits a `VariablePointerValue` referencing the outer-scope variable.
+// The runtime auto-resolves the pointer's `contextIndex` to the
+// current frame at push time and registers it as an "open upvalue".
+// When the outer frame later pops, `CallStack.Pop` snapshots the
+// current value into `pointer.closedValue`, so the closure keeps
+// working after its lexical parent is gone (Lua semantics).
+//
+// Multiple closures capturing the same outer variable share a single
+// `VariablePointerValue` (dedup happens at auto-resolve time), so
+// mutations made by one closure are visible to the others — both
+// while the parent is alive and after it has closed.
 function buildClosureExpression(
   synthName: string,
   upvals: string[],
@@ -831,7 +845,7 @@ function buildClosureExpression(
     (name, i) =>
       new ObjectExpressionEntry(
         String(i),
-        new VariableReference([new Identifier(name)]),
+        new VariablePointerExpression(name),
       ),
   );
   const upvalObject = new ObjectExpression(upvalEntries);

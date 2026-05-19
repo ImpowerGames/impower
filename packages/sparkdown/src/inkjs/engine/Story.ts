@@ -988,14 +988,29 @@ export class Story extends InkObject {
       // var varPointer = currentContentObj as VariablePointerValue;
       let varPointer = asOrNull(currentContentObj, VariablePointerValue);
       if (varPointer && varPointer.contextIndex == -1) {
-        // Create new object so we're not overwriting the story's own data
         let contextIdx = this.state.callStack.ContextForVariableNamed(
           varPointer.variableName,
         );
-        currentContentObj = new VariablePointerValue(
-          varPointer.variableName,
+        // Lua-style upvalue dedup: if a closure / by-ref arg created
+        // earlier in this frame's lifetime already produced an open
+        // pointer for (contextIdx, varName), reuse it so multiple
+        // closures share the same cell. The shared pointer also makes
+        // the close-on-pop step a single observable event for all
+        // closures that captured this variable.
+        const existing = this.state.callStack.FindOpenUpvalue(
           contextIdx,
+          varPointer.variableName,
         );
+        if (existing) {
+          currentContentObj = existing;
+        } else {
+          const newPtr = new VariablePointerValue(
+            varPointer.variableName,
+            contextIdx,
+          );
+          this.state.callStack.RegisterOpenUpvalue(newPtr, contextIdx);
+          currentContentObj = newPtr;
+        }
       }
 
       // Expression evaluation content
