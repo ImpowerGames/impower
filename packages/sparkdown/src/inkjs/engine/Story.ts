@@ -2167,6 +2167,18 @@ export class Story extends InkObject {
           }
         }
 
+        // Lua-style first-class fn fallback: if no variable named
+        // `<name>` exists but a knot/function `<name>` IS defined,
+        // resolve to a `DivertTargetValue` pointing at the knot.
+        // This makes `local f = double` work as if the user had
+        // written `local f = -> double`. Common authoring pattern.
+        if (foundValue == null && varRef.name) {
+          const knotContainer = this.KnotContainerWithName(varRef.name);
+          if (knotContainer && knotContainer.path) {
+            foundValue = new DivertTargetValue(knotContainer.path);
+          }
+        }
+
         if (foundValue == null) {
           this.Warning(
             "Variable not found: '" +

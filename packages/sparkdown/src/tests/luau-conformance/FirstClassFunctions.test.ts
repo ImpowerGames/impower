@@ -146,6 +146,77 @@ end
   });
 });
 
+describe("bare knot names as values", () => {
+  test("local f = double — bare function-knot reference works as value", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function double(x)
+return x * 2
+end
+
+function run()
+local f = double
+& host_record(f(5))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10]);
+  });
+
+  test("pass bare knot name as a function argument", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function double(x)
+return x * 2
+end
+
+function call_it(fn, arg)
+return fn(arg)
+end
+
+function run()
+& host_record(call_it(double, 5))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10]);
+  });
+
+  test("multiple bare knot references in scope", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function double(x)
+return x * 2
+end
+
+function triple(x)
+return x * 3
+end
+
+function pick(use_double, x)
+local f = double
+if use_double == 0 then
+& f = triple
+end
+return f(x)
+end
+
+function run()
+& host_record(pick(1, 5))
+& host_record(pick(0, 5))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 15]);
+  });
+});
+
 describe("closures (capture-by-value)", () => {
   test("simple capture: function() return n + 1 end", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)

@@ -105,6 +105,23 @@ export class VariableReference extends Expression {
     const targetForCount: ParsedObject | null =
       parsedPath.ResolveFromContext(this);
     if (targetForCount) {
+      // Lua-style first-class fn fallback: when the name resolves to
+      // a FUNCTION knot, leave the `RuntimeVariableReference` as-is
+      // (with `name` set, no `pathForCount`). At runtime the variable
+      // lookup misses (functions aren't in variablesState), and the
+      // knot-lookup fallback in `Story.ts` converts the reference
+      // into a `DivertTargetValue`. So `local f = double` works
+      // without requiring `local f = -> double`.
+      //
+      // The legacy ink convention of `myKnot` resolving to its read
+      // count still applies for NON-function knots (regular labelled
+      // sections, choices, etc.) so existing narrative scripts that
+      // gate on visit counts via bare names keep working.
+      let targetFlow = asOrNull(targetForCount, FlowBase);
+      if (targetFlow && targetFlow.isFunction) {
+        return;
+      }
+
       if (!targetForCount.containerForCounting) {
         throw new Error();
       }
@@ -123,23 +140,6 @@ export class VariableReference extends Expression {
 
       this._runtimeVarRef.pathForCount = targetForCount.runtimePath;
       this._runtimeVarRef.name = null;
-
-      // Check for very specific writer error: getting read count and
-      // printing it as content rather than as a piece of logic
-      // e.g. Writing {myFunc} instead of {myFunc()}
-      let targetFlow = asOrNull(targetForCount, FlowBase);
-      if (targetFlow && targetFlow.isFunction) {
-        // Is parent context content rather than logic?
-        if (
-          this.parent instanceof Weave ||
-          this.parent instanceof ContentList ||
-          this.parent instanceof FlowBase
-        ) {
-          this.Warning(
-            `\`${targetFlow.identifier}\` being used as read count rather than being called as function. Perhaps you intended to write ${targetFlow.identifier}()`,
-          );
-        }
-      }
 
       return;
     }
