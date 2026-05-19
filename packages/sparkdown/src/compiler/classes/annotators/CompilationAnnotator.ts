@@ -49,6 +49,11 @@ export interface CompiledBlock {
   defaultDefinitions?: { [type: string]: any };
   json?: string;
   uuid?: string;
+  // Synthetic top-level knots produced by anonymous function literals
+  // inside this chunk. The compile pipeline appends them to the
+  // story's `topLevelFlowBaseObjs` so the `DivertTarget(__anon_fn_…)`
+  // references emitted at the literal's source position can resolve.
+  hoistedKnots?: ParsedObject[];
 }
 
 export interface CompilationConfig {
@@ -85,6 +90,13 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // Compiler's `offsetDebugMetadata` later re-adds the chunk offset.
       const text = this.text;
       const chunkStartLine0 = text ? text.lineAt(nodeRef.from).number - 1 : 0;
+      // Fresh per-chunk hoist list — accumulated synthetic knots from
+      // anonymous-function literals during this chunk's lowering. Each
+      // chunk's `enter` reruns from scratch (rebuilt on edit), so a
+      // chunk-local list naturally tracks the chunk's current state.
+      // Names use the source position rather than a counter, so they
+      // stay unique across chunks and stable across edits.
+      const hoistedKnots: ParsedObject[] = [];
       const lowered = lower(nodeRef, {
         read: (from, to) => this.read(from, to),
         lineNumber: (pos) =>
@@ -95,7 +107,11 @@ export class CompilationAnnotator extends SparkdownAnnotator<
           return pos - line.from;
         },
         config: this.config,
+        hoistedKnots,
       });
+      if (lowered && hoistedKnots.length > 0) {
+        lowered.hoistedKnots = hoistedKnots;
+      }
       if (lowered !== undefined) {
         annotations.push(
           SparkdownAnnotation.mark(lowered).range(nodeRef.from, nodeRef.to),

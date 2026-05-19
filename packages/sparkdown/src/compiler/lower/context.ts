@@ -1,3 +1,4 @@
+import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { CompilationConfig } from "../classes/annotators/CompilationAnnotator";
 
 export interface LowerContext {
@@ -22,6 +23,19 @@ export interface LowerContext {
    */
   filePath?: string;
   config?: CompilationConfig;
+  /**
+   * Mutable list of synthetic `Knot` ParsedObjects produced by lowering
+   * anonymous function literals (`function(x) ... end` in expression
+   * position). Each such literal compiles to a uniquely-named top-level
+   * knot plus a `DivertTarget` at the literal's source position; the
+   * synthetic knot has nowhere to live in the expression's parsed tree
+   * so it gets stashed here. Names are derived from the source byte
+   * offset (`__anon_fn_<from>`) so they stay unique across chunks and
+   * stable across edits. If unset, anonymous-function lowering is a
+   * no-op (snapshot tools that don't care about runtime execution can
+   * omit it).
+   */
+  hoistedKnots?: ParsedObject[];
 }
 
 // Builds a `LowerContext` from a raw source string. Used by the snapshot

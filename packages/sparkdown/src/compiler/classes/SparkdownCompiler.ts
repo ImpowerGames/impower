@@ -628,8 +628,23 @@ export class SparkdownCompiler {
         contextPropertyRegistry,
         defaultDefinitions,
         uuid,
+        hoistedKnots,
       } = cur.value.type;
       const lineNumberOffset = document?.lineAt(cur.from) ?? 0;
+      // Anonymous function literals lowered inside this chunk produce
+      // synthetic knots that need to land at the story's top level.
+      // Each knot is a complete `Knot` ParsedObject (built by
+      // `buildAnonymousKnot` with the same shape as a regular
+      // `lowerLuauFunctionDefinition` result), so append directly to
+      // `topLevelFlowBaseObjs` without re-wrapping.
+      if (hoistedKnots) {
+        remapContent(hoistedKnots, lineNumberOffset);
+        for (const k of hoistedKnots) {
+          if (k instanceof Knot) {
+            topLevelFlowBaseObjs.push(k);
+          }
+        }
+      }
       if (include) {
         if (include) {
           // Resolve the include relative to THIS file's URI, not the

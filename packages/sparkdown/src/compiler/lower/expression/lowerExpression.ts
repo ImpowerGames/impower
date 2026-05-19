@@ -10,10 +10,14 @@ import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { Knot } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
+import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { LowerContext } from "../context";
+import { lowerStatements } from "../lower";
+import { lowerArguments } from "../utils/lowerArguments";
 import { lowerTable } from "./lowerTable";
 import { mapStdLibCallToBuiltin } from "../utils/stdlibMapping";
 import {
@@ -160,6 +164,13 @@ const PRIMARY_NODES = new Set([
   "LuauParenthetical",
   "LuauTable",
   "LuauDivertTargetLiteral",
+  // Anonymous function literal: `function(x) return x * 2 end` as an
+  // expression. The grammar's `LuauFunctionDefinition` rule covers
+  // both named and anonymous forms — the lowerer routes named
+  // definitions through `lowerLuauFunctionDefinition` (top-level
+  // statement) and anonymous ones through `lowerAnonymousFunction`
+  // (here) which synthesizes a uniquely-named hoisted knot.
+  "LuauFunctionDefinition",
 ]);
 
 function collectTokens(
@@ -590,9 +601,80 @@ export function lowerPrimary(
       return lowerTable(node, ctx);
     case "LuauDivertTargetLiteral":
       return lowerDivertTargetLiteral(node, ctx);
+    case "LuauFunctionDefinition":
+      return lowerAnonymousFunction(node, ctx);
     default:
       return null;
   }
+}
+
+// Lower an anonymous function literal (`function(x) return x * 2 end`)
+// in expression position. Synthesizes a uniquely-named knot from the
+// function's body, stashes the knot in `ctx.hoistedKnots` so the
+// top-level compile pipeline can append it to the story's flow-base
+// list, and returns a `DivertTarget` expression that resolves to the
+// synthetic knot. The same runtime path already exists for `-> name`
+// literals + `CallValueAsFunction` — anonymous-function values just
+// piggyback on it.
+//
+// Limitations:
+//   - No upvalue capture (closures). A `function() return x end` that
+//     references an enclosing-scope `x` will fail to resolve at
+//     runtime because the synthetic knot has no link to its lexical
+//     surroundings.
+//   - Named function definitions (`function name(...) ... end`) are
+//     handled by `lowerLuauFunctionDefinition` at statement level
+//     and never reach this path.
+function lowerAnonymousFunction(
+  node: SyntaxNode,
+  ctx: LowerContext,
+): Expression | null {
+  if (!ctx.hoistedKnots) {
+    // Snapshot-only callers that don't wire up the hoist context
+    // can't support anonymous functions at runtime. Fall back to
+    // null so the surrounding expression-lowering machinery skips
+    // this primary cleanly.
+    return null;
+  }
+  // Skip named definitions — those are statement-level.
+  if (getDescendent("LuauFunctionDeclarationName", node)) return null;
+  // Name from source byte offset — unique within a chunk and stable
+  // across edits (the literal at offset 152 stays `__anon_fn_152` as
+  // long as its position doesn't move).
+  const synthName = `__anon_fn_${node.from}`;
+  const knot = buildAnonymousKnot(node, synthName, ctx);
+  if (!knot) return null;
+  ctx.hoistedKnots.push(knot);
+  return new DivertTarget(new Divert([new Identifier(synthName)]));
+}
+
+const ANON_FUNCTION_BODY_SKIP: ReadonlySet<string> = new Set([
+  "LuauFunctionDeclarationName",
+  "LuauFunctionParameters",
+  "LuauFunctionReturnType",
+  "LuauGenericsDeclaration",
+  "LuauComment",
+]);
+
+// Mirror of `lowerLuauFunctionDefinition` but builds the Knot with a
+// caller-provided synthetic name rather than reading one from the
+// source. The body content lives inside the same `_content` wrapper
+// so we reuse `lowerStatements` with the same skip-set to filter out
+// parameter/return-type/etc. boilerplate.
+function buildAnonymousKnot(
+  node: SyntaxNode,
+  name: string,
+  ctx: LowerContext,
+): Knot | null {
+  const args = lowerArguments(node, ctx);
+  const content = findChildByName(node, "LuauFunctionDefinition_content");
+  if (!content) return null;
+  const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP);
+  const knot = new Knot(new Identifier(name), [], args, true);
+  const rootWeave = new Weave(body);
+  (knot as any)._rootWeave = rootWeave;
+  knot.AddContent(rootWeave);
+  return knot;
 }
 
 function lowerDivertTargetLiteral(
