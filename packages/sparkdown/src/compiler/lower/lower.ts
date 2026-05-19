@@ -52,6 +52,7 @@ import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
 import { lowerLuauFunctionDefinition } from "./lowerers/lowerLuauFunctionDefinition";
 import { lowerLuauLoopStub } from "./lowerers/lowerLuauLoopStub";
+import { lowerLuauWhileLoop } from "./lowerers/lowerLuauWhileLoop";
 import { lowerLuauReturnStatement } from "./lowerers/lowerLuauReturnStatement";
 import { lowerScene } from "./lowerers/lowerScene";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerers/lowerSparkdownConditionalAlternatorBlock";
@@ -224,8 +225,9 @@ function lowerInner(
       return lowerLuauReturnStatement(nodeRef, ctx);
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);
-    case "LuauForLoop":
     case "LuauWhileLoop":
+      return lowerLuauWhileLoop(nodeRef, ctx);
+    case "LuauForLoop":
     case "LuauRepeatLoop":
     case "LuauDoBlock":
       return lowerLuauLoopStub(nodeRef, ctx);
