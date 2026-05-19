@@ -508,6 +508,15 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     const allDiverts = this._rootWeave.FindAll<Divert>(Divert)();
     for (const divert of allDiverts) {
       if (!divert.isFunctionCall && !(divert.parent instanceof DivertTarget)) {
+        // Allow non-function-call diverts whose target is a weave point
+        // internal to this function. The runtime divert is a pointer
+        // move within the function's container hierarchy — it does NOT
+        // pop the function frame or leak control outside the function.
+        // Loop lowering emits this shape (e.g. `while` -> labeled
+        // gather).
+        if (this.divertTargetsInternalWeavePoint(divert)) {
+          continue;
+        }
         this.Error(
           `Functions may not contain diverts, but saw \`${divert}\``,
           divert,
@@ -522,6 +531,27 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         choice,
       );
     }
+  };
+
+  // True iff `divert`'s target is a weave point (gather/choice) that
+  // lives inside this function's own rootWeave. Used to allow
+  // back-jumps emitted by loop lowering — those stay within the
+  // function's container hierarchy at runtime, so they don't violate
+  // function purity.
+  public readonly divertTargetsInternalWeavePoint = (
+    divert: Divert,
+  ): boolean => {
+    if (!this._rootWeave) return false;
+    const target = divert.target;
+    if (!target || target.numberOfComponents !== 1) return false;
+    const targetName = target.firstComponent;
+    if (!targetName) return false;
+    if (this._rootWeave.WeavePointNamed(targetName)) return true;
+    const nestedWeaves = this._rootWeave.FindAll<Weave>(Weave)();
+    for (const w of nestedWeaves) {
+      if (w.WeavePointNamed(targetName)) return true;
+    }
+    return false;
   };
 
   public readonly WarningInTermination = (terminatingObject: ParsedObject) => {

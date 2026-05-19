@@ -671,45 +671,6 @@ function lowerAnonymousFunction(
   return buildClosureExpression(synthName, upvals, userArity);
 }
 
-// Scan the function body for FREE variables — identifiers referenced
-// inside but not bound by the function's parameters or local
-// declarations, and not a known stdlib name. Returns names in
-// first-seen order so the synthetic knot's upval-param order is
-// stable across compiles.
-// Public wrapper for loop lowerers — finds the body+condition's free
-// variables (closures-style scan), excluding stdlib names and any
-// locals declared INSIDE the loop body. Loop lowerers pass these as
-// by-reference parameters to the synthetic loop knot so mutations
-// propagate to the enclosing scope.
-export function scanLoopUpvals(
-  loopNode: SyntaxNode,
-  ctx: LowerContext,
-): string[] {
-  const bound = new Set<string>();
-  // Anything declared as `local x` inside the loop body shouldn't
-  // count as an upval — it's a fresh local each iteration.
-  walkAndCollect(loopNode, (n) => {
-    if (n.name === "LuauVariableDefinition") {
-      const ids = collectVarDefIdentifiers(n, ctx);
-      for (const id of ids) bound.add(id);
-    }
-  });
-  const free: string[] = [];
-  const seen = new Set<string>();
-  walkAndCollect(loopNode, (n) => {
-    if (n.name === "LuauVariable") {
-      const nameNode = getDescendent("LuauVariableName", n);
-      if (!nameNode) return;
-      const name = ctx.read(nameNode.from, nameNode.to);
-      if (!bound.has(name) && !isStdLibName(name) && !seen.has(name)) {
-        seen.add(name);
-        free.push(name);
-      }
-    }
-  });
-  return free;
-}
-
 function scanFreeVariables(
   fnDef: SyntaxNode,
   ctx: LowerContext,
