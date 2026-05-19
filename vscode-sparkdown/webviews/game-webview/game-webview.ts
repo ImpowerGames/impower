@@ -3,7 +3,10 @@ import { isMessage } from "@impower/jsonrpc/src/common/utils/isMessage";
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
-import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
+import {
+  SparkWebPlayerElement,
+  setWorkspace,
+} from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
 
 console.log("running game-webview");
@@ -64,9 +67,8 @@ window.addEventListener(MessageProtocol.event, (e) => {
 });
 
 const load = async () => {
-  await Promise.allSettled([
-    SparkWebPlayer.init({ workspace: workspaceState.workspace }),
-  ]);
+  setWorkspace(workspaceState.workspace);
+  await Promise.allSettled([SparkWebPlayerElement.register()]);
   // Post an empty message to let vscode know the webview is ready
   vscode.postMessage({});
 };

@@ -10,6 +10,7 @@
     "package": "node ./scripts/bundle-globals.ts --production"
   },
   "dependencies": {
+    "@impower/impower-ui": "file:../impower-ui",
     "@impower/spark-dom": "file:../spark-dom",
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
     "@impower/spark-engine": "file:../spark-engine",
@@ -23,5 +24,9 @@
     "chokidar": "^4.0.3",
     "dts-bundle-generator": "^9.5.1",
     "ts-morph": "^25.0.1"
+  },
+  "peerDependencies": {
+    "preact": "^10.29.1",
+    "preact-custom-element": "^4.6.0"
   }
 }

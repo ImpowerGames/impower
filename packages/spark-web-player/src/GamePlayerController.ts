@@ -51,12 +51,10 @@ import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/clas
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
 import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
-import { Component } from "../../../spec-component/src/component";
-import { Application } from "../app/Application";
-import { conflate } from "../utils/conflate";
-import { debounce } from "../utils/debounce";
-import { profile } from "../utils/profile";
-import spec from "./_spark-web-player";
+import { Application } from "./app/Application";
+import { conflate } from "./utils/conflate";
+import { debounce } from "./utils/debounce";
+import { profile } from "./utils/profile";
 
 const COMMON_ASPECT_RATIOS = [
   [16, 9],
@@ -69,19 +67,46 @@ const COMMON_ASPECT_RATIOS = [
 
 const MIN_HEIGHT = 100;
 
-export default class SparkWebPlayer extends Component(spec) {
-  static workspace: SparkdownWorkspace;
+// Module-level singleton. Set via setWorkspace() before any controller is
+// constructed. Replaces SparkWebPlayer.workspace (the static field on the
+// legacy spec-component class).
+let workspace: SparkdownWorkspace | undefined;
+
+export function setWorkspace(ws: SparkdownWorkspace): void {
+  workspace = ws;
+}
+
+export interface GamePlayerRefs {
+  viewport: HTMLElement;
+  gameBackground: HTMLElement;
+  gameView: HTMLElement;
+  gameUI: HTMLElement;
+  game: HTMLElement;
+  playButton: HTMLElement | null;
+  toolbar: HTMLElement | null;
+  leftItems: HTMLElement | null;
+  locationItems: HTMLElement | null;
+  launchStateIcon: HTMLElement | null;
+  launchInfo: HTMLElement | null;
+  launchLabel: HTMLElement | null;
+  executionInfo: HTMLElement | null;
+  connectionLabel: HTMLElement | null;
+  executedLabel: HTMLElement | null;
+  sizeLabel: HTMLElement | null;
+  aspectRatioLabel: HTMLElement | null;
+  resetButton: HTMLElement | null;
+  fullscreenButton: HTMLElement | null;
+}
+
+export class GamePlayerController {
+  protected host: HTMLElement;
+  protected refs: GamePlayerRefs;
 
   _audioContext?: AudioContext;
-
   _game?: Game;
-
   _app?: Application;
-
   _debugging = false;
-
   _program?: SparkProgram;
-
   _checkpoint?: string;
 
   _options?: {
@@ -101,7 +126,6 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   private _resolveLoadingInitialProgram!: () => void;
-
   private _loadingInitialProgram?: Promise<void> = new Promise<void>(
     (resolve) => {
       this._resolveLoadingInitialProgram = resolve;
@@ -115,14 +139,23 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   _isResizing = false;
-
   _resizeStartY = 0;
-
   _resizeStartHeight = 0;
-
   _gameResizeObserver?: ResizeObserver;
 
-  override onConnected() {
+  constructor(host: HTMLElement, refs: GamePlayerRefs) {
+    this.host = host;
+    this.refs = refs;
+  }
+
+  // Replaces spec-component's `this.emit(type, detail)`.
+  protected emit<T>(type: string, detail: T): void {
+    this.host.dispatchEvent(
+      new CustomEvent(type, { detail, bubbles: true, composed: true }),
+    );
+  }
+
+  setup(): void {
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
     window.addEventListener("contextmenu", this.handleContextMenu, true);
     window.addEventListener("dragstart", this.handleDragStart);
@@ -161,7 +194,7 @@ export default class SparkWebPlayer extends Component(spec) {
     );
   }
 
-  override onDisconnected() {
+  dispose(): void {
     window.removeEventListener(MessageProtocol.event, this.handleProtocol);
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
@@ -221,11 +254,9 @@ export default class SparkWebPlayer extends Component(spec) {
     if (!path) {
       return path;
     }
-    const workspace = this._options?.workspace;
+    const ws = this._options?.workspace;
     const relativePath =
-      workspace && path.startsWith(workspace)
-        ? path.slice(workspace.length + 1)
-        : path;
+      ws && path.startsWith(ws) ? path.slice(ws.length + 1) : path;
     const extIndex = relativePath.lastIndexOf(".");
     if (extIndex < 0) {
       return relativePath;
@@ -239,10 +270,13 @@ export default class SparkWebPlayer extends Component(spec) {
       : this._game?.state === "running"
         ? "play"
         : "preview";
-    this.refs.launchStateIcon.setAttribute("icon", icon);
+    this.refs.launchStateIcon?.setAttribute("icon", icon);
   }
 
   protected updateExecutionLabels(params?: GameExecutedParams) {
+    if (!this.refs.locationItems || !this.refs.leftItems) {
+      return;
+    }
     this.refs.locationItems.classList.toggle(
       "error",
       params?.simulation === "fail",
@@ -262,15 +296,19 @@ export default class SparkWebPlayer extends Component(spec) {
       if (simulateFromLocation) {
         const filePath = this.getRelativeFilePath(simulateFromLocation.uri);
         const lineNumber = simulateFromLocation.range.start.line + 1;
-        this.refs.launchLabel.textContent = `${filePath} : ${lineNumber}`;
-      } else {
+        if (this.refs.launchLabel) {
+          this.refs.launchLabel.textContent = `${filePath} : ${lineNumber}`;
+        }
+      } else if (this.refs.launchLabel) {
         this.refs.launchLabel.textContent = "";
       }
     } else if (firstExecutedLocation) {
       const filePath = this.getRelativeFilePath(firstExecutedLocation.uri);
       const lineNumber = firstExecutedLocation.range.start.line + 1;
-      this.refs.launchLabel.textContent = `${filePath} : ${lineNumber}`;
-    } else {
+      if (this.refs.launchLabel) {
+        this.refs.launchLabel.textContent = `${filePath} : ${lineNumber}`;
+      }
+    } else if (this.refs.launchLabel) {
       this.refs.launchLabel.textContent = "";
     }
     if (this._program && params.startPath && params.simulation === "fail") {
@@ -278,7 +316,7 @@ export default class SparkWebPlayer extends Component(spec) {
         this._program,
         params.startPath,
       );
-      if (startFromLocation) {
+      if (startFromLocation && this.refs.connectionLabel) {
         const filePath = this.getRelativeFilePath(startFromLocation.uri);
         const lineNumber = startFromLocation.range.end.line + 1;
         this.refs.connectionLabel.replaceChildren();
@@ -287,14 +325,22 @@ export default class SparkWebPlayer extends Component(spec) {
           params.choices.forEach((choice) => {
             const choiceEl = document.createElement("div");
             choiceEl.textContent = `  [ ${choice.selected + 1} ]  `;
-            this.refs.connectionLabel.appendChild(choiceEl);
-            this.refs.connectionLabel.appendChild(document.createTextNode("→"));
+            this.refs.connectionLabel!.appendChild(choiceEl);
+            this.refs.connectionLabel!.appendChild(
+              document.createTextNode("→"),
+            );
           });
         }
-        this.refs.connectionLabel.appendChild(document.createTextNode(" 🞪 →"));
-        this.refs.executedLabel.textContent = `${filePath} : ${lineNumber}`;
-        this.refs.executionInfo.hidden = false;
-      } else {
+        this.refs.connectionLabel.appendChild(
+          document.createTextNode(" 🞪 →"),
+        );
+        if (this.refs.executedLabel) {
+          this.refs.executedLabel.textContent = `${filePath} : ${lineNumber}`;
+        }
+        if (this.refs.executionInfo) {
+          this.refs.executionInfo.hidden = false;
+        }
+      } else if (this.refs.executionInfo) {
         this.refs.executionInfo.hidden = true;
       }
     } else if (
@@ -305,19 +351,27 @@ export default class SparkWebPlayer extends Component(spec) {
     ) {
       const filePath = this.getRelativeFilePath(lastExecutedLocation.uri);
       const lineNumber = lastExecutedLocation.range.end.line + 1;
-      this.refs.connectionLabel.replaceChildren();
-      this.refs.connectionLabel.appendChild(document.createTextNode("→"));
-      if (params.choices.length > 0) {
-        params.choices.forEach((choice) => {
-          const choiceEl = document.createElement("div");
-          choiceEl.textContent = `  [ ${choice.selected + 1} ]  `;
-          this.refs.connectionLabel.appendChild(choiceEl);
-          this.refs.connectionLabel.appendChild(document.createTextNode("→"));
-        });
+      if (this.refs.connectionLabel) {
+        this.refs.connectionLabel.replaceChildren();
+        this.refs.connectionLabel.appendChild(document.createTextNode("→"));
+        if (params.choices.length > 0) {
+          params.choices.forEach((choice) => {
+            const choiceEl = document.createElement("div");
+            choiceEl.textContent = `  [ ${choice.selected + 1} ]  `;
+            this.refs.connectionLabel!.appendChild(choiceEl);
+            this.refs.connectionLabel!.appendChild(
+              document.createTextNode("→"),
+            );
+          });
+        }
       }
-      this.refs.executedLabel.textContent = `${filePath} : ${lineNumber}`;
-      this.refs.executionInfo.hidden = false;
-    } else {
+      if (this.refs.executedLabel) {
+        this.refs.executedLabel.textContent = `${filePath} : ${lineNumber}`;
+      }
+      if (this.refs.executionInfo) {
+        this.refs.executionInfo.hidden = false;
+      }
+    } else if (this.refs.executionInfo) {
       this.refs.executionInfo.hidden = true;
     }
   }
@@ -339,8 +393,12 @@ export default class SparkWebPlayer extends Component(spec) {
     const ratio = this.getAspectRatio(width, height);
     const sizeLabel = `${Math.round(width)} × ${Math.round(height)}`;
     const aspectRatioLabel = ratio ? `(${ratio})` : "";
-    this.refs.sizeLabel.textContent = sizeLabel;
-    this.refs.aspectRatioLabel.textContent = aspectRatioLabel;
+    if (this.refs.sizeLabel) {
+      this.refs.sizeLabel.textContent = sizeLabel;
+    }
+    if (this.refs.aspectRatioLabel) {
+      this.refs.aspectRatioLabel.textContent = aspectRatioLabel;
+    }
   }
 
   protected handleResize = () => {
@@ -375,13 +433,13 @@ export default class SparkWebPlayer extends Component(spec) {
       }
     }
 
-    this.refs.toolbar.classList.toggle("snapping", snapped);
+    this.refs.toolbar?.classList.toggle("snapping", snapped);
 
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   protected handlePointerMoveToolbar = (e: PointerEvent) => {
-    if (!this._isResizing) {
+    if (!this._isResizing || !this.refs.toolbar) {
       return;
     }
     const dy = e.clientY - this._resizeStartY;
@@ -426,7 +484,7 @@ export default class SparkWebPlayer extends Component(spec) {
   protected handlePointerUpToolbar = (e: PointerEvent) => {
     this._isResizing = false;
     document.body.style.cursor = "";
-    this.refs.toolbar.classList.remove("snapping");
+    this.refs.toolbar?.classList.remove("snapping");
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
@@ -750,7 +808,7 @@ export default class SparkWebPlayer extends Component(spec) {
     messageType: typeof SelectedCompilerDocumentMessage.type,
     message: SelectedCompilerDocumentMessage.Notification,
   ) => {
-    const { textDocument, selectedRange, checkpoint, userEvent, docChanged } =
+    const { textDocument, selectedRange, checkpoint, userEvent } =
       message.params;
     if (userEvent) {
       const startFrom = {
@@ -768,11 +826,9 @@ export default class SparkWebPlayer extends Component(spec) {
             startFrom.line,
             checkpoint,
           );
-        } else {
+        } else if (workspace) {
           // Ensure the workspace re-compiles document so preview can be updated
-          await SparkWebPlayer.workspace.compileTextDocument({
-            textDocument,
-          });
+          await workspace.compileTextDocument({ textDocument });
         }
       }
     }
@@ -1216,9 +1272,9 @@ export default class SparkWebPlayer extends Component(spec) {
       }),
     );
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
-    if (lastExecutedLocation) {
+    if (lastExecutedLocation && workspace) {
       // Ensure the workspace simulates a checkpoint from last executed location
-      await SparkWebPlayer.workspace.selectTextDocument({
+      await workspace.selectTextDocument({
         textDocument: { uri: lastExecutedLocation.uri },
         selectedRange: lastExecutedLocation.range,
         userEvent: true,
@@ -1264,9 +1320,6 @@ export default class SparkWebPlayer extends Component(spec) {
         const response = await fetch(url);
         const text = await response.text();
         return text;
-        // TODO: Differentiate between script text response and asset blob response
-        // const buffer = await response.arrayBuffer();
-        // return buffer;
       },
       log: (message: unknown, severity: "info" | "warning" | "error") => {
         if (severity === "error") {
@@ -1336,7 +1389,6 @@ export default class SparkWebPlayer extends Component(spec) {
           const type = msg.params.type;
           const message = msg.params.message;
           const location = msg.params.location;
-          // TODO: Display message in on-screen debug console
           if (type === ErrorType.Error) {
             console.error(message, location);
           } else if (type === ErrorType.Warning) {
@@ -1473,12 +1525,10 @@ export default class SparkWebPlayer extends Component(spec) {
     checkpoint: string | undefined,
   ) => {
     if (this._game?.state === "running") {
-      // Should not preview while game is running
       return;
     }
 
     if (!program) {
-      // No program to preview
       return;
     }
 
@@ -1506,14 +1556,12 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game.context.system.previewing === validPreviewPath &&
       !programChanged
     ) {
-      // Already previewing this path, so no need to do anything
       return;
     }
 
     this._options ??= {};
     this._options.previewFrom = validPreviewFrom;
 
-    // Build game if one doesn't exist or program has changed
     const shouldBuildNewGame = !this._game || programChanged;
 
     if (shouldBuildNewGame) {
@@ -1545,10 +1593,4 @@ export default class SparkWebPlayer extends Component(spec) {
       this._game.preview(validPreviewFrom.file, validPreviewFrom.line);
     }
   };
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    "spark-web-player": SparkWebPlayer;
-  }
 }

@@ -1,4 +1,162 @@
-:host {
+spark-web-player {
+  line-height: 1.35;
+  -webkit-text-size-adjust: 100%;
+  -moz-tab-size: 4;
+  tab-size: 4;
+  -webkit-tap-highlight-color: transparent;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol";
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+spark-web-player * {
+  pointer-events: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+spark-web-player *,
+spark-web-player *::before,
+spark-web-player *::after {
+  box-sizing: border-box;
+  border-width: 0;
+  border-style: solid;
+  border-color: currentColor;
+  background-repeat: no-repeat;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+spark-web-player *:focus-visible {
+  outline: none;
+}
+
+spark-web-player .pause-game *,
+spark-web-player .pause-game *::before,
+spark-web-player .pause-game *::after {
+  animation-play-state: paused !important;
+}
+
+/*
+Reset links to optimize for opt-in styling instead of opt-out.
+*/
+spark-web-player a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/*
+Add the correct font weight in Edge and Safari.
+*/
+spark-web-player b,
+spark-web-player strong {
+  font-weight: bolder;
+}
+
+/*
+Reset default styling for dialogs.
+*/
+spark-web-player dialog {
+  padding: 0;
+}
+
+/*
+1. Change the font styles in all browsers.
+2. Remove the margin in Firefox and Safari.
+3. Remove default padding in all browsers.
+*/
+spark-web-player button,
+spark-web-player input,
+spark-web-player optgroup,
+spark-web-player select,
+spark-web-player textarea {
+  font-family: inherit; /* 1 */
+  font-feature-settings: inherit; /* 1 */
+  font-variation-settings: inherit; /* 1 */
+  font-size: 100%; /* 1 */
+  font-weight: inherit; /* 1 */
+  line-height: inherit; /* 1 */
+  letter-spacing: inherit; /* 1 */
+  color: inherit; /* 1 */
+  margin: 0; /* 2 */
+  padding: 0; /* 3 */
+}
+
+/*
+Remove the inheritance of text transform in Edge and Firefox.
+*/
+spark-web-player button,
+spark-web-player select {
+  text-transform: none;
+}
+
+/*
+Prevent resizing textareas horizontally by default.
+*/
+spark-web-player textarea {
+  resize: vertical;
+}
+
+/*
+1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
+2. Set the default placeholder color to the user's configured gray 400 color.
+*/
+spark-web-player input::placeholder,
+spark-web-player textarea::placeholder {
+  opacity: 1; /* 1 */
+  color: theme("colors.gray.400", #9ca3af); /* 2 */
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Remove default button styles.
+*/
+spark-web-player button,
+spark-web-player input:where([type="button"]),
+spark-web-player input:where([type="reset"]),
+spark-web-player input:where([type="submit"]) {
+  -webkit-appearance: button; /* 1 */
+  background-color: transparent; /* 2 */
+  background-image: none; /* 2 */
+}
+
+/*
+Remove the additional `:invalid` styles in Firefox. 
+(https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
+*/
+spark-web-player :-moz-ui-invalid {
+  box-shadow: none;
+}
+
+/*
+Set the default cursor for buttons.
+*/
+spark-web-player button,
+spark-web-player [role="button"] {
+  cursor: pointer;
+}
+
+/*
+Make sure disabled buttons don't get the pointer cursor.
+*/
+spark-web-player :disabled {
+  cursor: default;
+}
+
+/* Make elements with the HTML hidden attribute stay hidden by default */
+spark-web-player [hidden] {
+  display: none !important;
+}
+spark-web-player {
   /* ===== Design Tokens ===== */
   --swp-background-color: inherit;
   --swp-foreground-color: currentColor;
@@ -49,13 +207,13 @@
   height: 100%;
 }
 
-:host #viewport {
+spark-web-player #viewport {
   height: 100%;
   background-color: var(--swp-background-color);
   color: var(--swp-foreground-color);
 }
 
-:host #game {
+spark-web-player #game {
   position: relative;
   height: 100%;
   container-type: size;
@@ -63,36 +221,36 @@
   resize: none;
 }
 
-:host .fullscreen #game {
+spark-web-player .fullscreen #game {
   height: 100% !important;
 }
 
-:host #game-background {
+spark-web-player #game-background {
   position: absolute;
   inset: 0;
   background-color: var(--swp-game-background-color);
 }
 
-:host #game-view {
+spark-web-player #game-view {
   position: absolute;
   inset: 0;
 }
 
-:host #game-ui {
+spark-web-player #game-ui {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
 }
 
-:host #game-ui.pause-game::after {
+spark-web-player #game-ui.pause-game::after {
   border: 1px solid var(--swp-pause-color);
   content: "";
   position: absolute;
   inset: 0;
 }
 
-:host #play-button {
+spark-web-player #play-button {
   position: absolute;
   inset: 0;
   cursor: pointer;
@@ -111,18 +269,18 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :host #play-button:hover {
+  spark-web-player #play-button:hover {
     opacity: 1;
     color: var(--swp-play-button-hover-color);
   }
 }
 
-:host #play-icon {
+spark-web-player #play-icon {
   width: var(--swp-play-icon-size);
   height: var(--swp-play-icon-size);
 }
 
-:host #toolbar {
+spark-web-player #toolbar {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -138,7 +296,7 @@
   min-height: 28px;
 }
 
-:host .fullscreen #toolbar {
+spark-web-player .fullscreen #toolbar {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -150,11 +308,11 @@
   cursor: default;
 }
 
-:host #toolbar.snapping {
+spark-web-player #toolbar.snapping {
   border-color: var(--swp-accent-color);
 }
 
-:host #resize-handle {
+spark-web-player #resize-handle {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -165,12 +323,12 @@
   background: var(--swp-resize-handle-color);
 }
 
-:host .fullscreen #resize-handle {
+spark-web-player .fullscreen #resize-handle {
   display: none;
 }
 
-:host #left-items,
-:host #right-items {
+spark-web-player #left-items,
+spark-web-player #right-items {
   background-color: inherit;
   height: 100%;
   display: flex;
@@ -180,11 +338,11 @@
   pointer-events: none;
 }
 
-:host #left-items {
+spark-web-player #left-items {
   gap: var(--swp-toolbar-items-gap);
 }
 
-:host #location-items {
+spark-web-player #location-items {
   height: 100%;
   display: flex;
   flex-direction: row;
@@ -193,87 +351,87 @@
   background-color: inherit;
 }
 
-:host #launch-state-icon,
-:host #fullscreen-icon {
+spark-web-player #launch-state-icon,
+spark-web-player #fullscreen-icon {
   background-color: currentColor;
   width: var(--swp-toolbar-icon-size);
   height: var(--swp-toolbar-icon-size);
 }
 
-:host #launch-state-icon {
+spark-web-player #launch-state-icon {
   margin-right: var(--swp-toolbar-button-gap);
 }
 
-:host #launch-state-icon:not([icon]) {
+spark-web-player #launch-state-icon:not([icon]) {
   display: none;
 }
 
-:host #launch-state-icon[icon="preview"] {
+spark-web-player #launch-state-icon[icon="preview"] {
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M7.99993 6.00316C9.47266 6.00316 10.6666 7.19708 10.6666 8.66981C10.6666 10.1426 9.47266 11.3365 7.99993 11.3365C6.52715 11.3365 5.33324 10.1426 5.33324 8.66981C5.33324 7.19708 6.52715 6.00316 7.99993 6.00316ZM7.99993 7.00315C7.07946 7.00315 6.33324 7.74935 6.33324 8.66981C6.33324 9.59028 7.07946 10.3365 7.99993 10.3365C8.9204 10.3365 9.6666 9.59028 9.6666 8.66981C9.6666 7.74935 8.9204 7.00315 7.99993 7.00315ZM7.99993 3.66675C11.0756 3.66675 13.7307 5.76675 14.4673 8.70968C14.5344 8.97755 14.3716 9.24908 14.1037 9.31615C13.8358 9.38315 13.5643 9.22041 13.4973 8.95248C12.8713 6.45205 10.6141 4.66675 7.99993 4.66675C5.38454 4.66675 3.12664 6.45359 2.50182 8.95555C2.43491 9.22341 2.16348 9.38635 1.89557 9.31948C1.62766 9.25255 1.46471 8.98115 1.53162 8.71321C2.26701 5.76856 4.9229 3.66675 7.99993 3.66675Z"/></svg>');
 }
 
-:host #launch-state-icon[icon="play"] {
+spark-web-player #launch-state-icon[icon="play"] {
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.25 3l1.166-.624 8 5.333v1.248l-8 5.334-1.166-.624V3zm1.5 1.401v7.864l5.898-3.932L5.75 4.401z"/></svg>');
 }
 
-:host #launch-state-icon[icon="pause"] {
+spark-web-player #launch-state-icon[icon="pause"] {
   color: var(--swp-pause-color);
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M4.5 3H6v10H4.5V3zm7 0v10H10V3h1.5z"/></svg>');
 }
 
-:host #fullscreen-icon {
+spark-web-player #fullscreen-icon {
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M2.5 2H6V3H3V6H2V2.5L2.5 2ZM3 10H2V13.5L2.5 14H6V13H3V10ZM13 13H10V14H13.5L14 13.5V10H13V13ZM13.5 2H10V3H13V6H14V2.5L13.5 2Z"/></svg>');
 }
-:host .fullscreen #fullscreen-icon {
+spark-web-player .fullscreen #fullscreen-icon {
   mask-image: url('data:image/svg+xml,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="M5 2H6V5.5L5.5 6H2V5H5V2ZM2 10V11H5V14H6V10.5L5.5 10H2ZM10 10.5V14H11V11H14V10H10.5L10 10.5ZM11 5V2H10V5.5L10.5 6H14V5H11Z"/></svg>');
 }
 
-:host #launch-info,
-:host #execution-info {
+spark-web-player #launch-info,
+spark-web-player #execution-info {
   background-color: inherit;
   height: 100%;
   flex-direction: row;
   align-items: center;
 }
 
-:host #launch-info span,
-:host #execution-info span {
+spark-web-player #launch-info span,
+spark-web-player #execution-info span {
   flex-direction: row;
   align-items: center;
 }
 
-:host #launch-info {
+spark-web-player #launch-info {
   padding: var(--swp-toolbar-button-gap);
 }
 
-:host #aspect-ratio-label {
+spark-web-player #aspect-ratio-label {
   padding: var(--swp-toolbar-label-padding);
 }
-:host #size-label {
+spark-web-player #size-label {
   padding: var(--swp-toolbar-label-padding);
   margin-right: var(--swp-toolbar-button-gap);
 }
 
-:host #executed-label {
+spark-web-player #executed-label {
   padding: 0 var(--swp-toolbar-button-gap);
 }
 
-:host #connection-label {
+spark-web-player #connection-label {
   background-color: inherit;
   flex-direction: row;
   white-space: pre;
 }
 
-:host #location-items.error {
+spark-web-player #location-items.error {
   color: var(--swp-error-color);
 }
 
-:host #toolbar.snapping #size-label,
-:host #toolbar.snapping #aspect-ratio-label {
+spark-web-player #toolbar.snapping #size-label,
+spark-web-player #toolbar.snapping #aspect-ratio-label {
   color: var(--swp-accent-color);
 }
 
-:host .toolbar-button {
+spark-web-player .toolbar-button {
   pointer-events: auto;
   cursor: pointer;
   height: 100%;
@@ -285,29 +443,29 @@
   gap: var(--swp-toolbar-button-gap);
 }
 @media (hover: hover) and (pointer: fine) {
-  :host .toolbar-button:hover {
+  spark-web-player .toolbar-button:hover {
     background-color: var(--swp-toolbar-button-hover-color);
   }
 }
-:host .toolbar-button:active {
+spark-web-player .toolbar-button:active {
   background-color: var(--swp-toolbar-button-active-color);
 }
 
-:host #middle-items {
+spark-web-player #middle-items {
   flex: 1;
 }
 
-:host #toolbar .choice {
+spark-web-player #toolbar .choice {
   background-color: inherit;
   position: relative;
   height: 100%;
 }
 
-:host #toolbar .choice.forced .selectedcontent {
+spark-web-player #toolbar .choice.forced .selectedcontent {
   color: var(--swp-accent-color);
 }
 
-:host #toolbar .selectedcontent {
+spark-web-player #toolbar .selectedcontent {
   height: 100%;
   min-width: 16px;
   pointer-events: none;
@@ -316,7 +474,7 @@
   background-color: inherit;
 }
 
-:host #toolbar select {
+spark-web-player #toolbar select {
   position: absolute;
   inset: 0;
   pointer-events: auto;

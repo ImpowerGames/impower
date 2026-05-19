@@ -5,7 +5,10 @@ import { DragFilesEnterMessage } from "@impower/spark-editor-protocol/src/protoc
 import { DragFilesLeaveMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesLeaveMessage";
 import { DragFilesOverMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesOverMessage";
 import { DropFilesMessage } from "@impower/spark-editor-protocol/src/protocols/window/DropFilesMessage";
-import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
+import {
+  SparkWebPlayerElement,
+  setWorkspace,
+} from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
 import "./style.css";
 
@@ -102,9 +105,9 @@ if ("serviceWorker" in navigator) {
 }
 
 const load = async () => {
-  await Promise.allSettled([
-    SparkWebPlayer.init({ workspace: workspaceState.workspace }),
-  ]);
+  // Workspace singleton must be set before the controller instantiates.
+  setWorkspace(workspaceState.workspace);
+  await Promise.allSettled([SparkWebPlayerElement.register()]);
 };
 
 load();
