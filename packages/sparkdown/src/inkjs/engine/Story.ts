@@ -58,6 +58,48 @@ if (!Number.isInteger) {
   };
 }
 
+// If `callTarget` is a closure `ObjectValue` (the shape produced by
+// `lowerAnonymousFunction` for closures with captured upvals),
+// reorder the eval stack to put upvals before user args and return
+// the synthetic knot's path. Returns `null` if `callTarget` isn't a
+// closure — caller falls back to plain `DivertTargetValue` handling.
+function extractClosurePath(callTarget: any, story: any): any | null {
+  if (!(callTarget instanceof ObjectValue)) return null;
+  const map = callTarget.value;
+  if (!(map instanceof Map)) return null;
+  const fnVal = map.get("__closure_fn");
+  const upvalsVal = map.get("__closure_upvals");
+  const userArityVal = map.get("__closure_user_arity");
+  if (
+    !(fnVal instanceof DivertTargetValue) ||
+    !(upvalsVal instanceof ObjectValue) ||
+    !(userArityVal instanceof IntValue)
+  ) {
+    return null;
+  }
+  if (fnVal.value === null) return null;
+  const upvalsMap = upvalsVal.value;
+  if (!(upvalsMap instanceof Map)) return null;
+  const userArity = userArityVal.value ?? 0;
+  // Pop K user args (they sit on top of the stack — well, ABOVE the
+  // closure value which we already popped).
+  const userArgs: AbstractValue[] = [];
+  for (let i = 0; i < userArity; i++) {
+    userArgs.unshift(story.state.PopEvaluationStack() as AbstractValue);
+  }
+  // Push upvals in numerical-key order (0, 1, 2, ...).
+  let idx = 0;
+  while (upvalsMap.has(String(idx))) {
+    const v = upvalsMap.get(String(idx));
+    if (v) story.state.PushEvaluationStack(v);
+    idx++;
+  }
+  // Re-push user args in original order so the function's parameter
+  // binding reads them last.
+  for (const a of userArgs) story.state.PushEvaluationStack(a);
+  return fnVal.value;
+}
+
 export class Story extends InkObject {
   public static inkVersionCurrent = 22;
 
@@ -1193,25 +1235,32 @@ export class Story extends InkObject {
               varName +
               ")",
           );
-        } else if (!(varContents instanceof DivertTargetValue)) {
-          // var intContent = varContents as IntValue;
-          let intContent = asOrNull(varContents, IntValue);
-
-          let errorMessage =
-            "Tried to divert to a target from a variable, but the variable (" +
-            varName +
-            ") didn't contain a divert target, it ";
-          if (intContent instanceof IntValue && intContent.value == 0) {
-            errorMessage += "was empty/null (the value 0).";
+        } else {
+          // Closure value: variable holds a closure-shaped ObjectValue.
+          // Rearrange the eval stack (push upvals before user args)
+          // and divert to the synthetic knot's path. See
+          // `extractClosurePath` for the shape contract.
+          const closurePath = extractClosurePath(varContents, this);
+          if (closurePath !== null) {
+            this.state.divertedPointer = this.PointerAtPath(closurePath);
+          } else if (!(varContents instanceof DivertTargetValue)) {
+            let intContent = asOrNull(varContents, IntValue);
+            let errorMessage =
+              "Tried to divert to a target from a variable, but the variable (" +
+              varName +
+              ") didn't contain a divert target, it ";
+            if (intContent instanceof IntValue && intContent.value == 0) {
+              errorMessage += "was empty/null (the value 0).";
+            } else {
+              errorMessage += "contained '" + varContents + "'.";
+            }
+            this.Error(errorMessage);
           } else {
-            errorMessage += "contained '" + varContents + "'.";
+            this.state.divertedPointer = this.PointerAtPath(
+              varContents.targetPath,
+            );
           }
-
-          this.Error(errorMessage);
         }
-
-        let target = asOrThrows(varContents, DivertTargetValue);
-        this.state.divertedPointer = this.PointerAtPath(target.targetPath);
       } else if (currentDivert.isExternal) {
         this.CallExternalFunction(
           currentDivert.targetPathString,
@@ -1623,16 +1672,37 @@ export class Story extends InkObject {
         }
 
         case ControlCommand.CommandType.CallValueAsFunction: {
-          // Pops a `DivertTargetValue` off the eval stack and diverts to its
-          // path, pushing a Function call-stack frame so a later `~ret` /
-          // `PopFunction` returns control to the instruction after this one.
+          // Pops a `DivertTargetValue` (regular fn) OR a closure
+          // `ObjectValue` off the eval stack and diverts to the
+          // corresponding path, pushing a Function call-stack frame
+          // so a later `~ret` / `PopFunction` returns control to the
+          // instruction after this one.
           //
           // Arguments must already be on the eval stack *below* the target —
           // they remain there for the function's parameter-binding bytecode
           // (a sequence of `temp=` assignments at the function's entry) to
-          // pop. Argument-stack-order matches a regular `FunctionCall`, so
-          // any function callable as `foo(a, b)` is also callable here.
+          // pop.
+          //
+          // Closure dispatch: when the target is a closure-shaped
+          // `ObjectValue` (has `__closure_fn` / `__closure_upvals`
+          // entries), the handler pops the K user args (count via
+          // `__closure_user_arity`), pushes the N upvals from
+          // `__closure_upvals` (in index order), then re-pushes the
+          // user args. The synthetic knot's signature was lowered
+          // with upvals prepended to user params, so parameter
+          // binding reads them in the right order. See
+          // `lowerAnonymousFunction` in `lowerExpression.ts`.
           const callTarget = this.state.PopEvaluationStack();
+          const closurePath = extractClosurePath(callTarget, this);
+          if (closurePath !== null) {
+            this.state.divertedPointer = this.PointerAtPath(closurePath);
+            this.state.callStack.Push(
+              PushPopType.Function,
+              undefined,
+              this.state.outputStream.length,
+            );
+            break;
+          }
           const targetVal = asOrNull(callTarget, DivertTargetValue);
           if (targetVal === null || targetVal.value === null) {
             throw new StoryException(

@@ -146,11 +146,8 @@ end
   });
 });
 
-describe("first-class fn limitations (out of V1 scope)", () => {
-  test("closures don't capture upvalues yet", () => {
-    // V1 anonymous functions are hoisted to top-level knots. They
-    // can't see enclosing-scope locals — `n` is undefined inside
-    // the function body and defaults to 0. Documented limitation.
+describe("closures (capture-by-value)", () => {
+  test("simple capture: function() return n + 1 end", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -161,9 +158,79 @@ local f = function() return n + 1 end
 & host_record(f())
 end
 `);
-    // Expect a single non-warning error (we filter out the
-    // "-> fn" hint). The `n` undefined warning IS surfaced.
-    expect(recorded).toEqual([1]); // 0 + 1 (n defaults to 0)
-    expect(errors.some((e) => e.includes("Variable not found: 'n'"))).toBe(true);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([11]);
+  });
+
+  test("closure with user arg AND captured upval", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local n = 10
+local f = function(x) return n + x end
+& host_record(f(5))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([15]);
+  });
+
+  test("two captures", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local a = 3
+local b = 4
+local f = function() return a * b end
+& host_record(f())
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([12]);
+  });
+
+  test("snapshot semantics: outer mutation doesn't propagate", () => {
+    // V1 captures by VALUE at definition time. Lua captures by
+    // reference (closure sees subsequent outer mutations). Document
+    // the divergence — closure stays at 10 even though outer `n`
+    // changed to 100.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local n = 10
+local f = function() return n end
+n = 100
+& host_record(f())
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10]);
+  });
+
+  test("only locally-bound names ARE bound (params + locals don't capture)", () => {
+    // The free-variable scan correctly excludes the function's own
+    // parameters AND its inner-local declarations from the upval set.
+    // This test would fail with a "Variable not found" warning at
+    // closure definition if the scan over-captured params.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local f = function(x)
+local y = x + 1
+return y * 2
+end
+& host_record(f(5))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([12]);
   });
 });

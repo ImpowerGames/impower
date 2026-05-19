@@ -6,9 +6,14 @@ import { DivertTarget } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Div
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { IndexExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/IndexExpression";
 import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
+import {
+  ObjectExpression,
+  ObjectExpressionEntry,
+} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
 import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
+import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Knot } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
@@ -638,14 +643,196 @@ function lowerAnonymousFunction(
   }
   // Skip named definitions — those are statement-level.
   if (getDescendent("LuauFunctionDeclarationName", node)) return null;
-  // Name from source byte offset — unique within a chunk and stable
-  // across edits (the literal at offset 152 stays `__anon_fn_152` as
-  // long as its position doesn't move).
+
   const synthName = `__anon_fn_${node.from}`;
-  const knot = buildAnonymousKnot(node, synthName, ctx);
+  // Identify free variables (referenced inside the body but not bound
+  // by the function's parameters or local declarations, and not a
+  // known stdlib name). These are the closure's upvals. Captured by
+  // value at the closure-definition site.
+  const upvals = scanFreeVariables(node, ctx);
+
+  const knot = buildAnonymousKnot(node, synthName, ctx, upvals);
   if (!knot) return null;
   ctx.hoistedKnots.push(knot);
-  return new DivertTarget(new Divert([new Identifier(synthName)]));
+
+  // No upvals → plain `DivertTarget(synthName)`; no closure wrapper
+  // needed. This is the existing fast path; it keeps backwards
+  // compatibility with the V1-without-closures behaviour.
+  if (upvals.length === 0) {
+    return new DivertTarget(new Divert([new Identifier(synthName)]));
+  }
+
+  // Closure value: `ObjectExpression` of the shape recognized by
+  // `CallValueAsFunction`'s closure-aware dispatch in Story.ts.
+  // Each upval is captured by READING the current variable value
+  // at definition site — so mutations to the outer variable after
+  // closure definition don't propagate (snapshot-on-definition).
+  const userArity = countUserParameters(node, ctx);
+  return buildClosureExpression(synthName, upvals, userArity);
+}
+
+// Scan the function body for FREE variables — identifiers referenced
+// inside but not bound by the function's parameters or local
+// declarations, and not a known stdlib name. Returns names in
+// first-seen order so the synthetic knot's upval-param order is
+// stable across compiles.
+function scanFreeVariables(
+  fnDef: SyntaxNode,
+  ctx: LowerContext,
+): string[] {
+  const params = collectParameterNames(fnDef, ctx);
+  const bodyContent = findChildByName(fnDef, "LuauFunctionDefinition_content");
+  if (!bodyContent) return [];
+  const bound = new Set<string>(params);
+  // Collect local-variable declarations inside the body. Walks the
+  // whole subtree because locals can be declared inside nested
+  // blocks; we conservatively over-include them as bound (a name
+  // declared in any nested scope still satisfies "locally bound" for
+  // the closure's outermost scope).
+  walkAndCollect(bodyContent, (n) => {
+    if (n.name === "LuauVariableDefinition") {
+      const ids = collectVarDefIdentifiers(n, ctx);
+      for (const id of ids) bound.add(id);
+    }
+  });
+  // Collect referenced names (excluding stdlib, excluding bound).
+  const free: string[] = [];
+  const seenFree = new Set<string>();
+  walkAndCollect(bodyContent, (n) => {
+    // `LuauVariableName` lives inside both binding sites and
+    // reference sites. We only want REFERENCES — these appear under
+    // `LuauVariable` (which is itself under `LuauAccessPart`).
+    if (n.name === "LuauVariable") {
+      const nameNode = getDescendent("LuauVariableName", n);
+      if (!nameNode) return;
+      const name = ctx.read(nameNode.from, nameNode.to);
+      if (!bound.has(name) && !isStdLibName(name) && !seenFree.has(name)) {
+        seenFree.add(name);
+        free.push(name);
+      }
+    }
+  });
+  return free;
+}
+
+function walkAndCollect(
+  root: SyntaxNode,
+  visit: (n: SyntaxNode) => void,
+): void {
+  const stack: SyntaxNode[] = [root];
+  while (stack.length > 0) {
+    const n = stack.pop()!;
+    visit(n);
+    let c = n.firstChild;
+    while (c) {
+      stack.push(c);
+      c = c.nextSibling;
+    }
+  }
+}
+
+function collectParameterNames(
+  fnDef: SyntaxNode,
+  ctx: LowerContext,
+): string[] {
+  const params = getDescendent("LuauFunctionParameters", fnDef);
+  if (!params) return [];
+  // Parameters live inside `LuauFunctionParameter` (singular) nodes —
+  // matching the convention used by `lowerArguments` for named
+  // function definitions. The text inside each is the parameter
+  // identifier as written by the user.
+  const out: string[] = [];
+  walkAndCollect(params, (n) => {
+    if (n.name === "LuauFunctionParameter") {
+      out.push(ctx.read(n.from, n.to).trim());
+    }
+  });
+  return out;
+}
+
+function collectVarDefIdentifiers(
+  varDef: SyntaxNode,
+  ctx: LowerContext,
+): string[] {
+  const content = findChildByName(varDef, "LuauVariableDefinition_content");
+  if (!content) return [];
+  const out: string[] = [];
+  let child = content.firstChild;
+  while (child) {
+    if (child.name === "LuauVariableAssignment") {
+      const nameNode = getDescendent("LuauVariableName", child);
+      if (nameNode) out.push(ctx.read(nameNode.from, nameNode.to));
+    }
+    child = child.nextSibling;
+  }
+  return out;
+}
+
+// Heuristic: names matching common stdlib namespaces / globals don't
+// need to be captured. The grammar tags `LuauStdLibConstants` /
+// `LuauStdLibGlobals` / `LuauStdLibFunctions` inside `LuauVariable`,
+// but at this scan layer we work from name text — a static set is
+// simpler and good enough for V1. False positives (a user-defined
+// `math` would not be captured) are acceptable since Luau warns
+// against shadowing stdlib names anyway.
+const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
+  // Namespaces
+  "math", "string", "table", "utf8", "bit32", "os", "vector",
+  "coroutine", "debug", "task", "buffer",
+  "count", "lang", "plural", "system",
+  // Globals
+  "_G", "_VERSION",
+  // Functions
+  "assert", "collectgarbage", "error", "gcinfo", "getfenv",
+  "getmetatable", "ipairs", "loadstring", "newproxy", "next",
+  "pairs", "pcall", "print", "rawequal", "rawget", "rawset",
+  "require", "select", "setfenv", "setmetatable", "tonumber",
+  "tostring", "type", "typeof", "unpack", "xpcall",
+  // Keywords / control (shouldn't be referenced as values but just in case)
+  "true", "false", "nil",
+  "self", // method receiver
+]);
+
+function isStdLibName(name: string): boolean {
+  return STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name);
+}
+
+function countUserParameters(
+  fnDef: SyntaxNode,
+  ctx: LowerContext,
+): number {
+  return collectParameterNames(fnDef, ctx).length;
+}
+
+// Build the closure-value `ObjectExpression`. The shape is recognized
+// by `CallValueAsFunction`'s closure-aware dispatch in Story.ts:
+//   {
+//     __closure_fn: -> __anon_fn_<offset>,
+//     __closure_upvals: { "0": <upval0>, "1": <upval1>, ... },
+//     __closure_user_arity: <K>,
+//   }
+function buildClosureExpression(
+  synthName: string,
+  upvals: string[],
+  userArity: number,
+): Expression {
+  const fnDivert = new DivertTarget(
+    new Divert([new Identifier(synthName)]),
+  );
+  const upvalEntries: ObjectExpressionEntry[] = upvals.map(
+    (name, i) =>
+      new ObjectExpressionEntry(
+        String(i),
+        new VariableReference([new Identifier(name)]),
+      ),
+  );
+  const upvalObject = new ObjectExpression(upvalEntries);
+  const arityExpr = new NumberExpression(userArity, "int");
+  return new ObjectExpression([
+    new ObjectExpressionEntry("__closure_fn", fnDivert),
+    new ObjectExpressionEntry("__closure_upvals", upvalObject),
+    new ObjectExpressionEntry("__closure_user_arity", arityExpr),
+  ]);
 }
 
 const ANON_FUNCTION_BODY_SKIP: ReadonlySet<string> = new Set([
@@ -661,16 +848,31 @@ const ANON_FUNCTION_BODY_SKIP: ReadonlySet<string> = new Set([
 // source. The body content lives inside the same `_content` wrapper
 // so we reuse `lowerStatements` with the same skip-set to filter out
 // parameter/return-type/etc. boilerplate.
+//
+// When `upvals` is non-empty, those names are PREPENDED to the user
+// parameters in the synthetic knot's signature — the closure-dispatch
+// path in `CallValueAsFunction` pushes them as the first N args at
+// call time. The body's references to captured names then resolve as
+// ordinary parameter reads, no rewriting required.
 function buildAnonymousKnot(
   node: SyntaxNode,
   name: string,
   ctx: LowerContext,
+  upvals: string[] = [],
 ): Knot | null {
-  const args = lowerArguments(node, ctx);
+  const userArgs = lowerArguments(node, ctx);
+  // Prepend upvals as parameters using the same `Argument` shape as
+  // user params. At call time, the closure-dispatch path in
+  // `CallValueAsFunction` pushes upvals before user args so the
+  // parameter binding reads them in this order.
+  const upvalArgs = upvals.map((upvalName) =>
+    new Argument(new Identifier(upvalName), false, false),
+  );
+  const args = [...upvalArgs, ...userArgs];
   const content = findChildByName(node, "LuauFunctionDefinition_content");
   if (!content) return null;
   const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP);
-  const knot = new Knot(new Identifier(name), [], args, true);
+  const knot = new Knot(new Identifier(name), [], args as any, true);
   const rootWeave = new Weave(body);
   (knot as any)._rootWeave = rootWeave;
   knot.AddContent(rootWeave);
