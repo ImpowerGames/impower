@@ -50,6 +50,24 @@ export interface LowerContext {
    * `hoistedKnots`.
    */
   functionScopeStack?: ParsedObject[][];
+  /**
+   * Stack of loop-control targets, innermost-last. Each loop lowerer
+   * (`while`, `for`, `repeat`) pushes an entry before lowering its
+   * body and pops after. The body's `break` / `continue` lowerers
+   * read the top entry to emit a `Divert` to the right label.
+   *
+   * `continueLabel` is the label that re-enters the loop's next-
+   * iteration logic (for `while`, the loop gather itself; for `for`,
+   * the step-update gather; for `repeat`, the until-check gather).
+   * `breakLabel` is the gather immediately past the loop's exit.
+   *
+   * Each loop emits both labels — including a sentinel `loop_break`
+   * gather past the loop body — so the keyword lowerers just produce
+   * a `Divert`, no scope-cleanup bookkeeping needed (each loop
+   * structures its bytecode so falling through the break label
+   * naturally hits any required `EndScope`).
+   */
+  loopStack?: { continueLabel: string; breakLabel: string }[];
 }
 
 // Builds a `LowerContext` from a raw source string. Used by the snapshot

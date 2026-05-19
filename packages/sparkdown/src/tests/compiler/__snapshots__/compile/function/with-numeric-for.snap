@@ -58,6 +58,16 @@
           "depth": 1
         },
         {
+          "type": "Gather",
+          "name": "__for_42_step",
+          "depth": 1
+        },
+        {
+          "type": "Gather",
+          "name": "__for_42_break",
+          "depth": 1
+        },
+        {
           "type": "Wrap"
         },
         {

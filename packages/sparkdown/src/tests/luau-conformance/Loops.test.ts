@@ -230,6 +230,181 @@ end
   });
 });
 
+describe("repeat ... until loop", () => {
+  test("body runs at least once even when condition is true on entry", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local n = 0
+repeat
+n = n + 1
+host_record(n)
+until n >= 1
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1]);
+  });
+
+  test("counts up until condition becomes true", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local n = 0
+repeat
+n = n + 1
+host_record(n)
+until n >= 3
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 3]);
+  });
+
+  test("until condition sees body locals (Luau scope rule)", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local i = 0
+repeat
+i = i + 1
+local done = i >= 2
+host_record(i)
+until done
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2]);
+  });
+});
+
+describe("break and continue", () => {
+  test("break exits the innermost while loop", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local i = 0
+while i < 10 do
+i = i + 1
+if i >= 3 then
+break
+end
+host_record(i)
+end
+host_record(99)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 99]);
+  });
+
+  test("continue skips to next iteration of a while loop", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local i = 0
+while i < 5 do
+i = i + 1
+if i == 3 then
+continue
+end
+host_record(i)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 4, 5]);
+  });
+
+  test("break exits a numeric for loop", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for i = 1, 10 do
+if i > 4 then
+break
+end
+host_record(i)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 3, 4]);
+  });
+
+  test("continue in numeric for still applies the step", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for i = 1, 6 do
+if i == 3 then
+continue
+end
+host_record(i)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 4, 5, 6]);
+  });
+
+  test("break exits a repeat-until loop", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local n = 0
+repeat
+n = n + 1
+if n == 3 then
+break
+end
+host_record(n)
+until n >= 100
+host_record(999)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 999]);
+  });
+
+  test("nested loops — break exits only the innermost", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for i = 1, 3 do
+for j = 1, 3 do
+if j == 2 then
+break
+end
+host_record(j)
+end
+host_record(i)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 1, 1, 2, 1, 3]);
+  });
+});
+
 describe("do ... end block", () => {
   test("body runs once", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)

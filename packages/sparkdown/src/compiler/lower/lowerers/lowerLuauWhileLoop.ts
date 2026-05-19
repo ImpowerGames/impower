@@ -83,9 +83,17 @@ export function lowerLuauWhileLoop(
   // named weave points. Tagging with the source offset gives us that
   // without needing a counter on the context.
   const loopLabel = `__while_${nodeRef.node.from}_loop`;
+  const breakLabel = `__while_${nodeRef.node.from}_break`;
 
   const condExpr = lowerExpressionFromContainer(condNode, ctx);
+
+  // Push the loop's break/continue targets so any `break` /
+  // `continue` inside the body lowers to a divert to the right label.
+  // For `while`, continue = the loop gather itself (re-evaluates
+  // cond), break = the post-loop gather.
+  ctx.loopStack?.push({ continueLabel: loopLabel, breakLabel });
   const bodyStatements = lowerStatements(bodyContent, ctx, WHILE_BODY_SKIP);
+  ctx.loopStack?.pop();
 
   const tailDivert = new Divert([new Identifier(loopLabel)]);
   const branch = new ConditionalSingleBranch([
@@ -106,5 +114,11 @@ export function lowerLuauWhileLoop(
   const gather = new Gather(new Identifier(loopLabel), 1);
   gather.AddContent(conditional);
 
-  return { content: [gather] };
+  // Sentinel gather past the loop body. `break` diverts here; control
+  // also falls through to it naturally when the condition is false.
+  // No content — execution flows through and past it back to the
+  // enclosing weave.
+  const breakGather = new Gather(new Identifier(breakLabel), 1);
+
+  return { content: [gather, breakGather] };
 }

@@ -102,6 +102,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // so nested callables (anonymous fns, nested named fns) live at
       // their lexical position instead of hoisting to top-level.
       const functionScopeStack: ParsedObject[][] = [];
+      // Stack of break/continue targets used by `break` and
+      // `continue` lowerers to emit the right `Divert`. Each loop
+      // pushes/pops its own entry.
+      const loopStack: { continueLabel: string; breakLabel: string }[] = [];
       const lowered = lower(nodeRef, {
         read: (from, to) => this.read(from, to),
         lineNumber: (pos) =>
@@ -114,6 +118,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         config: this.config,
         hoistedKnots,
         functionScopeStack,
+        loopStack,
       });
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;

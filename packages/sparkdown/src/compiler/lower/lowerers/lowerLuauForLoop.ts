@@ -110,34 +110,48 @@ export function lowerLuauForLoop(
   const stopName = `__forStop_${nodeRef.node.from}`;
   const stepName = `__forStep_${nodeRef.node.from}`;
   const loopLabel = `__for_${nodeRef.node.from}_loop`;
+  const stepLabel = `__for_${nodeRef.node.from}_step`;
+  const breakLabel = `__for_${nodeRef.node.from}_break`;
 
-  // Body statements (lowered with the FOR_BODY_SKIP so we don't
-  // re-lower the condition or keyword nodes).
+  // `continue` should perform the step and loop back, so its target
+  // is the step-update label, not the loop's head.
+  ctx.loopStack?.push({ continueLabel: stepLabel, breakLabel });
   const bodyStatements = lowerStatements(bodyContent, ctx, FOR_BODY_SKIP);
-
-  // i = i + step
-  const stepUpdate = new VariableAssignment({
-    variableIdentifier: new Identifier(loopVarName),
-    assignedExpression: buildAdd(loopVarName, stepName),
-  });
-
-  // -> loopLabel
-  const tailDivert = new Divert([new Identifier(loopLabel)]);
+  ctx.loopStack?.pop();
 
   // Condition: (step > 0 and i <= stop) or (step < 0 and i >= stop).
   const condExpr = buildLoopCondition(loopVarName, stopName, stepName);
 
+  // The body's natural fall-through goes to the step-update label;
+  // `continue` also targets it. `break` targets `breakLabel`.
   const branch = new ConditionalSingleBranch([
     ...bodyStatements,
-    stepUpdate,
-    tailDivert,
+    new Divert([new Identifier(stepLabel)]),
   ]);
   branch.ownExpression = condExpr;
   branch.isElse = false;
   const conditional = new Conditional(null as never, [branch]);
 
-  const gather = new Gather(new Identifier(loopLabel), 1);
-  gather.AddContent(conditional);
+  // Loop gather: runs the conditional; when cond is false the
+  // explicit divert past the conditional sends control to the break
+  // label, skipping the step-update entirely.
+  const loopGather = new Gather(new Identifier(loopLabel), 1);
+  loopGather.AddContent(conditional);
+  loopGather.AddContent(new Divert([new Identifier(breakLabel)]));
+
+  // Step gather: increment then divert back to the loop head. Only
+  // reachable from the body (via natural fall-through or `continue`).
+  const stepGather = new Gather(new Identifier(stepLabel), 1);
+  stepGather.AddContent(
+    new VariableAssignment({
+      variableIdentifier: new Identifier(loopVarName),
+      assignedExpression: buildAdd(loopVarName, stepName),
+    }),
+  );
+  stepGather.AddContent(new Divert([new Identifier(loopLabel)]));
+
+  // Break gather: sentinel for natural loop exit and `break` divert.
+  const breakGather = new Gather(new Identifier(breakLabel), 1);
 
   // Init: local declarations for the loop variable and the snapshot
   // stop / step bindings. These run once at loop entry.
@@ -161,7 +175,9 @@ export function lowerLuauForLoop(
     initLoopVar,
     initStop,
     initStep,
-    gather,
+    loopGather,
+    stepGather,
+    breakGather,
   ]);
   return wrapInWeave(scoped);
 }

@@ -51,9 +51,17 @@ import { lowerRun } from "./lowerers/lowerRun";
 import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
 import { lowerLuauFunctionDefinition } from "./lowerers/lowerLuauFunctionDefinition";
+import {
+  lowerLuauBreakStatement,
+  lowerLuauContinueStatement,
+} from "./lowerers/lowerLuauBreakContinue";
 import { lowerLuauDoBlock } from "./lowerers/lowerLuauDoBlock";
 import { lowerLuauForLoop } from "./lowerers/lowerLuauForLoop";
 import { lowerLuauLoopStub } from "./lowerers/lowerLuauLoopStub";
+import {
+  lowerLuauRepeatLoop,
+  lowerLuauUntilStatement,
+} from "./lowerers/lowerLuauRepeatLoop";
 import { lowerLuauWhileLoop } from "./lowerers/lowerLuauWhileLoop";
 import { lowerLuauReturnStatement } from "./lowerers/lowerLuauReturnStatement";
 import { lowerScene } from "./lowerers/lowerScene";
@@ -234,7 +242,18 @@ function lowerInner(
     case "LuauForLoop":
       return lowerLuauForLoop(nodeRef, ctx);
     case "LuauRepeatLoop":
-      return lowerLuauLoopStub(nodeRef, ctx);
+      return lowerLuauRepeatLoop(nodeRef, ctx);
+    case "LuauUntilStatement":
+      // No-op — the until-statement is consumed by the sibling
+      // `LuauRepeatLoop` lowerer above (it peeks forward to grab the
+      // condition). This case keeps the dispatcher from falling
+      // through to the InkParser fallback, which would treat `until
+      // X` as narrative text.
+      return lowerLuauUntilStatement(nodeRef, ctx);
+    case "LuauBreakStatement":
+      return lowerLuauBreakStatement(nodeRef, ctx);
+    case "LuauContinueStatement":
+      return lowerLuauContinueStatement(nodeRef, ctx);
     case "LuauEndKeyword":
       // Stand-alone `end` keyword (the scene/branch/function terminator).
       // It's purely a structural marker — no runtime content. Swallow it
