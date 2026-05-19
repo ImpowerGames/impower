@@ -1,12 +1,18 @@
 import { type SyntaxNode } from "@lezer/common";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
+import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { MultiVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "./context";
 import { findChildByName } from "./utils/alternatorArms";
-import { lowerExpressionFromNodes } from "./expression/lowerExpression";
+import {
+  lowerExpressionFromContainer,
+  lowerExpressionFromNodes,
+} from "./expression/lowerExpression";
 import { wrapInWeave } from "./utils/wrapInWeave";
 import {
   lowerAudioLine,
@@ -154,35 +160,46 @@ function lowerInner(
     case "Glue":
       return lowerGlue(nodeRef, ctx);
     case "LuauReassignment": {
-      // The grammar wraps `x = 5` (bare) inside this node. The lowerer
-      // helper takes the LuauAccessPath + LuauAssignmentOperation as
-      // separate args, so dig them out of the wrapper here. (The same
-      // helper is also called from `lowerStatements` when the grammar
-      // produces them as siblings — both paths converge.)
-      let pathChild: SyntaxNode | null = null;
+      // The grammar wraps `x = 5` (bare) inside this node. Two shapes:
+      //
+      // Single-target (`x = 5` / `obj.field = v`):
+      //   LuauAccessPath
+      //   LuauAssignmentOperation
+      //
+      // Multi-target (`a, b = 10, 20` / `a, b = f()`):
+      //   LuauAccessPath, LuauCommaSeparator, LuauAccessPath, …,
+      //   LuauAssignmentOperation, [LuauCommaSeparator, <expr>, …]
+      //
+      // Try multi-target first; fall back to the single-target helper
+      // for everything else.
+      const content =
+        findChildByName(nodeRef.node, "LuauReassignment_content") ??
+        nodeRef.node;
+      let firstAccessPath: SyntaxNode | null = null;
+      let scan = content.firstChild;
+      while (scan) {
+        if (scan.name === "LuauAccessPath") {
+          firstAccessPath = scan;
+          break;
+        }
+        scan = scan.nextSibling;
+      }
+      if (firstAccessPath) {
+        const multi = scanMultiTargetReassignment(firstAccessPath);
+        if (multi) return lowerMultiTargetReassignment(multi, ctx);
+      }
+
+      // Single-target fallback. The lowerer helper takes the
+      // LuauAccessPath + LuauAssignmentOperation as separate args, so
+      // dig them out of the wrapper.
+      let pathChild: SyntaxNode | null = firstAccessPath;
       let opChild: SyntaxNode | null = null;
-      let inner = nodeRef.node.firstChild;
+      let inner = content.firstChild;
       while (inner) {
         if (inner.name === "LuauAccessPath" && !pathChild) pathChild = inner;
         else if (inner.name === "LuauAssignmentOperation" && !opChild)
           opChild = inner;
         inner = inner.nextSibling;
-      }
-      // The content lives one level deeper inside a `_content` wrapper.
-      if (!pathChild || !opChild) {
-        const content = findChildByName(
-          nodeRef.node,
-          "LuauReassignment_content",
-        );
-        if (content) {
-          let c = content.firstChild;
-          while (c) {
-            if (c.name === "LuauAccessPath" && !pathChild) pathChild = c;
-            else if (c.name === "LuauAssignmentOperation" && !opChild)
-              opChild = c;
-            c = c.nextSibling;
-          }
-        }
       }
       if (!pathChild || !opChild) return {};
       return lowerReassignment(pathChild, opChild, ctx);
@@ -258,6 +275,19 @@ export function lowerStatements(
       // because TextMate can't easily encode arbitrary access-path shapes
       // in a regex lookahead.
       if (child.name === "LuauAccessPath") {
+        // Implicit multi-target reassignment (`a, b = f()` /
+        // `a, b = 10, 20`). Scan the siblings for the multi-target
+        // shape — multiple access paths separated by commas before
+        // an assignment op, then any trailing RHS expressions after.
+        // Falls through to the single-target path below when only
+        // one target precedes the op.
+        const multi = scanMultiTargetReassignment(child);
+        if (multi) {
+          const block = lowerMultiTargetReassignment(multi, ctx);
+          appendBlockContent(result, block);
+          child = multi.lastNode.nextSibling;
+          continue;
+        }
         const opSibling = findAssignmentOperationAfter(child);
         if (opSibling) {
           const block = lowerReassignment(child, opSibling, ctx);
@@ -301,6 +331,105 @@ function findAssignmentOperationAfter(
     next = next.nextSibling;
   }
   return next?.name === "LuauAssignmentOperation" ? next : null;
+}
+
+interface MultiTargetReassignment {
+  targets: SyntaxNode[];
+  op: SyntaxNode;
+  trailingExprGroups: SyntaxNode[][];
+  lastNode: SyntaxNode;
+}
+
+// Scan siblings starting from `firstTarget` (a `LuauAccessPath`) for the
+// multi-target reassignment shape:
+//
+//   AccessPath  [Comma AccessPath]+  AssignmentOperation  [Comma Expr]*
+//
+// Returns the collected pieces if at least 2 targets sit before the
+// assignment op; returns `null` otherwise so the caller can fall back to
+// single-target lowering. Anything unexpected between the multi-target
+// pieces (e.g. a stray identifier) also returns `null` rather than risk a
+// silent mis-parse.
+function scanMultiTargetReassignment(
+  firstTarget: SyntaxNode,
+): MultiTargetReassignment | null {
+  const targets: SyntaxNode[] = [firstTarget];
+  let cursor: SyntaxNode | null = firstTarget.nextSibling;
+  while (cursor) {
+    if (ASSIGNMENT_PAIR_BRIDGE.has(cursor.name)) {
+      cursor = cursor.nextSibling;
+      continue;
+    }
+    if (cursor.name === "LuauCommaSeparator") {
+      const afterComma = skipBridges(cursor.nextSibling);
+      if (afterComma?.name === "LuauAccessPath") {
+        targets.push(afterComma);
+        cursor = afterComma.nextSibling;
+        continue;
+      }
+      // Comma must be followed by an access path in the target list.
+      return null;
+    }
+    if (cursor.name === "LuauAssignmentOperation") {
+      if (targets.length < 2) return null;
+      const op = cursor;
+      const trailingExprGroups: SyntaxNode[][] = [];
+      let current: SyntaxNode[] = [];
+      let last: SyntaxNode = op;
+      let post: SyntaxNode | null = op.nextSibling;
+      while (post) {
+        if (ASSIGNMENT_PAIR_BRIDGE.has(post.name)) {
+          post = post.nextSibling;
+          continue;
+        }
+        if (post.name === "LuauCommaSeparator") {
+          if (current.length > 0) {
+            trailingExprGroups.push(current);
+            current = [];
+          }
+          last = post;
+          post = post.nextSibling;
+          continue;
+        }
+        current.push(post);
+        last = post;
+        post = post.nextSibling;
+      }
+      if (current.length > 0) trailingExprGroups.push(current);
+      return { targets, op, trailingExprGroups, lastNode: last };
+    }
+    return null;
+  }
+  return null;
+}
+
+function skipBridges(n: SyntaxNode | null): SyntaxNode | null {
+  let cur = n;
+  while (cur && ASSIGNMENT_PAIR_BRIDGE.has(cur.name)) cur = cur.nextSibling;
+  return cur;
+}
+
+function lowerMultiTargetReassignment(
+  multi: MultiTargetReassignment,
+  ctx: LowerContext,
+): CompiledBlock {
+  // Reject any target that isn't a plain `LuauVariableName` — property
+  // targets (`obj.field`) and indexed targets (`arr[k]`) in multi-target
+  // reassignment are deferred (would need per-target StorePropertyAssignment).
+  const targetIdents: Identifier[] = [];
+  for (const t of multi.targets) {
+    const nameNode = getDescendent("LuauVariableName", t);
+    if (!nameNode) return {};
+    targetIdents.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
+  }
+  const firstRhs = lowerExpressionFromContainer(multi.op, ctx);
+  const trailingExprs = multi.trailingExprGroups
+    .map((nodes) => lowerExpressionFromNodes(nodes, ctx))
+    .filter((e): e is NonNullable<typeof e> => e != null);
+  const expressions = firstRhs ? [firstRhs, ...trailingExprs] : trailingExprs;
+  return wrapInWeave([
+    new MultiVariableAssignment(targetIdents, expressions, false),
+  ]);
 }
 
 function appendBlockContent(

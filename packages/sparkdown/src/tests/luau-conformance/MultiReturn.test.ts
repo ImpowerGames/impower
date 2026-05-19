@@ -791,6 +791,69 @@ end
   });
 });
 
+describe("implicit multi-target reassignment", () => {
+  test("a, b = 10, 20 (no &)", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local a = 1
+local b = 2
+a, b = 10, 20
+& host_record(a)
+& host_record(b)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20]);
+  });
+
+  test("a, b = pair() (no &)", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function pair()
+return 99, 100
+end
+
+function run()
+local a = 1
+local b = 2
+a, b = pair()
+& host_record(a)
+& host_record(b)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([99, 100]);
+  });
+
+  test("a, b, c = 10, multi() — spread fills trailing targets", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function multi()
+return 20, 30
+end
+
+function run()
+local a = 0
+local b = 0
+local c = 0
+a, b, c = 10, multi()
+& host_record(a)
+& host_record(b)
+& host_record(c)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([10, 20, 30]);
+  });
+});
+
 describe("multi-target globals (store)", () => {
   test("store a, b = 10, 20 declares two globals positionally", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)

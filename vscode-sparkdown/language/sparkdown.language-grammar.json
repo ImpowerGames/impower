@@ -4536,7 +4536,7 @@
       "match": "(.+)"
     },
     "LuauReassignment": {
-      "begin": "((?:[^\\S\\n\\r])*)(?=(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]))*(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))",
+      "begin": "((?:[^\\S\\n\\r])*)(?=(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]|,(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)))*(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4551,10 +4551,16 @@
           "include": "#LuauComment"
         },
         {
+          "include": "#LuauCommaSeparator"
+        },
+        {
           "include": "#LuauAccessPath"
         },
         {
           "include": "#LuauAssignmentOperation"
+        },
+        {
+          "include": "#LuauExpression"
         },
         {
           "include": "#ExtraWhitespace"

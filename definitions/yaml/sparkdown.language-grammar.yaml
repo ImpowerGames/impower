@@ -2795,15 +2795,24 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauReassignment:
-    begin: ({{WS}}*)(?={{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    # The lookahead approximates Lua's "suffixed expression then `=`"
+    # rule. An access path may include dot-accessors (`a.b`), bracket
+    # indexers (`a[k]`), OR a multi-target comma list (`a, b`). The
+    # `,{{WS}}*{{LUAU_IDENTIFIER}}` alternative captures the multi-
+    # target case so `a, b = 10, 20` parses as a single reassignment.
+    # `LuauCommaSeparator` is added to the inner patterns so commas
+    # between targets AND between RHS expressions can be consumed.
+    begin: ({{WS}}*)(?={{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
     beginCaptures:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauCommaSeparator" }
       - { include: "#LuauAccessPath" }
       - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|$
   # ----------------------------------------------------------------------------
