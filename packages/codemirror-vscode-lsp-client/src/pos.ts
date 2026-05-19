@@ -7,8 +7,13 @@ export function convertToPosition(doc: Text, pos: number): lsp.Position {
 }
 
 export function convertFromPosition(doc: Text, pos: lsp.Position): number {
-  let line = doc.line(pos.line + 1);
-  return line.from + pos.character;
+  try {
+    let line = doc.line(pos.line + 1);
+    return line.from + pos.character;
+  } catch (err) {
+    console.error(err);
+    return doc.line(doc.lines).to;
+  }
 }
 
 export function convertToChangeEvents(
