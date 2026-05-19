@@ -1,4 +1,5 @@
 import { SparkdownScreenplayPreviewElement } from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview.elem";
+import { MainWindowElement } from "./components/main-window/MainWindow.elem";
 import {
   DefineOptions,
   adoptAll,
@@ -31,7 +32,6 @@ import LogicScriptEditor from "./components/logic-script-editor/logic-script-edi
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
 import Logic from "./components/logic/logic";
-import MainWindow from "./components/main-window/main-window";
 import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/preview-game-toolbar";
@@ -74,7 +74,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   ShareGame,
   ShareScreenplay,
   Demo,
-  MainWindow,
   PreviewGameToolbar,
   PreviewGame,
   PreviewScreenplayToolbar,
@@ -115,6 +114,7 @@ export default abstract class SparkEditor {
     // spec-component constructors. These classes don't auto-register on
     // import — callers opt in via `.register()`.
     await SparkdownScreenplayPreviewElement.register();
+    await MainWindowElement.register();
     return defineAll(constructors, options);
   }
 }
