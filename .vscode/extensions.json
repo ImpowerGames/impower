@@ -11,6 +11,7 @@
     "ms-azuretools.vscode-docker",
     "esbenp.prettier-vscode",
     "bierner.lit-html",
-    "yoavbls.pretty-ts-errors"
+    "yoavbls.pretty-ts-errors",
+    "bradlc.vscode-tailwindcss"
   ]
 }

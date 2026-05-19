@@ -98,5 +98,6 @@
   },
   "files.associations": {
     "*.css": "tailwindcss"
-  }
+  },
+  "tailwindCSS.classFunctions": ["cn", "clsx", "cva", "twMerge"]
 }

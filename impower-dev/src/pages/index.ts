@@ -1,4 +1,3 @@
-import SparkdownScreenplayPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/index.js";
 import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules/script-editor/index.js";
 import Sparkle from "@impower/sparkle/src/index.js";
 import extractAllSVGs from "../build/extractAllSVGs";
@@ -19,7 +18,7 @@ const load = async () => {
       languageServerConnection: Workspace.ls.connection,
       graphics,
     }),
-    SparkdownScreenplayPreview.init(),
+    // SparkEditor.init() also registers SparkdownScreenplayPreviewElement.
     SparkEditor.init({ graphics }),
   ]);
   // Once all web components (and their constructable stylesheets) are loaded,

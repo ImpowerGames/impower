@@ -1,3 +1,4 @@
+import { SparkdownScreenplayPreviewElement } from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview.elem";
 import {
   DefineOptions,
   adoptAll,
@@ -110,6 +111,10 @@ export default abstract class SparkEditor {
     const constructors =
       options?.constructors ?? DEFAULT_SPARK_EDITOR_CONSTRUCTORS;
     adoptAll(styles);
+    // Register preact-custom-element-based big blocks alongside the legacy
+    // spec-component constructors. These classes don't auto-register on
+    // import — callers opt in via `.register()`.
+    await SparkdownScreenplayPreviewElement.register();
     return defineAll(constructors, options);
   }
 }

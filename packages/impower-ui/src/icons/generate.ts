@@ -68,10 +68,11 @@ const out = `// This file is generated. Do not edit by hand.
 // Run \`npm run gen:icons\` from packages/impower-ui to regenerate.
 // Source: src/icons/svg/*.svg
 
+import type preact from "preact";
 import type { JSX } from "preact";
 
 export type IconComponent = (
-  props?: JSX.SVGAttributes<SVGSVGElement>,
+  props?: preact.SVGAttributes<SVGSVGElement>,
 ) => JSX.Element;
 
 ${components}

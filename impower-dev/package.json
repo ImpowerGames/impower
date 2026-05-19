@@ -38,6 +38,7 @@
     "@fastify/multipart": "^9.4.0",
     "@fastify/secure-session": "^8.3.0",
     "@fastify/static": "^9.0.0",
+    "@impower/impower-ui": "file:../packages/impower-ui",
     "@impower/opfs-workspace": "file:../packages/opfs-workspace",
     "@impower/spark-editor-protocol": "file:../packages/spark-editor-protocol",
     "@impower/spark-engine": "file:../packages/spark-engine",
@@ -46,7 +47,6 @@
     "@impower/sparkdown-language-server": "file:../packages/sparkdown-language-server",
     "@impower/sparkdown-screenplay-pdf": "file:../packages/sparkdown-screenplay-pdf",
     "@impower/sparkle": "file:../packages/sparkle",
-    "@impower/impower-ui": "file:../packages/impower-ui",
     "dotenv": "^16.3.1",
     "fastify": "^5.8.4",
     "googleapis": "^159.0.0",
@@ -55,6 +55,7 @@
   },
   "devDependencies": {
     "@adobe/css-tools": "^4.4.4",
+    "@preact/preset-vite": "^2.10.5",
     "@tailwindcss/vite": "^4.2.4",
     "@types/browser-resolve": "^2.0.4",
     "@types/gapi": "^0.0.47",

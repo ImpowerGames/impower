@@ -1,4 +1,5 @@
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import {
   DidOpenTextDocumentMessage,
@@ -46,6 +47,17 @@ export default class PreviewScreenplay extends Component(spec) {
       }
       if (DidDeleteFilesMessage.type.is(e.detail)) {
         this.handleDidDeleteFiles(e.detail);
+      }
+      if (ConnectedPreviewMessage.type.is(e.detail)) {
+        // The inner screenplay-preview attaches its window listener
+        // asynchronously (Preact mount + dynamic import), so it may miss
+        // our startup LoadPreviewMessage. Replay it when the child signals
+        // it's ready. Reset the dedupe guard first so the resend goes
+        // through.
+        this._uri = undefined;
+        this._version = undefined;
+        this._text = undefined;
+        this.loadFile();
       }
     }
   };

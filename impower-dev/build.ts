@@ -1,3 +1,4 @@
+import preact from "@preact/preset-vite";
 import tailwindcss from "@tailwindcss/vite";
 import { exec, execSync } from "child_process";
 import * as dotenv from "dotenv";
@@ -51,9 +52,22 @@ const publicInDir = `${indir}/public`;
 const publicOutDir = `${outdir}/public`;
 const pagesInDir = `${indir}/pages`;
 
+// Packages that publish subpath exports via the package.json `exports` map
+// (e.g. `preact/jsx-dev-runtime`, `preact/hooks`). Vite's object-form alias
+// does prefix replacement and skips the exports map, so subpaths fail to
+// resolve. Instead of aliasing these, list them in `dedupe` — Node-style
+// resolution still finds them in the local node_modules while ensuring a
+// single instance is used across the workspace.
+const DEDUPE_ONLY = new Set(["preact", "preact-custom-element"]);
+
 const alias: Record<string, string> = {};
+const dedupe: string[] = [];
 for (const depName of Object.keys(pkg.peerDependencies || {})) {
-  alias[depName] = path.resolve(process.cwd(), "node_modules", depName);
+  if (DEDUPE_ONLY.has(depName)) {
+    dedupe.push(depName);
+  } else {
+    alias[depName] = path.resolve(process.cwd(), "node_modules", depName);
+  }
 }
 
 const PRODUCTION = process.argv.includes("--production");
@@ -356,6 +370,12 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           } else if (!isMap) {
             const SW_VERSION = Date.now();
             const swResourceSet = new Set(["/"]);
+            // outDevDir is only created in the isExternal branch above. For
+            // non-external service-worker requests it may not exist yet —
+            // ensure it does so the glob doesn't ENOENT on scandir.
+            if (!fs.existsSync(outDevDir)) {
+              fs.mkdirSync(outDevDir, { recursive: true });
+            }
             const publicFilePaths = await glob(
               `${publicInDir}/**/*.{css,html,js,mjs,ico,svg,png,ttf,woff,woff2}`,
             );
@@ -573,7 +593,7 @@ const buildPages = async () => {
   console.log("");
   await build({
     configFile: false,
-    resolve: { alias },
+    resolve: { alias, dedupe },
     plugins: [
       viteInlineWorkerPlugin(),
       viteLoadersPlugin(),
@@ -617,7 +637,7 @@ const buildComponents = async () => {
   console.log("");
   await build({
     configFile: false,
-    resolve: { alias },
+    resolve: { alias, dedupe },
     plugins: [viteLoadersPlugin(), tailwindcss()],
     build: {
       outDir: componentsOutDir,
@@ -850,11 +870,12 @@ const serve = async () => {
       hmr: true,
       watch: { ignored: ["**/out/**", "**/.dev/**"] },
     },
-    resolve: { alias },
+    resolve: { alias, dedupe },
     plugins: [
       viteDefineProcessPlugin(),
       viteInlineWorkerPlugin(),
       viteLoadersPlugin(),
+      preact(),
       viteSpecComponentHmrPlugin(),
       viteStaticallyRenderedPagesPlugin(),
       tailwindcss(),

@@ -3,25 +3,6 @@
 @source ".";
 
 /* ----------------------------------------------------------------------------
- * Styling for custom-element tags.
- *
- * Custom elements own their styling here, not via a Preact wrapper. This way
- * the SSR'd HTML renders correctly before JS upgrades the element, and the
- * post-hydrate DOM has no extra wrapper nodes. Sizing follows font-size so
- * Tailwind text-* utilities scale icons naturally: `<s-icon class="text-2xl">`.
- * --------------------------------------------------------------------------*/
-
-s-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-s-icon > svg {
-  width: 1em;
-  height: 1em;
-}
-
-/* ----------------------------------------------------------------------------
  * Base theme variables.
  *
  * Defined as CSS custom properties so theme switching at runtime works via the
@@ -131,11 +112,8 @@ s-icon > svg {
 }
 
 /* ----------------------------------------------------------------------------
- * Tailwind theme tokens
- *
- * Each entry registers a utility class. Color tokens alias the per-theme CSS
- * variables above so `bg-fg` / `text-fg-50` / `bg-primary` resolve correctly
- * under either theme.
+ * Tailwind theme tokens. Color tokens alias the per-theme CSS variables above
+ * so `bg-fg` / `text-fg-50` / `bg-primary` resolve correctly under either theme.
  * --------------------------------------------------------------------------*/
 
 @theme {
@@ -162,7 +140,7 @@ s-icon > svg {
   --spacing-4xl: 72px;
 
   /* Component sizing */
-  --size-icon: 1.25rem; /* 20px */
+  --size-icon: 1.25rem;
   --size-toggle-sm: 0.875rem;
   --size-toggle-md: 1.125rem;
   --size-toggle-lg: 1.375rem;
@@ -277,4 +255,13 @@ s-icon > svg {
   --color-danger-95: var(--color-red-900);
   --color-danger-99: var(--color-red-950);
   --color-danger: var(--color-red-400);
+}
+
+/* ----------------------------------------------------------------------------
+ * Animation keyframes for shimmer-style placeholders.
+ * --------------------------------------------------------------------------*/
+
+@keyframes s-sheen {
+  0% { background-position-x: 200%; }
+  100% { background-position-x: -200%; }
 }

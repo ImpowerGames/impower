@@ -13,6 +13,7 @@
     "@codemirror/view": "^6.38.6",
     "@impower/codemirror-vscode-language": "file:../codemirror-vscode-language",
     "@impower/codemirror-vscode-lsp-client": "file:../codemirror-vscode-lsp-client",
+    "@impower/impower-ui": "file:../impower-ui",
     "@impower/jsonrpc": "file:../jsonrpc",
     "@impower/spark-dom": "file:../spark-dom",
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
@@ -24,5 +25,9 @@
     "marked": "^17.0.4",
     "style-mod": "^4.1.3",
     "vscode-languageserver-protocol": "^3.17.5"
+  },
+  "peerDependencies": {
+    "preact": "^10.29.1",
+    "preact-custom-element": "^4.6.0"
   }
 }

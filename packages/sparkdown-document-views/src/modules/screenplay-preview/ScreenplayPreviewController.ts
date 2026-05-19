@@ -55,71 +55,80 @@ import {
   TextDocumentIdentifier,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
-import { Component } from "../../../../../spec-component/src/component";
-import { getBoxValues } from "../../../../../spec-component/src/utils/getBoxValues";
-import debounce from "../../../utils/debounce.js";
-import { getScrollableParent } from "../../../utils/getScrollableParent.js";
-import { getScrollClientHeight } from "../../../utils/getScrollClientHeight.js";
-import { getScrollTop } from "../../../utils/getScrollTop.js";
-import { getVisibleRange } from "../../../utils/getVisibleRange.js";
-import { scrollY } from "../../../utils/scrollY";
-import createEditorView from "../utils/createEditorView";
-import spec from "./_sparkdown-screenplay-preview";
+import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
+import debounce from "../../utils/debounce.js";
+import { getScrollableParent } from "../../utils/getScrollableParent.js";
+import { getScrollClientHeight } from "../../utils/getScrollClientHeight.js";
+import { getScrollTop } from "../../utils/getScrollTop.js";
+import { getVisibleRange } from "../../utils/getVisibleRange.js";
+import { scrollY } from "../../utils/scrollY";
+import createEditorView from "./utils/createEditorView";
 
 const CONTENT_PADDING_TOP = 68;
 
-export default class SparkScreenplayPreview extends Component(spec) {
+export interface ScreenplayPreviewRefs {
+  preview: HTMLElement;
+  loading: HTMLElement;
+}
+
+export interface ScreenplayPreviewOptions {
+  scrollMargin?: string;
+}
+
+export class ScreenplayPreviewController {
+  protected host: HTMLElement;
+  protected refs: ScreenplayPreviewRefs;
+  protected options: ScreenplayPreviewOptions;
+
   protected _loadingRequest?: number | string;
-
   protected _initialFocused?: boolean;
-
   protected _initialVisibleRange?:
     | Range
     | "nearest"
     | "start"
     | "end"
     | "center";
-
   protected _initialSelectedRange?: Range;
-
   protected _loaded = false;
-
   protected _textDocument?: TextDocumentIdentifier;
-
   protected _view?: EditorView;
-
   protected _scroller?: Window | Element | null;
-
   protected _visibleRange?: Range;
-
   protected _domClientY = 0;
-
   protected _userInitiatedScroll = false;
-
-  protected _scrollIntervalTimeout = 0;
-
   protected _scrollMargin: {
     top?: number;
     bottom?: number;
     left?: number;
     right?: number;
-  } = {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  };
-
+  } = { top: 0, bottom: 0, left: 0, right: 0 };
   protected _scrollTarget?: Range;
 
-  override onConnected() {
-    this.root.addEventListener("touchstart", this.handlePointerEnterScroller, {
+  constructor(
+    host: HTMLElement,
+    refs: ScreenplayPreviewRefs,
+    options: ScreenplayPreviewOptions = {},
+  ) {
+    this.host = host;
+    this.refs = refs;
+    this.options = options;
+  }
+
+  // Replaces spec-component's `this.emit(type, detail)`.
+  protected emit<T>(type: string, detail: T): void {
+    this.host.dispatchEvent(
+      new CustomEvent(type, { detail, bubbles: true, composed: true }),
+    );
+  }
+
+  setup(): void {
+    this.host.addEventListener("touchstart", this.handlePointerEnterScroller, {
       passive: true,
     });
-    this.root.addEventListener("mouseenter", this.handlePointerEnterScroller, {
+    this.host.addEventListener("mouseenter", this.handlePointerEnterScroller, {
       passive: true,
     });
-    this.root.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
+    this.host.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
       passive: true,
     });
     window.addEventListener(MessageProtocol.event, this.handleProtocol);
@@ -129,16 +138,16 @@ export default class SparkScreenplayPreview extends Component(spec) {
     );
   }
 
-  override onDisconnected() {
-    this.root.removeEventListener(
+  dispose(): void {
+    this.host.removeEventListener(
       "touchstart",
       this.handlePointerEnterScroller,
     );
-    this.root.removeEventListener(
+    this.host.removeEventListener(
       "mouseenter",
       this.handlePointerEnterScroller,
     );
-    this.root.removeEventListener(
+    this.host.removeEventListener(
       "mouseleave",
       this.handlePointerLeaveScroller,
     );
@@ -263,14 +272,14 @@ export default class SparkScreenplayPreview extends Component(spec) {
           contentChanges,
         );
         for (const change of changes) {
-          // Instead of simply passing in the changes array, each change must be applied individually.
-          // This is because getClientChanges returns positions relative to the previous change, not the start document,
-          // (And for some reason, setting TransactionSpec.sequential to true, will not correctly apply the changes).
+          // Apply each change individually — positions are relative to the
+          // previous change, not the start document.
           view.dispatch({ changes: [change] });
         }
       }
     }
   };
+
   protected handleScrolledEditor = (
     message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>,
   ) => {
@@ -313,8 +322,8 @@ export default class SparkScreenplayPreview extends Component(spec) {
     preserveEditor: boolean | undefined,
   ) {
     if (preserveEditor && this._view) {
-      // We are loading a new text document, but the old editor should be preserved
-      // (This is necessary when renaming a file)
+      // Loading a new text document but the editor is preserved (used when
+      // renaming a file).
       this._textDocument = textDocument;
     } else {
       this.refs.preview.style.visibility = "hidden";
@@ -329,7 +338,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
       this._initialSelectedRange = selectedRange;
       this._loaded = false;
       this._textDocument = textDocument;
-      this._scrollMargin = getBoxValues(this.scrollMargin);
+      this._scrollMargin = getBoxValues(this.options.scrollMargin ?? "");
       this._view = createEditorView(this.refs.preview, {
         textDocument,
         scrollMargin: this._scrollMargin,
@@ -425,7 +434,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
       const anchor = convertFromPosition(doc, range.start);
       const head = convertFromPosition(doc, range.end);
       if (takeFocus) {
-        this.focus({ preventScroll: true });
+        this.host.focus({ preventScroll: true });
         view.focus();
       }
       view.dispatch({
@@ -454,15 +463,13 @@ export default class SparkScreenplayPreview extends Component(spec) {
           ? this._initialVisibleRange
           : undefined;
       if (initialVisibleRange) {
-        // Restore visible range
         this.scrollToRange(initialVisibleRange, scrollStrategy);
       }
       if (initialSelectedRange) {
-        //Restore selected range
         this.selectRange(initialSelectedRange, scrollStrategy ?? false);
       }
       if (this._textDocument && this._loadingRequest != null) {
-        // Only fade in once formatting has finished being applied and height is stable
+        // Fade in once formatting is applied and height is stable.
         this.refs.loading.style.opacity = "0";
         this.refs.preview.style.visibility = "visible";
         this.refs.preview.style.opacity = "1";
@@ -540,11 +547,5 @@ export default class SparkScreenplayPreview extends Component(spec) {
       return visibleRange;
     }
     return undefined;
-  }
-}
-
-declare global {
-  interface HTMLElementTagNameMap {
-    "sparkdown-screenplay-preview": SparkScreenplayPreview;
   }
 }
