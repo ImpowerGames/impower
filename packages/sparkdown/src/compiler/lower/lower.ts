@@ -51,6 +51,8 @@ import { lowerRun } from "./lowerers/lowerRun";
 import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
 import { lowerLuauFunctionDefinition } from "./lowerers/lowerLuauFunctionDefinition";
+import { lowerLuauDoBlock } from "./lowerers/lowerLuauDoBlock";
+import { lowerLuauForLoop } from "./lowerers/lowerLuauForLoop";
 import { lowerLuauLoopStub } from "./lowerers/lowerLuauLoopStub";
 import { lowerLuauWhileLoop } from "./lowerers/lowerLuauWhileLoop";
 import { lowerLuauReturnStatement } from "./lowerers/lowerLuauReturnStatement";
@@ -227,9 +229,11 @@ function lowerInner(
       return lowerLuauExternalDeclaration(nodeRef, ctx);
     case "LuauWhileLoop":
       return lowerLuauWhileLoop(nodeRef, ctx);
-    case "LuauForLoop":
-    case "LuauRepeatLoop":
     case "LuauDoBlock":
+      return lowerLuauDoBlock(nodeRef, ctx);
+    case "LuauForLoop":
+      return lowerLuauForLoop(nodeRef, ctx);
+    case "LuauRepeatLoop":
       return lowerLuauLoopStub(nodeRef, ctx);
     case "LuauEndKeyword":
       // Stand-alone `end` keyword (the scene/branch/function terminator).

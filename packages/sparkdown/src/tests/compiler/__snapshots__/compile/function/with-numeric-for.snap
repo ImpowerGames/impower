@@ -1,0 +1,75 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "sum",
+      "args": [
+        "n"
+      ],
+      "isFunction": true,
+      "body": [
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "total",
+          "expression": {
+            "type": "NumberExpression",
+            "value": 0,
+            "subtype": "int"
+          }
+        },
+        {
+          "type": "Wrap"
+        },
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "i",
+          "expression": {
+            "type": "NumberExpression",
+            "value": 1,
+            "subtype": "int"
+          }
+        },
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "__forStop_42",
+          "expression": {
+            "type": "VariableReference",
+            "path": [
+              "n"
+            ]
+          }
+        },
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "__forStep_42",
+          "expression": {
+            "type": "NumberExpression",
+            "value": 1,
+            "subtype": "int"
+          }
+        },
+        {
+          "type": "Gather",
+          "name": "__for_42_loop",
+          "depth": 1
+        },
+        {
+          "type": "Wrap"
+        },
+        {
+          "type": "ReturnType",
+          "expression": {
+            "type": "VariableReference",
+            "path": [
+              "total"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

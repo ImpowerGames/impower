@@ -133,3 +133,153 @@ end
     expect(recorded).toEqual([9]);
   });
 });
+
+describe("numeric for loop", () => {
+  test("for i = 1, 3 do — counts 1 through 3", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for i = 1, 3 do
+host_record(i)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 3]);
+  });
+
+  test("for i = 1, 10, 2 do — explicit step of 2", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for i = 1, 10, 2 do
+host_record(i)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 3, 5, 7, 9]);
+  });
+
+  test("descending: for i = 5, 1, -1 do", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for i = 5, 1, -1 do
+host_record(i)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([5, 4, 3, 2, 1]);
+  });
+
+  test("zero iterations when start > stop with positive step", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for i = 10, 1 do
+host_record(i)
+end
+host_record(99)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([99]);
+  });
+
+  test("loop variable doesn't leak past the loop", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local i = 100
+for i = 1, 3 do
+end
+host_record(i)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([100]);
+  });
+
+  test("stop expression is snapshot at entry (mutating outer stop doesn't extend the loop)", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local stop = 3
+for i = 1, stop do
+host_record(i)
+stop = 100
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 3]);
+  });
+});
+
+describe("do ... end block", () => {
+  test("body runs once", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local n = 1
+do
+n = n + 10
+end
+host_record(n)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([11]);
+  });
+
+  test("inner local shadows outer for the block's duration", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local x = 1
+do
+local x = 99
+host_record(x)
+end
+host_record(x)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([99, 1]);
+  });
+
+  test("outer reassignment from inside the block propagates", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local x = 1
+do
+x = 7
+end
+host_record(x)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([7]);
+  });
+});
