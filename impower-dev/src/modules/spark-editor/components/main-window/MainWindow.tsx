@@ -81,6 +81,13 @@ export type MainWindowProps = Partial<typeof propDefaults>;
 
 export default function MainWindow(_props: MainWindowProps) {
   const pane = workspace.signals.pane.value as PaneType;
+  // workspace.state's `pane` defaults to "logic", but the user's actual choice
+  // lives in localStorage and only lands after restoreProjectWorkspace() (async,
+  // inside WorkspaceWindow's constructor) completes. Highlighting Logic
+  // pre-restore and then snapping through the intermediate states to the real
+  // pane is jarring. Suppress active-tab highlighting until projectId is set
+  // — that's the signal that restoreProjectWorkspace has run to completion.
+  const workspaceReady = !!workspace.signals.projectId.value;
   const [previewActive, setPreviewActive] = useState<"start" | "end">("start");
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -191,7 +198,15 @@ export default function MainWindow(_props: MainWindowProps) {
             !h-px overrides the parent's [&>*]:h-full selector which
             otherwise stretches the divider to the full 60px nav height. */}
         <div class="absolute inset-x-0 top-0 !h-px bg-white/[0.06] z-10" />
-        <Tabs value={pane} onChange={onPaneChange} indicator="none">
+        <Tabs
+          // Keep Radix in controlled mode — passing null/undefined makes
+          // Radix uncontrolled, where it briefly activates ALL triggers
+          // until our first value lands. A non-matching sentinel pins it
+          // to "controlled, but no tab matches" so all tabs stay inactive.
+          value={workspaceReady ? pane : "__none__"}
+          onChange={onPaneChange}
+          indicator="none"
+        >
           <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
             Logic
           </Tab>
