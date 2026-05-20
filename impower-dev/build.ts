@@ -70,6 +70,21 @@ for (const depName of Object.keys(pkg.peerDependencies || {})) {
   }
 }
 
+// react → preact/compat. @preact/preset-vite injects this for the browser
+// pipeline but not for ssrLoadModule, which means Radix UI / react-resizable
+// -panels resolve to the real React installed transitively under
+// packages/impower-ui — and preact-render-to-string can't drive React's
+// hook dispatcher. Force the alias here so SSR uses Preact's compat layer
+// the same way the browser does.
+alias["react"] = path.resolve(
+  process.cwd(),
+  "node_modules/preact/compat/dist/compat.mjs",
+);
+alias["react-dom"] = path.resolve(
+  process.cwd(),
+  "node_modules/preact/compat/dist/compat.mjs",
+);
+
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
 const MINIFY = process.argv.includes("--minify");
@@ -468,6 +483,34 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
 
         const injectedGraphics = await extractGraphics();
 
+        // Load the impower-dev Preact registry on the server so we can
+        // statically render <se-main-window> etc. into HTML before JS runs.
+        // ssrLoadModule means edits to the registry HMR like everything else.
+        const preactRegistryModule = await server.ssrLoadModule(
+          `/src/modules/spark-editor/preact-registry.ts`,
+        );
+        const preactRegistry = preactRegistryModule.preactRegistry || {};
+
+        // Pull impower-ui's Tailwind output as raw CSS via Vite's CSS
+        // pipeline (with `?direct` we get the compiled stylesheet, not the
+        // JS module wrapper that injects a <style> at runtime). Inlining
+        // this into the SSG <style> block means utility classes work before
+        // any JS runs — without it, Preact-rendered tags would ship with
+        // their Tailwind classes but no CSS to resolve them, leaving the
+        // page unstyled until module imports completed.
+        let impowerUiTailwindCss = "";
+        try {
+          const tw = await server.transformRequest(
+            "/node_modules/@impower/impower-ui/src/style.css?direct",
+          );
+          if (tw?.code) impowerUiTailwindCss = tw.code;
+        } catch (err) {
+          console.warn(
+            "[ssg] Failed to inline impower-ui Tailwind CSS:",
+            err instanceof Error ? err.message : err,
+          );
+        }
+
         const componentPaths = await glob(
           `${componentsInDir}/**/*.{js,mjs,ts}`,
         );
@@ -520,13 +563,16 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           documentHtml,
           { html, cssPath, mjsPath },
           components,
+          preactRegistry,
         );
 
         renderedHtml = await server.transformIndexHtml(req.url, renderedHtml);
 
         const styledHtml = staticallyStylePage(
           renderedHtml,
-          Array.from(scopedCssSet).join("\n"),
+          [Array.from(scopedCssSet).join("\n"), impowerUiTailwindCss]
+            .filter(Boolean)
+            .join("\n"),
         );
 
         res.setHeader("Content-Type", "text/html");
@@ -897,6 +943,20 @@ const serve = async () => {
       watch: { ignored: ["**/out/**", "**/.dev/**"] },
     },
     resolve: { alias, dedupe },
+    // Force React-flavored deps through Vite's transform pipeline (which
+    // respects resolve.alias react → preact/compat). Without noExternal,
+    // these packages load via Node's CJS resolver and pull in the real React
+    // installed transitively under packages/impower-ui/node_modules/react —
+    // breaking SSR with "Invalid hook call" / "Invalid type passed to
+    // createElement". Listing them here makes the build-time SSG render
+    // Preact-compatible vnodes.
+    ssr: {
+      noExternal: [
+        "react-resizable-panels",
+        /^@radix-ui\//,
+        "@impower/impower-ui",
+      ],
+    },
     plugins: [
       viteDefineProcessPlugin(),
       viteInlineWorkerPlugin(),

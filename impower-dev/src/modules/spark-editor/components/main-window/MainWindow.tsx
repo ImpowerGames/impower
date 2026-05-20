@@ -11,9 +11,12 @@ import {
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { startTransition } from "preact/compat";
-import { Workspace } from "../../workspace/Workspace";
 import workspace from "../../workspace/WorkspaceStore";
 import HeaderNavigation from "../header-navigation/HeaderNavigation";
+
+// Workspace's top-level instantiates WorkspaceWindow whose constructor touches
+// localStorage / window — fine in the browser, fatal during SSR. Defer until
+// the handler actually fires.
 
 // Vite injects impower-ui's Tailwind output into document.head as <style
 // data-vite-dev-id="...impower-ui/src/style.css">. <spark-editor> uses shadow
@@ -128,9 +131,18 @@ export default function MainWindow(_props: MainWindowProps) {
     // tab activation animation (color + scale) gets to paint before the
     // potentially-heavy pane DOM is built.
     startTransition(() => {
-      Workspace.window.openedPane(next as PaneType);
+      void import("../../workspace/Workspace").then(({ Workspace }) => {
+        Workspace.window.openedPane(next as PaneType);
+      });
     });
   };
+
+  // SplitPane wraps react-resizable-panels which calls React hooks. In dev
+  // SSR (preact-render-to-string) those hooks throw "invalid hook call"
+  // because real React isn't running. Skip the split during SSR — the
+  // header + bottom-nav (the visible chrome on first paint) still get
+  // statically rendered. The middle fills in once Preact hydrates.
+  const isSSR = typeof window === "undefined";
 
   return (
     <div
@@ -140,27 +152,29 @@ export default function MainWindow(_props: MainWindowProps) {
       <style>{STYLE}</style>
       <HeaderNavigation />
       <div class="relative flex flex-auto min-h-0">
-        <SplitPane
-          activePanel={previewActive}
-          minSize="320px"
-          collapseBelow={960}
-          start={
-            <div class="relative flex flex-col w-full h-full">
-              {/* @ts-expect-error legacy custom element */}
-              {pane === "logic" && <se-logic />}
-              {/* @ts-expect-error legacy custom element */}
-              {pane === "assets" && <se-assets />}
-              {/* @ts-expect-error legacy custom element */}
-              {pane === "share" && <se-share />}
-            </div>
-          }
-          end={
-            <div class="relative flex flex-col w-full h-full bg-black">
-              {/* @ts-expect-error legacy custom element */}
-              <se-preview />
-            </div>
-          }
-        />
+        {!isSSR && (
+          <SplitPane
+            activePanel={previewActive}
+            minSize="320px"
+            collapseBelow={960}
+            start={
+              <div class="relative flex flex-col w-full h-full">
+                {/* @ts-expect-error legacy custom element */}
+                {pane === "logic" && <se-logic />}
+                {/* @ts-expect-error legacy custom element */}
+                {pane === "assets" && <se-assets />}
+                {/* @ts-expect-error legacy custom element */}
+                {pane === "share" && <se-share />}
+              </div>
+            }
+            end={
+              <div class="relative flex flex-col w-full h-full bg-black">
+                {/* @ts-expect-error legacy custom element */}
+                <se-preview />
+              </div>
+            }
+          />
+        )}
       </div>
       {/* @ts-expect-error legacy custom element */}
       <se-notifications />
