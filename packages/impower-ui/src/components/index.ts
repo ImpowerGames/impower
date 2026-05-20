@@ -1,6 +1,12 @@
 import "../style.css";
 
 export {
+  default as Button,
+  type ButtonProps,
+  type ButtonVariant,
+  type ButtonSize,
+} from "./button/Button";
+export {
   default as LoadingBar,
   type LoadingBarProps,
 } from "./loading-bar/LoadingBar";

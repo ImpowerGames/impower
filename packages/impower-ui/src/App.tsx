@@ -2,6 +2,8 @@ import { useState } from "preact/hooks";
 import {
   Bolt,
   BoltFill,
+  Button,
+  Download,
   LoadingBar,
   Photo,
   PhotoFill,
@@ -10,6 +12,7 @@ import {
   SplitPane,
   Tab,
   Tabs,
+  X,
 } from "./components";
 
 export function App() {
@@ -51,6 +54,50 @@ export function App() {
           <div class="w-96">
             <LoadingBar class="h-1" />
           </div>
+        </Row>
+      </section>
+
+      <section class="mt-10 space-y-4">
+        <h2 class="text-lg font-medium">
+          <code class="font-mono text-sm bg-neutral-200 px-2 py-0.5 rounded">
+            &lt;Button&gt;
+          </code>
+        </h2>
+        <Row label="Variants (default size)">
+          <div class="flex flex-wrap items-center gap-3">
+            <Button>Primary</Button>
+            <Button variant="secondary">Secondary</Button>
+            <Button variant="outline">Outline</Button>
+            <Button variant="ghost">Ghost</Button>
+            <Button variant="link">Link</Button>
+            <Button variant="destructive">Destructive</Button>
+          </div>
+        </Row>
+        <Row label="Sizes (primary variant)">
+          <div class="flex flex-wrap items-center gap-3">
+            <Button size="xs">Extra small</Button>
+            <Button size="sm">Small</Button>
+            <Button size="default">Default</Button>
+            <Button size="lg">Large</Button>
+            <Button size="icon" aria-label="Close"><X /></Button>
+          </div>
+        </Row>
+        <Row label="With icons and disabled state">
+          <div class="flex flex-wrap items-center gap-3">
+            <Button>
+              <Download class="size-4" /> Download
+            </Button>
+            <Button variant="outline" disabled>
+              Disabled
+            </Button>
+          </div>
+        </Row>
+        <Row label="asChild — styles applied to an anchor instead">
+          <Button asChild variant="link">
+            <a href="https://impower.dev" target="_blank" rel="noreferrer">
+              Visit impower.dev
+            </a>
+          </Button>
         </Row>
       </section>
 
