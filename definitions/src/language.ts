@@ -603,7 +603,18 @@ const buildJson = async (inYamlPath: string, outJsonPath: string) => {
   const parsed = YAML.parse(text);
   applyDefaultMatch(parsed);
   const resolved = updateGrammarVariables(parsed);
-  const json = JSON.stringify(resolved, null, 2);
+  // Stamp a do-not-edit warning into the generated JSON. The TextMate
+  // grammar consumers ignore unknown top-level keys, so this is safe
+  // to embed alongside `name` / `repository` / etc. — and it shows up
+  // at the very top of the file in any editor.
+  const yamlRel = path.relative(path.dirname(outJsonPath), inYamlPath);
+  const warning = [
+    `Generated from ${yamlRel.replace(/\\/g, "/")} by @impower/definitions.`,
+    `Do NOT edit this JSON file directly — your changes will be lost on the next build.`,
+    `Edit the YAML source instead, then run \`npm run language\` from definitions/.`,
+  ];
+  const stamped = { _generated_: warning, ...resolved };
+  const json = JSON.stringify(stamped, null, 2);
   await fs.promises.writeFile(outJsonPath, json);
 };
 

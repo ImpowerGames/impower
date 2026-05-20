@@ -3,6 +3,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { ConstantDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
+import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -164,8 +165,14 @@ export function lowerVariableDefinition(
   // For now we just take the first expression (matches Lua's
   // single-target truncation) since single-target rarely uses
   // multi-RHS in practice.
+  //
+  // Bare declaration (`local x` with no `= …`) is also handled here:
+  // we synthesize a `NullExpression` so the runtime gets a `NullValue`
+  // pushed before the `RuntimeVariableAssignment`. Without the
+  // synthetic init, the binding bytecode would pop whatever junk
+  // happened to be on the eval stack.
   const identifier = new Identifier(lastTarget.name);
-  const expr = expressions[0] ?? null;
+  const expr = expressions[0] ?? (sawAssignmentOp ? null : new NullExpression());
 
   const isGlobal = scope === "store";
   const isTemp = scope === "local";

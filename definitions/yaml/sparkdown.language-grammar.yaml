@@ -3119,19 +3119,20 @@ repository:
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
 
   LuauVariableAssignment:
-    # The lookahead `(?={{WS}}*[,:=])` distinguishes a TARGET
-    # identifier from an identifier appearing as part of a trailing
-    # RHS expression in multi-RHS syntax (`local a, b = 10, g()` —
-    # `g` must NOT match as a target since the next char after it
-    # is `(`, not `,`/`:`/`=`). Target-shape identifiers are
-    # always followed by one of:
+    # The lookahead distinguishes a TARGET identifier from an
+    # identifier appearing as part of a trailing RHS expression in
+    # multi-RHS syntax (`local a, b = 10, g()` — `g` must NOT match
+    # as a target since the next char after it is `(`, not `,`/`:`/
+    # `=`). Target-shape identifiers are always followed by one of:
     #   `,` — continuing target list (`a, b = …`)
     #   `:` — type annotation (`a: number = …`)
     #   `=` — assignment operator
+    #   end-of-statement (newline / EOF / `--` line comment) —
+    #     bare declaration (`local x` with no initializer)
     # Anything else (`g(`, `g.h`, `g[k]`, etc.) means the identifier
     # is actually an expression — fall through to `LuauExpression`
     # at the outer `LuauVariableDefinition` level.
-    begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*[,:=])
+    begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
     beginCaptures:
       1:
         patterns:

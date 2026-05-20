@@ -1,4 +1,9 @@
 {
+  "_generated_": [
+    "Generated from ../../../definitions/yaml/sparkdown.language-grammar.yaml by @impower/definitions.",
+    "Do NOT edit this JSON file directly — your changes will be lost on the next build.",
+    "Edit the YAML source instead, then run `npm run language` from definitions/."
+  ],
   "fileTypes": [
     "sd"
   ],
@@ -5087,7 +5092,7 @@
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])*(?!(?:[-][-])))"
     },
     "LuauVariableAssignment": {
-      "begin": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)(?=(?:[^\\S\\n\\r])*[,:=])",
+      "begin": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)(?=(?:[^\\S\\n\\r])*(?:[,:=]|--|\\n|\\r|$))",
       "beginCaptures": {
         "1": {
           "patterns": [
