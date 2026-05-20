@@ -411,8 +411,15 @@ export class NativeFunctionCall extends InkObject {
 
     let specialCaseList: null | ListValue = null;
 
+    // NullValue (sparkdown's nil) is exempt from "max wins" coercion:
+    // its numeric value is conceptually 0, so a comparison like
+    // `x == nil` should coerce the NULL operand toward whatever
+    // numeric type `x` carries, not the other way around. Without
+    // this carve-out the coercion picks NullValue (ValueType.Null = 7)
+    // as the target type, then crashes trying to cast IntValue → Null.
     for (let obj of parametersIn) {
       let val = asOrThrows(obj, Value);
+      if (val.valueType === ValueType.Null) continue;
       if (val.valueType > valType) {
         valType = val.valueType;
       }

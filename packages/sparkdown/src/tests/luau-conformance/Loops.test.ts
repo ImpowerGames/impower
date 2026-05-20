@@ -458,3 +458,116 @@ end
     expect(recorded).toEqual([7]);
   });
 });
+
+describe("generic for-in loop (iterator protocol)", () => {
+  test("iterates a closure-based user iterator (range)", () => {
+    // The classic "stateful iterator" form: `range(a, b)` returns a
+    // closure that walks a..b. Each iteration calls the closure with
+    // (state, ctrl); the closure ignores those args and uses its
+    // captured `i` instead. When the closure returns nil (i > b),
+    // the loop exits.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function range(start, stop)
+local i = start - 1
+return function()
+i = i + 1
+if i <= stop then
+return i
+end
+end
+end
+
+function run()
+for n in range(1, 5) do
+host_record(n)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  test("zero iterations — iterator returns nil on first call", () => {
+    // An iterator that immediately runs out: the closure returns
+    // without producing a value, the loop should terminate before
+    // executing the body once.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function empty_iter()
+return function()
+local done = true
+end
+end
+
+function run()
+for n in empty_iter() do
+host_record(n)
+end
+host_record(99)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([99]);
+  });
+
+  test("break exits the for-in loop", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function range(start, stop)
+local i = start - 1
+return function()
+i = i + 1
+if i <= stop then
+return i
+end
+end
+end
+
+function run()
+for n in range(1, 10) do
+if n >= 4 then
+break
+end
+host_record(n)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 3]);
+  });
+
+  test("continue skips to next iteration of the for-in loop", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function range(start, stop)
+local i = start - 1
+return function()
+i = i + 1
+if i <= stop then
+return i
+end
+end
+end
+
+function run()
+for n in range(1, 5) do
+if n == 3 then
+continue
+end
+host_record(n)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, 2, 4, 5]);
+  });
+});

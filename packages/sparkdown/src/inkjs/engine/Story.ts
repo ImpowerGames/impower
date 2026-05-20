@@ -2009,11 +2009,21 @@ export class Story extends InkObject {
           // other value, push it as value-0 plus N-1 NullValue
           // placeholders. Emitted by multi-target assignment
           // lowering for `local a, b = expr`.
+          //
+          // Void-returning callees (e.g. an iterator function that
+          // falls through without `return`) get coerced to all-nil:
+          // the user sees the same all-nil tuple they'd see from
+          // `return` with no values, matching Luau's iterator-end
+          // semantics. Without this, downstream `x == nil` checks
+          // crash on `Void` (the runtime can't compare Void to any
+          // other type).
           const n = evalCommand._tupleArity;
           const top = this.state.PopEvaluationStack();
           let values: AbstractValue[];
           if (top instanceof MultiValue) {
             values = top.values.slice(0, n);
+          } else if (top instanceof Void) {
+            values = [];
           } else {
             values = [top as AbstractValue];
           }

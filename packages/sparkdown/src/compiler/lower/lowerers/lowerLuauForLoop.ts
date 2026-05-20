@@ -22,6 +22,7 @@ import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { lowerLuauGenericForLoop } from "./lowerLuauGenericForLoop";
 
 // `for i = start, stop [, step] do BODY end` — Luau numeric-for.
 //
@@ -72,9 +73,10 @@ export function lowerLuauForLoop(
   if (!condNode || !bodyContent) return {};
 
   // Generic-for (`for k, v in iter do`) shares this grammar node but
-  // contains `LuauInKeyword`. Defer it — the iterator protocol gets
-  // its own lowerer once Phase D's generic-for step lands.
-  if (getDescendent("LuauInKeyword", condNode)) return {};
+  // contains `LuauInKeyword`. Routed to `lowerLuauGenericForLoop`.
+  if (getDescendent("LuauInKeyword", condNode)) {
+    return lowerLuauGenericForLoop(nodeRef, ctx);
+  }
 
   const condContent =
     findChildByName(condNode, "LuauForCondition_content") ?? condNode;

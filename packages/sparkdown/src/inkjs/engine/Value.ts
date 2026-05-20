@@ -212,6 +212,13 @@ export class NullValue extends Value<any> {
     if (newType === this.valueType) return this;
     if (newType === ValueType.String) return new StringValue("nil");
     if (newType === ValueType.Bool) return new BoolValue(false);
+    // Sparkdown treats nil as numerically equivalent to 0 — the
+    // grammar even lowers a literal `nil` to `IntValue(0)`. Allowing
+    // the numeric casts lets comparisons like `n == 0` (used by the
+    // iterator-end check in generic for-in loops) coerce a NullValue
+    // input into a comparable IntValue.
+    if (newType === ValueType.Int) return new IntValue(0);
+    if (newType === ValueType.Float) return new FloatValue(0);
     throw this.BadCastException(newType);
   }
   public toString(): string {
