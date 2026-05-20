@@ -2035,6 +2035,81 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
+  // ============================================================
+  // Stubs for reserved Luau globals we haven't implemented yet.
+  // Without these, calls like `setmetatable({})` lower to a divert
+  // (`-> setmetatable`) and fail at compile time with "target not
+  // found". With these stubs, the call lowers to a state-aware
+  // stdlib invocation that throws a runtime error — which is
+  // (a) Lua-compatible (matches `attempt to call a nil value`),
+  // (b) trappable by `pcall` so authors can defensively call
+  // optional features, and (c) discoverable: the error message
+  // points at exactly which feature is missing.
+  // ============================================================
+  setmetatable: {
+    arity: -1,
+    fn: (story) =>
+      story.Error(
+        "setmetatable: not yet implemented in sparkdown (planned with class / metatable infra)",
+      ),
+  },
+  getmetatable: {
+    arity: -1,
+    fn: (story) =>
+      story.Error(
+        "getmetatable: not yet implemented in sparkdown (planned with class / metatable infra)",
+      ),
+  },
+  newproxy: {
+    arity: -1,
+    fn: (story) =>
+      story.Error(
+        "newproxy: not yet implemented in sparkdown (planned with class / metatable infra)",
+      ),
+  },
+  loadstring: {
+    arity: -1,
+    fn: (story) =>
+      story.Error(
+        "loadstring: not implemented in sparkdown (would require embedding the compiler in the runtime)",
+      ),
+  },
+  require: {
+    arity: -1,
+    fn: (story) =>
+      story.Error(
+        "require: not yet implemented in sparkdown — use `run \"path\"` for .luau loading",
+      ),
+  },
+  collectgarbage: {
+    arity: -1,
+    fn: (story) =>
+      story.Error(
+        "collectgarbage: not implemented in sparkdown (JS runtime has no GC hook)",
+      ),
+  },
+  gcinfo: {
+    arity: -1,
+    fn: (story) =>
+      story.Error(
+        "gcinfo: not implemented in sparkdown (JS runtime has no GC hook)",
+      ),
+  },
+  getfenv: {
+    arity: -1,
+    fn: (story) =>
+      story.Error(
+        "getfenv: removed in Lua 5.2 and not in Luau",
+      ),
+  },
+  setfenv: {
+    arity: -1,
+    fn: (story) =>
+      story.Error(
+        "setfenv: removed in Lua 5.2 and not in Luau",
+      ),
+  },
+
   // `pcall(f, arg1, ...)` — protected call. Runs `f(arg1, ...)` with
   // errors trapped. Returns `(true, ...returns)` on success or
   // `(false, errorMessage)` on error. The trapped error is removed
