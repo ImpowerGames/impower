@@ -3012,6 +3012,13 @@ repository:
       - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionParameters" }
+      # `LuauFunctionBody` opens AFTER the close-paren of the param
+      # list (or after a return-type annotation), so its `(?<=\w|\))`
+      # lookbehind anchors on the last header char. Keeping body in
+      # its own rule lets `bare-assignment-in-body` style content
+      # (e.g. `& x = expr`) parse without polluting the function-
+      # header context. `LuauBlockBody` then matches statements inside.
+      - { include: "#LuauFunctionBody" }
       - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
@@ -3022,6 +3029,21 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+
+  LuauFunctionBody:
+    tag: meta
+    name: meta.function.body.luau
+    # Anchored: opens once the function header (params / return type)
+    # is closed and at least one newline has passed. The lookbehind on
+    # `\w` or `)` keeps this from firing inside `function f<T>` (where
+    # the `>` is followed by params), and `\n` requires the body to
+    # start on a new line.
+    begin: (?<=\w|\)){{WS}}*\n
+    patterns:
+      - { include: "#LuauBlockBody" }
+    # Don't consume `end` — the outer `LuauFunctionDefinition.end`
+    # owns that. Stop at `end` / `scene` / `branch`.
+    end: (?=(?:{{WS}}*\b(?:end|scene|branch)\b))
 
   LuauFunctionParameters:
     tag: meta
