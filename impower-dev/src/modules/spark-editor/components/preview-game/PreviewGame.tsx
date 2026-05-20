@@ -139,6 +139,15 @@ export default function PreviewGame(_props: PreviewGameProps) {
     }),
   );
 
+  // onLoad handler shared between the JSX `onLoad` (which can fire
+  // before our useEffect attaches a listener — iframe loads fast) and
+  // the useEffect itself. Stored in a ref so the JSX handler always
+  // calls the latest version after lazy imports complete.
+  const onLoadRef = useRef<(() => void) | null>(null);
+  // Track if load fired before our effect set up the handler. If so,
+  // we trigger it once the handler becomes available.
+  const loadedBeforeReadyRef = useRef(false);
+
   useEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
@@ -250,10 +259,16 @@ export default function PreviewGame(_props: PreviewGameProps) {
           );
         };
 
+        let setupInFlight = false;
         const onLoad = async () => {
           const iframe = iframeRef.current;
           if (!iframe) return;
-          // Tear down any previous channel (iframe reload).
+          // Idempotent — the JSX onLoad and the addEventListener will both
+          // fire for the same iframe load, but we only want one channel.
+          // Also covers the rare case where load fires twice (iframe.src
+          // reset, etc.) by tearing down the previous channel first.
+          if (setupInFlight) return;
+          setupInFlight = true;
           if (iframeChannelRef.current) {
             iframeChannelRef.current.removeEventListener?.(
               "message",
@@ -302,6 +317,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           });
           initializedRef.current = true;
           initializingResolveRef.current?.();
+          setupInFlight = false;
         };
 
         const onProtocol = async (e: Event) => {
@@ -451,7 +467,16 @@ export default function PreviewGame(_props: PreviewGameProps) {
         window.addEventListener("resizing", onResizing);
         window.addEventListener("resized", onResized);
         document.addEventListener("fullscreenchange", onFullscreenChange);
+
+        // Wire the onLoad handler. Also catch the case where the
+        // iframe loaded BEFORE this effect ran (likely — iframe loads
+        // fast, useEffect is async) by triggering onLoad once.
+        onLoadRef.current = onLoad;
         iframeRef.current?.addEventListener("load", onLoad);
+        if (loadedBeforeReadyRef.current) {
+          loadedBeforeReadyRef.current = false;
+          onLoad();
+        }
 
         cleanup = () => {
           window.removeEventListener(MessageProtocol.event, onProtocol);
@@ -460,6 +485,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           window.removeEventListener("resized", onResized);
           document.removeEventListener("fullscreenchange", onFullscreenChange);
           iframeRef.current?.removeEventListener("load", onLoad);
+          onLoadRef.current = null;
           iframeChannelRef.current?.removeEventListener?.(
             "message",
             onChannelMessage,
@@ -488,11 +514,18 @@ export default function PreviewGame(_props: PreviewGameProps) {
           allow="autoplay"
           referrerpolicy="no-referrer"
           // Hide iframe until its document loads so we don't briefly see
-          // the sparkdown-player's pre-init flash. The `onload` handler
-          // (registered in useEffect) takes over from there.
+          // the sparkdown-player's pre-init flash.
           style={{ visibility: "hidden" }}
           onLoad={(e) => {
             (e.currentTarget as HTMLIFrameElement).style.visibility = "visible";
+            // If useEffect already set up the channel handler, call it
+            // now. Otherwise mark that load fired before we were ready —
+            // the effect will trigger it once it runs.
+            if (onLoadRef.current) {
+              onLoadRef.current();
+            } else {
+              loadedBeforeReadyRef.current = true;
+            }
           }}
         />
       </div>

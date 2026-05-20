@@ -1,4 +1,5 @@
 import { SparkdownScreenplayPreviewElement } from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview.elem";
+import { SparkEditorElement } from "./main/SparkEditor.elem";
 import { MainWindowElement } from "./components/main-window/MainWindow.elem";
 import { PreviewElement } from "./components/preview/Preview.elem";
 import { PreviewToggleButtonElement } from "./components/preview-toggle-button/PreviewToggleButton.elem";
@@ -39,7 +40,6 @@ import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
 import OptionButton from "./components/option-button/option-button";
 import Scrollable from "./components/scrollable/scrollable";
-import Main from "./main/spark-editor";
 import editorIcons from "./styles/icons/icons.css";
 import editorTheme from "./styles/theme/theme.css";
 
@@ -68,7 +68,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   HeaderTitleButton,
   HeaderTitleCaption,
   HeaderNavigationPlaceholder,
-  Main,
 ] as const;
 
 export const DEFAULT_SPARK_EDITOR_STYLES = {
@@ -93,6 +92,7 @@ export default abstract class SparkEditor {
     // spec-component constructors. These classes don't auto-register on
     // import — callers opt in via `.register()`.
     await SparkdownScreenplayPreviewElement.register();
+    await SparkEditorElement.register();
     await MainWindowElement.register();
     await PreviewElement.register();
     await PreviewToggleButtonElement.register();

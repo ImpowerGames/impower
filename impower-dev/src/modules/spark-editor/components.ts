@@ -25,7 +25,6 @@ import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts
 import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
 import OptionButton from "./components/option-button/_option-button";
 import Scrollable from "./components/scrollable/_scrollable";
-import Main from "./main/_spark-editor";
 import editorNormalize from "./styles/normalize/normalize.css";
 import editorTheme from "./styles/theme/theme.css";
 
@@ -80,7 +79,6 @@ const components = [
   style(HeaderTitleButton),
   style(HeaderTitleCaption),
   style(HeaderNavigationPlaceholder),
-  style(Main),
   style(Demo),
 ] as const;
 

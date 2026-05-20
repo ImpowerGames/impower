@@ -3,6 +3,7 @@ import HeaderNavigation from "./components/header-navigation/HeaderNavigation";
 import MainWindow from "./components/main-window/MainWindow";
 import Preview from "./components/preview/Preview";
 import PreviewToggleButton from "./components/preview-toggle-button/PreviewToggleButton";
+import SparkEditor from "./main/SparkEditor";
 
 // Tag name → Preact component for the build-time SSR walker.
 //
@@ -11,6 +12,7 @@ import PreviewToggleButton from "./components/preview-toggle-button/PreviewToggl
 // here — never the .elem.ts wrappers, which call `customElements.define` at
 // import time and would explode in Node.
 export const preactRegistry: ComponentRegistry = {
+  "spark-editor": SparkEditor,
   "se-main-window": MainWindow,
   "se-header-navigation": HeaderNavigation,
   "se-preview": Preview,
