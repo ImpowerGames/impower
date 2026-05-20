@@ -540,21 +540,70 @@ end
   });
 });
 
-describe("string.gsub — error paths", () => {
-  test("function replacement errors with a Phase-5 hint", () => {
-    const { errors } = compileAndCapture(`external host_record(v)
+describe("string.gsub — function replacement", () => {
+  test("replaces each match using the function's return value", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
 
 function run()
-local f = function(c) return c end
-local r = string.gsub("hello", "%a", f)
+local result = string.gsub("hello", "%a", function(c) return c .. c end)
+host_record(result)
 end
 `);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0]!).toContain("function replacement");
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["hheelllloo"]);
   });
 
+  test("captures are passed as separate args", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local result = string.gsub("k=v", "(%a+)=(%a+)", function(k, v) return v .. "=" .. k end)
+host_record(result)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["v=k"]);
+  });
+
+  test("returning nil keeps the original match", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local result, count = string.gsub("abc", "%a", function(c)
+if c == "b" then return nil end
+return c .. c
+end)
+host_record(result)
+host_record(count)
+end
+`);
+    expect(errors).toEqual([]);
+    // 'a' doubled, 'b' kept, 'c' doubled. count counts all matches (3).
+    expect(recorded).toEqual(["aabcc", 3]);
+  });
+
+  test("function-form returning a number stringifies", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local result = string.gsub("ab", "%a", function(c) return 42 end)
+host_record(result)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["4242"]);
+  });
+});
+
+describe("string.gsub — error paths", () => {
   test("invalid capture-index escape in replacement", () => {
     const { errors } = compileAndCapture(`external host_record(v)
 & run()

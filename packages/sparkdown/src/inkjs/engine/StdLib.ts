@@ -243,7 +243,7 @@ export function resolveInit(arg: any, strLen: number): number {
 function classifyGsubRepl(
   repl: any,
   story: any,
-): "string" | "table" | "error" {
+): "string" | "table" | "function" | "error" {
   if (repl == null) {
     story.Error("string.gsub: replacement argument is required");
     return "error";
@@ -254,26 +254,20 @@ function classifyGsubRepl(
   if (repl instanceof ObjectValue) {
     const map = repl.value;
     if (map instanceof Map && map.has("__closure_fn")) {
-      story.Error(
-        "string.gsub with a function replacement is not yet supported. (Phase 5 — blocked on stdlib→Luau callback dispatch.)",
-      );
-      return "error";
+      return "function";
     }
     return "table";
   }
-  // Anonymous functions without upvalues / bare knot names lower to a
-  // DivertTargetValue (not closure-wrapped). Match the function-form
-  // error path so authors get the right hint regardless of which
-  // function-value shape they pass.
+  // Anonymous functions without upvalues / bare knot names lower to
+  // a DivertTargetValue (not closure-wrapped); var-pointers to
+  // function-typed locals arrive as VariablePointerValue. Both route
+  // through `story.CallLuauFunction`.
   const ctorName = repl?.constructor?.name;
   if (
     ctorName === "DivertTargetValue" ||
     ctorName === "VariablePointerValue"
   ) {
-    story.Error(
-      "string.gsub with a function replacement is not yet supported. (Phase 5 — blocked on stdlib→Luau callback dispatch.)",
-    );
-    return "error";
+    return "function";
   }
   story.Error(
     "string.gsub: replacement must be a string, number, table, or function",
@@ -1535,6 +1529,52 @@ export const STDLIB: Record<string, StdLibEntry> = {
           );
           if (replacement == null)
             return new MultiValue([new StringValue(input), new IntValue(0)]);
+        } else if (replKind === "function") {
+          // Function form. Call the user fn with each capture as an
+          // arg (or the whole match if the pattern has no captures).
+          // Use the fn's first return value as the replacement.
+          // Lua semantics:
+          //   - return nil/false → keep the original match
+          //   - return string or number → use as replacement
+          //   - return anything else → error
+          const callArgs: AbstractValue[] =
+            compiled.captureCount === 0
+              ? [new StringValue(wholeMatch)]
+              : matched.captures.map((c) => {
+                  if (c == null) return new NullValue();
+                  if (typeof c === "number") return new IntValue(c);
+                  return new StringValue(c);
+                });
+          let results: AbstractValue[];
+          try {
+            results = story.CallLuauFunction(replArg, callArgs);
+          } catch (e) {
+            story.Error(
+              `string.gsub: replacement function threw: ${(e as Error).message}`,
+            );
+            return new MultiValue([new StringValue(input), new IntValue(0)]);
+          }
+          const top = results[0];
+          if (
+            top == null ||
+            top instanceof NullValue ||
+            (top as any).value === false
+          ) {
+            replacement = wholeMatch;
+          } else {
+            const raw = (top as any).value;
+            if (typeof raw === "string") replacement = raw;
+            else if (typeof raw === "number") replacement = String(raw);
+            else {
+              story.Error(
+                "string.gsub: replacement function must return a string, number, or nil",
+              );
+              return new MultiValue([
+                new StringValue(input),
+                new IntValue(0),
+              ]);
+            }
+          }
         } else {
           // Table form. Lookup key is the first capture (string-as-
           // number for position captures) or the whole match.
