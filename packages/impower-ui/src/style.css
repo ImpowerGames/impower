@@ -169,38 +169,20 @@
   --z-index-toast: 950;
   --z-index-tooltip: 1000;
 
-  /* Surface colors — bridge to runtime CSS vars for theme switching */
-  --color-bg: var(--theme-color-bg);
-  --color-fg: var(--theme-color-fg);
+  /* Surface colors — bridge to runtime CSS vars for theme switching.
+     shadcn-style naming (`bg-background`, `text-foreground`) so the
+     utility prefix and color name don't collide visually like `bg-bg`. */
+  --color-background: var(--theme-color-bg);
+  --color-foreground: var(--theme-color-fg);
   --color-surface: var(--theme-color-surface);
   --color-surface-border: var(--theme-color-surface-border);
   --color-divider: var(--theme-color-divider);
 
-  --color-fg-05: var(--theme-color-fg-05);
-  --color-fg-10: var(--theme-color-fg-10);
-  --color-fg-15: var(--theme-color-fg-15);
-  --color-fg-20: var(--theme-color-fg-20);
-  --color-fg-25: var(--theme-color-fg-25);
-  --color-fg-30: var(--theme-color-fg-30);
-  --color-fg-40: var(--theme-color-fg-40);
-  --color-fg-50: var(--theme-color-fg-50);
-  --color-fg-60: var(--theme-color-fg-60);
-  --color-fg-70: var(--theme-color-fg-70);
-  --color-fg-80: var(--theme-color-fg-80);
-  --color-fg-90: var(--theme-color-fg-90);
-
-  --color-bg-05: var(--theme-color-bg-05);
-  --color-bg-10: var(--theme-color-bg-10);
-  --color-bg-15: var(--theme-color-bg-15);
-  --color-bg-20: var(--theme-color-bg-20);
-  --color-bg-25: var(--theme-color-bg-25);
-  --color-bg-30: var(--theme-color-bg-30);
-  --color-bg-40: var(--theme-color-bg-40);
-  --color-bg-50: var(--theme-color-bg-50);
-  --color-bg-60: var(--theme-color-bg-60);
-  --color-bg-70: var(--theme-color-bg-70);
-  --color-bg-80: var(--theme-color-bg-80);
-  --color-bg-90: var(--theme-color-bg-90);
+  /* Opacity variants are handled by Tailwind v4's slash modifier:
+       text-foreground/60   →  color-mix(in oklab, var(--color-foreground) 60%, transparent)
+       bg-background/10     →  same pattern for backgrounds
+     Sparkle components still reference the runtime --theme-color-fg-50
+     etc. directly via var(), which keeps working independently. */
 
   /* Engine palette — the deep navy/slate ramp the editor chrome and
      bottom-nav use. Consolidates sparkle's scattered editor theme tokens
@@ -220,58 +202,58 @@
   --color-engine-900: hsl(210.6 100% 10%);   /* sparkle: panel */
   --color-engine-950: hsl(210.6 100% 7%);    /* sparkle: editor-bg */
 
-  /* Semantic color aliases — map onto Tailwind's stock palette
-     (sparkle's -10..-99 scale maps to Tailwind's -50..-950) */
-  --color-primary-10: var(--color-sky-50);
-  --color-primary-20: var(--color-sky-100);
-  --color-primary-30: var(--color-sky-200);
-  --color-primary-40: var(--color-sky-300);
-  --color-primary-50: var(--color-sky-400);
-  --color-primary-60: var(--color-sky-500);
-  --color-primary-70: var(--color-sky-600);
-  --color-primary-80: var(--color-sky-700);
-  --color-primary-90: var(--color-sky-800);
-  --color-primary-95: var(--color-sky-900);
-  --color-primary-99: var(--color-sky-950);
+  /* Semantic color aliases — use Tailwind's stock 50..950 palette scale
+     directly. `bg-primary-500` instead of the legacy `bg-primary-60`. */
+  --color-primary-50: var(--color-sky-50);
+  --color-primary-100: var(--color-sky-100);
+  --color-primary-200: var(--color-sky-200);
+  --color-primary-300: var(--color-sky-300);
+  --color-primary-400: var(--color-sky-400);
+  --color-primary-500: var(--color-sky-500);
+  --color-primary-600: var(--color-sky-600);
+  --color-primary-700: var(--color-sky-700);
+  --color-primary-800: var(--color-sky-800);
+  --color-primary-900: var(--color-sky-900);
+  --color-primary-950: var(--color-sky-950);
   --color-primary: var(--color-sky-400);
 
-  --color-success-10: var(--color-green-50);
-  --color-success-20: var(--color-green-100);
-  --color-success-30: var(--color-green-200);
-  --color-success-40: var(--color-green-300);
-  --color-success-50: var(--color-green-400);
-  --color-success-60: var(--color-green-500);
-  --color-success-70: var(--color-green-600);
-  --color-success-80: var(--color-green-700);
-  --color-success-90: var(--color-green-800);
-  --color-success-95: var(--color-green-900);
-  --color-success-99: var(--color-green-950);
+  --color-success-50: var(--color-green-50);
+  --color-success-100: var(--color-green-100);
+  --color-success-200: var(--color-green-200);
+  --color-success-300: var(--color-green-300);
+  --color-success-400: var(--color-green-400);
+  --color-success-500: var(--color-green-500);
+  --color-success-600: var(--color-green-600);
+  --color-success-700: var(--color-green-700);
+  --color-success-800: var(--color-green-800);
+  --color-success-900: var(--color-green-900);
+  --color-success-950: var(--color-green-950);
   --color-success: var(--color-green-400);
 
-  --color-warning-10: var(--color-amber-50);
-  --color-warning-20: var(--color-amber-100);
-  --color-warning-30: var(--color-amber-200);
-  --color-warning-40: var(--color-amber-300);
-  --color-warning-50: var(--color-amber-400);
-  --color-warning-60: var(--color-amber-500);
-  --color-warning-70: var(--color-amber-600);
-  --color-warning-80: var(--color-amber-700);
-  --color-warning-90: var(--color-amber-800);
-  --color-warning-95: var(--color-amber-900);
-  --color-warning-99: var(--color-amber-950);
+  --color-warning-50: var(--color-amber-50);
+  --color-warning-100: var(--color-amber-100);
+  --color-warning-200: var(--color-amber-200);
+  --color-warning-300: var(--color-amber-300);
+  --color-warning-400: var(--color-amber-400);
+  --color-warning-500: var(--color-amber-500);
+  --color-warning-600: var(--color-amber-600);
+  --color-warning-700: var(--color-amber-700);
+  --color-warning-800: var(--color-amber-800);
+  --color-warning-900: var(--color-amber-900);
+  --color-warning-950: var(--color-amber-950);
   --color-warning: var(--color-amber-400);
 
-  --color-danger-10: var(--color-red-50);
-  --color-danger-20: var(--color-red-100);
-  --color-danger-30: var(--color-red-200);
-  --color-danger-40: var(--color-red-300);
-  --color-danger-50: var(--color-red-400);
-  --color-danger-60: var(--color-red-500);
-  --color-danger-70: var(--color-red-600);
-  --color-danger-80: var(--color-red-700);
-  --color-danger-90: var(--color-red-800);
-  --color-danger-95: var(--color-red-900);
-  --color-danger-99: var(--color-red-950);
+  --color-danger-50: var(--color-red-50);
+  --color-danger-100: var(--color-red-100);
+  --color-danger-200: var(--color-red-200);
+  --color-danger-300: var(--color-red-300);
+  --color-danger-400: var(--color-red-400);
+  --color-danger-500: var(--color-red-500);
+  --color-danger-600: var(--color-red-600);
+  --color-danger-700: var(--color-red-700);
+  --color-danger-800: var(--color-red-800);
+  --color-danger-900: var(--color-red-900);
+  --color-danger-950: var(--color-red-950);
   --color-danger: var(--color-red-400);
 }
 

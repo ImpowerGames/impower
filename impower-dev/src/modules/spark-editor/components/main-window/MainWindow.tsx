@@ -165,7 +165,7 @@ export default function MainWindow(_props: MainWindowProps) {
       {/* @ts-expect-error legacy custom element */}
       <se-notifications />
       <div
-        class="relative flex-none h-[60px] border-t border-fg-10 bg-engine-800 text-fg [&>*]:h-full"
+        class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full"
       >
         <Tabs value={pane} onChange={onPaneChange} indicator="none">
           <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>

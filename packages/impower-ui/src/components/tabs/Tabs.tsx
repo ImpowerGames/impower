@@ -111,9 +111,9 @@ export function Tab({
   const ctx = useContext(TabsContext);
   // Active text color depends on indicator style:
   //   - "underline" → text-primary (matches the bar, shadcn pattern)
-  //   - "none"      → text-fg (sparkle's brightness-only shift)
+  //   - "none"      → text-foreground (sparkle's brightness-only shift)
   const activeColorClass =
-    ctx.indicator === "underline" ? "text-primary" : "text-fg";
+    ctx.indicator === "underline" ? "text-primary" : "text-foreground";
   return (
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
       {/* Radix injects data-state="active"|"inactive" on the rendered element.
@@ -145,10 +145,10 @@ export function Tab({
         {(icon || activeIcon) && (
           <span class="relative inline-flex size-[21px] items-center justify-center">
             {/* Inactive icon copy — visible by default, fades out on active.
-                Color brightens on hover via text-fg (color transition is OK
+                Color brightens on hover via text-foreground (color transition is OK
                 on the main thread; hover doesn't trigger heavy mounts). */}
             {icon ? (
-              <span class="absolute inset-0 text-fg-60 group-hover:text-fg group-data-[state=active]:opacity-0 transition-opacity duration-100">
+              <span class="absolute inset-0 text-foreground/60 group-hover:text-foreground group-data-[state=active]:opacity-0 transition-opacity duration-100">
                 {(() => {
                   const Inactive = icon;
                   return <Inactive class="size-[21px]" />;
@@ -177,7 +177,7 @@ export function Tab({
             transition survives a heavy mount, same as the icons. */}
         <span class="relative inline-block leading-none scale-80 group-data-[state=active]:scale-90 transition-transform duration-100">
           {/* Inactive label copy — takes layout space, fades out on active. */}
-          <span class="text-fg-60 group-hover:text-fg group-data-[state=active]:opacity-0 transition-opacity duration-100">
+          <span class="text-foreground/60 group-hover:text-foreground group-data-[state=active]:opacity-0 transition-opacity duration-100">
             {children}
           </span>
           {/* Active label copy — overlaid, fades in on active. Using opacity
