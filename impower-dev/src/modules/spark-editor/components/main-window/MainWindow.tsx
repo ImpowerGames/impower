@@ -9,7 +9,7 @@ import {
   Tab,
   Tabs,
 } from "@impower/impower-ui/components";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { startTransition } from "preact/compat";
 import workspace from "../../workspace/WorkspaceStore";
 import HeaderNavigation from "../header-navigation/HeaderNavigation";
@@ -84,7 +84,12 @@ export default function MainWindow(_props: MainWindowProps) {
   const [previewActive, setPreviewActive] = useState<"start" | "end">("start");
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  // useLayoutEffect (not useEffect) — Tailwind has to land in the shadow
+  // root BEFORE the browser paints MainWindow's first render. With useEffect
+  // there's one frame where the shadow tree has Preact's just-rendered DOM
+  // but no Tailwind to style it, producing a visible "snap from unstyled
+  // to styled" flash on every hydration.
+  useLayoutEffect(() => {
     const root = rootRef.current?.getRootNode?.();
     if (root instanceof ShadowRoot) {
       const dispose = adoptImpowerUiStyles(root);
