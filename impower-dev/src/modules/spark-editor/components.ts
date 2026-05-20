@@ -35,9 +35,6 @@ import PreviewGame from "./components/preview-game/_preview-game";
 import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/_preview-screenplay-toolbar";
 import PreviewScreenplay from "./components/preview-screenplay/_preview-screenplay";
 import Scrollable from "./components/scrollable/_scrollable";
-import ShareGame from "./components/share-game/_share-game";
-import ShareScreenplay from "./components/share-screenplay/_share-screenplay";
-import Share from "./components/share/_share";
 import Main from "./main/_spark-editor";
 import editorNormalize from "./styles/normalize/normalize.css";
 import editorTheme from "./styles/theme/theme.css";
@@ -95,9 +92,6 @@ const components = [
   style(LogicScriptsList),
   style(LogicList),
   style(Logic),
-  style(Share),
-  style(ShareGame),
-  style(ShareScreenplay),
   style(Notifications),
   style(Account),
   style(HeaderSyncConflictToolbar),

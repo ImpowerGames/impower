@@ -2,6 +2,7 @@ import { SparkdownScreenplayPreviewElement } from "@impower/sparkdown-document-v
 import { MainWindowElement } from "./components/main-window/MainWindow.elem";
 import { PreviewElement } from "./components/preview/Preview.elem";
 import { PreviewToggleButtonElement } from "./components/preview-toggle-button/PreviewToggleButton.elem";
+import { ShareElement } from "./components/share/Share.elem";
 import {
   DefineOptions,
   adoptAll,
@@ -40,9 +41,6 @@ import PreviewGame from "./components/preview-game/preview-game";
 import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/preview-screenplay-toolbar";
 import PreviewScreenplay from "./components/preview-screenplay/preview-screenplay";
 import Scrollable from "./components/scrollable/scrollable";
-import ShareGame from "./components/share-game/share-game";
-import ShareScreenplay from "./components/share-screenplay/share-screenplay";
-import Share from "./components/share/share";
 import Main from "./main/spark-editor";
 import editorIcons from "./styles/icons/icons.css";
 import editorTheme from "./styles/theme/theme.css";
@@ -69,9 +67,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   LogicList,
   Logic,
   Audio,
-  Share,
-  ShareGame,
-  ShareScreenplay,
   Demo,
   PreviewGameToolbar,
   PreviewGame,
@@ -113,6 +108,7 @@ export default abstract class SparkEditor {
     await MainWindowElement.register();
     await PreviewElement.register();
     await PreviewToggleButtonElement.register();
+    await ShareElement.register();
     return defineAll(constructors, options);
   }
 }

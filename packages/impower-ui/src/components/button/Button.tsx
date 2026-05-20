@@ -22,8 +22,14 @@ export const buttonVariants = cva(
           "bg-primary text-background hover:bg-primary-500 active:bg-primary-600",
         secondary:
           "bg-engine-700 text-foreground hover:bg-engine-600 active:bg-engine-800",
+        // `border-solid` re-asserts the border-style — sparkle's normalize.css
+        // ships `* { border: none }` which leaks into shadow:false light-DOM
+        // and zeros out border-width if we only set color via Tailwind. Same
+        // story for `bg-transparent` + Tailwind utilities being undone by the
+        // normalize reset; sticking with explicit `border-solid border-1` is
+        // the workaround.
         outline:
-          "border border-foreground/20 bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/10",
+          "border-solid border border-foreground/30 bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/10",
         ghost:
           "bg-transparent text-foreground hover:bg-foreground/10 active:bg-foreground/15",
         link: "bg-transparent text-primary underline-offset-4 hover:underline h-auto px-0 py-0",

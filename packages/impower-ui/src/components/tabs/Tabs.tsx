@@ -33,7 +33,7 @@ const tabsList = cva("flex w-full", {
 const tabTrigger = cva(
   [
     "group relative flex flex-1 items-center justify-center",
-    "gap-x-2 gap-y-0.5 px-5 py-4 text-sm font-semibold select-none",
+    "gap-x-2 gap-y-0.5 px-5 text-sm font-semibold select-none",
     "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
   ],
   {
@@ -46,34 +46,61 @@ const tabTrigger = cva(
         horizontal: "",
         vertical: "w-full",
       },
+      iconLayout: {
+        // Icon stacked above the label (bottom-nav style). py-4 matches
+        // sparkle's bottom-nav padding (16px top/bottom, 20px left/right);
+        // height comes out to 60px with icon=21px + label scaled-down.
+        above: "flex-col py-4",
+        // Icon to the left of the label (page sub-tab style, e.g. share
+        // pane's Game/Screenplay top tabs). Sparkle's s-tab in row mode is
+        // height-fixed at panel-nav (48px) via `--_height: 48px` and centers
+        // content with flex justify+align — vertical padding is 0. Setting
+        // h-12 (48px) and not adding py-* matches main's geometry exactly.
+        beside: "flex-row h-12",
+      },
     },
     compoundVariants: [
+      // Underline indicator uses `bg-foreground` (near-white) to match
+      // impower.dev's design, not the shadcn convention of bg-primary
+      // (which is sky-blue — too saturated against the dark editor chrome).
       {
         indicator: "underline",
         orientation: "horizontal",
         class:
-          "data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary",
+          "data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground",
       },
       {
         indicator: "underline",
         orientation: "vertical",
         class:
-          "data-[state=active]:after:absolute data-[state=active]:after:right-0 data-[state=active]:after:top-0 data-[state=active]:after:bottom-0 data-[state=active]:after:w-0.5 data-[state=active]:after:bg-primary",
+          "data-[state=active]:after:absolute data-[state=active]:after:right-0 data-[state=active]:after:top-0 data-[state=active]:after:bottom-0 data-[state=active]:after:w-0.5 data-[state=active]:after:bg-foreground",
       },
     ],
-    defaultVariants: { indicator: "underline", orientation: "horizontal" },
+    defaultVariants: {
+      indicator: "underline",
+      orientation: "horizontal",
+      iconLayout: "above",
+    },
   },
 );
 
-// Surface knobs that don't live on RadixTabs.Root (indicator style, vertical).
-// Tab uses these via context to render its underline + label layout.
+// Surface knobs that don't live on RadixTabs.Root (indicator style, vertical,
+// icon/label layout). Tab uses these via context to render its underline +
+// label layout.
 type TabsContextValue = {
   indicator: "underline" | "none";
   vertical: boolean;
+  iconLayout: "above" | "beside";
+  // px size for the icon overlay box. `beside` defaults to 16, `above`
+  // defaults to 21 — sparkle's s-tab uses different icon sizes in row vs
+  // column mode and we mirror them.
+  iconSize: number;
 };
 const TabsContext = createContext<TabsContextValue>({
   indicator: "underline",
   vertical: false,
+  iconLayout: "above",
+  iconSize: 21,
 });
 
 export type TabsProps = {
@@ -85,6 +112,12 @@ export type TabsProps = {
   indicator?: "underline" | "none";
   /** Stack tabs vertically instead of in a row. */
   vertical?: boolean;
+  /**
+   * Icon position relative to the label inside each Tab.
+   * - `above` (default): icon-on-top + label-below (bottom-nav style)
+   * - `beside`: icon-on-left + label-right (page sub-tab style)
+   */
+  iconLayout?: "above" | "beside";
   /** Tailwind classes for the tablist container. */
   class?: string;
   containerRef?: Ref<HTMLDivElement>;
@@ -105,12 +138,19 @@ export default function Tabs({
   onChange,
   indicator = "underline",
   vertical = false,
+  iconLayout = "above",
   class: className,
   containerRef,
   children,
 }: TabsProps) {
+  // Icon size depends on layout — sparkle uses 21px for column (bottom-nav)
+  // and 16px for row (sub-tabs). Match them so the port lines up pixel-
+  // identical against main.
+  const iconSize = iconLayout === "above" ? 21 : 16;
   return (
-    <TabsContext.Provider value={{ indicator, vertical }}>
+    <TabsContext.Provider
+      value={{ indicator, vertical, iconLayout, iconSize }}
+    >
       <RadixTabs.Root
         value={value ?? undefined}
         onValueChange={onChange}
@@ -167,11 +207,11 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
-  // Active text color depends on indicator style:
-  //   - "underline" → text-primary (matches the bar, shadcn pattern)
-  //   - "none"      → text-foreground (sparkle's brightness-only shift)
-  const activeColorClass =
-    ctx.indicator === "underline" ? "text-primary" : "text-foreground";
+  // Active icon/label color — always `text-foreground` (near-white). Matches
+  // impower.dev's design (active s-tab uses rgb(242, 242, 242) regardless of
+  // indicator style). Don't switch to `text-primary` for the underline
+  // variant — that's a shadcn convention that doesn't apply here.
+  const activeColorClass = "text-foreground";
   return (
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
       {/* Radix injects data-state="active"|"inactive" on the rendered element.
@@ -187,12 +227,16 @@ export function Tab({
           tabTrigger({
             indicator: ctx.indicator,
             orientation: ctx.vertical ? "vertical" : "horizontal",
+            iconLayout: ctx.iconLayout,
           }),
           className,
         )}
       >
         {(icon || activeIcon) && (
-          <span class="relative inline-flex size-[21px] items-center justify-center">
+          <span
+            class="relative inline-flex items-center justify-center"
+            style={{ width: `${ctx.iconSize}px`, height: `${ctx.iconSize}px` }}
+          >
             {/* Inactive icon copy — visible by default, fades out on active.
                 Color brightens on hover via text-foreground (color transition is OK
                 on the main thread; hover doesn't trigger heavy mounts). */}
@@ -200,7 +244,14 @@ export function Tab({
               <span class="absolute inset-0 text-engine-500 group-hover:text-foreground group-data-[state=active]:opacity-0 transition-opacity duration-100">
                 {(() => {
                   const Inactive = icon;
-                  return <Inactive class="size-[21px]" />;
+                  return (
+                    <Inactive
+                      style={{
+                        width: `${ctx.iconSize}px`,
+                        height: `${ctx.iconSize}px`,
+                      }}
+                    />
+                  );
                 })()}
               </span>
             ) : null}
@@ -214,17 +265,32 @@ export function Tab({
               >
                 {(() => {
                   const Active = activeIcon ?? icon!;
-                  return <Active class="size-[21px]" />;
+                  return (
+                    <Active
+                      style={{
+                        width: `${ctx.iconSize}px`,
+                        height: `${ctx.iconSize}px`,
+                      }}
+                    />
+                  );
                 })()}
               </span>
             ) : null}
           </span>
         )}
-        {/* sparkle's s-tab scaled the label 0.8 → 0.9 on activation. We
-            mirror those exact ratios so the bottom-nav label sizes match
-            main pixel-for-pixel. Transform runs on the compositor so this
-            transition survives a heavy mount, same as the icons. */}
-        <span class="relative inline-block leading-none scale-80 group-data-[state=active]:scale-90 transition-transform duration-100">
+        {/* sparkle's s-tab scaled the label 0.8 → 0.9 on activation ONLY in
+            column mode (bottom-nav) — row mode (top sub-tabs) renders the
+            label at 1.0× always. Mirror that so the bottom-nav label sizes
+            match main pixel-for-pixel without shrinking top-tab labels.
+            Transform runs on the compositor so this transition survives a
+            heavy mount, same as the icons. */}
+        <span
+          class={cn(
+            "relative inline-block leading-none transition-transform duration-100",
+            ctx.iconLayout === "above" &&
+              "scale-80 group-data-[state=active]:scale-90",
+          )}
+        >
           {/* Inactive label copy — takes layout space, fades out on active. */}
           <span class="text-engine-500 group-hover:text-foreground group-data-[state=active]:opacity-0 transition-opacity duration-100">
             {children}
