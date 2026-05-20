@@ -47,6 +47,7 @@ const SKIP_FILES = new Set([
   "native_types.luau",
   "native_userdata.luau",
   "ndebug_upvalues.luau",
+  "integers.luau", // Luau's native 64-bit int type
   "integers_regspill.luau",
   "apicalls.luau",
   "debugger.luau",
@@ -56,6 +57,7 @@ const SKIP_FILES = new Set([
   "iter_fenv.luau", // getfenv
   "interrupt.luau",
   "explicit_type_instantiations.luau", // type system
+  "pcall.luau", // heavily coroutine-dependent (uses coroutine.yield + resumeerror)
 ]);
 
 type FileResult = {

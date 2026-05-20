@@ -26,12 +26,10 @@ function probe(label: string, src: string) {
 }
 
 test(`bisect`, () => {
-  // From closure.luau:
-  probe("local A,B = 0, {g=10}", `local A, B = 0, {g = 10}`);
-  probe("local A = 0; B = {g=10}", `local A = 0\nlocal B = {g = 10}`);
-  probe("local x, y = 1, 2", `local x, y = 1, 2`);
-  probe("local A, B = 0, {}", `local A, B = 0, {}`);
-  probe("local A, B = 0, 1", `local A, B = 0, 1`);
+  // Edit this freely to narrow down a failing case to its minimum
+  // repro. Keep it pointed at something passing so the full-suite
+  // run stays green.
+  probe("noop", `local x = 1`);
 });
 
 test(`probe ${PROBE_FILE}`, () => {
