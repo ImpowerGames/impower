@@ -700,7 +700,7 @@ function lowerAnonymousFunction(
   return buildClosureExpression(synthName, upvals, userArity);
 }
 
-function scanFreeVariables(
+export function scanFreeVariables(
   fnDef: SyntaxNode,
   ctx: LowerContext,
 ): string[] {
@@ -717,6 +717,21 @@ function scanFreeVariables(
     if (n.name === "LuauVariableDefinition") {
       const ids = collectVarDefIdentifiers(n, ctx);
       for (const id of ids) bound.add(id);
+      return;
+    }
+    // Nested `function name() ... end` declarations bind `name` in
+    // the enclosing scope (same as `local name = function() ... end`
+    // since `lowerLuauFunctionDefinition` desugars nested forms to
+    // local closures). Treat the declared name as locally bound so
+    // the scanner doesn't capture it as an upvalue. Also bind the
+    // names of nested function parameters? — no, those are scoped
+    // to the nested function's body, not visible here.
+    if (n.name === "LuauFunctionDefinition") {
+      const declName = getDescendent("LuauFunctionDeclarationName", n);
+      if (declName) {
+        const nameNode = getDescendent("LuauFunctionName", declName);
+        if (nameNode) bound.add(ctx.read(nameNode.from, nameNode.to));
+      }
     }
   });
   // Collect referenced names (excluding stdlib, excluding bound).
@@ -737,6 +752,38 @@ function scanFreeVariables(
     }
   });
   return free;
+}
+
+// Returns true iff `name` appears as a function-call callee anywhere
+// inside `fnDef`'s body. Used by `lowerLuauFunctionDefinition` to
+// detect `local function f() ... f() ... end` — Lua's syntactic
+// sugar that hoists the local so the body can self-reference. When
+// true, we capture `f` as a closure upvalue and emit `local f` BEFORE
+// assigning the closure value, so the upval pointer resolves to the
+// live closure once it's written.
+//
+// Narrower than treating every `LuauFunctionCall` callee as a free
+// variable, which would over-capture externals and top-level knot
+// names (those are global identifiers, not closure upvals).
+export function bodyReferencesNameAsCall(
+  fnDef: SyntaxNode,
+  ctx: LowerContext,
+  name: string,
+): boolean {
+  const bodyContent = getFunctionBodyContent(fnDef);
+  if (!bodyContent) return false;
+  let found = false;
+  walkAndCollect(bodyContent, (n) => {
+    if (found) return;
+    if (n.name === "LuauFunctionCall") {
+      const nameNode = getDescendent("LuauFunctionName", n);
+      if (!nameNode) return;
+      if (ctx.read(nameNode.from, nameNode.to) === name) {
+        found = true;
+      }
+    }
+  });
+  return found;
 }
 
 function walkAndCollect(
@@ -821,7 +868,7 @@ function isStdLibName(name: string): boolean {
   return STDLIB_NAMES_FOR_FREE_VAR_SCAN.has(name);
 }
 
-function countUserParameters(
+export function countUserParameters(
   fnDef: SyntaxNode,
   ctx: LowerContext,
 ): number {
@@ -848,7 +895,7 @@ function countUserParameters(
 // `VariablePointerValue` (dedup happens at auto-resolve time), so
 // mutations made by one closure are visible to the others — both
 // while the parent is alive and after it has closed.
-function buildClosureExpression(
+export function buildClosureExpression(
   synthName: string,
   upvals: string[],
   userArity: number,
@@ -896,7 +943,7 @@ const ANON_FUNCTION_BODY_SKIP: ReadonlySet<string> = new Set([
 // Anonymous fns that themselves contain nested anonymous fns are
 // supported: we open a per-function scope buffer for the duration of
 // body lowering and attach any nested callables as subFlows.
-function buildAnonymousFunction(
+export function buildAnonymousFunction(
   node: SyntaxNode,
   name: string,
   ctx: LowerContext,

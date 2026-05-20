@@ -26,10 +26,21 @@ function probe(label: string, src: string) {
 }
 
 test(`bisect`, () => {
-  // Edit freely to narrow a failing fixture's minimum repro. Keep
-  // pointed at something passing so this file stays green in the
-  // full-suite run.
-  probe("noop", `local x = 1`);
+  probe("nested fn closure",
+    `local counter = 0
+local function add(n)
+  counter = counter + n
+  return counter
+end
+add(5)
+add(3)
+assert(counter == 8, "expected 8, got " .. tostring(counter))`);
+  probe("nested fn self-recurse",
+    `local function fact(n)
+  if n <= 1 then return 1 end
+  return n * fact(n - 1)
+end
+assert(fact(5) == 120)`);
 });
 
 test(`probe ${PROBE_FILE}`, () => {
