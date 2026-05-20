@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { startTransition } from "preact/compat";
 import { Workspace } from "../../workspace/Workspace";
 import workspace from "../../workspace/WorkspaceStore";
+import HeaderNavigation from "../header-navigation/HeaderNavigation";
 
 // Vite injects impower-ui's Tailwind output into document.head as <style
 // data-vite-dev-id="...impower-ui/src/style.css">. <spark-editor> uses shadow
@@ -137,8 +138,7 @@ export default function MainWindow(_props: MainWindowProps) {
       ref={rootRef}
     >
       <style>{STYLE}</style>
-      {/* @ts-expect-error legacy custom element */}
-      <se-header-navigation />
+      <HeaderNavigation />
       <div class="relative flex flex-auto min-h-0">
         <SplitPane
           activePanel={previewActive}
