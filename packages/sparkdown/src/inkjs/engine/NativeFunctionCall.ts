@@ -595,6 +595,24 @@ export class NativeFunctionCall extends InkObject {
       this.AddStringBinaryOp(this.Add, (x, y) => x + y); // concat
       this.AddStringBinaryOp(this.Equal, (x, y) => x === y);
       this.AddStringBinaryOp(this.NotEquals, (x, y) => !(x === y));
+
+      // Object (table) equality — Lua semantics: reference equality on
+      // the underlying Map. Two ObjectValues with identical content
+      // but distinct map objects are NOT equal. Without these
+      // registrations, `t1 == t2` throws "Cannot perform operation
+      // == on Object" at runtime.
+      this.AddOpToNativeFunc(
+        this.Equal,
+        2,
+        ValueType.Object,
+        (x: Map<string, any>, y: Map<string, any>) => x === y,
+      );
+      this.AddOpToNativeFunc(
+        this.NotEquals,
+        2,
+        ValueType.Object,
+        (x: Map<string, any>, y: Map<string, any>) => x !== y,
+      );
       // String containment is now via `s:find(sub)` (returns 1-based
       // position or nil) — no `has`/`hasnt` operator registration.
 
