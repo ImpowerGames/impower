@@ -651,3 +651,181 @@ end
     expect(recorded).toEqual([1, "x", 2, "y", "nil-after-end"]);
   });
 });
+
+describe("string.format", () => {
+  test("%d / %i — integers", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(string.format("%d", 42))
+host_record(string.format("%d", -7))
+host_record(string.format("%05d", 42))
+host_record(string.format("%-5d|", 42))
+host_record(string.format("%+d", 42))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["42", "-7", "00042", "42   |", "+42"]);
+  });
+
+  test("%s — strings, with precision-as-max-length", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(string.format("%s", "hello"))
+host_record(string.format("%.3s", "abcdef"))
+host_record(string.format("[%10s]", "hi"))
+host_record(string.format("[%-10s]", "hi"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["hello", "abc", "[        hi]", "[hi        ]"]);
+  });
+
+  test("%f / %.Nf — floats", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(string.format("%f", 3.14159))
+host_record(string.format("%.2f", 3.14159))
+host_record(string.format("%.0f", 3.7))
+host_record(string.format("%8.2f", 3.14159))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["3.141590", "3.14", "4", "    3.14"]);
+  });
+
+  test("%x / %X / %o — bases", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(string.format("%x", 255))
+host_record(string.format("%X", 255))
+host_record(string.format("%#x", 255))
+host_record(string.format("%o", 8))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["ff", "FF", "0xff", "10"]);
+  });
+
+  test("%% — literal percent", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(string.format("100%% done"))
+host_record(string.format("%d%%", 42))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["100% done", "42%"]);
+  });
+
+  test("multi-arg format string", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(string.format("%s = %d", "score", 100))
+host_record(string.format("(%d, %d)", 3, 4))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["score = 100", "(3, 4)"]);
+  });
+});
+
+describe("string.split / contains / startswith / endswith", () => {
+  test("string.split on a separator", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local parts = string.split("a,b,c", ",")
+host_record(parts[1])
+host_record(parts[2])
+host_record(parts[3])
+host_record(table.getn(parts))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["a", "b", "c", 3]);
+  });
+
+  test("string.split with empty separator splits into characters", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local chars = string.split("xyz", "")
+host_record(table.concat(chars, "|"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["x|y|z"]);
+  });
+
+  test("string.contains / startswith / endswith", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(string.contains("hello world", "lo wo"))
+host_record(string.contains("hello", "xyz"))
+host_record(string.startswith("filename.txt", "file"))
+host_record(string.startswith("filename.txt", "name"))
+host_record(string.endswith("filename.txt", ".txt"))
+host_record(string.endswith("filename.txt", ".sd"))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([true, false, true, false, true, false]);
+  });
+});
+
+describe("string.trim / trimstart / trimend", () => {
+  test("string.trim strips leading and trailing whitespace", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(string.trim("   hello   "))
+host_record(string.trim("\\t\\nworld\\n "))
+host_record(string.trim("no-whitespace"))
+host_record(string.trim(""))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["hello", "world", "no-whitespace", ""]);
+  });
+
+  test("string.trimstart / trimend strip only one side", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(string.trimstart("   hello   "))
+host_record(string.trimend("   hello   "))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["hello   ", "   hello"]);
+  });
+});

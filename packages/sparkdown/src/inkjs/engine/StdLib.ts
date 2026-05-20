@@ -56,22 +56,37 @@ export type StdLibFn = NumericUnary | NumericBinary;
 // generic dispatcher passes them the `story` reference.
 export type StateAwareStdLibFn = (story: any, args: any[]) => any | undefined;
 
+/**
+ * Operand types that a `pure` stdlib entry can be registered for in
+ * `NativeFunctionCall`. Names match Lua's `type()` return values
+ * (`"number"`, `"string"`, ...) — `"number"` covers both Int and
+ * Float `ValueType`s under the hood, hiding the JS-side numeric split
+ * the way Lua does.
+ */
+export type PureStdLibType = "number" | "string";
+
 export interface StdLibEntry {
   /** Number of stack values to pop before calling `fn`. */
   arity: number;
   /**
-   * Pure entries (`pure: true`) ignore the `story` arg, take + return
-   * raw JS numbers, and get auto-registered with `NativeFunctionCall`
-   * at engine init — preserving the type-coercion fast path for math
-   * ops. Non-pure entries (`pure` omitted / false) route through the
-   * generic `RunStdLibFunction` dispatcher in Story.ts.
+   * Pure entries ignore the `story` arg, take + return raw JS values,
+   * and get auto-registered with `NativeFunctionCall` at engine init
+   * — preserving the type-coercion fast path. Non-pure entries
+   * (`pure` omitted / false) route through the generic
+   * `RunStdLibFunction` dispatcher in Story.ts.
+   *
+   * - `pure: true` is shorthand for `pure: ["number"]` (the classic
+   *   numeric fast path used by `math.*`).
+   * - `pure: ["string"]` registers a String-typed op (used by
+   *   substring predicates like `string.contains`).
+   * - `pure: ["number", "string"]` registers both.
    *
    * The dispatch decision happens in `FunctionCall.GenerateIntoContainer`:
    * pure entries fall through to the existing `NativeFunctionCall`
    * branch (because they're registered there); non-pure entries match
    * `isStateAwareStdLib` and emit `RunStdLibFunction`.
    */
-  pure?: boolean;
+  pure?: boolean | PureStdLibType[];
   /**
    * Implementation. Receives popped args in source order (arg 0 first,
    * arg 1 second, …) — the runtime handler reverses the pop order so
@@ -176,6 +191,183 @@ export function isTruthy(v: any): boolean {
     return false;
   }
   return true;
+}
+
+/**
+ * Lua's printf-style `string.format(fmt, ...)`. Supports the
+ * conversion types `d i u o x X e E f g G c s q %`, the flags
+ * `- + space 0 #`, optional width, and optional precision `.N`.
+ *
+ * Lua's semantics for the conversion types:
+ *   `%d %i %u` — integer; precision = minimum digits (zero-padded).
+ *   `%o` — octal; `#` flag prepends `0`.
+ *   `%x %X` — hex (lower/upper); `#` flag prepends `0x` / `0X`.
+ *   `%e %E` — scientific; precision = digits after decimal.
+ *   `%f` — fixed-point; precision = digits after decimal (default 6).
+ *   `%g %G` — shortest of f/e.
+ *   `%c` — character from integer codepoint.
+ *   `%s` — string (precision = max chars).
+ *   `%q` — Lua-style quoted string (escape `"` `\\` and control chars).
+ *   `%%` — literal `%`.
+ *
+ * Errors (non-numeric arg for numeric conversion, etc.) route
+ * through `story.Error`; the function returns the partial result
+ * accumulated so far so the caller still gets a string back.
+ */
+function formatLuaString(story: any, fmt: string, args: any[]): string {
+  const SPEC =
+    /%([-+ 0#]*)(\d+)?(?:\.(\d+))?([diouxXeEfgGcsq%])/g;
+  let out = "";
+  let lastIndex = 0;
+  let argIdx = 0;
+  let match: RegExpExecArray | null;
+  SPEC.lastIndex = 0;
+  while ((match = SPEC.exec(fmt)) !== null) {
+    out += fmt.slice(lastIndex, match.index);
+    lastIndex = SPEC.lastIndex;
+    const [, flagsStr, widthStr, precisionStr, type] = match;
+    if (type === "%") {
+      out += "%";
+      continue;
+    }
+    const flags = new Set((flagsStr ?? "").split(""));
+    const width = widthStr ? parseInt(widthStr, 10) : 0;
+    const precision = precisionStr != null ? parseInt(precisionStr, 10) : null;
+    const arg = args[argIdx++];
+    let formatted: string;
+    try {
+      formatted = formatOneSpec(arg, type!, flags, precision);
+    } catch (e) {
+      story.Error(
+        `string.format: ${(e as Error).message ?? String(e)} (for "%${type}")`,
+      );
+      formatted = "";
+    }
+    if (width > formatted.length) {
+      if (flags.has("-")) {
+        formatted = formatted.padEnd(width, " ");
+      } else if (flags.has("0") && /[diouxXeEfgG]/.test(type!)) {
+        // Zero-pad goes INSIDE the sign for numeric specifiers.
+        const signMatch = /^[-+ ]/.exec(formatted);
+        if (signMatch) {
+          formatted =
+            signMatch[0] +
+            formatted
+              .slice(signMatch[0].length)
+              .padStart(width - signMatch[0].length, "0");
+        } else {
+          formatted = formatted.padStart(width, "0");
+        }
+      } else {
+        formatted = formatted.padStart(width, " ");
+      }
+    }
+    out += formatted;
+  }
+  out += fmt.slice(lastIndex);
+  return out;
+}
+
+function formatOneSpec(
+  arg: any,
+  type: string,
+  flags: Set<string>,
+  precision: number | null,
+): string {
+  const signPrefix = (n: number): string => {
+    if (n < 0) return "";
+    if (flags.has("+")) return "+";
+    if (flags.has(" ")) return " ";
+    return "";
+  };
+  const numericArg = (): number => {
+    const n = coerceNumber(arg);
+    if (n === null) {
+      throw new Error("expected a number");
+    }
+    return n;
+  };
+  switch (type) {
+    case "d":
+    case "i": {
+      const n = Math.trunc(numericArg());
+      const abs = Math.abs(n);
+      let body = String(abs);
+      if (precision !== null) body = body.padStart(precision, "0");
+      return (n < 0 ? "-" : signPrefix(n)) + body;
+    }
+    case "u": {
+      const n = numericArg();
+      const u = (Math.trunc(n) >>> 0).toString();
+      return precision !== null ? u.padStart(precision, "0") : u;
+    }
+    case "o": {
+      const n = numericArg();
+      let body = (Math.trunc(n) >>> 0).toString(8);
+      if (precision !== null) body = body.padStart(precision, "0");
+      if (flags.has("#") && !body.startsWith("0")) body = "0" + body;
+      return body;
+    }
+    case "x":
+    case "X": {
+      const n = numericArg();
+      let body = (Math.trunc(n) >>> 0).toString(16);
+      if (type === "X") body = body.toUpperCase();
+      if (precision !== null) body = body.padStart(precision, "0");
+      if (flags.has("#")) body = (type === "X" ? "0X" : "0x") + body;
+      return body;
+    }
+    case "e":
+    case "E": {
+      const n = numericArg();
+      const p = precision ?? 6;
+      let body = Math.abs(n).toExponential(p);
+      // JS uses `e+5` / `e-5`; Lua uses `e+05` / `e-05` (2-digit exponent).
+      body = body.replace(/e([+-])(\d)$/, "e$10$2");
+      if (type === "E") body = body.toUpperCase();
+      return (n < 0 ? "-" : signPrefix(n)) + body;
+    }
+    case "f": {
+      const n = numericArg();
+      const p = precision ?? 6;
+      const body = Math.abs(n).toFixed(p);
+      return (n < 0 ? "-" : signPrefix(n)) + body;
+    }
+    case "g":
+    case "G": {
+      const n = numericArg();
+      const p = precision ?? 6;
+      let body = Math.abs(n).toPrecision(Math.max(1, p));
+      // toPrecision can return scientific notation; normalize "e" case.
+      if (type === "G") body = body.toUpperCase();
+      return (n < 0 ? "-" : signPrefix(n)) + body;
+    }
+    case "c": {
+      const n = numericArg();
+      return String.fromCodePoint(Math.trunc(n));
+    }
+    case "s": {
+      const s = coerceString(arg) ?? (arg == null ? "nil" : String(arg));
+      return precision !== null ? s.slice(0, precision) : s;
+    }
+    case "q": {
+      const s = coerceString(arg) ?? "";
+      return (
+        '"' +
+        s.replace(/[\\"\n\r\0]/g, (c) => {
+          if (c === '"') return '\\"';
+          if (c === "\\") return "\\\\";
+          if (c === "\n") return "\\n";
+          if (c === "\r") return "\\r";
+          if (c === "\0") return "\\0";
+          return c;
+        }) +
+        '"'
+      );
+    }
+    default:
+      throw new Error(`unsupported conversion "%${type}"`);
+  }
 }
 
 /**
@@ -948,6 +1140,79 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (j < i) return "";
       return str.slice(i - 1, j);
     },
+  },
+  // `string.format(fmt, ...)` — Lua-style printf. Supports the
+  // standard conversion types `d i u o x X e E f g G c s q %` plus
+  // the modifier syntax `[flags][width][.precision]`. Flags:
+  //   `-` left-align, `+` always sign, ` ` space-prefix positive,
+  //   `0` zero-pad, `#` alt form (hex with `0x`, octal with `0`).
+  // The variadic args after `fmt` are walked positionally. Unknown
+  // specifiers and conversion errors throw via `story.Error`.
+  "string.format": {
+    arity: -1,
+    fn: (story, args) => {
+      const fmt = coerceString(args[0]) ?? "";
+      const rest = args.slice(1);
+      return formatLuaString(story, fmt, rest);
+    },
+  },
+  // `string.split(s, sep)` — Luau extension (not in Lua). Returns a
+  // 1-indexed array table of the parts of `s` split on `sep`. When
+  // `sep` is the empty string, splits into individual characters.
+  // When `sep` doesn't occur in `s`, returns a single-entry array
+  // holding `s`.
+  "string.split": {
+    arity: -1,
+    fn: (_, args) => {
+      const str = coerceString(args[0]) ?? "";
+      const sep = args.length > 1 ? (coerceString(args[1]) ?? "") : "";
+      const parts = sep === "" ? Array.from(str) : str.split(sep);
+      const map = new Map<string, AbstractValue>();
+      for (let i = 0; i < parts.length; i++) {
+        map.set(String(i + 1), new StringValue(parts[i]!));
+      }
+      return new ObjectValue(map);
+    },
+  },
+  // `string.contains(s, sub)` / `string.startswith(s, prefix)` /
+  // `string.endswith(s, suffix)` — Luau extensions. Pure substring
+  // checks (no Lua patterns). All return a boolean. Lower-case
+  // single-word names per Lua convention.
+  "string.contains": {
+    arity: 2,
+    pure: ["string"],
+    fn: (_, [s, sub]) =>
+      (coerceString(s) ?? "").includes(coerceString(sub) ?? ""),
+  },
+  "string.startswith": {
+    arity: 2,
+    pure: ["string"],
+    fn: (_, [s, prefix]) =>
+      (coerceString(s) ?? "").startsWith(coerceString(prefix) ?? ""),
+  },
+  "string.endswith": {
+    arity: 2,
+    pure: ["string"],
+    fn: (_, [s, suffix]) =>
+      (coerceString(s) ?? "").endsWith(coerceString(suffix) ?? ""),
+  },
+  // `string.trim(s)` / `string.trimstart(s)` / `string.trimend(s)` —
+  // Luau-style extensions (Lua/Luau have none). Strips ASCII + Unicode
+  // whitespace using JS `trim`/`trimStart`/`trimEnd` semantics.
+  "string.trim": {
+    arity: 1,
+    pure: ["string"],
+    fn: (_, [s]) => (coerceString(s) ?? "").trim(),
+  },
+  "string.trimstart": {
+    arity: 1,
+    pure: ["string"],
+    fn: (_, [s]) => (coerceString(s) ?? "").trimStart(),
+  },
+  "string.trimend": {
+    arity: 1,
+    pure: ["string"],
+    fn: (_, [s]) => (coerceString(s) ?? "").trimEnd(),
   },
 
   // ============================================================
@@ -1884,22 +2149,39 @@ export function lookupStdLibConstant(
 
 // Direct registry lookup for state-aware builtins. Returns the
 // registered entry (`{arity, fn}`) or `null` if the name isn't a
-// state-aware entry. Pure entries (`pure: true`) are intentionally
-// excluded here — they dispatch through `NativeFunctionCall` and the
-// generic `RunStdLibFunction` runtime handler should never receive
-// them. Used by `FunctionCall.isStateAwareStdLib` (compile-time) and
-// the generic dispatcher in Story.ts (runtime) to route only the
-// non-pure entries through the generic path.
+// state-aware entry. Pure entries are intentionally excluded — they
+// dispatch through `NativeFunctionCall` and the generic
+// `RunStdLibFunction` runtime handler should never receive them.
+// Used by `FunctionCall.isStateAwareStdLib` (compile-time) and the
+// generic dispatcher in Story.ts (runtime) to route only the non-pure
+// entries through the generic path.
 export function lookupStateAwareStdLib(name: string): StdLibEntry | null {
   const entry = STDLIB[name];
   if (entry == null || entry.pure) return null;
   return entry;
 }
 
-// Returns the entry for a pure-numeric stdlib function, or `null`
-// otherwise. Used by `NativeFunctionCall.GenerateNativeFunctionsIfNecessary`
-// at engine init to iterate the pure entries and register them with
-// the operator-style dispatch path.
-export function getPureStdLibEntries(): Array<[string, StdLibEntry]> {
-  return Object.entries(STDLIB).filter(([, entry]) => entry.pure === true);
+// Normalize an entry's `pure` field to a concrete list of operand
+// types. `pure: true` is shorthand for the classic numeric type.
+// Returns `null` for state-aware entries (so callers can use a single
+// nullish check).
+export function pureStdLibTypes(entry: StdLibEntry): PureStdLibType[] | null {
+  if (entry.pure === true) return ["number"];
+  if (Array.isArray(entry.pure) && entry.pure.length > 0) return entry.pure;
+  return null;
+}
+
+// Returns the pure entries paired with the operand-type list each
+// should be registered for. Used by
+// `NativeFunctionCall.GenerateNativeFunctionsIfNecessary` at engine
+// init to register each pure entry under every type it accepts.
+export function getPureStdLibEntries(): Array<
+  [string, StdLibEntry, PureStdLibType[]]
+> {
+  const result: Array<[string, StdLibEntry, PureStdLibType[]]> = [];
+  for (const [name, entry] of Object.entries(STDLIB)) {
+    const types = pureStdLibTypes(entry);
+    if (types) result.push([name, entry, types]);
+  }
+  return result;
 }

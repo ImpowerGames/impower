@@ -649,38 +649,47 @@ export class NativeFunctionCall extends InkObject {
         divertTargetsNotEqual,
       );
 
-      // Pure-numeric Luau stdlib (`math.floor`, `math.ceil`,
-      // `math.clamp`, `math.map`, ...). The unified STDLIB registry
-      // in `StdLib.ts` holds these as entries with `pure: true`.
-      // Adding a new pure entry there auto-registers it here. Each
-      // function is registered for both int and float operand types
-      // so the runtime's type-dispatcher resolves it regardless of
-      // how the caller's number is typed. The wrapper converts the
-      // registry's `(_, args)` signature into the operator-style
-      // calling convention (`(a)`, `(a, b)`, `(...args)` for n-ary).
-      for (const [fullName, entry] of getPureStdLibEntries()) {
-        if (entry.arity === 1) {
-          const unary: NumericUnary = (v: number) => entry.fn(null, [v]);
-          this.AddIntUnaryOp(fullName, unary);
-          this.AddFloatUnaryOp(fullName, unary);
-        } else if (entry.arity === 2) {
-          const binary: NumericBinary = (a: number, b: number) =>
-            entry.fn(null, [a, b]);
-          this.AddIntBinaryOp(fullName, binary);
-          this.AddFloatBinaryOp(fullName, binary);
-        } else if (entry.arity >= 3) {
-          const nary = (...args: number[]) => entry.fn(null, args);
-          this.AddIntNaryOp(fullName, entry.arity, nary);
-          this.AddFloatNaryOp(fullName, entry.arity, nary);
-        } else if (entry.arity === VARIADIC_ARITY) {
-          // Variadic pure-numeric (`math.max(...)`, `bit32.band(...)`,
-          // etc.). Registers a single prototype with VARIADIC_ARITY;
-          // `FunctionCall.GenerateIntoContainer` captures the call-site
-          // arg count via `CallWithName(name, args.length)` so the
-          // runtime knows how many params to pop.
-          const variadic = (...args: number[]) => entry.fn(null, args);
-          this.AddOpToNativeFunc(fullName, VARIADIC_ARITY, ValueType.Int, variadic as any);
-          this.AddOpToNativeFunc(fullName, VARIADIC_ARITY, ValueType.Float, variadic as any);
+      // Pure Luau stdlib (`math.floor`, `string.contains`, ...). The
+      // unified STDLIB registry holds these as entries with a `pure`
+      // field — either `true` (shorthand for the classic numeric pair
+      // `["Int", "Float"]`) or an explicit operand-type list like
+      // `["String"]`. Adding a new pure entry there auto-registers
+      // it here under every type the entry accepts, so the runtime's
+      // type-dispatcher resolves it regardless of how the caller's
+      // value is typed. The wrapper converts the registry's
+      // `(_, args)` signature into the operator-style calling
+      // convention (`(a)`, `(a, b)`, `(...args)` for n-ary).
+      // Lua's `type()` names → concrete `ValueType` slots to register
+      // under. `"number"` fans out to both `Int` and `Float` so callers
+      // get the same op regardless of how their numeric literal was
+      // typed; `"string"` is a single slot.
+      const PURE_TYPE_TO_VALUE_TYPES: Record<string, ValueType[]> = {
+        number: [ValueType.Int, ValueType.Float],
+        string: [ValueType.String],
+      };
+      for (const [fullName, entry, types] of getPureStdLibEntries()) {
+        const valTypes = types.flatMap(
+          (t) => PURE_TYPE_TO_VALUE_TYPES[t] ?? [],
+        );
+        for (const valType of valTypes) {
+          if (entry.arity === 1) {
+            const unary = (v: any) => entry.fn(null, [v]);
+            this.AddOpToNativeFunc(fullName, 1, valType, unary as any);
+          } else if (entry.arity === 2) {
+            const binary = (a: any, b: any) => entry.fn(null, [a, b]);
+            this.AddOpToNativeFunc(fullName, 2, valType, binary as any);
+          } else if (entry.arity >= 3) {
+            const nary = (...args: any[]) => entry.fn(null, args);
+            this.AddOpToNativeFunc(fullName, entry.arity, valType, nary as any);
+          } else if (entry.arity === VARIADIC_ARITY) {
+            const variadic = (...args: any[]) => entry.fn(null, args);
+            this.AddOpToNativeFunc(
+              fullName,
+              VARIADIC_ARITY,
+              valType,
+              variadic as any,
+            );
+          }
         }
       }
 
