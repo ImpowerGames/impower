@@ -2067,26 +2067,86 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // optional features, and (c) discoverable: the error message
   // points at exactly which feature is missing.
   // ============================================================
+  // `setmetatable(t, mt)` — attach `mt` (or nil to clear) to `t`'s
+  // metatable slot. Returns `t`. Errors if `t` isn't a table, if `mt`
+  // is neither nil nor a table, or if `t`'s existing metatable has a
+  // `__metatable` field (Luau metatable protection).
   setmetatable: {
-    arity: -1,
-    fn: (story) =>
-      story.Error(
-        "setmetatable: not yet implemented in sparkdown (planned with class / metatable infra)",
-      ),
+    arity: 2,
+    fn: (story, [t, mt]) => {
+      if (!(t instanceof ObjectValue)) {
+        story.Error("setmetatable: first argument must be a table");
+        return;
+      }
+      // Luau metatable protection: if the current metatable carries a
+      // `__metatable` field, refuse to replace it. Same field protects
+      // `getmetatable` too — see below.
+      const existing = t.metatable;
+      if (existing instanceof ObjectValue) {
+        const protect = (existing.value as Map<string, AbstractValue>)?.get(
+          "__metatable",
+        );
+        if (protect != null && !(protect instanceof NullValue)) {
+          story.Error("setmetatable: cannot change a protected metatable");
+          return;
+        }
+      }
+      if (mt == null || mt instanceof NullValue) {
+        t.metatable = null;
+      } else if (mt instanceof ObjectValue) {
+        t.metatable = mt;
+      } else {
+        story.Error("setmetatable: second argument must be a table or nil");
+        return;
+      }
+      return t;
+    },
   },
+  // `getmetatable(t)` — returns `t`'s metatable, OR the `__metatable`
+  // field if the metatable carries one (Luau metatable protection
+  // pattern — lets a class hide its real metatable behind a sentinel
+  // so user code can't tamper with it via `setmetatable`).
+  // Non-table args return nil (matches Lua's tolerant behavior).
   getmetatable: {
-    arity: -1,
-    fn: (story) =>
-      story.Error(
-        "getmetatable: not yet implemented in sparkdown (planned with class / metatable infra)",
-      ),
+    arity: 1,
+    fn: (_, [t]) => {
+      if (!(t instanceof ObjectValue)) return new NullValue();
+      const mt = t.metatable;
+      if (!(mt instanceof ObjectValue)) return new NullValue();
+      const protect = (mt.value as Map<string, AbstractValue>)?.get(
+        "__metatable",
+      );
+      if (protect != null && !(protect instanceof NullValue)) {
+        return protect;
+      }
+      return mt;
+    },
   },
+  // `newproxy([metatable])` — Luau-only. Returns a fresh table that
+  // can carry a metatable. With a `true` arg, the new table gets its
+  // own empty metatable (suitable for later setmetatable). With a
+  // table arg, the new table's metatable is set to that table. Used
+  // mostly to create userdata-like sentinels in Lua 5.1; in sparkdown
+  // a thin ObjectValue suffices.
   newproxy: {
     arity: -1,
-    fn: (story) =>
-      story.Error(
-        "newproxy: not yet implemented in sparkdown (planned with class / metatable infra)",
-      ),
+    fn: (_, args) => {
+      const out = new ObjectValue();
+      if (args.length === 0) return out;
+      const arg = args[0];
+      if (arg instanceof ObjectValue) {
+        out.metatable = arg;
+        return out;
+      }
+      // `newproxy(true)` — give the proxy its own empty metatable
+      // (so user code can later mutate it via getmetatable). Any
+      // other truthy value follows the same convention; falsy /
+      // missing args leave the proxy without a metatable.
+      if (isTruthy(arg)) {
+        out.metatable = new ObjectValue();
+      }
+      return out;
+    },
   },
   loadstring: {
     arity: -1,

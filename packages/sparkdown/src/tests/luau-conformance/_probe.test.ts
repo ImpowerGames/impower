@@ -26,10 +26,21 @@ function probe(label: string, src: string) {
 }
 
 test(`bisect`, () => {
-  // Edit freely to narrow a failing fixture's minimum repro. Keep
-  // pointed at something passing so this file stays green in the
-  // full-suite run.
-  probe("noop", `local x = 1`);
+  probe("setmetatable basics",
+    `local t = {}
+local mt = { tag = "MT" }
+local r = setmetatable(t, mt)
+assert(r == t, "setmetatable returns the table")
+local got = getmetatable(t)
+assert(got == mt, "getmetatable returns the metatable")
+setmetatable(t, nil)
+assert(getmetatable(t) == nil, "clearing works")`);
+  probe("metatable protected",
+    `local t = setmetatable({}, { __metatable = "locked" })
+local got = getmetatable(t)
+assert(got == "locked", "got " .. tostring(got))
+local ok = pcall(function() setmetatable(t, {}) end)
+assert(not ok, "expected error")`);
 });
 
 test(`probe ${PROBE_FILE}`, () => {

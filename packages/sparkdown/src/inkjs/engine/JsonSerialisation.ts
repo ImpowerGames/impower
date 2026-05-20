@@ -224,6 +224,16 @@ export class JsonSerialisation {
       }
       writer.WriteObjectEnd();
       writer.WritePropertyEnd();
+      // Metatable round-trip — only emit the slot when one is set, so
+      // existing tables without metatables stay compact in the wire
+      // format. Recursive write since metatables are themselves
+      // ObjectValues (and can in turn carry their own metatables, e.g.
+      // class inheritance chains).
+      if (objVal.metatable) {
+        writer.WritePropertyStart("mt");
+        this.WriteRuntimeObject(writer, objVal.metatable);
+        writer.WritePropertyEnd();
+      }
       writer.WriteObjectEnd();
       return;
     }
@@ -621,7 +631,16 @@ export class JsonSerialisation {
           const childVal = asOrNull(child, AbstractValue);
           if (childVal) entries.set(key, childVal);
         }
-        return new ObjectValue(entries);
+        const result = new ObjectValue(entries);
+        // Restore the metatable if the writer emitted one. The slot
+        // is itself an ObjectValue, so we recurse through the same
+        // entry point — its own `mt` is restored too if present.
+        if (obj["mt"] !== undefined) {
+          const mtParsed = this.JTokenToRuntimeObject(obj["mt"]);
+          const mt = asOrNull(mtParsed, ObjectValue);
+          if (mt) result.metatable = mt;
+        }
+        return result;
       }
 
       if (obj["originalChoicePath"] != null) return this.JObjectToChoice(obj);

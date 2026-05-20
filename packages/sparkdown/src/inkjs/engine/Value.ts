@@ -463,6 +463,12 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
   // flag and refuse to mutate. `table.clone` on a frozen table
   // returns an *unfrozen* shallow copy — matching Luau.
   private _frozen: boolean = false;
+  // Luau metatable. `setmetatable(t, mt)` writes here; `getmetatable(t)`
+  // reads it (or the `__metatable` field if set — Luau's metatable
+  // protection). All metamethod dispatch (`__index`, `__add`, `__eq`,
+  // etc.) walks this slot. `null` means "no metatable" — falls back
+  // to the raw rawget/rawset / built-in operator path.
+  private _metatable: ObjectValue | null = null;
 
   constructor(entries?: Map<string, AbstractValue> | null) {
     super(entries ?? new Map<string, AbstractValue>());
@@ -478,6 +484,12 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
   }
   public Freeze(): void {
     this._frozen = true;
+  }
+  public get metatable(): ObjectValue | null {
+    return this._metatable;
+  }
+  public set metatable(mt: ObjectValue | null) {
+    this._metatable = mt;
   }
   public Cast(newType: ValueType): Value<any> {
     if (newType == this.valueType) return this;
@@ -501,7 +513,12 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
       const copy = v?.Copy() as AbstractValue | null;
       if (copy) next.set(k, copy);
     }
-    return new ObjectValue(next);
+    const out = new ObjectValue(next);
+    // Metatables are shared by reference across Copy (matching Lua —
+    // `t2 = table.clone(t1)` produces an unfrozen copy with the same
+    // metatable pointer; mutations to the original's mt are visible).
+    out._metatable = this._metatable;
+    return out;
   }
 }
 
