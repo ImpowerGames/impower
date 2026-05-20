@@ -2555,6 +2555,158 @@ export class Story extends InkObject {
     }
   }
 
+  /**
+   * Protected variant of `CallLuauFunction`. Implements `pcall`'s
+   * trap: drive the inner function; if it throws a `StoryException`
+   * (from `story.Error`) or adds a runtime error to
+   * `state.currentErrors`, capture the message and return
+   * `{ ok: false, errorMessage }` instead of letting the error
+   * abort the story.
+   *
+   * The trapped error is REMOVED from `state.currentErrors` — pcall's
+   * contract is "the error doesn't escape the protected block." If
+   * the user wants to surface it, they re-raise or log it via the
+   * second return.
+   */
+  public CallLuauFunctionProtected(
+    fnValue: AbstractValue,
+    args: AbstractValue[],
+  ): {
+    ok: boolean;
+    values: AbstractValue[];
+    errorMessage?: string;
+  } {
+    this.IfAsyncWeCant("call a Luau function from stdlib (protected)");
+
+    if (fnValue instanceof VariablePointerValue) {
+      const resolved = this.state.variablesState.GetVariableWithName(
+        fnValue.variableName,
+      ) as AbstractValue | null;
+      if (resolved == null) {
+        return {
+          ok: false,
+          values: [],
+          errorMessage:
+            "pcall: variable pointer references unresolved variable",
+        };
+      }
+      return this.CallLuauFunctionProtected(resolved, args);
+    }
+
+    const savedCallStackLen = this.state.callStack.elements.length;
+    const savedEvalLen = this.state.evaluationStack.length;
+    const savedPointer = this.state.currentPointer.copy();
+    const outputStreamBefore: InkObject[] = [...this.state.outputStream];
+    const savedErrorCount = this.state.currentErrors?.length ?? 0;
+    this.state.ResetOutput();
+
+    let path: Path | null = null;
+    let trappedError: string | null = null;
+    try {
+      if (fnValue instanceof ObjectValue) {
+        for (const a of args) this.state.PushEvaluationStack(a);
+        const p = extractClosurePath(fnValue, this);
+        if (p == null) {
+          for (let i = 0; i < args.length; i++)
+            this.state.PopEvaluationStack();
+          return {
+            ok: false,
+            values: [],
+            errorMessage:
+              "pcall: target ObjectValue is not a closure (missing `__closure_fn`)",
+          };
+        }
+        path = p as Path;
+      } else if (fnValue instanceof DivertTargetValue) {
+        for (const a of args) this.state.PushEvaluationStack(a);
+        path = fnValue.value;
+      } else {
+        return {
+          ok: false,
+          values: [],
+          errorMessage: `pcall: expected a function value, got ${fnValue}`,
+        };
+      }
+
+      if (path == null) {
+        return {
+          ok: false,
+          values: [],
+          errorMessage: "pcall: could not resolve function value to a path",
+        };
+      }
+
+      this.state.divertedPointer = this.PointerAtPath(path);
+      this.state.callStack.Push(
+        PushPopType.Function,
+        undefined,
+        this.state.outputStream.length,
+      );
+      this.NextContent();
+
+      const MAX_STEPS = 100000;
+      let steps = 0;
+      while (
+        this.state.callStack.elements.length > savedCallStackLen &&
+        !this.state.currentPointer.isNull
+      ) {
+        try {
+          this.Step();
+        } catch (e) {
+          if (e instanceof StoryException) {
+            trappedError = e.message;
+            break;
+          }
+          throw e;
+        }
+        // Also check the "errors added without throwing" path —
+        // some stdlib impls call `story.AddError` directly rather
+        // than `story.Error`. Truncate any new errors so they don't
+        // surface to the host, and treat the first as our message.
+        const errs = this.state.currentErrors;
+        if (errs && errs.length > savedErrorCount) {
+          trappedError = errs[savedErrorCount]!;
+          // Truncate.
+          errs.length = savedErrorCount;
+          break;
+        }
+        if (++steps > MAX_STEPS) {
+          trappedError =
+            "pcall: callback exceeded step limit (possible infinite loop)";
+          break;
+        }
+      }
+
+      // Truncate any errors added during the call (covers errors
+      // added via story.AddError between the last check and now).
+      const errs2 = this.state.currentErrors;
+      if (errs2 && errs2.length > savedErrorCount) {
+        if (trappedError == null) trappedError = errs2[savedErrorCount]!;
+        errs2.length = savedErrorCount;
+      }
+
+      if (trappedError != null) {
+        return { ok: false, values: [], errorMessage: trappedError };
+      }
+
+      const results: AbstractValue[] = [];
+      while (this.state.evaluationStack.length > savedEvalLen) {
+        results.unshift(this.state.PopEvaluationStack() as AbstractValue);
+      }
+      return { ok: true, values: results };
+    } finally {
+      while (this.state.callStack.elements.length > savedCallStackLen) {
+        this.state.PopCallStack();
+      }
+      // Drop any partial eval-stack residue from a failed call.
+      while (this.state.evaluationStack.length > savedEvalLen) {
+        this.state.PopEvaluationStack();
+      }
+      this.state.currentPointer = savedPointer;
+      this.state.ResetOutput(outputStreamBefore);
+    }
+  }
+
   public EvaluateExpression(exprContainer: Container) {
     let startCallStackHeight = this.state.callStack.elements.length;
 

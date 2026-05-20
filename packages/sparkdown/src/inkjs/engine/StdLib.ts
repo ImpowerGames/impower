@@ -4,6 +4,7 @@ import {
   ObjectValue,
   IntValue,
   FloatValue,
+  BoolValue,
   AbstractValue,
   MultiValue,
   NullValue,
@@ -2034,6 +2035,73 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
+  // `pcall(f, arg1, ...)` — protected call. Runs `f(arg1, ...)` with
+  // errors trapped. Returns `(true, ...returns)` on success or
+  // `(false, errorMessage)` on error. The trapped error is removed
+  // from the story's error list — it doesn't escape the protected
+  // block. See `Story.CallLuauFunctionProtected` for the trap impl.
+  pcall: {
+    arity: -1,
+    fn: (story, args) => {
+      if (args.length === 0) {
+        story.Error("pcall: requires a function argument");
+        return new MultiValue([
+          new BoolValue(false),
+          new StringValue("pcall: missing function argument"),
+        ]);
+      }
+      const fn = args[0];
+      const callArgs = args.slice(1) as AbstractValue[];
+      const result = story.CallLuauFunctionProtected(fn, callArgs);
+      if (result.ok) {
+        return new MultiValue([new BoolValue(true), ...result.values]);
+      }
+      return new MultiValue([
+        new BoolValue(false),
+        new StringValue(result.errorMessage ?? "pcall: unknown error"),
+      ]);
+    },
+  },
+
+  // `xpcall(f, msgh, arg1, ...)` — protected call with a message
+  // handler. On error, `msgh(errMsg)` is called and its return is
+  // used as the final error message. Returns `(true, ...returns)` on
+  // success or `(false, msgh(err))` on failure.
+  //
+  // If `msgh` itself raises an error, the original error is
+  // returned unchanged (matches Lua's "don't recurse on handler
+  // failure" rule).
+  xpcall: {
+    arity: -1,
+    fn: (story, args) => {
+      if (args.length < 2) {
+        story.Error("xpcall: requires a function and a message handler");
+        return new MultiValue([
+          new BoolValue(false),
+          new StringValue("xpcall: missing arguments"),
+        ]);
+      }
+      const fn = args[0];
+      const msgh = args[1];
+      const callArgs = args.slice(2) as AbstractValue[];
+      const result = story.CallLuauFunctionProtected(fn, callArgs);
+      if (result.ok) {
+        return new MultiValue([new BoolValue(true), ...result.values]);
+      }
+      // Run the message handler. If it fails, fall back to the
+      // raw error.
+      const errMsg = result.errorMessage ?? "xpcall: unknown error";
+      const handlerResult = story.CallLuauFunctionProtected(msgh, [
+        new StringValue(errMsg),
+      ]);
+      const handled =
+        handlerResult.ok && handlerResult.values.length > 0
+          ? handlerResult.values[0]!
+          : new StringValue(errMsg);
+      return new MultiValue([new BoolValue(false), handled]);
+    },
+  },
+
   // `select(n, ...)` — Lua's variadic-arg helper. Two forms:
   //   - `select("#", ...)` → count of variadic args (single int return)
   //   - `select(n, ...)`   → multi-return: the args starting at index n
@@ -3759,7 +3827,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (story, [cond, msg]) => {
       if (!isTruthy(cond)) {
         const message = coerceString(msg) ?? "assertion failed";
-        story.AddError(message);
+        // Throw via story.Error (matches Lua semantics — `assert`
+        // raises a runtime error, which `pcall` can trap). Using
+        // story.AddError instead would call ForceEnd which wipes
+        // the call stack — fine for unhandled errors, but defeats
+        // pcall's protection.
+        story.Error(message);
       }
     },
   },
