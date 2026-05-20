@@ -384,12 +384,13 @@ end
   });
 
   test("invalid pattern errors at the gmatch call site", () => {
+    // `%b` without delimiters is malformed.
     const { errors } = compileAndCapture(`external host_record(v)
 & run()
 done
 
 function run()
-for w in string.gmatch("hello", "%b()") do
+for w in string.gmatch("hello", "%b") do
 host_record(w)
 end
 end
@@ -568,30 +569,77 @@ end
   });
 });
 
-describe("string patterns — unsupported features error cleanly", () => {
-  test("%b balanced match errors with a hint", () => {
-    const { errors } = compileAndCapture(`external host_record(v)
+describe("string patterns — %b balanced match", () => {
+  test("`%b()` matches a balanced parenthesis group", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
 
 function run()
-local s = string.find("(hello)", "%b()")
+local result = string.match("before (a (b c) d) after", "%b()")
+host_record(result)
 end
 `);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0]!).toContain("%b");
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["(a (b c) d)"]);
   });
 
-  test("position capture () errors with a hint", () => {
-    const { errors } = compileAndCapture(`external host_record(v)
+  test("`%b()` returns nil when unbalanced", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
 
 function run()
-local s = string.find("hello", "()hello")
+host_record(string.match("(unbalanced", "%b()") == nil)
 end
 `);
-    expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0]!).toContain("Position capture");
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([true]);
+  });
+
+  test("`%b{}` matches braced blocks too", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local result = string.match("{x {y} z}", "%b{}")
+host_record(result)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["{x {y} z}"]);
+  });
+});
+
+describe("string patterns — () position capture", () => {
+  test("`()` yields the 1-indexed position", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local pos = string.match("hello world", "()")
+host_record(pos)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1]);
+  });
+
+  test("mixed string + position captures in order", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local word, pos, next_word = string.match("hello world", "(%a+)() (%a+)")
+host_record(word)
+host_record(pos)
+host_record(next_word)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["hello", 6, "world"]);
   });
 });

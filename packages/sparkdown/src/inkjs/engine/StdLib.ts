@@ -9,7 +9,13 @@ import {
   StringValue,
   Value,
 } from "./Value";
-import { luaPatternToJs, LuaPatternError } from "./LuaPatterns";
+import {
+  luaPatternToJs,
+  executeLuaPattern,
+  LuaPatternError,
+  type CompiledLuaPattern,
+  type PatternMatchResult,
+} from "./LuaPatterns";
 
 // Sparkdown's Luau-standard-library bridge. Three tables drive everything:
 //
@@ -290,8 +296,8 @@ function classifyGsubRepl(
  */
 function expandGsubStringRepl(
   template: string,
-  match: RegExpExecArray,
-  captureCount: number,
+  matched: PatternMatchResult,
+  wholeMatch: string,
   story: any,
 ): string | null {
   let out = "";
@@ -312,13 +318,13 @@ function expandGsubStringRepl(
     if (next >= "0" && next <= "9") {
       const n = parseInt(next, 10);
       if (n === 0) {
-        out += match[0]!;
-      } else if (n <= captureCount) {
-        const cap = match[n];
-        out += cap === undefined ? "" : cap;
+        out += wholeMatch;
+      } else if (n <= matched.captures.length) {
+        const cap = matched.captures[n - 1];
+        out += cap == null ? "" : String(cap);
       } else {
         story.Error(
-          `string.gsub: invalid capture index %${n} (pattern has ${captureCount} capture${captureCount === 1 ? "" : "s"})`,
+          `string.gsub: invalid capture index %${n} (pattern has ${matched.captures.length} capture${matched.captures.length === 1 ? "" : "s"})`,
         );
         return null;
       }
@@ -334,28 +340,18 @@ function expandGsubStringRepl(
 }
 
 /**
- * Run a compiled Lua-pattern regex against `s` starting at offset
- * `start` (0-indexed). Returns the first match (`RegExpExecArray`)
- * or null. The compiled regex carries `ds` flags but no `g` — we
- * advance the cursor manually via `lastIndex` reset to keep the
- * `string.find` / `string.match` single-call semantics correct.
+ * Convert a `PatternMatchResult.captures` array (raw JS values) to
+ * stdlib `AbstractValue`s. String captures → `StringValue`, position
+ * captures → `IntValue`, unmatched groups → `NullValue`.
  */
-export function matchAt(
-  regex: RegExp,
-  s: string,
-  start: number,
-): RegExpExecArray | null {
-  // Use a `g`-less regex with manual offset: slice the input and
-  // adjust the resulting index back. Slicing is the simplest way
-  // to honour `init` without per-call regex recompilation.
-  const sub = s.slice(start);
-  const m = regex.exec(sub);
-  if (!m) return null;
-  // Patch `index` so it reflects the position in the original
-  // string (not the sliced substring). `RegExpExecArray.index` is
-  // writable in standard JS.
-  (m as any).index = m.index + start;
-  return m;
+export function patternCapturesToValues(
+  result: PatternMatchResult,
+): AbstractValue[] {
+  return result.captures.map((c) => {
+    if (c == null) return new NullValue();
+    if (typeof c === "number") return new IntValue(c);
+    return new StringValue(c);
+  });
 }
 
 /**
@@ -738,24 +734,16 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
       return null;
     }
     if (offset > input.length) return null;
-    const m = matchAt(compiled.regex, input, offset);
-    if (!m) return null;
-    const matchStart = m.index;
-    const matchEnd = matchStart + m[0]!.length;
-    const values: AbstractValue[] = [];
-    if (compiled.captureCount === 0) {
-      values.push(new StringValue(m[0]!));
-    } else {
-      for (let g = 1; g <= compiled.captureCount; g++) {
-        const cap = m[g];
-        values.push(
-          cap === undefined ? new NullValue() : new StringValue(cap),
-        );
-      }
-    }
-    // Advance past the match. Empty match → step forward 1 byte so
-    // we don't loop forever on patterns like `%a*`.
-    const nextOffset = matchEnd === matchStart ? matchEnd + 1 : matchEnd;
+    const matched = executeLuaPattern(compiled, input, offset);
+    if (!matched) return null;
+    const matchEnd = matched.index + matched.length;
+    const values: AbstractValue[] =
+      compiled.captureCount === 0
+        ? [new StringValue(input.slice(matched.index, matchEnd))]
+        : patternCapturesToValues(matched);
+    // Empty match → step forward 1 byte so we don't loop forever on
+    // patterns like `%a*`.
+    const nextOffset = matched.length === 0 ? matchEnd + 1 : matchEnd;
     return { values, nextCursor: new IntValue(nextOffset) };
   },
 };
@@ -1443,19 +1431,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
         throw e;
       }
-      const m = matchAt(compiled.regex, s, init - 1);
-      if (!m) return new NullValue();
+      const matched = executeLuaPattern(compiled, s, init - 1);
+      if (!matched) return new NullValue();
       const results: AbstractValue[] = [
-        new IntValue(m.index + 1),
-        new IntValue(m.index + m[0]!.length),
+        new IntValue(matched.index + 1),
+        new IntValue(matched.index + matched.length),
+        ...patternCapturesToValues(matched),
       ];
-      for (let g = 1; g <= compiled.captureCount; g++) {
-        const cap = m[g];
-        results.push(
-          cap === undefined ? new NullValue() : new StringValue(cap),
-        );
-      }
-      return results.length === 1 ? results[0]! : new MultiValue(results);
+      return new MultiValue(results);
     },
   },
   // `string.match(s, pattern [, init])` — Lua-style capture extract.
@@ -1480,18 +1463,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
         throw e;
       }
-      const m = matchAt(compiled.regex, s, init - 1);
-      if (!m) return new NullValue();
+      const matched = executeLuaPattern(compiled, s, init - 1);
+      if (!matched) return new NullValue();
       if (compiled.captureCount === 0) {
-        return new StringValue(m[0]!);
-      }
-      const captures: AbstractValue[] = [];
-      for (let g = 1; g <= compiled.captureCount; g++) {
-        const cap = m[g];
-        captures.push(
-          cap === undefined ? new NullValue() : new StringValue(cap),
+        return new StringValue(
+          s.slice(matched.index, matched.index + matched.length),
         );
       }
+      const captures = patternCapturesToValues(matched);
       return captures.length === 1
         ? captures[0]!
         : new MultiValue(captures);
@@ -1538,10 +1517,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
       let count = 0;
       while (cursor <= input.length) {
         if (maxN != null && count >= maxN) break;
-        const m = matchAt(compiled.regex, input, cursor);
-        if (!m) break;
-        const matchStart = m.index;
-        const matchEnd = matchStart + m[0]!.length;
+        const matched = executeLuaPattern(compiled, input, cursor);
+        if (!matched) break;
+        const matchStart = matched.index;
+        const matchEnd = matchStart + matched.length;
+        const wholeMatch = input.slice(matchStart, matchEnd);
         // Append unmatched prefix.
         if (matchStart > cursor) out.push(input.slice(cursor, matchStart));
         // Compute replacement.
@@ -1549,29 +1529,33 @@ export const STDLIB: Record<string, StdLibEntry> = {
         if (replKind === "string") {
           replacement = expandGsubStringRepl(
             coerceString(replArg) ?? "",
-            m,
-            compiled.captureCount,
+            matched,
+            wholeMatch,
             story,
           );
           if (replacement == null)
             return new MultiValue([new StringValue(input), new IntValue(0)]);
         } else {
-          // Table form. Lookup key is first capture (or whole match
-          // when no captures).
-          const lookupKey =
-            compiled.captureCount === 0 ? m[0]! : (m[1] ?? "");
+          // Table form. Lookup key is the first capture (string-as-
+          // number for position captures) or the whole match.
+          let lookupKey: string;
+          if (compiled.captureCount === 0) {
+            lookupKey = wholeMatch;
+          } else {
+            const cap = matched.captures[0];
+            lookupKey = cap == null ? "" : String(cap);
+          }
           const tableMap = (replArg as ObjectValue).value as Map<
             string,
             AbstractValue
           >;
-          const lookup = tableMap.get(String(lookupKey));
+          const lookup = tableMap.get(lookupKey);
           if (
             lookup == null ||
             lookup instanceof NullValue ||
             (lookup as any).value === false
           ) {
-            // Keep the original match.
-            replacement = m[0]!;
+            replacement = wholeMatch;
           } else {
             const raw = (lookup as any).value;
             if (typeof raw === "string") replacement = raw;
@@ -1589,10 +1573,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
         out.push(replacement);
         count++;
-        // Advance past the match. Empty match → step forward 1 byte
-        // (and append the skipped char) so we don't loop forever on
-        // patterns like `%a*`.
-        if (matchEnd === matchStart) {
+        // Empty match → step forward 1 byte (and append the skipped
+        // char) so we don't loop forever on patterns like `%a*`.
+        if (matched.length === 0) {
           if (matchStart < input.length) out.push(input.charAt(matchStart));
           cursor = matchStart + 1;
         } else {

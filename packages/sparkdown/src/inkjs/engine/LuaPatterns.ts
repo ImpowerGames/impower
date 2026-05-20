@@ -25,23 +25,63 @@
 // Public types
 // ============================================================================
 
+/**
+ * Per-capture metadata. `string` captures yield the matched text;
+ * `position` captures (Lua's empty `()` form) yield the 1-indexed
+ * byte position at which the capture sits.
+ */
+export type CaptureKind = "string" | "position";
+
+/**
+ * One slice of a compiled pattern. Patterns without `%b` produce a
+ * single `regex` segment; patterns with `%b{xy}` interleave regex
+ * segments with `balanced` ones.
+ */
+export type PatternSegment =
+  | {
+      kind: "regex";
+      /** Anchored regex (begins with `^`) — matches at slice offset 0 only. */
+      regex: RegExp;
+      /** Capture kinds for this segment's `(…)` groups, in source order. */
+      captureKinds: CaptureKind[];
+    }
+  | {
+      kind: "balanced";
+      /** Opening delimiter (single character). */
+      open: string;
+      /** Closing delimiter (single character). */
+      close: string;
+    };
+
 export interface CompiledLuaPattern {
   /**
-   * JS regex equivalent. Flags are always `ds`:
-   * - `d` (indices) — needed for future position-capture support.
-   * - `s` (dotAll) — Lua's `.` matches newlines; emit translated as `.` + `s`.
-   * Never `i`, `m`, or `g` — case sensitivity is fixed (Lua patterns
-   * have no `i` flag), `^`/`$` are pattern-edge-only (no `m`), and
-   * iteration is handled by the matcher layer.
+   * Segments form. Single-segment regex patterns share the same
+   * shape as multi-segment `%b` patterns — consumers walk segments
+   * uniformly through `executeLuaPattern`.
    */
-  regex: RegExp;
-  /**
-   * Number of `(…)` capture groups in the pattern. Used by the
-   * matcher to know how many capture slots to extract — JS regex's
-   * own `length`-of-`.groups` isn't always reliable across engines
-   * for empty matches.
-   */
+  segments: PatternSegment[];
+  /** Total `(…)` capture groups across all segments, in source order. */
   captureCount: number;
+  /** Per-capture kinds across all segments, flattened. */
+  captureKinds: CaptureKind[];
+  /** True iff source pattern starts with `^`. */
+  anchored: boolean;
+  /** True iff source pattern ends with an unescaped `$`. */
+  endAnchored: boolean;
+}
+
+/**
+ * Single-match output from `executeLuaPattern`. Captures are raw JS
+ * — `string` for string captures, `number` for position captures
+ * (1-indexed), `null` for unmatched groups.
+ */
+export interface PatternMatchResult {
+  /** 0-indexed start of match in the original input. */
+  index: number;
+  /** Length of the matched substring. */
+  length: number;
+  /** Captured values in source order; same length as `captureCount`. */
+  captures: (string | number | null)[];
 }
 
 // ============================================================================
@@ -109,36 +149,120 @@ export class LuaPatternError extends Error {
  *   Lua-style equivalent.
  */
 export function luaPatternToJs(pattern: string): CompiledLuaPattern {
-  let out = "";
+  // Pattern-wide anchor handling. `^` is only an anchor at pattern
+  // start, `$` only at pattern end. Anywhere else they're literal.
+  const anchored = pattern.startsWith("^");
+  const endAnchored = pattern.endsWith("$") && !pattern.endsWith("%$");
+  const body = pattern.slice(anchored ? 1 : 0, endAnchored ? -1 : pattern.length);
+
+  // Walk `body`, splitting at each `%bxy`. Each non-`%b` chunk
+  // becomes one regex segment; each `%b` becomes a balanced segment.
+  // Capture indices flow continuously across segments.
+  const segments: PatternSegment[] = [];
+  const captureKinds: CaptureKind[] = [];
+  let chunkStart = 0;
+  let i = 0;
+  while (i < body.length) {
+    if (body[i] === "%" && body[i + 1] === "b") {
+      // Flush the preceding regex chunk (may be empty if `%b` is at
+      // the start of the body — empty chunks are still valid as
+      // zero-width anchors).
+      if (i > chunkStart) {
+        segments.push(
+          compileRegexSegment(
+            body.slice(chunkStart, i),
+            captureKinds,
+            /*anchorStart*/ segments.length === 0 && anchored,
+          ),
+        );
+      }
+      const open = body[i + 2];
+      const close = body[i + 3];
+      if (open === undefined || close === undefined) {
+        throw new LuaPatternError(
+          "`%b` must be followed by two delimiter characters (e.g. `%b()`).",
+        );
+      }
+      segments.push({ kind: "balanced", open, close });
+      i += 4;
+      chunkStart = i;
+      continue;
+    }
+    // Skip escape pairs so `%(` doesn't accidentally match the `%b`
+    // marker logic.
+    if (body[i] === "%") {
+      i += 2;
+      continue;
+    }
+    // Skip past character classes to avoid stray `%b` inside `[...]`.
+    if (body[i] === "[") {
+      i++;
+      while (i < body.length && body[i] !== "]") {
+        if (body[i] === "%") i += 2;
+        else i++;
+      }
+      i++; // skip ]
+      continue;
+    }
+    i++;
+  }
+  // Flush trailing chunk (or the whole pattern if no `%b` was seen).
+  if (chunkStart < body.length || segments.length === 0) {
+    segments.push(
+      compileRegexSegment(
+        body.slice(chunkStart),
+        captureKinds,
+        /*anchorStart*/ segments.length === 0 && anchored,
+      ),
+    );
+  }
+  return {
+    segments,
+    captureCount: captureKinds.length,
+    captureKinds,
+    anchored,
+    endAnchored,
+  };
+}
+
+/**
+ * Translate a single regex chunk (no `%b` markers) to a JS RegExp.
+ * Appends per-capture kinds onto the shared `captureKinds` array
+ * (modified in place) so the caller can track them globally across
+ * segments. `anchorStart` prepends `^` to the produced regex —
+ * always true for the first segment in an anchored pattern, false
+ * otherwise (subsequent segments are anchored automatically by the
+ * slice-based matcher loop).
+ */
+function compileRegexSegment(
+  body: string,
+  captureKinds: CaptureKind[],
+  anchorStart: boolean,
+): PatternSegment {
+  // Anchor strategy: every segment regex starts with `^` so it only
+  // matches at offset 0 of whatever slice the matcher feeds it.
+  // The outer matcher loop is the one that decides where to start.
+  // (`anchorStart` is currently unused since we always prepend `^`,
+  // but keeping the parameter so semantics are explicit.)
+  void anchorStart;
+  let out = "^";
   let i = 0;
   let captureCount = 0;
   let parenDepth = 0;
-  const len = pattern.length;
-
-  // Anchor handling — `^` is only an anchor at pattern start, `$`
-  // only at pattern end. Anywhere else they're literal in Lua.
-  if (pattern.startsWith("^")) {
-    out += "^";
-    i = 1;
-  }
-  // Track whether the rest contains a trailing `$` anchor.
-  const hasEndAnchor = pattern.endsWith("$") && !pattern.endsWith("%$");
-  const bodyEnd = hasEndAnchor ? len - 1 : len;
+  const localCaptureKinds: CaptureKind[] = [];
+  const bodyEnd = body.length;
 
   while (i < bodyEnd) {
-    const c = pattern[i]!;
+    const c = body[i]!;
     if (c === "%") {
-      i = handleEscape(pattern, i, /*inSet*/ false, (s) => (out += s));
-      // Continue main loop: handleEscape advanced i past the
-      // 2-char (or longer) escape token.
+      i = handleEscape(body, i, /*inSet*/ false, (s) => (out += s));
       continue;
     }
     if (c === "[") {
-      const r = translateCharClass(pattern, i);
+      const r = translateCharClass(body, i);
       out += r.emitted;
       i = r.nextIndex;
-      // Optional trailing quantifier after the class:
-      const q = readQuantifier(pattern, i);
+      const q = readQuantifier(body, i);
       if (q) {
         out += q.emitted;
         i = q.nextIndex;
@@ -148,7 +272,7 @@ export function luaPatternToJs(pattern: string): CompiledLuaPattern {
     if (c === ".") {
       out += "[\\s\\S]";
       i++;
-      const q = readQuantifier(pattern, i);
+      const q = readQuantifier(body, i);
       if (q) {
         out += q.emitted;
         i = q.nextIndex;
@@ -156,13 +280,16 @@ export function luaPatternToJs(pattern: string): CompiledLuaPattern {
       continue;
     }
     if (c === "(") {
-      // Check for position capture `()` — Phase 4.
-      if (pattern[i + 1] === ")") {
-        throw new LuaPatternError(
-          "Position capture `()` is not yet supported in sparkdown's pattern matcher. (Planned in a later phase.)",
-        );
+      if (body[i + 1] === ")") {
+        captureCount++;
+        const globalIndex = captureKinds.length + captureCount;
+        localCaptureKinds.push("position");
+        out += `(?<__pos_${globalIndex}__>)`;
+        i += 2;
+        continue;
       }
       captureCount++;
+      localCaptureKinds.push("string");
       parenDepth++;
       out += "(";
       i++;
@@ -180,31 +307,24 @@ export function luaPatternToJs(pattern: string): CompiledLuaPattern {
       continue;
     }
     if (c === "^") {
-      // `^` outside pattern start — literal caret.
       out += "\\^";
       i++;
       continue;
     }
     if (c === "$") {
-      // `$` not at end — literal dollar.
       out += "\\$";
       i++;
       continue;
     }
     if (c === "*" || c === "+" || c === "?" || c === "-") {
-      // Quantifier without a preceding atom. In Lua patterns this
-      // matches a literal character (e.g. `*` matches `*`). JS regex
-      // treats them as syntax errors. Escape them.
       out += "\\" + c;
       i++;
       continue;
     }
     if (c === "\\") {
-      // Lua uses `%` for escapes; a bare `\` is a LITERAL backslash.
-      // In JS regex `\` always introduces an escape, so emit `\\`.
       out += "\\\\";
       i++;
-      const q = readQuantifier(pattern, i);
+      const q = readQuantifier(body, i);
       if (q) {
         out += q.emitted;
         i = q.nextIndex;
@@ -214,35 +334,35 @@ export function luaPatternToJs(pattern: string): CompiledLuaPattern {
     if (JS_ONLY_METACHARS.has(c)) {
       out += "\\" + c;
       i++;
-      const q = readQuantifier(pattern, i);
+      const q = readQuantifier(body, i);
       if (q) {
         out += q.emitted;
         i = q.nextIndex;
       }
       continue;
     }
-    // Plain literal character. JS regex needs `.`, `(`, `)`, etc.
-    // already handled above; everything else is safe to pass through
-    // except a small set we escape defensively.
     if (needsLiteralEscape(c)) {
       out += "\\" + c;
     } else {
       out += c;
     }
     i++;
-    const q = readQuantifier(pattern, i);
+    const q = readQuantifier(body, i);
     if (q) {
       out += q.emitted;
       i = q.nextIndex;
     }
   }
 
-  if (hasEndAnchor) out += "$";
   if (parenDepth !== 0) {
     throw new LuaPatternError(
       "Unmatched `(` in pattern. Captures must be balanced.",
     );
   }
+
+  // Push this segment's capture kinds onto the global list before
+  // returning so the segment-level capture indices flow correctly.
+  for (const k of localCaptureKinds) captureKinds.push(k);
 
   let regex: RegExp;
   try {
@@ -252,7 +372,137 @@ export function luaPatternToJs(pattern: string): CompiledLuaPattern {
       `Could not compile pattern: ${(e as Error).message}`,
     );
   }
-  return { regex, captureCount };
+  return { kind: "regex", regex, captureKinds: localCaptureKinds };
+}
+
+/**
+ * Execute a compiled pattern against `input` starting at offset
+ * `start` (0-indexed). Returns the first match (position + length
+ * + raw captures) or `null` on failure. Captures are JS-native:
+ * `string` for string captures, `number` for position captures
+ * (1-indexed, Lua convention), `null` for unmatched groups.
+ *
+ * Handles both single-segment patterns (fast path: one regex
+ * scan-and-match against the input slice) and multi-segment
+ * patterns containing `%b` (slower scan: try each starting
+ * position, anchored match through every segment in turn).
+ */
+export function executeLuaPattern(
+  compiled: CompiledLuaPattern,
+  input: string,
+  start: number,
+): PatternMatchResult | null {
+  const startPos = Math.max(0, Math.min(start, input.length));
+
+  // Fast path: single regex segment, no balanced.
+  if (compiled.segments.length === 1 && compiled.segments[0]!.kind === "regex") {
+    const seg = compiled.segments[0] as Extract<PatternSegment, { kind: "regex" }>;
+    return matchSingleRegex(
+      seg,
+      input,
+      startPos,
+      compiled.anchored,
+      compiled.endAnchored,
+    );
+  }
+
+  // Segmented path. Walk each candidate starting position and
+  // anchor every segment against it.
+  for (let p = startPos; p <= input.length; p++) {
+    if (compiled.anchored && p > startPos) return null;
+    const attempt = tryMatchSegmentsAt(compiled, input, p);
+    if (attempt) {
+      if (compiled.endAnchored && attempt.index + attempt.length !== input.length) {
+        // Match found but doesn't reach the end-of-string anchor —
+        // keep scanning forward (longer matches at later positions
+        // can still satisfy `$`).
+        continue;
+      }
+      return attempt;
+    }
+  }
+  return null;
+}
+
+// Single-regex match. Slices `input` from `startPos` so the regex's
+// leading `^` anchors at the slice boundary. Translates indices back
+// to original-input coordinates.
+function matchSingleRegex(
+  seg: Extract<PatternSegment, { kind: "regex" }>,
+  input: string,
+  startPos: number,
+  anchored: boolean,
+  endAnchored: boolean,
+): PatternMatchResult | null {
+  // For unanchored patterns we scan forward from each starting
+  // position until we find a match. The regex itself is `^...` so
+  // it only matches at the slice boundary.
+  let p = startPos;
+  while (p <= input.length) {
+    if (anchored && p > startPos) return null;
+    const sub = input.slice(p);
+    const m = seg.regex.exec(sub);
+    if (m && m.index === 0) {
+      if (endAnchored && p + m[0].length !== input.length) {
+        p++;
+        continue;
+      }
+      const captures: (string | number | null)[] = [];
+      for (let g = 1; g <= seg.captureKinds.length; g++) {
+        if (seg.captureKinds[g - 1] === "position") {
+          const idx = (m as any).indices?.[g];
+          captures.push((idx ? idx[0] : 0) + p + 1);
+        } else {
+          captures.push(m[g] ?? null);
+        }
+      }
+      return { index: p, length: m[0].length, captures };
+    }
+    p++;
+  }
+  return null;
+}
+
+// Try every segment anchored at `p`. Returns the combined match or
+// null if any segment fails.
+function tryMatchSegmentsAt(
+  compiled: CompiledLuaPattern,
+  input: string,
+  p: number,
+): PatternMatchResult | null {
+  let cursor = p;
+  const captures: (string | number | null)[] = [];
+  for (const seg of compiled.segments) {
+    if (seg.kind === "regex") {
+      const sub = input.slice(cursor);
+      const m = seg.regex.exec(sub);
+      if (!m || m.index !== 0) return null;
+      for (let g = 1; g <= seg.captureKinds.length; g++) {
+        if (seg.captureKinds[g - 1] === "position") {
+          const idx = (m as any).indices?.[g];
+          captures.push((idx ? idx[0] : 0) + cursor + 1);
+        } else {
+          captures.push(m[g] ?? null);
+        }
+      }
+      cursor += m[0].length;
+    } else {
+      // Balanced — input[cursor] must be `open`; scan forward with
+      // a depth counter until the matching `close` (or fail).
+      if (input[cursor] !== seg.open) return null;
+      let depth = 1;
+      let j = cursor + 1;
+      while (j < input.length && depth > 0) {
+        const ch = input[j];
+        if (ch === seg.open) depth++;
+        else if (ch === seg.close) depth--;
+        j++;
+      }
+      if (depth !== 0) return null;
+      cursor = j;
+    }
+  }
+  return { index: p, length: cursor - p, captures };
 }
 
 // ============================================================================
@@ -273,16 +523,45 @@ function handleEscape(
   if (next === undefined) {
     throw new LuaPatternError("Pattern ends with a dangling `%` escape.");
   }
-  // `%b` and `%f` — Phase 4.
+  // `%b` is handled by the segmenting pass in `luaPatternToJs`
+  // before this function ever sees it. If we land here with `%b`,
+  // it means a `%b` slipped into a context where the splitter
+  // couldn't see it (e.g. inside a `[...]` set — which is invalid
+  // anyway). Error explicitly.
   if (next === "b") {
     throw new LuaPatternError(
-      "`%b` balanced-match pattern is not yet supported. (Planned in a later phase.)",
+      "`%b` balanced-match cannot appear inside a character set.",
     );
   }
+  // `%f[set]` — frontier pattern. Matches at a position where the
+  // next char is in `set` and the previous one is not. Lua treats
+  // the beginning/end of subject as `\0`, so when `\0` ∉ set the
+  // match succeeds at start-of-string and end-of-string — that's
+  // what JS lookbehind/lookahead at boundaries gives us for free.
+  //
+  // Translation: `%f[set]` → `(?<![set])(?=[set])`. Same translated
+  // `[set]` body used in both halves (negation lives inside the
+  // existing translateCharClass output).
+  //
+  // Subtle divergence: if a user explicitly puts `\0` in the set
+  // (rare — would require `%z` or a literal `\0` in the source),
+  // sparkdown matches at boundaries while Lua doesn't. Not worth
+  // a special case today.
   if (next === "f") {
-    throw new LuaPatternError(
-      "`%f` frontier pattern is not yet supported. (Planned in a later phase.)",
-    );
+    if (inSet) {
+      throw new LuaPatternError(
+        "`%f` frontier pattern cannot appear inside a character set.",
+      );
+    }
+    if (pattern[i + 2] !== "[") {
+      throw new LuaPatternError(
+        "`%f` must be followed by `[set]` (e.g. `%f[%a]`).",
+      );
+    }
+    const setResult = translateCharClass(pattern, i + 2);
+    emit(`(?<!${setResult.emitted})(?=${setResult.emitted})`);
+    // Frontier is zero-width; no quantifier handling.
+    return setResult.nextIndex;
   }
   // `%1`..`%9` — capture backreference inside a pattern.
   if (/[1-9]/.test(next)) {
@@ -335,6 +614,27 @@ function translateCharClass(
   }
   if (i >= pattern.length) {
     throw new LuaPatternError("Unterminated `[` in pattern.");
+  }
+  // Special case: set body is exactly one negated class shorthand
+  // (e.g. `[%W]`, `[^%w]`). Generic embedding of negated shorthands
+  // inside a set produces semantically wrong JS regex — a leading
+  // `^A-Za-z0-9` would only negate if it's the first char of the
+  // class. Handle this common case by flipping the set-level
+  // negation and emitting the corresponding positive content.
+  //   `[%W]`  → flip + positive `A-Za-z0-9` → `[^A-Za-z0-9]`
+  //   `[^%W]` → flip + positive `A-Za-z0-9` → `[A-Za-z0-9]`
+  if (
+    pattern[i] === "%" &&
+    pattern[i + 1] !== undefined &&
+    CLASS_TO_JS[pattern[i + 1]!]?.startsWith("^") &&
+    pattern[i + 2] === "]"
+  ) {
+    const positiveBody = CLASS_TO_JS[pattern[i + 1]!]!.slice(1);
+    const finalNegated = !negated;
+    return {
+      emitted: `[${finalNegated ? "^" : ""}${positiveBody}]`,
+      nextIndex: i + 3,
+    };
   }
   // Lua allows `]` to be a literal if it's the first char after the
   // (optional) `^`. Match that quirk.

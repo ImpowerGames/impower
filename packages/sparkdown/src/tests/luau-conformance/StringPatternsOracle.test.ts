@@ -12,7 +12,11 @@
 // added as those features land.
 
 import { describe, expect, test } from "vitest";
-import { luaPatternToJs, LuaPatternError } from "../../inkjs/engine/LuaPatterns";
+import {
+  executeLuaPattern,
+  luaPatternToJs,
+  LuaPatternError,
+} from "../../inkjs/engine/LuaPatterns";
 import {
   fengariFind,
   fengariGmatch,
@@ -20,20 +24,10 @@ import {
   fengariMatch,
 } from "./_fengariOracle";
 
-// Mirror of `StdLib.matchAt` — inlined here to avoid pulling the
+// Mirror of `StdLib.resolveInit` — inlined here to avoid pulling the
 // full inkjs module graph (Container/Object circular import) into
-// this test file. The matcher itself is tiny.
-function matchAt(regex: RegExp, s: string, start: number): RegExpExecArray | null {
-  const sub = s.slice(start);
-  const m = regex.exec(sub);
-  if (!m) return null;
-  (m as any).index = m.index + start;
-  return m;
-}
-
-// Mirror of `StdLib.resolveInit` — same reason as above (avoid the
-// inkjs module graph). Translates Lua's 1-indexed `init` (with
-// negative-counts-from-end support) to a 1-based start position.
+// this test file. Translates Lua's 1-indexed `init` (with negative-
+// counts-from-end support) to a 1-based start position.
 function resolveInit(init: number, strLen: number): number {
   let i = Math.floor(init);
   if (i < 0) i = Math.max(strLen + i + 1, 1);
@@ -67,13 +61,17 @@ function sparkdownFind(
     if (e instanceof LuaPatternError) return null;
     throw e;
   }
-  const m = matchAt(compiled.regex, s, resolveInit(init, s.length) - 1);
-  if (!m) return null;
-  const result: unknown[] = [m.index + 1, m.index + m[0]!.length];
-  for (let g = 1; g <= compiled.captureCount; g++) {
-    result.push(m[g] ?? null);
-  }
-  return result;
+  const matched = executeLuaPattern(
+    compiled,
+    s,
+    resolveInit(init, s.length) - 1,
+  );
+  if (!matched) return null;
+  return [
+    matched.index + 1,
+    matched.index + matched.length,
+    ...matched.captures,
+  ];
 }
 
 function sparkdownMatch(
@@ -88,14 +86,16 @@ function sparkdownMatch(
     if (e instanceof LuaPatternError) return null;
     throw e;
   }
-  const m = matchAt(compiled.regex, s, resolveInit(init, s.length) - 1);
-  if (!m) return null;
-  if (compiled.captureCount === 0) return [m[0]];
-  const captures: unknown[] = [];
-  for (let g = 1; g <= compiled.captureCount; g++) {
-    captures.push(m[g] ?? null);
+  const matched = executeLuaPattern(
+    compiled,
+    s,
+    resolveInit(init, s.length) - 1,
+  );
+  if (!matched) return null;
+  if (compiled.captureCount === 0) {
+    return [s.slice(matched.index, matched.index + matched.length)];
   }
-  return captures;
+  return matched.captures;
 }
 
 function sparkdownGmatch(s: string, pattern: string): unknown[] {
@@ -109,17 +109,15 @@ function sparkdownGmatch(s: string, pattern: string): unknown[] {
   const results: unknown[] = [];
   let cursor = 0;
   while (cursor <= s.length) {
-    const m = matchAt(compiled.regex, s, cursor);
-    if (!m) break;
+    const matched = executeLuaPattern(compiled, s, cursor);
+    if (!matched) break;
+    const matchEnd = matched.index + matched.length;
     if (compiled.captureCount === 0) {
-      results.push(m[0]);
+      results.push(s.slice(matched.index, matchEnd));
     } else {
-      for (let g = 1; g <= compiled.captureCount; g++) {
-        results.push(m[g] ?? null);
-      }
+      results.push(...matched.captures);
     }
-    const matchEnd = m.index + m[0]!.length;
-    cursor = matchEnd === m.index ? matchEnd + 1 : matchEnd;
+    cursor = matched.length === 0 ? matchEnd + 1 : matchEnd;
   }
   return results;
 }
@@ -142,14 +140,14 @@ function sparkdownGsub(
   let count = 0;
   while (cursor <= s.length) {
     if (n != null && count >= n) break;
-    const m = matchAt(compiled.regex, s, cursor);
-    if (!m) break;
-    const matchStart = m.index;
-    const matchEnd = matchStart + m[0]!.length;
+    const matched = executeLuaPattern(compiled, s, cursor);
+    if (!matched) break;
+    const matchStart = matched.index;
+    const matchEnd = matchStart + matched.length;
+    const wholeMatch = s.slice(matchStart, matchEnd);
     if (matchStart > cursor) out.push(s.slice(cursor, matchStart));
     let replacement: string;
     if (typeof repl === "string") {
-      // Expand %N references in the template.
       replacement = "";
       let i = 0;
       while (i < repl.length) {
@@ -167,7 +165,11 @@ function sparkdownGsub(
         }
         if (next >= "0" && next <= "9") {
           const g = parseInt(next, 10);
-          replacement += g === 0 ? m[0]! : (m[g] ?? "");
+          if (g === 0) replacement += wholeMatch;
+          else {
+            const cap = matched.captures[g - 1];
+            replacement += cap == null ? "" : String(cap);
+          }
           i += 2;
           continue;
         }
@@ -175,13 +177,16 @@ function sparkdownGsub(
         i += 2;
       }
     } else {
-      const key = compiled.captureCount === 0 ? m[0]! : (m[1] ?? "");
+      const key =
+        compiled.captureCount === 0
+          ? wholeMatch
+          : String(matched.captures[0] ?? "");
       const lookup = repl[key];
-      replacement = lookup == null ? m[0]! : String(lookup);
+      replacement = lookup == null ? wholeMatch : String(lookup);
     }
     out.push(replacement);
     count++;
-    if (matchEnd === matchStart) {
+    if (matched.length === 0) {
       if (matchStart < s.length) out.push(s.charAt(matchStart));
       cursor = matchStart + 1;
     } else {
@@ -198,6 +203,29 @@ function sparkdownGsub(
 // ============================================================
 
 const FIND_MATCH_CASES: Array<[string, string]> = [
+  // Balanced match `%b{xy}` — segmented matcher.
+  ["before (a (b c) d) after", "%b()"],
+  ["(unbalanced", "%b()"],
+  ["{x {y} z}", "%b{}"],
+  ["foo (bar) baz (qux)", "%b()"], // first balanced group
+  ["empty()", "%b()"],
+  ["prefix [a [b] c] suffix", "%b[]"],
+  // Balanced combined with surrounding pattern segments.
+  ["fn(args)", "%a+%b()"],
+  ["x(1) y(2)", "(%a)%b()"],
+  // Position capture `()` — yields 1-indexed position as integer.
+  ["hello", "()"], // position-at-start
+  ["hello", "()hello"], // position before whole-string match
+  ["hello world", "(%a+)() (%a+)"], // mixed string + position captures
+  ["abcdef", "abc()def"], // position between two literal segments
+  ["abc", "(%a)()(%a)"], // string + position + string
+  // Frontier `%f[set]` — word-boundary-like assertion.
+  ["the dog ate", "%f[%a]%a+"], // first word
+  ["123 abc 456 def", "%f[%a]%a+"], // first alpha run
+  ["abc123def", "%f[%d]%d+"], // first digit run inside an alpha context
+  ["hello world", "%f[%w]%w+%f[%W]"], // both edges of first word
+  ["abcdef", "%f[%a]"], // zero-width assertion at start
+  ["   abc", "%f[%a]"], // zero-width before first letter
   // Literal substring.
   ["hello world", "world"],
   ["abc", "xyz"],
