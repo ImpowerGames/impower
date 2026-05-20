@@ -39,7 +39,11 @@ export type SplitPaneProps = {
 // Resting line uses an explicit rgba — impower-ui's --theme-color-divider is
 // 0.12 which is too prominent. Sparkle's original used 0.06.
 const SEPARATOR_BASE =
-  "relative shrink-0 self-stretch bg-transparent " +
+  // z-10 lifts the separator above panel-content stacking contexts so the
+  // ::after indicator (which extends past the separator's leading edge into
+  // the leading panel's area on hover) doesn't get covered by sub-tabs or
+  // other panel UI that creates its own stacking context.
+  "relative z-10 shrink-0 self-stretch bg-transparent " +
   // ::before — always-visible thin line in resting state
   "before:content-[''] before:absolute before:pointer-events-none before:bg-white/[0.06] " +
   // ::after — fatter colored indicator that fades in on interaction
@@ -50,8 +54,13 @@ const SEPARATOR_BASE =
   "hover:after:opacity-100 focus-visible:after:opacity-100 " +
   "data-[separator=hover]:after:opacity-100 data-[separator=active]:after:opacity-100";
 
+// Visible 1px line is centered in the 8px separator (3.5px from leading
+// edge). The 4px indicator (hover/focus highlight) is also centered (2px
+// from leading edge). Sparkle's s-split-pane positions the line flush
+// with the leading panel via absolute overlay, but since react-resizable-
+// panels uses an in-layout separator, centering looks more balanced
+// regardless of which side has more visible content.
 const SEPARATOR_HORIZONTAL =
-  // 8px wide grab strip, 1px line at left=3.5px, 4px indicator at left=2px
   "w-2 cursor-col-resize " +
   "before:inset-y-0 before:left-[3.5px] before:w-px " +
   "after:inset-y-0 after:left-[2px] after:w-1";
