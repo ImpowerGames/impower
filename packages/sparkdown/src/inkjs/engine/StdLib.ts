@@ -88,6 +88,17 @@ export interface StdLibEntry {
    */
   pure?: boolean | PureStdLibType[];
   /**
+   * Marks the entry as deprecated in upstream Luau. The runtime
+   * still dispatches the call (we keep deprecated entries for source
+   * compatibility with imported Luau code), but the lowerer emits an
+   * Information-severity LSP diagnostic tagged
+   * `DiagnosticTag.Deprecated` (= 2) at the call site, which editors
+   * render struck-through. The string is the diagnostic message —
+   * include the suggested replacement so the author can see the fix
+   * inline.
+   */
+  deprecated?: string;
+  /**
    * Implementation. Receives popped args in source order (arg 0 first,
    * arg 1 second, …) — the runtime handler reverses the pop order so
    * implementations don't have to think about stack direction. For
@@ -593,7 +604,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (_, args: number[]) =>
       args.length >= 2 ? Math.atan2(args[0], args[1]) : Math.atan(args[0]),
   },
-  "math.atan2": { arity: 2, pure: true, fn: (_, [y, x]) => Math.atan2(y, x) },
+  "math.atan2": {
+    arity: 2,
+    pure: true,
+    deprecated:
+      "`math.atan2(y, x)` is deprecated in Luau. Use the 2-arg form `math.atan(y, x)` instead.",
+    fn: (_, [y, x]) => Math.atan2(y, x),
+  },
   "math.ceil": { arity: 1, pure: true, fn: (_, [v]) => Math.ceil(v) },
   "math.cos": { arity: 1, pure: true, fn: (_, [v]) => Math.cos(v) },
   "math.cosh": { arity: 1, pure: true, fn: (_, [v]) => Math.cosh(v) },
@@ -679,7 +696,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return m;
     },
   },
-  "math.pow": { arity: 2, pure: true, fn: (_, [a, b]) => Math.pow(a, b) },
+  "math.pow": {
+    arity: 2,
+    pure: true,
+    deprecated:
+      "`math.pow(a, b)` is deprecated in Luau. Use the `^` exponentiation operator instead (`a ^ b`).",
+    fn: (_, [a, b]) => Math.pow(a, b),
+  },
   "math.rad": { arity: 1, pure: true, fn: (_, [v]) => (v * Math.PI) / 180 },
   "math.round": { arity: 1, pure: true, fn: (_, [v]) => Math.round(v) },
   "math.sign": { arity: 1, pure: true, fn: (_, [v]) => Math.sign(v) },
@@ -1388,6 +1411,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // good enough for sparkdown's typical narrative-fiction tables.
   "table.getn": {
     arity: 1,
+    deprecated:
+      "`table.getn(t)` is deprecated in Luau. Use the length operator `#t` instead.",
     fn: (story, [t]) => {
       const map =
         t != null && typeof t === "object" && "value" in t
@@ -1409,6 +1434,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // so we test each for an exact integer string match before parsing.
   "table.maxn": {
     arity: 1,
+    deprecated:
+      "`table.maxn(t)` is deprecated in Luau. If you need to scan sparse integer keys, write the loop explicitly with `pairs`.",
     fn: (story, [t]) => {
       const map =
         t != null && typeof t === "object" && "value" in t
@@ -1757,6 +1784,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // global in Luau for backwards compat).
   unpack: {
     arity: -1,
+    deprecated:
+      "The global `unpack` is deprecated in Luau. Use `table.unpack(t)` instead.",
     fn: (story, args) => unpackImpl(story, args, "unpack"),
   },
 
@@ -2213,6 +2242,17 @@ export function pureStdLibTypes(entry: StdLibEntry): PureStdLibType[] | null {
   if (entry.pure === true) return ["number"];
   if (Array.isArray(entry.pure) && entry.pure.length > 0) return entry.pure;
   return null;
+}
+
+// If `name` resolves to a stdlib entry that's marked `deprecated`,
+// returns the deprecation message; otherwise `null`. Used by the
+// lowerer to emit Information-severity LSP diagnostics with
+// `DiagnosticTag.Deprecated` at deprecated-stdlib call sites. The
+// runtime still dispatches the call — the diagnostic is purely an
+// editor-side hint.
+export function lookupStdLibDeprecation(name: string): string | null {
+  const entry = STDLIB[name];
+  return entry?.deprecated ?? null;
 }
 
 // Returns the pure entries paired with the operand-type list each

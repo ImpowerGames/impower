@@ -29,6 +29,7 @@ import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { lowerTable } from "./lowerTable";
 import { mapStdLibCallToBuiltin } from "../utils/stdlibMapping";
+import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
 import {
   isBuiltinMethod,
   lookupGlobalStdLibBuiltin,
@@ -48,6 +49,8 @@ import {
 function makeGlobalFunctionCall(
   name: Identifier,
   args: Expression[],
+  callNode?: SyntaxNode,
+  ctx?: LowerContext,
 ): FunctionCall {
   const resolved = lookupGlobalStdLibBuiltin(name.name, args.length);
   if (!resolved) return new FunctionCall(name, args);
@@ -57,6 +60,13 @@ function makeGlobalFunctionCall(
   // sees exactly two stack pushes.
   if (resolved === "assert" && args.length === 1) {
     args = [...args, new StringExpression([new Text("assertion failed")])];
+  }
+  // Editor-side strikethrough for deprecated stdlib calls (e.g.
+  // `unpack(t)`). Runtime still dispatches normally; the diagnostic
+  // is purely a hint. Caller may omit `callNode`/`ctx` from synthetic
+  // call sites where source-mapping isn't meaningful.
+  if (callNode && ctx) {
+    validateStdLibDeprecation(resolved, callNode, ctx);
   }
   return new FunctionCall(new Identifier(resolved), args);
 }
@@ -341,6 +351,10 @@ function lowerMethodCall(
           callArgs.length,
         );
         if (builtin) {
+          // Editor-side strikethrough for deprecated stdlib calls
+          // (e.g. `table.getn(t)`, `math.pow(a, b)`). Runtime still
+          // dispatches normally; the diagnostic is purely a hint.
+          validateStdLibDeprecation(builtin, accessPath, ctx);
           return new FunctionCall(new Identifier(builtin), callArgs);
         }
       }
@@ -1256,7 +1270,12 @@ export function lowerSimpleAccessPath(
           const nameStr = readFunctionCallName(inner, ctx);
           const args = lowerCallArguments(inner, ctx);
           if (nameStr) {
-            return makeGlobalFunctionCall(new Identifier(nameStr), args);
+            return makeGlobalFunctionCall(
+              new Identifier(nameStr),
+              args,
+              inner,
+              ctx,
+            );
           }
         }
         break;
@@ -1315,7 +1334,7 @@ export function lowerValueChainAccessPath(
     if (!nameStr) return null;
     const name = new Identifier(nameStr);
     const args = lowerCallArguments(firstInner, ctx);
-    current = makeGlobalFunctionCall(name, args);
+    current = makeGlobalFunctionCall(name, args, firstInner, ctx);
     i = 1;
   } else {
     // Gather the leading dot-path identifier run as the initial
