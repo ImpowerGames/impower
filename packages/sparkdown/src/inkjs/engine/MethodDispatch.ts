@@ -7,7 +7,7 @@
 // method implementation.
 //
 // The design (names, semantics, return-type conventions) is documented
-// in `packages/sparkdown/METHODS.md`. The runtime invariants this file
+// in `packages/sparkdown/docs/runtime/METHODS.md`. The runtime invariants this file
 // must preserve:
 //
 //   - All methods are *pure-return* — none mutate the receiver. Methods
@@ -262,7 +262,7 @@ function methodRep(params: InkObject[]): InkObject {
 
 function methodGsub(params: InkObject[]): InkObject {
   // Plain-text replacement only — Luau pattern support is deferred.
-  // METHODS.md documents this — see "Pattern support deferred".
+  // docs/runtime/METHODS.md documents this — see "Pattern support deferred".
   const s = asString(params[0], "gsub", "receiver");
   const old = asString(params[1], "gsub", "old");
   const replacement = asString(params[2], "gsub", "new");
@@ -469,7 +469,7 @@ function methodSort(params: InkObject[]): InkObject {
   const t = asTable(params[0], "sort", "receiver");
   const arr = arrayPortion(t);
   // JS Array.prototype.sort is stable since ES2019 (Node ≥ 12). Matches
-  // our `:sort` stability decision in METHODS.md.
+  // our `:sort` stability decision in docs/runtime/METHODS.md.
   const sorted = arr.slice().sort((a, b) => compareValues(a, b, "sort"));
   return rebuildTable(sorted, t);
 }

@@ -5,7 +5,7 @@ import { LowerContext } from "../context";
 
 // Scope-rule validation for `Scene` and `Branch` declarations. Scenes
 // and branches are boundary-only Scoped rules in the grammar (see
-// GRAMMAR.md §16.3) — the body lives at root, and the explicit `end`
+// docs/compiler/GRAMMAR.md) — the body lives at root, and the explicit `end`
 // keyword that terminates the block is matched as a separate
 // top-level `LuauEndKeyword` sibling. The lowerer enforces the
 // pairing rules:

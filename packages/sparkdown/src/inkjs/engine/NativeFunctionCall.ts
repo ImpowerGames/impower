@@ -48,8 +48,7 @@ export class NativeFunctionCall extends InkObject {
   // (`?` / `!?`, also briefly exposed in sparkdown as `has` / `hasnt`)
   // are intentionally absent — membership checks go through the
   // method-call dispatch path (`list:find(item)`, `set:contains(sub)`)
-  // instead. See DIVERGENCES.md > "Membership: method calls, not
-  // operators".
+  // instead. See docs/runtime/DIVERGENCES.md.
   public static readonly Not: string = "not";
   public static readonly And: string = "and";
   public static readonly Or: string = "or";
@@ -67,7 +66,7 @@ export class NativeFunctionCall extends InkObject {
   // sparkdown formerly inherited — was likewise replaced by the
   // `t:intersection(other)` method. The `^` symbol is now Luau
   // exponentiation (aliased to `POW` in `BinaryExpression.NativeNameForOp`).
-  // See METHODS.md for the full method set.
+  // See docs/runtime/METHODS.md for the full method set.
   public static readonly ListMin: string = "LIST_MIN";
   public static readonly ListMax: string = "LIST_MAX";
   public static readonly All: string = "LIST_ALL";
@@ -717,7 +716,7 @@ export class NativeFunctionCall extends InkObject {
       // compiler's call-site arity check (FunctionCall.GenerateIntoContainer)
       // nor `Call`'s runtime check rejects calls. The actual arity and
       // receiver-type validation happens inside each method impl. See
-      // `MethodDispatch.ts` for the implementations and METHODS.md for
+      // `MethodDispatch.ts` for the implementations and docs/runtime/METHODS.md for
       // the design rationale.
       for (const methodName of Object.keys(METHOD_DISPATCH)) {
         const fullName = `${METHOD_PREFIX}${methodName}`;

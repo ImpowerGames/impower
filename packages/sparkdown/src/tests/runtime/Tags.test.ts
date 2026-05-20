@@ -34,7 +34,7 @@ describe("Tags (ported from inkjs)", () => {
     //     before any non-whitespace content.
     //   - `currentTags`: dynamic tags accumulated during evaluation.
     // Sparkdown rewrite uses `scene` for `=== knot` and `branch` for
-    // `= stitch` (per DIVERGENCES.md). The runtime API is unchanged —
+    // `= stitch` (per docs/runtime/DIVERGENCES.md). The runtime API is unchanged —
     // inherited from inkjs.
     //
     // Two top-level `# tag` lines now both surface as global tags.

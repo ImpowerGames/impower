@@ -5,7 +5,7 @@
 // Top-of-line / fully-resolved diverts work; the tunnel family
 // (`-> X ->`, `->->`, multi-target tunnels, tunnel-onwards variants), inline
 // mid-line diverts inside display text, divert-target-as-value, divert
-// arguments, and ink threads are all deferred — see DEFERRED.md.
+// arguments, and ink threads are all deferred — see docs/runtime/DEFERRED.md.
 
 import { describe, expect, test } from "vitest";
 import {
@@ -66,7 +66,7 @@ describe("Diverts (ported from inkjs)", () => {
     expect(warningMessages.some((m) => /Empty diverts/.test(m))).toBe(true);
   });
 
-  // ---- Skipped: tunnels and tunnel-onwards (deferred in DEFERRED.md) ----
+  // ---- Skipped: tunnels and tunnel-onwards (deferred in docs/runtime/DEFERRED.md) ----
 
   test("basic tunnel (`-> f ->` call + `->->` return)", () => {
     // `-> f ->` pushes a tunnel frame and diverts to scene `f`. When

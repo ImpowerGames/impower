@@ -10,7 +10,7 @@ import { SparkdownAnnotator } from "../SparkdownAnnotator";
 // line — either embedded in dialogue/action via interpolation
 // (`{queue|a|b}`) or written as the single-line block-form
 // (`queue | A | B | C end`). Whitespace inside these participates in
-// the runtime's typing-pacing — see GRAMMAR.md §12 and the project
+// the runtime's typing-pacing — see docs/compiler/GRAMMAR.md and the project
 // memory on dialogue/glue/break significance — so the formatter must
 // NOT collapse / normalize it.
 //

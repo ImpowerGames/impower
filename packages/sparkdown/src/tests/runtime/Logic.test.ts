@@ -10,8 +10,8 @@ import {
 describe("Logic (ported from inkjs)", () => {
   // The inkjs `logic_lines_with_newlines` fixture relies on function
   // bodies emitting narrative text, which sparkdown intentionally
-  // doesn't support — see DIVERGENCES.md > "Functions are
-  // expression-only". This port exercises just the bare-call piece
+  // doesn't support — see docs/runtime/DIVERGENCES.md.
+  // This port exercises just the bare-call piece
   // (`& foo()`) using a function that mutates a global instead.
   test("bare function-call statement (`& func()`)", () => {
     const src = `store counter = 0
@@ -63,8 +63,8 @@ describe("Logic — ported from ink fixture rewrites", () => {
     //   { x >= 1000: {print_num(x / 1000)} thousand ... }
     //
     // Sparkdown's functions are expression-only — they return values
-    // rather than emitting narrative (see DIVERGENCES.md > "Functions
-    // are expression-only"). The rewrite restructures `print_num` to
+    // rather than emitting narrative (see docs/runtime/DIVERGENCES.md). The
+    // rewrite restructures `print_num` to
     // *return* the spelled-out string via Luau `..` concatenation,
     // pulled into the calling line via `{print_num(n)}`. Same
     // recursive shape, same outputs:

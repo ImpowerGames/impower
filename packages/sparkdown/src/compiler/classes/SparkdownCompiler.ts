@@ -380,7 +380,7 @@ export class SparkdownCompiler {
       // single flat scope and sees them as duplicates ("A temp named
       // `x` already exists on null"). Emitting that as a user-facing
       // error would be noise — sparkdown's `local` IS supposed to
-      // shadow. See DIVERGENCES.md > "`local` is block-scoped".
+      // shadow. See docs/runtime/DIVERGENCES.md.
       //
       // (The previous "A variable must be initialized to a number,
       // string, boolean, constant" filter was needed when `const`

@@ -49,8 +49,8 @@ export class Story extends FlowBase {
       case "CONST":
       case "const":
       // `LIST` / `list` are intentionally NOT reserved — sparkdown
-      // replaced ink's LIST type with Luau tables (see DIVERGENCES.md
-      // > "Lists → tables"), so the words are free for user identifiers
+      // replaced ink's LIST type with Luau tables (see
+      // docs/runtime/DIVERGENCES.md), so the words are free for user identifiers
       // (`store list = {…}`, `function list_all() end`, etc.).
       case "DEFINE":
       case "define":

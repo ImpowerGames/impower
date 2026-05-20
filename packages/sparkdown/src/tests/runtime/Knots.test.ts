@@ -116,7 +116,7 @@ describe("Knots (ported from inkjs)", () => {
   });
 });
 
-describe.skip("Knots — closed by design (see DIVERGENCES.md)", () => {
+describe.skip("Knots — closed by design (see docs/runtime/DIVERGENCES.md)", () => {
   // Ink-specific compile warning about a knot containing global-scope
   // objects that won't survive termination. Sparkdown's scene model
   // doesn't enforce this rule.

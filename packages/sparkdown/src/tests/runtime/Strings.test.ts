@@ -28,7 +28,7 @@ describe("Strings (ported from inkjs)", () => {
     // the `:find` method, which returns a 1-based position or `nil` if
     // not found. Authors write `if s:find(sub) then` for the contains
     // check (matches the standard Luau idiom). Full method set
-    // documented in METHODS.md.
+    // documented in docs/runtime/METHODS.md.
     const ctx = makeRuntimeStoryFromFile("strings", "string-contains");
     expect(ctx.errorMessages).toEqual([]);
     // `:find("World")` returns 8 (1-based position of "W" in "Hello, World!")
@@ -46,7 +46,7 @@ describe("Strings (ported from inkjs)", () => {
     // Here we use `"" .. five` to stringify the number `5` before
     // comparison; `tonumber()` would be the symmetric alternative once
     // it's wired up in sparkdown's stdlib (currently unimplemented —
-    // see STDLIB.md). Same observable output ("same\ndifferent\n")
+    // see docs/runtime/STDLIB.md). Same observable output ("same\ndifferent\n")
     // with explicit-conversion intent.
     const ctx = makeRuntimeStoryFromFile("strings", "type-coercion-tonumber");
     expect(ctx.errorMessages).toEqual([]);
@@ -54,7 +54,7 @@ describe("Strings (ported from inkjs)", () => {
   });
 });
 
-describe.skip("Strings — closed by design (see DIVERGENCES.md)", () => {
+describe.skip("Strings — closed by design (see docs/runtime/DIVERGENCES.md)", () => {
   // The `* \ {"t1"} ...` fixture combines `\<space>` whitespace
   // suppression with a leading `{var}` that sparkdown's Choice begin
   // parses as the `* if cond` gate. Use inline `{expr}` AFTER the

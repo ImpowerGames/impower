@@ -18,7 +18,7 @@ describe("CallStack (ported from inkjs)", () => {
     //
     // Fixture ordering note: the top-level invocation must appear *before*
     // the function declarations because of the "function-end accumulation
-    // boundary" issue tracked in DEFERRED.md — `parseIncrementally`
+    // boundary" issue tracked in docs/runtime/DEFERRED.md — `parseIncrementally`
     // attaches subsequent top-level weaves to the most recent knot, so an
     // invocation written after the last `end` ends up inside the previous
     // function's body instead of at the top level. Forward references work

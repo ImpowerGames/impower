@@ -471,7 +471,7 @@ describe("Choices (ported from inkjs)", () => {
   });
 });
 
-describe.skip("Choices — closed by design (see DIVERGENCES.md)", () => {
+describe.skip("Choices — closed by design (see docs/runtime/DIVERGENCES.md)", () => {
   // Sparkdown allows nested `choose` blocks inside `if` blocks (validated
   // by `Builtins.test.ts > turns since nested`), so ink's "nested choice
   // inside conditional" error doesn't apply — the construct that ink

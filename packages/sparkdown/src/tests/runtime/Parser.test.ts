@@ -9,7 +9,7 @@
 
 import { describe, test } from "vitest";
 
-describe.skip("Parser — closed by design (see DIVERGENCES.md)", () => {
+describe.skip("Parser — closed by design (see docs/runtime/DIVERGENCES.md)", () => {
   // inkjs `StringParser.Interleave` unit tests — replaced by
   // textmate-grammar-tree, no equivalent class.
   test("StringParser.Interleave A", () => {});

@@ -6,7 +6,7 @@
 //   - `ChoiceConditional` (`{cond}` guard on `*`)
 //   - shuffle/alternator with embedded choices
 //   - duplicate-label compile diagnostic
-// See DEFERRED.md "Flow-control gaps".
+// See docs/runtime/DEFERRED.md.
 
 import { describe, expect, test } from "vitest";
 import {

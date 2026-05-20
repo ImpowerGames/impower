@@ -191,7 +191,7 @@ export function luauTypeOf(v: any): string {
  * above. Used by `assert`, `if`, etc.
  *
  * Note: differs from Luau, where `0` and `""` are truthy. Documented
- * divergence in DIVERGENCES.md.
+ * divergence in docs/runtime/DIVERGENCES.md.
  */
 export function isTruthy(v: any): boolean {
   if (v == null) return false;
@@ -4014,7 +4014,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // runtime error via `story.AddError(message)` when `cond` is
   // falsy. Sparkdown truthiness: `nil` / `0` / `false` / `""` are
   // falsy (documented divergence from Luau where `0` is truthy —
-  // see DIVERGENCES.md).
+  // see docs/runtime/DIVERGENCES.md).
   assert: {
     arity: 2,
     fn: (story, [cond, msg]) => {

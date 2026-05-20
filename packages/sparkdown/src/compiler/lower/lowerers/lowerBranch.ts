@@ -7,7 +7,7 @@ import { LowerContext } from "../context";
 import { lowerArguments } from "../utils/lowerArguments";
 import { validateBranch } from "../utils/validateSceneBranchScope";
 
-// `Branch` is a boundary-only Scoped rule (see GRAMMAR.md §16.3). The
+// `Branch` is a boundary-only Scoped rule (see docs/compiler/GRAMMAR.md). The
 // body lives at root; the lowerer validates that the branch sits
 // inside an active scene AND has a matching `end` keyword later.
 export function lowerBranch(

@@ -10,7 +10,7 @@
 // prefix and routes to `callBuiltinMethod` for receiver-type-aware
 // dispatch.
 //
-// Design spec: `packages/sparkdown/METHODS.md`.
+// Design spec: `packages/sparkdown/docs/runtime/METHODS.md`.
 
 import { describe, expect, test } from "vitest";
 import {
@@ -50,7 +50,7 @@ describe("Builtin methods (strings)", () => {
 
 describe("Chained method calls", () => {
   test("multi-level method chains return values flow correctly", () => {
-    // Phase 0 of the first-class-functions work (FUNCTIONS.md) added
+    // Phase 0 of the first-class-functions work (docs/runtime/FUNCTIONS.md) added
     // chained-method-call support via the dedicated grammar rule
     // `LuauChainedFunctionCall`. After a `LuauParenthetical`, each
     // subsequent `:method(args)` link is matched as a

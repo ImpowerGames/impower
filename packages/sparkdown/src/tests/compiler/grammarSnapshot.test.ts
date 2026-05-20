@@ -63,7 +63,7 @@ describe("grammar snapshots", () => {
           // snapshot diff to spot the added node.
           expect(
             tree,
-            `Fixture ${fixture.category}/${fixture.name}: tree contains \`ERROR_INCOMPLETE\` — a Scoped rule's \`end:\` pattern failed mid-content. See GRAMMAR.md §3.2.`,
+            `Fixture ${fixture.category}/${fixture.name}: tree contains \`ERROR_INCOMPLETE\` — a Scoped rule's \`end:\` pattern failed mid-content. See docs/compiler/GRAMMAR.md.`,
           ).not.toContain("ERROR_INCOMPLETE");
         });
       }

@@ -4,8 +4,7 @@
 // ranges, item-of-list testing, and the `LIST_*` builtin family
 // (LIST_ALL, LIST_COUNT, LIST_MIN, LIST_MAX, LIST_VALUE, LIST_RANDOM,
 // LIST_RANGE, LIST_INVERT, LIST_INTERSECT) — doesn't have a Luau
-// equivalent. Sparkdown uses Luau tables instead (see DIVERGENCES.md
-// "Lists → tables").
+// equivalent. Sparkdown uses Luau tables instead (see docs/runtime/DIVERGENCES.md).
 //
 // The full inkjs Lists.spec.ts therefore stays closed-by-design here,
 // since every test exercises the LIST type specifically. However, the
@@ -13,14 +12,14 @@
 // items, etc.) is now covered for sparkdown tables in
 // `Methods.test.ts`, which exercises the builtin method dispatch
 // (`t:insert`, `t:remove`, `t:find`, `t:len`, `t:sub`, `t:union`,
-// `t:intersection`, `t:difference`, ...). See `METHODS.md` for the full
+// `t:intersection`, `t:difference`, ...). See `docs/runtime/METHODS.md` for the full
 // method set and rationale.
 
 import { describe, test } from "vitest";
 
-describe.skip("Lists — closed by design (see DIVERGENCES.md)", () => {
-  // Ink's `LIST` type is replaced by Luau tables — DIVERGENCES.md
-  // "Lists → tables". The behaviors the inkjs Lists.spec.ts covers
+describe.skip("Lists — closed by design (see docs/runtime/DIVERGENCES.md)", () => {
+  // Ink's `LIST` type is replaced by Luau tables (docs/runtime/DIVERGENCES.md).
+  // The behaviors the inkjs Lists.spec.ts covers
   // (add/remove/contains/count/range/min/max/random/mixed-items/save-load)
   // all have table equivalents covered in `Methods.test.ts`:
   //

@@ -123,7 +123,7 @@ describe("Misc — ported from ink fixture rewrites", () => {
   });
 });
 
-describe.skip("Misc — closed by design (see DIVERGENCES.md)", () => {
+describe.skip("Misc — closed by design (see docs/runtime/DIVERGENCES.md)", () => {
   // `CommentEliminator` is an InkParser-only preprocessor — sparkdown's
   // textmate grammar handles comments via grammar rules, so the class
   // has no live consumer outside the soon-to-be-deleted `InkParser.ts`.

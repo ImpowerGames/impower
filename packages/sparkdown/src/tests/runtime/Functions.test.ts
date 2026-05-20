@@ -102,7 +102,7 @@ describe("Functions — clean-compile invariants", () => {
   });
 });
 
-describe.skip("Functions — closed by design (see DIVERGENCES.md)", () => {
+describe.skip("Functions — closed by design (see docs/runtime/DIVERGENCES.md)", () => {
   // Every remaining test in inkjs's Functions spec asserts on emitted
   // compile diagnostics whose exact wording / triggering conditions
   // belong to ink's static-analysis pass. Sparkdown's diagnostic

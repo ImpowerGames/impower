@@ -7,7 +7,7 @@ import { LowerContext } from "../context";
 import { lowerArguments } from "../utils/lowerArguments";
 import { validateScene } from "../utils/validateSceneBranchScope";
 
-// `Scene` is a boundary-only Scoped rule (see GRAMMAR.md §16.3) — it
+// `Scene` is a boundary-only Scoped rule (see docs/compiler/GRAMMAR.md) — it
 // covers the declaration line only. The scene's body lives at root,
 // so this lowerer just builds the Knot from the declaration and
 // validates that a matching `end` keyword appears later at root
