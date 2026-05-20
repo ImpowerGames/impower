@@ -1,5 +1,7 @@
 import { SparkdownScreenplayPreviewElement } from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview.elem";
 import { MainWindowElement } from "./components/main-window/MainWindow.elem";
+import { PreviewElement } from "./components/preview/Preview.elem";
+import { PreviewToggleButtonElement } from "./components/preview-toggle-button/PreviewToggleButton.elem";
 import {
   DefineOptions,
   adoptAll,
@@ -37,8 +39,6 @@ import PreviewGameToolbar from "./components/preview-game-toolbar/preview-game-t
 import PreviewGame from "./components/preview-game/preview-game";
 import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/preview-screenplay-toolbar";
 import PreviewScreenplay from "./components/preview-screenplay/preview-screenplay";
-import PreviewToggleButton from "./components/preview-toggle-button/preview-toggle-button";
-import Preview from "./components/preview/preview";
 import Scrollable from "./components/scrollable/scrollable";
 import ShareGame from "./components/share-game/share-game";
 import ShareScreenplay from "./components/share-screenplay/share-screenplay";
@@ -77,8 +77,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   PreviewGame,
   PreviewScreenplayToolbar,
   PreviewScreenplay,
-  PreviewToggleButton,
-  Preview,
   Notifications,
   Account,
   HeaderSyncConflictToolbar,
@@ -113,6 +111,8 @@ export default abstract class SparkEditor {
     // import — callers opt in via `.register()`.
     await SparkdownScreenplayPreviewElement.register();
     await MainWindowElement.register();
+    await PreviewElement.register();
+    await PreviewToggleButtonElement.register();
     return defineAll(constructors, options);
   }
 }

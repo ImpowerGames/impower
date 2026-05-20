@@ -34,8 +34,6 @@ import PreviewGameToolbar from "./components/preview-game-toolbar/_preview-game-
 import PreviewGame from "./components/preview-game/_preview-game";
 import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/_preview-screenplay-toolbar";
 import PreviewScreenplay from "./components/preview-screenplay/_preview-screenplay";
-import PreviewToggleButton from "./components/preview-toggle-button/_preview-toggle-button";
-import Preview from "./components/preview/_preview";
 import Scrollable from "./components/scrollable/_scrollable";
 import ShareGame from "./components/share-game/_share-game";
 import ShareScreenplay from "./components/share-screenplay/_share-screenplay";
@@ -100,8 +98,6 @@ const components = [
   style(Share),
   style(ShareGame),
   style(ShareScreenplay),
-  style(PreviewToggleButton),
-  style(Preview),
   style(Notifications),
   style(Account),
   style(HeaderSyncConflictToolbar),

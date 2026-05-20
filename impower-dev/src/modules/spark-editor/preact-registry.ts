@@ -1,6 +1,8 @@
 import type { ComponentRegistry } from "../../build/expandPreactComponents";
 import HeaderNavigation from "./components/header-navigation/HeaderNavigation";
 import MainWindow from "./components/main-window/MainWindow";
+import Preview from "./components/preview/Preview";
+import PreviewToggleButton from "./components/preview-toggle-button/PreviewToggleButton";
 
 // Tag name → Preact component for the build-time SSR walker.
 //
@@ -11,4 +13,6 @@ import MainWindow from "./components/main-window/MainWindow";
 export const preactRegistry: ComponentRegistry = {
   "se-main-window": MainWindow,
   "se-header-navigation": HeaderNavigation,
+  "se-preview": Preview,
+  "se-preview-toggle-button": PreviewToggleButton,
 };
