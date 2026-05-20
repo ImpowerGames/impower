@@ -3,7 +3,10 @@ import { MainWindowElement } from "./components/main-window/MainWindow.elem";
 import { PreviewElement } from "./components/preview/Preview.elem";
 import { PreviewToggleButtonElement } from "./components/preview-toggle-button/PreviewToggleButton.elem";
 import { AssetsElement } from "./components/assets/Assets.elem";
+import { FileDropzoneElement } from "./components/file-dropzone/FileDropzone.elem";
+import { InteractionBlockerElement } from "./components/interaction-blocker/InteractionBlocker.elem";
 import { LogicElement } from "./components/logic/Logic.elem";
+import { NotificationsElement } from "./components/notifications/Notifications.elem";
 import { ShareElement } from "./components/share/Share.elem";
 import {
   DefineOptions,
@@ -15,7 +18,6 @@ import AssetsFiles from "./components/assets-files/assets-files";
 import AssetsUrls from "./components/assets-urls/assets-urls";
 import Demo from "./components/demo/demo";
 import FileAddButton from "./components/file-add-button/file-add-button";
-import FileDropzone from "./components/file-dropzone/file-dropzone";
 import FileEditorNavigation from "./components/file-editor-navigation/file-editor-navigation";
 import FileItem from "./components/file-item/file-item";
 import FileListBorder from "./components/file-list-border/file-list-border";
@@ -28,12 +30,10 @@ import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar
 import HeaderSyncToolbar from "./components/header-sync-toolbar/header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/header-title-caption";
-import InteractionBlocker from "./components/interaction-blocker/interaction-blocker";
 import LogicDiagnosticsLabel from "./components/logic-diagnostics-label/logic-diagnostics-label";
 import LogicScriptEditor from "./components/logic-script-editor/logic-script-editor";
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
-import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/preview-game-toolbar";
 import PreviewGame from "./components/preview-game/preview-game";
@@ -45,7 +45,6 @@ import editorIcons from "./styles/icons/icons.css";
 import editorTheme from "./styles/theme/theme.css";
 
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
-  InteractionBlocker,
   Scrollable,
   OptionButton,
   FileOptionsButton,
@@ -55,7 +54,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   FileItem,
   FileListBorder,
   FileList,
-  FileDropzone,
   AssetsFiles,
   AssetsUrls,
   LogicDiagnosticsLabel,
@@ -68,7 +66,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   PreviewGame,
   PreviewScreenplayToolbar,
   PreviewScreenplay,
-  Notifications,
   Account,
   HeaderSyncConflictToolbar,
   HeaderSyncToolbar,
@@ -107,6 +104,9 @@ export default abstract class SparkEditor {
     await ShareElement.register();
     await AssetsElement.register();
     await LogicElement.register();
+    await InteractionBlockerElement.register();
+    await NotificationsElement.register();
+    await FileDropzoneElement.register();
     return defineAll(constructors, options);
   }
 }

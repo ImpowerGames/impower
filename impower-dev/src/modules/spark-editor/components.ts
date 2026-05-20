@@ -7,7 +7,6 @@ import AssetsFiles from "./components/assets-files/_assets-files";
 import AssetsUrls from "./components/assets-urls/_assets-urls";
 import Demo from "./components/demo/_demo";
 import FileAddButton from "./components/file-add-button/_file-add-button";
-import FileDropzone from "./components/file-dropzone/_file-dropzone";
 import FileEditorNavigation from "./components/file-editor-navigation/_file-editor-navigation";
 import FileItem from "./components/file-item/_file-item";
 import FileListBorder from "./components/file-list-border/_file-list-border";
@@ -20,12 +19,10 @@ import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar
 import HeaderSyncToolbar from "./components/header-sync-toolbar/_header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/_header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/_header-title-caption";
-import InteractionBlocker from "./components/interaction-blocker/_interaction-blocker";
 import LogicDiagnosticsLabel from "./components/logic-diagnostics-label/_logic-diagnostics-label";
 import LogicScriptEditor from "./components/logic-script-editor/_logic-script-editor";
 import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
-import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/_preview-game-toolbar";
 import PreviewGame from "./components/preview-game/_preview-game";
@@ -65,7 +62,6 @@ const components = [
   { tag: "", css: baseNormalize },
   { tag: "", css: editorNormalize },
   { tag: "", css: editorTheme },
-  style(InteractionBlocker),
   style(Scrollable),
   style(OptionButton),
   style(FileOptionsButton),
@@ -75,7 +71,6 @@ const components = [
   style(FileItem),
   style(FileListBorder),
   style(FileList),
-  style(FileDropzone),
   style(PreviewGameToolbar),
   style(PreviewGame),
   style(PreviewScreenplayToolbar),
@@ -86,7 +81,6 @@ const components = [
   style(LogicScriptEditor),
   style(LogicScriptsEditor),
   style(LogicScriptsList),
-  style(Notifications),
   style(Account),
   style(HeaderSyncConflictToolbar),
   style(HeaderSyncToolbar),
