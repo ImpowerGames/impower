@@ -26,9 +26,9 @@ function probe(label: string, src: string) {
 }
 
 test(`bisect`, () => {
-  // Edit this freely to narrow down a failing case to its minimum
-  // repro. Keep it pointed at something passing so the full-suite
-  // run stays green.
+  // Edit freely to narrow a failing fixture's minimum repro. Keep
+  // pointed at something passing so this file stays green in the
+  // full-suite run.
   probe("noop", `local x = 1`);
 });
 

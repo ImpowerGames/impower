@@ -3347,7 +3347,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       // Optional comparator. When omitted, fall back to the default
       // `<` comparator on the unwrapped values.
-      const comp = args.length > 1 ? args[1] : null;
+      // Treat explicit nil same as missing — Luau semantics:
+      // `table.sort(t, nil)` falls back to the default `<` comparator.
+      const compArg = args.length > 1 ? args[1] : null;
+      const comp =
+        compArg == null || compArg instanceof NullValue ? null : compArg;
       const defaultLess = (a: AbstractValue, b: AbstractValue): boolean => {
         const av = (a as any)?.value;
         const bv = (b as any)?.value;

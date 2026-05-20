@@ -235,6 +235,25 @@ export class NativeFunctionCall extends InkObject {
       }
     }
 
+    // Zero-args case for variadic ops (e.g. `bit32.band()`,
+    // `math.max()` — though the latter errors at runtime). We can't
+    // coerce nothing, so dispatch the registered Int variadic op
+    // directly with an empty args list and let the impl decide.
+    // bit32 ops return the identity element (`band()` → 0xffffffff,
+    // `bor() / bxor()` → 0); math.max / math.min raise.
+    if (parameters.length === 0) {
+      if (this._operationFuncs === null)
+        return throwNullException("NativeFunctionCall._operationFuncs");
+      const opForType = this._operationFuncs.get(ValueType.Int);
+      if (!opForType) {
+        throw new StoryException(
+          `Cannot perform 0-arg ${this.name} (no Int variadic op registered)`,
+        );
+      }
+      const result = (opForType as (...args: any[]) => any)();
+      return Value.Create(result);
+    }
+
     let coercedParams = this.CoerceValuesToSingleType(parameters);
     let coercedType = coercedParams[0].valueType;
 
