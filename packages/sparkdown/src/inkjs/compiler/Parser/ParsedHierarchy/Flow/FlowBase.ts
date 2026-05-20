@@ -362,8 +362,13 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     // No need to generate EvalStart and EvalEnd since there's nothing being pushed
     // back onto the evaluation stack.
     for (let ii = this.args.length - 1; ii >= 0; --ii) {
-      const paramName = this.args[ii].identifier?.name || null;
-      const assign = new RuntimeVariableAssignment(paramName, true);
+      const arg = this.args[ii];
+      const paramName = arg.identifier?.name || null;
+      const assign = new RuntimeVariableAssignment(
+        paramName,
+        true,
+        !!arg.isVararg,
+      );
       container.AddContent(assign);
     }
   };

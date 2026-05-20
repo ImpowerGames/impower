@@ -26,7 +26,7 @@ import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { LowerContext } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
-import { lowerArguments } from "../utils/lowerArguments";
+import { lowerArguments, VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import { lowerTable } from "./lowerTable";
 import { mapStdLibCallToBuiltin } from "../utils/stdlibMapping";
 import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
@@ -464,6 +464,18 @@ function collectFromNode(
     if (expr) {
       tokens.push({ kind: "operand", expr });
     }
+    return;
+  }
+  if (name === "LuauUnitKeywords") {
+    // `...` in expression position reads the synthetic varargs local
+    // (`__varargs__`) bound at function entry. The local holds a
+    // `MultiValue`; receiving contexts handle spread vs truncate via
+    // existing `PackTuple` / `UnpackTuple` semantics. See
+    // `lowerArguments.ts` for the synthetic-binding shape.
+    tokens.push({
+      kind: "operand",
+      expr: new VariableReference([new Identifier(VARARGS_LOCAL_NAME)]),
+    });
     return;
   }
   if (BINARY_OPERATOR_MARKERS.has(name)) {

@@ -72,9 +72,30 @@ export function lowerLuauFunctionDefinition(
     stack && stack.length > 0 ? stack[stack.length - 1] : null;
 
   if (enclosingScope) {
-    return lowerNestedNamedFunction(
+    // Variadic functions (`function f(a, ...) ... end`) keep the
+    // legacy subFlow-knot form rather than converting to a local
+    // closure. Static-dispatch is the only path that handles the
+    // call-site `PackTuple` for the `...` slot today; routing
+    // through `CallValueAsFunction` would need extra runtime work to
+    // pack surplus args without the lowerer knowing the target's
+    // arity. Trade-off: no upvalue capture for variadic functions
+    // — acceptable for V1 since varargs use rarely overlaps with
+    // closure capture in practice.
+    const argsPreview = lowerArguments(nodeRef.node, ctx);
+    const isVariadic =
+      argsPreview.length > 0 && !!argsPreview[argsPreview.length - 1]!.isVararg;
+    if (!isVariadic) {
+      return lowerNestedNamedFunction(
+        nodeRef.node,
+        identifier,
+        ctx,
+        enclosingScope,
+      );
+    }
+    return lowerNestedAsSubFlow(
       nodeRef.node,
       identifier,
+      argsPreview,
       ctx,
       enclosingScope,
     );
@@ -201,4 +222,27 @@ function lowerNestedNamedFunction(
     isTemporaryNewDeclaration: true,
   });
   return wrapInWeave([declaration]);
+}
+
+// Variadic nested fns keep the legacy "subFlow `Function` attached to
+// the enclosing flow" shape so their call sites can reach the static-
+// dispatch path that handles `PackTuple` for the `...` slot. Trade-off
+// for V1: variadic functions can't capture upvalues from outer scopes
+// (the closure-dispatch path doesn't yet pack surplus args at runtime,
+// see `extractClosurePath` in Story.ts). Self-recursion still works via
+// in-flow name resolution since the function lives at its own name.
+function lowerNestedAsSubFlow(
+  node: import("@lezer/common").SyntaxNode,
+  identifier: Identifier,
+  args: import("../../../inkjs/compiler/Parser/ParsedHierarchy/Argument").Argument[],
+  ctx: LowerContext,
+  enclosingScope: ParsedObject[],
+): CompiledBlock {
+  const content = getFunctionBodyContent(node);
+  const nested: ParsedObject[] = [];
+  ctx.functionScopeStack?.push(nested);
+  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  ctx.functionScopeStack?.pop();
+  enclosingScope.push(new Function(identifier, [...body, ...nested], args));
+  return {};
 }

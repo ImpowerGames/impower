@@ -334,6 +334,11 @@ export class JsonSerialisation {
 
       // Reassignment?
       if (!varAss.isNewDeclaration) writer.WriteProperty("re", true);
+      // Varargs slot — runtime skips MultiValue → first-value
+      // unwrapping for this binding so `__varargs__` keeps the
+      // packed tuple intact. Serialized as `va: true` to survive
+      // JSON round-trip when running pre-compiled stories.
+      if (varAss.isVarargsSlot) writer.WriteProperty("va", true);
 
       writer.WriteObjectEnd();
 
@@ -572,7 +577,8 @@ export class JsonSerialisation {
       if (isVarAss) {
         let varName = propValue.toString();
         let isNewDecl = !obj["re"];
-        let varAss = new VariableAssignment(varName, isNewDecl);
+        let isVarargsSlot = !!obj["va"];
+        let varAss = new VariableAssignment(varName, isNewDecl, isVarargsSlot);
         varAss.isGlobal = isGlobalVar;
         return varAss;
       }

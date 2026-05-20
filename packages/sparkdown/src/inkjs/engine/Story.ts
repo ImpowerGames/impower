@@ -2177,8 +2177,11 @@ export class Story extends InkObject {
       // Multi-target assignment uses an `UnpackTuple` ControlCommand
       // upstream, so each `VariableAssignment` in that lowering
       // already receives an unwrapped value — this guard is for the
-      // single-target case.
-      if (assignedVal instanceof MultiValue) {
+      // single-target case. The synthetic `__varargs__` slot bound at
+      // a variadic function's entry is an exception: it must keep the
+      // MultiValue intact so `...` in the body reads back the full
+      // tuple of extra args.
+      if (assignedVal instanceof MultiValue && !varAss.isVarargsSlot) {
         assignedVal = assignedVal.values[0] ?? new NullValue();
       }
 
