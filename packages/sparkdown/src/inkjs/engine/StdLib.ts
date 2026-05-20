@@ -1,6 +1,14 @@
 import { getPluralCategory } from "./PluralRules";
 import { PRNG } from "./PRNG";
-import { ObjectValue, IntValue, AbstractValue } from "./Value";
+import {
+  ObjectValue,
+  IntValue,
+  AbstractValue,
+  MultiValue,
+  NullValue,
+  StringValue,
+  Value,
+} from "./Value";
 
 // Sparkdown's Luau-standard-library bridge. Three tables drive everything:
 //
@@ -258,6 +266,125 @@ export type InkBuiltinAlias = string | ((argCount: number) => string | null);
 // `lookupStdLibBuiltin` (below) consult this table by dotted full
 // name. The `FunctionCall` constructed carries that name verbatim;
 // dispatch in `GenerateIntoContainer` branches on `pure`.
+
+// ----------------------------------------------------------------
+// Built-in iterators (for `pairs` / `ipairs`)
+// ----------------------------------------------------------------
+
+// Sentinel key on a closure-shaped `ObjectValue` marking it as a
+// stdlib iterator. The runtime's `CallValueAsFunction` handler
+// (Story.ts) checks for this BEFORE the closure-path check and
+// dispatches to the registered iterator below instead of trying to
+// divert to a user-defined target.
+export const BUILTIN_ITER_TAG = "__builtin_iter";
+// Auxiliary state — table to iterate, plus a cursor. Stored on the
+// same ObjectValue so each call can advance the cursor in place.
+const BUILTIN_ITER_STATE = "__builtin_iter_state";
+const BUILTIN_ITER_CURSOR = "__builtin_iter_cursor";
+
+// Per-iterator step function. Receives the captured table and the
+// previous cursor value; returns [next_key, next_value, next_cursor]
+// or null when iteration ends. The runtime invokes this and packages
+// the (key, value) pair as a `MultiValue` so generic-for's
+// multi-assignment binds the user's loop variables.
+type IterStep = (
+  table: ObjectValue,
+  cursor: AbstractValue | null,
+) => [AbstractValue, AbstractValue, AbstractValue] | null;
+
+const BUILTIN_ITERATORS: Record<string, IterStep> = {
+  // `pairs(t)` — visit every key in insertion order. Cursor is the
+  // previous key (string in the underlying Map). `nil` cursor →
+  // start at the first entry.
+  pairs: (table, cursor) => {
+    const map = table.value as Map<string, AbstractValue> | null;
+    if (!map) return null;
+    const keys = Array.from(map.keys());
+    let idx: number;
+    if (
+      cursor == null ||
+      cursor instanceof NullValue ||
+      (cursor as any).value === null
+    ) {
+      idx = 0;
+    } else {
+      const cstr =
+        typeof (cursor as any).value === "string"
+          ? (cursor as any).value
+          : String((cursor as any).value);
+      const i = keys.indexOf(cstr);
+      idx = i < 0 ? keys.length : i + 1;
+    }
+    if (idx >= keys.length) return null;
+    const key = keys[idx]!;
+    const value = map.get(key)! as AbstractValue;
+    const keyValue: AbstractValue = /^-?\d+$/.test(key)
+      ? new IntValue(parseInt(key, 10))
+      : new StringValue(key);
+    // Cursor is stored as a string for stable round-tripping (Maps
+    // key on string in sparkdown).
+    return [keyValue, value, new StringValue(key)];
+  },
+  // `ipairs(t)` — visit integer keys 1..N stopping at the first gap.
+  // Cursor is the previous integer index; `nil` → start at 0,
+  // returning 1 next.
+  ipairs: (table, cursor) => {
+    const map = table.value as Map<string, AbstractValue> | null;
+    if (!map) return null;
+    const prev =
+      cursor == null ||
+      cursor instanceof NullValue ||
+      (cursor as any).value === null
+        ? 0
+        : Number((cursor as any).value);
+    const i = prev + 1;
+    if (!map.has(String(i))) return null;
+    const v = map.get(String(i))! as AbstractValue;
+    return [new IntValue(i), v, new IntValue(i)];
+  },
+};
+
+/**
+ * Build a closure-shaped `ObjectValue` marked as a stdlib iterator.
+ * `CallValueAsFunction` (Story.ts) detects the `__builtin_iter` key
+ * and dispatches to the matching `BUILTIN_ITERATORS` entry, mutating
+ * the cursor on this ObjectValue between invocations.
+ */
+function makeBuiltinIterator(name: string, table: ObjectValue): ObjectValue {
+  const map = new Map<string, AbstractValue>();
+  map.set(BUILTIN_ITER_TAG, new StringValue(name));
+  map.set(BUILTIN_ITER_STATE, table);
+  map.set(BUILTIN_ITER_CURSOR, new NullValue());
+  return new ObjectValue(map);
+}
+
+/**
+ * Runtime entry point: advance the iterator stored on `iter` by one
+ * step. Returns the (key, value) pair as a `MultiValue`, or a single
+ * `NullValue` when iteration ends. Called from `Story.ts`'s
+ * `CallValueAsFunction` handler.
+ */
+export function stepBuiltinIterator(iter: ObjectValue): AbstractValue {
+  const map = iter.value as Map<string, AbstractValue> | null;
+  if (!map) return new NullValue();
+  const tagVal = map.get(BUILTIN_ITER_TAG);
+  const name = (tagVal as Value<string> | undefined)?.value;
+  if (!name) return new NullValue();
+  const step = BUILTIN_ITERATORS[name];
+  if (!step) return new NullValue();
+  const table = map.get(BUILTIN_ITER_STATE);
+  const cursor = (map.get(BUILTIN_ITER_CURSOR) ?? null) as AbstractValue | null;
+  if (!(table instanceof ObjectValue)) return new NullValue();
+  const result = step(table, cursor);
+  if (!result) {
+    // End-of-iteration — leave the cursor untouched, return nil.
+    return new NullValue();
+  }
+  const [key, value, nextCursor] = result;
+  map.set(BUILTIN_ITER_CURSOR, nextCursor);
+  return new MultiValue([key, value]);
+}
+
 export const STDLIB: Record<string, StdLibEntry> = {
   // ============================================================
   // `math.*` — pure numeric helpers (auto-registered with NativeFunctionCall)
@@ -1322,6 +1449,94 @@ export const STDLIB: Record<string, StdLibEntry> = {
   unpack: {
     arity: -1,
     fn: (story, args) => unpackImpl(story, args, "unpack"),
+  },
+
+  // ============================================================
+  // Iteration: `next` + `pairs` + `ipairs`.
+  //
+  // `next(t, k)` is the primitive: pop the entry AFTER `k` in `t`'s
+  // insertion order, return (k', v') as a multi-value. With `k == nil`
+  // (or absent), return the FIRST entry. With `k` equal to the last
+  // entry, return nil — the generic-for loop's nil-check terminates.
+  //
+  // `pairs(t)` and `ipairs(t)` return a `__builtin_iter`-shaped
+  // ObjectValue that the runtime's CallValueAsFunction handler
+  // recognizes (see `Story.ts`). Each invocation calls the matching
+  // iterator implementation with the captured state and advances the
+  // internal cursor stored on the ObjectValue itself.
+  //
+  // `pairs` walks ALL keys in insertion order; `ipairs` walks integer
+  // keys 1..N stopping at the first gap (matches Luau).
+  // ============================================================
+  next: {
+    arity: -1,
+    fn: (story, args) => {
+      const t = args[0];
+      const map =
+        t != null && typeof t === "object" && "value" in t
+          ? (t as any).value
+          : null;
+      if (!(map instanceof Map)) {
+        story.Error("next: first argument must be a table");
+        return new NullValue();
+      }
+      const keys = Array.from(map.keys());
+      const kArg = args[1];
+      const isNilKey =
+        kArg == null ||
+        kArg instanceof NullValue ||
+        (kArg as any)?.value === null;
+      let idx: number;
+      if (isNilKey) {
+        idx = 0;
+      } else {
+        const kStr =
+          typeof (kArg as any).value === "string"
+            ? (kArg as any).value
+            : String((kArg as any).value);
+        const i = keys.indexOf(kStr);
+        idx = i < 0 ? keys.length : i + 1;
+      }
+      if (idx >= keys.length) return new NullValue();
+      const nextKey = keys[idx]!;
+      const nextValue = map.get(nextKey)!;
+      // Keys are stored as strings in sparkdown's ObjectValue Map.
+      // Numeric-looking keys (`"1"`, `"2"`, …) should round-trip back
+      // to IntValue so iterating an array-style table yields the
+      // original numeric indices.
+      const keyValue: AbstractValue = /^-?\d+$/.test(nextKey)
+        ? new IntValue(parseInt(nextKey, 10))
+        : new StringValue(nextKey);
+      return new MultiValue([keyValue, nextValue as AbstractValue]);
+    },
+  },
+  pairs: {
+    arity: 1,
+    fn: (story, [t]) => {
+      const map =
+        t != null && typeof t === "object" && "value" in t
+          ? (t as any).value
+          : null;
+      if (!(map instanceof Map)) {
+        story.Error("pairs: argument must be a table");
+        return new NullValue();
+      }
+      return makeBuiltinIterator("pairs", t as ObjectValue);
+    },
+  },
+  ipairs: {
+    arity: 1,
+    fn: (story, [t]) => {
+      const map =
+        t != null && typeof t === "object" && "value" in t
+          ? (t as any).value
+          : null;
+      if (!(map instanceof Map)) {
+        story.Error("ipairs: argument must be a table");
+        return new NullValue();
+      }
+      return makeBuiltinIterator("ipairs", t as ObjectValue);
+    },
   },
 
   // ============================================================

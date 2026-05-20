@@ -553,3 +553,101 @@ end
     expect(recorded).toEqual([2, 4, null]);
   });
 });
+
+describe("iterators (pairs / ipairs / next)", () => {
+  test("ipairs walks integer keys 1..N in order", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { "a", "b", "c" }
+for i, v in ipairs(t) do
+host_record(i)
+host_record(v)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, "a", 2, "b", 3, "c"]);
+  });
+
+  test("ipairs stops at the first integer gap", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { [1] = "first", [2] = "second", [4] = "skipped" }
+for i, v in ipairs(t) do
+host_record(v)
+end
+host_record("done")
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["first", "second", "done"]);
+  });
+
+  test("ipairs over an empty table runs zero iterations", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = {}
+for i, v in ipairs(t) do
+host_record("never")
+end
+host_record("ok")
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["ok"]);
+  });
+
+  test("pairs walks all keys (including string-keyed entries)", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { name = "alpha", score = 42 }
+local n = 0
+for k, v in pairs(t) do
+host_record(k)
+n = n + 1
+end
+host_record(n)
+end
+`);
+    expect(errors).toEqual([]);
+    // Order is insertion order (string-keyed entries in declaration
+    // order). The recorded values are the visited keys plus the
+    // total number of visits.
+    expect(recorded).toEqual(["name", "score", 2]);
+  });
+
+  test("next(t, nil) returns first entry; next(t, last_key) returns nil", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = { "x", "y" }
+local k, v = next(t, nil)
+host_record(k)
+host_record(v)
+local k2, v2 = next(t, 1)
+host_record(k2)
+host_record(v2)
+local k3 = next(t, 2)
+if k3 == nil then
+host_record("nil-after-end")
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, "x", 2, "y", "nil-after-end"]);
+  });
+});

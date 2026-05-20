@@ -27,7 +27,11 @@ import { Tag } from "./Tag";
 import { VariableAssignment } from "./VariableAssignment";
 import { VariableReference } from "./VariableReference";
 import { NativeFunctionCall } from "./NativeFunctionCall";
-import { lookupStateAwareStdLib } from "./StdLib";
+import {
+  BUILTIN_ITER_TAG,
+  lookupStateAwareStdLib,
+  stepBuiltinIterator,
+} from "./StdLib";
 import { StoryException } from "./StoryException";
 import { PRNG } from "./PRNG";
 import { StringBuilder } from "./StringBuilder";
@@ -1251,6 +1255,24 @@ export class Story extends InkObject {
               ")",
           );
         } else {
+          // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
+          // stored in a variable: the call site here is a regular
+          // FunctionCall lowered into a variable-target Divert. The
+          // iterator advances its own cursor in place; we pop the
+          // (state, ctrl) args the call site pushed and replace
+          // them with the next (key, value) MultiValue.
+          if (varContents instanceof ObjectValue) {
+            const tag = (varContents.value as Map<string, AbstractValue>)?.get(
+              BUILTIN_ITER_TAG,
+            );
+            if (tag != null) {
+              this.state.PopEvaluationStack();
+              this.state.PopEvaluationStack();
+              const result = stepBuiltinIterator(varContents);
+              this.state.PushEvaluationStack(result);
+              return true;
+            }
+          }
           // Closure value: variable holds a closure-shaped ObjectValue.
           // Rearrange the eval stack (push upvals before user args)
           // and divert to the synthetic knot's path. See
@@ -1708,6 +1730,28 @@ export class Story extends InkObject {
           // binding reads them in the right order. See
           // `lowerAnonymousFunction` in `lowerExpression.ts`.
           const callTarget = this.state.PopEvaluationStack();
+          // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
+          // returns an ObjectValue marked with `__builtin_iter`. The
+          // iterator advances its own cursor on each call (stored on
+          // the same ObjectValue), so we can't dispatch via the
+          // closure path — there's no underlying knot to divert to.
+          // Instead, pop the (state, ctrl) args that the generic-for
+          // call site pushed, advance the iterator, and push the
+          // resulting (key, value) pair as a MultiValue.
+          if (callTarget instanceof ObjectValue) {
+            const tag = (callTarget.value as Map<string, AbstractValue>)?.get(
+              BUILTIN_ITER_TAG,
+            );
+            if (tag != null) {
+              // Generic-for pushes 2 args (state, ctrl). The iterator
+              // ignores them — its state lives on the ObjectValue.
+              this.state.PopEvaluationStack();
+              this.state.PopEvaluationStack();
+              const result = stepBuiltinIterator(callTarget);
+              this.state.PushEvaluationStack(result);
+              break;
+            }
+          }
           const closurePath = extractClosurePath(callTarget, this);
           if (closurePath !== null) {
             this.state.divertedPointer = this.PointerAtPath(closurePath);
