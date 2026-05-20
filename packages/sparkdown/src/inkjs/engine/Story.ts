@@ -170,6 +170,111 @@ function indexThroughMetatable(
   return null;
 }
 
+// Maps a `NativeFunctionCall` operator name to the Luau metamethod
+// that should be consulted when one or both operands carry a
+// metatable. Comparison ops `>` and `>=` are intentionally absent —
+// they're handled by swapping args and calling `__lt` / `__le`
+// (Lua's standard inversion trick), so the symmetric forms below
+// suffice. `!=` likewise inverts `__eq`. Unary `_` (negate) and
+// `LEN` (length) are unary metamethods.
+const BINOP_TO_METAMETHOD: Record<string, string> = {
+  "+": "__add",
+  "-": "__sub",
+  "*": "__mul",
+  "/": "__div",
+  "%": "__mod",
+  POW: "__pow",
+  "==": "__eq",
+  "!=": "__eq",
+  "<": "__lt",
+  ">": "__lt",
+  "<=": "__le",
+  ">=": "__le",
+};
+const UNOP_TO_METAMETHOD: Record<string, string> = {
+  _: "__unm",
+  LEN: "__len",
+};
+
+// Attempt to dispatch a binary NativeFunctionCall through a metamethod
+// when one (or both) operands are ObjectValues with a relevant entry.
+// Returns the resulting AbstractValue if a metamethod handled the op;
+// `null` to fall through to the regular type-coerced dispatch.
+//
+// Lua semantics:
+//   - Arithmetic / concat / length: check LHS first, then RHS.
+//   - `__eq` fires ONLY when both operands are tables (matches Lua's
+//     strict-type rule for equality metamethods).
+//   - `>` / `>=` are handled by swapping args and calling `__lt` /
+//     `__le` (the standard Lua inversion).
+//   - `!=` inverts the boolean returned by `__eq` (or the raw `==`
+//     comparison if no metamethod fired).
+function tryBinaryMetamethod(
+  story: any,
+  opName: string,
+  lhs: any,
+  rhs: any,
+): AbstractValue | null {
+  const metaName = BINOP_TO_METAMETHOD[opName];
+  if (!metaName) return null;
+  // `__eq` is restricted: Lua only fires it when both operands are
+  // tables (ObjectValue). For sparkdown the equivalent rule keeps
+  // primitive equality (`5 == 5`, `"a" == "a"`) on the regular
+  // numeric / string fast path.
+  if (metaName === "__eq" && !(lhs instanceof ObjectValue && rhs instanceof ObjectValue)) {
+    return null;
+  }
+  if (!(lhs instanceof ObjectValue) && !(rhs instanceof ObjectValue)) {
+    return null;
+  }
+  // Comparison-symmetry: `a > b` → `__lt(b, a)`; `a >= b` → `__le(b, a)`.
+  let callLhs = lhs;
+  let callRhs = rhs;
+  let invertEq = false;
+  if (opName === ">" || opName === ">=") {
+    callLhs = rhs;
+    callRhs = lhs;
+  }
+  if (opName === "!=") {
+    invertEq = true;
+  }
+  let handler =
+    lookupMetamethod(callLhs, metaName) ?? lookupMetamethod(callRhs, metaName);
+  if (handler == null) return null;
+  const results = story.CallLuauFunction(handler, [callLhs, callRhs]) as
+    | AbstractValue[]
+    | null;
+  const first = (results && results[0]) || new NullValue();
+  // Comparison metamethods return any value; Lua then coerces it to
+  // a boolean. Apply the inversion for `!=` after coercion.
+  if (metaName === "__eq" || metaName === "__lt" || metaName === "__le") {
+    const truthy = first instanceof AbstractValue ? first.isTruthy : false;
+    const result = invertEq ? !truthy : truthy;
+    return new BoolValue(result);
+  }
+  return first;
+}
+
+// Unary metamethod dispatch — `-x` (`__unm`) and `#x` (`__len`).
+// `LEN` for ObjectValue falls through to the existing `t.value.size`
+// path when no metamethod is present; that path is in
+// `NativeFunctionCall.CallType`.
+function tryUnaryMetamethod(
+  story: any,
+  opName: string,
+  operand: any,
+): AbstractValue | null {
+  const metaName = UNOP_TO_METAMETHOD[opName];
+  if (!metaName) return null;
+  if (!(operand instanceof ObjectValue)) return null;
+  const handler = lookupMetamethod(operand, metaName);
+  if (handler == null) return null;
+  const results = story.CallLuauFunction(handler, [operand]) as
+    | AbstractValue[]
+    | null;
+  return (results && results[0]) || new NullValue();
+}
+
 // `t[k] = v` Lua-fidelity dispatch. If `k` already exists directly on
 // `t`, the raw set fires immediately (Lua only consults `__newindex`
 // on miss). On miss, consult the metatable: function form calls
@@ -2475,6 +2580,27 @@ export class Story extends InkObject {
     else if (contentObj instanceof NativeFunctionCall) {
       let func = contentObj;
       let funcParams = this.state.PopEvaluationStack(func.numberOfParameters);
+      // Metamethod dispatch: if any operand is an ObjectValue carrying a
+      // metatable with a matching `__add` / `__sub` / `__eq` / etc., the
+      // metamethod handles the op via `story.CallLuauFunction`. Returns
+      // `null` for the common case where no metamethod fires — fall
+      // through to the regular type-coerced dispatch below.
+      const fname = func.name;
+      let mmResult: AbstractValue | null = null;
+      if (funcParams.length === 2) {
+        mmResult = tryBinaryMetamethod(
+          this,
+          fname,
+          funcParams[0],
+          funcParams[1],
+        );
+      } else if (funcParams.length === 1) {
+        mmResult = tryUnaryMetamethod(this, fname, funcParams[0]);
+      }
+      if (mmResult !== null) {
+        this.state.PushEvaluationStack(mmResult);
+        return true;
+      }
       let result = func.Call(funcParams);
       this.state.PushEvaluationStack(result);
       return true;
