@@ -1948,7 +1948,28 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: 1,
     fn: (_, [v]) => {
       if (v == null) return "nil";
+      const ctorName = v?.constructor?.name;
+      // Function values stringify as Lua's `function: <id>` form,
+      // not as the underlying JS class name. Sparkdown represents
+      // functions as either:
+      //   - `DivertTargetValue` (bare knot references / function
+      //     literals without captured upvalues)
+      //   - `ObjectValue` with `__closure_fn` (closures that captured
+      //     upvalues)
+      // Both should serialize to a stable opaque token so authors
+      // can use tostring(fn) in interpolations without leaking
+      // internal representation.
+      if (ctorName === "DivertTargetValue") {
+        const path = (v as any).value;
+        return `function: ${path?.toString?.() ?? "<unknown>"}`;
+      }
       if (typeof v === "object" && "value" in v) {
+        const map = (v as any).value;
+        if (map instanceof Map && map.has("__closure_fn")) {
+          const fnTarget = map.get("__closure_fn");
+          const path = (fnTarget as any)?.value;
+          return `function: ${path?.toString?.() ?? "<closure>"}`;
+        }
         const raw = (v as any).value;
         if (raw == null) return "nil";
         if (typeof raw === "boolean") return raw ? "true" : "false";
@@ -2108,6 +2129,103 @@ export const STDLIB: Record<string, StdLibEntry> = {
       story.Error(
         "setfenv: removed in Lua 5.2 and not in Luau",
       ),
+  },
+  // `coroutine.*` — Luau cooperative-thread API. Sparkdown's runtime
+  // is single-threaded narrative-flow on inkjs and would need either
+  // real fibers or a CPS transform to support coroutines. Stubbed
+  // here so authors get clear errors instead of `target not found`
+  // when code references them.
+  "coroutine.create": {
+    arity: -1,
+    fn: (story) =>
+      story.Error(
+        "coroutine.create: not yet implemented in sparkdown (needs fiber / CPS infra)",
+      ),
+  },
+  "coroutine.close": {
+    arity: -1,
+    fn: (story) =>
+      story.Error("coroutine.close: not yet implemented in sparkdown"),
+  },
+  "coroutine.isyieldable": {
+    arity: -1,
+    fn: (story) =>
+      story.Error("coroutine.isyieldable: not yet implemented in sparkdown"),
+  },
+  "coroutine.resume": {
+    arity: -1,
+    fn: (story) =>
+      story.Error("coroutine.resume: not yet implemented in sparkdown"),
+  },
+  "coroutine.running": {
+    arity: -1,
+    fn: (story) =>
+      story.Error("coroutine.running: not yet implemented in sparkdown"),
+  },
+  "coroutine.status": {
+    arity: -1,
+    fn: (story) =>
+      story.Error("coroutine.status: not yet implemented in sparkdown"),
+  },
+  "coroutine.wrap": {
+    arity: -1,
+    fn: (story) =>
+      story.Error("coroutine.wrap: not yet implemented in sparkdown"),
+  },
+  "coroutine.yield": {
+    arity: -1,
+    fn: (story) =>
+      story.Error("coroutine.yield: not yet implemented in sparkdown"),
+  },
+  // `task.*` — Roblox task-scheduler API. Depends on coroutine infra
+  // and a host frame loop. Stubbed for the same reason as above.
+  "task.spawn": {
+    arity: -1,
+    fn: (story) =>
+      story.Error("task.spawn: not yet implemented in sparkdown (needs coroutine infra)"),
+  },
+  "task.defer": {
+    arity: -1,
+    fn: (story) => story.Error("task.defer: not yet implemented in sparkdown"),
+  },
+  "task.delay": {
+    arity: -1,
+    fn: (story) => story.Error("task.delay: not yet implemented in sparkdown"),
+  },
+  "task.wait": {
+    arity: -1,
+    fn: (story) => story.Error("task.wait: not yet implemented in sparkdown"),
+  },
+  "task.cancel": {
+    arity: -1,
+    fn: (story) => story.Error("task.cancel: not yet implemented in sparkdown"),
+  },
+  // `buffer.*` — Luau mutable byte-array primitive. Would wrap a
+  // Uint8Array; needs a new ValueType.Buffer runtime value. Stubbed
+  // for the same reason as above.
+  "buffer.create": {
+    arity: -1,
+    fn: (story) =>
+      story.Error("buffer.create: not yet implemented in sparkdown (needs Buffer ValueType)"),
+  },
+  "buffer.fromstring": {
+    arity: -1,
+    fn: (story) => story.Error("buffer.fromstring: not yet implemented in sparkdown"),
+  },
+  "buffer.tostring": {
+    arity: -1,
+    fn: (story) => story.Error("buffer.tostring: not yet implemented in sparkdown"),
+  },
+  "buffer.len": {
+    arity: -1,
+    fn: (story) => story.Error("buffer.len: not yet implemented in sparkdown"),
+  },
+  // `vector.*` — Luau 3D-vector type. Would need a new ValueType.Vector
+  // runtime value (three floats). Stubbed for the same reason as above.
+  "vector.create": {
+    arity: -1,
+    fn: (story) =>
+      story.Error("vector.create: not yet implemented in sparkdown (needs Vector ValueType)"),
   },
 
   // `pcall(f, arg1, ...)` — protected call. Runs `f(arg1, ...)` with
