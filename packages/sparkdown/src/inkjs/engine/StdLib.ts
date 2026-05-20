@@ -9,6 +9,7 @@ import {
   StringValue,
   Value,
 } from "./Value";
+import { luaPatternToJs, LuaPatternError } from "./LuaPatterns";
 
 // Sparkdown's Luau-standard-library bridge. Three tables drive everything:
 //
@@ -202,6 +203,48 @@ export function isTruthy(v: any): boolean {
     return false;
   }
   return true;
+}
+
+/**
+ * Translate Lua's 1-indexed `init` arg (used by `string.find` /
+ * `string.match` / `string.gmatch`) to a 1-based start position.
+ * Negative values count from the end of the string; out-of-range
+ * values are clamped to [1, length+1]. Returns 1 when `init` is
+ * absent or null.
+ */
+export function resolveInit(arg: any, strLen: number): number {
+  const n = coerceNumber(arg);
+  if (n == null) return 1;
+  let i = Math.floor(n);
+  if (i < 0) i = Math.max(strLen + i + 1, 1);
+  else if (i === 0) i = 1;
+  if (i > strLen + 1) i = strLen + 1;
+  return i;
+}
+
+/**
+ * Run a compiled Lua-pattern regex against `s` starting at offset
+ * `start` (0-indexed). Returns the first match (`RegExpExecArray`)
+ * or null. The compiled regex carries `ds` flags but no `g` — we
+ * advance the cursor manually via `lastIndex` reset to keep the
+ * `string.find` / `string.match` single-call semantics correct.
+ */
+export function matchAt(
+  regex: RegExp,
+  s: string,
+  start: number,
+): RegExpExecArray | null {
+  // Use a `g`-less regex with manual offset: slice the input and
+  // adjust the resulting index back. Slicing is the simplest way
+  // to honour `init` without per-call regex recompilation.
+  const sub = s.slice(start);
+  const m = regex.exec(sub);
+  if (!m) return null;
+  // Patch `index` so it reflects the position in the original
+  // string (not the sliced substring). `RegExpExecArray.index` is
+  // writable in standard JS.
+  (m as any).index = m.index + start;
+  return m;
 }
 
 /**
@@ -1180,6 +1223,100 @@ export const STDLIB: Record<string, StdLibEntry> = {
       else if (j > str.length) j = str.length;
       if (j < i) return "";
       return str.slice(i - 1, j);
+    },
+  },
+  // `string.find(s, pattern [, init [, plain]])` — Lua-style search.
+  //
+  // Returns multi-value:
+  //   - on match: `(start_index, end_index, capture1, capture2, ...)`,
+  //     all 1-indexed and inclusive on the end.
+  //   - on no match: `nil` (a single NullValue).
+  //
+  // `init` defaults to 1; negative values count from the end. `plain`
+  // (boolean) bypasses pattern compilation and does literal substring
+  // search.
+  //
+  // Patterns are compiled via `luaPatternToJs` — most Lua syntax
+  // translates directly to JS regex. Unsupported features (`%b{}`,
+  // `%f[]`, position captures) emit a runtime error via story.Error.
+  "string.find": {
+    arity: -1,
+    fn: (story, args) => {
+      const s = coerceString(args[0]) ?? "";
+      const patternStr = coerceString(args[1]) ?? "";
+      const init = resolveInit(args[2], s.length);
+      const plain = isTruthy(args[3]);
+      if (plain) {
+        const idx = s.indexOf(patternStr, init - 1);
+        if (idx < 0) return new NullValue();
+        // `string.find` returns 1-indexed `(start, end)` inclusive.
+        return new MultiValue([
+          new IntValue(idx + 1),
+          new IntValue(idx + patternStr.length),
+        ]);
+      }
+      let compiled;
+      try {
+        compiled = luaPatternToJs(patternStr);
+      } catch (e) {
+        if (e instanceof LuaPatternError) {
+          story.Error(`string.find: ${e.message}`);
+          return new NullValue();
+        }
+        throw e;
+      }
+      const m = matchAt(compiled.regex, s, init - 1);
+      if (!m) return new NullValue();
+      const results: AbstractValue[] = [
+        new IntValue(m.index + 1),
+        new IntValue(m.index + m[0]!.length),
+      ];
+      for (let g = 1; g <= compiled.captureCount; g++) {
+        const cap = m[g];
+        results.push(
+          cap === undefined ? new NullValue() : new StringValue(cap),
+        );
+      }
+      return results.length === 1 ? results[0]! : new MultiValue(results);
+    },
+  },
+  // `string.match(s, pattern [, init])` — Lua-style capture extract.
+  //
+  // Returns multi-value:
+  //   - if the pattern has captures: each capture (string).
+  //   - if the pattern has no captures: the entire match (single string).
+  //   - on no match: `nil`.
+  "string.match": {
+    arity: -1,
+    fn: (story, args) => {
+      const s = coerceString(args[0]) ?? "";
+      const patternStr = coerceString(args[1]) ?? "";
+      const init = resolveInit(args[2], s.length);
+      let compiled;
+      try {
+        compiled = luaPatternToJs(patternStr);
+      } catch (e) {
+        if (e instanceof LuaPatternError) {
+          story.Error(`string.match: ${e.message}`);
+          return new NullValue();
+        }
+        throw e;
+      }
+      const m = matchAt(compiled.regex, s, init - 1);
+      if (!m) return new NullValue();
+      if (compiled.captureCount === 0) {
+        return new StringValue(m[0]!);
+      }
+      const captures: AbstractValue[] = [];
+      for (let g = 1; g <= compiled.captureCount; g++) {
+        const cap = m[g];
+        captures.push(
+          cap === undefined ? new NullValue() : new StringValue(cap),
+        );
+      }
+      return captures.length === 1
+        ? captures[0]!
+        : new MultiValue(captures);
     },
   },
   // `string.format(fmt, ...)` — Lua-style printf. Supports the
