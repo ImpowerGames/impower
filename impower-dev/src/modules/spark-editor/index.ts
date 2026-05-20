@@ -2,6 +2,7 @@ import { SparkdownScreenplayPreviewElement } from "@impower/sparkdown-document-v
 import { MainWindowElement } from "./components/main-window/MainWindow.elem";
 import { PreviewElement } from "./components/preview/Preview.elem";
 import { PreviewToggleButtonElement } from "./components/preview-toggle-button/PreviewToggleButton.elem";
+import { AssetsElement } from "./components/assets/Assets.elem";
 import { ShareElement } from "./components/share/Share.elem";
 import {
   DefineOptions,
@@ -11,7 +12,6 @@ import {
 import Account from "./components/account/account";
 import AssetsFiles from "./components/assets-files/assets-files";
 import AssetsUrls from "./components/assets-urls/assets-urls";
-import Assets from "./components/assets/assets";
 import Demo from "./components/demo/demo";
 import FileAddButton from "./components/file-add-button/file-add-button";
 import FileDropzone from "./components/file-dropzone/file-dropzone";
@@ -57,7 +57,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   FileListBorder,
   FileList,
   FileDropzone,
-  Assets,
   AssetsFiles,
   AssetsUrls,
   LogicDiagnosticsLabel,
@@ -109,6 +108,7 @@ export default abstract class SparkEditor {
     await PreviewElement.register();
     await PreviewToggleButtonElement.register();
     await ShareElement.register();
+    await AssetsElement.register();
     return defineAll(constructors, options);
   }
 }

@@ -5,7 +5,6 @@ import baseNormalize from "../../../../packages/spec-component/src/styles/normal
 import Account from "./components/account/_account";
 import AssetsFiles from "./components/assets-files/_assets-files";
 import AssetsUrls from "./components/assets-urls/_assets-urls";
-import Assets from "./components/assets/_assets";
 import Demo from "./components/demo/_demo";
 import FileAddButton from "./components/file-add-button/_file-add-button";
 import FileDropzone from "./components/file-dropzone/_file-dropzone";
@@ -83,7 +82,6 @@ const components = [
   style(PreviewGame),
   style(PreviewScreenplayToolbar),
   style(PreviewScreenplay),
-  style(Assets),
   style(AssetsFiles),
   style(AssetsUrls),
   style(LogicDiagnosticsLabel),
