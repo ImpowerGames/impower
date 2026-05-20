@@ -867,6 +867,24 @@ export const STDLIB: Record<string, StdLibEntry> = {
         : oMin + ((x - iMin) / (iMax - iMin)) * (oMax - oMin),
   },
 
+  // `math.lerp(a, b, t)` — Luau 0.6+. Linear interpolation between
+  // `a` and `b` parameterised by `t` (not clamped — `t` outside [0,1]
+  // extrapolates).
+  "math.lerp": {
+    arity: 3,
+    pure: true,
+    fn: (_, [a, b, t]) => a + (b - a) * t,
+  },
+
+  // `math.ult(a, b)` — Lua 5.3+ / Luau. Unsigned integer less-than:
+  // both args are coerced to uint32 before comparison. Returns a
+  // boolean.
+  "math.ult": {
+    arity: 2,
+    pure: true,
+    fn: (_, [a, b]) => (a >>> 0) < (b >>> 0),
+  },
+
   // `tostring(v)` — coerce to display string. Mirrors Luau:
   // numbers → JS String(), booleans → "true"/"false", nil → "nil",
   // strings unchanged. ObjectValues / other userdata fall back to
@@ -1382,6 +1400,32 @@ export const STDLIB: Record<string, StdLibEntry> = {
       let n = 0;
       while (map.has(String(n + 1))) n++;
       return n;
+    },
+  },
+  // `table.maxn(t)` — Lua 5.1 / Luau. Returns the largest positive
+  // numeric key in `t`, or 0 if none. Unlike `table.getn` / `#t`,
+  // this scans every key (not just contiguous integers) — useful for
+  // sparse arrays. Keys are stored as strings in the underlying Map,
+  // so we test each for an exact integer string match before parsing.
+  "table.maxn": {
+    arity: 1,
+    fn: (story, [t]) => {
+      const map =
+        t != null && typeof t === "object" && "value" in t
+          ? (t as any).value
+          : null;
+      if (!(map instanceof Map)) {
+        story.Error("table.maxn: argument must be a table");
+        return 0;
+      }
+      let max = 0;
+      for (const k of map.keys()) {
+        if (/^[1-9]\d*$/.test(k)) {
+          const n = parseInt(k, 10);
+          if (n > max) max = n;
+        }
+      }
+      return max;
     },
   },
   // `table.concat(t [, sep [, i [, j]]])` — join the array portion

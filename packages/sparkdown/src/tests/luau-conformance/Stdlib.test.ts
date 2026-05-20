@@ -829,3 +829,85 @@ end
     expect(recorded).toEqual(["hello   ", "   hello"]);
   });
 });
+
+describe("math.lerp / math.ult", () => {
+  test("math.lerp interpolates a to b by t", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(math.lerp(0, 10, 0))
+host_record(math.lerp(0, 10, 1))
+host_record(math.lerp(0, 10, 0.5))
+host_record(math.lerp(10, 20, 0.25))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([0, 10, 5, 12.5]);
+  });
+
+  test("math.lerp extrapolates outside [0, 1]", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(math.lerp(0, 10, 2))
+host_record(math.lerp(0, 10, -1))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([20, -10]);
+  });
+
+  test("math.ult treats negative as large unsigned", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(math.ult(1, 2))
+host_record(math.ult(2, 1))
+host_record(math.ult(0, -1))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([true, false, true]);
+  });
+});
+
+describe("table.maxn", () => {
+  test("table.maxn returns the largest integer key", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = {}
+t[1] = "a"
+t[3] = "c"
+t[7] = "g"
+host_record(table.maxn(t))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([7]);
+  });
+
+  test("table.maxn returns 0 for empty / non-numeric keys", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local empty = {}
+local strkeys = { name = "x", title = "y" }
+host_record(table.maxn(empty))
+host_record(table.maxn(strkeys))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([0, 0]);
+  });
+});
