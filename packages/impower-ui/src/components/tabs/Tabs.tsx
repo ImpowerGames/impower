@@ -1,9 +1,69 @@
 import * as RadixTabs from "@radix-ui/react-tabs";
+import { cva } from "class-variance-authority";
 import { type ComponentChildren, type Ref } from "preact";
 import { useContext } from "preact/hooks";
 import { createContext } from "preact";
 import type { IconComponent } from "../icon/icons.generated";
 import { cn } from "../../utils/cn";
+
+const tabsContainer = cva("relative flex w-full", {
+  variants: {
+    orientation: {
+      horizontal: "flex-row items-stretch",
+      vertical: "flex-col",
+    },
+  },
+  defaultVariants: { orientation: "horizontal" },
+});
+
+const tabsList = cva("flex w-full", {
+  variants: {
+    orientation: {
+      horizontal: "flex-row items-stretch",
+      vertical: "flex-col",
+    },
+  },
+  defaultVariants: { orientation: "horizontal" },
+});
+
+// Tab trigger button — base layout + indicator variants. The icon/label
+// crossfade overlays still need conditional Tailwind from React props (the
+// active-color depends on the parent indicator style), so those live in
+// JSX. Bulk layout/transition rules are cva-managed here.
+const tabTrigger = cva(
+  [
+    "group relative flex flex-1 items-center justify-center",
+    "gap-x-2 gap-y-0.5 px-5 py-4 text-sm font-semibold select-none",
+    "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
+  ],
+  {
+    variants: {
+      indicator: {
+        underline: "",
+        none: "",
+      },
+      orientation: {
+        horizontal: "",
+        vertical: "w-full",
+      },
+    },
+    compoundVariants: [
+      {
+        indicator: "underline",
+        orientation: "horizontal",
+        class:
+          "data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary",
+      },
+      {
+        indicator: "underline",
+        orientation: "vertical",
+        class:
+          "data-[state=active]:after:absolute data-[state=active]:after:right-0 data-[state=active]:after:top-0 data-[state=active]:after:bottom-0 data-[state=active]:after:w-0.5 data-[state=active]:after:bg-primary",
+      },
+    ],
+    defaultVariants: { indicator: "underline", orientation: "horizontal" },
+  },
+);
 
 // Surface knobs that don't live on RadixTabs.Root (indicator style, vertical).
 // Tab uses these via context to render its underline + label layout.
@@ -61,17 +121,15 @@ export default function Tabs({
         <div
           ref={containerRef}
           class={cn(
-            "relative flex w-full",
-            vertical ? "flex-col" : "flex-row items-stretch",
+            tabsContainer({ orientation: vertical ? "vertical" : "horizontal" }),
             className,
           )}
         >
           <RadixTabs.List asChild>
             <div
-              class={cn(
-                "flex w-full",
-                vertical ? "flex-col" : "flex-row items-stretch",
-              )}
+              class={tabsList({
+                orientation: vertical ? "vertical" : "horizontal",
+              })}
             >
               {children}
             </div>
@@ -126,19 +184,10 @@ export function Tab({
       <button
         type="button"
         class={cn(
-          // Padding (16/20), font (14/600), icon-text gap (2px) match sparkle's
-          // s-tab CSS so the bottom-nav in impower-dev renders pixel-identical
-          // to main. The horizontal column-gap stays a little wider for tabs
-          // that DON'T stack icon-above-text (sparkle: 8px in row mode).
-          "group relative flex flex-1 items-center justify-center gap-x-2 gap-y-0.5 px-5 py-4 text-sm font-semibold select-none",
-          "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
-          ctx.vertical && "w-full",
-          ctx.indicator === "underline" &&
-            !ctx.vertical &&
-            "data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-primary",
-          ctx.indicator === "underline" &&
-            ctx.vertical &&
-            "data-[state=active]:after:absolute data-[state=active]:after:right-0 data-[state=active]:after:top-0 data-[state=active]:after:bottom-0 data-[state=active]:after:w-0.5 data-[state=active]:after:bg-primary",
+          tabTrigger({
+            indicator: ctx.indicator,
+            orientation: ctx.vertical ? "vertical" : "horizontal",
+          }),
           className,
         )}
       >

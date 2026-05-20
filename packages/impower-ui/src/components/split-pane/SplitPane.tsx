@@ -1,6 +1,18 @@
+import { cva } from "class-variance-authority";
 import { type ComponentChildren } from "preact";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { cn } from "../../utils/cn";
+
+const splitPaneRoot = cva("flex w-full h-full", {
+  variants: {
+    collapseActive: {
+      none: "",
+      start: "swp-collapse-active-start",
+      end: "swp-collapse-active-end",
+    },
+  },
+  defaultVariants: { collapseActive: "none" },
+});
 
 export type SplitPaneProps = {
   /**
@@ -96,6 +108,8 @@ export default function SplitPane({
   activePanel = "start",
   class: className,
 }: SplitPaneProps) {
+  const collapseActive =
+    collapseBelow == null ? "none" : activePanel === "end" ? "end" : "start";
   const collapseClass =
     activePanel === "start"
       ? "swp-collapse-active-start"
@@ -103,13 +117,7 @@ export default function SplitPane({
   const breakpoint = (collapseBelow ?? 0) - 1;
 
   return (
-    <div
-      class={cn(
-        "flex w-full h-full",
-        collapseBelow != null && collapseClass,
-        className,
-      )}
-    >
+    <div class={cn(splitPaneRoot({ collapseActive }), className)}>
       {/* The responsive-collapse rules are kept in a tiny inline <style>
           because (a) the breakpoint is a runtime prop, so Tailwind can't
           statically generate the arbitrary media-query class, and (b) the
