@@ -181,6 +181,11 @@ export default function MainWindow(_props: MainWindowProps) {
       <div
         class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full"
       >
+        {/* 1px white/6% divider hugging the top edge — mirrors main's
+            <s-divider bg-color="fg-06"> above the bottom-nav tabs. The
+            !h-px overrides the parent's [&>*]:h-full selector which
+            otherwise stretches the divider to the full 60px nav height. */}
+        <div class="absolute inset-x-0 top-0 !h-px bg-white/[0.06] z-10" />
         <Tabs value={pane} onChange={onPaneChange} indicator="none">
           <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
             Logic
