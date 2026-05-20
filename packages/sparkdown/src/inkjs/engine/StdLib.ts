@@ -528,22 +528,25 @@ export const BUILTIN_ITER_TAG = "__builtin_iter";
 const BUILTIN_ITER_STATE = "__builtin_iter_state";
 const BUILTIN_ITER_CURSOR = "__builtin_iter_cursor";
 
-// Per-iterator step function. Receives the captured table and the
-// previous cursor value; returns [next_key, next_value, next_cursor]
-// or null when iteration ends. The runtime invokes this and packages
-// the (key, value) pair as a `MultiValue` so generic-for's
-// multi-assignment binds the user's loop variables.
+// Per-iterator step function. Receives the captured iterator state
+// (table for `pairs`/`ipairs`, or a small wrapper ObjectValue for
+// `gmatch`) and the previous cursor; returns the next yielded values
+// + the cursor to record for the next step, or `null` when iteration
+// ends. The runtime packages `values` as a `MultiValue` so generic-
+// for's multi-assignment binds the user's loop variables — pairs /
+// ipairs return [key, value] (length 2), `gmatch` returns N captures.
 type IterStep = (
-  table: ObjectValue,
+  state: AbstractValue,
   cursor: AbstractValue | null,
-) => [AbstractValue, AbstractValue, AbstractValue] | null;
+) => { values: AbstractValue[]; nextCursor: AbstractValue } | null;
 
 const BUILTIN_ITERATORS: Record<string, IterStep> = {
   // `pairs(t)` — visit every key in insertion order. Cursor is the
   // previous key (string in the underlying Map). `nil` cursor →
   // start at the first entry.
-  pairs: (table, cursor) => {
-    const map = table.value as Map<string, AbstractValue> | null;
+  pairs: (state, cursor) => {
+    if (!(state instanceof ObjectValue)) return null;
+    const map = state.value as Map<string, AbstractValue> | null;
     if (!map) return null;
     const keys = Array.from(map.keys());
     let idx: number;
@@ -567,15 +570,19 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
     const keyValue: AbstractValue = /^-?\d+$/.test(key)
       ? new IntValue(parseInt(key, 10))
       : new StringValue(key);
-    // Cursor is stored as a string for stable round-tripping (Maps
-    // key on string in sparkdown).
-    return [keyValue, value, new StringValue(key)];
+    return {
+      values: [keyValue, value],
+      // Cursor is stored as a string for stable round-tripping (Maps
+      // key on string in sparkdown).
+      nextCursor: new StringValue(key),
+    };
   },
   // `ipairs(t)` — visit integer keys 1..N stopping at the first gap.
   // Cursor is the previous integer index; `nil` → start at 0,
   // returning 1 next.
-  ipairs: (table, cursor) => {
-    const map = table.value as Map<string, AbstractValue> | null;
+  ipairs: (state, cursor) => {
+    if (!(state instanceof ObjectValue)) return null;
+    const map = state.value as Map<string, AbstractValue> | null;
     if (!map) return null;
     const prev =
       cursor == null ||
@@ -586,9 +593,67 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
     const i = prev + 1;
     if (!map.has(String(i))) return null;
     const v = map.get(String(i))! as AbstractValue;
-    return [new IntValue(i), v, new IntValue(i)];
+    return { values: [new IntValue(i), v], nextCursor: new IntValue(i) };
+  },
+  // `gmatch(s, pattern)` — iterate every non-overlapping match. The
+  // state is a wrapper ObjectValue carrying `{input, pattern}`; the
+  // cursor is an IntValue holding the next 0-indexed search offset.
+  // Each step yields the captures (or whole match if pattern has no
+  // captures) as a variable-arity MultiValue. Returns null on no
+  // further match — terminates the generic-for loop.
+  gmatch: (state, cursor) => {
+    if (!(state instanceof ObjectValue)) return null;
+    const stateMap = state.value as Map<string, AbstractValue> | null;
+    if (!stateMap) return null;
+    const inputVal = stateMap.get(GMATCH_INPUT);
+    const patternVal = stateMap.get(GMATCH_PATTERN);
+    const input =
+      inputVal instanceof Value ? (inputVal.value as string) : null;
+    const pattern =
+      patternVal instanceof Value ? (patternVal.value as string) : null;
+    if (input == null || pattern == null) return null;
+    let offset =
+      cursor == null ||
+      cursor instanceof NullValue ||
+      (cursor as any).value == null
+        ? 0
+        : Number((cursor as any).value);
+    let compiled;
+    try {
+      compiled = luaPatternToJs(pattern);
+    } catch {
+      // Compile errors surface at call site (gmatch entry below)
+      // before we ever get here, but be defensive.
+      return null;
+    }
+    if (offset > input.length) return null;
+    const m = matchAt(compiled.regex, input, offset);
+    if (!m) return null;
+    const matchStart = m.index;
+    const matchEnd = matchStart + m[0]!.length;
+    const values: AbstractValue[] = [];
+    if (compiled.captureCount === 0) {
+      values.push(new StringValue(m[0]!));
+    } else {
+      for (let g = 1; g <= compiled.captureCount; g++) {
+        const cap = m[g];
+        values.push(
+          cap === undefined ? new NullValue() : new StringValue(cap),
+        );
+      }
+    }
+    // Advance past the match. Empty match → step forward 1 byte so
+    // we don't loop forever on patterns like `%a*`.
+    const nextOffset = matchEnd === matchStart ? matchEnd + 1 : matchEnd;
+    return { values, nextCursor: new IntValue(nextOffset) };
   },
 };
+
+// Wrapper-ObjectValue field names for `gmatch` iterator state. The
+// state ObjectValue is keyed under `BUILTIN_ITER_STATE` on the
+// iterator itself; these two extra keys live INSIDE that wrapper.
+const GMATCH_INPUT = "__gmatch_input";
+const GMATCH_PATTERN = "__gmatch_pattern";
 
 /**
  * Build a closure-shaped `ObjectValue` marked as a stdlib iterator.
@@ -606,9 +671,10 @@ function makeBuiltinIterator(name: string, table: ObjectValue): ObjectValue {
 
 /**
  * Runtime entry point: advance the iterator stored on `iter` by one
- * step. Returns the (key, value) pair as a `MultiValue`, or a single
- * `NullValue` when iteration ends. Called from `Story.ts`'s
- * `CallValueAsFunction` handler.
+ * step. Returns the yielded values as a `MultiValue` (or the single
+ * value directly when there's only one), or a `NullValue` when
+ * iteration ends. Called from `Story.ts`'s `CallValueAsFunction`
+ * handler.
  */
 export function stepBuiltinIterator(iter: ObjectValue): AbstractValue {
   const map = iter.value as Map<string, AbstractValue> | null;
@@ -618,17 +684,18 @@ export function stepBuiltinIterator(iter: ObjectValue): AbstractValue {
   if (!name) return new NullValue();
   const step = BUILTIN_ITERATORS[name];
   if (!step) return new NullValue();
-  const table = map.get(BUILTIN_ITER_STATE);
+  const state = map.get(BUILTIN_ITER_STATE) as AbstractValue | undefined;
+  if (state == null) return new NullValue();
   const cursor = (map.get(BUILTIN_ITER_CURSOR) ?? null) as AbstractValue | null;
-  if (!(table instanceof ObjectValue)) return new NullValue();
-  const result = step(table, cursor);
+  const result = step(state, cursor);
   if (!result) {
     // End-of-iteration — leave the cursor untouched, return nil.
     return new NullValue();
   }
-  const [key, value, nextCursor] = result;
-  map.set(BUILTIN_ITER_CURSOR, nextCursor);
-  return new MultiValue([key, value]);
+  map.set(BUILTIN_ITER_CURSOR, result.nextCursor);
+  if (result.values.length === 0) return new NullValue();
+  if (result.values.length === 1) return result.values[0]!;
+  return new MultiValue(result.values);
 }
 
 export const STDLIB: Record<string, StdLibEntry> = {
@@ -1317,6 +1384,43 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return captures.length === 1
         ? captures[0]!
         : new MultiValue(captures);
+    },
+  },
+  // `string.gmatch(s, pattern)` — iterator over every non-overlapping
+  // match of `pattern` in `s`. The returned value is a stdlib
+  // builtin-iterator (marker-keyed ObjectValue routed through
+  // `stepBuiltinIterator`) so generic-for `for cap1, cap2 in
+  // string.gmatch(s, p) do … end` yields each capture as a separate
+  // loop variable. If the pattern has no captures, each iteration
+  // yields the whole match as a single value.
+  //
+  // The pattern is validated up-front so authors get errors at the
+  // `gmatch` call site (line / column point at the bad pattern)
+  // rather than deep inside the for-loop dispatch.
+  "string.gmatch": {
+    arity: 2,
+    fn: (story, [sArg, patArg]) => {
+      const input = coerceString(sArg) ?? "";
+      const pattern = coerceString(patArg) ?? "";
+      try {
+        // Validate-only — the iterator recompiles per step (cheap;
+        // JS engines cache regex compilation).
+        luaPatternToJs(pattern);
+      } catch (e) {
+        if (e instanceof LuaPatternError) {
+          story.Error(`string.gmatch: ${e.message}`);
+          return new NullValue();
+        }
+        throw e;
+      }
+      const stateMap = new Map<string, AbstractValue>();
+      stateMap.set(GMATCH_INPUT, new StringValue(input));
+      stateMap.set(GMATCH_PATTERN, new StringValue(pattern));
+      const iterMap = new Map<string, AbstractValue>();
+      iterMap.set(BUILTIN_ITER_TAG, new StringValue("gmatch"));
+      iterMap.set(BUILTIN_ITER_STATE, new ObjectValue(stateMap));
+      iterMap.set(BUILTIN_ITER_CURSOR, new IntValue(0));
+      return new ObjectValue(iterMap);
     },
   },
   // `string.format(fmt, ...)` — Lua-style printf. Supports the

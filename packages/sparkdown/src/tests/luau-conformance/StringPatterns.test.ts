@@ -309,6 +309,96 @@ end
   });
 });
 
+describe("string.gmatch — iterator over matches", () => {
+  test("yields each whole match in turn (no captures)", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for w in string.gmatch("hello world from sparkdown", "%a+") do
+host_record(w)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["hello", "world", "from", "sparkdown"]);
+  });
+
+  test("yields N captures as N loop variables", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for k, v in string.gmatch("from=here, to=there, who=we", "(%a+)=(%a+)") do
+host_record(k)
+host_record(v)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([
+      "from",
+      "here",
+      "to",
+      "there",
+      "who",
+      "we",
+    ]);
+  });
+
+  test("zero matches — body never runs", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for w in string.gmatch("no digits here", "%d+") do
+host_record(w)
+end
+host_record("done")
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["done"]);
+  });
+
+  test("break exits the loop on a sentinel value", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for w in string.gmatch("a b STOP d e", "%a+") do
+if w == "STOP" then
+break
+end
+host_record(w)
+end
+host_record("done")
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["a", "b", "done"]);
+  });
+
+  test("invalid pattern errors at the gmatch call site", () => {
+    const { errors } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+for w in string.gmatch("hello", "%b()") do
+host_record(w)
+end
+end
+`);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0]!).toContain("%b");
+  });
+});
+
 describe("string patterns — unsupported features error cleanly", () => {
   test("%b balanced match errors with a hint", () => {
     const { errors } = compileAndCapture(`external host_record(v)
