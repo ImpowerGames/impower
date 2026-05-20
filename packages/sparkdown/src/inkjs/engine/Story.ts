@@ -2416,6 +2416,145 @@ export class Story extends InkObject {
     return returnTextOutput ? { returned: result, output: textOutput } : result;
   }
 
+  /**
+   * Invoke a sparkdown function value from inside a stdlib JS impl,
+   * synchronously, and return whatever it pushed onto the eval stack.
+   *
+   * Unblocks "stdlib that takes a user function":
+   * - `table.sort(t, cmp)` — comparator
+   * - `string.gsub(s, p, fn)` — replacement
+   * - `pcall` / `xpcall` — protected call (the call half)
+   *
+   * `fnValue` may be:
+   * - An `ObjectValue` carrying a closure marker (`__closure_fn` /
+   *   `__closure_upvals` / `__closure_user_arity`) — anonymous
+   *   function literal with captured upvalues.
+   * - A `DivertTargetValue` — bare knot reference (no upvalues).
+   * - A `VariablePointerValue` — recursively resolved.
+   *
+   * Driving the inner call: this routine snapshots callstack depth,
+   * eval stack depth, currentPointer, and output stream. It sets up
+   * the divert exactly the same way `CallValueAsFunction` does, then
+   * loops `Step()` until the inner Function frame pops (callstack
+   * back to the snapshot). Return values left above the snapshot
+   * eval-stack height are collected and returned. The output stream
+   * is restored on the way out so the callback can't leak narrative
+   * text into the calling story flow.
+   *
+   * Errors inside the callback propagate via `story.Error`; without
+   * a `pcall` trap (#98), they abort the whole story — that's the
+   * same behaviour as any other runtime error today.
+   */
+  public CallLuauFunction(
+    fnValue: AbstractValue,
+    args: AbstractValue[],
+  ): AbstractValue[] {
+    this.IfAsyncWeCant("call a Luau function from stdlib");
+
+    // VariablePointerValue: deref and recurse.
+    if (fnValue instanceof VariablePointerValue) {
+      const resolved = this.state.variablesState.GetVariableWithName(
+        fnValue.variableName,
+      ) as AbstractValue | null;
+      if (resolved == null) {
+        throw new StoryException(
+          "CallLuauFunction: variable pointer references unresolved variable",
+        );
+      }
+      return this.CallLuauFunction(resolved, args);
+    }
+
+    const savedCallStackLen = this.state.callStack.elements.length;
+    const savedEvalLen = this.state.evaluationStack.length;
+    const savedPointer = this.state.currentPointer.copy();
+    const outputStreamBefore: InkObject[] = [...this.state.outputStream];
+    this.state.ResetOutput();
+
+    let path: Path | null = null;
+    try {
+      // Closure case: extractClosurePath modifies the eval stack
+      // (pops user args, pushes upvals, re-pushes user args). So push
+      // user args first, then let it rearrange.
+      if (fnValue instanceof ObjectValue) {
+        for (const a of args) this.state.PushEvaluationStack(a);
+        const p = extractClosurePath(fnValue, this);
+        if (p == null) {
+          // Not a closure-shaped ObjectValue. Restore stack + bail.
+          for (let i = 0; i < args.length; i++)
+            this.state.PopEvaluationStack();
+          throw new StoryException(
+            "CallLuauFunction: ObjectValue is not a closure (missing `__closure_fn`)",
+          );
+        }
+        path = p as Path;
+      } else if (fnValue instanceof DivertTargetValue) {
+        for (const a of args) this.state.PushEvaluationStack(a);
+        path = fnValue.value;
+      } else {
+        throw new StoryException(
+          `CallLuauFunction: expected a function value, got ${fnValue}`,
+        );
+      }
+
+      if (path == null) {
+        throw new StoryException(
+          "CallLuauFunction: could not resolve function value to a path",
+        );
+      }
+
+      // Set up the divert exactly like the in-bytecode
+      // CallValueAsFunction handler (line ~1755 in this file).
+      this.state.divertedPointer = this.PointerAtPath(path);
+      this.state.callStack.Push(
+        PushPopType.Function,
+        undefined,
+        this.state.outputStream.length,
+      );
+      // CRITICAL: when the in-bytecode CallValueAsFunction sets up
+      // the divert, Step's tail-end `NextContent()` consumes
+      // `divertedPointer` to advance to the function body. Since
+      // we're calling from JS (outside the op-processing path), we
+      // must drive `NextContent()` manually first — otherwise the
+      // next `Step()` will re-process the current op (the
+      // `RunStdLibFunction` for OUR caller), re-entering us with
+      // the wrong eval-stack state.
+      this.NextContent();
+
+      // Drive Step until the inner Function frame pops back. Bound
+      // iterations to avoid hangs on misbehaving callbacks.
+      const MAX_STEPS = 100000;
+      let steps = 0;
+      while (
+        this.state.callStack.elements.length > savedCallStackLen &&
+        !this.state.currentPointer.isNull
+      ) {
+        this.Step();
+        if (++steps > MAX_STEPS) {
+          throw new StoryException(
+            "CallLuauFunction: callback exceeded step limit (possible infinite loop)",
+          );
+        }
+      }
+
+      // Collect return values left above the saved eval-stack height.
+      const results: AbstractValue[] = [];
+      while (this.state.evaluationStack.length > savedEvalLen) {
+        results.unshift(this.state.PopEvaluationStack() as AbstractValue);
+      }
+      return results;
+    } finally {
+      // Restore everything — output stream, currentPointer (in case
+      // the inner ~ret restored it to something unexpected), and
+      // ensure we don't leave the callstack inflated if an exception
+      // unwound mid-call.
+      while (this.state.callStack.elements.length > savedCallStackLen) {
+        this.state.PopCallStack();
+      }
+      this.state.currentPointer = savedPointer;
+      this.state.ResetOutput(outputStreamBefore);
+    }
+  }
+
   public EvaluateExpression(exprContainer: Container) {
     let startCallStackHeight = this.state.callStack.elements.length;
 

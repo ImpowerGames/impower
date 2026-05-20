@@ -2068,6 +2068,82 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return removed;
     },
   },
+  // `table.sort(t [, comp])` — in-place sort of the array portion.
+  // Default comparator is `<`. A user-supplied `comp` is a sparkdown
+  // function value (closure ObjectValue or DivertTargetValue) that
+  // receives two elements and returns truthy iff the first should
+  // sort before the second — same semantics as Lua's `comp(a, b)`.
+  //
+  // The comparator is invoked via `story.CallLuauFunction`, which
+  // synchronously re-enters the eval loop, runs the user fn, and
+  // returns its push results. Output is suppressed during each call
+  // so the comparator can't leak narrative text into the story.
+  "table.sort": {
+    arity: -1,
+    fn: (story, args) => {
+      const t = args[0];
+      if (!(t instanceof ObjectValue)) {
+        story.Error("table.sort: first argument must be a table");
+        return undefined;
+      }
+      if (t.isFrozen) {
+        story.Error("table.sort: cannot mutate a frozen table");
+        return undefined;
+      }
+      const map = t.value!;
+      // Extract the array portion (consecutive integer keys 1..n).
+      let len = 0;
+      while (map.has(String(len + 1))) len++;
+      if (len < 2) return undefined;
+      const arr: AbstractValue[] = [];
+      for (let k = 1; k <= len; k++) {
+        arr.push(map.get(String(k)) as AbstractValue);
+      }
+      // Optional comparator. When omitted, fall back to the default
+      // `<` comparator on the unwrapped values.
+      const comp = args.length > 1 ? args[1] : null;
+      const defaultLess = (a: AbstractValue, b: AbstractValue): boolean => {
+        const av = (a as any)?.value;
+        const bv = (b as any)?.value;
+        if (typeof av === "number" && typeof bv === "number") return av < bv;
+        if (typeof av === "string" && typeof bv === "string") return av < bv;
+        story.Error(
+          "table.sort: attempt to compare incompatible values; supply a comparator",
+        );
+        return false;
+      };
+      let aborted = false;
+      const less = (a: AbstractValue, b: AbstractValue): boolean => {
+        if (comp == null) return defaultLess(a, b);
+        try {
+          const results = story.CallLuauFunction(comp, [a, b]);
+          const top = results[0];
+          if (top == null) return false;
+          return isTruthy(top);
+        } catch (e) {
+          story.Error(`table.sort: comparator threw: ${(e as Error).message}`);
+          aborted = true;
+          return false;
+        }
+      };
+      // In-place sort via the host's `Array.prototype.sort`. JS's
+      // sort is stable as of ES2019 — same guarantee as Lua's
+      // semantics (well, Lua doesn't guarantee stability, but
+      // stable is a strict superset).
+      arr.sort((a, b) => {
+        if (aborted) return 0;
+        if (less(a, b)) return -1;
+        if (less(b, a)) return 1;
+        return 0;
+      });
+      if (aborted) return undefined;
+      // Write sorted values back into the map.
+      for (let k = 1; k <= len; k++) {
+        map.set(String(k), arr[k - 1]!);
+      }
+      return undefined;
+    },
+  },
   // `table.clear(t)` — Luau-only. Empty all entries (array + hash
   // portion). Refuses on a frozen table.
   "table.clear": {
