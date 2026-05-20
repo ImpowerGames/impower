@@ -399,6 +399,175 @@ end
   });
 });
 
+describe("string.gsub — string replacement", () => {
+  test("replaces every match with the template", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local result, count = string.gsub("hello world", "o", "0")
+host_record(result)
+host_record(count)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["hell0 w0rld", 2]);
+  });
+
+  test("`%0` references the whole match", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local result = string.gsub("abc", "%a", "[%0]")
+host_record(result)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["[a][b][c]"]);
+  });
+
+  test("`%1` and `%2` reference captures", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local result = string.gsub("year=2026, month=05", "(%a+)=(%d+)", "%2 %1")
+host_record(result)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["2026 year, 05 month"]);
+  });
+
+  test("`%%` produces a literal percent", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local result = string.gsub("abc", "b", "%%%%")
+host_record(result)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["a%%c"]);
+  });
+
+  test("max-replacement count `n` caps substitutions", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local result, count = string.gsub("aaaaaa", "a", "X", 3)
+host_record(result)
+host_record(count)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["XXXaaa", 3]);
+  });
+
+  test("no matches — returns input unchanged, count 0", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local result, count = string.gsub("hello", "%d+", "X")
+host_record(result)
+host_record(count)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["hello", 0]);
+  });
+});
+
+describe("string.gsub — table replacement", () => {
+  test("looks up replacements in the table by capture", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local replacements = { name = "Anonymous", who = "stranger" }
+local result = string.gsub("hi $name and $who!", "%$(%a+)", replacements)
+host_record(result)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["hi Anonymous and stranger!"]);
+  });
+
+  test("missing keys keep the original match", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local replacements = { x = "ONE" }
+local result, count = string.gsub("$x $y $x", "%$(%a+)", replacements)
+host_record(result)
+host_record(count)
+end
+`);
+    expect(errors).toEqual([]);
+    // Both `$x` matches replace; `$y` keeps the original literal.
+    // Count is total matches attempted, including kept-original ones.
+    expect(recorded).toEqual(["ONE $y ONE", 3]);
+  });
+
+  test("numeric values stringify into the result", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local counts = { apples = 3, oranges = 7 }
+local result = string.gsub("apples=?, oranges=?", "(%a+)=%?", counts)
+host_record(result)
+end
+`);
+    expect(errors).toEqual([]);
+    // First capture is "apples" / "oranges" so the lookup keys match.
+    expect(recorded).toEqual(["3, 7"]);
+  });
+});
+
+describe("string.gsub — error paths", () => {
+  test("function replacement errors with a Phase-5 hint", () => {
+    const { errors } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local f = function(c) return c end
+local r = string.gsub("hello", "%a", f)
+end
+`);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0]!).toContain("function replacement");
+  });
+
+  test("invalid capture-index escape in replacement", () => {
+    const { errors } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local r = string.gsub("hello", "(%a)", "%2")
+end
+`);
+    expect(errors.length).toBeGreaterThan(0);
+    expect(errors[0]!).toContain("invalid capture index");
+  });
+});
+
 describe("string patterns — unsupported features error cleanly", () => {
   test("%b balanced match errors with a hint", () => {
     const { errors } = compileAndCapture(`external host_record(v)

@@ -223,6 +223,117 @@ export function resolveInit(arg: any, strLen: number): number {
 }
 
 /**
+ * Classify the `repl` arg to `string.gsub`. Returns:
+ *   - "string"   — repl is a string/number template (expand via
+ *                  `expandGsubStringRepl`).
+ *   - "table"    — repl is an ObjectValue map (lookup by capture).
+ *   - "error"    — repl is a function (Phase 5, deferred) or an
+ *                  unsupported type; emits `story.Error` first.
+ *
+ * Caller checks `"error"` and bails. The function-form check looks
+ * for the closure marker `__closure_fn` on the ObjectValue — see
+ * `Story.ts > extractClosurePath`.
+ */
+function classifyGsubRepl(
+  repl: any,
+  story: any,
+): "string" | "table" | "error" {
+  if (repl == null) {
+    story.Error("string.gsub: replacement argument is required");
+    return "error";
+  }
+  if (coerceString(repl) != null || coerceNumber(repl) != null) {
+    return "string";
+  }
+  if (repl instanceof ObjectValue) {
+    const map = repl.value;
+    if (map instanceof Map && map.has("__closure_fn")) {
+      story.Error(
+        "string.gsub with a function replacement is not yet supported. (Phase 5 — blocked on stdlib→Luau callback dispatch.)",
+      );
+      return "error";
+    }
+    return "table";
+  }
+  // Anonymous functions without upvalues / bare knot names lower to a
+  // DivertTargetValue (not closure-wrapped). Match the function-form
+  // error path so authors get the right hint regardless of which
+  // function-value shape they pass.
+  const ctorName = repl?.constructor?.name;
+  if (
+    ctorName === "DivertTargetValue" ||
+    ctorName === "VariablePointerValue"
+  ) {
+    story.Error(
+      "string.gsub with a function replacement is not yet supported. (Phase 5 — blocked on stdlib→Luau callback dispatch.)",
+    );
+    return "error";
+  }
+  story.Error(
+    "string.gsub: replacement must be a string, number, table, or function",
+  );
+  return "error";
+}
+
+/**
+ * Expand `%0`-`%9` capture references and `%%` literal-percent in a
+ * gsub replacement template against a match result. Returns the
+ * expanded string, or `null` if the template is malformed (caller
+ * has already raised the diagnostic via `story.Error`).
+ *
+ * Lua semantics for capture refs:
+ *   - `%0` is the whole match.
+ *   - `%N` (1..9) is the Nth capture. Referring to a non-existent
+ *     capture is an error.
+ *   - `%%` emits a single literal `%`.
+ *   - `%` followed by anything else is an error.
+ */
+function expandGsubStringRepl(
+  template: string,
+  match: RegExpExecArray,
+  captureCount: number,
+  story: any,
+): string | null {
+  let out = "";
+  let i = 0;
+  while (i < template.length) {
+    const c = template.charAt(i);
+    if (c !== "%") {
+      out += c;
+      i++;
+      continue;
+    }
+    const next = template.charAt(i + 1);
+    if (next === "%") {
+      out += "%";
+      i += 2;
+      continue;
+    }
+    if (next >= "0" && next <= "9") {
+      const n = parseInt(next, 10);
+      if (n === 0) {
+        out += match[0]!;
+      } else if (n <= captureCount) {
+        const cap = match[n];
+        out += cap === undefined ? "" : cap;
+      } else {
+        story.Error(
+          `string.gsub: invalid capture index %${n} (pattern has ${captureCount} capture${captureCount === 1 ? "" : "s"})`,
+        );
+        return null;
+      }
+      i += 2;
+      continue;
+    }
+    story.Error(
+      `string.gsub: invalid escape "%${next || "<eof>"}" in replacement string`,
+    );
+    return null;
+  }
+  return out;
+}
+
+/**
  * Run a compiled Lua-pattern regex against `s` starting at offset
  * `start` (0-indexed). Returns the first match (`RegExpExecArray`)
  * or null. The compiled regex carries `ds` flags but no `g` — we
@@ -1384,6 +1495,116 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return captures.length === 1
         ? captures[0]!
         : new MultiValue(captures);
+    },
+  },
+  // `string.gsub(s, pattern, repl [, n])` — substitute matches. Lua
+  // semantics: returns `(result_string, count_of_substitutions)`. The
+  // optional `n` caps the number of replacements (default: all).
+  //
+  // `repl` may be:
+  //   - a STRING template — `%0` (whole match), `%1`-`%9` (capture
+  //     refs), `%%` (literal `%`). Any other `%X` errors.
+  //   - a TABLE — looked up by `t[first_capture]` (or `t[whole_match]`
+  //     if no captures). Nil / false → keep the original match.
+  //     String / number → use as replacement. Other types error.
+  //   - a FUNCTION — Phase 5, blocked on runtime→Luau callback
+  //     dispatch. Currently errors with a friendly message.
+  "string.gsub": {
+    arity: -1,
+    fn: (story, args) => {
+      const input = coerceString(args[0]) ?? "";
+      const patternStr = coerceString(args[1]) ?? "";
+      const replArg = args[2];
+      const maxN = args.length > 3 ? coerceNumber(args[3]) : null;
+      let compiled;
+      try {
+        compiled = luaPatternToJs(patternStr);
+      } catch (e) {
+        if (e instanceof LuaPatternError) {
+          story.Error(`string.gsub: ${e.message}`);
+          return new MultiValue([new StringValue(input), new IntValue(0)]);
+        }
+        throw e;
+      }
+      // Classify the replacement form. String / number → template;
+      // ObjectValue without closure marker → table; ObjectValue WITH
+      // closure marker → function (deferred).
+      const replKind = classifyGsubRepl(replArg, story);
+      if (replKind === "error")
+        return new MultiValue([new StringValue(input), new IntValue(0)]);
+
+      const out: string[] = [];
+      let cursor = 0;
+      let count = 0;
+      while (cursor <= input.length) {
+        if (maxN != null && count >= maxN) break;
+        const m = matchAt(compiled.regex, input, cursor);
+        if (!m) break;
+        const matchStart = m.index;
+        const matchEnd = matchStart + m[0]!.length;
+        // Append unmatched prefix.
+        if (matchStart > cursor) out.push(input.slice(cursor, matchStart));
+        // Compute replacement.
+        let replacement: string | null;
+        if (replKind === "string") {
+          replacement = expandGsubStringRepl(
+            coerceString(replArg) ?? "",
+            m,
+            compiled.captureCount,
+            story,
+          );
+          if (replacement == null)
+            return new MultiValue([new StringValue(input), new IntValue(0)]);
+        } else {
+          // Table form. Lookup key is first capture (or whole match
+          // when no captures).
+          const lookupKey =
+            compiled.captureCount === 0 ? m[0]! : (m[1] ?? "");
+          const tableMap = (replArg as ObjectValue).value as Map<
+            string,
+            AbstractValue
+          >;
+          const lookup = tableMap.get(String(lookupKey));
+          if (
+            lookup == null ||
+            lookup instanceof NullValue ||
+            (lookup as any).value === false
+          ) {
+            // Keep the original match.
+            replacement = m[0]!;
+          } else {
+            const raw = (lookup as any).value;
+            if (typeof raw === "string") replacement = raw;
+            else if (typeof raw === "number") replacement = String(raw);
+            else {
+              story.Error(
+                `string.gsub: invalid replacement value for key "${lookupKey}" — table values must be strings or numbers`,
+              );
+              return new MultiValue([
+                new StringValue(input),
+                new IntValue(0),
+              ]);
+            }
+          }
+        }
+        out.push(replacement);
+        count++;
+        // Advance past the match. Empty match → step forward 1 byte
+        // (and append the skipped char) so we don't loop forever on
+        // patterns like `%a*`.
+        if (matchEnd === matchStart) {
+          if (matchStart < input.length) out.push(input.charAt(matchStart));
+          cursor = matchStart + 1;
+        } else {
+          cursor = matchEnd;
+        }
+      }
+      // Append the unmatched tail.
+      if (cursor < input.length) out.push(input.slice(cursor));
+      return new MultiValue([
+        new StringValue(out.join("")),
+        new IntValue(count),
+      ]);
     },
   },
   // `string.gmatch(s, pattern)` — iterator over every non-overlapping
