@@ -104,6 +104,168 @@ function extractClosurePath(callTarget: any, story: any): any | null {
   return fnVal.value;
 }
 
+// Look up a metamethod on the metatable of `obj` (e.g. `__index`,
+// `__add`, `__call`). Returns the value stored at that key, or `null`
+// if the table has no metatable or the metatable lacks that field
+// (or stores `nil` at it). Does NOT walk the metatable's own metatable
+// — Lua only consults a single level of metatable indirection per
+// metamethod lookup.
+function lookupMetamethod(
+  obj: any,
+  name: string,
+): AbstractValue | null {
+  if (!(obj instanceof ObjectValue)) return null;
+  const mt = obj.metatable;
+  if (!(mt instanceof ObjectValue)) return null;
+  const v = (mt.value as Map<string, AbstractValue>)?.get(name);
+  if (v == null || v instanceof NullValue) return null;
+  return v;
+}
+
+// Resolve `obj[key]` following Lua's `__index` chain. If `obj` has the
+// key directly, return that value. Otherwise consult the metatable's
+// `__index`: function form calls `__index(obj, key)`; table form
+// recurses into the index table (which may itself have a metatable).
+// Cycle-bounded via a depth cap. Returns `null` for a hard miss —
+// caller decides the sentinel (sparkdown today pushes `StringValue("")`
+// at non-metatable index sites; the new path returns `NullValue` to
+// match Lua, but callers may still wrap to keep historical behavior).
+function indexThroughMetatable(
+  story: any,
+  base: any,
+  keyStr: string,
+  depth: number = 0,
+): AbstractValue | null {
+  const MAX_DEPTH = 32;
+  if (depth > MAX_DEPTH) return null;
+  if (!(base instanceof ObjectValue)) return null;
+  const direct = base.value?.get(keyStr);
+  if (direct != null) return direct as AbstractValue;
+  const indexFn = lookupMetamethod(base, "__index");
+  if (indexFn == null) return null;
+  if (indexFn instanceof ObjectValue) {
+    // Treat closure-shaped ObjectValues (`__closure_fn` marker) as
+    // function-form even though they're ObjectValues. Otherwise an
+    // ObjectValue is a plain table — recurse.
+    if (
+      (indexFn.value as Map<string, AbstractValue>)?.get("__closure_fn") !=
+      null
+    ) {
+      const results = story.CallLuauFunction(indexFn, [
+        base,
+        new StringValue(keyStr),
+      ]);
+      return (results[0] as AbstractValue) ?? null;
+    }
+    return indexThroughMetatable(story, indexFn, keyStr, depth + 1);
+  }
+  // DivertTargetValue / bare-knot — function form.
+  if (indexFn instanceof DivertTargetValue) {
+    const results = story.CallLuauFunction(indexFn, [
+      base,
+      new StringValue(keyStr),
+    ]);
+    return (results[0] as AbstractValue) ?? null;
+  }
+  return null;
+}
+
+// `t[k] = v` Lua-fidelity dispatch. If `k` already exists directly on
+// `t`, the raw set fires immediately (Lua only consults `__newindex`
+// on miss). On miss, consult the metatable: function form calls
+// `__newindex(t, k, v)`; table form does the full settable operation
+// on the target (which may itself chain into a further `__newindex`
+// or land in a rawset on the target).
+//
+// Returns `true` if the metatable handled the write — caller should
+// skip its own rawset on the ORIGINAL `base`. `false` means no
+// `__newindex` was found at any level; caller falls through to its
+// own rawset on `base`.
+function newindexThroughMetatable(
+  story: any,
+  base: any,
+  keyStr: string,
+  newVal: AbstractValue,
+  depth: number = 0,
+): boolean {
+  const MAX_DEPTH = 32;
+  if (depth > MAX_DEPTH) return false;
+  if (!(base instanceof ObjectValue)) return false;
+  if (base.value?.has(keyStr)) {
+    // Lua-fidelity edge case: when called RECURSIVELY (depth > 0,
+    // i.e. via a table-form __newindex), the recursion handled the
+    // write by doing a settable on the target — and the key already
+    // existing in the target means a raw set on it. We do the rawset
+    // here so the caller's `return true` short-circuits the outer
+    // base's rawset (which is what we want — the original base
+    // should NOT receive the value).
+    if (depth > 0) {
+      if (base.isFrozen) {
+        throw new StoryException("attempt to modify a readonly table");
+      }
+      const patch = story.state.variablesState.patch;
+      if (patch !== null) {
+        patch.RecordPropertyMutation(
+          base.value,
+          keyStr,
+          base.value.get(keyStr),
+        );
+      }
+      base.value.set(keyStr, newVal);
+      return true;
+    }
+    return false;
+  }
+  const newindexFn = lookupMetamethod(base, "__newindex");
+  if (newindexFn == null) {
+    // No `__newindex` here. If we're in a recursive call (table-form
+    // chain), do the rawset on this table — that's the terminal
+    // step of the table-form chain. If we're at the top, return
+    // false so the caller does its own rawset on the original base.
+    if (depth > 0) {
+      if (base.isFrozen) {
+        throw new StoryException("attempt to modify a readonly table");
+      }
+      const patch = story.state.variablesState.patch;
+      if (patch !== null) {
+        patch.RecordPropertyMutation(base.value, keyStr, undefined);
+      }
+      base.value.set(keyStr, newVal);
+      return true;
+    }
+    return false;
+  }
+  if (newindexFn instanceof ObjectValue) {
+    if (
+      (newindexFn.value as Map<string, AbstractValue>)?.get("__closure_fn") !=
+      null
+    ) {
+      story.CallLuauFunction(newindexFn, [
+        base,
+        new StringValue(keyStr),
+        newVal,
+      ]);
+      return true;
+    }
+    return newindexThroughMetatable(
+      story,
+      newindexFn,
+      keyStr,
+      newVal,
+      depth + 1,
+    );
+  }
+  if (newindexFn instanceof DivertTargetValue) {
+    story.CallLuauFunction(newindexFn, [
+      base,
+      new StringValue(keyStr),
+      newVal,
+    ]);
+    return true;
+  }
+  return false;
+}
+
 export class Story extends InkObject {
   public static inkVersionCurrent = 22;
 
@@ -1644,12 +1806,22 @@ export class Story extends InkObject {
 
         case ControlCommand.CommandType.IndexValue: {
           // Pops key + container off the eval stack; pushes container[key].
+          // For ObjectValue, on a raw miss we consult the metatable's
+          // `__index` (table-form chains lookup; function-form calls
+          // `__index(t, key)` via story.CallLuauFunction). Lua's
+          // `__index` only fires on miss — a present key returns
+          // directly without metamethod consultation.
           const indexKey = this.state.PopEvaluationStack();
           const indexBase = this.state.PopEvaluationStack();
           let resolved: InkObject | null = null;
           const keyStr = indexKey?.toString() ?? "";
           if (indexBase instanceof ObjectValue) {
-            resolved = indexBase.value?.get(keyStr) ?? null;
+            const direct = indexBase.value?.get(keyStr) ?? null;
+            if (direct != null) {
+              resolved = direct;
+            } else {
+              resolved = indexThroughMetatable(this, indexBase, keyStr);
+            }
           } else if (indexBase instanceof StringValue) {
             // 1-indexed character access, matching Luau's string indexing.
             const intKey = asOrNull(indexKey, IntValue);
@@ -1691,6 +1863,19 @@ export class Story extends InkObject {
             const keyStr = storeKey?.toString() ?? "";
             const val = asOrNull(storeValue, AbstractValue);
             if (storeBase.value && val !== null) {
+              // `__newindex`: only consulted on a raw miss (key not
+              // already present). If the metatable handles the write,
+              // skip the direct mutation. Cycle-bounded recursion via
+              // `newindexThroughMetatable`. Frozen tables refuse all
+              // writes including through `__newindex`.
+              if (storeBase.isFrozen) {
+                throw new StoryException(
+                  "attempt to modify a readonly table",
+                );
+              }
+              if (newindexThroughMetatable(this, storeBase, keyStr, val)) {
+                break;
+              }
               const patch = this.state.variablesState.patch;
               if (patch !== null) {
                 const oldValue = storeBase.value.has(keyStr)
@@ -2224,6 +2409,26 @@ export class Story extends InkObject {
           );
           if (cur != null) {
             for (let i = 1; i < segs.length; i++) {
+              // `__index` chain — fold each dotted segment through
+              // the metatable lookup so `t.x` resolves to either
+              // `rawget(t, "x")` (when present) or
+              // `__index(t, "x")` / chained-table lookup. Matches
+              // the IndexValue ControlCommand's metamethod behavior.
+              if (cur instanceof ObjectValue) {
+                const seg = segs[i]!;
+                const direct = cur.value?.get(seg);
+                if (direct != null) {
+                  cur = direct;
+                  continue;
+                }
+                const viaMt = indexThroughMetatable(this, cur, seg);
+                if (viaMt != null) {
+                  cur = viaMt;
+                  continue;
+                }
+                cur = null;
+                break;
+              }
               const obj = (cur as any)?.value;
               if (obj instanceof Map) {
                 cur = obj.get(segs[i]!) ?? null;
