@@ -2,41 +2,43 @@
 
 This directory is a verbatim copy of `tests/conformance/` from
 [luau-lang/luau](https://github.com/luau-lang/luau), preserved here so
-the team has the authoritative Luau behavioral reference
-alongside sparkdown's Luau-subset implementation.
+sparkdown can run Luau's own test suite against our Luau-superset
+implementation.
 
-Luau is MIT-licensed (see `LICENSE.txt`); we redistribute the parts we
-actively reference as porting source material and gitignore the rest.
+Luau is MIT-licensed (see `LICENSE.txt`); we redistribute the parts
+we run against per the license terms.
 
 ## What's committed
 
 - `LICENSE.txt` — Luau's MIT license, preserved for attribution.
 - `VENDORING.md` — this file.
+- `conformance/` — every upstream `.luau` test fixture, verbatim.
 
-## What's gitignored
+## Why everything is committed
 
-- `conformance/` — the upstream `.luau` test fixtures themselves.
-  Sparkdown's luau-conformance harness ports these one by one into
-  `../fixtures/<name>.sd` (verbatim copies with the `.sd` extension,
-  per project convention — Sparkdown is a superset of Luau). The
-  upstream copies aren't needed in version control; clone them down
-  when needed via the re-vendor command below.
+Sparkdown's upstream-conformance runner (`UpstreamConformance.test.ts`)
+reads from `conformance/` verbatim at every test run, so the files
+are load-bearing — not just reference material. Committing them
+gives us:
 
-## Why it's vendored
+- **Deterministic CI.** A fresh checkout has the same fixtures as
+  any developer machine. The baseline runs everywhere.
+- **Reviewable upgrades.** Re-vendoring becomes a single commit
+  (`feat: bump luau conformance suite to <commit>`) that the team
+  can diff and accept consciously, rather than an environment
+  quirk silently introducing new tests.
+- **Pinned semantics.** When Luau changes behavior, we want to
+  bump intentionally, not discover the divergence by accident.
 
-Sparkdown aspires to be a strict superset of Luau. We port Luau's
-conformance suite verbatim (just renamed `.luau` → `.sd`) so that any
-fixture that fails to compile or fails an `assert(...)` is a real
-gap in our Luau coverage. Having the upstream tests checked out
-locally lets us:
+The runner skips files known to require infrastructure sparkdown
+doesn't have yet (coroutines, metatables, buffers, vectors, native
+codegen). See `SKIP_FILES` in `UpstreamConformance.test.ts`.
 
-1. Diff our fixture against the upstream to confirm we ported it
-   without rewriting.
-2. Identify which portions of Luau remain unimplemented in sparkdown
-   (failing assertions become the next backlog item).
-3. Pull a fresh snapshot when Luau adds new conformance tests.
+## How to re-vendor
 
-## How to re-vendor (when you want a fresh snapshot)
+When you want a fresh snapshot of upstream Luau's conformance suite,
+run the commands below. Then `git add` the result and commit —
+the baseline test will pick up any new fixtures automatically.
 
 ```bash
 TARGET=packages/sparkdown/src/tests/luau-conformance/upstream
@@ -53,10 +55,4 @@ rm -rf /tmp/luau-upstream
 - Upstream commit at vendor time: `c8cf2864adec33eb4eb5b4cc7e0708aa74893ba0`
   (2026-05-15, "Sync to upstream/release/721 (#2394)").
 
-## Don't import from here at runtime
-
-Sparkdown's tests under `../` use ported `.sd` fixtures from
-`../fixtures/`, not these `.luau` files directly. This directory is
-reference / source material for porting and gap analysis. The
-conformance harness (`../conformanceTestHarness.ts`) does NOT read
-from `upstream/`.
+Update this entry whenever you re-vendor.

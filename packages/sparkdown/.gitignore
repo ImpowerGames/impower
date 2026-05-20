@@ -11,8 +11,11 @@ node_modules
 # tests directory alike.
 src/inkjs/tests
 
-# Vendored upstream Luau conformance tests. Same pattern as inkjs:
-# the upstream `.luau` fixtures themselves stay on disk locally but
-# aren't tracked. `LICENSE.txt` and `VENDORING.md` are force-added so
-# we can document where the snapshot came from and how to refresh it.
-src/tests/luau-conformance/upstream/conformance
+# Vendored upstream Luau conformance tests are COMMITTED. Unlike the
+# inkjs tests (which are reference-only), our conformance runner
+# (`UpstreamConformance.test.ts`) reads from `upstream/conformance/`
+# verbatim at every test run — so the files are load-bearing, not
+# just reference material. Committing them keeps tests deterministic
+# across machines and CI, and makes re-vendoring a reviewable commit
+# rather than an environment quirk. See `upstream/VENDORING.md` for
+# the re-vendor procedure.

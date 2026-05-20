@@ -1,8 +1,0 @@
--- Smoke fixture for the Luau-conformance harness. Doesn't port any
--- upstream assertions; just confirms the wiring (preamble function
--- wrapper + external harness_assert + OK marker epilogue) holds
--- together end-to-end.
-
-harness_assert(1 == 1)
-harness_assert(1 + 1 == 2)
-harness_assert("hello" == "hello")
