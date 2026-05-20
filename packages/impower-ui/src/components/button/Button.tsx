@@ -8,9 +8,14 @@ import { cn } from "../../utils/cn";
 export const buttonVariants = cva(
   // BASE — applied to every variant. cursor-pointer is explicit because
   // Tailwind v4 dropped the `cursor: pointer` from the <button> preflight.
+  // pointer-events-auto re-asserts hit-testing — sparkle's normalize.css
+  // sets `* { pointer-events: none }` defensively, and without an
+  // explicit opt-in our buttons would be visually clickable but cursor
+  // wouldn't follow on hover (cursor tracks the topmost hit-testable
+  // element, which fell through to the parent).
   [
     "inline-flex items-center justify-center gap-2 whitespace-nowrap",
-    "rounded-md text-sm font-medium select-none cursor-pointer",
+    "rounded-md text-sm font-medium select-none cursor-pointer pointer-events-auto",
     "transition-colors duration-150",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
     "focus-visible:ring-offset-2 focus-visible:ring-offset-background",

@@ -511,6 +511,25 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           );
         }
 
+        // Also include the unlayered Tailwind overrides at document level.
+        // Radix UI's portaled content (Dropdown, Dialog, Tooltip) renders
+        // at document.body, OUTSIDE every shadow root — so the overrides
+        // adopted into shadow roots via sharedCSS don't reach it. Sparkle's
+        // `@layer normalize { * { flex-flow: column } }` in the SSG block
+        // wins against impower-ui's `@layer utilities { .flex-row {...} }`
+        // there too. Concatenate the unlayered overrides to win the
+        // cascade for portaled UI.
+        let tailwindUnlayeredCss = "";
+        try {
+          const path = `${indir}/modules/spark-editor/styles/tailwind-unlayered.css`;
+          tailwindUnlayeredCss = await fs.promises.readFile(path, "utf-8");
+        } catch (err) {
+          console.warn(
+            "[ssg] Failed to inline tailwind-unlayered.css:",
+            err instanceof Error ? err.message : err,
+          );
+        }
+
         const componentPaths = await glob(
           `${componentsInDir}/**/*.{js,mjs,ts}`,
         );
@@ -570,7 +589,11 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
 
         const styledHtml = staticallyStylePage(
           renderedHtml,
-          [Array.from(scopedCssSet).join("\n"), impowerUiTailwindCss]
+          [
+            Array.from(scopedCssSet).join("\n"),
+            impowerUiTailwindCss,
+            tailwindUnlayeredCss,
+          ]
             .filter(Boolean)
             .join("\n"),
         );

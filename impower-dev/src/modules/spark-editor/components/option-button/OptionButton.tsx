@@ -7,7 +7,7 @@ import type { ComponentChildren, JSX } from "preact";
 const optionButtonVariants = cva(
   [
     "relative flex w-full flex-row items-center justify-between",
-    "text-foreground/80 select-none cursor-pointer",
+    "text-foreground/80 select-none cursor-pointer pointer-events-auto",
     "transition-colors duration-150",
     "hover:bg-foreground/5 active:bg-foreground/10",
     "focus-visible:outline-none focus-visible:bg-foreground/5",

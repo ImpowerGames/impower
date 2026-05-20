@@ -159,3 +159,45 @@ textarea {
   color: inherit;
   font: inherit;
 }
+
+/* Unlayered re-declarations for Tailwind utilities that get clobbered by
+   sparkle's normalize.css universal-selector resets (in `@layer
+   normalize`). Layered rules always lose to unlayered ones, so pulling
+   these few utilities out of `@layer utilities` is how we win the
+   cascade without touching sparkle. Lives in document.css (not the SSG
+   block) because the SSG block is removed once JS loads, and we still
+   need these for Radix-portaled content (Dropdown, Dialog, Tooltip)
+   that renders at document.body level post-hydration. Add new ones
+   here as we hit them. */
+.border { border-width: 1px; border-style: solid; }
+.border-solid { border-style: solid; }
+.border-0 { border-width: 0; }
+.border-2 { border-width: 2px; border-style: solid; }
+.border-t { border-top-width: 1px; border-top-style: solid; }
+.border-b { border-bottom-width: 1px; border-bottom-style: solid; }
+.border-l { border-left-width: 1px; border-left-style: solid; }
+.border-r { border-right-width: 1px; border-right-style: solid; }
+.flex-row { flex-direction: row; }
+.flex-col { flex-direction: column; }
+.flex-row-reverse { flex-direction: row-reverse; }
+.flex-col-reverse { flex-direction: column-reverse; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-nowrap { flex-wrap: nowrap; }
+
+/* Pointer events / touch / user-select — sparkle's normalize.css declares
+   `* { pointer-events: none; touch-action: none; user-select: none; ... }`
+   as a defensive base; interactive widgets opt back in via their own host
+   CSS. Re-assert Tailwind's utility versions unlayered so interactive
+   elements (e.g. Radix CheckboxItem, Button) get the expected behavior
+   without each having to set inline style. Hover/click work, cursor
+   reflects on the hovered element instead of falling through to the
+   parent (cursor follows hit-testing — pointer-events:none on a child
+   means the parent's cursor wins). */
+.pointer-events-auto { pointer-events: auto; }
+.pointer-events-none { pointer-events: none; }
+.touch-auto { touch-action: auto; }
+.touch-none { touch-action: none; }
+.select-auto { user-select: auto; }
+.select-text { user-select: text; }
+.select-none { user-select: none; }
+.select-all { user-select: all; }

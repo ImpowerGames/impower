@@ -1,0 +1,39 @@
+/* Unlayered re-declarations for Tailwind utilities that get clobbered by
+   sparkle's normalize.css universal-selector resets (which live in
+   `@layer normalize`). Layered rules always lose to unlayered ones, so
+   pulling these few utilities out of `@layer utilities` is how we win
+   the cascade without touching sparkle. Add new ones here as we hit them. */
+
+/* Borders — sparkle's normalize.css resets border to 0/none. */
+.border { border-width: 1px; border-style: solid; }
+.border-solid { border-style: solid; }
+.border-0 { border-width: 0; }
+.border-2 { border-width: 2px; border-style: solid; }
+.border-t { border-top-width: 1px; border-top-style: solid; }
+.border-b { border-bottom-width: 1px; border-bottom-style: solid; }
+.border-l { border-left-width: 1px; border-left-style: solid; }
+.border-r { border-right-width: 1px; border-right-style: solid; }
+
+/* Flex direction — sparkle's normalize.css declares
+   * { flex-flow: column } which clobbers Tailwind's .flex-row, .flex-col,
+   * etc. when their @layer utilities loses against the @layer normalize. */
+.flex-row { flex-direction: row; }
+.flex-col { flex-direction: column; }
+.flex-row-reverse { flex-direction: row-reverse; }
+.flex-col-reverse { flex-direction: column-reverse; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-nowrap { flex-wrap: nowrap; }
+
+/* Pointer / touch / user-select — sparkle's normalize zeroes these on `*`
+   for defensive reset. Re-assert opt-in utilities so interactive widgets
+   work. Cursor follows hit-testing, so pointer-events:none on a child
+   means the parent's cursor (often `auto`) wins — re-asserting
+   .pointer-events-auto is what makes cursor-pointer actually visible. */
+.pointer-events-auto { pointer-events: auto; }
+.pointer-events-none { pointer-events: none; }
+.touch-auto { touch-action: auto; }
+.touch-none { touch-action: none; }
+.select-auto { user-select: auto; }
+.select-text { user-select: text; }
+.select-none { user-select: none; }
+.select-all { user-select: all; }

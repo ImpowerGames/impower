@@ -24,10 +24,7 @@ import LogicScriptEditor from "./components/logic-script-editor/_logic-script-ed
 import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
 import OptionButton from "./components/option-button/_option-button";
-import PreviewGameToolbar from "./components/preview-game-toolbar/_preview-game-toolbar";
 import PreviewGame from "./components/preview-game/_preview-game";
-import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/_preview-screenplay-toolbar";
-import PreviewScreenplay from "./components/preview-screenplay/_preview-screenplay";
 import Scrollable from "./components/scrollable/_scrollable";
 import Main from "./main/_spark-editor";
 import editorNormalize from "./styles/normalize/normalize.css";
@@ -71,10 +68,7 @@ const components = [
   style(FileItem),
   style(FileListBorder),
   style(FileList),
-  style(PreviewGameToolbar),
   style(PreviewGame),
-  style(PreviewScreenplayToolbar),
-  style(PreviewScreenplay),
   style(AssetsFiles),
   style(AssetsUrls),
   style(LogicDiagnosticsLabel),
