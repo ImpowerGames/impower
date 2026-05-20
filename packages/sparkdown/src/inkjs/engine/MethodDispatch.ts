@@ -270,6 +270,45 @@ function methodGsub(params: InkObject[]): InkObject {
   return new StringValue(s.split(old).join(replacement));
 }
 
+// `s:match(pattern)` — Lua-pattern match. Routes through the same
+// `luaPatternToJs` engine used by `string.match` / `string.find` /
+// `string.gmatch` / `string.gsub` in StdLib.ts. Returns the captures
+// (or whole match if no captures), or nil on miss.
+//
+// Lazy-imported to break a module-graph cycle: StdLib.ts → Value.ts;
+// MethodDispatch.ts → StdLib.ts would close the loop. Inline require()
+// is fine since the runtime only hits this path lazily anyway.
+function methodMatch(params: InkObject[]): InkObject {
+  const s = asString(params[0], "match", "receiver");
+  const pattern = asString(params[1], "match", "pattern");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { luaPatternToJs, executeLuaPattern } = require("./LuaPatterns") as {
+    luaPatternToJs: (p: string) => any;
+    executeLuaPattern: (c: any, input: string, start: number) => any;
+  };
+  let compiled;
+  try {
+    compiled = luaPatternToJs(pattern);
+  } catch {
+    return NIL();
+  }
+  const matched = executeLuaPattern(compiled, s, 0);
+  if (!matched) return NIL();
+  if (compiled.captureCount === 0) {
+    return new StringValue(
+      s.slice(matched.index, matched.index + matched.length),
+    );
+  }
+  // Single capture: return it directly. Multiple captures: per Luau,
+  // method-form drops multi-return semantics and just returns the
+  // first capture. (`string.match` proper does multi-return; the
+  // `:match()` method-form is shorthand for the single-result case.)
+  const first = matched.captures[0];
+  if (first == null) return NIL();
+  if (typeof first === "number") return new IntValue(first);
+  return new StringValue(first);
+}
+
 function methodSplit(params: InkObject[]): InkObject {
   const s = asString(params[0], "split", "receiver");
   const sep =
@@ -645,6 +684,7 @@ export const METHOD_DISPATCH: Record<string, BuiltinMethod> = {
   padend: methodPadend,
   rep: methodRep,
   gsub: methodGsub,
+  match: methodMatch,
   split: methodSplit,
   // shared (string OR table)
   len: methodLen,
