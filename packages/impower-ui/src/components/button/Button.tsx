@@ -6,14 +6,15 @@ import { cn } from "../../utils/cn";
 // Variant configuration in cva form. The defaultVariants set the
 // no-variant-prop case to `primary` + `default`.
 export const buttonVariants = cva(
-  // BASE — applied to every variant.
+  // BASE — applied to every variant. cursor-pointer is explicit because
+  // Tailwind v4 dropped the `cursor: pointer` from the <button> preflight.
   [
     "inline-flex items-center justify-center gap-2 whitespace-nowrap",
-    "rounded-md text-sm font-medium select-none",
+    "rounded-md text-sm font-medium select-none cursor-pointer",
     "transition-colors duration-150",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
     "focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    "disabled:pointer-events-none disabled:opacity-50",
+    "disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed",
   ],
   {
     variants: {

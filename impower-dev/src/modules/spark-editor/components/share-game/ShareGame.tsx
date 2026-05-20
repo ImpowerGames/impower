@@ -50,7 +50,7 @@ export default function ShareGame(_props: ShareGameProps) {
                 <button
                   type="button"
                   aria-label="Settings"
-                  class="-mr-6 inline-flex size-12 items-center justify-center rounded-full text-foreground/50 hover:bg-foreground/10"
+                  class="-mr-6 inline-flex size-12 cursor-pointer items-center justify-center rounded-full text-foreground/50 hover:bg-foreground/10"
                   onClick={(e) => {
                     // Don't propagate to the option-button row.
                     e.stopPropagation();
