@@ -524,8 +524,13 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       );
     }
 
+    // Empty function bodies (`function() end`) produce no _rootWeave
+    // — there's no content to construct one from. That's a valid Lua
+    // form (returns nothing, takes no effect), so just skip the
+    // contained-divert / contained-return checks below; there's
+    // nothing to check.
     if (!this._rootWeave) {
-      throw new Error();
+      return;
     }
 
     const allDiverts = this._rootWeave.FindAll<Divert>(Divert)();
