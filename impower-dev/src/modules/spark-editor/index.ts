@@ -7,6 +7,7 @@ import { FileDropzoneElement } from "./components/file-dropzone/FileDropzone.ele
 import { InteractionBlockerElement } from "./components/interaction-blocker/InteractionBlocker.elem";
 import { LogicElement } from "./components/logic/Logic.elem";
 import { NotificationsElement } from "./components/notifications/Notifications.elem";
+import { PreviewGameElement } from "./components/preview-game/PreviewGame.elem";
 import { PreviewGameToolbarElement } from "./components/preview-game-toolbar/PreviewGameToolbar.elem";
 import { PreviewScreenplayElement } from "./components/preview-screenplay/PreviewScreenplay.elem";
 import { ShareElement } from "./components/share/Share.elem";
@@ -37,7 +38,6 @@ import LogicScriptEditor from "./components/logic-script-editor/logic-script-edi
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
 import OptionButton from "./components/option-button/option-button";
-import PreviewGame from "./components/preview-game/preview-game";
 import Scrollable from "./components/scrollable/scrollable";
 import Main from "./main/spark-editor";
 import editorIcons from "./styles/icons/icons.css";
@@ -61,7 +61,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   LogicScriptsList,
   Audio,
   Demo,
-  PreviewGame,
   Account,
   HeaderSyncConflictToolbar,
   HeaderSyncToolbar,
@@ -105,6 +104,7 @@ export default abstract class SparkEditor {
     await FileDropzoneElement.register();
     await PreviewScreenplayElement.register();
     await PreviewGameToolbarElement.register();
+    await PreviewGameElement.register();
     return defineAll(constructors, options);
   }
 }
