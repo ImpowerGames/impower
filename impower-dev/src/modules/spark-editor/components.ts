@@ -22,11 +22,9 @@ import HeaderTitleButton from "./components/header-title-button/_header-title-bu
 import HeaderTitleCaption from "./components/header-title-caption/_header-title-caption";
 import InteractionBlocker from "./components/interaction-blocker/_interaction-blocker";
 import LogicDiagnosticsLabel from "./components/logic-diagnostics-label/_logic-diagnostics-label";
-import LogicList from "./components/logic-list/_logic-list";
 import LogicScriptEditor from "./components/logic-script-editor/_logic-script-editor";
 import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
-import Logic from "./components/logic/_logic";
 import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/_preview-game-toolbar";
@@ -88,8 +86,6 @@ const components = [
   style(LogicScriptEditor),
   style(LogicScriptsEditor),
   style(LogicScriptsList),
-  style(LogicList),
-  style(Logic),
   style(Notifications),
   style(Account),
   style(HeaderSyncConflictToolbar),

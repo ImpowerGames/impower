@@ -3,6 +3,7 @@ import { MainWindowElement } from "./components/main-window/MainWindow.elem";
 import { PreviewElement } from "./components/preview/Preview.elem";
 import { PreviewToggleButtonElement } from "./components/preview-toggle-button/PreviewToggleButton.elem";
 import { AssetsElement } from "./components/assets/Assets.elem";
+import { LogicElement } from "./components/logic/Logic.elem";
 import { ShareElement } from "./components/share/Share.elem";
 import {
   DefineOptions,
@@ -29,11 +30,9 @@ import HeaderTitleButton from "./components/header-title-button/header-title-but
 import HeaderTitleCaption from "./components/header-title-caption/header-title-caption";
 import InteractionBlocker from "./components/interaction-blocker/interaction-blocker";
 import LogicDiagnosticsLabel from "./components/logic-diagnostics-label/logic-diagnostics-label";
-import LogicList from "./components/logic-list/logic-list";
 import LogicScriptEditor from "./components/logic-script-editor/logic-script-editor";
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
-import Logic from "./components/logic/logic";
 import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/preview-game-toolbar";
@@ -63,8 +62,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   LogicScriptEditor,
   LogicScriptsEditor,
   LogicScriptsList,
-  LogicList,
-  Logic,
   Audio,
   Demo,
   PreviewGameToolbar,
@@ -109,6 +106,7 @@ export default abstract class SparkEditor {
     await PreviewToggleButtonElement.register();
     await ShareElement.register();
     await AssetsElement.register();
+    await LogicElement.register();
     return defineAll(constructors, options);
   }
 }
