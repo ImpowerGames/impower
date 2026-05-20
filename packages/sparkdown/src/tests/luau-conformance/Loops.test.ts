@@ -570,4 +570,35 @@ end
     expect(errors).toEqual([]);
     expect(recorded).toEqual([1, 2, 4, 5]);
   });
+
+  test("iterator yielding 0 does NOT terminate (nil != 0)", () => {
+    // First-class nil regression guard. Sparkdown used to lower `nil`
+    // as `IntValue(0)`, which meant `n == nil` was true when `n` was
+    // 0 — accidentally terminating loops that yielded a literal zero.
+    // After promoting nil to a real `NullValue`, equality is strict:
+    // `nil == nil` is true; `nil == 0` is false. The countdown iter
+    // below yields 3, 2, 1, 0 and only nil stops the loop.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function countdown(start)
+local i = start + 1
+return function()
+i = i - 1
+if i >= 0 then
+return i
+end
+end
+end
+
+function run()
+for n in countdown(3) do
+host_record(n)
+end
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([3, 2, 1, 0]);
+  });
 });

@@ -9,7 +9,7 @@ import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Fun
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
-import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
+import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
@@ -162,12 +162,15 @@ export function lowerLuauGenericForLoop(
   );
 
   // Termination check: `if first_loop_var == nil then -> break`.
-  // sparkdown represents nil as IntValue(0) — see `LuauNil` case in
-  // `lowerExpression.ts`. So `x == nil` compiles as `x == 0`.
+  // Uses sparkdown's first-class `nil` (a `NullValue` at runtime).
+  // Equality is special-cased in `NativeFunctionCall.Call` so that
+  // `nil == nil` is true and `nil == <anything-else>` is false —
+  // including `nil == 0`, which keeps a literal zero from
+  // accidentally terminating the loop.
   const firstVarRef = new VariableReference([new Identifier(loopVarNames[0]!)]);
   const isNilCheck = new BinaryExpression(
     firstVarRef,
-    new NumberExpression(0, "int"),
+    new NullExpression(),
     "==",
   );
   const breakBranch = new ConditionalSingleBranch([

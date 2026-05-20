@@ -5,6 +5,7 @@ import {
   IntValue,
   ListValue,
   BoolValue,
+  NullValue,
 } from "./Value";
 import { StoryException } from "./StoryException";
 import { Void } from "./Void";
@@ -210,6 +211,31 @@ export class NativeFunctionCall extends InkObject {
       return this.CallBinaryListOperation(parameters);
     }
 
+    // First-class `nil` semantics (matches Luau):
+    //   - `nil == nil` is true; `nil == anything-else` is false.
+    //   - `nil != X` is the inverse.
+    //   - Any other op with a `nil` operand is an error (matches
+    //     "attempt to perform arithmetic on a nil value" in Luau).
+    // Handled here BEFORE `CoerceValuesToSingleType` because the
+    // coercion would try to cast across types via `Cast(ValueType.Null)`
+    // and crash — and we want a clean semantic answer for the
+    // equality case regardless of types.
+    if (parameters.length === 2) {
+      const aIsNull = parameters[0] instanceof NullValue;
+      const bIsNull = parameters[1] instanceof NullValue;
+      if (aIsNull || bIsNull) {
+        if (this.name === NativeFunctionCall.Equal) {
+          return new BoolValue(aIsNull && bIsNull);
+        }
+        if (this.name === NativeFunctionCall.NotEquals) {
+          return new BoolValue(!(aIsNull && bIsNull));
+        }
+        throw new StoryException(
+          `Attempting to perform ${this.name} on a nil value.`,
+        );
+      }
+    }
+
     let coercedParams = this.CoerceValuesToSingleType(parameters);
     let coercedType = coercedParams[0].valueType;
 
@@ -411,15 +437,8 @@ export class NativeFunctionCall extends InkObject {
 
     let specialCaseList: null | ListValue = null;
 
-    // NullValue (sparkdown's nil) is exempt from "max wins" coercion:
-    // its numeric value is conceptually 0, so a comparison like
-    // `x == nil` should coerce the NULL operand toward whatever
-    // numeric type `x` carries, not the other way around. Without
-    // this carve-out the coercion picks NullValue (ValueType.Null = 7)
-    // as the target type, then crashes trying to cast IntValue → Null.
     for (let obj of parametersIn) {
       let val = asOrThrows(obj, Value);
-      if (val.valueType === ValueType.Null) continue;
       if (val.valueType > valType) {
         valType = val.valueType;
       }

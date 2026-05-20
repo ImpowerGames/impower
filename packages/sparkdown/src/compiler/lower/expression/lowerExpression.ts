@@ -5,6 +5,7 @@ import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Di
 import { DivertTarget } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { IndexExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/IndexExpression";
+import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
 import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
 import {
   ObjectExpression,
@@ -590,12 +591,11 @@ export function lowerPrimary(
     case "LuauBoolean":
       return lowerBoolean(node, ctx);
     case "LuauNil":
-      // Sparkdown has no first-class nil — represent it as integer zero, which
-      // is falsy in ink and round-trips through comparisons (`x == nil` becomes
-      // `x == 0`). This mirrors the rest of the runtime's "absent ≡ falsy"
-      // convention; a dedicated `NilValue` type can be added later if user code
-      // needs to distinguish nil from numeric zero.
-      return new NumberExpression(0, "int");
+      // First-class nil — emits a runtime `NullValue` with its own
+      // `ValueType.Null`. Falsy in conditionals and equality-distinct
+      // from `0` (`nil == 0` is false). The equality semantics are
+      // implemented as a special case in `NativeFunctionCall.Call`.
+      return new NullExpression();
     case "LuauDoubleQuotedString":
     case "LuauSingleQuotedString":
     case "LuauMultilineString":
