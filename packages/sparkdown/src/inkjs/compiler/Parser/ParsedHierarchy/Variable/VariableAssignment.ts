@@ -168,17 +168,22 @@ export class VariableAssignment extends ParsedObject {
       if (!resolvedVarAssignment.found) {
         if (this.variableName in this.story.constants) {
           this.Error(`Cannot re-assign a const variable`, this);
-        } else {
-          this.Error(
-            `Cannot find variable named \`${this.variableName}\``,
-            this.identifier,
-          );
         }
-      }
-
-      // A runtime assignment may not have been generated if it's the initial global declaration,
-      // since these are hoisted out and handled specially in Story.ExportRuntime.
-      if (this._runtimeAssignment) {
+        // Luau auto-global semantics: a bare `x = expr` that doesn't
+        // resolve to any local-in-scope or existing global becomes a
+        // global creation at execution time. The runtime side handles
+        // this in `VariablesState.Assign` (falls back to SetGlobal
+        // when neither a local nor a global with this name exists),
+        // so we just suppress the compile-time error here and let the
+        // runtime auto-create the global. Mark the runtime assignment
+        // as global so the dispatcher routes correctly.
+        else if (this._runtimeAssignment) {
+          this._runtimeAssignment.isGlobal = true;
+        }
+      } else if (this._runtimeAssignment) {
+        // A runtime assignment may not have been generated if it's the
+        // initial global declaration, since these are hoisted out and
+        // handled specially in Story.ExportRuntime.
         this._runtimeAssignment.isGlobal = resolvedVarAssignment.isGlobal;
       }
     }

@@ -403,14 +403,28 @@ export class VariablesState extends VariablesStateAccessor<
 
     if (setGlobal) {
       this.SetGlobal(name, value);
-    } else {
-      this._callStack.SetTemporaryVariable(
-        name,
-        value,
-        varAss.isNewDeclaration,
-        contextIndex,
-      );
+      return;
     }
+    // Luau's auto-global semantics: `x = 1` (without `local` /
+    // `store`) writes to a global if `x` isn't a known local in
+    // scope. We honour this only for *reassignment* shapes
+    // (isNewDeclaration=false) — explicit `local x = 1` declarations
+    // still create temps as before. If no local with this name
+    // exists in any scope of the current call-stack element, treat
+    // the bare assignment as a new-global creation.
+    if (
+      !varAss.isNewDeclaration &&
+      this._callStack.GetTemporaryVariableWithName(name, contextIndex) === null
+    ) {
+      this.SetGlobal(name, value);
+      return;
+    }
+    this._callStack.SetTemporaryVariable(
+      name,
+      value,
+      varAss.isNewDeclaration,
+      contextIndex,
+    );
   }
 
   public SnapshotDefaultGlobals() {
