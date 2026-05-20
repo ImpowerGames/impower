@@ -1,7 +1,7 @@
 import * as RadixTabs from "@radix-ui/react-tabs";
 import { cva } from "class-variance-authority";
 import { type ComponentChildren, type Ref } from "preact";
-import { useContext } from "preact/hooks";
+import { useContext, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { createContext } from "preact";
 import type { IconComponent } from "../icon/icons.generated";
 import { cn } from "../../utils/cn";
@@ -26,10 +26,8 @@ const tabsList = cva("flex w-full", {
   defaultVariants: { orientation: "horizontal" },
 });
 
-// Tab trigger button — base layout + indicator variants. The icon/label
-// crossfade overlays still need conditional Tailwind from React props (the
-// active-color depends on the parent indicator style), so those live in
-// JSX. Bulk layout/transition rules are cva-managed here.
+// Tab trigger button — base layout. No per-tab indicator rules anymore;
+// the underline slides via a single shared <div> rendered by Tabs.
 const tabTrigger = cva(
   [
     "group relative flex flex-1 items-center justify-center",
@@ -38,10 +36,6 @@ const tabTrigger = cva(
   ],
   {
     variants: {
-      indicator: {
-        underline: "",
-        none: "",
-      },
       orientation: {
         horizontal: "",
         vertical: "w-full",
@@ -59,28 +53,7 @@ const tabTrigger = cva(
         beside: "flex-row h-12",
       },
     },
-    compoundVariants: [
-      // Underline indicator uses `bg-foreground` (near-white) to match
-      // impower.dev's design, not the shadcn convention of bg-primary
-      // (which is sky-blue — too saturated against the dark editor chrome).
-      {
-        indicator: "underline",
-        orientation: "horizontal",
-        class:
-          "data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground",
-      },
-      {
-        indicator: "underline",
-        orientation: "vertical",
-        class:
-          "data-[state=active]:after:absolute data-[state=active]:after:right-0 data-[state=active]:after:top-0 data-[state=active]:after:bottom-0 data-[state=active]:after:w-0.5 data-[state=active]:after:bg-foreground",
-      },
-    ],
-    defaultVariants: {
-      indicator: "underline",
-      orientation: "horizontal",
-      iconLayout: "above",
-    },
+    defaultVariants: { orientation: "horizontal", iconLayout: "above" },
   },
 );
 
@@ -147,6 +120,44 @@ export default function Tabs({
   // and 16px for row (sub-tabs). Match them so the port lines up pixel-
   // identical against main.
   const iconSize = iconLayout === "above" ? 21 : 16;
+  // Sliding-underline indicator. We measure the active trigger's offset +
+  // size on every value change and translate a single shared <div> to it.
+  // Sparkle's <s-tabs> did this with the same trick — gives the smooth
+  // glide-between-tabs animation that a per-tab ::after pseudo can't.
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const [indicatorRect, setIndicatorRect] = useState<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
+
+  useLayoutEffect(() => {
+    if (indicator !== "underline") return;
+    const list = listRef.current;
+    if (!list) return;
+    const measure = () => {
+      const active = list.querySelector<HTMLElement>('[data-state="active"]');
+      if (!active) {
+        setIndicatorRect(null);
+        return;
+      }
+      const lr = list.getBoundingClientRect();
+      const ar = active.getBoundingClientRect();
+      setIndicatorRect({
+        x: ar.left - lr.left,
+        y: ar.top - lr.top,
+        w: ar.width,
+        h: ar.height,
+      });
+    };
+    measure();
+    // Re-measure on container resize (responsive layout, sidebar collapse).
+    const ro = new ResizeObserver(measure);
+    ro.observe(list);
+    return () => ro.disconnect();
+  }, [value, indicator, vertical]);
+
   return (
     <TabsContext.Provider
       value={{ indicator, vertical, iconLayout, iconSize }}
@@ -167,11 +178,37 @@ export default function Tabs({
         >
           <RadixTabs.List asChild>
             <div
-              class={tabsList({
-                orientation: vertical ? "vertical" : "horizontal",
-              })}
+              ref={listRef}
+              class={cn(
+                tabsList({
+                  orientation: vertical ? "vertical" : "horizontal",
+                }),
+                "relative",
+              )}
             >
               {children}
+              {indicator === "underline" && indicatorRect && (
+                <div
+                  aria-hidden="true"
+                  class={cn(
+                    "pointer-events-none absolute bg-foreground transition-transform duration-150 ease-out",
+                    vertical
+                      ? "left-auto right-0 w-0.5"
+                      : "top-auto bottom-0 h-0.5",
+                  )}
+                  style={
+                    vertical
+                      ? {
+                          transform: `translateY(${indicatorRect.y}px)`,
+                          height: `${indicatorRect.h}px`,
+                        }
+                      : {
+                          transform: `translateX(${indicatorRect.x}px)`,
+                          width: `${indicatorRect.w}px`,
+                        }
+                  }
+                />
+              )}
             </div>
           </RadixTabs.List>
         </div>
@@ -225,7 +262,6 @@ export function Tab({
         type="button"
         class={cn(
           tabTrigger({
-            indicator: ctx.indicator,
             orientation: ctx.vertical ? "vertical" : "horizontal",
             iconLayout: ctx.iconLayout,
           }),
