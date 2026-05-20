@@ -75,9 +75,15 @@ const STYLE = `
   .mw-bottom-nav {
     position: relative;
     flex: 0 0 auto;
+    /* Match sparkle's --theme-size-footer-nav (60px). Without this the bar
+       ends up ~55px from Tab padding alone. */
+    height: var(--theme-size-footer-nav, 60px);
     border-top: 1px solid var(--theme-color-fg-10, #1f1f1f);
     background-color: var(--theme-color-primary-bg, #0b1426);
     color: var(--theme-color-fg, #fff);
+  }
+  .mw-bottom-nav > * {
+    height: 100%;
   }
   /* sparkle's adopted normalize sets * { flex-flow: column; ... } unlayered,
      which beats Tailwind's layered utility rules. Re-declare the handful of

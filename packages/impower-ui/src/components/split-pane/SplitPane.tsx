@@ -65,14 +65,16 @@ const STYLE = `
     bottom: 0;
     left: calc((${SP_HIT_AREA} - ${SP_DIVIDER}) / 2);
     width: ${SP_DIVIDER};
-    background-color: var(--theme-color-divider, rgba(255, 255, 255, 0.1));
+    /* Match sparkle's <s-split-pane> divider opacity (0.06) — impower-ui's
+       --theme-color-divider is 0.12 which makes the resting line too prominent. */
+    background-color: rgba(255, 255, 255, 0.06);
   }
   .swp-separator[data-orientation="vertical"]::before {
     left: 0;
     right: 0;
     top: calc((${SP_HIT_AREA} - ${SP_DIVIDER}) / 2);
     height: ${SP_DIVIDER};
-    background-color: var(--theme-color-divider, rgba(255, 255, 255, 0.1));
+    background-color: rgba(255, 255, 255, 0.06);
   }
   .swp-separator[data-orientation="horizontal"]::after {
     top: 0;
