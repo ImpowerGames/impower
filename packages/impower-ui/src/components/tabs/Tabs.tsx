@@ -148,7 +148,7 @@ export function Tab({
                 Color brightens on hover via text-foreground (color transition is OK
                 on the main thread; hover doesn't trigger heavy mounts). */}
             {icon ? (
-              <span class="absolute inset-0 text-foreground/60 group-hover:text-foreground group-data-[state=active]:opacity-0 transition-opacity duration-100">
+              <span class="absolute inset-0 text-engine-500 group-hover:text-foreground group-data-[state=active]:opacity-0 transition-opacity duration-100">
                 {(() => {
                   const Inactive = icon;
                   return <Inactive class="size-[21px]" />;
@@ -177,7 +177,7 @@ export function Tab({
             transition survives a heavy mount, same as the icons. */}
         <span class="relative inline-block leading-none scale-80 group-data-[state=active]:scale-90 transition-transform duration-100">
           {/* Inactive label copy — takes layout space, fades out on active. */}
-          <span class="text-foreground/60 group-hover:text-foreground group-data-[state=active]:opacity-0 transition-opacity duration-100">
+          <span class="text-engine-500 group-hover:text-foreground group-data-[state=active]:opacity-0 transition-opacity duration-100">
             {children}
           </span>
           {/* Active label copy — overlaid, fades in on active. Using opacity
