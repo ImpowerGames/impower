@@ -140,3 +140,22 @@ textarea {
 .cm-context-menu {
   background-color: var(--theme-color-panel);
 }
+
+/* Reset browser <button> chrome on un-upgraded sparkle widgets so the
+   pre-hydration SSG paint doesn't show the platform-default light-gray
+   button background as a white "ring" around interactive elements like
+   the header hamburger menu. Sparkle's per-component `:host` rules only
+   match after the custom element is upgraded; until then `.root` button
+   children inherit browser defaults (background-color, border, padding).
+   The `:not(:defined)` constraint scopes this reset to that brief window
+   — once the element upgrades, sparkle's own background/border/etc.
+   take over. */
+:not(:defined) > button.root,
+:not(:defined) > a.root {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+}
