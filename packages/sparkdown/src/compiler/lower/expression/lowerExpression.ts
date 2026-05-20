@@ -990,7 +990,123 @@ function lowerString(node: SyntaxNode, ctx: LowerContext): Expression {
   // whitespace. Trim before stripping quotes so the leading-and-trailing
   // quote check actually fires on the literal's real boundaries.
   const text = ctx.read(node.from, node.to).trim();
-  return new StringExpression([new Text(stripQuotes(text))]);
+  const stripped = stripQuotes(text);
+  // Multiline `[[...]]` strings don't process escapes (Lua semantics).
+  // Everything else (single/double-quoted) interprets `\n`, `\t`, etc.
+  const processed =
+    node.name === "LuauMultilineString"
+      ? stripped
+      : processLuauEscapes(stripped);
+  return new StringExpression([new Text(processed)]);
+}
+
+// Convert Luau string-literal escape sequences to their character
+// values. Mirrors Luau's lexer: standard one-letter escapes
+// (`\a \b \f \n \r \t \v`), quote escapes (`\' \"`), backslash
+// (`\\`), brace (`\{`), and `\z` (skip following whitespace),
+// plus numeric (`\ddd`), hex (`\xHH`), and Unicode (`\u{HHHH}`)
+// forms. Unknown escapes pass the following character through.
+function processLuauEscapes(s: string): string {
+  let out = "";
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i]!;
+    if (c !== "\\") {
+      out += c;
+      i++;
+      continue;
+    }
+    if (i + 1 >= s.length) {
+      out += "\\";
+      break;
+    }
+    const next = s[i + 1]!;
+    switch (next) {
+      case "a":
+        out += "\x07";
+        i += 2;
+        break;
+      case "b":
+        out += "\b";
+        i += 2;
+        break;
+      case "f":
+        out += "\f";
+        i += 2;
+        break;
+      case "n":
+        out += "\n";
+        i += 2;
+        break;
+      case "r":
+        out += "\r";
+        i += 2;
+        break;
+      case "t":
+        out += "\t";
+        i += 2;
+        break;
+      case "v":
+        out += "\v";
+        i += 2;
+        break;
+      case "'":
+      case '"':
+      case "\\":
+      case "{":
+        out += next;
+        i += 2;
+        break;
+      case "z": {
+        i += 2;
+        while (i < s.length && /\s/.test(s[i]!)) i++;
+        break;
+      }
+      case "x": {
+        const hex = s.slice(i + 2, i + 4);
+        if (/^[0-9a-fA-F]{2}$/.test(hex)) {
+          out += String.fromCharCode(parseInt(hex, 16));
+          i += 4;
+        } else {
+          out += next;
+          i += 2;
+        }
+        break;
+      }
+      case "u": {
+        const m = s.slice(i + 2).match(/^\{([0-9a-fA-F]+)\}/);
+        if (m) {
+          out += String.fromCodePoint(parseInt(m[1]!, 16));
+          i += 2 + m[0]!.length;
+        } else {
+          out += next;
+          i += 2;
+        }
+        break;
+      }
+      case "\n":
+        out += "\n";
+        i += 2;
+        break;
+      default: {
+        if (/\d/.test(next)) {
+          // Decimal escape: 1–3 digits.
+          const m = s.slice(i + 1).match(/^\d{1,3}/);
+          if (m) {
+            const code = parseInt(m[0]!, 10);
+            if (code <= 255) {
+              out += String.fromCharCode(code);
+              i += 1 + m[0]!.length;
+              break;
+            }
+          }
+        }
+        out += next;
+        i += 2;
+      }
+    }
+  }
+  return out;
 }
 
 // Backtick string interpolation: walk the content children, accumulating Text
@@ -1008,7 +1124,7 @@ function lowerInterpolatedString(
   let textBuf = "";
   const flush = () => {
     if (textBuf.length > 0) {
-      parts.push(new Text(textBuf));
+      parts.push(new Text(processLuauEscapes(textBuf)));
       textBuf = "";
     }
   };
