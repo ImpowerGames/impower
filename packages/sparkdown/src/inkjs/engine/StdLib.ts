@@ -3,6 +3,7 @@ import { PRNG } from "./PRNG";
 import {
   ObjectValue,
   IntValue,
+  FloatValue,
   AbstractValue,
   MultiValue,
   NullValue,
@@ -226,6 +227,776 @@ export function resolveInit(arg: any, strLen: number): number {
   else if (i === 0) i = 1;
   if (i > strLen + 1) i = strLen + 1;
   return i;
+}
+
+// ============================================================
+// `string.pack` / `string.unpack` / `string.packsize` — binary
+// packing via `DataView`. Format spec mirrors Lua 5.3:
+//
+//   < > =        endianness (`=` is the platform default; we
+//                pick little-endian to match x86/ARM)
+//   b B          1-byte signed / unsigned int
+//   h H          2-byte signed / unsigned int
+//   i[N] I[N]    N-byte (1..8) signed / unsigned int (default 4)
+//   l L          8-byte signed / unsigned int
+//   j J          lua_Integer / lua_Unsigned (8-byte)
+//   T            size_t (8-byte unsigned)
+//   f            float (4 bytes)
+//   d n          double / lua_Number (8 bytes)
+//   sN           string with N-byte length prefix (default size_t = 8)
+//   z            null-terminated string
+//   cN           fixed-size N-byte string
+//   xN           N padding bytes (Lua's `x` consumes 1 padding byte;
+//                we extend `xN` to allow runs)
+//   ( )          group markers (no-op; used to scope alignment in
+//                full Lua but ignored here since we don't enforce
+//                alignment by default)
+//
+// Alignment (`!N`) is parsed but treated as `!1` — most narrative-
+// fiction use cases don't need C-struct alignment, and Lua's `!`
+// semantics interact with `Xop` markers we also skip. Patterns that
+// need precise alignment can be expressed with explicit `xN`.
+//
+// Strings are encoded as JS strings where each character is a byte
+// value in [0, 255]. This matches the convention used by
+// `string.byte` / `string.char` already in the runtime — `string.pack`
+// output round-trips through those for byte-level inspection.
+
+type PackSpec =
+  | { kind: "int"; size: number; signed: boolean; littleEndian: boolean }
+  | { kind: "float32"; littleEndian: boolean }
+  | { kind: "float64"; littleEndian: boolean }
+  | {
+      kind: "string";
+      lenSize: number; // bytes for the length prefix; 0 = null-terminated; -N = fixed N bytes
+      littleEndian: boolean;
+    }
+  | { kind: "pad"; size: number };
+
+function parsePackFormat(
+  fmt: string,
+  story: any,
+): PackSpec[] | null {
+  const specs: PackSpec[] = [];
+  let i = 0;
+  let littleEndian = true; // `=` default; we pick LE for narrative portability
+  while (i < fmt.length) {
+    const c = fmt.charAt(i);
+    switch (c) {
+      case "<":
+        littleEndian = true;
+        i++;
+        continue;
+      case ">":
+        littleEndian = false;
+        i++;
+        continue;
+      case "=":
+        littleEndian = true;
+        i++;
+        continue;
+      case "!": {
+        // Skip optional digits after `!` — alignment is ignored.
+        i++;
+        while (i < fmt.length && /\d/.test(fmt.charAt(i))) i++;
+        continue;
+      }
+      case "(":
+      case ")":
+      case " ":
+      case "\t":
+        i++;
+        continue;
+      case "b":
+        specs.push({ kind: "int", size: 1, signed: true, littleEndian });
+        i++;
+        continue;
+      case "B":
+        specs.push({ kind: "int", size: 1, signed: false, littleEndian });
+        i++;
+        continue;
+      case "h":
+        specs.push({ kind: "int", size: 2, signed: true, littleEndian });
+        i++;
+        continue;
+      case "H":
+        specs.push({ kind: "int", size: 2, signed: false, littleEndian });
+        i++;
+        continue;
+      case "l":
+      case "j":
+        specs.push({ kind: "int", size: 8, signed: true, littleEndian });
+        i++;
+        continue;
+      case "L":
+      case "J":
+      case "T":
+        specs.push({ kind: "int", size: 8, signed: false, littleEndian });
+        i++;
+        continue;
+      case "i":
+      case "I": {
+        const signed = c === "i";
+        i++;
+        let size = 4;
+        if (i < fmt.length && /\d/.test(fmt.charAt(i))) {
+          const start = i;
+          while (i < fmt.length && /\d/.test(fmt.charAt(i))) i++;
+          size = parseInt(fmt.slice(start, i), 10);
+          if (size < 1 || size > 8) {
+            story.Error(
+              `string.pack: integer size ${size} out of range (1..8)`,
+            );
+            return null;
+          }
+        }
+        specs.push({ kind: "int", size, signed, littleEndian });
+        continue;
+      }
+      case "f":
+        specs.push({ kind: "float32", littleEndian });
+        i++;
+        continue;
+      case "d":
+      case "n":
+        specs.push({ kind: "float64", littleEndian });
+        i++;
+        continue;
+      case "s": {
+        i++;
+        let lenSize = 8;
+        if (i < fmt.length && /\d/.test(fmt.charAt(i))) {
+          const start = i;
+          while (i < fmt.length && /\d/.test(fmt.charAt(i))) i++;
+          lenSize = parseInt(fmt.slice(start, i), 10);
+          if (lenSize < 1 || lenSize > 8) {
+            story.Error(
+              `string.pack: string length-prefix size ${lenSize} out of range (1..8)`,
+            );
+            return null;
+          }
+        }
+        specs.push({ kind: "string", lenSize, littleEndian });
+        continue;
+      }
+      case "z":
+        specs.push({ kind: "string", lenSize: 0, littleEndian });
+        i++;
+        continue;
+      case "c": {
+        i++;
+        if (i >= fmt.length || !/\d/.test(fmt.charAt(i))) {
+          story.Error("string.pack: `c` must be followed by a size (e.g. c4)");
+          return null;
+        }
+        const start = i;
+        while (i < fmt.length && /\d/.test(fmt.charAt(i))) i++;
+        const size = parseInt(fmt.slice(start, i), 10);
+        specs.push({ kind: "string", lenSize: -size, littleEndian });
+        continue;
+      }
+      case "x": {
+        i++;
+        let size = 1;
+        if (i < fmt.length && /\d/.test(fmt.charAt(i))) {
+          const start = i;
+          while (i < fmt.length && /\d/.test(fmt.charAt(i))) i++;
+          size = parseInt(fmt.slice(start, i), 10);
+        }
+        specs.push({ kind: "pad", size });
+        continue;
+      }
+      default:
+        story.Error(
+          `string.pack: unknown format character "${c}" at position ${i}`,
+        );
+        return null;
+    }
+  }
+  return specs;
+}
+
+function writeIntToBytes(
+  bytes: number[],
+  value: number,
+  size: number,
+  signed: boolean,
+  littleEndian: boolean,
+) {
+  // Compute two's-complement bytes manually so we can support
+  // sizes beyond DataView's 8-byte ceiling (we cap at 8 in the
+  // parser, so this is straightforward).
+  let v = value;
+  if (signed && v < 0) {
+    // Two's-complement: add 2^(8*size).
+    v = v + 2 ** (8 * size);
+  }
+  v = v >>> 0; // Force integer for size <= 4. For 8-byte we lose
+  // precision above 2^53 — acceptable for narrative use; precise
+  // 64-bit needs BigInt support, which sparkdown doesn't have.
+  // Re-broaden by using the original value for size > 4.
+  if (size > 4) {
+    v = signed && value < 0 ? value + 2 ** (8 * size) : value;
+  }
+  const arr: number[] = [];
+  for (let k = 0; k < size; k++) {
+    arr.push(v & 0xff);
+    v = Math.floor(v / 256);
+  }
+  if (!littleEndian) arr.reverse();
+  for (const b of arr) bytes.push(b);
+}
+
+function readIntFromBytes(
+  bytes: string,
+  offset: number,
+  size: number,
+  signed: boolean,
+  littleEndian: boolean,
+): number {
+  const slice: number[] = [];
+  for (let k = 0; k < size; k++) {
+    slice.push(bytes.charCodeAt(offset + k));
+  }
+  if (!littleEndian) slice.reverse();
+  let v = 0;
+  for (let k = size - 1; k >= 0; k--) {
+    v = v * 256 + slice[k]!;
+  }
+  if (signed) {
+    const max = 2 ** (8 * size - 1);
+    if (v >= max) v -= 2 ** (8 * size);
+  }
+  return v;
+}
+
+function bytesToString(bytes: number[]): string {
+  let s = "";
+  for (const b of bytes) s += String.fromCharCode(b);
+  return s;
+}
+
+function packString(
+  fmt: string,
+  args: any[],
+  story: any,
+): string | null {
+  const specs = parsePackFormat(fmt, story);
+  if (specs == null) return null;
+  const bytes: number[] = [];
+  let argIdx = 0;
+  for (const spec of specs) {
+    if (spec.kind === "pad") {
+      for (let k = 0; k < spec.size; k++) bytes.push(0);
+      continue;
+    }
+    if (argIdx >= args.length) {
+      story.Error("string.pack: not enough arguments for format");
+      return null;
+    }
+    const arg = args[argIdx++];
+    if (spec.kind === "int") {
+      const n = coerceNumber(arg);
+      if (n == null) {
+        story.Error("string.pack: integer argument expected");
+        return null;
+      }
+      writeIntToBytes(
+        bytes,
+        Math.trunc(n),
+        spec.size,
+        spec.signed,
+        spec.littleEndian,
+      );
+    } else if (spec.kind === "float32") {
+      const n = coerceNumber(arg);
+      if (n == null) {
+        story.Error("string.pack: float argument expected");
+        return null;
+      }
+      const view = new DataView(new ArrayBuffer(4));
+      view.setFloat32(0, n, spec.littleEndian);
+      for (let k = 0; k < 4; k++) bytes.push(view.getUint8(k));
+    } else if (spec.kind === "float64") {
+      const n = coerceNumber(arg);
+      if (n == null) {
+        story.Error("string.pack: float argument expected");
+        return null;
+      }
+      const view = new DataView(new ArrayBuffer(8));
+      view.setFloat64(0, n, spec.littleEndian);
+      for (let k = 0; k < 8; k++) bytes.push(view.getUint8(k));
+    } else if (spec.kind === "string") {
+      const s = coerceString(arg);
+      if (s == null) {
+        story.Error("string.pack: string argument expected");
+        return null;
+      }
+      if (spec.lenSize > 0) {
+        // Length-prefixed string.
+        writeIntToBytes(
+          bytes,
+          s.length,
+          spec.lenSize,
+          /*signed*/ false,
+          spec.littleEndian,
+        );
+        for (let k = 0; k < s.length; k++) bytes.push(s.charCodeAt(k) & 0xff);
+      } else if (spec.lenSize === 0) {
+        // Null-terminated.
+        for (let k = 0; k < s.length; k++) {
+          const c = s.charCodeAt(k) & 0xff;
+          if (c === 0) {
+            story.Error(
+              "string.pack: null-terminated string `z` cannot contain a null byte",
+            );
+            return null;
+          }
+          bytes.push(c);
+        }
+        bytes.push(0);
+      } else {
+        // Fixed-size (lenSize = -N).
+        const size = -spec.lenSize;
+        if (s.length > size) {
+          story.Error(
+            `string.pack: fixed-size string longer than allotted ${size} bytes`,
+          );
+          return null;
+        }
+        for (let k = 0; k < s.length; k++) bytes.push(s.charCodeAt(k) & 0xff);
+        for (let k = s.length; k < size; k++) bytes.push(0);
+      }
+    }
+  }
+  return bytesToString(bytes);
+}
+
+function unpackString(
+  fmt: string,
+  data: string,
+  startPos: number,
+  story: any,
+): { values: AbstractValue[]; nextPos: number } | null {
+  const specs = parsePackFormat(fmt, story);
+  if (specs == null) return null;
+  const values: AbstractValue[] = [];
+  let offset = startPos - 1; // 1-indexed → 0-indexed
+  for (const spec of specs) {
+    if (spec.kind === "pad") {
+      offset += spec.size;
+      continue;
+    }
+    if (spec.kind === "int") {
+      if (offset + spec.size > data.length) {
+        story.Error("string.unpack: data too short for format");
+        return null;
+      }
+      const v = readIntFromBytes(
+        data,
+        offset,
+        spec.size,
+        spec.signed,
+        spec.littleEndian,
+      );
+      values.push(new IntValue(v));
+      offset += spec.size;
+    } else if (spec.kind === "float32") {
+      if (offset + 4 > data.length) {
+        story.Error("string.unpack: data too short for float");
+        return null;
+      }
+      const buf = new ArrayBuffer(4);
+      const v = new DataView(buf);
+      for (let k = 0; k < 4; k++) v.setUint8(k, data.charCodeAt(offset + k));
+      values.push(new FloatValue(v.getFloat32(0, spec.littleEndian)));
+      offset += 4;
+    } else if (spec.kind === "float64") {
+      if (offset + 8 > data.length) {
+        story.Error("string.unpack: data too short for double");
+        return null;
+      }
+      const buf = new ArrayBuffer(8);
+      const v = new DataView(buf);
+      for (let k = 0; k < 8; k++) v.setUint8(k, data.charCodeAt(offset + k));
+      values.push(new FloatValue(v.getFloat64(0, spec.littleEndian)));
+      offset += 8;
+    } else if (spec.kind === "string") {
+      if (spec.lenSize > 0) {
+        if (offset + spec.lenSize > data.length) {
+          story.Error("string.unpack: data too short for length prefix");
+          return null;
+        }
+        const len = readIntFromBytes(
+          data,
+          offset,
+          spec.lenSize,
+          false,
+          spec.littleEndian,
+        );
+        offset += spec.lenSize;
+        if (offset + len > data.length) {
+          story.Error("string.unpack: data too short for string body");
+          return null;
+        }
+        values.push(new StringValue(data.slice(offset, offset + len)));
+        offset += len;
+      } else if (spec.lenSize === 0) {
+        // Null-terminated.
+        const start = offset;
+        while (offset < data.length && data.charCodeAt(offset) !== 0) {
+          offset++;
+        }
+        if (offset >= data.length) {
+          story.Error("string.unpack: missing null terminator");
+          return null;
+        }
+        values.push(new StringValue(data.slice(start, offset)));
+        offset += 1; // skip the null
+      } else {
+        const size = -spec.lenSize;
+        if (offset + size > data.length) {
+          story.Error("string.unpack: data too short for fixed-size string");
+          return null;
+        }
+        values.push(new StringValue(data.slice(offset, offset + size)));
+        offset += size;
+      }
+    }
+  }
+  return { values, nextPos: offset + 1 }; // 0-indexed → 1-indexed
+}
+
+function packSize(fmt: string, story: any): number | null {
+  const specs = parsePackFormat(fmt, story);
+  if (specs == null) return null;
+  let total = 0;
+  for (const spec of specs) {
+    if (spec.kind === "pad") {
+      total += spec.size;
+    } else if (spec.kind === "int") {
+      total += spec.size;
+    } else if (spec.kind === "float32") {
+      total += 4;
+    } else if (spec.kind === "float64") {
+      total += 8;
+    } else if (spec.kind === "string") {
+      if (spec.lenSize < 0) {
+        total += -spec.lenSize;
+      } else {
+        story.Error(
+          "string.packsize: variable-length specs (`s` and `z`) are not supported",
+        );
+        return null;
+      }
+    }
+  }
+  return total;
+}
+
+// ============================================================
+// `os.date` strftime support.
+// ============================================================
+
+interface DateFields {
+  year: number;
+  month: number; // 1-12
+  day: number; // 1-31
+  hour: number; // 0-23
+  min: number; // 0-59
+  sec: number; // 0-59
+  wday: number; // 1-7, 1 = Sunday (matches Lua)
+  yday: number; // 1-366
+  isdst: boolean;
+  weekdayName: string; // "Monday", "Tuesday", ...
+  monthName: string; // "January", "February", ...
+}
+
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+function dayOfYear(year: number, month: number, day: number): number {
+  // `month` is 1-12. Days per month (non-leap):
+  const daysPerMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const isLeap =
+    (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  let d = day;
+  for (let m = 1; m < month; m++) {
+    d += daysPerMonth[m - 1]!;
+    if (m === 2 && isLeap) d += 1;
+  }
+  return d;
+}
+
+function getDateFieldsLocal(d: Date): DateFields {
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  // JS's `getTimezoneOffset` doesn't tell us DST directly. Compare
+  // to January's offset (a known-non-DST month in the northern
+  // hemisphere, and never-DST in the southern). Different sign →
+  // DST is in effect at `d`.
+  const jan = new Date(year, 0, 1).getTimezoneOffset();
+  const isdst = d.getTimezoneOffset() < jan;
+  return {
+    year,
+    month,
+    day,
+    hour: d.getHours(),
+    min: d.getMinutes(),
+    sec: d.getSeconds(),
+    wday: d.getDay() + 1,
+    yday: dayOfYear(year, month, day),
+    isdst,
+    weekdayName: WEEKDAY_NAMES[d.getDay()]!,
+    monthName: MONTH_NAMES[d.getMonth()]!,
+  };
+}
+
+function getDateFieldsUTC(d: Date): DateFields {
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + 1;
+  const day = d.getUTCDate();
+  return {
+    year,
+    month,
+    day,
+    hour: d.getUTCHours(),
+    min: d.getUTCMinutes(),
+    sec: d.getUTCSeconds(),
+    wday: d.getUTCDay() + 1,
+    yday: dayOfYear(year, month, day),
+    isdst: false,
+    weekdayName: WEEKDAY_NAMES[d.getUTCDay()]!,
+    monthName: MONTH_NAMES[d.getUTCMonth()]!,
+  };
+}
+
+function pad2(n: number): string {
+  return n < 10 ? "0" + n : String(n);
+}
+
+function pad3(n: number): string {
+  if (n < 10) return "00" + n;
+  if (n < 100) return "0" + n;
+  return String(n);
+}
+
+function formatDateString(
+  fmt: string,
+  f: DateFields,
+  story: any,
+): string {
+  let out = "";
+  let i = 0;
+  while (i < fmt.length) {
+    const c = fmt.charAt(i);
+    if (c !== "%") {
+      out += c;
+      i++;
+      continue;
+    }
+    const next = fmt.charAt(i + 1);
+    switch (next) {
+      case "a":
+        out += f.weekdayName.slice(0, 3);
+        break;
+      case "A":
+        out += f.weekdayName;
+        break;
+      case "b":
+      case "h":
+        out += f.monthName.slice(0, 3);
+        break;
+      case "B":
+        out += f.monthName;
+        break;
+      case "c":
+        // `%a %b %e %H:%M:%S %Y` — typical Lua default.
+        out += `${f.weekdayName.slice(0, 3)} ${f.monthName.slice(0, 3)} ${pad2(f.day)} ${pad2(f.hour)}:${pad2(f.min)}:${pad2(f.sec)} ${f.year}`;
+        break;
+      case "d":
+        out += pad2(f.day);
+        break;
+      case "H":
+        out += pad2(f.hour);
+        break;
+      case "I": {
+        const h12 = f.hour % 12 === 0 ? 12 : f.hour % 12;
+        out += pad2(h12);
+        break;
+      }
+      case "j":
+        out += pad3(f.yday);
+        break;
+      case "M":
+        out += pad2(f.min);
+        break;
+      case "m":
+        out += pad2(f.month);
+        break;
+      case "p":
+        out += f.hour < 12 ? "AM" : "PM";
+        break;
+      case "S":
+        out += pad2(f.sec);
+        break;
+      case "w":
+        // Lua: 0 = Sunday … 6 = Saturday.
+        out += String(f.wday - 1);
+        break;
+      case "x":
+        out += `${pad2(f.month)}/${pad2(f.day)}/${String(f.year).slice(-2)}`;
+        break;
+      case "X":
+        out += `${pad2(f.hour)}:${pad2(f.min)}:${pad2(f.sec)}`;
+        break;
+      case "y":
+        out += String(f.year % 100).padStart(2, "0");
+        break;
+      case "Y":
+        out += String(f.year);
+        break;
+      case "Z":
+        // Timezone abbreviation. JS doesn't expose this portably;
+        // emit a stable placeholder rather than guessing.
+        out += "UTC";
+        break;
+      case "%":
+        out += "%";
+        break;
+      case "":
+        story.Error("os.date: dangling `%` at end of format string");
+        return "";
+      default:
+        story.Error(`os.date: unknown conversion "%${next}"`);
+        return "";
+    }
+    i += 2;
+  }
+  return out;
+}
+
+// ============================================================
+// Perlin noise (used by `math.noise`).
+// ============================================================
+//
+// Standard Ken Perlin "improved noise" — fade(t) = 6t^5 - 15t^4 + 10t^3
+// for smoother (C2-continuous) interpolation. Permutation table is a
+// deterministic shuffle; values match Perlin's reference impl. The
+// `PERLIN_P[i + 256] = PERLIN_P[i]` doubling avoids per-lookup
+// modulo. Output is roughly in `[-1, 1]` (Perlin's gradients are
+// chosen so the typical range is `[-sqrt(3)/2, sqrt(3)/2] ≈ [-0.87, 0.87]`,
+// but corner cases can exceed slightly).
+
+const PERLIN_PERMUTATION = [
+  151, 160, 137, 91, 90, 15, 131, 13, 201, 95, 96, 53, 194, 233, 7, 225,
+  140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23, 190, 6, 148, 247,
+  120, 234, 75, 0, 26, 197, 62, 94, 252, 219, 203, 117, 35, 11, 32, 57, 177,
+  33, 88, 237, 149, 56, 87, 174, 20, 125, 136, 171, 168, 68, 175, 74, 165,
+  71, 134, 139, 48, 27, 166, 77, 146, 158, 231, 83, 111, 229, 122, 60, 211,
+  133, 230, 220, 105, 92, 41, 55, 46, 245, 40, 244, 102, 143, 54, 65, 25,
+  63, 161, 1, 216, 80, 73, 209, 76, 132, 187, 208, 89, 18, 169, 200, 196,
+  135, 130, 116, 188, 159, 86, 164, 100, 109, 198, 173, 186, 3, 64, 52, 217,
+  226, 250, 124, 123, 5, 202, 38, 147, 118, 126, 255, 82, 85, 212, 207, 206,
+  59, 227, 47, 16, 58, 17, 182, 189, 28, 42, 223, 183, 170, 213, 119, 248,
+  152, 2, 44, 154, 163, 70, 221, 153, 101, 155, 167, 43, 172, 9, 129, 22,
+  39, 253, 19, 98, 108, 110, 79, 113, 224, 232, 178, 185, 112, 104, 218, 246,
+  97, 228, 251, 34, 242, 193, 238, 210, 144, 12, 191, 179, 162, 241, 81, 51,
+  145, 235, 249, 14, 239, 107, 49, 192, 214, 31, 181, 199, 106, 157, 184, 84,
+  204, 176, 115, 121, 50, 45, 127, 4, 150, 254, 138, 236, 205, 93, 222, 114,
+  67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180,
+];
+const PERLIN_P = new Uint8Array(512);
+for (let i = 0; i < 256; i++) {
+  PERLIN_P[i] = PERLIN_PERMUTATION[i]!;
+  PERLIN_P[i + 256] = PERLIN_PERMUTATION[i]!;
+}
+
+function perlinFade(t: number): number {
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+function perlinLerp(t: number, a: number, b: number): number {
+  return a + t * (b - a);
+}
+
+function perlinGrad(hash: number, x: number, y: number, z: number): number {
+  const h = hash & 15;
+  const u = h < 8 ? x : y;
+  const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+  return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+}
+
+function perlinNoise(x: number, y: number, z: number): number {
+  const fx = Math.floor(x);
+  const fy = Math.floor(y);
+  const fz = Math.floor(z);
+  const X = fx & 255;
+  const Y = fy & 255;
+  const Z = fz & 255;
+  x -= fx;
+  y -= fy;
+  z -= fz;
+  const u = perlinFade(x);
+  const v = perlinFade(y);
+  const w = perlinFade(z);
+  const A = PERLIN_P[X]! + Y;
+  const AA = PERLIN_P[A]! + Z;
+  const AB = PERLIN_P[A + 1]! + Z;
+  const B = PERLIN_P[X + 1]! + Y;
+  const BA = PERLIN_P[B]! + Z;
+  const BB = PERLIN_P[B + 1]! + Z;
+  return perlinLerp(
+    w,
+    perlinLerp(
+      v,
+      perlinLerp(
+        u,
+        perlinGrad(PERLIN_P[AA]!, x, y, z),
+        perlinGrad(PERLIN_P[BA]!, x - 1, y, z),
+      ),
+      perlinLerp(
+        u,
+        perlinGrad(PERLIN_P[AB]!, x, y - 1, z),
+        perlinGrad(PERLIN_P[BB]!, x - 1, y - 1, z),
+      ),
+    ),
+    perlinLerp(
+      v,
+      perlinLerp(
+        u,
+        perlinGrad(PERLIN_P[AA + 1]!, x, y, z - 1),
+        perlinGrad(PERLIN_P[BA + 1]!, x - 1, y, z - 1),
+      ),
+      perlinLerp(
+        u,
+        perlinGrad(PERLIN_P[AB + 1]!, x, y - 1, z - 1),
+        perlinGrad(PERLIN_P[BB + 1]!, x - 1, y - 1, z - 1),
+      ),
+    ),
+  );
 }
 
 /**
@@ -696,6 +1467,45 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
     const v = map.get(String(i))! as AbstractValue;
     return { values: [new IntValue(i), v], nextCursor: new IntValue(i) };
   },
+  // `utf8codes(s)` — Lua 5.3+ / Luau iterator. Each step yields the
+  // 1-indexed UTF-8 byte position + the codepoint at that position.
+  // State carries the input string; cursor is the 0-indexed codepoint
+  // number (advanced by 1 each step, regardless of UTF-8 byte width).
+  utf8codes: (state, cursor) => {
+    if (!(state instanceof ObjectValue)) return null;
+    const stateMap = state.value as Map<string, AbstractValue> | null;
+    if (!stateMap) return null;
+    const inputVal = stateMap.get(UTF8CODES_INPUT);
+    const input =
+      inputVal instanceof Value ? (inputVal.value as string) : null;
+    if (input == null) return null;
+    const cpIndex =
+      cursor == null ||
+      cursor instanceof NullValue ||
+      (cursor as any).value == null
+        ? 0
+        : Number((cursor as any).value);
+    // Walk the codepoints up to `cpIndex` and yield the next one.
+    // O(n) per step; for narrative-length strings this is fine. If
+    // perf ever matters, switch to caching offsets on the state map.
+    let i = 0;
+    let byteOffset = 0;
+    for (const cp of input) {
+      if (i === cpIndex) {
+        const code = cp.codePointAt(0)!;
+        return {
+          values: [new IntValue(byteOffset + 1), new IntValue(code)],
+          nextCursor: new IntValue(cpIndex + 1),
+        };
+      }
+      if (cp.codePointAt(0)! < 0x80) byteOffset += 1;
+      else if (cp.codePointAt(0)! < 0x800) byteOffset += 2;
+      else if (cp.codePointAt(0)! < 0x10000) byteOffset += 3;
+      else byteOffset += 4;
+      i++;
+    }
+    return null;
+  },
   // `gmatch(s, pattern)` — iterate every non-overlapping match. The
   // state is a wrapper ObjectValue carrying `{input, pattern}`; the
   // cursor is an IntValue holding the next 0-indexed search offset.
@@ -747,6 +1557,8 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
 // iterator itself; these two extra keys live INSIDE that wrapper.
 const GMATCH_INPUT = "__gmatch_input";
 const GMATCH_PATTERN = "__gmatch_pattern";
+// Wrapper field for `utf8codes` iterator state.
+const UTF8CODES_INPUT = "__utf8codes_input";
 
 /**
  * Build a closure-shaped `ObjectValue` marked as a stdlib iterator.
@@ -1091,6 +1903,22 @@ export const STDLIB: Record<string, StdLibEntry> = {
       iMax === iMin
         ? oMin
         : oMin + ((x - iMin) / (iMax - iMin)) * (oMax - oMin),
+  },
+
+  // `math.noise(x [, y [, z]])` — Luau / Roblox Perlin noise.
+  // Returns a deterministic pseudo-random value in roughly `[-1, 1]`
+  // (typical range; corners can exceed slightly). The 1- and 2-arg
+  // forms call the 3D implementation with the missing axes pinned to
+  // 0. Uses Ken Perlin's improved noise algorithm (smoothstep `fade`
+  // + 12-direction gradients) with a fixed permutation table — the
+  // table differs from Roblox's, so absolute output values won't
+  // match Roblox exactly; statistical properties (smoothness,
+  // value distribution) do.
+  "math.noise": {
+    arity: -1,
+    pure: true,
+    fn: (_, args: number[]) =>
+      perlinNoise(args[0] ?? 0, args[1] ?? 0, args[2] ?? 0),
   },
 
   // `math.lerp(a, b, t)` — Luau 0.6+. Linear interpolation between
@@ -1740,6 +2568,46 @@ export const STDLIB: Record<string, StdLibEntry> = {
     pure: ["string"],
     fn: (_, [s]) => (coerceString(s) ?? "").trimEnd(),
   },
+  // `string.pack(fmt, ...)` — pack args into a byte string per the
+  // format spec. Output is a JS string where each char ∈ [0, 255]
+  // (Lua byte-string convention).
+  "string.pack": {
+    arity: -1,
+    fn: (story, args) => {
+      const fmt = coerceString(args[0]) ?? "";
+      const result = packString(fmt, args.slice(1), story);
+      return result == null ? "" : result;
+    },
+  },
+  // `string.unpack(fmt, s [, pos])` — read values out of a byte
+  // string per the format spec. Returns each unpacked value as a
+  // separate return + the next 1-indexed byte position after the
+  // last consumed byte (so a follow-up unpack can resume).
+  "string.unpack": {
+    arity: -1,
+    fn: (story, args) => {
+      const fmt = coerceString(args[0]) ?? "";
+      const data = coerceString(args[1]) ?? "";
+      const pos =
+        args.length > 2 ? Math.max(1, coerceNumber(args[2]) ?? 1) : 1;
+      const result = unpackString(fmt, data, pos, story);
+      if (result == null) return new NullValue();
+      return new MultiValue([
+        ...result.values,
+        new IntValue(result.nextPos),
+      ]);
+    },
+  },
+  // `string.packsize(fmt)` — byte size of a fixed-width format.
+  // Errors on formats containing variable-width specs (`s`, `z`).
+  "string.packsize": {
+    arity: 1,
+    fn: (story, [fmtArg]) => {
+      const fmt = coerceString(fmtArg) ?? "";
+      const size = packSize(fmt, story);
+      return size == null ? 0 : size;
+    },
+  },
 
   // ============================================================
   // `bit32.*` — 32-bit integer ops. JS bitwise operators already
@@ -2017,6 +2885,83 @@ export const STDLIB: Record<string, StdLibEntry> = {
         k++;
       }
       return null;
+    },
+  },
+  // `table.foreach(t, fn)` — Lua 5.1, deprecated in Luau but kept
+  // in the surface. Iterates every key/value pair in insertion
+  // order, calling `fn(k, v)` for each. If `fn` returns a non-nil
+  // value, iteration stops and that value is returned.
+  //
+  // Modern Luau code should use `for k, v in pairs(t) do …` instead
+  // — the diagnostic at the call site flags this with a strikethrough.
+  "table.foreach": {
+    arity: 2,
+    deprecated:
+      "`table.foreach` is deprecated in Luau. Use `for k, v in pairs(t) do … end`.",
+    fn: (story, [t, fn]) => {
+      if (!(t instanceof ObjectValue)) {
+        story.Error("table.foreach: first argument must be a table");
+        return new NullValue();
+      }
+      const map = t.value as Map<string, AbstractValue>;
+      for (const [k, v] of map) {
+        // Lua key form: numeric strings become integers (matches the
+        // `pairs` iterator's key-coercion rule).
+        const keyValue: AbstractValue = /^-?\d+$/.test(k)
+          ? new IntValue(parseInt(k, 10))
+          : new StringValue(k);
+        const results = story.CallLuauFunction(fn, [keyValue, v]);
+        // Lua semantics: only an EXPLICIT non-nil return breaks the
+        // loop. A function with no `return` statement ends in a Void
+        // value (sparkdown's "no return value" sentinel) — treat it
+        // as nil. NullValue and false-valued returns... actually
+        // false DOES break in Lua (it's non-nil). But Void doesn't.
+        const top = results[0];
+        if (
+          top != null &&
+          !(top instanceof NullValue) &&
+          top.constructor.name !== "Void"
+        ) {
+          return top;
+        }
+      }
+      return new NullValue();
+    },
+  },
+  // `table.foreachi(t, fn)` — Lua 5.1, deprecated in Luau. Like
+  // `table.foreach` but only over the array portion (consecutive
+  // integer keys 1..N) and calls `fn(i, v)`. Same early-exit rule:
+  // non-nil return ends iteration.
+  "table.foreachi": {
+    arity: 2,
+    deprecated:
+      "`table.foreachi` is deprecated in Luau. Use `for i, v in ipairs(t) do … end`.",
+    fn: (story, [t, fn]) => {
+      if (!(t instanceof ObjectValue)) {
+        story.Error("table.foreachi: first argument must be a table");
+        return new NullValue();
+      }
+      const map = t.value as Map<string, AbstractValue>;
+      let i = 1;
+      while (map.has(String(i))) {
+        const v = map.get(String(i))! as AbstractValue;
+        const results = story.CallLuauFunction(fn, [new IntValue(i), v]);
+        // Lua semantics: only an EXPLICIT non-nil return breaks the
+        // loop. A function with no `return` statement ends in a Void
+        // value (sparkdown's "no return value" sentinel) — treat it
+        // as nil. NullValue and false-valued returns... actually
+        // false DOES break in Lua (it's non-nil). But Void doesn't.
+        const top = results[0];
+        if (
+          top != null &&
+          !(top instanceof NullValue) &&
+          top.constructor.name !== "Void"
+        ) {
+          return top;
+        }
+        i++;
+      }
+      return new NullValue();
     },
   },
   // `table.insert(t [, pos], value)` — append (2-arg) or insert at
@@ -2493,6 +3438,56 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
   "os.difftime": { arity: 2, pure: true, fn: (_, [t2, t1]) => t2 - t1 },
 
+  // `os.date([format [, time]])` — Lua/Luau strftime-style date
+  // formatting. Three modes:
+  //   - Format string starts with `*t` (UTC: `!*t`) — return a table
+  //     with `year/month/day/hour/min/sec/wday/yday/isdst` fields.
+  //   - Format starts with `!` — render the rest using UTC fields.
+  //   - Otherwise — render using local fields.
+  // Default format is "%c" (locale-equivalent date+time). Default
+  // time is the current epoch second.
+  //
+  // We hardcode English month/weekday names — JS's `Intl` is locale-
+  // dependent and not appropriate for a deterministic runtime.
+  "os.date": {
+    arity: -1,
+    fn: (story, args) => {
+      let fmt =
+        args.length > 0 && args[0] != null
+          ? (coerceString(args[0]) ?? "%c")
+          : "%c";
+      const timeArg =
+        args.length > 1 && args[1] != null
+          ? coerceNumber(args[1])
+          : null;
+      const epochMs =
+        timeArg != null ? timeArg * 1000 : Date.now();
+      let utc = false;
+      if (fmt.startsWith("!")) {
+        utc = true;
+        fmt = fmt.slice(1);
+      }
+      const d = new Date(epochMs);
+      const fields = utc ? getDateFieldsUTC(d) : getDateFieldsLocal(d);
+      // Table form.
+      if (fmt === "*t") {
+        const map = new Map<string, AbstractValue>();
+        map.set("year", new IntValue(fields.year));
+        map.set("month", new IntValue(fields.month));
+        map.set("day", new IntValue(fields.day));
+        map.set("hour", new IntValue(fields.hour));
+        map.set("min", new IntValue(fields.min));
+        map.set("sec", new IntValue(fields.sec));
+        map.set("wday", new IntValue(fields.wday));
+        map.set("yday", new IntValue(fields.yday));
+        // Sparkdown has no boolean primitive — use IntValue(0)/(1).
+        map.set("isdst", new IntValue(fields.isdst ? 1 : 0));
+        return new ObjectValue(map);
+      }
+      return formatDateString(fmt, fields, story);
+    },
+  },
+
   // ============================================================
   // `utf8.*` — Unicode helpers. `char`/`len`/`codepoint` are the
   // most commonly-used. Pattern-iterator functions (`codes`,
@@ -2630,6 +3625,28 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return cpOffsets[targetIdx] + 1;
     },
   },
+  // `utf8.codes(s)` — Lua 5.3+ / Luau. Returns a generic-for
+  // iterator: each step yields `(byte_position, codepoint)` for the
+  // next character in `s`. `byte_position` is 1-indexed and matches
+  // the convention used by `utf8.codepoint` / `utf8.offset`.
+  //
+  // Internally builds a marker-keyed ObjectValue routed through
+  // `stepBuiltinIterator` (same dispatch as `pairs` / `ipairs` /
+  // `gmatch`). The cursor is the 0-indexed codepoint number;
+  // advance is by codepoint, not byte.
+  "utf8.codes": {
+    arity: 1,
+    fn: (_, [sArg]) => {
+      const input = coerceString(sArg) ?? "";
+      const stateMap = new Map<string, AbstractValue>();
+      stateMap.set(UTF8CODES_INPUT, new StringValue(input));
+      const iterMap = new Map<string, AbstractValue>();
+      iterMap.set(BUILTIN_ITER_TAG, new StringValue("utf8codes"));
+      iterMap.set(BUILTIN_ITER_STATE, new ObjectValue(stateMap));
+      iterMap.set(BUILTIN_ITER_CURSOR, new IntValue(0));
+      return new ObjectValue(iterMap);
+    },
+  },
   // `utf8.nfcnormalize(s)` / `utf8.nfdnormalize(s)` — Luau-only.
   // Unicode Normalization Form C / D. JS strings expose this directly
   // via `String.prototype.normalize`.
@@ -2640,6 +3657,96 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "utf8.nfdnormalize": {
     arity: 1,
     fn: (_, [s]) => (coerceString(s) ?? "").normalize("NFD"),
+  },
+
+  // ============================================================
+  // `debug.*` — call-stack introspection.
+  // ============================================================
+  //
+  // Sparkdown doesn't track per-frame source lines (the runtime
+  // works in path-space, not source-space), so `l`/`r` line info is
+  // always -1. The `s`/`n` info is best-effort from the frame's
+  // current pointer's container path.
+
+  // `debug.traceback([message [, level]])` — Lua/Luau. Returns a
+  // string dump of the running call stack, optionally prefixed by
+  // `message`. The `level` arg is accepted for compatibility but
+  // ignored (the inkjs CallStack already produces a complete
+  // top-down dump).
+  "debug.traceback": {
+    arity: -1,
+    fn: (story, args) => {
+      const msg = args.length > 0 ? coerceString(args[0]) : null;
+      const trace = story.state.callStack.callStackTrace;
+      const header = msg != null && msg !== "" ? msg + "\nstack traceback:\n" : "stack traceback:\n";
+      return header + trace;
+    },
+  },
+  // `debug.info(level, options)` — Luau form. `level` is 1-indexed
+  // (1 = the function that called `debug.info`). `options` is a
+  // string of one-letter codes — for each, we push the requested
+  // datum as a separate return value (multi-return):
+  //   `s` → source path of the frame's container (or "?")
+  //   `l` → -1 (line info not tracked)
+  //   `n` → frame name (container path leaf), or ""
+  //   `a` → 0 (arity not tracked)
+  //   `f` → nil (no first-class function value for the frame)
+  //   `r` → -1 (line-range not tracked)
+  // Returns nil if `level` exceeds the call-stack depth.
+  "debug.info": {
+    arity: 2,
+    fn: (story, [levelArg, optsArg]) => {
+      const level = Math.floor(coerceNumber(levelArg) ?? 1);
+      const opts = coerceString(optsArg) ?? "";
+      const elements = story.state.callStack.elements;
+      // Lua convention: level 1 is the caller of `debug.info`. The
+      // current call sits at the top of the JS stack but we map
+      // `level - 1` directly into the inkjs callstack (which is
+      // ordered bottom-up). So level 1 = top of stack.
+      const idx = elements.length - level;
+      if (idx < 0 || idx >= elements.length) return new NullValue();
+      const frame = elements[idx];
+      const ptr = frame?.currentPointer;
+      const container = ptr && !ptr.isNull ? ptr.container : null;
+      const pathStr = container?.path?.toString() ?? "?";
+      const name = pathStr.includes(".")
+        ? pathStr.substring(pathStr.lastIndexOf(".") + 1)
+        : pathStr;
+      const results: AbstractValue[] = [];
+      for (const c of opts) {
+        switch (c) {
+          case "s":
+            results.push(new StringValue(pathStr));
+            break;
+          case "l":
+            results.push(new IntValue(-1));
+            break;
+          case "n":
+            results.push(new StringValue(name));
+            break;
+          case "a":
+            results.push(new IntValue(0));
+            break;
+          case "f":
+            results.push(new NullValue());
+            break;
+          case "r":
+            // Luau returns line-range as two values (first, last);
+            // we don't have line tracking, so emit -1, -1.
+            results.push(new IntValue(-1));
+            results.push(new IntValue(-1));
+            break;
+          default:
+            story.Error(`debug.info: unknown option character "${c}"`);
+            return new NullValue();
+        }
+      }
+      return results.length === 0
+        ? new NullValue()
+        : results.length === 1
+          ? results[0]!
+          : new MultiValue(results);
+    },
   },
 
   // `assert(cond [, message])` — Luau-style assertion. Raises a
