@@ -26,7 +26,7 @@ function adoptImpowerUiStyles(root: ShadowRoot) {
       'style[data-vite-dev-id*="impower-ui"]',
     );
     for (const src of sources) {
-      const key = src.dataset.viteDevId ?? src.textContent?.slice(0, 32) ?? "";
+      const key = src.dataset["viteDevId"] ?? src.textContent?.slice(0, 32) ?? "";
       if (root.querySelector(`style[${TW_MARK}="${CSS.escape(key)}"]`)) continue;
       const clone = document.createElement("style");
       clone.setAttribute(TW_MARK, key);
