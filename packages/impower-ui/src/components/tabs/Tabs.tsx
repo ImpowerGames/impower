@@ -126,7 +126,11 @@ export function Tab({
       <button
         type="button"
         class={cn(
-          "group relative flex flex-1 items-center justify-center gap-x-2 gap-y-0.5 px-3 py-2 text-xs font-semibold select-none",
+          // Padding (16/20), font (14/600), icon-text gap (2px) match sparkle's
+          // s-tab CSS so the bottom-nav in impower-dev renders pixel-identical
+          // to main. The horizontal column-gap stays a little wider for tabs
+          // that DON'T stack icon-above-text (sparkle: 8px in row mode).
+          "group relative flex flex-1 items-center justify-center gap-x-2 gap-y-0.5 px-5 py-4 text-sm font-semibold select-none",
           "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
           ctx.vertical && "w-full",
           ctx.indicator === "underline" &&
@@ -139,7 +143,7 @@ export function Tab({
         )}
       >
         {(icon || activeIcon) && (
-          <span class="relative inline-flex size-5 items-center justify-center">
+          <span class="relative inline-flex size-[21px] items-center justify-center">
             {/* Inactive icon copy — visible by default, fades out on active.
                 Color brightens on hover via text-fg (color transition is OK
                 on the main thread; hover doesn't trigger heavy mounts). */}
@@ -147,7 +151,7 @@ export function Tab({
               <span class="absolute inset-0 text-fg-60 group-hover:text-fg group-data-[state=active]:opacity-0 transition-opacity duration-100">
                 {(() => {
                   const Inactive = icon;
-                  return <Inactive class="size-5" />;
+                  return <Inactive class="size-[21px]" />;
                 })()}
               </span>
             ) : null}
@@ -161,16 +165,17 @@ export function Tab({
               >
                 {(() => {
                   const Active = activeIcon ?? icon!;
-                  return <Active class="size-5" />;
+                  return <Active class="size-[21px]" />;
                 })()}
               </span>
             ) : null}
           </span>
         )}
         {/* sparkle's s-tab scaled the label 0.8 → 0.9 on activation. We
-            mirror that with 90 → 100. Transform runs on the compositor so
-            this transition survives a heavy mount, same as the icons. */}
-        <span class="relative inline-block scale-90 group-data-[state=active]:scale-100 transition-transform duration-100">
+            mirror those exact ratios so the bottom-nav label sizes match
+            main pixel-for-pixel. Transform runs on the compositor so this
+            transition survives a heavy mount, same as the icons. */}
+        <span class="relative inline-block leading-none scale-80 group-data-[state=active]:scale-90 transition-transform duration-100">
           {/* Inactive label copy — takes layout space, fades out on active. */}
           <span class="text-fg-60 group-hover:text-fg group-data-[state=active]:opacity-0 transition-opacity duration-100">
             {children}

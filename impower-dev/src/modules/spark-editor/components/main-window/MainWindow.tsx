@@ -42,6 +42,20 @@ function adoptImpowerUiStyles(root: ShadowRoot) {
 
 type PaneType = "logic" | "assets" | "share";
 
+// Two CSS concerns that fundamentally can't be Tailwind utilities; everything
+// else on the rendered tree is plain Tailwind classes:
+//   1. Host-only rule. The <se-main-window> custom-element host can't carry
+//      its own classes; its display/sizing has to be a CSS rule.
+//   2. Scoped unlayered overrides for the handful of Tailwind utilities that
+//      compete with sparkle's `* { flex-flow: column; flex-shrink: 0;
+//      min-width: 0; max-width: 100% }` global reset. Even after wrapping
+//      sparkle's normalize in @layer normalize, the reset still beats
+//      Tailwind's @layer utilities in this shadow-DOM cascade — adopted
+//      stylesheets and <style> elements maintain separate layer hierarchies,
+//      and the order doesn't fall the way the spec text suggests for
+//      single-stylesheet cascades. Unlayered always wins, so redeclaring the
+//      conflicting utilities unlayered (scoped to .mw-root so it can't bleed
+//      anywhere unexpected) is the path that actually works.
 const STYLE = `
   se-main-window {
     display: flex;
@@ -49,53 +63,13 @@ const STYLE = `
     width: 100%;
     height: 100%;
   }
-  .mw-root {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-  }
-  .mw-body {
-    position: relative;
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-  }
-  .mw-pane {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    width: 100%;
-  }
-  .mw-pane--end {
-    background-color: black;
-  }
-  .mw-bottom-nav {
-    position: relative;
-    flex: 0 0 auto;
-    /* Match sparkle's --theme-size-footer-nav (60px). Without this the bar
-       ends up ~55px from Tab padding alone. */
-    height: var(--theme-size-footer-nav, 60px);
-    border-top: 1px solid var(--theme-color-fg-10, #1f1f1f);
-    background-color: var(--theme-color-primary-bg, #0b1426);
-    color: var(--theme-color-fg, #fff);
-  }
-  .mw-bottom-nav > * {
-    height: 100%;
-  }
-  /* sparkle's adopted normalize sets * { flex-flow: column; ... } unlayered,
-     which beats Tailwind's layered utility rules. Re-declare the handful of
-     Tailwind classes we depend on, unlayered with class specificity, so they
-     win inside the MainWindow tree. */
   .mw-root .flex-row { flex-direction: row; }
   .mw-root .flex-col { flex-direction: column; }
+  .mw-root .flex-wrap { flex-wrap: wrap; }
+  .mw-root .flex-1 { flex: 1 1 0%; min-width: 0; }
   .mw-root .items-stretch { align-items: stretch; }
   .mw-root .items-center { align-items: center; }
   .mw-root .justify-center { justify-content: center; }
-  .mw-root .flex-wrap { flex-wrap: wrap; }
-  .mw-root .flex-1 { flex: 1 1 0%; min-width: 0; }
 `;
 
 export const propDefaults = {};
@@ -158,17 +132,20 @@ export default function MainWindow(_props: MainWindowProps) {
   };
 
   return (
-    <div class="mw-root" ref={rootRef}>
+    <div
+      class="mw-root flex flex-col w-full h-full min-h-0"
+      ref={rootRef}
+    >
       <style>{STYLE}</style>
       {/* @ts-expect-error legacy custom element */}
       <se-header-navigation />
-      <div class="mw-body">
+      <div class="relative flex flex-auto min-h-0">
         <SplitPane
           activePanel={previewActive}
           minSize="320px"
           collapseBelow={960}
           start={
-            <div class="mw-pane">
+            <div class="relative flex flex-col w-full h-full">
               {/* @ts-expect-error legacy custom element */}
               {pane === "logic" && <se-logic />}
               {/* @ts-expect-error legacy custom element */}
@@ -178,7 +155,7 @@ export default function MainWindow(_props: MainWindowProps) {
             </div>
           }
           end={
-            <div class="mw-pane mw-pane--end">
+            <div class="relative flex flex-col w-full h-full bg-black">
               {/* @ts-expect-error legacy custom element */}
               <se-preview />
             </div>
@@ -187,7 +164,9 @@ export default function MainWindow(_props: MainWindowProps) {
       </div>
       {/* @ts-expect-error legacy custom element */}
       <se-notifications />
-      <div class="mw-bottom-nav">
+      <div
+        class="relative flex-none h-[60px] border-t border-fg-10 bg-engine-800 text-fg [&>*]:h-full"
+      >
         <Tabs value={pane} onChange={onPaneChange} indicator="none">
           <Tab value="logic" icon={Bolt} activeIcon={BoltFill}>
             Logic

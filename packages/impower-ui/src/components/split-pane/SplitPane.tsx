@@ -33,77 +33,33 @@ export type SplitPaneProps = {
 
 // VSCode-style divider behavior, ported from sparkle's <s-split-pane>:
 //   - the Separator is an 8px transparent grab strip (the hit area)
-//   - a 1px always-visible line sits centered inside
-//   - a 4px colored "indicator" fades in on hover/active/focus (150ms)
+//   - a 1px always-visible line sits centered inside (::before)
+//   - a 4px colored indicator fades in on hover/active/focus (::after, 150ms)
 // Width/height never change, so the layout doesn't shift during interaction.
-const SP_HIT_AREA = "8px";
-const SP_DIVIDER = "1px";
-const SP_INDICATOR = "4px";
-const STYLE = `
-  .swp-separator {
-    position: relative;
-    flex: 0 0 ${SP_HIT_AREA};
-    background-color: transparent;
-    align-self: stretch;
-  }
-  .swp-separator[data-orientation="horizontal"] {
-    width: ${SP_HIT_AREA};
-    cursor: col-resize;
-  }
-  .swp-separator[data-orientation="vertical"] {
-    height: ${SP_HIT_AREA};
-    cursor: row-resize;
-  }
-  .swp-separator::before,
-  .swp-separator::after {
-    content: "";
-    position: absolute;
-    pointer-events: none;
-  }
-  .swp-separator[data-orientation="horizontal"]::before {
-    top: 0;
-    bottom: 0;
-    left: calc((${SP_HIT_AREA} - ${SP_DIVIDER}) / 2);
-    width: ${SP_DIVIDER};
-    /* Match sparkle's <s-split-pane> divider opacity (0.06) — impower-ui's
-       --theme-color-divider is 0.12 which makes the resting line too prominent. */
-    background-color: rgba(255, 255, 255, 0.06);
-  }
-  .swp-separator[data-orientation="vertical"]::before {
-    left: 0;
-    right: 0;
-    top: calc((${SP_HIT_AREA} - ${SP_DIVIDER}) / 2);
-    height: ${SP_DIVIDER};
-    background-color: rgba(255, 255, 255, 0.06);
-  }
-  .swp-separator[data-orientation="horizontal"]::after {
-    top: 0;
-    bottom: 0;
-    left: calc((${SP_HIT_AREA} - ${SP_INDICATOR}) / 2);
-    width: ${SP_INDICATOR};
-    background-color: var(--theme-color-primary, #007acc);
-    opacity: 0;
-    transition: opacity 150ms ease-in-out;
-  }
-  .swp-separator[data-orientation="vertical"]::after {
-    left: 0;
-    right: 0;
-    top: calc((${SP_HIT_AREA} - ${SP_INDICATOR}) / 2);
-    height: ${SP_INDICATOR};
-    background-color: var(--theme-color-primary, #007acc);
-    opacity: 0;
-    transition: opacity 150ms ease-in-out;
-  }
-  /* Use :focus-visible only — :focus would keep the indicator lit after a
-     mouse drag (the Separator stays focused for keyboard accessibility). */
-  .swp-separator:hover::after,
-  .swp-separator:focus-visible::after,
-  .swp-separator[data-separator="hover"]::after,
-  .swp-separator[data-separator="active"]::after,
-  .swp-separator[data-resize-handle-active]::after {
-    opacity: 1;
-  }
-`;
+// Resting line uses an explicit rgba — impower-ui's --theme-color-divider is
+// 0.12 which is too prominent. Sparkle's original used 0.06.
+const SEPARATOR_BASE =
+  "relative shrink-0 self-stretch bg-transparent " +
+  // ::before — always-visible thin line in resting state
+  "before:content-[''] before:absolute before:pointer-events-none before:bg-white/[0.06] " +
+  // ::after — fatter colored indicator that fades in on interaction
+  "after:content-[''] after:absolute after:pointer-events-none after:bg-primary " +
+  "after:opacity-0 after:transition-opacity after:duration-150 after:ease-in-out " +
+  // Hover / keyboard-focus / drag-active light up the indicator. :focus-visible
+  // only (not :focus) so the indicator releases on mouseup after a drag.
+  "hover:after:opacity-100 focus-visible:after:opacity-100 " +
+  "data-[separator=hover]:after:opacity-100 data-[separator=active]:after:opacity-100";
+
+const SEPARATOR_HORIZONTAL =
+  // 8px wide grab strip, 1px line at left=3.5px, 4px indicator at left=2px
+  "w-2 cursor-col-resize " +
+  "before:inset-y-0 before:left-[3.5px] before:w-px " +
+  "after:inset-y-0 after:left-[2px] after:w-1";
+
+const SEPARATOR_VERTICAL =
+  "h-2 cursor-row-resize " +
+  "before:inset-x-0 before:top-[3.5px] before:h-px " +
+  "after:inset-x-0 after:top-[2px] after:h-1";
 
 /**
  * Two-pane split with a drag-resize divider, mirroring sparkle's
@@ -145,17 +101,20 @@ export default function SplitPane({
         className,
       )}
     >
-      <style>{STYLE}</style>
+      {/* The responsive-collapse rules are kept in a tiny inline <style>
+          because (a) the breakpoint is a runtime prop, so Tailwind can't
+          statically generate the arbitrary media-query class, and (b) the
+          rules target react-resizable-panels' [data-panel] children, which
+          we don't own and can't decorate with Tailwind classes. Hide via
+          display:none so each pane's internal scroll state (CodeMirror
+          scrollDOM, etc.) survives the collapse/reveal cycle — same trick
+          sparkle's <s-split-pane> used. */}
       {collapseBelow != null && (
         <style>{`
           @media (max-width: ${breakpoint}px) {
             .${collapseClass} [data-separator] {
               display: none !important;
             }
-            /* Hide via display:none rather than flex:0, so the inactive
-               pane's internal scroll state (CodeMirror scrollDOM, etc.)
-               survives the collapse/reveal cycle. Sparkle's <s-split-pane>
-               used the same approach. */
             .swp-collapse-active-start [data-panel]:last-child {
               display: none !important;
             }
@@ -179,7 +138,12 @@ export default function SplitPane({
         </Panel>
         <Separator
           data-orientation={orientation}
-          className="swp-separator"
+          className={cn(
+            SEPARATOR_BASE,
+            orientation === "horizontal"
+              ? SEPARATOR_HORIZONTAL
+              : SEPARATOR_VERTICAL,
+          )}
         />
         <Panel minSize={minSize} className="overflow-hidden">
           {end}

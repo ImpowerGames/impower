@@ -1,38 +1,47 @@
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+/* All universal resets live in @layer normalize so consumers' layered styles
+   (e.g. Tailwind's @layer utilities) win over them. Without this wrap, the
+   unlayered `*` rules below would beat every layered utility regardless of
+   specificity — the layered-vs-unlayered cascade rule, not the
+   specificity rule, dominates. Preact widgets rendered in light DOM inside
+   a spec-component shadow would otherwise need to redeclare Tailwind
+   utilities unlayered just to win. */
+@layer normalize {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-* {
-  text-underline-offset: 3px;
-  background-size: cover;
-  border: none;
-  pointer-events: none;
-  touch-action: var(--_touch-action, none);
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
+  * {
+    text-underline-offset: 3px;
+    background-size: cover;
+    border: none;
+    pointer-events: none;
+    touch-action: var(--_touch-action, none);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
 
-button,
-[role="button"] {
-  pointer-events: auto;
-}
+  button,
+  [role="button"] {
+    pointer-events: auto;
+  }
 
-*::-moz-focus-inner {
-  border: none;
-}
+  *::-moz-focus-inner {
+    border: none;
+  }
 
-*:focus {
-  outline: none;
-}
+  *:focus {
+    outline: none;
+  }
 
-*:focus-visible {
-  outline: none;
+  *:focus-visible {
+    outline: none;
+  }
 }
 
 *::-webkit-scrollbar {

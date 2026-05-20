@@ -202,6 +202,24 @@
   --color-bg-80: var(--theme-color-bg-80);
   --color-bg-90: var(--theme-color-bg-90);
 
+  /* Engine palette — the deep navy/slate ramp the editor chrome and
+     bottom-nav use. Consolidates sparkle's scattered editor theme tokens
+     (--theme-color-primary-bg, --theme-color-panel, --theme-color-editor-bg,
+     --theme-color-tab-inactive-text, etc.) into one named scale so
+     components can write `bg-engine-800` instead of arbitrary-value
+     lookups. Uses Tailwind v4's stock 50..950 convention. */
+  --color-engine-50: hsl(210.6 20% 96%);
+  --color-engine-100: hsl(210.6 22% 90%);
+  --color-engine-200: hsl(210.6 24% 80%);
+  --color-engine-300: hsl(210.6 25% 70%);
+  --color-engine-400: hsl(210.6 25% 60%);
+  --color-engine-500: hsl(211 26% 48%);      /* sparkle: tab-inactive-text */
+  --color-engine-600: hsl(210.7 35% 41%);
+  --color-engine-700: hsl(210.8 44.9% 34.9%); /* sparkle: fab-bg / secondary-bg */
+  --color-engine-800: hsl(210.7 89.1% 18%);  /* sparkle: primary-bg */
+  --color-engine-900: hsl(210.6 100% 10%);   /* sparkle: panel */
+  --color-engine-950: hsl(210.6 100% 7%);    /* sparkle: editor-bg */
+
   /* Semantic color aliases — map onto Tailwind's stock palette
      (sparkle's -10..-99 scale maps to Tailwind's -50..-950) */
   --color-primary-10: var(--color-sky-50);

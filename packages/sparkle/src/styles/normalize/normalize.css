@@ -1,9 +1,18 @@
-* {
-  flex-direction: column;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-  min-width: 0;
-  max-width: 100%;
+/* Wrapped in @layer normalize so consumers' layered styles (e.g. Tailwind's
+   @layer utilities) win over this universal reset. Without the wrap, the
+   unlayered `*` rule would beat every layered utility regardless of
+   specificity — the layered-vs-unlayered cascade rule dominates. Preact
+   widgets rendered in light DOM inside a sparkle/spec-component shadow
+   would otherwise need to redeclare Tailwind utilities unlayered just to
+   win this fight. */
+@layer normalize {
+  * {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+  }
 }
 
 [hidden] {

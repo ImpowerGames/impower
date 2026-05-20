@@ -1,7 +1,13 @@
-* {
-  flex-direction: column;
-  flex-wrap: nowrap;
-  flex-shrink: 0;
-  min-width: 0;
-  max-width: 100%;
+/* Wrapped in @layer normalize so consumers' layered styles (e.g. Tailwind's
+   @layer utilities) win over this universal reset. Without the wrap, the
+   unlayered `*` rule would beat every layered utility regardless of
+   specificity. */
+@layer normalize {
+  * {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+  }
 }
