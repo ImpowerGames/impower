@@ -378,10 +378,13 @@ export class ScriptEditorController {
       const range = params.visibleRange;
       const target = params.target;
       if (textDocument.uri === this._textDocument?.uri) {
+        // Always cache so handleDidCollapsePreviewPane can restore the
+        // preview's visible range to the editor on mobile toggle. Without
+        // the cache, scrolls that happen while the editor is hidden would
+        // be lost. See ScreenplayPreviewController.handleScrolledEditor.
+        this.cacheVisibleRange(range);
         if (target === "element") {
           this.scrollToRange(range);
-        } else {
-          this.cacheVisibleRange(range);
         }
       }
     }

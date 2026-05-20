@@ -150,17 +150,15 @@ export default function SplitPane({
             .${collapseClass} [data-separator] {
               display: none !important;
             }
+            /* Hide via display:none rather than flex:0, so the inactive
+               pane's internal scroll state (CodeMirror scrollDOM, etc.)
+               survives the collapse/reveal cycle. Sparkle's <s-split-pane>
+               used the same approach. */
             .swp-collapse-active-start [data-panel]:last-child {
-              flex: 0 0 0 !important;
-              overflow: hidden !important;
-              min-width: 0 !important;
-              min-height: 0 !important;
+              display: none !important;
             }
             .swp-collapse-active-end [data-panel]:first-child {
-              flex: 0 0 0 !important;
-              overflow: hidden !important;
-              min-width: 0 !important;
-              min-height: 0 !important;
+              display: none !important;
             }
             .swp-collapse-active-start [data-panel]:first-child,
             .swp-collapse-active-end [data-panel]:last-child {

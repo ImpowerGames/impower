@@ -290,10 +290,14 @@ export class ScreenplayPreviewController {
       const range = params.visibleRange;
       const target = params.target;
       if (textDocument.uri === this._textDocument?.uri) {
+        // Always cache the editor's visible range so handleDidExpandPreviewPane
+        // can restore it when the preview is revealed on mobile toggle. When
+        // the preview pane is currently hidden (display:none), the immediate
+        // scrollToRange below has no visual effect — without the cache, the
+        // range would be lost and the reveal would land at scrollTop=0.
+        this.cacheVisibleRange(range);
         if (target === "element") {
           this.scrollToRange(range);
-        } else {
-          this.cacheVisibleRange(range);
         }
       }
     }

@@ -160,6 +160,7 @@ export default function MainWindow(_props: MainWindowProps) {
         <SplitPane
           activePanel={previewActive}
           minSize="320px"
+          collapseBelow={960}
           start={
             <div class="mw-pane">
               {/* @ts-expect-error legacy custom element */}
