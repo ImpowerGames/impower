@@ -97,12 +97,18 @@ describe("Luau upstream conformance baseline", () => {
         const r = runConformanceSource(source);
         let status: FileResult["status"];
         if (r.errorMessages.length > 0) {
-          // Discriminate compile-error vs runtime-error by checking
-          // if compilation produced bytecode. The harness returns
-          // empty output + returnedOK=false when compile failed.
-          status = r.output === "" && !r.returnedOK
-            ? "compile-error"
-            : "runtime-error";
+          // Classify by the FIRST message — primary cause. `AddError`
+          // prepends "RUNTIME ERROR" / "RUNTIME WARNING" to anything
+          // thrown at runtime (failed assert, unimplemented stdlib,
+          // etc.). Anything else is a compile-time diagnostic from
+          // the lowerer / parser. A "[harness threw]" prefix also
+          // counts as runtime — the JS exception came from execution.
+          const first = r.errorMessages[0]!;
+          status =
+            /^RUNTIME (ERROR|WARNING)/.test(first) ||
+            first.startsWith("[harness threw]")
+              ? "runtime-error"
+              : "compile-error";
         } else if (!r.returnedOK) {
           status = "did-not-reach-ok";
         } else {
