@@ -52,6 +52,37 @@ function tokenAt(
 }
 
 describe("Luau stdlib shadowing → semantic tokens", () => {
+  test("narrative-scope: function/variable references resolve through global scope", () => {
+    // Top-level (narrative-mode) declarations register into the
+    // outermost scope frame, so subsequent references — at narrative
+    // scope OR inside a function body — all resolve through the same
+    // lookup path. `FOO` (declared via `store`) → variable; `bar`
+    // (declared via `function`) → function. Both render with
+    // `declaration` at their introducing position and without it at
+    // call/read sites.
+    const { text, tokens } = collectStdLibTokens(`store FOO = 1
+function bar()
+end
+& bar()
+{FOO}
+`);
+    const fooDecl = tokenAt(tokens, text, "FOO", 1);
+    const fooRef = tokenAt(tokens, text, "FOO", 2);
+    expect(fooDecl!.tokenType).toBe("variable");
+    expect(fooDecl!.modifiers).toContain("declaration");
+    expect(fooRef!.tokenType).toBe("variable");
+    expect(fooRef!.modifiers).not.toContain("declaration");
+    const barDecl = tokenAt(tokens, text, "bar", 1);
+    const barRef = tokenAt(tokens, text, "bar", 2);
+    expect(barDecl!.tokenType).toBe("function");
+    expect(barDecl!.modifiers).toContain("declaration");
+    expect(barRef!.tokenType).toBe("function");
+    expect(barRef!.modifiers).not.toContain("declaration");
+    // Neither should carry `defaultLibrary` — both are user-declared.
+    expect(barDecl!.modifiers).not.toContain("defaultLibrary");
+    expect(fooRef!.modifiers).not.toContain("defaultLibrary");
+  });
+
   test("unshadowed stdlib call gets function + defaultLibrary", () => {
     const { text, tokens } = collectStdLibTokens(`function run()
 print("hi")

@@ -83,16 +83,21 @@ function makeGlobalScope(): ScopeFrame {
   return frame;
 }
 
-// Walks up from a `LuauVariableName` node and returns true if it's
-// nested in a `LuauVariableAssignment_begin` subtree — meaning this
-// position is the introducing site of a local-variable declaration
-// (`local NAME = …`), not a downstream reference. Bounded walk so a
-// pathological parent chain can't make this O(file).
-function isInsideVariableAssignmentBegin(node: any): boolean {
+// Walks up from an identifier-name node and returns true if it's
+// at a declaration site — i.e. nested in either
+// `LuauVariableAssignment_begin` (a `local NAME = …` binding) or
+// `LuauFunctionDeclarationName` (the `function NAME(...)` introducer).
+// Reference sites short-circuit on `LuauAccessPart` or
+// `LuauFunctionCall_begin`, neither of which appears at declaration
+// sites. Bounded walk so a pathological parent chain can't make this
+// O(file).
+function isAtDeclarationSite(node: any): boolean {
   let cur = node?.parent;
   for (let depth = 0; depth < 6 && cur; depth++) {
     if (cur.name === "LuauVariableAssignment_begin") return true;
-    if (cur.name === "LuauAccessPart") return false; // reference shape
+    if (cur.name === "LuauFunctionDeclarationName") return true;
+    if (cur.name === "LuauAccessPart") return false; // value-reference shape
+    if (cur.name === "LuauFunctionCall_begin") return false; // call-site shape
     cur = cur.parent;
   }
   return false;
@@ -227,19 +232,23 @@ export class SemanticAnnotator extends SparkdownAnnotator<
       }
     }
     // Reference sites — emit a kind-aware semantic token based on the
-    // current scope lookup. Covers the three grammar nodes that
-    // resolve to a binding:
+    // current scope lookup. Covers the grammar nodes that resolve to
+    // a binding:
     //   - LuauStdLibFunctions  (e.g. `print`, `unpack`)
     //   - LuauStdLibConstants  (e.g. `math`, `string` namespaces)
-    //   - LuauVariableName     (regular identifiers — only emitted
-    //                           when the lookup finds a binding to
-    //                           override the TextMate variableName
-    //                           color, e.g. a const reference that
-    //                           should render as readonly).
+    //   - LuauVariableName     (regular identifiers — function-body
+    //                           values, narrative-scope `{varName}`
+    //                           interpolations, `local NAME = …`
+    //                           declaration sites)
+    //   - LuauFunctionName     (function declaration sites + call
+    //                           sites — also reaches `& bar()` at
+    //                           narrative scope where `bar` was
+    //                           declared via `function bar() … end`)
     if (
       nodeRef.name === "LuauStdLibFunctions" ||
       nodeRef.name === "LuauStdLibConstants" ||
-      nodeRef.name === "LuauVariableName"
+      nodeRef.name === "LuauVariableName" ||
+      nodeRef.name === "LuauFunctionName"
     ) {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
       const binding = this.lookupBinding(name);
@@ -263,18 +272,18 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           // back to plain `variable` styling.
           modifiers.push("readonly", "static");
         }
-        // Declaration-site marker: tag the identifier at the
-        // binding location with `declaration` so editors can render
-        // the introducing position differently from subsequent
-        // references (e.g. underline declarations on F2-rename).
-        // Detection: the LuauVariableName lives inside a
-        // LuauVariableAssignment_begin subtree at the declaration
-        // site; reference-site LuauVariableNames hang off a
-        // LuauAccessPart instead. Walk up a bounded number of
-        // parents — declarations are at most ~3 levels deep.
+        // Declaration-site marker: tag identifiers at their binding
+        // location with `declaration` so editors can render the
+        // introducing position differently from references (e.g.
+        // underline declarations on F2-rename). Detection walks the
+        // parent chain looking for `LuauVariableAssignment_begin` or
+        // `LuauFunctionDeclarationName`; reference-site identifiers
+        // short-circuit on `LuauAccessPart` (value reads) or
+        // `LuauFunctionCall_begin` (call sites).
         if (
-          nodeRef.name === "LuauVariableName" &&
-          isInsideVariableAssignmentBegin(nodeRef.node)
+          (nodeRef.name === "LuauVariableName" ||
+            nodeRef.name === "LuauFunctionName") &&
+          isAtDeclarationSite(nodeRef.node)
         ) {
           modifiers.push("declaration");
         }
