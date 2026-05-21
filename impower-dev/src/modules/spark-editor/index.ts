@@ -21,7 +21,6 @@ import {
 } from "../../../../packages/spec-component/src/component";
 import Account from "./components/account/account";
 import Demo from "./components/demo/demo";
-import FileEditorNavigation from "./components/file-editor-navigation/file-editor-navigation";
 import HeaderMenuButton from "./components/header-menu-button/header-menu-button";
 import HeaderNavigationPlaceholder from "./components/header-navigation-placeholder/header-navigation-placeholder";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/header-sync-conflict-toolbar";
@@ -36,7 +35,6 @@ import editorTheme from "./styles/theme/theme.css";
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   Scrollable,
   OptionButton,
-  FileEditorNavigation,
   Demo,
   Account,
   HeaderSyncConflictToolbar,

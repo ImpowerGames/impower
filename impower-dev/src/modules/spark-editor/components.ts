@@ -4,7 +4,6 @@ import { ComponentSpec } from "../../../../packages/spec-component/src/spec";
 import baseNormalize from "../../../../packages/spec-component/src/styles/normalize/normalize.css";
 import Account from "./components/account/_account";
 import Demo from "./components/demo/_demo";
-import FileEditorNavigation from "./components/file-editor-navigation/_file-editor-navigation";
 import HeaderMenuButton from "./components/header-menu-button/_header-menu-button";
 import HeaderNavigationPlaceholder from "./components/header-navigation-placeholder/_header-navigation-placeholder";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/_header-sync-conflict-toolbar";
@@ -47,7 +46,6 @@ const components = [
   { tag: "", css: editorTheme },
   style(Scrollable),
   style(OptionButton),
-  style(FileEditorNavigation),
   style(Account),
   style(HeaderSyncConflictToolbar),
   style(HeaderSyncToolbar),

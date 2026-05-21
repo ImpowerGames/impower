@@ -1,7 +1,8 @@
 import { useComputed } from "@preact/signals";
-import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { useDiagnosticColor } from "../../workspace/useDiagnosticColor";
 import workspace from "../../workspace/WorkspaceStore";
+import FileEditorNavigation from "../file-editor-navigation/FileEditorNavigation";
 
 export const propDefaults = {};
 export type LogicScriptsEditorProps = Partial<typeof propDefaults>;
@@ -22,16 +23,15 @@ const HOST_STYLE = `
  * the Scripts list — replaces the list view with a header (back button
  * + rename input) and the actual script editor underneath.
  *
- *   <se-file-editor-navigation>     ← still legacy spec-component; emits
- *     <input>                         a `changing` event on back-button
- *   </se-file-editor-navigation>     click that bubbles up.
- *   <se-logic-script-editor />      ← now Preact; receives `filename`.
+ *   <FileEditorNavigation onBack={...}>   ← Preact, callback API
+ *     <input>                                (rename, controlled)
+ *   </FileEditorNavigation>
+ *   <se-logic-script-editor />            ← Preact; receives `filename`.
  *
  * The rename input is a controlled `<input>` rather than the legacy
- * `<s-input>` — keeps the focus/select/blur/Enter behavior the legacy
- * had without a sparkle dependency. The file-options "delete" handler
- * the legacy class carried referenced an event that no markup actually
- * emits here, so it's been left out.
+ * `<s-input>`. The file-options "delete" handler the legacy class
+ * carried referenced an event that no markup actually emits here, so
+ * it's been left out.
  */
 export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
   const filename = useComputed(() => {
@@ -55,25 +55,12 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
     setDraftName(displayName);
   }, [displayName]);
 
-  const rootRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Listen for the back-button "changing" event that
-  // `<se-file-editor-navigation>` bubbles up.
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    const onChanging = (e: Event) => {
-      if (!(e instanceof CustomEvent)) return;
-      if (e.detail?.key === "close-file-editor") {
-        import("../../workspace/Workspace").then(({ Workspace }) => {
-          Workspace.window.closedFileEditor(filename);
-        });
-      }
-    };
-    root.addEventListener("changing", onChanging);
-    return () => root.removeEventListener("changing", onChanging);
-  }, [filename]);
+  const handleBack = async () => {
+    const { Workspace } = await import("../../workspace/Workspace");
+    Workspace.window.closedFileEditor(filename);
+  };
 
   const commitRename = async () => {
     if (!draftName || draftName === oldName) return;
@@ -95,10 +82,9 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
   };
 
   return (
-    <div ref={rootRef} class="flex flex-1 flex-col min-h-0">
+    <div class="flex flex-1 flex-col min-h-0">
       <style>{HOST_STYLE}</style>
-      {/* @ts-expect-error legacy custom element */}
-      <se-file-editor-navigation>
+      <FileEditorNavigation onBack={handleBack}>
         <input
           ref={inputRef}
           type="text"
@@ -121,8 +107,7 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
             }
           }}
         />
-        {/* @ts-expect-error legacy custom element */}
-      </se-file-editor-navigation>
+      </FileEditorNavigation>
       <div class="relative flex flex-1 flex-col min-h-0">
         {/* @ts-expect-error legacy custom element */}
         <se-logic-script-editor filename={filename} />
