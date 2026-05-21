@@ -275,6 +275,47 @@ function tryUnaryMetamethod(
   return (results && results[0]) || new NullValue();
 }
 
+// Returns true if the container's first content op is a vararg-slot
+// parameter binding — i.e. the target function declared `...` as a
+// parameter. Used by the multi-return spread logic to skip spreading
+// for variadic targets (whose extras have already been packed into a
+// `MultiValue` by `PackTuple` at the call site).
+function containerIsVariadic(target: any): boolean {
+  if (!target) return false;
+  const content = target._content;
+  if (!Array.isArray(content)) return false;
+  for (const item of content) {
+    const va = item as { isVarargsSlot?: boolean; variableName?: string };
+    if (va && typeof va.isVarargsSlot === "boolean") {
+      return va.isVarargsSlot === true;
+    }
+    // Skip non-VariableAssignment items (the function entry binding
+    // is the first content); bail out if we hit a different kind of
+    // op to keep the scan O(1)-ish.
+    if (item && (item as any).commandType !== undefined) {
+      continue;
+    }
+    break;
+  }
+  return false;
+}
+
+// Lua-fidelity multi-return spread: if the syntactically LAST arg of
+// a function call returned multiple values (a `MultiValue`), spread
+// its inner values onto the eval stack so the callee's parameter
+// binding pops them individually. Skipped for variadic targets —
+// their compile-time `PackTuple` already handled the spread and the
+// trailing `MultiValue` is the `__varargs__` slot value.
+function spreadLastMultiIfNonVariadic(story: any, target: any): void {
+  if (containerIsVariadic(target)) return;
+  const stack = story.state.evaluationStack;
+  if (stack.length === 0) return;
+  const top = stack[stack.length - 1];
+  if (!(top instanceof MultiValue)) return;
+  story.state.PopEvaluationStack();
+  for (const v of top.values) story.state.PushEvaluationStack(v);
+}
+
 // `t[k] = v` Lua-fidelity dispatch. If `k` already exists directly on
 // `t`, the raw set fires immediately (Lua only consults `__newindex`
 // on miss). On miss, consult the metatable: function form calls
@@ -1547,6 +1588,12 @@ export class Story extends InkObject {
           const closurePath = extractClosurePath(varContents, this);
           if (closurePath !== null) {
             this.state.divertedPointer = this.PointerAtPath(closurePath);
+            // Multi-return spread for non-variadic closures: see the
+            // helper. extractClosurePath has already pushed the upvals
+            // and re-pushed user args, so the spread check sees the
+            // syntactically-last user arg on top.
+            const closureTarget = this.ContentAtPath(closurePath).obj;
+            spreadLastMultiIfNonVariadic(this, closureTarget);
           } else if (varContents instanceof ObjectValue) {
             // `__call` metamethod: the variable holds a regular table
             // (not a closure, not a builtin iterator) whose metatable
@@ -1607,6 +1654,9 @@ export class Story extends InkObject {
             this.state.divertedPointer = this.PointerAtPath(
               varContents.targetPath,
             );
+            // Spread last-arg MultiValue for non-variadic targets.
+            const target = this.ContentAtPath(varContents.targetPath).obj;
+            spreadLastMultiIfNonVariadic(this, target);
           }
         }
       } else if (currentDivert.isExternal) {
@@ -1617,6 +1667,17 @@ export class Story extends InkObject {
         return true;
       } else {
         this.state.divertedPointer = currentDivert.targetPointer.copy();
+        // Spread last-arg MultiValue for non-variadic static-dispatch
+        // function calls. Detected via `pushesToStack` +
+        // Function push-type — the same pair that marks a divert as
+        // a Lua-style function call (vs a knot jump / tunnel).
+        if (
+          currentDivert.pushesToStack &&
+          currentDivert.stackPushType === PushPopType.Function
+        ) {
+          const target = currentDivert.targetPointer.container;
+          spreadLastMultiIfNonVariadic(this, target);
+        }
       }
 
       if (currentDivert.pushesToStack) {
@@ -2094,6 +2155,8 @@ export class Story extends InkObject {
               undefined,
               this.state.outputStream.length,
             );
+            const closureTarget = this.ContentAtPath(closurePath).obj;
+            spreadLastMultiIfNonVariadic(this, closureTarget);
             break;
           }
           // `__call` metamethod: the target is a plain ObjectValue
@@ -2156,6 +2219,8 @@ export class Story extends InkObject {
             undefined,
             this.state.outputStream.length,
           );
+          const targetContainer = this.ContentAtPath(targetVal.value).obj;
+          spreadLastMultiIfNonVariadic(this, targetContainer);
           break;
         }
 
