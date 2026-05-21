@@ -1,9 +1,6 @@
 import { Range } from "@codemirror/state";
-import { GrammarSyntaxNodeRef } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNodeRef";
-import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { getNodesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getNodesInsideParent";
-import { SparkdownNodeName } from "../../types/SparkdownNodeName";
+import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
@@ -60,49 +57,21 @@ export interface SemanticInfo {
 type BindingKind = "function" | "variable" | "const-variable" | "namespace";
 type ScopeFrame = Map<string, { kind: BindingKind; fromStdlib: boolean }>;
 
-const STDLIB_FUNCTIONS: readonly string[] = [
-  "assert",
-  "collectgarbage",
-  "error",
-  "gcinfo",
-  "getfenv",
-  "getmetatable",
-  "ipairs",
-  "loadstring",
-  "newproxy",
-  "next",
-  "pairs",
-  "pcall",
-  "print",
-  "rawequal",
-  "rawset",
-  "require",
-  "select",
-  "setfenv",
-  "setmetatable",
-  "tonumber",
-  "tostring",
-  "type",
-  "typeof",
-  "unpack",
-  "xpcall",
-];
-const STDLIB_NAMESPACES: readonly string[] = [
-  "bit32",
-  "coroutine",
-  "debug",
-  "math",
-  "os",
-  "string",
-  "table",
-  "task",
-  "utf8",
-  "buffer",
-  "vector",
-  "system",
-  "count",
-  "lang",
-  "plural",
+// Read the stdlib identifier lists straight from the grammar
+// definition so the annotator stays in sync as new builtins land.
+// `LUAU_STANDARD_LIB_FUNCTIONS` populates the "function" entries;
+// `LUAU_STANDARD_LIB_CONSTANTS` + `LUAU_STANDARD_LIB_GLOBALS`
+// populate the "namespace" entries (the constants are dotted-access
+// roots like `math` / `string`; the globals are top-level value
+// names like `_G` / `_VERSION` — both behave as opaque namespace
+// references at the LSP-token level).
+const STDLIB_FUNCTIONS =
+  (GRAMMAR_DEFINITION.variables.LUAU_STANDARD_LIB_FUNCTIONS as string[]) ?? [];
+const STDLIB_NAMESPACES = [
+  ...((GRAMMAR_DEFINITION.variables.LUAU_STANDARD_LIB_CONSTANTS as string[]) ??
+    []),
+  ...((GRAMMAR_DEFINITION.variables.LUAU_STANDARD_LIB_GLOBALS as string[]) ??
+    []),
 ];
 
 function makeGlobalScope(): ScopeFrame {
@@ -132,24 +101,6 @@ function isInsideVariableAssignmentBegin(node: any): boolean {
 export class SemanticAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<SemanticInfo>
 > {
-  nesting = 0;
-
-  defineName = "";
-
-  inLinkMap = false;
-
-  inViewField = false;
-
-  inFunctionDeclarationParameters = false;
-
-  inFunctionParameters = false;
-
-  inViewDeclarationAsExpression = false;
-
-  inViewDeclarationControlExpression = false;
-
-  indentStack: { inScope: string[]; indent: number }[] = [];
-
   // Lexical-scope stack with per-name binding kinds. Outermost frame
   // (index 0) is pre-populated with stdlib names so a reference to
   // an unshadowed `print` lands on the stdlib `function` entry while
@@ -171,9 +122,6 @@ export class SemanticAnnotator extends SparkdownAnnotator<
   pendingDeclKind: "variable" | "const-variable" | null = null;
 
   override begin(): void {
-    this.nesting = 0;
-    this.defineName = "";
-    this.inLinkMap = false;
     this.scopeStack = [makeGlobalScope()];
     this.pendingDeclKind = null;
   }
@@ -207,130 +155,6 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<SemanticInfo>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<SemanticInfo>>[] {
-    if (nodeRef.name === "FunctionDeclarationParameters") {
-      this.inFunctionDeclarationParameters = true;
-    }
-    if (nodeRef.name === "ViewStructField") {
-      this.inViewField = true;
-    }
-    // Leading-WS handling for the (now-dead) ViewField scoping path.
-    // The grammar's `Indent` rule is gone; we detect "whitespace at
-    // line start" by position. `OptionalWhitespace` is the canonical
-    // class for leading-WS captures now (see whitespace taxonomy
-    // comment in the grammar YAML), but accept any whitespace-class
-    // node here since the dispatch is position-driven.
-    if (
-      (nodeRef.name === "OptionalWhitespace" ||
-        nodeRef.name === "Whitespace") &&
-      this.getLineAt(nodeRef.from).from === nodeRef.from
-    ) {
-      const currentIndentation = this.read(nodeRef.from, nodeRef.to);
-      let indent = currentIndentation.length;
-      if (this.inViewField) {
-        while (
-          this.indentStack.length > 1 &&
-          indent < (this.indentStack.at(-1)?.indent ?? 0)
-        ) {
-          this.indentStack.pop();
-        }
-        if (indent > (this.indentStack.at(-1)?.indent ?? 0)) {
-          this.indentStack.push({ inScope: [], indent });
-        }
-      } else {
-        this.indentStack.length = 0;
-        this.indentStack.push({ inScope: [], indent });
-      }
-    }
-    if (nodeRef.name === "ViewDeclarationAsExpression") {
-      this.inViewDeclarationAsExpression = true;
-    }
-    if (nodeRef.name === "ViewDeclarationControlExpression") {
-      this.inViewDeclarationControlExpression = true;
-    }
-    if (nodeRef.name === "AccessPath") {
-      if (
-        this.inViewDeclarationAsExpression ||
-        this.inFunctionDeclarationParameters
-      ) {
-        if (!this.indentStack.at(-1)) {
-          this.indentStack.length = 0;
-          this.indentStack.push({ inScope: [], indent: 0 });
-        }
-        const inScope = this.indentStack.at(-1)?.inScope;
-        if (inScope) {
-          const name = this.read(nodeRef.from, nodeRef.to);
-          inScope.push(name);
-        }
-      } else {
-        annotations.push(
-          SparkdownAnnotation.mark<SemanticInfo>({
-            tokenType: "keyword",
-            possibleDivertPath: true,
-          }).range(nodeRef.from, nodeRef.to),
-        );
-      }
-    }
-    if (this.inViewField) {
-      if (
-        !this.inViewDeclarationAsExpression &&
-        !this.inViewDeclarationControlExpression
-      ) {
-        const inScope = this.indentStack.flatMap((s) => s.inScope);
-        const name = this.read(nodeRef.from, nodeRef.to);
-        if (inScope.includes(name)) {
-          if (nodeRef.name === "TypeName") {
-            annotations.push(
-              SparkdownAnnotation.mark<SemanticInfo>({
-                tokenType: "variable",
-                tokenModifiers: ["readonly"],
-              }).range(nodeRef.from, nodeRef.to),
-            );
-            const stack = getContextStack(nodeRef.node);
-            const variableNameNodes = getNodesInsideParent(
-              "VariableName",
-              "NamespaceAccessor",
-              stack,
-            );
-            for (const variableNameNode of variableNameNodes) {
-              annotations.push(
-                SparkdownAnnotation.mark<SemanticInfo>({
-                  tokenType: "variable",
-                }).range(variableNameNode.from, variableNameNode.to),
-              );
-            }
-          }
-        }
-      }
-    }
-    if (nodeRef.name === "DefineVariableName") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      if (text) {
-        this.defineName = text;
-      }
-    }
-    if (
-      nodeRef.name === "ViewStructField" ||
-      nodeRef.name === "StylingStructField" ||
-      nodeRef.name === "PlainStructField"
-    ) {
-      this.nesting++;
-    }
-    if (
-      nodeRef.name === "ViewDeclarationObjectPropertyName" ||
-      nodeRef.name === "StylingDeclarationObjectPropertyName" ||
-      nodeRef.name === "PlainDeclarationObjectPropertyName"
-    ) {
-      if (this.nesting <= 1) {
-        this.inLinkMap = false;
-      }
-      if (this.inLinkMap) {
-        annotations.push(
-          SparkdownAnnotation.mark<SemanticInfo>({
-            tokenType: "struct",
-          }).range(nodeRef.from, nodeRef.to),
-        );
-      }
-    }
     // ----- Luau lexical-scope tracking + identifier-kind emission -----
     //
     // Scope frame management: a Luau function-definition opens a new
@@ -473,7 +297,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
 
   override leave(
     annotations: Range<SparkdownAnnotation<SemanticInfo>>[],
-    nodeRef: GrammarSyntaxNodeRef<SparkdownNodeName>,
+    nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<SemanticInfo>>[] {
     if (
       nodeRef.name === "LuauFunctionDefinition" &&
@@ -485,57 +309,6 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "LuauVariableDefinition") {
       this.pendingDeclKind = null;
-    }
-    if (nodeRef.name === "FunctionDeclarationParameters") {
-      this.inFunctionDeclarationParameters = false;
-    }
-    if (nodeRef.name === "ViewStructField") {
-      this.inViewField = false;
-    }
-    if (nodeRef.name === "ViewDeclarationAsExpression") {
-      this.inViewDeclarationAsExpression = false;
-    }
-    if (nodeRef.name === "ViewDeclarationControlExpression") {
-      this.inViewDeclarationControlExpression = false;
-    }
-    if (
-      nodeRef.name === "DefineViewDeclaration" ||
-      nodeRef.name === "DefineStylingDeclaration" ||
-      nodeRef.name === "DefinePlainDeclaration"
-    ) {
-      this.defineName = "";
-      this.inViewDeclarationAsExpression = false;
-      this.inViewDeclarationControlExpression = false;
-      this.inViewField = false;
-      this.indentStack.length = 0;
-    }
-    if (
-      nodeRef.name === "ViewStructField" ||
-      nodeRef.name === "StylingStructField" ||
-      nodeRef.name === "PlainStructField"
-    ) {
-      this.nesting--;
-    }
-    if (
-      nodeRef.name === "ViewDeclarationObjectPropertyName" ||
-      nodeRef.name === "StylingDeclarationObjectPropertyName" ||
-      nodeRef.name === "PlainDeclarationObjectPropertyName"
-    ) {
-      if (this.nesting === 1) {
-        if (
-          !this.defineName &&
-          this.read(nodeRef.from, nodeRef.to) === "link"
-        ) {
-          this.inLinkMap = true;
-          annotations.push(
-            SparkdownAnnotation.mark<SemanticInfo>({
-              tokenType: "macro",
-            }).range(nodeRef.from, nodeRef.to),
-          );
-        } else {
-          this.inLinkMap = false;
-        }
-      }
     }
     return annotations;
   }
