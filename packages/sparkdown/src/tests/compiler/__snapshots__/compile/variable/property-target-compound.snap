@@ -4,17 +4,39 @@
       "type": "Weave",
       "content": [
         {
-          "type": "StorePropertyAssignment",
-          "base": {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "__pa_base_2",
+          "expression": {
             "type": "VariableReference",
             "path": [
               "opts"
             ]
-          },
-          "key": {
+          }
+        },
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "__pa_key_2",
+          "expression": {
             "type": "StringExpression",
             "content": [
               "count"
+            ]
+          }
+        },
+        {
+          "type": "StorePropertyAssignment",
+          "base": {
+            "type": "VariableReference",
+            "path": [
+              "__pa_base_2"
+            ]
+          },
+          "key": {
+            "type": "VariableReference",
+            "path": [
+              "__pa_key_2"
             ]
           },
           "value": {
@@ -25,13 +47,13 @@
               "base": {
                 "type": "VariableReference",
                 "path": [
-                  "opts"
+                  "__pa_base_2"
                 ]
               },
               "key": {
-                "type": "StringExpression",
-                "content": [
-                  "count"
+                "type": "VariableReference",
+                "path": [
+                  "__pa_key_2"
                 ]
               }
             },

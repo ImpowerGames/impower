@@ -8,6 +8,7 @@ import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Ident
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { StorePropertyAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
+import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { LowerContext } from "../context";
 import {
@@ -27,16 +28,24 @@ import {
 //   - `key`: the final segment as a `StringExpression` (for `.field`) or
 //     a lowered key expression (for `[expr]`).
 //
-// Compound assignment (`+=`, `-=`, …) is desugared by reading the current
-// value via the same base+key chain, computing the new value via a
-// `BinaryExpression`, then storing back. This duplicates the base+key
-// computation; it's correct but a future optimization could split them.
+// Compound assignment (`+=`, `-=`, …) desugars to read-modify-write. To
+// match Luau's "LHS evaluated once" semantics (and avoid duplicate-knot
+// errors when the LHS contains an anonymous fn literal), we stash the
+// evaluated base and key into temp locals, then build the read and write
+// off those temps:
+//
+//   local __pa_base_<from> = base
+//   local __pa_key_<from>  = key
+//   __pa_base_<from>[__pa_key_<from>] = __pa_base_<from>[__pa_key_<from>] op rhs
+//
+// Returns a flat list of ParsedObjects (the temp decls + the store); the
+// caller wraps the list in a Weave.
 export function lowerPropertyTargetAssignment(
   lhsPath: SyntaxNode,
   opNode: SyntaxNode,
   opText: string | null,
   ctx: LowerContext,
-): ParsedObject | null {
+): ParsedObject[] | null {
   const parts = collectAccessParts(lhsPath);
   if (parts.length < 2) return null;
 
@@ -70,22 +79,50 @@ export function lowerPropertyTargetAssignment(
   const baseExpr = lowerBaseFromParts(baseParts, ctx);
   if (!baseExpr) return null;
 
-  let valueExpr = lowerExpressionFromContainer(opNode, ctx);
+  const valueExpr = lowerExpressionFromContainer(opNode, ctx);
   if (!valueExpr) return null;
 
-  // Compound assignment: `obj.field += rhs` → `obj.field = obj.field + rhs`.
-  // We have to clone the base+key for the GET side since `StorePropertyAssignment`
-  // calls `AddContent` (which sets parent pointers) on the original base+key.
-  if (opText && opText !== "=") {
-    const binOp = opText.slice(0, -1);
-    const getBase = lowerBaseFromParts(baseParts, ctx);
-    const getKey = cloneKeyExpression(finalInner, ctx);
-    if (!getBase || !getKey) return null;
-    const readExpr = new IndexExpression(getBase, getKey);
-    valueExpr = new BinaryExpression(readExpr, valueExpr, binOp);
+  // Plain `=`: just one StorePropertyAssignment — no LHS reuse needed.
+  if (!opText || opText === "=") {
+    return [new StorePropertyAssignment(baseExpr, keyExpr, valueExpr)];
   }
 
-  return new StorePropertyAssignment(baseExpr, keyExpr, valueExpr);
+  // Compound `+=` / `-=` / etc. Stash base+key into temp locals so each
+  // side-effecting subexpression in the LHS runs exactly once. Names
+  // include the source offset so multiple compound assignments in the
+  // same function body don't collide. (Re-lowering the same node — e.g.
+  // from incremental reparse — produces the same temp name, which is
+  // a no-op on the second declaration.)
+  const binOp = opText.slice(0, -1);
+  const offset = lhsPath.from;
+  const baseTempName = `__pa_base_${offset}`;
+  const keyTempName = `__pa_key_${offset}`;
+
+  const baseTempDecl = new VariableAssignment({
+    variableIdentifier: new Identifier(baseTempName),
+    assignedExpression: baseExpr,
+    isTemporaryNewDeclaration: true,
+  });
+  const keyTempDecl = new VariableAssignment({
+    variableIdentifier: new Identifier(keyTempName),
+    assignedExpression: keyExpr,
+    isTemporaryNewDeclaration: true,
+  });
+
+  const refBaseForRead = new VariableReference([new Identifier(baseTempName)]);
+  const refKeyForRead = new VariableReference([new Identifier(keyTempName)]);
+  const readExpr = new IndexExpression(refBaseForRead, refKeyForRead);
+  const computedValue = new BinaryExpression(readExpr, valueExpr, binOp);
+
+  const refBaseForWrite = new VariableReference([new Identifier(baseTempName)]);
+  const refKeyForWrite = new VariableReference([new Identifier(keyTempName)]);
+  const store = new StorePropertyAssignment(
+    refBaseForWrite,
+    refKeyForWrite,
+    computedValue,
+  );
+
+  return [baseTempDecl, keyTempDecl, store];
 }
 
 function collectAccessParts(accessPath: SyntaxNode): SyntaxNode[] {
@@ -164,31 +201,6 @@ function lowerBaseFromParts(
     return null;
   }
   return current;
-}
-
-function cloneKeyExpression(
-  finalInner: SyntaxNode,
-  ctx: LowerContext,
-): Expression | null {
-  // The SET side's key has already been attached to a parent via AddContent.
-  // Build a fresh, parent-less copy for the GET side of a compound assignment.
-  if (finalInner.name === "LuauPropertyAccessor") {
-    const nameNode = getDescendent("LuauPropertyName", finalInner);
-    if (!nameNode) return null;
-    return new StringExpression([
-      new Text(ctx.read(nameNode.from, nameNode.to)),
-    ]);
-  }
-  if (finalInner.name === "LuauPropertyIndexer") {
-    const indexerContent = findChildByName(
-      finalInner,
-      "LuauPropertyIndexer_content",
-    );
-    return indexerContent
-      ? lowerExpressionFromContainer(indexerContent, ctx)
-      : null;
-  }
-  return null;
 }
 
 function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {

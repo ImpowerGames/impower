@@ -9,6 +9,27 @@
       "isFunction": true,
       "body": [
         {
+          "type": "VariableAssignment",
+          "kind": "reassign",
+          "name": "count",
+          "expression": {
+            "type": "BinaryExpression",
+            "op": "+",
+            "left": {
+              "type": "VariableReference",
+              "path": [
+                "count"
+              ]
+            },
+            "right": {
+              "type": "VariableReference",
+              "path": [
+                "x"
+              ]
+            }
+          }
+        },
+        {
           "type": "ReturnType",
           "expression": {
             "type": "VariableReference",

@@ -41,7 +41,7 @@ export function lowerReassignment(
     opText,
     ctx,
   );
-  if (propertyAssignment) return wrapInWeave([propertyAssignment]);
+  if (propertyAssignment) return wrapInWeave(propertyAssignment);
 
   // Simple identifier LHS → VariableAssignment kind=reassign. The
   // grammar tags identifiers whose text matches a stdlib namespace

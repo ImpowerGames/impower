@@ -9,8 +9,10 @@
       "isFunction": true,
       "body": [
         {
-          "type": "StorePropertyAssignment",
-          "base": {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "__pa_base_25",
+          "expression": {
             "type": "IndexExpression",
             "base": {
               "type": "IndexExpression",
@@ -33,11 +35,31 @@
                 "sword"
               ]
             }
-          },
-          "key": {
+          }
+        },
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "__pa_key_25",
+          "expression": {
             "type": "StringExpression",
             "content": [
               "count"
+            ]
+          }
+        },
+        {
+          "type": "StorePropertyAssignment",
+          "base": {
+            "type": "VariableReference",
+            "path": [
+              "__pa_base_25"
+            ]
+          },
+          "key": {
+            "type": "VariableReference",
+            "path": [
+              "__pa_key_25"
             ]
           },
           "value": {
@@ -46,33 +68,15 @@
             "left": {
               "type": "IndexExpression",
               "base": {
-                "type": "IndexExpression",
-                "base": {
-                  "type": "IndexExpression",
-                  "base": {
-                    "type": "VariableReference",
-                    "path": [
-                      "state"
-                    ]
-                  },
-                  "key": {
-                    "type": "StringExpression",
-                    "content": [
-                      "items"
-                    ]
-                  }
-                },
-                "key": {
-                  "type": "StringExpression",
-                  "content": [
-                    "sword"
-                  ]
-                }
+                "type": "VariableReference",
+                "path": [
+                  "__pa_base_25"
+                ]
               },
               "key": {
-                "type": "StringExpression",
-                "content": [
-                  "count"
+                "type": "VariableReference",
+                "path": [
+                  "__pa_key_25"
                 ]
               }
             },

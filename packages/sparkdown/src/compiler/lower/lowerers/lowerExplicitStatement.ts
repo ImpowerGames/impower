@@ -140,7 +140,7 @@ export function lowerExplicitStatement(
     opText,
     ctx,
   );
-  if (propertyAssignment) return wrapInWeave([propertyAssignment]);
+  if (propertyAssignment) return wrapInWeave(propertyAssignment);
 
   const nameNode = getDescendent("LuauVariableName", lhsPath);
   if (!nameNode) return {};
