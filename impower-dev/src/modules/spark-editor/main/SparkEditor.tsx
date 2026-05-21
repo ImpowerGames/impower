@@ -8,7 +8,12 @@ const HOST_STYLE = `
     flex-direction: column;
     flex: 1 1 0%;
     width: 100%;
-    min-height: 100vh;
+    /* Constrain to viewport so flex:1 children can scroll their own overflow.
+       min-height: 100vh would let the host grow with overflowing content,
+       breaking the FileList scroller (long lists pushed the FAB and
+       bottom-nav off-screen instead of scrolling within the panel). */
+    height: 100vh;
+    min-height: 0;
     background: var(--theme-color-panel, #1f1f1f);
   }
 `;

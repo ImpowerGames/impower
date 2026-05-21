@@ -5,6 +5,7 @@ import { useContext, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { createContext } from "preact";
 import type { IconComponent } from "../icon/icons.generated";
 import { cn } from "../../utils/cn";
+import Ripple from "../ripple/Ripple";
 
 const tabsContainer = cva("relative flex w-full", {
   variants: {
@@ -30,9 +31,16 @@ const tabsList = cva("flex w-full", {
 // the underline slides via a single shared <div> rendered by Tabs.
 const tabTrigger = cva(
   [
-    "group relative flex flex-1 items-center justify-center",
+    // `relative overflow-hidden` so the inner <Ripple /> can position its
+    // waves inside the tab and the radial gradient gets clipped to the
+    // tab shape.
+    "group relative flex flex-1 items-center justify-center overflow-hidden",
     "gap-x-2 gap-y-0.5 px-5 text-sm font-semibold select-none cursor-pointer pointer-events-auto",
     "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
+    // Static hover/active overlay — matches sparkle's universal
+    // --theme-opacity-hover (0.05) and --theme-opacity-press (0.12).
+    // The <Ripple /> child adds the radial expanding wave on top.
+    "hover:bg-foreground/5 active:bg-foreground/[0.12]",
   ],
   {
     variants: {
@@ -274,10 +282,10 @@ export function Tab({
             style={{ width: `${ctx.iconSize}px`, height: `${ctx.iconSize}px` }}
           >
             {/* Inactive icon copy — visible by default, fades out on active.
-                Color brightens on hover via text-foreground (color transition is OK
-                on the main thread; hover doesn't trigger heavy mounts). */}
+                No hover color change — matches the legacy s-tab behavior
+                (active state is the only color signal; hover is silent). */}
             {icon ? (
-              <span class="absolute inset-0 text-engine-500 group-hover:text-foreground group-data-[state=active]:opacity-0 transition-opacity duration-100">
+              <span class="absolute inset-0 text-engine-500 group-data-[state=active]:opacity-0 transition-opacity duration-100">
                 {(() => {
                   const Inactive = icon;
                   return (
@@ -328,7 +336,7 @@ export function Tab({
           )}
         >
           {/* Inactive label copy — takes layout space, fades out on active. */}
-          <span class="text-engine-500 group-hover:text-foreground group-data-[state=active]:opacity-0 transition-opacity duration-100">
+          <span class="text-engine-500 group-data-[state=active]:opacity-0 transition-opacity duration-100">
             {children}
           </span>
           {/* Active label copy — overlaid, fades in on active. Using opacity
@@ -344,6 +352,7 @@ export function Tab({
             {children}
           </span>
         </span>
+        <Ripple />
       </button>
     </RadixTabs.Trigger>
   );

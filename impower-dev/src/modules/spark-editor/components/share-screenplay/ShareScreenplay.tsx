@@ -3,6 +3,7 @@ import {
   FileTypeHtml,
   FileTypePdf,
   Gear,
+  Ripple,
 } from "@impower/impower-ui/components";
 import type { IconComponent } from "@impower/impower-ui/components";
 import { useRef, useState } from "preact/hooks";
@@ -115,13 +116,17 @@ export default function ShareScreenplay(_props: ShareScreenplayProps) {
               </span>
               <span class="relative z-[1] flex flex-row items-center gap-4 opacity-50">
                 {row.ext}
+                {/* Raw <button> (not <Button>) because this nests inside
+                    the OptionButton row, which is itself a button. Manual
+                    <Ripple /> keeps press feedback consistent. */}
                 <button
                   type="button"
                   aria-label="Settings"
-                  class="-mr-6 inline-flex size-12 cursor-pointer items-center justify-center rounded-full text-foreground/50 hover:bg-foreground/10"
+                  class="relative -mr-6 inline-flex size-12 cursor-pointer pointer-events-auto items-center justify-center overflow-hidden rounded-full text-foreground/50 hover:bg-foreground/5 hover:text-foreground active:bg-foreground/[0.12]"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Gear class="size-5" />
+                  <Ripple />
                 </button>
               </span>
             </OptionButton>

@@ -265,3 +265,9 @@
   0% { background-position-x: 200%; }
   100% { background-position-x: -200%; }
 }
+
+/* Material-design ripple animation is driven imperatively by the
+   <Ripple /> component via element.animate() (Web Animations API) — see
+   `components/ripple/Ripple.tsx`. The translate + scale interpolation
+   needs runtime pointer coordinates so it doesn't live as a static
+   keyframe here. */

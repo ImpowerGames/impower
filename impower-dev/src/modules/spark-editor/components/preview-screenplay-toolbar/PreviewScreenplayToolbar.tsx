@@ -1,4 +1,4 @@
-import { Download, Gamepad } from "@impower/impower-ui/components";
+import { Button, Download, Gamepad } from "@impower/impower-ui/components";
 import { useRef, useState } from "preact/hooks";
 import { downloadFile } from "../../utils/downloadFile";
 
@@ -55,27 +55,28 @@ export default function PreviewScreenplayToolbar(
 
   return (
     <div class="sticky top-0 z-[1] flex h-12 flex-row items-center bg-engine-900">
-      <button
-        type="button"
+      <Button
+        variant="ghost"
         aria-label="Download PDF"
         onClick={onDownload}
         disabled={exporting}
-        class="flex h-11 w-12 cursor-pointer flex-col items-center justify-center gap-0.5 bg-transparent text-[11px] font-semibold text-primary select-none transition-colors hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-50"
+        class="h-11 w-12 flex-col gap-0.5 rounded-full px-0 text-[11px] font-semibold text-primary"
       >
         <Download class="size-4" />
         PDF
-      </button>
+      </Button>
       <div class="flex-1 text-center text-base text-foreground select-none">
         Screenplay Preview
       </div>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-lg"
         aria-label="Preview Game"
         onClick={onMode}
-        class="flex size-12 cursor-pointer items-center justify-center bg-transparent text-foreground/50 hover:text-foreground"
+        class="text-foreground/50 hover:text-foreground"
       >
         <Gamepad class="size-5" />
-      </button>
+      </Button>
       {/* Progress bar — compositor-friendly transform: scaleX so the
           animation runs smoothly even while the export's main-thread
           work is busy. */}

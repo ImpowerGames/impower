@@ -18,21 +18,22 @@ export default spec({
   html: ({ context }) => {
     const { filename } = context;
     const displayName = filename.split(".")[0] ?? "";
+    // Diagnostics-coloring of the filename here is a polish detail — the
+    // editor itself shows lint/error squiggles inline. Re-add via a Preact
+    // wrapper once <se-logic-scripts-editor> itself is ported.
     return html`
       <se-file-editor-navigation>
-        <se-logic-diagnostics-label filename="${filename}">
-          <s-input
-            display="inline-block"
-            id="nameInput"
-            placeholder-color="fab-bg"
-            value="${displayName || ""}"
-            label="${displayName || ""}"
-            width="100%"
-            text-align="center"
-            bg-color="transparent"
-            ripple-color="white"
-          ></s-input>
-        </se-logic-diagnostics-label>
+        <s-input
+          display="inline-block"
+          id="nameInput"
+          placeholder-color="fab-bg"
+          value="${displayName || ""}"
+          label="${displayName || ""}"
+          width="100%"
+          text-align="center"
+          bg-color="transparent"
+          ripple-color="white"
+        ></s-input>
       </se-file-editor-navigation>
       <s-box position="relative" grow>
         <se-logic-script-editor filename="${filename}"></se-logic-script-editor>

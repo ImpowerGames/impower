@@ -6,6 +6,7 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { cva } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 import { cn } from "../../utils/cn";
+import Ripple from "../ripple/Ripple";
 
 // Re-exports — use these for the un-styled bits (Root, Trigger, Portal,
 // Sub, Separator, etc.). Wrappers further down add impower-ui styling
@@ -16,9 +17,14 @@ export const DropdownPortal = DropdownMenuPrimitive.Portal;
 export const DropdownSub = DropdownMenuPrimitive.Sub;
 export const DropdownSeparator = DropdownMenuPrimitive.Separator;
 
+// Popup surface styling. The `popup` theme color (engine-950, ~rgb(18,18,18))
+// is the canonical "floating panel" surface in the design system —
+// distinct from `engine-800` which is for inline surfaces. py-2 / px-0
+// matches the legacy `<s-box p="8 0">`; items provide their own
+// horizontal padding.
 const dropdownContent = cva([
-  "z-50 min-w-[160px] overflow-hidden rounded-md",
-  "bg-engine-800 p-1 text-foreground shadow-lg",
+  "z-50 min-w-[120px] overflow-hidden rounded-lg",
+  "py-2 px-0 text-foreground",
   "data-[state=open]:animate-in data-[state=closed]:animate-out",
   "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
 ]);
@@ -40,6 +46,7 @@ export function DropdownContent({
       <DropdownMenuPrimitive.Content
         sideOffset={sideOffset}
         align={align}
+        style={{ backgroundColor: "var(--theme-color-popup)" }}
         class={cn(dropdownContent(), className)}
         {...rest}
       >
@@ -54,10 +61,19 @@ export function DropdownContent({
 // re-asserting it the dropdown item's hover/click would silently fall
 // through to the underlying page and the cursor wouldn't follow the
 // `cursor-pointer` declaration (cursor tracks hit-testing).
+// Item geometry matches the legacy `<s-button variant="option">`:
+// 40px tall, 20px horizontal padding, 14px label, 70% white foreground.
+// No outer corner radius (the popup itself is the rounded surface).
 const dropdownItem = cva([
-  "flex cursor-pointer pointer-events-auto flex-row items-center gap-2 rounded px-2 py-1.5",
-  "text-sm select-none outline-none",
-  "hover:bg-foreground/10 focus:bg-foreground/10",
+  // relative + overflow-hidden so the inner <Ripple /> wave is clipped
+  // to the item's bounds.
+  "relative overflow-hidden",
+  "flex h-10 cursor-pointer pointer-events-auto flex-row items-center gap-2 px-5",
+  "text-sm text-foreground/70 select-none outline-none",
+  // Static hover/active layer (5% / 12% currentColor). The <Ripple />
+  // adds the expanding radial wave on press.
+  "hover:bg-foreground/5 active:bg-foreground/[0.12]",
+  "focus:bg-foreground/5",
   "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
 ]);
 
@@ -72,6 +88,7 @@ export function DropdownItem({
   return (
     <DropdownMenuPrimitive.Item class={cn(dropdownItem(), className)} {...rest}>
       {children}
+      <Ripple />
     </DropdownMenuPrimitive.Item>
   );
 }
@@ -99,6 +116,7 @@ export function DropdownCheckboxItem({
       {...rest}
     >
       {children}
+      <Ripple />
     </DropdownMenuPrimitive.CheckboxItem>
   );
 }

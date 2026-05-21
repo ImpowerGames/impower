@@ -1,4 +1,4 @@
-import { Edit, Eye } from "@impower/impower-ui/components";
+import { Button, Edit, Eye } from "@impower/impower-ui/components";
 import { useEffect, useState } from "preact/hooks";
 
 export const propDefaults = {};
@@ -58,15 +58,15 @@ export default function PreviewToggleButton(_props: PreviewToggleButtonProps) {
   const label = active ? "EDIT" : "VIEW";
 
   return (
-    <button
-      type="button"
+    <Button
+      variant="secondary"
       aria-label="Toggle Preview"
       aria-pressed={active}
       onClick={onClick}
-      class="mr-2 flex h-9 w-[84px] cursor-pointer flex-col items-center justify-center gap-0.5 rounded-md bg-engine-700 text-[10px] font-semibold text-foreground select-none transition-colors hover:bg-engine-600"
+      class="mr-2 h-9 w-[84px] flex-col gap-0.5 px-0 text-[10px] font-semibold"
     >
       <Icon class="size-[18px]" />
       {label}
-    </button>
+    </Button>
   );
 }

@@ -48,6 +48,7 @@
     "@impower/sparkdown-screenplay-pdf": "file:../packages/sparkdown-screenplay-pdf",
     "@impower/sparkle": "file:../packages/sparkle",
     "@preact/signals": "^2.9.0",
+    "@tanstack/react-virtual": "^3.13.25",
     "dotenv": "^16.3.1",
     "fastify": "^5.8.4",
     "googleapis": "^159.0.0",

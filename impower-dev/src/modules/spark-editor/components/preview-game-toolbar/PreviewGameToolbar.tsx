@@ -1,5 +1,6 @@
 import {
   BugOff,
+  Button,
   Check,
   DropdownCheckboxItem,
   DropdownContent,
@@ -162,13 +163,14 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
       {running ? (
         <DropdownRoot>
           <DropdownTrigger asChild>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon-lg"
               aria-label="Settings"
-              class="flex size-12 cursor-pointer items-center justify-center bg-transparent text-foreground/50 hover:text-foreground"
+              class="text-foreground/50 hover:text-foreground"
             >
               <Gear class="size-5" />
-            </button>
+            </Button>
           </DropdownTrigger>
           <DropdownContent>
             <DropdownCheckboxItem
@@ -220,15 +222,15 @@ function RunToggle({
   const Icon = running ? PlayerStop : PlayerPlay;
   const label = running ? "STOP" : "PLAY";
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
       aria-label={running ? "Stop Game" : "Play Game"}
       onClick={onClick}
-      class="flex h-12 w-12 cursor-pointer flex-col items-center justify-center gap-0.5 bg-transparent pt-1 text-[11px] font-semibold text-primary select-none transition-opacity hover:opacity-80"
+      class="h-12 w-12 flex-col gap-0.5 rounded-full pt-1 px-0 text-[11px] font-semibold text-primary"
     >
       <Icon class="size-[18px]" />
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -246,19 +248,19 @@ function IconButton({
   onClick?: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="icon-lg"
       aria-label={ariaLabel}
       onClick={onClick}
       class={
-        "flex size-12 cursor-pointer items-center justify-center bg-transparent " +
-        (dimmed
+        dimmed
           ? "text-foreground/50 hover:text-foreground"
-          : "text-foreground hover:opacity-80")
+          : "text-foreground"
       }
     >
       <Icon style={{ width: `${iconSize}px`, height: `${iconSize}px` }} />
-    </button>
+    </Button>
   );
 }
 
@@ -274,17 +276,17 @@ function PointerHoldButton({
   onStop: () => void;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size="icon-lg"
       aria-label={ariaLabel}
       onPointerDown={onStart}
       onPointerUp={onStop}
       onPointerCancel={onStop}
       onPointerLeave={onStop}
-      class="flex size-12 cursor-pointer items-center justify-center bg-transparent text-foreground hover:opacity-80"
     >
       <Icon class="size-4" />
-    </button>
+    </Button>
   );
 }
 

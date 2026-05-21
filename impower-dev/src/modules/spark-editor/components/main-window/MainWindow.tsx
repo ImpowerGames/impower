@@ -163,7 +163,7 @@ export default function MainWindow(_props: MainWindowProps) {
     >
       <style>{STYLE}</style>
       <HeaderNavigation />
-      <div class="relative flex flex-auto min-h-0">
+      <div class="relative flex flex-1 min-h-0">
         {!isSSR && (
           <SplitPane
             activePanel={previewActive}

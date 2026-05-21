@@ -21,6 +21,7 @@ export {
   default as LoadingBar,
   type LoadingBarProps,
 } from "./loading-bar/LoadingBar";
+export { default as Ripple } from "./ripple/Ripple";
 export {
   default as SplitPane,
   type SplitPaneProps,

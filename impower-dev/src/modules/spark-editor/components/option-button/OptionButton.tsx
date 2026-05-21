@@ -1,36 +1,22 @@
+import { Button } from "@impower/impower-ui/components";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 
-// Class strings for the row-list button. cva makes it easy to grow this
-// later (e.g. a `selected` variant once we wire the active editor row,
-// or a `dense` size) without rewriting the call sites.
-const optionButtonVariants = cva(
-  [
-    "relative flex w-full flex-row items-center justify-between",
-    "text-foreground/80 select-none cursor-pointer pointer-events-auto",
-    "transition-colors duration-150",
-    "hover:bg-foreground/5 active:bg-foreground/10",
-    "focus-visible:outline-none focus-visible:bg-foreground/5",
-    "disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed",
-  ],
-  {
-    variants: {
-      size: {
-        default: "h-14 px-8 text-base",
-        sm: "h-12 px-6 text-sm",
-      },
-    },
-    defaultVariants: {
-      size: "default",
+const optionButtonSize = cva("", {
+  variants: {
+    size: {
+      default: "h-14 px-8 text-base",
+      sm: "h-12 px-6 text-sm",
     },
   },
-);
+  defaultVariants: { size: "default" },
+});
 
 export type OptionButtonProps = Omit<
   JSX.HTMLAttributes<HTMLButtonElement>,
   "size" | "type"
 > &
-  VariantProps<typeof optionButtonVariants> & {
+  VariantProps<typeof optionButtonSize> & {
     /** Tailwind classes appended after the base layout. */
     class?: string;
     children?: ComponentChildren;
@@ -41,9 +27,9 @@ export type OptionButtonProps = Omit<
  * height (56px default), left-aligned leading content + right-aligned
  * trailing content via children's flex layout.
  *
- * Stays project-local because this row-style is impower-specific (file-list
- * rows / publish targets) — impower-ui's generic Button is the right
- * primitive for stand-alone CTAs.
+ * Wraps the impower-ui `<Button variant="ghost">` so it inherits the
+ * standard ripple + hover/active overlays automatically. The size
+ * variant adds the row-specific height + padding on top.
  */
 export default function OptionButton({
   size,
@@ -52,12 +38,12 @@ export default function OptionButton({
   ...rest
 }: OptionButtonProps) {
   return (
-    <button
-      type="button"
-      class={`${optionButtonVariants({ size })} ${className}`}
+    <Button
+      variant="ghost"
+      class={`w-full justify-between rounded-none text-foreground/80 ${optionButtonSize({ size })} ${className}`}
       {...rest}
     >
       {children}
-    </button>
+    </Button>
   );
 }

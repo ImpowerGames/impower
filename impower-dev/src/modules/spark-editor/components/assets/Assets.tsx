@@ -1,6 +1,10 @@
 import { Files, Link, Tab, Tabs } from "@impower/impower-ui/components";
 import { startTransition } from "preact/compat";
 import workspace from "../../workspace/WorkspaceStore";
+import FileAddButton from "../file-list/FileAddButton";
+import FileList from "../file-list/FileList";
+import FileListBorder from "../file-list/FileListBorder";
+import FileUploadButton from "../file-list/FileUploadButton";
 
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
@@ -61,10 +65,38 @@ export default function Assets(_props: AssetsProps) {
         </Tabs>
       </div>
       <div class="relative flex-1 min-h-0">
-        {/* @ts-expect-error legacy custom element */}
-        {panel === "files" && <se-assets-files />}
-        {/* @ts-expect-error legacy custom element */}
-        {panel === "urls" && <se-assets-urls />}
+        {panel === "files" && (
+          <FileList
+            exclude="*.{sd,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
+            emptyState={
+              <FileListBorder>
+                <Files class="size-12 m-2" />
+                <span class="text-sm">No Files</span>
+              </FileListBorder>
+            }
+            action={
+              <FileUploadButton accept="image/*, audio/*, video/*, .txt">
+                Upload Files
+              </FileUploadButton>
+            }
+          />
+        )}
+        {panel === "urls" && (
+          <FileList
+            include="*.{url}"
+            emptyState={
+              <FileListBorder>
+                <Link class="size-12 m-2" />
+                <span class="text-sm">No URLs</span>
+              </FileListBorder>
+            }
+            action={
+              <FileAddButton defaultFilename="asset00.url">
+                Add URL
+              </FileAddButton>
+            }
+          />
+        )}
       </div>
     </>
   );

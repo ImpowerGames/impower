@@ -4,6 +4,7 @@ import {
   BrandHtml5,
   Button,
   Gear,
+  Ripple,
   SquareLetterS,
 } from "@impower/impower-ui/components";
 import type { IconComponent } from "@impower/impower-ui/components";
@@ -47,16 +48,22 @@ export default function ShareGame(_props: ShareGameProps) {
               </span>
               <span class="flex flex-row items-center gap-4 opacity-50">
                 {t.ext}
+                {/* Raw <button> here (not <Button>) because this lives
+                    inside an OptionButton row, which is itself a button —
+                    nesting our Button primitive would compound the
+                    invalid-HTML situation. <Ripple /> is added manually
+                    to keep the press feedback consistent. */}
                 <button
                   type="button"
                   aria-label="Settings"
-                  class="-mr-6 inline-flex size-12 cursor-pointer items-center justify-center rounded-full text-foreground/50 hover:bg-foreground/10"
+                  class="relative -mr-6 inline-flex size-12 cursor-pointer pointer-events-auto items-center justify-center overflow-hidden rounded-full text-foreground/50 hover:bg-foreground/5 hover:text-foreground active:bg-foreground/[0.12]"
                   onClick={(e) => {
                     // Don't propagate to the option-button row.
                     e.stopPropagation();
                   }}
                 >
                   <Gear class="size-5" />
+                  <Ripple />
                 </button>
               </span>
             </OptionButton>

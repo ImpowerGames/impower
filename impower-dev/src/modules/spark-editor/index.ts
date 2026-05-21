@@ -18,26 +18,16 @@ import {
   defineAll,
 } from "../../../../packages/spec-component/src/component";
 import Account from "./components/account/account";
-import AssetsFiles from "./components/assets-files/assets-files";
-import AssetsUrls from "./components/assets-urls/assets-urls";
 import Demo from "./components/demo/demo";
-import FileAddButton from "./components/file-add-button/file-add-button";
 import FileEditorNavigation from "./components/file-editor-navigation/file-editor-navigation";
-import FileItem from "./components/file-item/file-item";
-import FileListBorder from "./components/file-list-border/file-list-border";
-import FileList from "./components/file-list/file-list";
-import FileOptionsButton from "./components/file-options-button/file-options-button";
-import FileUploadButton from "./components/file-upload-button/file-upload-button";
 import HeaderMenuButton from "./components/header-menu-button/header-menu-button";
 import HeaderNavigationPlaceholder from "./components/header-navigation-placeholder/header-navigation-placeholder";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/header-sync-conflict-toolbar";
 import HeaderSyncToolbar from "./components/header-sync-toolbar/header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/header-title-caption";
-import LogicDiagnosticsLabel from "./components/logic-diagnostics-label/logic-diagnostics-label";
 import LogicScriptEditor from "./components/logic-script-editor/logic-script-editor";
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
-import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
 import OptionButton from "./components/option-button/option-button";
 import Scrollable from "./components/scrollable/scrollable";
 import editorIcons from "./styles/icons/icons.css";
@@ -46,20 +36,9 @@ import editorTheme from "./styles/theme/theme.css";
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   Scrollable,
   OptionButton,
-  FileOptionsButton,
   FileEditorNavigation,
-  FileUploadButton,
-  FileAddButton,
-  FileItem,
-  FileListBorder,
-  FileList,
-  AssetsFiles,
-  AssetsUrls,
-  LogicDiagnosticsLabel,
   LogicScriptEditor,
   LogicScriptsEditor,
-  LogicScriptsList,
-  Audio,
   Demo,
   Account,
   HeaderSyncConflictToolbar,

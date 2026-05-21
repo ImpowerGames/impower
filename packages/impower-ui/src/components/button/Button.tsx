@@ -1,7 +1,9 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ComponentChildren, JSX } from "preact";
+import type { ComponentChildren, JSX, Ref } from "preact";
+import { forwardRef } from "preact/compat";
 import { cn } from "../../utils/cn";
+import Ripple from "../ripple/Ripple";
 
 // Variant configuration in cva form. The defaultVariants set the
 // no-variant-prop case to `primary` + `default`.
@@ -14,7 +16,18 @@ export const buttonVariants = cva(
   // wouldn't follow on hover (cursor tracks the topmost hit-testable
   // element, which fell through to the parent).
   [
-    "inline-flex items-center justify-center gap-2 whitespace-nowrap",
+    // `relative` so the inner <Ripple /> can position its waves
+    // absolutely against the button. The ripple component's own
+    // container span carries `overflow-hidden` (with border-radius:
+    // inherit), so the waves get clipped to the button's shape WITHOUT
+    // the button itself needing overflow:hidden — that turned out to
+    // hijack wheel events in some browsers, breaking parent scroll.
+    "relative",
+    // `flex-row` is explicit because sparkle's normalize.css ships
+    // `* { flex-flow: column }` as a defensive base. Without re-asserting
+    // it here, every Button's content stacks vertically instead of
+    // sitting on a single row.
+    "inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap",
     "rounded-md text-sm font-medium select-none cursor-pointer pointer-events-auto",
     "transition-colors duration-150",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
@@ -24,10 +37,14 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
+        // Static hover/active overlays match sparkle's universal
+        // --theme-opacity-hover (0.05) and --theme-opacity-press (0.12).
+        // For solid-fill variants the overlay is a `before:` pseudo so
+        // the underlying bg color stays intact (don't mix-replace it).
         primary:
-          "bg-primary text-background hover:bg-primary-500 active:bg-primary-600",
+          "bg-primary text-background before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]",
         secondary:
-          "bg-engine-700 text-foreground hover:bg-engine-600 active:bg-engine-800",
+          "bg-engine-700 text-foreground before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]",
         // `border-solid` re-asserts the border-style — sparkle's normalize.css
         // ships `* { border: none }` which leaks into shadow:false light-DOM
         // and zeros out border-width if we only set color via Tailwind. Same
@@ -35,12 +52,17 @@ export const buttonVariants = cva(
         // normalize reset; sticking with explicit `border-solid border-1` is
         // the workaround.
         outline:
-          "border-solid border border-foreground/30 bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/10",
+          "border-solid border border-foreground/30 bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/[0.12]",
         ghost:
-          "bg-transparent text-foreground hover:bg-foreground/10 active:bg-foreground/15",
+          "bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/[0.12]",
         link: "bg-transparent text-primary underline-offset-4 hover:underline h-auto px-0 py-0",
         destructive:
-          "bg-danger-500 text-foreground hover:bg-danger-600 active:bg-danger-700",
+          "bg-danger-500 text-foreground before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]",
+        // Floating-action button: the slate-blue rounded-full CTA used
+        // by Upload Files / Add URL / New Script. Sparkle's
+        // `bg-color="fab-bg" text-color="fab-fg"` maps to the theme
+        // tokens (hsl(210.8 44.9% 34.9%) / white).
+        fab: "bg-[var(--theme-color-fab-bg)] text-[var(--theme-color-fab-fg)] before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -48,6 +70,12 @@ export const buttonVariants = cva(
         xs: "h-7 rounded px-2 text-xs",
         lg: "h-11 rounded-md px-8",
         icon: "size-10 p-0",
+        // Larger circular icon button for toolbars (48px). Matches
+        // sparkle's <s-button variant="icon" width="48" height="48">.
+        "icon-lg": "size-12 rounded-full p-0",
+        // Full-width FAB button — used for Upload Files / Add URL /
+        // New Script (48px tall, pill-shaped, fills horizontal space).
+        fab: "h-12 w-full rounded-full px-5 text-base font-normal",
       },
     },
     defaultVariants: {
@@ -89,31 +117,39 @@ export type ButtonProps = Omit<
  * Headless button. Tailwind styling via cva + Radix Slot for composition.
  * Standard primitive for buttons across impower-ui.
  *
+ * Uses `forwardRef` so refs propagate to the inner `<button>` (or slotted
+ * element under `asChild`). This is what makes `<RadixTrigger asChild>
+ * <Button /></RadixTrigger>` work — Radix needs the ref to position
+ * popups + manage focus.
+ *
  * @example
  * <Button onClick={save}>Save</Button>
  * <Button variant="outline" size="sm">Cancel</Button>
  * <Button variant="ghost" size="icon" aria-label="Close"><Close /></Button>
  * <Button asChild><a href="/docs">Docs</a></Button>
  */
-export default function Button({
-  variant,
-  size,
-  asChild,
-  class: className,
-  type = "button",
-  children,
-  ...rest
-}: ButtonProps) {
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { variant, size, asChild, class: className, type = "button", children, ...rest },
+  ref,
+) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Comp: any = asChild ? Slot : "button";
   const extraProps = asChild ? {} : { type };
   return (
     <Comp
+      ref={ref as Ref<HTMLButtonElement>}
       class={cn(buttonVariants({ variant, size }), className)}
       {...extraProps}
       {...rest}
     >
       {children}
+      {/* Material-style ripple. Skipped under `asChild` because Slot
+          merges its single child onto the slotted element; adding a
+          second child here would break that contract. asChild consumers
+          can drop their own <Ripple /> inside the slotted element. */}
+      {!asChild && <Ripple />}
     </Comp>
   );
-}
+});
+
+export default Button;

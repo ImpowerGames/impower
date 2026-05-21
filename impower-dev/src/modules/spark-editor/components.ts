@@ -3,26 +3,16 @@ import sparklePatternsCSS from "../../../../packages/sparkle/src/styles/patterns
 import { ComponentSpec } from "../../../../packages/spec-component/src/spec";
 import baseNormalize from "../../../../packages/spec-component/src/styles/normalize/normalize.css";
 import Account from "./components/account/_account";
-import AssetsFiles from "./components/assets-files/_assets-files";
-import AssetsUrls from "./components/assets-urls/_assets-urls";
 import Demo from "./components/demo/_demo";
-import FileAddButton from "./components/file-add-button/_file-add-button";
 import FileEditorNavigation from "./components/file-editor-navigation/_file-editor-navigation";
-import FileItem from "./components/file-item/_file-item";
-import FileListBorder from "./components/file-list-border/_file-list-border";
-import FileList from "./components/file-list/_file-list";
-import FileOptionsButton from "./components/file-options-button/_file-options-button";
-import FileUploadButton from "./components/file-upload-button/_file-upload-button";
 import HeaderMenuButton from "./components/header-menu-button/_header-menu-button";
 import HeaderNavigationPlaceholder from "./components/header-navigation-placeholder/_header-navigation-placeholder";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/_header-sync-conflict-toolbar";
 import HeaderSyncToolbar from "./components/header-sync-toolbar/_header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/_header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/_header-title-caption";
-import LogicDiagnosticsLabel from "./components/logic-diagnostics-label/_logic-diagnostics-label";
 import LogicScriptEditor from "./components/logic-script-editor/_logic-script-editor";
 import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
-import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
 import OptionButton from "./components/option-button/_option-button";
 import Scrollable from "./components/scrollable/_scrollable";
 import editorNormalize from "./styles/normalize/normalize.css";
@@ -59,19 +49,9 @@ const components = [
   { tag: "", css: editorTheme },
   style(Scrollable),
   style(OptionButton),
-  style(FileOptionsButton),
   style(FileEditorNavigation),
-  style(FileUploadButton),
-  style(FileAddButton),
-  style(FileItem),
-  style(FileListBorder),
-  style(FileList),
-  style(AssetsFiles),
-  style(AssetsUrls),
-  style(LogicDiagnosticsLabel),
   style(LogicScriptEditor),
   style(LogicScriptsEditor),
-  style(LogicScriptsList),
   style(Account),
   style(HeaderSyncConflictToolbar),
   style(HeaderSyncToolbar),
