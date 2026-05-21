@@ -110,7 +110,24 @@ export default function SparkdownScriptEditor({
   return (
     <div class="root" ref={rootRef}>
       <style>{cssText}</style>
-      <LoadingBar containerRef={loadingRef} class="absolute top-0 left-0 right-0 z-10 transition-opacity duration-250" />
+      {/* `top: -2px` (inline — Tailwind doesn't scan this package) so
+          the bar sits ON the tab underline above the editor (both 2px
+          tall) rather than 2px below it — looks like the underline
+          indicator is filling as the script loads. When there's no
+          underline above (LogicScriptsEditor view) the bar still
+          reads as a banner at the top of the panel. Width comes from
+          `--loading-indicator-width` set on an ancestor — 50% for
+          main (matches the Main tab's half of the row), 100% when no
+          sub-tabs are above. */}
+      {/* Inline styles because Tailwind doesn't scan this package:
+          - `top: -2px` so the bar overlaps the tab underline above.
+          - `z-index: 20` to paint ON TOP of the parent tabs row's
+            `z-10` indicator rather than behind it. */}
+      <LoadingBar
+        containerRef={loadingRef}
+        class="absolute left-0 transition-opacity duration-250"
+        style={{ top: "-2px", zIndex: 20 }}
+      />
       <div class="main" ref={mainRef}>
         <div class="editor" ref={editorRef} />
         <div class="placeholder" ref={placeholderRef} hidden />

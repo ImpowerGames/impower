@@ -222,7 +222,7 @@ export default function Router({
   const child = kids.find((c) => String(c.key ?? "") === renderedKey);
 
   return (
-    <div class="relative flex h-full w-full flex-col overflow-hidden">
+    <div class="relative flex h-full w-full flex-col overflow-x-clip">
       <div ref={fadeRef} class="flex flex-1 flex-col min-h-0">
         <div
           ref={transformRef}

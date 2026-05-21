@@ -11,6 +11,30 @@ sparkdown-script-editor * {
   touch-action: pan-y;
 }
 
+/* spec-component normalize sets `* { user-select: none }` on every
+   element inside a spec-component host (and that rule leaks down into
+   the light-DOM tree mounted underneath one). Re-assert user-select
+   for the CodeMirror content + gutter so text can be selected. */
+sparkdown-script-editor .cm-content,
+sparkdown-script-editor .cm-content *,
+sparkdown-script-editor .cm-gutters,
+sparkdown-script-editor .cm-gutters * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Sparkle's normalize sets `* { max-width: 100% }` on everything,
+   which collapses CodeMirror's selection/cursor SVG layers: the layer
+   itself is `position: absolute` with no explicit size (its children
+   carry inline width/height set by CM), so it computes to 0×0 — and
+   then `max-width: 100%` caps every descendant's width to 0, hiding
+   the painted selection rectangle. Restore `max-width: none` for the
+   CM tree so CM's own absolute layout wins. */
+sparkdown-script-editor .cm-editor,
+sparkdown-script-editor .cm-editor * {
+  max-width: none;
+}
+
 sparkdown-script-editor > .root {
   position: relative;
   display: flex;

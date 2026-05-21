@@ -7,6 +7,8 @@ import { AssetsElement } from "./components/assets/Assets.elem";
 import { FileDropzoneElement } from "./components/file-dropzone/FileDropzone.elem";
 import { InteractionBlockerElement } from "./components/interaction-blocker/InteractionBlocker.elem";
 import { LogicElement } from "./components/logic/Logic.elem";
+import { LogicScriptEditorElement } from "./components/logic-script-editor/LogicScriptEditor.elem";
+import { LogicScriptsEditorElement } from "./components/logic-scripts-editor/LogicScriptsEditor.elem";
 import { NotificationsElement } from "./components/notifications/Notifications.elem";
 import { PreviewGameElement } from "./components/preview-game/PreviewGame.elem";
 import { PreviewGameToolbarElement } from "./components/preview-game-toolbar/PreviewGameToolbar.elem";
@@ -26,8 +28,6 @@ import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar
 import HeaderSyncToolbar from "./components/header-sync-toolbar/header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/header-title-caption";
-import LogicScriptEditor from "./components/logic-script-editor/logic-script-editor";
-import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
 import OptionButton from "./components/option-button/option-button";
 import Scrollable from "./components/scrollable/scrollable";
 import editorIcons from "./styles/icons/icons.css";
@@ -37,8 +37,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   Scrollable,
   OptionButton,
   FileEditorNavigation,
-  LogicScriptEditor,
-  LogicScriptsEditor,
   Demo,
   Account,
   HeaderSyncConflictToolbar,
@@ -78,6 +76,8 @@ export default abstract class SparkEditor {
     await ShareElement.register();
     await AssetsElement.register();
     await LogicElement.register();
+    await LogicScriptEditorElement.register();
+    await LogicScriptsEditorElement.register();
     await InteractionBlockerElement.register();
     await NotificationsElement.register();
     await FileDropzoneElement.register();

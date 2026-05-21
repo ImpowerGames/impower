@@ -235,6 +235,14 @@ export type TabProps = {
   disabled?: boolean;
   /** Tailwind classes for the tab button. */
   class?: string;
+  /**
+   * Optional Tailwind text-color class (e.g. `"text-warning-500"`).
+   * If set, this color is applied to BOTH the icon and label in
+   * BOTH active and inactive states — overriding the default
+   * `text-engine-500` / `text-foreground` coloring. Used to surface
+   * lint/diagnostic severity on a tab regardless of selection.
+   */
+  color?: string;
   children: ComponentChildren;
 };
 
@@ -249,6 +257,7 @@ export function Tab({
   activeIcon,
   disabled,
   class: className,
+  color,
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
@@ -257,6 +266,10 @@ export function Tab({
   // indicator style). Don't switch to `text-primary` for the underline
   // variant — that's a shadcn convention that doesn't apply here.
   const activeColorClass = "text-foreground";
+  // A `color` prop overrides BOTH active and inactive coloring — so a
+  // diagnostic-colored tab stays the same color regardless of selection.
+  const inactiveColor = color || "text-engine-500";
+  const activeColor = color || activeColorClass;
   return (
     <RadixTabs.Trigger value={value} disabled={disabled} asChild>
       {/* Radix injects data-state="active"|"inactive" on the rendered element.
@@ -285,7 +298,12 @@ export function Tab({
                 No hover color change — matches the legacy s-tab behavior
                 (active state is the only color signal; hover is silent). */}
             {icon ? (
-              <span class="absolute inset-0 text-engine-500 group-data-[state=active]:opacity-0 transition-opacity duration-100">
+              <span
+                class={cn(
+                  "absolute inset-0 group-data-[state=active]:opacity-0 transition-opacity duration-100",
+                  inactiveColor,
+                )}
+              >
                 {(() => {
                   const Inactive = icon;
                   return (
@@ -304,7 +322,7 @@ export function Tab({
               <span
                 class={cn(
                   "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 transition-opacity duration-100",
-                  activeColorClass,
+                  activeColor,
                 )}
               >
                 {(() => {
@@ -336,7 +354,12 @@ export function Tab({
           )}
         >
           {/* Inactive label copy — takes layout space, fades out on active. */}
-          <span class="text-engine-500 group-data-[state=active]:opacity-0 transition-opacity duration-100">
+          <span
+            class={cn(
+              "group-data-[state=active]:opacity-0 transition-opacity duration-100",
+              inactiveColor,
+            )}
+          >
             {children}
           </span>
           {/* Active label copy — overlaid, fades in on active. Using opacity
@@ -346,7 +369,7 @@ export function Tab({
           <span
             class={cn(
               "absolute inset-0 opacity-0 group-data-[state=active]:opacity-100 transition-opacity duration-100",
-              activeColorClass,
+              activeColor,
             )}
           >
             {children}

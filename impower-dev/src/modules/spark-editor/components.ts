@@ -11,8 +11,6 @@ import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar
 import HeaderSyncToolbar from "./components/header-sync-toolbar/_header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/_header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/_header-title-caption";
-import LogicScriptEditor from "./components/logic-script-editor/_logic-script-editor";
-import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
 import OptionButton from "./components/option-button/_option-button";
 import Scrollable from "./components/scrollable/_scrollable";
 import editorNormalize from "./styles/normalize/normalize.css";
@@ -50,8 +48,6 @@ const components = [
   style(Scrollable),
   style(OptionButton),
   style(FileEditorNavigation),
-  style(LogicScriptEditor),
-  style(LogicScriptsEditor),
   style(Account),
   style(HeaderSyncConflictToolbar),
   style(HeaderSyncToolbar),

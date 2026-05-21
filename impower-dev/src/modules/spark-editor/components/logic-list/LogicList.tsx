@@ -6,6 +6,7 @@ import {
   Tabs,
 } from "@impower/impower-ui/components";
 import { startTransition } from "preact/compat";
+import { useDiagnosticColor } from "../../workspace/useDiagnosticColor";
 import workspace from "../../workspace/WorkspaceStore";
 import FileAddButton from "../file-list/FileAddButton";
 import FileList from "../file-list/FileList";
@@ -30,6 +31,11 @@ type Panel = "main" | "scripts";
 export default function LogicList(_props: LogicListProps) {
   const state = workspace.state.value;
   const panel = (state.panes?.logic?.panel || "main") as Panel;
+  // Per-tab diagnostic color — Main reflects main.sd, Scripts aggregates
+  // across all non-main scripts (matches the legacy behavior). Tab paints
+  // both its icon and label in this color when set.
+  const mainColor = useDiagnosticColor("main.sd");
+  const scriptsColor = useDiagnosticColor();
   // The Scripts panel switches between two sub-views:
   //   - list view (shows the FileList of *.sd files)
   //   - editor view (shows the active script in <se-logic-scripts-editor>)
@@ -77,10 +83,10 @@ export default function LogicList(_props: LogicListProps) {
             indicator="underline"
             iconLayout="beside"
           >
-            <Tab value="main" icon={BookClosed}>
+            <Tab value="main" icon={BookClosed} color={mainColor}>
               Main
             </Tab>
-            <Tab value="scripts" icon={Book}>
+            <Tab value="scripts" icon={Book} color={scriptsColor}>
               Scripts
             </Tab>
           </Tabs>
