@@ -341,3 +341,53 @@ end
     expect(recorded).toEqual([42]);
   });
 });
+
+describe("metamethod property names compile", () => {
+  // Grammar tags metamethod identifiers (__len, __index, __call, …) as
+  // `LuauStdLibMethods` inside `LuauPropertyAccessor`. Without explicit
+  // handling, the lowerer's `getDescendent("LuauPropertyName", ...)`
+  // lookups returned null and the access path fell through to a
+  // VariableReference whose `__len` name couldn't be resolved.
+  test("mt.__len = ... compiles (dot-assignment to metamethod key)", () => {
+    const { errors } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local mt = {}
+mt.__len = function() return 7 end
+host_record(1)
+end
+`);
+    expect(errors).toEqual([]);
+  });
+
+  test("getmetatable(x).__index = ... compiles (call-chain assignment)", () => {
+    const { errors } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = {}
+setmetatable(t, {})
+getmetatable(t).__index = function() return 7 end
+host_record(1)
+end
+`);
+    expect(errors).toEqual([]);
+  });
+
+  test("obj.__call read compiles (dot-read of metamethod key)", () => {
+    const { errors } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local mt = { __call = function() return 42 end }
+local fn = mt.__call
+host_record(fn())
+end
+`);
+    expect(errors).toEqual([]);
+  });
+});

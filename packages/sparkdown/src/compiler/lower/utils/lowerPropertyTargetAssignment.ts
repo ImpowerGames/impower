@@ -56,7 +56,13 @@ export function lowerPropertyTargetAssignment(
 
   let keyExpr: Expression | null = null;
   if (finalInner.name === "LuauPropertyAccessor") {
-    const nameNode = getDescendent("LuauPropertyName", finalInner);
+    // The grammar tags metamethod names (`__len`, `__index`, ...) as
+    // `LuauStdLibMethods` instead of `LuauPropertyName` since they
+    // match the stdlib-methods alternative in `LuauPropertyAccessor`'s
+    // captures. Treat both as property name sources.
+    const nameNode =
+      getDescendent("LuauPropertyName", finalInner) ??
+      getDescendent("LuauStdLibMethods", finalInner);
     if (!nameNode) return null;
     keyExpr = new StringExpression([
       new Text(ctx.read(nameNode.from, nameNode.to)),
@@ -178,7 +184,9 @@ function lowerBaseFromParts(
     const inner = parts[i]!.firstChild;
     if (!inner) continue;
     if (inner.name === "LuauPropertyAccessor") {
-      const propName = getDescendent("LuauPropertyName", inner);
+      const propName =
+        getDescendent("LuauPropertyName", inner) ??
+        getDescendent("LuauStdLibMethods", inner);
       if (!propName) return null;
       const key = new StringExpression([
         new Text(ctx.read(propName.from, propName.to)),

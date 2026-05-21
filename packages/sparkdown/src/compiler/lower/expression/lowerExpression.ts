@@ -1453,7 +1453,11 @@ export function lowerSimpleAccessPath(
         break;
       }
       case "LuauPropertyAccessor": {
-        const nameNode = getDescendent("LuauPropertyName", inner);
+        // Metamethod names (`__len`, `__index`, ...) are tagged by the
+        // grammar as `LuauStdLibMethods` rather than `LuauPropertyName`.
+        const nameNode =
+          getDescendent("LuauPropertyName", inner) ??
+          getDescendent("LuauStdLibMethods", inner);
         if (nameNode) {
           identifiers.push(
             new Identifier(ctx.read(nameNode.from, nameNode.to)),
@@ -1554,7 +1558,9 @@ export function lowerValueChainAccessPath(
         continue;
       }
       if (inner.name === "LuauPropertyAccessor") {
-        const nameNode = getDescendent("LuauPropertyName", inner);
+        const nameNode =
+          getDescendent("LuauPropertyName", inner) ??
+          getDescendent("LuauStdLibMethods", inner);
         if (nameNode) {
           leading.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
         }
@@ -1579,7 +1585,9 @@ export function lowerValueChainAccessPath(
       continue;
     }
     if (inner.name === "LuauPropertyAccessor") {
-      const nameNode = getDescendent("LuauPropertyName", inner);
+      const nameNode =
+        getDescendent("LuauPropertyName", inner) ??
+        getDescendent("LuauStdLibMethods", inner);
       if (!nameNode) return null;
       const key = new StringExpression([
         new Text(ctx.read(nameNode.from, nameNode.to)),
