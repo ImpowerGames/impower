@@ -9,15 +9,6 @@ export type FileAddButtonProps = {
   defaultFilename: string;
   /** Label shown on the button face. */
   children: string;
-  /**
-   * Optional CSS `view-transition-name` for shared-element transitions.
-   * When set, the button is pulled out of the root view-transition
-   * snapshot and gets its own animation group — the browser interpolates
-   * between this button's bounding box and any other element on the next
-   * page with the same name, so the FAB visually stays in place across
-   * a slide/fade.
-   */
-  viewTransitionName?: string;
 };
 
 /**
@@ -28,7 +19,6 @@ export type FileAddButtonProps = {
 export default function FileAddButton({
   defaultFilename,
   children,
-  viewTransitionName,
 }: FileAddButtonProps) {
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
@@ -60,10 +50,7 @@ export default function FileAddButton({
   }
 
   return (
-    <div
-      class="mx-4 my-6 flex justify-center"
-      style={viewTransitionName ? { viewTransitionName } : undefined}
-    >
+    <div class="mx-4 my-6 flex justify-center">
       <Button
         variant="fab"
         size="fab"

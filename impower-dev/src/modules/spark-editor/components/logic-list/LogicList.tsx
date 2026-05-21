@@ -108,18 +108,27 @@ export default function LogicList(_props: LogicListProps) {
                     <span class="text-sm">No Scripts</span>
                   </FileListBorder>
                 }
-                action={
-                  <FileAddButton
-                    defaultFilename="script00.sd"
-                    viewTransitionName="scripts-fab"
-                  >
-                    New Script
-                  </FileAddButton>
-                }
               />
             )}
           </div>
         </Router>
+        {/* FAB anchored at the bottom — pulled out of the sliding
+            Router (same pattern as Assets) so it doesn't move with
+            the panel content. Only relevant on the Scripts list view;
+            on Main and inside the script editor it fades out. */}
+        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 [&_button]:pointer-events-auto">
+          <div
+            class={`transition-opacity duration-75 ${
+              panel === "scripts" && !showScriptsEditor
+                ? "opacity-100"
+                : "pointer-events-none opacity-0"
+            }`}
+          >
+            <FileAddButton defaultFilename="script00.sd">
+              New Script
+            </FileAddButton>
+          </div>
+        </div>
       </div>
     </>
   );

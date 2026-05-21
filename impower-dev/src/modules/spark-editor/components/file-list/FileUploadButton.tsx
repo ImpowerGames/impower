@@ -12,15 +12,6 @@ export type FileUploadButtonProps = {
   multiple?: boolean;
   /** Label shown on the button face. */
   children: string;
-  /**
-   * Optional CSS `view-transition-name` for shared-element transitions.
-   * When set, the button is pulled out of the root view-transition
-   * snapshot and gets its own animation group — the browser interpolates
-   * between this button's bounding box and any other element on the next
-   * page with the same name, so the FAB visually stays in place across
-   * a slide/fade.
-   */
-  viewTransitionName?: string;
 };
 
 /**
@@ -32,7 +23,6 @@ export default function FileUploadButton({
   accept,
   multiple = true,
   children,
-  viewTransitionName,
 }: FileUploadButtonProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const disabledSig = useComputed(() => {
@@ -63,10 +53,7 @@ export default function FileUploadButton({
   }
 
   return (
-    <div
-      class="mx-4 my-6 flex justify-center"
-      style={viewTransitionName ? { viewTransitionName } : undefined}
-    >
+    <div class="mx-4 my-6 flex justify-center">
       <Button
         variant="fab"
         size="fab"
