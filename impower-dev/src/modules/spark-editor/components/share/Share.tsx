@@ -1,4 +1,4 @@
-import { Binder, Pacman, Tab, Tabs } from "@impower/impower-ui/components";
+import { Binder, Pacman, Router, Tab, Tabs } from "@impower/impower-ui/components";
 import { startTransition } from "preact/compat";
 import workspace from "../../workspace/WorkspaceStore";
 import ShareGame from "../share-game/ShareGame";
@@ -58,8 +58,10 @@ export default function Share(_props: ShareProps) {
         </Tabs>
       </div>
       <div class="relative flex-1 min-h-0">
-        {panel === "game" && <ShareGame />}
-        {panel === "screenplay" && <ShareScreenplay />}
+        <Router active={panel} mode="slide-x">
+          <ShareGame key="game" />
+          <ShareScreenplay key="screenplay" />
+        </Router>
       </div>
     </>
   );

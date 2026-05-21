@@ -22,6 +22,7 @@ export {
   type LoadingBarProps,
 } from "./loading-bar/LoadingBar";
 export { default as Ripple } from "./ripple/Ripple";
+export { default as Router, type RouterProps } from "./router/Router";
 export {
   default as SplitPane,
   type SplitPaneProps,

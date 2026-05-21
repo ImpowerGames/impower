@@ -3,6 +3,7 @@ import {
   BoltFill,
   Photo,
   PhotoFill,
+  Router,
   Share,
   ShareFill,
   SplitPane,
@@ -171,12 +172,14 @@ export default function MainWindow(_props: MainWindowProps) {
             collapseBelow={960}
             start={
               <div class="relative flex flex-col w-full h-full">
-                {/* @ts-expect-error legacy custom element */}
-                {pane === "logic" && <se-logic />}
-                {/* @ts-expect-error legacy custom element */}
-                {pane === "assets" && <se-assets />}
-                {/* @ts-expect-error legacy custom element */}
-                {pane === "share" && <se-share />}
+                <Router active={pane} mode="fade">
+                  {/* @ts-expect-error legacy custom element */}
+                  <se-logic key="logic" />
+                  {/* @ts-expect-error legacy custom element */}
+                  <se-assets key="assets" />
+                  {/* @ts-expect-error legacy custom element */}
+                  <se-share key="share" />
+                </Router>
               </div>
             }
             end={

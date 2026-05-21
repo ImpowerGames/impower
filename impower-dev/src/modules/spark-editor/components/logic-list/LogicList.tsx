@@ -1,4 +1,4 @@
-import { Book, BookClosed, Tab, Tabs } from "@impower/impower-ui/components";
+import { Book, BookClosed, Router, Tab, Tabs } from "@impower/impower-ui/components";
 import { startTransition } from "preact/compat";
 import workspace from "../../workspace/WorkspaceStore";
 import FileAddButton from "../file-list/FileAddButton";
@@ -87,29 +87,39 @@ export default function LogicList(_props: LogicListProps) {
           se-logic-script-editor's inner s-box collapses to 0 height and
           CodeMirror renders invisible. */}
       <div class="relative flex flex-col flex-1 min-h-0">
-        {/* @ts-expect-error legacy custom element */}
-        {panel === "main" && <se-logic-script-editor filename="main.sd" style="--loading-indicator-width:50%" />}
-        {panel === "scripts" && showScriptsEditor && (
-          /* @ts-expect-error legacy custom element */
-          <se-logic-scripts-editor />
-        )}
-        {panel === "scripts" && !showScriptsEditor && (
-          <FileList
-            include="*.{sd}"
-            exclude="main.sd"
-            emptyState={
-              <FileListBorder>
-                <Book class="size-12 m-2" />
-                <span class="text-sm">No Scripts</span>
-              </FileListBorder>
-            }
-            action={
-              <FileAddButton defaultFilename="script00.sd">
-                New Script
-              </FileAddButton>
-            }
+        <Router active={panel} mode="slide-x">
+          {/* @ts-expect-error legacy custom element */}
+          <se-logic-script-editor
+            key="main"
+            filename="main.sd"
+            style="--loading-indicator-width:50%"
           />
-        )}
+          <div key="scripts" class="flex flex-1 flex-col min-h-0">
+            {showScriptsEditor ? (
+              /* @ts-expect-error legacy custom element */
+              <se-logic-scripts-editor />
+            ) : (
+              <FileList
+                include="*.{sd}"
+                exclude="main.sd"
+                emptyState={
+                  <FileListBorder>
+                    <Book class="size-12 m-2" />
+                    <span class="text-sm">No Scripts</span>
+                  </FileListBorder>
+                }
+                action={
+                  <FileAddButton
+                    defaultFilename="script00.sd"
+                    viewTransitionName="scripts-fab"
+                  >
+                    New Script
+                  </FileAddButton>
+                }
+              />
+            )}
+          </div>
+        </Router>
       </div>
     </>
   );
