@@ -121,18 +121,46 @@ end
     expect(outerRef!.modifiers).toContain("defaultLibrary");
   });
 
-  test("const local renders with readonly modifier", () => {
+  test("const local renders with readonly + static modifiers", () => {
     const { text, tokens } = collectStdLibTokens(`function run()
 const FOO = 42
 local x = FOO
 end
 `);
-    // The reference `FOO` on the RHS of `local x = FOO` should be a
-    // variable with the `readonly` modifier (since FOO was declared
-    // with `const`).
-    const refTok = tokenAt(tokens, text, "FOO", 2);
-    expect(refTok).toBeDefined();
-    expect(refTok!.tokenType).toBe("variable");
-    expect(refTok!.modifiers).toContain("readonly");
+    // Declaration and reference of FOO both get readonly+static so
+    // themes can render the const visibly differently than the
+    // plain `local x` next to it.
+    const decl = tokenAt(tokens, text, "FOO", 1);
+    const ref = tokenAt(tokens, text, "FOO", 2);
+    expect(decl!.tokenType).toBe("variable");
+    expect(decl!.modifiers).toContain("readonly");
+    expect(decl!.modifiers).toContain("static");
+    expect(decl!.modifiers).toContain("declaration");
+    expect(ref!.tokenType).toBe("variable");
+    expect(ref!.modifiers).toContain("readonly");
+    expect(ref!.modifiers).toContain("static");
+    // Reference site doesn't carry the `declaration` modifier.
+    expect(ref!.modifiers).not.toContain("declaration");
+  });
+
+  test("non-const local does NOT have readonly / static", () => {
+    // Counter-test confirming the distinction is real: a plain
+    // `local x = 1` gets the bare `variable` token without the
+    // const-specific modifiers.
+    const { text, tokens } = collectStdLibTokens(`function run()
+local x = 1
+local y = x
+end
+`);
+    const decl = tokenAt(tokens, text, "x", 1);
+    const ref = tokenAt(tokens, text, "x", 2);
+    expect(decl!.modifiers).not.toContain("readonly");
+    expect(decl!.modifiers).not.toContain("static");
+    // Declaration modifier is still present (it marks the
+    // introducing position regardless of mutability).
+    expect(decl!.modifiers).toContain("declaration");
+    expect(ref!.modifiers).not.toContain("readonly");
+    expect(ref!.modifiers).not.toContain("static");
+    expect(ref!.modifiers).not.toContain("declaration");
   });
 });

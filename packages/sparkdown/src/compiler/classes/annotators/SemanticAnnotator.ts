@@ -1,8 +1,9 @@
 import { Range } from "@codemirror/state";
+import { GrammarSyntaxNodeRef } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNodeRef";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getNodesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getNodesInsideParent";
-import { SyntaxNodeRef } from "@lezer/common";
+import { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
@@ -60,23 +61,72 @@ type BindingKind = "function" | "variable" | "const-variable" | "namespace";
 type ScopeFrame = Map<string, { kind: BindingKind; fromStdlib: boolean }>;
 
 const STDLIB_FUNCTIONS: readonly string[] = [
-  "assert", "collectgarbage", "error", "gcinfo", "getfenv",
-  "getmetatable", "ipairs", "loadstring", "newproxy", "next",
-  "pairs", "pcall", "print", "rawequal", "rawset", "require",
-  "select", "setfenv", "setmetatable", "tonumber", "tostring",
-  "type", "typeof", "unpack", "xpcall",
+  "assert",
+  "collectgarbage",
+  "error",
+  "gcinfo",
+  "getfenv",
+  "getmetatable",
+  "ipairs",
+  "loadstring",
+  "newproxy",
+  "next",
+  "pairs",
+  "pcall",
+  "print",
+  "rawequal",
+  "rawset",
+  "require",
+  "select",
+  "setfenv",
+  "setmetatable",
+  "tonumber",
+  "tostring",
+  "type",
+  "typeof",
+  "unpack",
+  "xpcall",
 ];
 const STDLIB_NAMESPACES: readonly string[] = [
-  "bit32", "coroutine", "debug", "math", "os", "string", "table",
-  "task", "utf8", "buffer", "vector", "system", "count", "lang",
+  "bit32",
+  "coroutine",
+  "debug",
+  "math",
+  "os",
+  "string",
+  "table",
+  "task",
+  "utf8",
+  "buffer",
+  "vector",
+  "system",
+  "count",
+  "lang",
   "plural",
 ];
 
 function makeGlobalScope(): ScopeFrame {
   const frame: ScopeFrame = new Map();
-  for (const n of STDLIB_FUNCTIONS) frame.set(n, { kind: "function", fromStdlib: true });
-  for (const n of STDLIB_NAMESPACES) frame.set(n, { kind: "namespace", fromStdlib: true });
+  for (const n of STDLIB_FUNCTIONS)
+    frame.set(n, { kind: "function", fromStdlib: true });
+  for (const n of STDLIB_NAMESPACES)
+    frame.set(n, { kind: "namespace", fromStdlib: true });
   return frame;
+}
+
+// Walks up from a `LuauVariableName` node and returns true if it's
+// nested in a `LuauVariableAssignment_begin` subtree — meaning this
+// position is the introducing site of a local-variable declaration
+// (`local NAME = …`), not a downstream reference. Bounded walk so a
+// pathological parent chain can't make this O(file).
+function isInsideVariableAssignmentBegin(node: any): boolean {
+  let cur = node?.parent;
+  for (let depth = 0; depth < 6 && cur; depth++) {
+    if (cur.name === "LuauVariableAssignment_begin") return true;
+    if (cur.name === "LuauAccessPart") return false; // reference shape
+    cur = cur.parent;
+  }
+  return false;
 }
 
 export class SemanticAnnotator extends SparkdownAnnotator<
@@ -293,7 +343,10 @@ export class SemanticAnnotator extends SparkdownAnnotator<
       // Bind the declared function name (if any) in the parent scope
       // before opening the new frame. Anonymous `function() … end`
       // expressions have no LuauFunctionDeclarationName; just push.
-      const declName = getDescendent("LuauFunctionDeclarationName", nodeRef.node);
+      const declName = getDescendent(
+        "LuauFunctionDeclarationName",
+        nodeRef.node,
+      );
       if (declName) {
         const nameNode = getDescendent("LuauFunctionName", declName);
         if (nameNode) {
@@ -321,7 +374,8 @@ export class SemanticAnnotator extends SparkdownAnnotator<
       const scopeText = scopeNode
         ? this.read(scopeNode.from, scopeNode.to).trim()
         : "";
-      this.pendingDeclKind = scopeText === "const" ? "const-variable" : "variable";
+      this.pendingDeclKind =
+        scopeText === "const" ? "const-variable" : "variable";
     }
     if (nodeRef.name === "LuauVariableAssignment" && this.pendingDeclKind) {
       // Pull the declared name from the `LuauVariableName` descendant
@@ -339,7 +393,10 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           // assignment's subtree (under
           // `LuauAssignmentOperation_content`); use a deep search.
           let kind: BindingKind = this.pendingDeclKind;
-          const fnLiteral = getDescendent("LuauFunctionDefinition", nodeRef.node);
+          const fnLiteral = getDescendent(
+            "LuauFunctionDefinition",
+            nodeRef.node,
+          );
           if (fnLiteral) kind = "function";
           this.bindInCurrentScope(name, kind);
         }
@@ -370,7 +427,33 @@ export class SemanticAnnotator extends SparkdownAnnotator<
       if (binding) {
         const modifiers: SemanticTokenModifiers[] = [];
         if (binding.fromStdlib) modifiers.push("defaultLibrary");
-        if (binding.kind === "const-variable") modifiers.push("readonly");
+        if (binding.kind === "const-variable") {
+          // Two modifiers in tandem: `readonly` is the canonical LSP
+          // signal that the identifier can't be reassigned; `static`
+          // is added so themes that style the two combinations
+          // distinctly (TypeScript's convention for module-level
+          // constants) can render `const` references with a visibly
+          // different treatment than plain `local` / `store`
+          // variables. Themes that ignore `static` still get the
+          // `readonly` differentiation; themes that ignore both fall
+          // back to plain `variable` styling.
+          modifiers.push("readonly", "static");
+        }
+        // Declaration-site marker: tag the identifier at the
+        // binding location with `declaration` so editors can render
+        // the introducing position differently from subsequent
+        // references (e.g. underline declarations on F2-rename).
+        // Detection: the LuauVariableName lives inside a
+        // LuauVariableAssignment_begin subtree at the declaration
+        // site; reference-site LuauVariableNames hang off a
+        // LuauAccessPart instead. Walk up a bounded number of
+        // parents — declarations are at most ~3 levels deep.
+        if (
+          nodeRef.name === "LuauVariableName" &&
+          isInsideVariableAssignmentBegin(nodeRef.node)
+        ) {
+          modifiers.push("declaration");
+        }
         const tokenType: SemanticTokenTypes =
           binding.kind === "function"
             ? "function"
@@ -390,7 +473,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
 
   override leave(
     annotations: Range<SparkdownAnnotation<SemanticInfo>>[],
-    nodeRef: SyntaxNodeRef,
+    nodeRef: GrammarSyntaxNodeRef<SparkdownNodeName>,
   ): Range<SparkdownAnnotation<SemanticInfo>>[] {
     if (
       nodeRef.name === "LuauFunctionDefinition" &&
