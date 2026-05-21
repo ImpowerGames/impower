@@ -17,7 +17,7 @@ import { runConformanceSource } from "./conformanceTestHarness";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UPSTREAM_ROOT = join(__dirname, "upstream", "conformance");
 
-const PROBE_FILE = "tables.luau";
+const PROBE_FILE = "exceptions.luau";
 
 function probe(label: string, src: string) {
   const r = runConformanceSource(src);

@@ -680,6 +680,33 @@ function lowerAnonymousFunction(
   // value at the closure-definition site.
   const upvals = scanFreeVariables(node, ctx);
 
+  // Dedupe: if an anonymous function from the SAME source position has
+  // already been registered in the target buffer, skip re-pushing.
+  // Compound-assignment lowering (`obj[fn()] += 1`) re-lowers the LHS
+  // expression for the GET side, which re-lowers any anon fn inside
+  // the index expression. Both lowerings produce the same `__anon_fn_<from>`
+  // name, and a duplicate sibling triggers a hard "duplicate flow" error.
+  // Since the source position is identical, both produce equivalent
+  // Functions — keeping the first is correct.
+  const alreadyRegistered = (buf: ParsedObject[] | undefined) =>
+    !!buf?.some(
+      (o) =>
+        o instanceof Function && o.identifier?.name === synthName,
+    );
+  const stack = ctx.functionScopeStack;
+  const targetBuf =
+    stack && stack.length > 0
+      ? stack[stack.length - 1]
+      : ctx.hoistedKnots;
+  if (alreadyRegistered(targetBuf)) {
+    // First definition wins; reuse its name for the divert/closure
+    // reference returned below.
+    if (upvals.length === 0) {
+      return new DivertTarget(new Divert([new Identifier(synthName)]));
+    }
+    const userArity = countUserParameters(node, ctx);
+    return buildClosureExpression(synthName, upvals, userArity);
+  }
   const fn = buildAnonymousFunction(node, synthName, ctx, upvals);
   if (!fn) return null;
 
@@ -687,7 +714,6 @@ function lowerAnonymousFunction(
   // function to the enclosing scope's buffer as a nested subFlow.
   // Otherwise (top-level expression context) fall back to the chunk-
   // wide hoist list so the anonymous knot still ends up addressable.
-  const stack = ctx.functionScopeStack;
   if (stack && stack.length > 0) {
     stack[stack.length - 1].push(fn);
   } else if (ctx.hoistedKnots) {
