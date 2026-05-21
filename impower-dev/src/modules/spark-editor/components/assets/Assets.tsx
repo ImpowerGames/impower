@@ -161,8 +161,7 @@ function AssetsFab({ panel }: { panel: Panel }) {
     await Workspace.window.recordAssetChange();
   }
 
-  const onClick =
-    panel === "files" ? () => inputRef.current?.click() : addUrl;
+  const onClick = panel === "files" ? () => inputRef.current?.click() : addUrl;
 
   return (
     <div class="mx-4 my-6 flex justify-center">
@@ -174,7 +173,7 @@ function AssetsFab({ panel }: { panel: Panel }) {
       >
         <span
           class={`absolute inset-0 flex flex-row items-center justify-center gap-2 transition-opacity duration-200 ${
-            panel === "files" ? "opacity-100" : "opacity-0"
+            panel === "files" ? "opacity-100 delay-150" : "opacity-0"
           }`}
         >
           <Upload class="size-5" />
@@ -182,7 +181,7 @@ function AssetsFab({ panel }: { panel: Panel }) {
         </span>
         <span
           class={`absolute inset-0 flex flex-row items-center justify-center gap-2 transition-opacity duration-200 ${
-            panel === "urls" ? "opacity-100" : "opacity-0"
+            panel === "urls" ? "opacity-100 delay-150" : "opacity-0"
           }`}
         >
           <Plus class="size-5" />

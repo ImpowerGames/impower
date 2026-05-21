@@ -1,4 +1,10 @@
-import { Book, BookClosed, Router, Tab, Tabs } from "@impower/impower-ui/components";
+import {
+  Book,
+  BookClosed,
+  Router,
+  Tab,
+  Tabs,
+} from "@impower/impower-ui/components";
 import { startTransition } from "preact/compat";
 import workspace from "../../workspace/WorkspaceStore";
 import FileAddButton from "../file-list/FileAddButton";
@@ -32,8 +38,7 @@ export default function LogicList(_props: LogicListProps) {
   // swap to the editor. Here we read `activeEditor.open` directly — that
   // flag is set by `Workspace.window.openedFileEditor()` and cleared by
   // `closedFileEditor()`, so back-button + click flows just work.
-  const scriptsActiveEditor =
-    state.panes?.logic?.panels?.scripts?.activeEditor;
+  const scriptsActiveEditor = state.panes?.logic?.panels?.scripts?.activeEditor;
   const showScriptsEditor =
     !!scriptsActiveEditor?.open && !!scriptsActiveEditor?.filename;
 
@@ -115,12 +120,19 @@ export default function LogicList(_props: LogicListProps) {
         {/* FAB anchored at the bottom — pulled out of the sliding
             Router (same pattern as Assets) so it doesn't move with
             the panel content. Only relevant on the Scripts list view;
-            on Main and inside the script editor it fades out. */}
+            on Main and inside the script editor it fades out.
+
+            The fade-IN is delayed 150ms (the duration of the panel's
+            slide+fade transition) so the FAB doesn't appear over the
+            previous panel's content mid-slide — it waits until the
+            new panel is fully in place, then fades in. The fade-OUT
+            has no delay so the FAB clears immediately as soon as the
+            user navigates away. */}
         <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 [&_button]:pointer-events-auto">
           <div
-            class={`transition-opacity duration-75 ${
+            class={`transition-opacity duration-200 ${
               panel === "scripts" && !showScriptsEditor
-                ? "opacity-100"
+                ? "opacity-100 delay-150"
                 : "pointer-events-none opacity-0"
             }`}
           >
