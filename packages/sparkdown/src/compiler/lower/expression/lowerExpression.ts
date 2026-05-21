@@ -1121,13 +1121,16 @@ export function buildAnonymousFunction(
   ctx.functionScopeStack?.push(nested);
   const ownLocals = collectImmediateBodyDeclarations(node, ctx);
   ctx.declaredLocalsStack?.push(ownLocals);
+  const innerHoisted: ParsedObject[] = [];
+  ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
   const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP);
+  ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
   return new Function(
     new Identifier(name),
-    [...body, ...nested],
+    [...innerHoisted, ...body, ...nested],
     args as Argument[],
   );
 }

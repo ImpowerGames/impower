@@ -216,6 +216,13 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // so nested-scope scans of free variables can detect shadowing
       // of stdlib-named identifiers by enclosing-scope locals.
       const declaredLocalsStack: Set<string>[] = [];
+      // Per-chunk stack of hoist buffers — one entry pushed per
+      // enclosing function-definition lowering. Bare `function NAME end`
+      // nested inside another function pre-declares a `local NAME = nil`
+      // here so it lands at the enclosing function's body top, surviving
+      // any do/while/for/if block scopes that wrap the in-place
+      // assignment.
+      const hoistedNestedFnDeclsStack: ParsedObject[][] = [];
       const lowered = lower(nodeRef, {
         read: (from, to) => this.read(from, to),
         lineNumber: (pos) =>
@@ -232,6 +239,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         diagnostics: chunkDiagnostics,
         globalCallableNames: this.computeGlobalCallableNames(),
         declaredLocalsStack,
+        hoistedNestedFnDeclsStack,
       });
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;

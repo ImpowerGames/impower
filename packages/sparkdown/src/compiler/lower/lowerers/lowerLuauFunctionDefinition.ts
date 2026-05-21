@@ -73,6 +73,18 @@ export function lowerLuauFunctionDefinition(
     stack && stack.length > 0 ? stack[stack.length - 1] : null;
 
   if (enclosingScope) {
+    // Detect the explicit `local` prefix (`local function NAME ... end`).
+    // Luau scopes `local function NAME` to the innermost block, while
+    // bare `function NAME` is sugar for `NAME = function() end` —
+    // visible across `do`/`while`/`for`/`if` block boundaries within
+    // the enclosing function. The lowerer hoists the latter's binding
+    // to the function-body level so a `do ... function NAME end end`
+    // followed by `NAME(...)` outside the block still resolves.
+    const scopeNode = getDescendent("LuauScopeModifier", nodeRef.node);
+    const scopeText = scopeNode
+      ? ctx.read(scopeNode.from, scopeNode.to).trim()
+      : "";
+    const isLocal = scopeText === "local";
     // Variadic functions (`function f(a, ...) ... end`) keep the
     // legacy subFlow-knot form rather than converting to a local
     // closure. Static-dispatch is the only path that handles the
@@ -91,6 +103,7 @@ export function lowerLuauFunctionDefinition(
         identifier,
         ctx,
         enclosingScope,
+        isLocal,
       );
     }
     return lowerNestedAsSubFlow(
@@ -119,12 +132,19 @@ export function lowerLuauFunctionDefinition(
   // than routed through stdlib dispatch).
   const ownLocals = collectImmediateBodyDeclarations(nodeRef.node, ctx);
   ctx.declaredLocalsStack?.push(ownLocals);
+  // Hoist buffer: nested `function NAME end` declarations (without
+  // `local`) push their `local NAME = nil` pre-declaration here so it
+  // lands at the top of this function's body, surviving any
+  // intervening do/while/for/if block scopes.
+  const hoistedDecls: ParsedObject[] = [];
+  ctx.hoistedNestedFnDeclsStack?.push(hoistedDecls);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
   const knot = new Knot(identifier, [], args, true);
-  const rootWeave = new Weave(body);
+  const rootWeave = new Weave([...hoistedDecls, ...body]);
   knot._rootWeave = rootWeave;
   knot.AddContent(rootWeave);
   // Nested callables collected during this function's body lowering
@@ -171,6 +191,7 @@ function lowerNestedNamedFunction(
   identifier: Identifier,
   ctx: LowerContext,
   enclosingScope: ParsedObject[],
+  isLocal: boolean,
 ): CompiledBlock {
   const synthName = `__anon_fn_${node.from}`;
   const upvals = scanFreeVariables(node, ctx);
@@ -197,11 +218,14 @@ function lowerNestedNamedFunction(
     ctx.functionScopeStack?.push(nested);
     const ownLocals = collectImmediateBodyDeclarations(node, ctx);
     ctx.declaredLocalsStack?.push(ownLocals);
+    const innerHoisted: ParsedObject[] = [];
+    ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
     const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+    ctx.hoistedNestedFnDeclsStack?.pop();
     ctx.declaredLocalsStack?.pop();
     ctx.functionScopeStack?.pop();
     enclosingScope.push(
-      new Function(identifier, [...body, ...nested], args),
+      new Function(identifier, [...innerHoisted, ...body, ...nested], args),
     );
     return {};
   }
@@ -214,6 +238,34 @@ function lowerNestedNamedFunction(
       ? new DivertTarget(new Divert([new Identifier(synthName)]))
       : buildClosureExpression(synthName, upvals, userArity);
 
+  // `local function NAME ... end` — declaration scoped to the
+  // innermost block (Luau spec). Emit the binding in place.
+  //
+  // `function NAME ... end` (no `local`) — Luau treats this as
+  // `NAME = function() end`, a non-local assignment visible across
+  // do/while/for/if block boundaries inside the enclosing function.
+  // Hoist the `local NAME = nil` pre-declaration to the enclosing
+  // function's body level and emit a REASSIGNMENT in place. The
+  // reassignment walks the enclosing function's scope chain
+  // innermost-first and lands on the hoisted slot.
+  const hoistBuf = ctx.hoistedNestedFnDeclsStack?.at(-1);
+  if (!isLocal && hoistBuf) {
+    hoistBuf.push(
+      new VariableAssignment({
+        variableIdentifier: new Identifier(identifier.name ?? ""),
+        assignedExpression: new NullExpression(),
+        isTemporaryNewDeclaration: true,
+      }),
+    );
+    const assignClosure = new VariableAssignment({
+      variableIdentifier: identifier,
+      assignedExpression: closureValue,
+      isTemporaryNewDeclaration: false,
+    });
+    return wrapInWeave([assignClosure]);
+  }
+
+  // Local (or no enclosing hoist buffer — top-level chunk).
   if (isSelfReferential) {
     const declareNil = new VariableAssignment({
       variableIdentifier: new Identifier(selfName),
@@ -255,9 +307,14 @@ function lowerNestedAsSubFlow(
   ctx.functionScopeStack?.push(nested);
   const ownLocals = collectImmediateBodyDeclarations(node, ctx);
   ctx.declaredLocalsStack?.push(ownLocals);
+  const innerHoisted: ParsedObject[] = [];
+  ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
-  enclosingScope.push(new Function(identifier, [...body, ...nested], args));
+  enclosingScope.push(
+    new Function(identifier, [...innerHoisted, ...body, ...nested], args),
+  );
   return {};
 }
