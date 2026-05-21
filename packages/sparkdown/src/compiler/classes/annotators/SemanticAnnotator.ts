@@ -43,7 +43,14 @@ export type SemanticTokenModifiers =
   | "defaultLibrary";
 
 export interface SemanticInfo {
-  tokenType: SemanticTokenTypes;
+  // The LSP-level token type to emit. Optional because annotations
+  // tagged `possibleDivertPath: true` deliberately leave it unset:
+  // the annotator can't decide between `function` and `class`
+  // (beat) at parse time, so the LSP-side `getSemanticTokens`
+  // provider resolves the path against the compiled program's
+  // location maps and assigns the final token type there. Every
+  // other emission site provides a `tokenType`.
+  tokenType?: SemanticTokenTypes;
   tokenModifiers?: SemanticTokenModifiers[];
   possibleDivertPath?: boolean;
 }
@@ -300,6 +307,47 @@ export class SemanticAnnotator extends SparkdownAnnotator<
           }).range(nodeRef.from, nodeRef.to),
         );
       }
+    }
+    // Narrative-scope **beat** declarations: `scene NAME`,
+    // `branch NAME`, and `:: NAME` label headings. "Beat" is the
+    // umbrella term for narrative anchors you can divert to — the
+    // grammar's `FLOW_BEAT_KEYWORDS` covers `scene`/`branch` and
+    // we extend it here to include labels since they share the
+    // same flow-target role. Beats render purple via the LSP
+    // `class` tokenType (mapped to `sectionNameDefinition` in the
+    // document-views editor theme, matching VS Code's TextMate
+    // styling of `keyword.control.section.sd`). Function
+    // declarations stay yellow via `function` so the two families
+    // are visually distinct.
+    if (
+      nodeRef.name === "SceneDeclarationName" ||
+      nodeRef.name === "BranchDeclarationName" ||
+      nodeRef.name === "LabelDeclarationName"
+    ) {
+      annotations.push(
+        SparkdownAnnotation.mark<SemanticInfo>({
+          tokenType: "class",
+          tokenModifiers: ["declaration"],
+        }).range(nodeRef.from, nodeRef.to),
+      );
+    }
+    // Narrative-scope divert paths: `-> target` / `<- target` /
+    // `& target()`. The grammar tags the path segments under
+    // `DivertPart` (one per dotted segment of `name.sub.path`). The
+    // annotator emits an annotation with `possibleDivertPath: true`
+    // and intentionally NO `tokenType` — resolution depends on the
+    // full document's declaration set (forward refs, cross-file
+    // includes), so `getSemanticTokens` walks the compiled program's
+    // location maps and assigns the final token type: `class`
+    // (purple) for beats (scene/branch/label) and `function`
+    // (yellow) for functions. Unresolved paths emit no LSP token at
+    // all and fall back to the grammar's TextMate scope.
+    if (nodeRef.name === "DivertPart") {
+      annotations.push(
+        SparkdownAnnotation.mark<SemanticInfo>({
+          possibleDivertPath: true,
+        }).range(nodeRef.from, nodeRef.to),
+      );
     }
     return annotations;
   }
