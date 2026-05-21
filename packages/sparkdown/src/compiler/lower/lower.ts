@@ -72,6 +72,7 @@ import {
   lowerSparkdownIfBlock,
 } from "./lowerers/lowerSparkdownIfBlock";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerers/lowerSparkdownSequentialAlternatorBlock";
+import { lowerTags } from "./lowerers/lowerTags";
 import { lowerThread } from "./lowerers/lowerThread";
 import { lowerVariableDefinition } from "./lowerers/lowerVariableDefinition";
 import { stampDebugMetadata } from "./utils/debugMetadata";
@@ -259,6 +260,13 @@ function lowerInner(
       // It's purely a structural marker — no runtime content. Swallow it
       // so the InkParser fallback isn't invoked.
       return {};
+    case "Tags":
+      // Top-level `# tag` (or `# a # b`) line. The grammar produces a
+      // single `Tags` wrapper containing one or more `Tag` children.
+      // Display-line trailing tags are handled inline by `lowerDisplay`;
+      // this case covers the standalone form that contributes to
+      // `globalTags` / `TagsForContentAtPath`.
+      return lowerTags(nodeRef, ctx);
     default:
       return undefined;
   }

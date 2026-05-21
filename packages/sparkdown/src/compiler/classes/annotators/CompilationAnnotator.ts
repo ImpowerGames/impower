@@ -1,20 +1,21 @@
+// Side-effect import to stabilize the inkjs engine module load order.
+// `engine/Container.ts` ↔ `engine/Value.ts` ↔ `engine/Object.ts` form a
+// dependency cycle; if `Object.ts` is the first to load, `Value.ts`
+// resolves `InkObject` as undefined when extending it. Forcing
+// `Container.ts` to be the entry point evaluates `Value.ts` (and
+// therefore `Object.ts`) in an order that breaks the cycle cleanly.
+// `InkParser.ts` used to do this implicitly until we removed it; this
+// explicit import preserves the load order without re-introducing the
+// legacy parser.
+import "../../../inkjs/engine/Container";
 import { Range } from "@codemirror/state";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
-import { InkParser } from "../../../inkjs/compiler/Parser/InkParser";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { SourceMetadata } from "../../../inkjs/engine/Error";
 import { lower } from "../../lower/lower";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { populateDefinedStructs } from "../../utils/populateDefinedStructs";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
-
-const FILE_HANDLER = {
-  ResolveInkFilename: () => "",
-  LoadInkFileContents: () => "",
-};
-const ROOT_PARSER = new InkParser("", null, null, null, FILE_HANDLER);
-const NOOP = () => {};
 
 let id = 1;
 const generateUUID = () => {
@@ -244,93 +245,27 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         ];
       }
       if (lowered !== undefined) {
+        // Tag-only chunks need a stable per-chunk container so the
+        // runtime's `TagsForContentAtPath` walker stops at the right
+        // boundary. The `uuid` field tells `SparkdownCompiler` to
+        // wrap the chunk's content in a `Statement` — without that
+        // wrap, the tag-triplet would land flat in the enclosing
+        // container alongside the next chunk's line-type tag, and the
+        // walker would over-collect into the next line's metadata.
+        if (nodeRef.name === "Tags") {
+          lowered.uuid = generateUUID();
+        }
         annotations.push(
           SparkdownAnnotation.mark(lowered).range(nodeRef.from, nodeRef.to),
         );
-      } else if (
-        nodeRef.name === "DefineViewDeclaration" ||
-        nodeRef.name === "DefineStylingDeclaration" ||
-        nodeRef.name === "DefinePlainDeclaration"
-      ) {
-        const text = this.read(nodeRef.from, nodeRef.to);
-        const diagnostics: InkDiagnostic[] = [];
-        const parser = new InkParser(
-          text,
-          null,
-          (message, severity, source) => {
-            diagnostics.push({ message, severity, source });
-          },
-          ROOT_PARSER,
-          FILE_HANDLER,
-        );
-        const story = parser.ParseStory();
-        const context = {};
-        const contextPropertyRegistry = {};
-        let defaultDefinitions: { [type: string]: any } | undefined = undefined;
-        try {
-          const runtimeStory = story.ExportRuntime(
-            (message, severity, source) => {
-              diagnostics.push({ message, severity, source });
-            },
-          );
-          if (runtimeStory?.structDefinitions) {
-            populateDefinedStructs(
-              context,
-              contextPropertyRegistry,
-              runtimeStory?.structDefinitions,
-              this.config?.definitions?.builtins,
-            );
-            for (const [type, structs] of Object.entries(
-              runtimeStory.structDefinitions,
-            )) {
-              for (const [name, struct] of Object.entries(structs)) {
-                if (name === "$default") {
-                  defaultDefinitions ??= {};
-                  defaultDefinitions[type] ??= struct;
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.error(e);
-        }
-        annotations.push(
-          SparkdownAnnotation.mark({
-            diagnostics,
-            content: story.content,
-            context,
-            contextPropertyRegistry,
-            defaultDefinitions,
-          }).range(nodeRef.from, nodeRef.to),
-        );
-      } else {
-        const text = this.read(nodeRef.from, nodeRef.to);
-        const diagnostics: InkDiagnostic[] = [];
-        const parser = new InkParser(
-          text,
-          null,
-          (message, severity, source) => {
-            diagnostics.push({ message, severity, source });
-          },
-          ROOT_PARSER,
-          FILE_HANDLER,
-        );
-        const story = parser.ParseStory();
-        let json: string | undefined = undefined;
-        try {
-          json = story.ExportRuntime(NOOP)?.ToJson() as string;
-        } catch (e) {
-          console.error(e);
-        }
-        annotations.push(
-          SparkdownAnnotation.mark({
-            diagnostics,
-            content: story.content,
-            json,
-            uuid: generateUUID(),
-          }).range(nodeRef.from, nodeRef.to),
-        );
       }
+      // Chunks the lowerer doesn't recognize are silently dropped.
+      // Previously this branch fell through to a raw `InkParser` over
+      // the chunk text — which is a foot-gun: legacy ink syntax
+      // re-interprets Luau-tagged source (e.g. `{ a = 1 }` table
+      // literals look like ink `{interpolation}` blocks) and produces
+      // misleading diagnostics. If a chunk shape needs handling, add a
+      // lowerer for it in `src/compiler/lower/lower.ts`.
     }
     return annotations;
   }

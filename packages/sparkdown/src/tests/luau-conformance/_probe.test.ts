@@ -17,7 +17,7 @@ import { runConformanceSource } from "./conformanceTestHarness";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UPSTREAM_ROOT = join(__dirname, "upstream", "conformance");
 
-const PROBE_FILE = "exceptions.luau";
+const PROBE_FILE = "tables.luau";
 
 function probe(label: string, src: string) {
   const r = runConformanceSource(src);
@@ -64,9 +64,7 @@ test(`survey: first blocker per failing fixture`, () => {
 });
 
 test(`bisect`, () => {
-  // Edit freely to narrow a failing fixture's minimum repro. Keep
-  // pointed at something passing so this file stays green in the
-  // full-suite run.
+  // Edit freely. Keep something passing here so the file stays green.
   probe("noop", `local x = 1`);
 });
 
