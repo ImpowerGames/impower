@@ -81,6 +81,18 @@ export interface LowerContext {
    * naturally hits any required `EndScope`).
    */
   loopStack?: { continueLabel: string; breakLabel: string }[];
+  /**
+   * Names that resolve to globally-addressable callables — top-level
+   * function knots, `external NAME(...)` declarations, and `store`
+   * declarations at the document root. Populated by a pre-scan of
+   * the parse tree before lowering starts. Used by `scanFreeVariables`
+   * to distinguish "reference to a sibling local I should capture as
+   * an upval" from "reference to a global that the divert resolver
+   * can find on its own". Stdlib names are NOT in this set — the
+   * grammar tags them under `LuauStdLibFunctions` / `LuauStdLibConstants`
+   * and the scanner already skips those.
+   */
+  globalCallableNames?: ReadonlySet<string>;
 }
 
 // Builds a `LowerContext` from a raw source string. Used by the snapshot

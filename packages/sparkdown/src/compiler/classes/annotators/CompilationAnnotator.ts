@@ -70,6 +70,104 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<CompiledBlock>,
   CompilationConfig
 > {
+  // Cache the globally-addressable callable names per parse tree.
+  // Computed lazily by walking the top-level statements once: every
+  // `LuauExternalDeclaration` and every top-level `LuauFunctionDefinition`
+  // / `LuauVariableDefinition` lands in the set. Used by
+  // `scanFreeVariables` in `lowerExpression.ts` to skip these when
+  // collecting closure upvals — they're already reachable from any
+  // nested-function call site via the regular divert resolver, so
+  // routing them through closure dispatch would waste a frame slot
+  // and (for externals) break the call entirely.
+  //
+  // Keyed on the Tree reference: the SparkdownAnnotator base class
+  // reassigns `this.tree` whenever an incremental parse produces a
+  // new top-node, so identity-based comparison correctly invalidates
+  // the cache on real structural changes.
+  private _globalCallableNames?: Set<string>;
+  private _globalCallableNamesTree?: unknown;
+
+  private computeGlobalCallableNames(): Set<string> {
+    if (this.tree === this._globalCallableNamesTree && this._globalCallableNames) {
+      return this._globalCallableNames;
+    }
+    const set = new Set<string>();
+    const tree = this.tree;
+    if (tree) {
+      const cursor = tree.cursor();
+      // Only walk top-level children — nested declarations are scoped
+      // inside their parent function and don't need to be in the
+      // global skip-set. `cursor.firstChild()` descends to the first
+      // child of the root; `cursor.nextSibling()` iterates the rest.
+      if (cursor.firstChild()) {
+        do {
+          this.collectGlobalNameAt(cursor.node, set);
+        } while (cursor.nextSibling());
+      }
+    }
+    this._globalCallableNames = set;
+    this._globalCallableNamesTree = this.tree;
+    return set;
+  }
+
+  private collectGlobalNameAt(
+    node: import("@lezer/common").SyntaxNode,
+    set: Set<string>,
+  ): void {
+    if (node.name === "LuauExternalDeclaration") {
+      const content = node.getChild("LuauExternalDeclaration_content");
+      const target = content ?? node;
+      const found = this.findDescendant(target, "LuauFunctionName");
+      if (found) set.add(this.read(found.from, found.to).trim());
+      return;
+    }
+    if (node.name === "LuauFunctionDefinition") {
+      const found = this.findDescendant(node, "LuauFunctionName");
+      if (found) set.add(this.read(found.from, found.to).trim());
+      return;
+    }
+    if (node.name === "LuauVariableDefinition") {
+      // Top-level `store NAME = …` / `const NAME = …` — collect the
+      // declared identifier(s). Each `LuauVariableAssignment` carries
+      // one name in `LuauVariableName` under `_begin_c1`.
+      let cur = node.firstChild;
+      while (cur) {
+        if (cur.name === "LuauVariableDefinition_content") {
+          let inner = cur.firstChild;
+          while (inner) {
+            if (inner.name === "LuauVariableAssignment") {
+              const nameNode = this.findDescendant(inner, "LuauVariableName");
+              if (nameNode) set.add(this.read(nameNode.from, nameNode.to).trim());
+            }
+            inner = inner.nextSibling;
+          }
+        }
+        cur = cur.nextSibling;
+      }
+    }
+  }
+
+  private findDescendant(
+    node: import("@lezer/common").SyntaxNode,
+    name: string,
+  ): import("@lezer/common").SyntaxNode | null {
+    let result: import("@lezer/common").SyntaxNode | null = null;
+    const cursor = node.cursor();
+    if (!cursor.firstChild()) return null;
+    do {
+      if (cursor.name === name) {
+        result = cursor.node;
+        break;
+      }
+      const found = this.findDescendant(cursor.node, name);
+      if (found) {
+        result = found;
+        break;
+      }
+    } while (cursor.nextSibling());
+    return result;
+  }
+
   override enter(
     annotations: Range<SparkdownAnnotation<CompiledBlock>>[],
     nodeRef: SparkdownSyntaxNodeRef,
@@ -126,6 +224,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         functionScopeStack,
         loopStack,
         diagnostics: chunkDiagnostics,
+        globalCallableNames: this.computeGlobalCallableNames(),
       });
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;

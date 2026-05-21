@@ -747,6 +747,19 @@ export function scanFreeVariables(
     }
   });
   // Collect referenced names (excluding stdlib, excluding bound).
+  // Both VALUE-position references (`LuauVariable` — read a variable's
+  // value) AND CALL-position references (`LuauFunctionCall`'s callee,
+  // `LuauFunctionName`) count: a nested function calling a sibling
+  // function in the enclosing scope needs to capture that sibling as
+  // an upval so the closure-dispatch path can resolve it. Stdlib
+  // functions are tagged by the grammar as `LuauStdLibFunctions`
+  // (a different node), so they're auto-excluded from this walk.
+  // Globally-addressable user-declared names (top-level knots,
+  // `external NAME(...)`) are listed in `ctx.globalCallableNames`
+  // and treated as bound here — the divert resolver finds them
+  // directly without closure capture.
+  const isGlobalCallable = (name: string) =>
+    ctx.globalCallableNames?.has(name) ?? false;
   const free: string[] = [];
   const seenFree = new Set<string>();
   walkAndCollect(bodyContent, (n) => {
@@ -757,7 +770,33 @@ export function scanFreeVariables(
       const nameNode = getDescendent("LuauVariableName", n);
       if (!nameNode) return;
       const name = ctx.read(nameNode.from, nameNode.to);
-      if (!bound.has(name) && !isStdLibName(name) && !seenFree.has(name)) {
+      if (
+        !bound.has(name) &&
+        !isStdLibName(name) &&
+        !isGlobalCallable(name) &&
+        !seenFree.has(name)
+      ) {
+        seenFree.add(name);
+        free.push(name);
+      }
+      return;
+    }
+    // Function-call callees: `doit(args)` inside a nested function
+    // body where `doit` is a local in the enclosing function scope.
+    // The grammar wraps the callee identifier in
+    // `LuauFunctionCall_begin > _c1 > LuauFunctionName`; pull the
+    // name from there. Stdlib calls go through `LuauStdLibFunctions`
+    // (different node), so they don't reach this branch.
+    if (n.name === "LuauFunctionCall") {
+      const nameNode = getDescendent("LuauFunctionName", n);
+      if (!nameNode) return;
+      const name = ctx.read(nameNode.from, nameNode.to);
+      if (
+        !bound.has(name) &&
+        !isStdLibName(name) &&
+        !isGlobalCallable(name) &&
+        !seenFree.has(name)
+      ) {
         seenFree.add(name);
         free.push(name);
       }
