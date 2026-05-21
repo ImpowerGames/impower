@@ -1,5 +1,6 @@
 import { Range } from "@codemirror/state";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getNodesInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getNodesInsideParent";
 import { SyntaxNodeRef } from "@lezer/common";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -49,6 +50,35 @@ export interface SemanticInfo {
   possibleDivertPath?: boolean;
 }
 
+// Built-in Luau stdlib identifiers, pre-populated into the global
+// scope frame so the annotator can route references through a single
+// last-definition-wins rule instead of special-casing stdlib at every
+// emission site. A user-declared `local print = …` then simply
+// overwrites the entry in the innermost scope frame, and the
+// reference path picks up the local kind automatically.
+type BindingKind = "function" | "variable" | "const-variable" | "namespace";
+type ScopeFrame = Map<string, { kind: BindingKind; fromStdlib: boolean }>;
+
+const STDLIB_FUNCTIONS: readonly string[] = [
+  "assert", "collectgarbage", "error", "gcinfo", "getfenv",
+  "getmetatable", "ipairs", "loadstring", "newproxy", "next",
+  "pairs", "pcall", "print", "rawequal", "rawset", "require",
+  "select", "setfenv", "setmetatable", "tonumber", "tostring",
+  "type", "typeof", "unpack", "xpcall",
+];
+const STDLIB_NAMESPACES: readonly string[] = [
+  "bit32", "coroutine", "debug", "math", "os", "string", "table",
+  "task", "utf8", "buffer", "vector", "system", "count", "lang",
+  "plural",
+];
+
+function makeGlobalScope(): ScopeFrame {
+  const frame: ScopeFrame = new Map();
+  for (const n of STDLIB_FUNCTIONS) frame.set(n, { kind: "function", fromStdlib: true });
+  for (const n of STDLIB_NAMESPACES) frame.set(n, { kind: "namespace", fromStdlib: true });
+  return frame;
+}
+
 export class SemanticAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<SemanticInfo>
 > {
@@ -70,10 +100,57 @@ export class SemanticAnnotator extends SparkdownAnnotator<
 
   indentStack: { inScope: string[]; indent: number }[] = [];
 
+  // Lexical-scope stack with per-name binding kinds. Outermost frame
+  // (index 0) is pre-populated with stdlib names so a reference to
+  // an unshadowed `print` lands on the stdlib `function` entry while
+  // a `local print = …` inside a function body adds a fresh entry to
+  // the innermost frame that overrides it.
+  //
+  // Last-definition-wins is implicit: each scope frame is a `Map` so
+  // re-declaring a name within the same scope simply overwrites the
+  // earlier binding. References resolve by walking the stack
+  // innermost-first; the first match becomes the kind that drives the
+  // emitted LSP semantic token.
+  scopeStack: ScopeFrame[] = [makeGlobalScope()];
+
+  // Pending kind for the next `LuauVariableAssignment` we encounter
+  // inside a `LuauVariableDefinition`. The grammar emits the scope
+  // modifier (`local` / `store` / `const`) as a sibling captured
+  // earlier in the begin pattern, so we record it on enter of the
+  // LuauVariableDefinition and read it when assignments fire.
+  pendingDeclKind: "variable" | "const-variable" | null = null;
+
   override begin(): void {
     this.nesting = 0;
     this.defineName = "";
     this.inLinkMap = false;
+    this.scopeStack = [makeGlobalScope()];
+    this.pendingDeclKind = null;
+  }
+
+  // Look up `name` in the scope stack, innermost-first. Returns the
+  // binding's kind plus whether it originated from the stdlib (so
+  // emit can attach the `defaultLibrary` modifier accordingly).
+  lookupBinding(
+    name: string,
+  ): { kind: BindingKind; fromStdlib: boolean } | null {
+    for (let i = this.scopeStack.length - 1; i >= 0; i--) {
+      const v = this.scopeStack[i]!.get(name);
+      if (v) return v;
+    }
+    return null;
+  }
+
+  // Record a binding in the innermost scope frame. Overwrites any
+  // earlier binding of the same name in that frame (Lua's
+  // last-definition-wins) and detaches it from the stdlib entry —
+  // a user-declared `local print` is NEVER `defaultLibrary`, even
+  // though the global scope's entry was.
+  bindInCurrentScope(name: string, kind: BindingKind): void {
+    if (!name) return;
+    const frame = this.scopeStack[this.scopeStack.length - 1];
+    if (!frame) return;
+    frame.set(name, { kind, fromStdlib: false });
   }
 
   override enter(
@@ -204,6 +281,110 @@ export class SemanticAnnotator extends SparkdownAnnotator<
         );
       }
     }
+    // ----- Luau lexical-scope tracking + identifier-kind emission -----
+    //
+    // Scope frame management: a Luau function-definition opens a new
+    // lexical scope (parameters + locals declared inside don't leak).
+    // The function's NAME itself (`function foo(...) … end`) registers
+    // in the PARENT scope as kind "function" so call-site references
+    // to `foo` outside its body resolve correctly. The push happens
+    // first so subsequent enters bind into the new frame.
+    if (nodeRef.name === "LuauFunctionDefinition") {
+      // Bind the declared function name (if any) in the parent scope
+      // before opening the new frame. Anonymous `function() … end`
+      // expressions have no LuauFunctionDeclarationName; just push.
+      const declName = getDescendent("LuauFunctionDeclarationName", nodeRef.node);
+      if (declName) {
+        const nameNode = getDescendent("LuauFunctionName", declName);
+        if (nameNode) {
+          const name = this.read(nameNode.from, nameNode.to).trim();
+          if (name) this.bindInCurrentScope(name, "function");
+        }
+      }
+      this.scopeStack.push(new Map());
+    }
+    if (nodeRef.name === "LuauFunctionParameter") {
+      const name = this.read(nodeRef.from, nodeRef.to).trim();
+      if (name) this.bindInCurrentScope(name, "variable");
+    }
+    // Variable definitions: read the scope modifier on enter
+    // (`local` / `store` / `const`) so the inner
+    // `LuauVariableAssignment`s know whether to mark themselves as
+    // `const-variable` or plain `variable`. Sparkdown's `store`
+    // creates a mutable global; `const` is read-only.
+    //
+    // `LuauScopeModifier` lives several layers deep in the parse
+    // tree (`_begin > _c2 > LuauScopeModifier`), so use a
+    // deep-descendant lookup rather than `getChild`.
+    if (nodeRef.name === "LuauVariableDefinition") {
+      const scopeNode = getDescendent("LuauScopeModifier", nodeRef.node);
+      const scopeText = scopeNode
+        ? this.read(scopeNode.from, scopeNode.to).trim()
+        : "";
+      this.pendingDeclKind = scopeText === "const" ? "const-variable" : "variable";
+    }
+    if (nodeRef.name === "LuauVariableAssignment" && this.pendingDeclKind) {
+      // Pull the declared name from the `LuauVariableName` descendant
+      // rather than parsing the leading text — the grammar wraps the
+      // name inside `LuauVariableAssignment_begin > _c1 >
+      // LuauVariableName`, so a top-level text match is brittle
+      // (e.g. with leading whitespace).
+      const nameNode = getDescendent("LuauVariableName", nodeRef.node);
+      if (nameNode) {
+        const name = this.read(nameNode.from, nameNode.to).trim();
+        if (name) {
+          // If the RHS is itself a function literal (anon fn), treat
+          // the binding as "function" so references render as
+          // callable. The function-literal lives deeper in the
+          // assignment's subtree (under
+          // `LuauAssignmentOperation_content`); use a deep search.
+          let kind: BindingKind = this.pendingDeclKind;
+          const fnLiteral = getDescendent("LuauFunctionDefinition", nodeRef.node);
+          if (fnLiteral) kind = "function";
+          this.bindInCurrentScope(name, kind);
+        }
+      }
+    }
+    // Reference sites — emit a kind-aware semantic token based on the
+    // current scope lookup. Covers the three grammar nodes that
+    // resolve to a binding:
+    //   - LuauStdLibFunctions  (e.g. `print`, `unpack`)
+    //   - LuauStdLibConstants  (e.g. `math`, `string` namespaces)
+    //   - LuauVariableName     (regular identifiers — only emitted
+    //                           when the lookup finds a binding to
+    //                           override the TextMate variableName
+    //                           color, e.g. a const reference that
+    //                           should render as readonly).
+    if (
+      nodeRef.name === "LuauStdLibFunctions" ||
+      nodeRef.name === "LuauStdLibConstants" ||
+      nodeRef.name === "LuauVariableName"
+    ) {
+      const name = this.read(nodeRef.from, nodeRef.to).trim();
+      const binding = this.lookupBinding(name);
+      // For LuauStdLibFunctions / LuauStdLibConstants we ALWAYS emit
+      // an LSP token (either the stdlib default OR the shadowed
+      // local). For LuauVariableName, only emit if we have a binding
+      // — otherwise let the grammar's TextMate scope handle it (the
+      // identifier may not be resolvable to a known kind).
+      if (binding) {
+        const modifiers: SemanticTokenModifiers[] = [];
+        if (binding.fromStdlib) modifiers.push("defaultLibrary");
+        if (binding.kind === "const-variable") modifiers.push("readonly");
+        const tokenType: SemanticTokenTypes =
+          binding.kind === "function"
+            ? "function"
+            : binding.kind === "namespace"
+              ? "namespace"
+              : "variable";
+        annotations.push(
+          SparkdownAnnotation.mark<SemanticInfo>({
+            tokenType,
+            tokenModifiers: modifiers,
+          }).range(nodeRef.from, nodeRef.to),
+        );
+      }
+    }
     return annotations;
   }
 
@@ -211,6 +392,17 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<SemanticInfo>>[],
     nodeRef: SyntaxNodeRef,
   ): Range<SparkdownAnnotation<SemanticInfo>>[] {
+    if (
+      nodeRef.name === "LuauFunctionDefinition" &&
+      this.scopeStack.length > 1
+    ) {
+      // Pop the function-body scope. Keep the outermost frame so
+      // top-level declarations stay visible everywhere.
+      this.scopeStack.pop();
+    }
+    if (nodeRef.name === "LuauVariableDefinition") {
+      this.pendingDeclKind = null;
+    }
     if (nodeRef.name === "FunctionDeclarationParameters") {
       this.inFunctionDeclarationParameters = false;
     }

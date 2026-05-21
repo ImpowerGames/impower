@@ -568,6 +568,16 @@ export class Story extends FlowBase {
           );
           return;
         } else if (FunctionCall.IsBuiltIn(part)) {
+          // Lua-fidelity stdlib shadowing: locals (SymbolType.Temp)
+          // may bind a built-in name; references inside the local's
+          // scope read the binding. Globals (Var) still error to
+          // preserve top-level safety — `var print = 1` would silently
+          // break every `print(...)` call in the story. Function
+          // parameters (Arg) also permit shadowing since they're
+          // scoped to the function body.
+          if (symbolType === SymbolType.Temp || symbolType === SymbolType.Arg) {
+            continue;
+          }
           obj.Error(
             `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`,
             identifier?.debugMetadata,
