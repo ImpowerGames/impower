@@ -1547,6 +1547,50 @@ export class Story extends InkObject {
           const closurePath = extractClosurePath(varContents, this);
           if (closurePath !== null) {
             this.state.divertedPointer = this.PointerAtPath(closurePath);
+          } else if (varContents instanceof ObjectValue) {
+            // `__call` metamethod: the variable holds a regular table
+            // (not a closure, not a builtin iterator) whose metatable
+            // defines `__call`. Dispatch via the same handler used in
+            // the `CallValueAsFunction` op. Returns true to skip the
+            // normal divert finalize step (CallLuauFunction set up
+            // its own divert + frame).
+            const callHandler = lookupMetamethod(varContents, "__call");
+            if (callHandler != null) {
+              const userArgs: AbstractValue[] = [];
+              if (callHandler instanceof ObjectValue) {
+                const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
+                  "__closure_user_arity",
+                );
+                if (arityVal instanceof IntValue) {
+                  const userArity = arityVal.value ?? 1;
+                  for (let i = 0; i < userArity - 1; i++) {
+                    userArgs.unshift(
+                      this.state.PopEvaluationStack() as AbstractValue,
+                    );
+                  }
+                }
+              }
+              const args = [varContents as AbstractValue, ...userArgs];
+              const results = this.CallLuauFunction(callHandler, args) as
+                | AbstractValue[]
+                | null;
+              if (results && results.length === 1) {
+                this.state.PushEvaluationStack(results[0]!);
+              } else if (results && results.length > 1) {
+                this.state.PushEvaluationStack(new MultiValue(results));
+              } else {
+                this.state.PushEvaluationStack(new NullValue());
+              }
+              return true;
+            }
+            // Plain table with no `__call` — fall through to the error.
+            this.Error(
+              "Tried to divert to a target from a variable, but the variable (" +
+                varName +
+                ") contained '" +
+                varContents +
+                "'.",
+            );
           } else if (!(varContents instanceof DivertTargetValue)) {
             let intContent = asOrNull(varContents, IntValue);
             let errorMessage =
@@ -2051,6 +2095,53 @@ export class Story extends InkObject {
               this.state.outputStream.length,
             );
             break;
+          }
+          // `__call` metamethod: the target is a plain ObjectValue
+          // (table) that isn't a closure or builtin iterator, but its
+          // metatable defines `__call`. Lua semantics: `t(args...)`
+          // becomes `__call(t, args...)`. Dispatched via
+          // `story.CallLuauFunction` with the table prepended as
+          // `self`. Limitation: closure-form `__call` handlers infer
+          // the user-arg count from `__closure_user_arity`; bare
+          // DivertTarget handlers (no upvalues, no arity metadata)
+          // are called with only `self` as the arg — extra user args
+          // pushed at the call site remain on the eval stack and may
+          // disturb subsequent operations. Authors hitting this can
+          // wrap the handler as a closure (e.g. add a stub upval) to
+          // force the closure path.
+          if (callTarget instanceof ObjectValue) {
+            const callHandler = lookupMetamethod(callTarget, "__call");
+            if (callHandler != null) {
+              const userArgs: AbstractValue[] = [];
+              if (callHandler instanceof ObjectValue) {
+                const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
+                  "__closure_user_arity",
+                );
+                if (arityVal instanceof IntValue) {
+                  const userArity = arityVal.value ?? 1;
+                  // Pop (userArity - 1) user args — the closure's
+                  // signature is `(self, ...userArgs)`, so self
+                  // accounts for one of its slots.
+                  for (let i = 0; i < userArity - 1; i++) {
+                    userArgs.unshift(
+                      this.state.PopEvaluationStack() as AbstractValue,
+                    );
+                  }
+                }
+              }
+              const args = [callTarget as AbstractValue, ...userArgs];
+              const results = this.CallLuauFunction(callHandler, args) as
+                | AbstractValue[]
+                | null;
+              if (results && results.length === 1) {
+                this.state.PushEvaluationStack(results[0]!);
+              } else if (results && results.length > 1) {
+                this.state.PushEvaluationStack(new MultiValue(results));
+              } else {
+                this.state.PushEvaluationStack(new NullValue());
+              }
+              break;
+            }
           }
           const targetVal = asOrNull(callTarget, DivertTargetValue);
           if (targetVal === null || targetVal.value === null) {

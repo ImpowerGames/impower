@@ -1943,11 +1943,37 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // `tostring(v)` — coerce to display string. Mirrors Luau:
   // numbers → JS String(), booleans → "true"/"false", nil → "nil",
   // strings unchanged. ObjectValues / other userdata fall back to
-  // their JS string form.
+  // their JS string form, UNLESS their metatable has `__tostring` —
+  // in which case the metamethod is invoked and its (string) return
+  // becomes the result. Matches Lua's `tostring(t)` behavior.
   tostring: {
     arity: 1,
-    fn: (_, [v]) => {
+    fn: (story, [v]) => {
       if (v == null) return "nil";
+      // `__tostring` metamethod — fires first for ObjectValue with a
+      // metatable carrying the field. The metamethod is invoked via
+      // `story.CallLuauFunction` (same path used by `__add` /
+      // `__index` function-form callbacks). The return value is
+      // expected to be a string; non-string returns fall through to
+      // the default representation.
+      if (v instanceof ObjectValue && v.metatable instanceof ObjectValue) {
+        const handler = (v.metatable.value as Map<string, AbstractValue>)?.get(
+          "__tostring",
+        );
+        if (handler != null && !(handler instanceof NullValue)) {
+          const results = story.CallLuauFunction(handler, [v]);
+          const first = results[0];
+          if (first instanceof StringValue) return first.value ?? "";
+          if (first != null && "value" in (first as any)) {
+            const raw = (first as any).value;
+            if (typeof raw === "string") return raw;
+          }
+          // Non-string return from __tostring — fall through to the
+          // default. Luau errors here; sparkdown is more lenient
+          // since narrative-fiction code often relies on string
+          // coercion working broadly.
+        }
+      }
       const ctorName = v?.constructor?.name;
       // Function values stringify as Lua's `function: <id>` form,
       // not as the underlying JS class name. Sparkdown represents

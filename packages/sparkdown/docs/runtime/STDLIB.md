@@ -397,21 +397,21 @@ in `STDLIB` (StdLib.ts) as state-aware entries.
 | `error(message [, level])`    | ✅  |  ✅  |   ✅   | `level` arg ignored; force-ends the story. Sparkdown doesn't track call-frame depth.                       |
 | `gcinfo()`                    | ❌  |  ✅  |   ⛔   | Luau-specific (Roblox GC stat). No JS equivalent.                                                          |
 | `getfenv([f])`                | 5.1 |  ❌  |   ⛔   | Removed in Lua 5.2 and not in Luau. No first-class environments.                                           |
-| `getmetatable(t)`             | ✅  |  ✅  |   ⬜   | Sparkdown's ObjectValue has no metatable today.                                                            |
+| `getmetatable(t)`             | ✅  |  ✅  |   ✅   | Returns `t`'s metatable, or its `__metatable` field if set (Luau metatable protection). Non-table args return nil. |
 | `ipairs(t)`                   | ✅  |  ✅  |   ✅   | Generic-for iterator over consecutive integer keys starting at 1. Stops at first nil. Uses builtin-iterator dispatch (`__builtin_iter` marker). |
 | `loadstring(s [, chunkname])` | 5.1 |  ✅  |   ⬜   | Removed in Lua 5.2 (use `load`); kept in Luau. Would need the sparkdown compiler embedded in the runtime to eval at runtime — large but tractable. |
-| `newproxy([metatable])`       | 5.1 |  ✅  |   ⬜   | Removed in Lua 5.2; kept in Luau.                                                                          |
+| `newproxy([metatable])`       | 5.1 |  ✅  |   ✅   | Returns a fresh ObjectValue. `newproxy(true)` gives it an empty metatable; passing a table sets the new proxy's metatable to it. |
 | `next(t [, index])`           | ✅  |  ✅  |   ✅   | Returns the next key/value pair after `index` in insertion order, or nil when iteration ends.              |
 | `pairs(t)`                    | ✅  |  ✅  |   ✅   | Generic-for iterator over every key in insertion order. Uses builtin-iterator dispatch (`__builtin_iter` marker). |
 | `pcall(f, ...)`               | ✅  |  ✅  |   ✅   | Protected call. Catches `story.Error` thrown by stdlib (`assert`, `error`, etc.) and returns `(false, errMsg)`. Trapped errors don't surface to the host. Implementation: `Story.CallLuauFunctionProtected`. |
 | `print(...)`                  | ✅  |  ✅  |   ✅   | Variadic; currently a no-op. Sparkdown's narrative runtime has no implicit stdout.                         |
-| `rawequal(a, b)`              | ✅  |  ✅  |   ✅   | Strict `===` on underlying values; sparkdown has no metamethods so identical to `==`.                      |
-| `rawget(t, k)`                | ✅  |  ✅  |   ✅   | Bypasses `__index`; sparkdown has no metamethods so equivalent to `t[k]`.                                  |
-| `rawset(t, k, v)`             | ✅  |  ✅  |   ✅   | Bypasses `__newindex`; equivalent to `t[k] = v`. Returns `t`.                                              |
+| `rawequal(a, b)`              | ✅  |  ✅  |   ✅   | Strict `===` on underlying values; bypasses `__eq`.                                                        |
+| `rawget(t, k)`                | ✅  |  ✅  |   ✅   | Bypasses `__index` — returns the field stored directly on `t`, or nil if absent.                            |
+| `rawset(t, k, v)`             | ✅  |  ✅  |   ✅   | Bypasses `__newindex` — writes directly to `t`. Returns `t`.                                                |
 | `require(modname)`            | ✅  |  ✅  |   ⬜   | Sparkdown's `run "path"` covers .luau loading; `require` for module-return-values still TBD.               |
 | `select(n, ...)`              | ✅  |  ✅  |   ✅   | `select("#", ...)` → count (single int). `select(n, ...)` → multi-return tail starting at 1-indexed `n` (negative counts from end).   |
 | `setfenv(f, table)`           | 5.1 |  ❌  |   ⛔   | Removed in Lua 5.2 and not in Luau.                                                                        |
-| `setmetatable(t, mt)`         | ✅  |  ✅  |   ⬜   | No metatable support yet.                                                                                  |
+| `setmetatable(t, mt)`         | ✅  |  ✅  |   ✅   | Attaches `mt` (or nil to clear) to `t`'s metatable slot. Errors if `t` is not a table, `mt` is neither nil nor a table, or `t`'s existing metatable carries `__metatable` (protection). |
 | `tonumber(e [, base])`        | ✅  |  ✅  |   ✅   | Returns `nil` (null) on failure. Optional `base` arg for integer parsing.                                  |
 | `tostring(v)`                 | ✅  |  ✅  |   ✅   |                                                                                                            |
 | `type(v)`                     | ✅  |  ✅  |   ✅   | Returns `"nil"`/`"number"`/`"string"`/`"boolean"`/`"table"`/`"userdata"`.                                  |
@@ -425,17 +425,17 @@ in `STDLIB` (StdLib.ts) as state-aware entries.
 
 | Name                                                          | Lua  | Luau | Status | Notes                                                   |
 | ------------------------------------------------------------- | :--: | :--: | :----: | ------------------------------------------------------- |
-| `__add`, `__sub`, `__mul`, `__div`, `__mod`, `__pow`, `__unm` |  ✅  |  ✅  |   ⬜   | Arithmetic metamethods — need metatable infrastructure. |
-| `__idiv`                                                      | 5.3+ |  ✅  |   ⬜   | Floor-division metamethod (Lua 5.3+ / Luau).            |
-| `__concat`                                                    |  ✅  |  ✅  |   ⬜   |                                                         |
-| `__len`                                                       | 5.2+ |  ✅  |   ⬜   | Length metamethod (Lua 5.2+).                           |
-| `__eq`, `__lt`, `__le`                                        |  ✅  |  ✅  |   ⬜   | Comparison metamethods.                                 |
-| `__index`, `__newindex`                                       |  ✅  |  ✅  |   ⬜   | Field access metamethods.                               |
-| `__call`                                                      |  ✅  |  ✅  |   ⬜   |                                                         |
-| `__tostring`                                                  |  ✅  |  ✅  |   ⬜   |                                                         |
-| `__metatable`                                                 |  ✅  |  ✅  |   ⬜   |                                                         |
-| `__mode`                                                      |  ✅  |  ✅  |   ⬜   | Weak-table mode (`"k"`/`"v"`/`"kv"`). Needs GC hooks.   |
-| `__iter`                                                      |  ❌  |  ✅  |   ⬜   | Luau-only.                                              |
+| `__add`, `__sub`, `__mul`, `__div`, `__mod`, `__pow`, `__unm` |  ✅  |  ✅  |   ✅   | Arithmetic metamethods. Fire when either operand is a table; LHS metatable consulted first, then RHS. Function-form handlers dispatched via `story.CallLuauFunction`. |
+| `__idiv`                                                      | 5.3+ |  ✅  |   ⬜   | Floor-division metamethod (Lua 5.3+ / Luau). Sparkdown's grammar doesn't expose `//` yet. |
+| `__concat`                                                    |  ✅  |  ✅  |   ⚠️   | Sparkdown maps `..` and `+` to the same runtime native (`Add`), so `__concat` and `__add` collapse — concat-style `t .. s` triggers `__add`. Acceptable trade-off until the lowerer keeps the ops distinct. |
+| `__len`                                                       | 5.2+ |  ✅  |   ✅   | Unary `#t` consults the metatable before the built-in object-size path. |
+| `__eq`, `__lt`, `__le`                                        |  ✅  |  ✅  |   ✅   | `__eq` fires only when both operands are tables (Luau-fidelity). `>` / `>=` swap args and call `__lt` / `__le` respectively. `!=` inverts `__eq`. |
+| `__index`, `__newindex`                                       |  ✅  |  ✅  |   ✅   | Table-form chains lookup (Lua-style class inheritance via `{__index = parent}`). Function-form calls `__index(t, key)` / `__newindex(t, key, val)`. Hooked at the `IndexValue` / `StoreIndex` bytecode ops and at the dotted-path variable-lookup fallback. |
+| `__call`                                                      |  ✅  |  ✅  |   ⚠️   | Closure-form handlers infer arg count from `__closure_user_arity`. Bare DivertTarget handlers default to "1 arg = self" — user args pushed at the call site stay on the eval stack. Authors needing multi-arg `__call` with a bare-knot handler should wrap as a closure. |
+| `__tostring`                                                  |  ✅  |  ✅  |   ✅   | `tostring(t)` consults `__tostring` before the default representation. Non-string returns fall through to the default. |
+| `__metatable`                                                 |  ✅  |  ✅  |   ✅   | When the metatable has `__metatable`, `getmetatable(t)` returns that field's value (instead of the real metatable) and `setmetatable(t, ...)` errors. |
+| `__mode`                                                      |  ✅  |  ✅  |   ⛔   | Weak-table mode (`"k"`/`"v"`/`"kv"`). Needs GC hooks — no JS equivalent. |
+| `__iter`                                                      |  ❌  |  ✅  |   ⬜   | Luau-only. Would need generic-for to detect table-typed iter-expression and substitute with `__iter(t)`. Deferred. |
 
 ---
 
@@ -469,10 +469,16 @@ can land in `STDLIB`:
   `table.foreach`, `table.foreachi`, `string.gsub` (function form),
   and `xpcall`'s message handler.
 
-- **Metatables** — `getmetatable`, `setmetatable`, `newproxy`, and
-  every `__add`/`__index`/etc. metamethod depend on sparkdown's
-  ObjectValue gaining a metatable slot. Tracked separately as #81
-  (class infra) since `define` already does most of the work.
+- **Metatables (LANDED)** — `setmetatable` / `getmetatable` /
+  `newproxy` plus `__index` / `__newindex` / `__add` / `__sub` /
+  `__mul` / `__div` / `__mod` / `__pow` / `__unm` / `__len` / `__eq`
+  / `__lt` / `__le` / `__call` / `__tostring` / `__metatable` all
+  dispatch via the new `ObjectValue._metatable` slot. Known
+  divergences flagged inline above: `__concat` collapses into
+  `__add` because sparkdown maps `..` and `+` to the same runtime
+  op; `__call` with bare-DivertTarget handlers can't infer arg
+  count; `__iter` deferred until generic-for learns to substitute
+  `__iter(t)` for a table-typed iter-expression.
 
 - **Pure stdlib call-arg spread** — `math.max(math.modf(x))`
   doesn't spread modf's tuple because pure entries auto-mount on
