@@ -43,8 +43,18 @@ export function lowerReassignment(
   );
   if (propertyAssignment) return wrapInWeave([propertyAssignment]);
 
-  // Simple identifier LHS → VariableAssignment kind=reassign.
-  const nameNode = getDescendent("LuauVariableName", lhsPath);
+  // Simple identifier LHS → VariableAssignment kind=reassign. The
+  // grammar tags identifiers whose text matches a stdlib namespace
+  // (`count`, `math`, ...) or stdlib global (`assert`, `print`, ...)
+  // as `LuauStdLibConstants` / `LuauStdLibFunctions` instead of
+  // `LuauVariableName`, so we look for either. Without this, a
+  // closure body reassigning a locally-shadowed `count = count + 1`
+  // would silently produce no VariableAssignment and the write would
+  // disappear.
+  const nameNode =
+    getDescendent("LuauVariableName", lhsPath) ??
+    getDescendent("LuauStdLibConstants", lhsPath) ??
+    getDescendent("LuauStdLibFunctions", lhsPath);
   if (!nameNode) return {};
   const variableName = ctx.read(nameNode.from, nameNode.to);
   const identifier = new Identifier(variableName);

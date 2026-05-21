@@ -210,6 +210,11 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // `lowerStatements` doesn't propagate per-block diagnostics, so
       // nested lowerers route through this buffer instead.
       const chunkDiagnostics: InkDiagnostic[] = [];
+      // Fresh per-chunk stack of declared-locals frames. Pushed/popped
+      // by `lowerLuauFunctionDefinition` (and the anonymous-fn lowerer)
+      // so nested-scope scans of free variables can detect shadowing
+      // of stdlib-named identifiers by enclosing-scope locals.
+      const declaredLocalsStack: Set<string>[] = [];
       const lowered = lower(nodeRef, {
         read: (from, to) => this.read(from, to),
         lineNumber: (pos) =>
@@ -225,6 +230,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         loopStack,
         diagnostics: chunkDiagnostics,
         globalCallableNames: this.computeGlobalCallableNames(),
+        declaredLocalsStack,
       });
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;

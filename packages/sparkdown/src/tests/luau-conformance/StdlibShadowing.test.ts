@@ -62,6 +62,30 @@ external host_record(v)
     expect(fatal).toEqual([]);
   });
 
+  test("local count can be reassigned from inside a closure body", () => {
+    // `count` is a stdlib namespace name — the grammar tags references
+    // to it as `LuauStdLibConstants` rather than `LuauVariableName`.
+    // Reassignment lowering historically only looked for
+    // `LuauVariableName`, silently dropping the write. Regression test
+    // for the fix that makes `count = count + 1` work inside a closure
+    // that captures `count` as an upval.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local count = 0
+local function inc() count = count + 1 end
+inc()
+inc()
+inc()
+host_record(count)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([3]);
+  });
+
   test("function parameter can shadow a stdlib name", () => {
     // `function f(print) ... end` should be legal — the local `print`
     // parameter shadows the stdlib `print` inside the body.

@@ -16,6 +16,7 @@ import {
   bodyReferencesNameAsCall,
   buildAnonymousFunction,
   buildClosureExpression,
+  collectImmediateBodyDeclarations,
   countUserParameters,
   scanFreeVariables,
 } from "../expression/lowerExpression";
@@ -111,7 +112,15 @@ export function lowerLuauFunctionDefinition(
   // chunk's top level.
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
+  // Also stack this function's immediate-body locals onto the
+  // declared-locals stack so any NESTED `scanFreeVariables` call
+  // can detect shadowing (a stdlib-named identifier locally
+  // declared in this scope must be captured as an upval rather
+  // than routed through stdlib dispatch).
+  const ownLocals = collectImmediateBodyDeclarations(nodeRef.node, ctx);
+  ctx.declaredLocalsStack?.push(ownLocals);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
   const knot = new Knot(identifier, [], args, true);
@@ -186,7 +195,10 @@ function lowerNestedNamedFunction(
     const content = getFunctionBodyContent(node);
     const nested: ParsedObject[] = [];
     ctx.functionScopeStack?.push(nested);
+    const ownLocals = collectImmediateBodyDeclarations(node, ctx);
+    ctx.declaredLocalsStack?.push(ownLocals);
     const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+    ctx.declaredLocalsStack?.pop();
     ctx.functionScopeStack?.pop();
     enclosingScope.push(
       new Function(identifier, [...body, ...nested], args),
@@ -241,7 +253,10 @@ function lowerNestedAsSubFlow(
   const content = getFunctionBodyContent(node);
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
+  const ownLocals = collectImmediateBodyDeclarations(node, ctx);
+  ctx.declaredLocalsStack?.push(ownLocals);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
   enclosingScope.push(new Function(identifier, [...body, ...nested], args));
   return {};

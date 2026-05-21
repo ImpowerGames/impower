@@ -712,6 +712,52 @@ function lowerAnonymousFunction(
   return buildClosureExpression(synthName, upvals, userArity);
 }
 
+// Walk a function body for the names introduced via `local NAME = …`,
+// `store NAME = …`, `const NAME = …`, AND nested `function NAME(...)
+// end` declarations. Used to populate `ctx.declaredLocalsStack`
+// frames so `scanFreeVariables` (running for a NESTED function) can
+// detect when a name reference is shadowed by an enclosing-scope
+// binding. The walk descends through nested blocks (`do`/`if`/`for`
+// etc.) but stops at nested function-definition boundaries — locals
+// declared inside a nested function live in THAT function's scope,
+// not the parent's.
+export function collectImmediateBodyDeclarations(
+  fnDef: SyntaxNode,
+  ctx: LowerContext,
+): Set<string> {
+  const out = new Set<string>();
+  const bodyContent = getFunctionBodyContent(fnDef);
+  if (!bodyContent) return out;
+  const walk = (n: SyntaxNode) => {
+    if (n.name === "LuauFunctionDefinition" && n !== fnDef) {
+      // Nested function — record the declared name on the parent
+      // frame, but DON'T descend into the nested body (its locals
+      // are scoped to itself).
+      const declName = getDescendent("LuauFunctionDeclarationName", n);
+      if (declName) {
+        const nameNode = getDescendent("LuauFunctionName", declName);
+        if (nameNode) out.add(ctx.read(nameNode.from, nameNode.to));
+      }
+      return;
+    }
+    if (n.name === "LuauVariableDefinition") {
+      const ids = collectVarDefIdentifiers(n, ctx);
+      for (const id of ids) out.add(id);
+    }
+    let c = n.firstChild;
+    while (c) {
+      walk(c);
+      c = c.nextSibling;
+    }
+  };
+  let child = bodyContent.firstChild;
+  while (child) {
+    walk(child);
+    child = child.nextSibling;
+  }
+  return out;
+}
+
 export function scanFreeVariables(
   fnDef: SyntaxNode,
   ctx: LowerContext,
@@ -760,8 +806,38 @@ export function scanFreeVariables(
   // directly without closure capture.
   const isGlobalCallable = (name: string) =>
     ctx.globalCallableNames?.has(name) ?? false;
+  // Is `name` declared as a local in some enclosing function scope?
+  // Walks `ctx.declaredLocalsStack` outermost-first; finding the name
+  // anywhere on the stack means the reference is locally shadowed
+  // and must be captured as an upval — even if the name also matches
+  // a stdlib identifier (`local count = 0; function f() count = count
+  // + 1 end` — `count` IS a stdlib namespace, but the local
+  // declaration shadows it and the closure body must route through
+  // the local). Without this check the closure would silently fall
+  // through to stdlib dispatch and the inner-scope mutation would
+  // land on a new global instead of the outer local.
+  const isShadowedLocal = (name: string) => {
+    const stack = ctx.declaredLocalsStack;
+    if (!stack) return false;
+    for (let i = stack.length - 1; i >= 0; i--) {
+      if (stack[i]!.has(name)) return true;
+    }
+    return false;
+  };
   const free: string[] = [];
   const seenFree = new Set<string>();
+  const maybeCaptureFree = (name: string) => {
+    if (bound.has(name) || seenFree.has(name)) return;
+    if (isShadowedLocal(name)) {
+      // Shadowed — capture as upval regardless of stdlib status.
+      seenFree.add(name);
+      free.push(name);
+      return;
+    }
+    if (isStdLibName(name) || isGlobalCallable(name)) return;
+    seenFree.add(name);
+    free.push(name);
+  };
   walkAndCollect(bodyContent, (n) => {
     // `LuauVariableName` lives inside both binding sites and
     // reference sites. We only want REFERENCES — these appear under
@@ -769,16 +845,7 @@ export function scanFreeVariables(
     if (n.name === "LuauVariable") {
       const nameNode = getDescendent("LuauVariableName", n);
       if (!nameNode) return;
-      const name = ctx.read(nameNode.from, nameNode.to);
-      if (
-        !bound.has(name) &&
-        !isStdLibName(name) &&
-        !isGlobalCallable(name) &&
-        !seenFree.has(name)
-      ) {
-        seenFree.add(name);
-        free.push(name);
-      }
+      maybeCaptureFree(ctx.read(nameNode.from, nameNode.to));
       return;
     }
     // Function-call callees: `doit(args)` inside a nested function
@@ -790,16 +857,23 @@ export function scanFreeVariables(
     if (n.name === "LuauFunctionCall") {
       const nameNode = getDescendent("LuauFunctionName", n);
       if (!nameNode) return;
-      const name = ctx.read(nameNode.from, nameNode.to);
-      if (
-        !bound.has(name) &&
-        !isStdLibName(name) &&
-        !isGlobalCallable(name) &&
-        !seenFree.has(name)
-      ) {
-        seenFree.add(name);
-        free.push(name);
-      }
+      maybeCaptureFree(ctx.read(nameNode.from, nameNode.to));
+      return;
+    }
+    // Reference to a stdlib-named identifier in expression value
+    // position (e.g. `local m = count` where `count` is a locally-
+    // declared shadow of the `count.*` namespace). The grammar tags
+    // these as `LuauStdLibConstants` (namespace names like `count`,
+    // `math`, `string`) or `LuauStdLibFunctions` (callable globals
+    // like `print`). When the corresponding name is shadowed by an
+    // enclosing-scope local, we must capture it as an upval so the
+    // closure body sees the local rather than the stdlib.
+    if (
+      n.name === "LuauStdLibConstants" ||
+      n.name === "LuauStdLibFunctions"
+    ) {
+      const name = ctx.read(n.from, n.to).trim();
+      if (isShadowedLocal(name)) maybeCaptureFree(name);
     }
   });
   return free;
@@ -1014,10 +1088,15 @@ export function buildAnonymousFunction(
 
   // Open a per-function buffer so anonymous / nested-named functions
   // declared INSIDE this anonymous fn's body attach to it as subFlows
-  // instead of escaping to the enclosing scope.
+  // instead of escaping to the enclosing scope. Also push the
+  // anonymous fn's own locals onto the declared-locals stack so any
+  // further-nested `scanFreeVariables` calls detect shadowing.
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
+  const ownLocals = collectImmediateBodyDeclarations(node, ctx);
+  ctx.declaredLocalsStack?.push(ownLocals);
   const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP);
+  ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
   return new Function(

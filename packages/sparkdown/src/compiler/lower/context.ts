@@ -93,6 +93,25 @@ export interface LowerContext {
    * and the scanner already skips those.
    */
   globalCallableNames?: ReadonlySet<string>;
+  /**
+   * Stack of per-enclosing-function-scope local declarations. Each
+   * frame holds the names declared via `local` / `store` / `const`
+   * (and nested `function NAME(...) end` declarations) in that
+   * function's immediate body. `lowerLuauFunctionDefinition` pushes
+   * a frame before lowering its body and pops after; the body's
+   * recursive lowering of nested functions can then consult the stack
+   * to detect shadowing.
+   *
+   * Specifically: `scanFreeVariables`, when deciding whether to
+   * capture a referenced name as an upval, checks the stack. If the
+   * name appears in ANY enclosing frame, it's a locally-shadowed
+   * binding and MUST be captured — even if the name also matches a
+   * stdlib identifier (otherwise `local count = 0; function f() count
+   * = count + 1 end` would silently route `count` through the stdlib
+   * dispatch instead of the local). Without this stack the scanner
+   * has no way to know a stdlib-shaped name is shadowed.
+   */
+  declaredLocalsStack?: Set<string>[];
 }
 
 // Builds a `LowerContext` from a raw source string. Used by the snapshot
