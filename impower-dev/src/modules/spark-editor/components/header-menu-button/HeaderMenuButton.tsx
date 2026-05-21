@@ -3,6 +3,7 @@ import { useComputed } from "@preact/signals";
 import { createPortal } from "preact/compat";
 import { useEffect, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
+import Account from "../account/Account";
 
 export const propDefaults = {};
 export type HeaderMenuButtonProps = Partial<typeof propDefaults>;
@@ -116,10 +117,11 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
           </div>
           {/* 1px divider — matches legacy `<s-divider>`. */}
           <div class="h-px bg-foreground/[0.12]" />
-          {/* Account widget stays as legacy spec-component for now. */}
+          {/* Preact-native Account panel. Stays mounted across open/closed
+              so its mount-effect (which calls Workspace.window.loadProject)
+              fires on page load — see memory:keep_drawer_children_mounted. */}
           <div class="flex flex-1 flex-col">
-            {/* @ts-expect-error legacy custom element */}
-            <se-account />
+            <Account />
           </div>
         </div>
       </div>,

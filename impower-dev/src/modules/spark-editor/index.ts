@@ -19,7 +19,6 @@ import {
   adoptAll,
   defineAll,
 } from "../../../../packages/spec-component/src/component";
-import Account from "./components/account/account";
 import Demo from "./components/demo/demo";
 import OptionButton from "./components/option-button/option-button";
 import Scrollable from "./components/scrollable/scrollable";
@@ -30,7 +29,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   Scrollable,
   OptionButton,
   Demo,
-  Account,
 ] as const;
 
 export const DEFAULT_SPARK_EDITOR_STYLES = {

@@ -2,7 +2,6 @@ import transformer from "../../../../packages/sparkle-style-transformer/src/inde
 import sparklePatternsCSS from "../../../../packages/sparkle/src/styles/patterns/patterns.css";
 import { ComponentSpec } from "../../../../packages/spec-component/src/spec";
 import baseNormalize from "../../../../packages/spec-component/src/styles/normalize/normalize.css";
-import Account from "./components/account/_account";
 import Demo from "./components/demo/_demo";
 import OptionButton from "./components/option-button/_option-button";
 import Scrollable from "./components/scrollable/_scrollable";
@@ -40,7 +39,6 @@ const components = [
   { tag: "", css: editorTheme },
   style(Scrollable),
   style(OptionButton),
-  style(Account),
   style(Demo),
 ] as const;
 
