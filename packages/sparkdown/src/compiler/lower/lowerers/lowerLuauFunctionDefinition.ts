@@ -250,13 +250,27 @@ function lowerNestedNamedFunction(
   // innermost-first and lands on the hoisted slot.
   const hoistBuf = ctx.hoistedNestedFnDeclsStack?.at(-1);
   if (!isLocal && hoistBuf) {
-    hoistBuf.push(
-      new VariableAssignment({
-        variableIdentifier: new Identifier(identifier.name ?? ""),
-        assignedExpression: new NullExpression(),
-        isTemporaryNewDeclaration: true,
-      }),
+    // Dedupe: when the enclosing function defines `function NAME end`
+    // more than once (Luau allows function redefinition — the last
+    // assignment wins), only one `local NAME = nil` pre-declaration
+    // should land at function-body top. Subsequent declarations just
+    // emit the in-place reassignment; the first hoist's slot already
+    // exists in scope and the reassignment lands on it.
+    const targetName = identifier.name ?? "";
+    const alreadyHoisted = hoistBuf.some(
+      (o) =>
+        o instanceof VariableAssignment &&
+        o.variableName === targetName,
     );
+    if (!alreadyHoisted) {
+      hoistBuf.push(
+        new VariableAssignment({
+          variableIdentifier: new Identifier(targetName),
+          assignedExpression: new NullExpression(),
+          isTemporaryNewDeclaration: true,
+        }),
+      );
+    }
     const assignClosure = new VariableAssignment({
       variableIdentifier: identifier,
       assignedExpression: closureValue,
