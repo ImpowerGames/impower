@@ -1,10 +1,12 @@
 import { useEffect } from "preact/hooks";
+import HeaderMenuButton from "../header-menu-button/HeaderMenuButton";
+import HeaderSyncToolbar from "../header-sync-toolbar/HeaderSyncToolbar";
+import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
+import HeaderTitleCaption from "../header-title-caption/HeaderTitleCaption";
 
 /**
- * Top header bar shell. Renders the legacy sub-components
- * (`<se-header-menu-button>`, `<se-header-title-button>`, etc.) as children —
- * each will be ported individually in follow-up passes. Listens for Ctrl+S to
- * trigger `Workspace.window.syncProject()`, mirroring the legacy
+ * Top header bar shell. Listens for Ctrl+S to trigger
+ * `Workspace.window.syncProject()`, mirroring the legacy
  * `header-navigation.ts` behavior.
  *
  * Layout:
@@ -32,16 +34,12 @@ export default function HeaderNavigation() {
       <button class="absolute inset-0 m-0 border-0 bg-transparent p-0" />
       <div class="relative z-[2] flex h-14 flex-row items-center justify-center bg-engine-800">
         <div class="flex w-full flex-row items-center">
-          {/* @ts-expect-error legacy custom element */}
-          <se-header-menu-button />
+          <HeaderMenuButton />
           <div class="flex flex-1 flex-col items-start">
-            {/* @ts-expect-error legacy custom element */}
-            <se-header-title-button />
-            {/* @ts-expect-error legacy custom element */}
-            <se-header-title-caption />
+            <HeaderTitleButton />
+            <HeaderTitleCaption />
           </div>
-          {/* @ts-expect-error legacy custom element */}
-          <se-header-sync-toolbar id="syncToolbar" />
+          <HeaderSyncToolbar />
           {/* sparkle's <s-hidden hide-above="lg"> hid the preview toggle at
               >=1280px (sparkle's lg breakpoint). Tailwind's `lg:` is 1024px
               by default, so we use an arbitrary `min-[1280px]:hidden` to

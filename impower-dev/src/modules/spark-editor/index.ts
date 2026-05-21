@@ -21,12 +21,6 @@ import {
 } from "../../../../packages/spec-component/src/component";
 import Account from "./components/account/account";
 import Demo from "./components/demo/demo";
-import HeaderMenuButton from "./components/header-menu-button/header-menu-button";
-import HeaderNavigationPlaceholder from "./components/header-navigation-placeholder/header-navigation-placeholder";
-import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/header-sync-conflict-toolbar";
-import HeaderSyncToolbar from "./components/header-sync-toolbar/header-sync-toolbar";
-import HeaderTitleButton from "./components/header-title-button/header-title-button";
-import HeaderTitleCaption from "./components/header-title-caption/header-title-caption";
 import OptionButton from "./components/option-button/option-button";
 import Scrollable from "./components/scrollable/scrollable";
 import editorIcons from "./styles/icons/icons.css";
@@ -37,12 +31,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   OptionButton,
   Demo,
   Account,
-  HeaderSyncConflictToolbar,
-  HeaderSyncToolbar,
-  HeaderMenuButton,
-  HeaderTitleButton,
-  HeaderTitleCaption,
-  HeaderNavigationPlaceholder,
 ] as const;
 
 export const DEFAULT_SPARK_EDITOR_STYLES = {

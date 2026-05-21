@@ -798,6 +798,9 @@ export default class WorkspaceWindow {
     const id = this.store.project.id;
     const validName = name || WorkspaceConstants.DEFAULT_PROJECT_NAME;
     if (id) {
+      // Capture the previous name BEFORE the optimistic update; otherwise
+      // the comparison below always sees the new value and never persists.
+      const previousName = this.store.project.name;
       this.update({
         ...this.store,
         project: {
@@ -809,16 +812,9 @@ export default class WorkspaceWindow {
           editingName: false,
         },
       });
-      let changedName = validName !== this.store.project.name;
+      const changedName = validName !== previousName;
       if (changedName) {
         await Workspace.fs.writeProjectMetadata(id, "name", validName);
-        this.update({
-          ...this.store,
-          project: {
-            ...this.store.project,
-            name: validName,
-          },
-        });
         await this.recordScriptChange();
       }
       return changedName;
