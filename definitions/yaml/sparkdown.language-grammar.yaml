@@ -2818,7 +2818,16 @@ repository:
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|$
+    # End at: next BEAT (scene/branch), end of line, OR an upcoming
+    # statement-boundary keyword (`if`, `while`, `for`, `repeat`, `do`,
+    # `function`, `end`, `return`, `local`, `break`, `continue`,
+    # `elseif`, `else`, `then`, `until`). Without these keyword
+    # lookaheads, a single-line script `b = b * 2 if a == 1 then break
+    # end` would let LuauReassignment swallow the trailing `if` and
+    # everything after it as part of the expression — the reassignment
+    # body's `LuauExpression` happily includes `LuauTernaryExpression`,
+    # which then consumes the inline statement.
+    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|$
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -3784,8 +3793,20 @@ repository:
   # If-Then-Else Expression
   # ----------------------------------------------------------------------------
 
+  # Luau's `if cond then a else b` ternary EXPRESSION (no `end`).
+  # Distinguishing from block-form `if ... end` is tricky because
+  # both use `if cond then ...`. The lookahead requires that, before
+  # any `=` (assignment statement marker), one of:
+  #   - `else` / `elseif` appears (true ternary form), or
+  #   - `}` appears (sparkdown's inline-conditional in interpolation
+  #     `{if cond then expr}`, may omit `else`).
+  # Block form `if cond then a = 1 else a = 2 end` is excluded
+  # because `=` appears between `if` and `else`. Without this
+  # discrimination, an inline statement-position `if cond then stmt
+  # end` parses as a ternary, eats the `end`, and cascades the parse
+  # out of the enclosing function-body context.
   LuauTernaryExpression:
-    begin: ({{WS}}*)(if)\b({{WS}}*)
+    begin: ({{WS}}*)(if)\b({{WS}}*)(?=(?:[^\n=]|==|~=|<=|>=)*(?:\belse(?:if)?\b|\}))
     beginCaptures:
       1:
         patterns:
@@ -4528,6 +4549,14 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauFunctionCallParameters" }
+      # Lua/Luau sugar: `f"..."`, `f'...'`, `f[[...]]`, `f{...}` are
+      # function calls with a single string/table argument (equivalent
+      # to `f("...")` / `f({...})`). Without these inclusions, the
+      # function-call begin matches via `LUAU_FUNCTION_CALL_START` but
+      # the body can't consume the argument, leaving the parser stuck
+      # and desyncing the enclosing scope's `end`-matching.
+      - { include: "#LuauString" }
+      - { include: "#LuauTable" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|.)
 

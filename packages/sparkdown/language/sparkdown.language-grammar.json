@@ -4574,7 +4574,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|$"
     },
     "LuauDefine": {
       "tag": "meta",
@@ -6101,7 +6101,7 @@
       "match": "(choose)\\b"
     },
     "LuauTernaryExpression": {
-      "begin": "((?:[^\\S\\n\\r])*)(if)\\b((?:[^\\S\\n\\r])*)",
+      "begin": "((?:[^\\S\\n\\r])*)(if)\\b((?:[^\\S\\n\\r])*)(?=(?:[^\\n=]|==|~=|<=|>=)*(?:\\belse(?:if)?\\b|\\}))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7247,6 +7247,12 @@
       "patterns": [
         {
           "include": "#LuauFunctionCallParameters"
+        },
+        {
+          "include": "#LuauString"
+        },
+        {
+          "include": "#LuauTable"
         }
       ],
       "applyEndPatternLast": true,

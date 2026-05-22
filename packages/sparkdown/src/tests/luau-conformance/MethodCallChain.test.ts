@@ -66,3 +66,72 @@ assert(rawget(t, "score") == 42)`);
     expect(r.returnedOK).toBe(true);
   });
 });
+
+describe("Lua single-arg call sugar (`f[[...]]`, `f\"...\"`, `f{...}`)", () => {
+  // Lua/Luau syntactic sugar: `f"str"`, `f[[long]]`, and `f{tbl}` are
+  // function calls with a single string/table argument — equivalent
+  // to `f("str")` etc. Pre-fix, the grammar matched the function-call
+  // begin via `LUAU_FUNCTION_CALL_START` (which includes `[[`/`"`/`'`/`{`)
+  // but `LuauFunctionCallParameters` only handled `(...)` form. The body
+  // got stuck and the enclosing scope's `end`-matcher desynced.
+  test("loadstring with long-string arg followed by next line", () => {
+    const r = runConformanceSource(`local f = loadstring[[ return 1 ]]
+local x = 2
+assert(x == 2)`);
+    expect(r.errorMessages.filter((e) => !e.startsWith("RUNTIME"))).toEqual([]);
+  });
+
+  test("`f{...}` table-literal arg compiles without desync", () => {
+    // Compile-time only — runtime lowering of the single-table-arg
+    // sugar isn't fully wired yet, so we don't assert runtime values.
+    const r = runConformanceSource(`local function f(t) return t end
+local r = f{10, 20, 30}
+local marker = 1`);
+    expect(r.errorMessages.filter((e) => !e.startsWith("RUNTIME"))).toEqual([]);
+  });
+
+  test("`f\"...\"` single-string arg compiles without desync", () => {
+    const r = runConformanceSource(`local function f(s) return s end
+local r = f"hello"
+local marker = 1`);
+    expect(r.errorMessages.filter((e) => !e.startsWith("RUNTIME"))).toEqual([]);
+  });
+});
+
+describe("block-form `if ... end` doesn't desync the parse", () => {
+  // Before the LuauTernaryExpression discriminator + LuauReassignment
+  // end-keyword fixes, an inline block-form `if cond then ... end`
+  // would get parsed as a ternary (or swallowed into a preceding
+  // reassignment), eat the trailing `end`, and cascade the parse out
+  // of the enclosing function-body context. The downstream lowerer
+  // then saw statements at top level instead of nested, producing
+  // spurious "Cannot find variable" / "target not found" errors.
+  //
+  // These tests guard the COMPILE-time fix: the wrap is still nested
+  // (no chunk-boundary desync) regardless of inline-if content.
+
+  test("inline block-form `if ... else ... end` compiles cleanly", () => {
+    // Pre-fix: the `else a = 2` had `=` which broke ternary matching
+    // (good) but the `end` was still consumed by the outer parser
+    // because LuauReassignment didn't stop on keyword boundaries.
+    // Now both fixes together keep the parse contained.
+    const r = runConformanceSource(`local function f()
+  local a = 0
+  if a then a = 1 else a = 2 end
+  return a
+end
+local marker = 1`);
+    // Only check compile cleanliness, not runtime correctness — `if 0`
+    // truthiness semantics are a separate question we're not testing.
+    expect(r.errorMessages.filter((e) => !e.startsWith("RUNTIME"))).toEqual([]);
+  });
+
+  test("inline block-form `if ... end` (no else) compiles cleanly", () => {
+    const r = runConformanceSource(`local function f()
+  if true then return 1 end
+  return 0
+end
+local marker = 1`);
+    expect(r.errorMessages.filter((e) => !e.startsWith("RUNTIME"))).toEqual([]);
+  });
+});
