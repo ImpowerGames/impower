@@ -4444,6 +4444,9 @@
           "include": "#LuauChainedFunctionCall"
         },
         {
+          "include": "#LuauChainedPropertyAccess"
+        },
+        {
           "include": "#LuauTypeAnnotationOperation"
         },
         {
@@ -7195,6 +7198,30 @@
         }
       ],
       "end": "(?!(?:[^\\S\\n\\r])*[:](?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*(?:<<|[({\"']|\\[\\[))"
+    },
+    "LuauChainedPropertyAccess": {
+      "begin": "(?<=\\))((?:[^\\S\\n\\r])*)(?=[.](?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauPropertyAccessor"
+        },
+        {
+          "include": "#LuauPropertyIndexer"
+        }
+      ],
+      "end": "(?!(?:[^\\S\\n\\r])*(?:[.](?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[))"
     },
     "LuauFunctionCall": {
       "begin": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)(?=(?:<<|[({\"']|\\[\\[))",

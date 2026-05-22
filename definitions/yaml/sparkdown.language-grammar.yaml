@@ -2721,6 +2721,10 @@ repository:
       # with `:`, the order here decides which takes priority — chained
       # method calls win.
       - { include: "#LuauChainedFunctionCall" }
+      # `LuauChainedPropertyAccess` extends a method-call chain with
+      # trailing `.name` / `[expr]` links. Sits next to
+      # `LuauChainedFunctionCall` so any mix of `:m(x).y[i]:n()` works.
+      - { include: "#LuauChainedPropertyAccess" }
       - { include: "#LuauTypeAnnotationOperation" }
       - { include: "#LuauSemicolonSeparator" }
 
@@ -4484,6 +4488,33 @@ repository:
       - { include: "#LuauFunctionAccessor" }
       - { include: "#LuauParenthetical" }
     end: (?!{{WS}}*[:]{{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_FUNCTION_CALL_START}})
+
+  # Trailing property / indexer access after a `LuauAccessPath +
+  # LuauParenthetical` pair (i.e. after a method call's sibling
+  # parenthetical). Without this, `a:m(x).y` parses as `LuauAccessPath
+  # [a, :m] + LuauParenthetical [(x)]` and the trailing `.y` falls
+  # through to narrative text — which knocks the parser out of the
+  # enclosing function/block context entirely. With it, the chain
+  # continues via `LuauPropertyAccessor` / `LuauPropertyIndexer` links
+  # so the access path is properly contained.
+  #
+  # The begin uses a lookbehind for `)` to scope this rule to
+  # positions immediately following a parenthetical (the call-args
+  # sibling of a method call). Without the lookbehind, the bare `[`
+  # lookahead would steal `[key]` entries inside table literals
+  # (`{ ["k"] = v }` etc.). The patterns consume any mix of dot /
+  # indexer chain links; the end fires once no more follow.
+  LuauChainedPropertyAccess:
+    begin: (?<=\))({{WS}}*)(?=[.]{{LUAU_IDENTIFIER}}|\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauPropertyAccessor" }
+      - { include: "#LuauPropertyIndexer" }
+    end: (?!{{WS}}*(?:[.]{{LUAU_IDENTIFIER}}|\[))
 
   LuauFunctionCall:
     begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})
