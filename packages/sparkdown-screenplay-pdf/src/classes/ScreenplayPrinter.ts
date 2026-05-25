@@ -527,6 +527,19 @@ export default class ScreenplayPrinter {
 
       const after = [...wrappedLinesAfterBreak, ...linesAfterBreak];
 
+      if (lineAtBreak?.tag === "dialogue_content") {
+        // For dialogue, require at least one dialogue content line to remain
+        // on the before-page; a lone character name followed by (MORE) with
+        // no actual dialogue above it is never acceptable. If that condition
+        // can't be met, defer the whole block to the next page.
+        const beforeHasDialogueContent = before.some(
+          (l) => l.tag === "dialogue_content",
+        );
+        if (!beforeHasDialogueContent) {
+          return [[], lines];
+        }
+      }
+
       if (before.length > 0 && after.length > 0) {
         before.push(...linesToAddBeforeSplit);
         after.unshift(...linesToRepeatAfterSplit);
