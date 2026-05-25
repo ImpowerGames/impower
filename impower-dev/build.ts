@@ -847,7 +847,7 @@ const serve = async () => {
     publicDir: path.resolve(process.cwd(), publicInDir),
     server: {
       middlewareMode: true,
-      hmr: true,
+      hmr: { port: 24679 },
       watch: { ignored: ["**/out/**", "**/.dev/**"] },
     },
     resolve: { alias },
