@@ -222,7 +222,21 @@ export default class ScreenplayTypesetter {
         );
         if (lines.length > 0) {
           if (t.position === "l" || t.position === "r") {
-            const prevSpan = spans.at(-1);
+            // Walk back past intervening separators — dual dialogue is
+            // side-by-side, so any blank line between the [<] and [>]
+            // halves shouldn't break the link to the dual span.
+            let dualIdx = -1;
+            for (let i = spans.length - 1; i >= 0; i--) {
+              const s = spans[i]!;
+              if (s.tag === "dual") {
+                dualIdx = i;
+                break;
+              }
+              if (s.tag !== "separator") {
+                break;
+              }
+            }
+            const dualSpan = dualIdx >= 0 ? spans[dualIdx] : undefined;
             if (t.tag === "dialogue_character" && t.position === "l") {
               spans.push({
                 tag: "dual",
@@ -230,10 +244,13 @@ export default class ScreenplayTypesetter {
                   [t.position]: lines,
                 },
               });
-            } else if (prevSpan?.tag === "dual") {
-              prevSpan.positions ??= {};
-              prevSpan.positions[t.position] ??= [];
-              prevSpan.positions[t.position]!.push(...lines);
+            } else if (dualSpan?.tag === "dual") {
+              if (dualIdx < spans.length - 1) {
+                spans.length = dualIdx + 1;
+              }
+              dualSpan.positions ??= {};
+              dualSpan.positions[t.position] ??= [];
+              dualSpan.positions[t.position]!.push(...lines);
             }
           } else {
             if (t.tag === "dialogue_character") {
