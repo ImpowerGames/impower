@@ -18,10 +18,14 @@
     }
   },
   "main": "dist/sparkdown-screenplay-pdf.js",
+  "bin": {
+    "sparkdown-pdf": "./dist/cli/buildPdfCli.cjs"
+  },
   "scripts": {
     "build": "node ./esbuild.js",
     "watch": "node ./esbuild.js --watch",
-    "package": "node ./esbuild.js --production"
+    "package": "node ./esbuild.js --production",
+    "build:cli": "node ./esbuild.cli.js"
   },
   "browser": {
     "assert": "assert",

@@ -15,4 +15,5 @@ export * from "./utils/generateScreenplayCsvData";
 export * from "./utils/generateScreenplayHtmlData";
 export * from "./utils/generateScreenplayMainHtml";
 export * from "./utils/generateScreenplayPrintData";
+export * from "./utils/generateScreenplayReadingCopy";
 export * from "./utils/generateScreenplayTitleHtml";
