@@ -2,6 +2,12 @@ import { ScreenplayToken } from "../types/ScreenplayToken";
 
 const MARKERS = ["^", "*", "_", "~~", "::"];
 
+// Body lines under a header mark (`^:`, `RAFFLES:`, …) get this indent
+// so the structure is visually obvious in the reading copy. Action and
+// single-line headers/transitionals aren't bodies under a header so they
+// stay flush-left.
+const INDENT = "  ";
+
 const stripProductionTags = (raw: string): string => {
   let out = "";
   let i = 0;
@@ -252,7 +258,7 @@ export const generateScreenplayReadingCopy = (tokens: ScreenplayToken[]): string
         const lines = cleanMultiline(t.text ?? "");
         if (lines.length === 0) out.push("^:");
         else if (lines.length === 1) out.push(`^: ${lines[0]}`);
-        else out.push("^:", ...lines);
+        else out.push("^:", ...lines.map((l) => `${INDENT}${l}`));
         break;
       }
       case "heading": {
@@ -278,12 +284,12 @@ export const generateScreenplayReadingCopy = (tokens: ScreenplayToken[]): string
       }
       case "dialogue_parenthetical": {
         const text = cleanInline(t.text ?? "");
-        if (text.length > 0) out.push(text);
+        if (text.length > 0) out.push(`${INDENT}${text}`);
         break;
       }
       case "dialogue_content": {
         const lines = cleanMultiline(t.text ?? "");
-        if (lines.length > 0) out.push(...lines);
+        if (lines.length > 0) out.push(...lines.map((l) => `${INDENT}${l}`));
         break;
       }
       case "choice": {

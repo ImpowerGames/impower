@@ -18,10 +18,10 @@ text: "INT. CASINO - NIGHT"
 html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><span class="ͼs">INT. CASINO - NIGHT</span></div>
 --- line 3 ---
 text: ""
-html: <div class="cm-line"><br></div>
+html: <div class="cm-line collapse"><br></div>
 --- line 4 ---
 text: "Action after."
-html: <div class="cm-line">Action after.</div>
+html: <div class="cm-line" style="opacity: 1;">Action after.</div>
 --- line 5 ---
 text: ""
 html: <div class="cm-line"><br></div>

@@ -242,6 +242,33 @@ export const decorate = (
   const decorations: Range<Decoration>[] = [];
   const doc = state.doc;
 
+  // Block nodes (BlockDialogue, ...) include any trailing
+  // whitespace-only "blank" lines inside their range. When a block is
+  // rendered via a widget-replace (dual dialogue), consuming the whole
+  // range absorbs the blank line that would have visually separated
+  // this block from the next one. Walk backward from `to` to find the
+  // position right after the last content line's terminating newline,
+  // so the widget stops there and the trailing blank line(s) remain as
+  // their own cm-lines (default theme opacity:0 still gives them a
+  // line-height of vertical space — the visible separator).
+  const findBlockContentEnd = (from: number, to: number): number => {
+    let lastContentChar = -1;
+    for (let i = to - 1; i >= from; i--) {
+      const c = doc.sliceString(i, i + 1);
+      if (c !== " " && c !== "\t" && c !== "\n" && c !== "\r") {
+        lastContentChar = i;
+        break;
+      }
+    }
+    if (lastContentChar < 0) return from;
+    for (let i = lastContentChar + 1; i < to; i++) {
+      if (doc.sliceString(i, i + 1) === "\n") {
+        return i + 1;
+      }
+    }
+    return to;
+  };
+
   const isCentered = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
     if (
@@ -637,10 +664,11 @@ export const decorate = (
           const isOdd = dialoguePosition % 2 !== 0;
           if (isOdd) {
             // left (odd position)
+            const contentEnd = findBlockContentEnd(from, to);
             const spec: DialogueSpec = {
               type: "dialogue",
               from,
-              to: to - 1,
+              to: contentEnd,
               language: LANGUAGE_SUPPORT.language,
               highlighter: DUAL_LANGUAGE_HIGHLIGHTS,
               blocks: [
@@ -657,8 +685,9 @@ export const decorate = (
             prevDialogueSpec = spec;
           } else if (prevDialogueSpec && prevDialogueSpec.blocks) {
             // right (even position)
+            const contentEnd = findBlockContentEnd(from, to);
             prevDialogueSpec.grid = true;
-            prevDialogueSpec.to = to - 1;
+            prevDialogueSpec.to = contentEnd;
             prevDialogueSpec.blocks.push(dialogueContent);
             prevDialogueSpec.blocks.forEach((blocks) => {
               blocks.forEach((block) => {
@@ -667,8 +696,30 @@ export const decorate = (
                 };
               });
             });
+            // Reveal the right side's lines too — PREVIEW_THEME sets
+            // `.cm-line { opacity: 0 }` as the default, and the only way
+            // a cm-line becomes visible is via a reveal line decoration.
+            // The left side's reveal happens to make the FIRST pair
+            // visible because CodeMirror collapses adjacent replace
+            // ranges onto the left's cm-line, but consecutive pairs in
+            // a back-to-back dual block don't share that cm-line, so
+            // the second pair stays at opacity:0 if we only reveal the
+            // left. createDecorations for "reveal" emits one line
+            // decoration per source line in the range. Use contentEnd
+            // (not `to`) so the trailing blank line stays as its own
+            // cm-line and provides visible separation from the next
+            // block.
             decorations.push(
-              ...createDecorations(doc, { type: "replace", from, to }),
+              ...createDecorations(doc, {
+                type: "reveal",
+                from,
+                to: contentEnd,
+              }),
+              ...createDecorations(doc, {
+                type: "replace",
+                from,
+                to: contentEnd,
+              }),
             );
           }
         } else {

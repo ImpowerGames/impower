@@ -1,0 +1,32 @@
+## fixture
+RAFFLES [<]:
+  You mean--
+  
+JACK [>]:
+  YUP.
+  
+The crew scatters.
+
+## pdf
+<character dual=l> RAFFLES
+<dialogue dual=l> You mean--
+<character dual=r> JACK
+<dialogue dual=r> YUP.
+
+<action> The crew scatters.
+## preview
+<action> The crew scatters.
+## rendered
+# 4 lines
+--- line 0 ---
+text: "RAFFLES [<]: <>You mean--JACK [>]: <>YUP."
+html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><div style="pointer-events: none; margin-left: auto; margin-right: auto; width: 95%; display: grid; gap: 8px; grid-template-columns: 1fr 1fr;"><div style="width: 100%;"><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 16%;"><span>RAFFLES</span><span class="ͼ1k"> [&lt;]</span><span class="ͼ1t">:</span><span> </span></div><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 0;"><span class="ͼ1z">&lt;&gt;</span><span>You mean--</span></div></div><div style="width: 100%;"><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 16%;"><span>JACK</span><span class="ͼ1k"> [&gt;]</span><span class="ͼ1t">:</span><span> </span></div><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 0;"><span class="ͼ1z">&lt;&gt;</span><span>YUP.</span></div></div></div><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 1 ---
+text: ""
+html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 2 ---
+text: "The crew scatters."
+html: <div class="cm-line" style="opacity: 1;">The crew scatters.</div>
+--- line 3 ---
+text: ""
+html: <div class="cm-line"><br></div>
