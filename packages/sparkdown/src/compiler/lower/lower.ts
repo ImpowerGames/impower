@@ -1,5 +1,6 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { CallValueExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
 import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { MultiVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
@@ -357,6 +358,15 @@ export function lowerStatements(
         }
         const callExpr = lowerExpressionFromNodes(callNodes, ctx);
         if (callExpr instanceof FunctionCall) {
+          callExpr.shouldPopReturnedValue = true;
+          appendBlockContent(result, wrapInWeave([callExpr]));
+          child = (consumedParen ?? child).nextSibling;
+          continue;
+        }
+        // User-defined method dispatch routes through
+        // `CallValueExpression` instead of `FunctionCall`. Same
+        // statement-context treatment: pop the unused return value.
+        if (callExpr instanceof CallValueExpression) {
           callExpr.shouldPopReturnedValue = true;
           appendBlockContent(result, wrapInWeave([callExpr]));
           child = (consumedParen ?? child).nextSibling;

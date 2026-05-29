@@ -4,6 +4,7 @@ import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import { CallValueExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
 import { IndexExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/IndexExpression";
 import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
 import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
@@ -266,12 +267,23 @@ function lowerChainedMethodCall(
       [receiver, ...callArgs],
     );
   }
-  return new FunctionCall(new Identifier(methodNameText), [
+  // User-defined method on a chained-call receiver — same value-call
+  // dispatch as the top-level method-call case. Trade-off: the
+  // receiver expression is referenced twice (once for index lookup,
+  // once as the threaded `self` arg). If the receiver is itself a
+  // call (e.g. `a:m1():m2()` — `m1()`'s result is the receiver for
+  // `:m2()`), that call gets evaluated twice. A future temp-local
+  // hoist would fix this; for now it's accepted as a known wart.
+  const opNode = getDescendent("LuauAccessorOperator", accessor);
+  const opText = opNode ? ctx.read(opNode.from, opNode.to).trim() : ":";
+  const isColonForm = opText === ":";
+  const targetExpr = new IndexExpression(
     receiver,
-    ...callArgs,
-  ]);
+    new StringExpression([new Text(methodNameText)]),
+  );
+  const finalArgs = isColonForm ? [receiver, ...callArgs] : callArgs;
+  return new CallValueExpression(targetExpr, finalArgs);
 }
-
 
 function hasTrailingMethodAccessor(accessPath: SyntaxNode): boolean {
   const content = findChildByName(accessPath, "LuauAccessPath_content");
@@ -371,9 +383,7 @@ function lowerMethodCall(
   // `METHOD_DISPATCH`, emit a FunctionCall to the synthetic
   // `__method_<name>` instead of the bare method name — the runtime
   // recognizes the prefix and routes to per-receiver-type dispatch in
-  // `callBuiltinMethod`. Falls through to the user-defined method-call
-  // path (`FunctionCall("<method>", [receiver, ...args])`) when the
-  // method name isn't a known builtin.
+  // `callBuiltinMethod`.
   if (isBuiltinMethod(methodNameText)) {
     return new FunctionCall(
       new Identifier(`${METHOD_PREFIX}${methodNameText}`),
@@ -381,7 +391,37 @@ function lowerMethodCall(
     );
   }
 
-  return new FunctionCall(methodName, [receiver, ...callArgs]);
+  // User-defined method on an arbitrary value (the receiver isn't a
+  // stdlib namespace, and the method isn't a registered builtin). The
+  // method value lives at `receiver.<name>` as a table key (closure or
+  // DivertTargetValue). We can't statically resolve to a top-level
+  // flow named `<name>`, so emit a value-call: evaluate the
+  // IndexExpression `receiver[<name>]` and dispatch via
+  // `CallValueAsFunction`. Works for both `:method(args)` (colon,
+  // receiver threaded as first arg) and `.method(args)` (dot, no
+  // receiver-thread) — operator detection determines arg shape below.
+  //
+  // Determine `.` vs `:` by reading the accessor-operator text.
+  const opNode = getDescendent("LuauAccessorOperator", methodAccessor);
+  const opText = opNode ? ctx.read(opNode.from, opNode.to).trim() : ":";
+  const isColonForm = opText === ":";
+
+  // Build a SECOND receiver expression for the index lookup. Reusing
+  // the same `receiver` ParsedObject would double-attach it (each
+  // ParsedObject's AddContent sets parent pointers). The cheap repeat-
+  // lower mirrors what `lowerPropertyTargetAssignment` does for
+  // compound LHS — semantically the receiver is evaluated twice. Lua
+  // spec says once, but matching that needs a temp-local hoist (the
+  // same compound-assignment trade-off applies here).
+  const receiverForLookup = lowerPartsAsExpression(receiverParts, ctx);
+  if (!receiverForLookup) return null;
+  const targetExpr = new IndexExpression(
+    receiverForLookup,
+    new StringExpression([new Text(methodNameText)]),
+  );
+
+  const finalArgs = isColonForm ? [receiver, ...callArgs] : callArgs;
+  return new CallValueExpression(targetExpr, finalArgs);
 }
 
 function lowerPartsAsExpression(

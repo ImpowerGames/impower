@@ -1,6 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
+import { CallValueExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
@@ -125,6 +126,14 @@ export function lowerExplicitStatement(
     if (next) nodes.push(next);
     const callExpr = lowerExpressionFromNodes(nodes, ctx);
     if (callExpr instanceof FunctionCall) {
+      callExpr.shouldPopReturnedValue = true;
+      return wrapInWeave([callExpr]);
+    }
+    // User-defined method dispatch (`obj.method(args)` /
+    // `obj:method(args)` where `method` isn't a stdlib namespace
+    // method) lowers to `CallValueExpression`. Same treatment:
+    // statement context wants the return value discarded.
+    if (callExpr instanceof CallValueExpression) {
       callExpr.shouldPopReturnedValue = true;
       return wrapInWeave([callExpr]);
     }

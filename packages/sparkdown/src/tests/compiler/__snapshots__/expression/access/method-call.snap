@@ -1,1 +1,1 @@
-Call(greet, [Var(obj), String["hi"]])
+<CallValueExpression>
