@@ -12,10 +12,10 @@ text: "Action before."
 html: <div class="cm-line" style="opacity: 1;">Action before.</div>
 --- line 1 ---
 text: ""
-html: <div class="cm-line"><br></div>
+html: <div class="cm-line collapse"><br></div>
 --- line 2 ---
-text: "$: INT. CASINO - NIGHT"
-html: <div class="cm-line">$: INT. CASINO - NIGHT</div>
+text: "INT. CASINO - NIGHT"
+html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><span class="ͼs">INT. CASINO - NIGHT</span></div>
 --- line 3 ---
 text: ""
 html: <div class="cm-line"><br></div>

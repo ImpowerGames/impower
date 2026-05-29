@@ -363,13 +363,17 @@ export const decorate = (
       }),
     );
     // After hiding a block (which collapses a range of source positions to
-    // a single zero-height widget), advance the line cursor so the next
-    // newline sees a "non-blank" line and doesn't accidentally emit a
-    // separator over the just-collapsed range.
+    // a single zero-height widget), advance the line cursor past the
+    // consumed range so the next Newline visit doesn't see a "blank"
+    // line that's actually inside the just-hidden block. DON'T also
+    // call processNewline here — that synthesized call would invoke
+    // isWhitespaceOnly(lineStart, lineStart - 1) which returns true
+    // for the empty range (`end <= start`) and emits a spurious
+    // separator collapse at the trailing line position. Across many
+    // edits and incremental reparses the spurious collapses pile up,
+    // producing the "many collapse classes on the trailing cm-line"
+    // drift symptom.
     lineStart = nodeRef.to;
-    if (hiddenNodeEndsWithNewline) {
-      processNewline(nodeRef.to - 1, nodeRef.to);
-    }
   };
 
   const hideInlineRange = (nodeRef: SyntaxNodeRef) => {
@@ -404,7 +408,17 @@ export const decorate = (
   };
 
   let lineStart = from;
+  // CodeMirror's incremental parser can emit duplicate Newline nodes at
+  // the trailing edge after edits — one extra per incremental reparse.
+  // Each duplicate would trigger processNewline again with the cursor
+  // already advanced past the newline, hitting the `end <= start`
+  // shortcut in isWhitespaceOnly and emitting a spurious separator
+  // collapse decoration. Dedupe by from-position so we process each
+  // newline at most once per decorate() call.
+  const seenNewlineFrom = new Set<number>();
   const processNewline = (newlineFrom: number, newlineTo: number) => {
+    if (seenNewlineFrom.has(newlineFrom)) return;
+    seenNewlineFrom.add(newlineFrom);
     if (isWhitespaceOnly(lineStart, newlineFrom)) {
       decorations.push(
         ...createDecorations(doc, {
@@ -797,20 +811,11 @@ const replaceDecorations = StateField.define<DecorationSet>({
     return decorations;
   },
   update(decorations, transaction) {
-    const oldTree = syntaxTree(transaction.startState);
-    const newTree = syntaxTree(transaction.state);
-    if (oldTree === newTree) {
-      return decorations;
+    if (!transaction.docChanged) {
+      const oldTree = syntaxTree(transaction.startState);
+      const newTree = syntaxTree(transaction.state);
+      if (oldTree === newTree) return decorations;
     }
-    // The previous incremental-rebuild optimization (using
-    // cachedCompiler.reparsedFrom/To to recompute only a slice of decorations)
-    // produced visible bugs when the user edited a script: lines adjacent to
-    // the reparse boundary lost their styling (e.g. trailing chars of a scene
-    // heading dropped their bold mark), and newly-inserted lines failed to
-    // pick up reveal/dialogue/page-break decorations because the stateful
-    // walk in decorate() was started mid-stream without the enclosing block's
-    // enter() events. Re-decorating from scratch on every parser invalidation
-    // is simple and correct; profile before re-introducing a partial path.
     const ranges = decorate(transaction.state);
     return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
   },
