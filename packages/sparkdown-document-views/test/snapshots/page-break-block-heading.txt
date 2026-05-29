@@ -12,16 +12,16 @@ text: "Action before."
 html: <div class="cm-line" style="opacity: 1;">Action before.</div>
 --- line 1 ---
 text: ""
-html: <div class="cm-line collapse"><br></div>
+html: <div class="cm-line"><br></div>
 --- line 2 ---
-text: "INT. CASINO - NIGHT"
-html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><span class="ͼs">INT. CASINO - NIGHT</span></div>
+text: "$: INT. CASINO - NIGHT"
+html: <div class="cm-line">$: INT. CASINO - NIGHT</div>
 --- line 3 ---
 text: ""
-html: <div class="cm-line collapse"><br></div>
+html: <div class="cm-line"><br></div>
 --- line 4 ---
 text: "Action after."
-html: <div class="cm-line" style="opacity: 1;">Action after.</div>
+html: <div class="cm-line">Action after.</div>
 --- line 5 ---
 text: ""
 html: <div class="cm-line"><br></div>

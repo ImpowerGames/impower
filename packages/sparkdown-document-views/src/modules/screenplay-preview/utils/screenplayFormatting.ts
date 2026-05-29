@@ -242,6 +242,21 @@ export const decorate = (
   const decorations: Range<Decoration>[] = [];
   const doc = state.doc;
 
+  // Returns true if the text is composed only of inline-hidden directive
+  // markers — `[[image]]`, `((audio))`, `<directive>` — and whitespace.
+  // Used to detect dialogue lines whose source is metadata-only so we
+  // can collapse the wrapping cm-line and not have it occupy a row of
+  // vertical space that visually competes with the inter-block blank
+  // line separator.
+  const isOnlyHiddenDirectives = (text: string): boolean => {
+    const stripped = text
+      .replace(/\[\[[^\]]*\]\]/g, "")
+      .replace(/\(\([^)]*\)\)/g, "")
+      .replace(/<[^>]*>/g, "")
+      .trim();
+    return stripped.length === 0 && text.trim().length > 0;
+  };
+
   // Block nodes (BlockDialogue, ...) include any trailing
   // whitespace-only "blank" lines inside their range. When a block is
   // rendered via a widget-replace (dual dialogue), consuming the whole
@@ -480,6 +495,16 @@ export const decorate = (
       } else if (name === "TextChunk") {
         if (inDialogue) {
           const value = doc.sliceString(from, to).trimEnd();
+          // A dialogue line whose source is only inline-hidden
+          // directives (`[[image]]`, `((audio))`, `<directive>`) still
+          // gets a dialogue line decoration with display:block — which
+          // contributes a full line-height of vertical space, making
+          // it visually indistinguishable from the real blank-line
+          // separator that ends the block. Push the line with
+          // display:none so it doesn't take a row, while still keeping
+          // the source character offsets intact for selection and
+          // tree mapping.
+          const directiveOnly = isOnlyHiddenDirectives(value);
           dialogueContent.push({
             type: "dialogue",
             from,
@@ -487,7 +512,9 @@ export const decorate = (
             value,
             markdown: true,
             attributes: {
-              style: getDialogueLineStyle("dialogue"),
+              style: directiveOnly
+                ? "display: none;"
+                : getDialogueLineStyle("dialogue"),
             },
           });
         }
