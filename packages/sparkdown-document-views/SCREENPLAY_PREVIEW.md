@@ -265,16 +265,40 @@ npm test           # one-shot
 npm run test:watch # watch mode
 ```
 
-## Page-break toggle (TBD)
+## Page-break model
 
-Per spec: page breaks should be a toggleable feature in the preview. Off by
-default. Explicit page breaks always render as `<hr>`. When the user toggles
-on, auto-computed page breaks become visible too. Not yet implemented.
+There are three things a reader might want to see in the preview:
 
-Open design question: what counts as "explicit" in the sparkdown grammar?
-The current preview always emits a `PageBreakWidget` for `Function` / `Scene`
-/ `Knot` nodes — these are structural boundaries, not author-intended page
-breaks, and probably belong in the "auto" bucket.
+1. **Structural section markers** — the `Scene` / `Function` / `Knot` keyword
+   forms (literal `scene Foo`, `function foo()`, `=== knot ===`). The parser
+   emits a `page_break` token at each one, and the preview today replaces the
+   node's range with `PageBreakWidget` (a block `<hr>`). See
+   `screenplayFormatting.ts:475-490` for the decoration emit and
+   `classes/widgets/PageBreakWidget.ts` for the `<hr>` DOM.
+2. **`$:`-prefix scene headings** — by far the more common form in real
+   scripts. These parse as `BlockHeading`, NOT `Scene`, so they get no
+   page-break decoration today; they appear as inline section markers with
+   the regexp/heading style applied to the text. See the parity tests at
+   `test/parity.test.ts:26-31` for the expected output.
+3. **Auto-pagination** (where the typesetter would split content across
+   physical pages when it exceeds the page height) — not implemented in
+   either the typesetter or the preview. The PDF renderer in
+   `sparkdown-screenplay-pdf` may compute page breaks at print time, but
+   nothing in the source-to-spans pipeline today represents an "auto" page
+   break.
+
+**Decision (logged 2026-05-28):** keep #1 always-visible as `<hr>` (this is
+the "explicit" decoration, since the author wrote a structural keyword).
+Leave #2 inline. Defer the "show auto page breaks" toggle until #3 is
+actually built — adding an unwired prop now would be misleading.
+`test/page-break.test.ts` pins the current behavior for both Scene-keyword
+and `$:`-BlockHeading so that the auto-pagination work can't regress either.
+
+When auto-pagination IS implemented, the toggle should be a boolean prop on
+`<sparkdown-screenplay-preview>` that, when true, emits a separate decoration
+class (e.g. a dashed rule) at the computed auto-break positions. Reuse the
+existing `PageBreakSpec` type — add a `kind: "explicit" | "auto"` field — and
+read the toggle from a CodeMirror facet inside `decorate()`.
 
 ## Files to know
 

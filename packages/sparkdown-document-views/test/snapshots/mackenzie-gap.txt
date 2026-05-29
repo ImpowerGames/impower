@@ -29,7 +29,7 @@ text: ""
 html: <div class="cm-line collapse"><br></div>
 --- line 6 ---
 text: "Raffles blinks."
-html: <div class="cm-line" style="opacity: 1;">Raffles blinks.</div>
+html: <div class="cm-line">Raffles blinks.</div>
 --- line 7 ---
 text: ""
 html: <div class="cm-line"><br></div>
