@@ -179,6 +179,16 @@ export class VariableAssignment extends ParsedObject {
         // as global so the dispatcher routes correctly.
         else if (this._runtimeAssignment) {
           this._runtimeAssignment.isGlobal = true;
+          // ALSO register the auto-global in the story's variable
+          // declarations so downstream `Divert.ResolveTargetContent`
+          // recognizes a later `x(args)` site as a variable-target
+          // (closure-call) rather than a missing flow. Without this,
+          // `Y = function...; Y(F)` errors with "target not found
+          // -> Y" even though the runtime can dispatch on Y's value.
+          // Subsequent `x = ...` re-assignments take the resolved
+          // branch above (since `x` is now declared) — no risk of
+          // duplicate-identifier diagnostics from this registration.
+          this.story.variableDeclarations.set(this.variableName, this);
         }
       } else if (this._runtimeAssignment) {
         // A runtime assignment may not have been generated if it's the

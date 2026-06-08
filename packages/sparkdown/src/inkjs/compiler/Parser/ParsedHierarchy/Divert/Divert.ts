@@ -313,6 +313,22 @@ export class Divert extends ParsedObject {
       throw new Error();
     }
 
+    // Retry variable-target resolution. `ResolveTargetContent` ran
+    // early during `GenerateRuntimeObject` so the runtime tree could
+    // be built; at that point Luau auto-globals (`Y = function...`)
+    // hadn't yet been registered in `story.variableDeclarations`
+    // (registration happens during `VariableAssignment.ResolveReferences`,
+    // a later phase). Re-running here lets the divert pick up
+    // auto-globals registered between the two phases. Cheap idempotent
+    // re-run — already-resolved targets short-circuit inside
+    // `ResolveTargetContent`.
+    if (
+      this.targetContent === null &&
+      this.runtimeDivert.variableDivertName == null
+    ) {
+      this.ResolveTargetContent();
+    }
+
     if (this.targetContent) {
       this.runtimeDivert.targetPath = this.targetContent.runtimePath;
     }
