@@ -170,7 +170,14 @@ export function lowerLuauFunctionDefinition(
   // intervening do/while/for/if block scopes.
   const hoistedDecls: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(hoistedDecls);
+  // Frame for nested variadic-fn names (`lowerNestedAsSubFlow`
+  // populates this so inner closures know to skip upval capture for
+  // these names — see `siblingSubFlowNamesStack` comment in
+  // `LowerContext`).
+  const siblingSubFlows = new Set<string>();
+  ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
@@ -252,7 +259,10 @@ function lowerNestedNamedFunction(
     ctx.declaredLocalsStack?.push(ownLocals);
     const innerHoisted: ParsedObject[] = [];
     ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
+    const innerSiblingSubFlows = new Set<string>();
+    ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
     const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+    ctx.siblingSubFlowNamesStack?.pop();
     ctx.hoistedNestedFnDeclsStack?.pop();
     ctx.declaredLocalsStack?.pop();
     ctx.functionScopeStack?.pop();
@@ -355,13 +365,24 @@ function lowerNestedAsSubFlow(
   ctx.declaredLocalsStack?.push(ownLocals);
   const innerHoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
+  const innerSiblingSubFlows = new Set<string>();
+  ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
   enclosingScope.push(
     new Function(identifier, [...innerHoisted, ...body, ...nested], args),
   );
+  // Register this variadic subFlow's name on the ENCLOSING scope's
+  // sibling-subFlow frame. Inner closures in the enclosing scope
+  // will then skip upval capture for this name — see
+  // `siblingSubFlowNamesStack` comment in `LowerContext`.
+  const enclosingSiblingFrame = ctx.siblingSubFlowNamesStack?.at(-1);
+  if (enclosingSiblingFrame && identifier.name) {
+    enclosingSiblingFrame.add(identifier.name);
+  }
   return {};
 }
 
@@ -454,7 +475,10 @@ function lowerPropertyTargetFunctionDefinition(
   ctx.declaredLocalsStack?.push(ownLocals);
   const innerHoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
+  const innerSiblingSubFlows = new Set<string>();
+  ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();

@@ -130,6 +130,24 @@ export interface LowerContext {
    * pushes one buffer on entry and pops on exit.
    */
   hoistedNestedFnDeclsStack?: ParsedObject[][];
+  /**
+   * Stack of per-enclosing-function-scope sibling-subflow names. Holds
+   * the names of nested function declarations that route through
+   * `lowerNestedAsSubFlow` rather than emitting a `local NAME = closure`
+   * binding — currently the variadic-nested-fn case. References to
+   * these names from inner closures must NOT be captured as upvals:
+   * the closure-capture path emits `VariablePointerExpression(NAME)`,
+   * which resolves to nil since NAME is a SubFlow not a variable.
+   * Instead the inner-closure body's references fall through to
+   * `FunctionCall` dispatch, which resolves NAME via ink's relative-
+   * path walk and routes through the static `PackTuple` setup that
+   * variadic dispatch requires.
+   *
+   * Parallel to `functionScopeStack` / `hoistedNestedFnDeclsStack`:
+   * each function-definition lowerer pushes one frame on entry and
+   * pops on exit.
+   */
+  siblingSubFlowNamesStack?: Set<string>[];
 }
 
 // Builds a `LowerContext` from a raw source string. Used by the snapshot

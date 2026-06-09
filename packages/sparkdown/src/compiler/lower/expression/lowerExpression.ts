@@ -848,10 +848,26 @@ export function collectImmediateBodyDeclarations(
       // are scoped to itself). Scope the declaration-name lookup to
       // THIS nested fn's own header — `getDescendent` would otherwise
       // walk into further-nested function bodies.
-      const declName = findOwnDeclarationName(n);
-      if (declName) {
-        const nameNode = getDescendent("LuauFunctionName", declName);
-        if (nameNode) out.add(ctx.read(nameNode.from, nameNode.to));
+      //
+      // EXCEPTION — variadic nested fns (`function NAME(..., ...)`)
+      // are NOT recorded as enclosing-scope locals. Variadic nested
+      // fns route through `lowerNestedAsSubFlow` which only
+      // registers the SubFlow — there's no `local NAME = closureValue`
+      // binding emitted (the variadic call site needs static dispatch
+      // for `PackTuple`, see comment in `lowerLuauFunctionDefinition`).
+      // Recording the name as a local would make `scanFreeVariables`
+      // capture the name as an upval in any sibling closure, then
+      // `VariablePointerExpression(NAME)` would resolve to nil at
+      // runtime since NAME isn't a real variable. Skipping it here
+      // lets the sibling closure's call site fall through to
+      // FunctionCall dispatch, which correctly diverts to the SubFlow
+      // by ink path resolution.
+      if (!hasOwnVariadicParameter(n)) {
+        const declName = findOwnDeclarationName(n);
+        if (declName) {
+          const nameNode = getDescendent("LuauFunctionName", declName);
+          if (nameNode) out.add(ctx.read(nameNode.from, nameNode.to));
+        }
       }
       return;
     }
@@ -871,6 +887,28 @@ export function collectImmediateBodyDeclarations(
     child = child.nextSibling;
   }
   return out;
+}
+
+// Does the immediate `LuauFunctionParameters` of this
+// `LuauFunctionDefinition` contain a `LuauVariadicParameter`?
+// Stop the descent at the params boundary so a nested-fn body
+// containing its own `function inner(...)` doesn't read as variadic.
+function hasOwnVariadicParameter(fnDefNode: SyntaxNode): boolean {
+  let cursor: SyntaxNode | null = fnDefNode.firstChild;
+  while (cursor) {
+    if (cursor.name === "LuauFunctionDefinition_content") {
+      let inner: SyntaxNode | null = cursor.firstChild;
+      while (inner) {
+        if (inner.name === "LuauFunctionParameters") {
+          return !!getDescendent("LuauVariadicParameter", inner);
+        }
+        inner = inner.nextSibling;
+      }
+      break;
+    }
+    cursor = cursor.nextSibling;
+  }
+  return false;
 }
 
 export function scanFreeVariables(
@@ -924,6 +962,22 @@ export function scanFreeVariables(
   // directly without closure capture.
   const isGlobalCallable = (name: string) =>
     ctx.globalCallableNames?.has(name) ?? false;
+  // Is `name` a sibling SubFlow in some enclosing scope? Variadic
+  // nested fns route through `lowerNestedAsSubFlow` and don't emit
+  // a `local NAME = closure` binding — capturing them as upvals
+  // would `VariablePointerExpression(NAME)` to nil at runtime and
+  // also bypasses the static `PackTuple` setup that variadic
+  // dispatch requires. Instead, references fall through to
+  // FunctionCall dispatch at the call site, which resolves NAME via
+  // ink's relative-path walk to the enclosing-scope subFlow.
+  const isSiblingSubFlow = (name: string) => {
+    const stack = ctx.siblingSubFlowNamesStack;
+    if (!stack) return false;
+    for (let i = stack.length - 1; i >= 0; i--) {
+      if (stack[i]!.has(name)) return true;
+    }
+    return false;
+  };
   // Is `name` declared as a local in some enclosing function scope?
   // Walks `ctx.declaredLocalsStack` outermost-first; finding the name
   // anywhere on the stack means the reference is locally shadowed
@@ -952,7 +1006,7 @@ export function scanFreeVariables(
       free.push(name);
       return;
     }
-    if (isStdLibName(name) || isGlobalCallable(name)) return;
+    if (isStdLibName(name) || isGlobalCallable(name) || isSiblingSubFlow(name)) return;
     seenFree.add(name);
     free.push(name);
   };
@@ -1229,7 +1283,10 @@ export function buildAnonymousFunction(
   ctx.declaredLocalsStack?.push(ownLocals);
   const innerHoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
+  const innerSiblingSubFlows = new Set<string>();
+  ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
   const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP);
+  ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();

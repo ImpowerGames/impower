@@ -223,6 +223,12 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // any do/while/for/if block scopes that wrap the in-place
       // assignment.
       const hoistedNestedFnDeclsStack: ParsedObject[][] = [];
+      // Per-chunk stack of "sibling subflow" names — nested function
+      // declarations that route through `lowerNestedAsSubFlow` (variadic
+      // fns) rather than emitting a local-binding closure. References to
+      // these names from inner closures must skip upval capture so the
+      // call site resolves via FunctionCall + static `PackTuple`.
+      const siblingSubFlowNamesStack: Set<string>[] = [];
       const lowered = lower(nodeRef, {
         read: (from, to) => this.read(from, to),
         lineNumber: (pos) =>
@@ -240,6 +246,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         globalCallableNames: this.computeGlobalCallableNames(),
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
+        siblingSubFlowNamesStack,
       });
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;
