@@ -5528,14 +5528,16 @@ repository:
     end: (?={{BEAT}})|(?<=[\)\-{}\[\]"'])
 
   LuauDataTypeDeclaration:
-    # Negative lookahead after `type\b` rejects every call-sugar
-    # shape — `type(x)`, `type{...}`, `type"..."`, `type'...'`,
-    # `type[[...]]` — so the function-call grammar handles them as
-    # stdlib calls. Without the full set, `type{}` was parsed as a
-    # type declaration and the trailing `{}` left as orphan syntax
-    # that ended up as a string literal "table" miscast to Object
-    # at runtime.
-    begin: ({{WS}}*)(?:(export)\b({{WS}}*))?(type)\b(?!{{WS}}*{{LUAU_FUNCTION_CALL_START}})({{WS}}*)
+    # Positive lookahead `(?={{WS}}+{{LUAU_IDENTIFIER}})` requires
+    # `type` to be followed by whitespace + an identifier (the type
+    # alias being defined — `type Foo = number`). Without this,
+    # bare `type` in expression position (`type(type)`,
+    # `local f = type`) is misparsed as the start of a type
+    # declaration, leaving the actual stdlib reference unresolved.
+    # Negative lookahead `(?!{{WS}}*{{LUAU_FUNCTION_CALL_START}})`
+    # is now redundant — kept for safety in case of grammar
+    # interaction with surrounding rules.
+    begin: ({{WS}}*)(?:(export)\b({{WS}}*))?(type)\b(?={{WS}}+{{LUAU_IDENTIFIER}})(?!{{WS}}*{{LUAU_FUNCTION_CALL_START}})({{WS}}*)
     beginCaptures:
       1:
         patterns:

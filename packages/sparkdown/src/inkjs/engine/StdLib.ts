@@ -171,12 +171,36 @@ export function coerceString(v: any): string | null {
 export function luauTypeOf(v: any): string {
   if (v == null) return "nil";
   if (typeof v === "object" && "value" in v) {
+    // Callable values get reported as "function" before the generic
+    // object-as-table fallback below. Closure-shaped ObjectValues
+    // (anonymous fn with upvalues) carry a `__closure_fn` key in
+    // their .value Map; DivertTargetValue (bare knot reference, no
+    // upvalues) and VariablePointerValue (function held by a local)
+    // are detected via constructor name to avoid the import cycle
+    // these runtime files have with Value.ts.
+    const ctorName = v?.constructor?.name;
+    if (
+      ctorName === "DivertTargetValue" ||
+      ctorName === "VariablePointerValue"
+    ) {
+      return "function";
+    }
     const raw = (v as any).value;
     if (raw == null) return "nil";
     if (typeof raw === "number") return "number";
     if (typeof raw === "string") return "string";
     if (typeof raw === "boolean") return "boolean";
-    if (raw instanceof Map || typeof raw === "object") return "table";
+    if (raw instanceof Map) {
+      if (raw.has("__closure_fn")) return "function";
+      // Stdlib-fn sentinel: when a bare stdlib name (`type`, `assert`,
+      // `print`, ...) is referenced as a value (not called), the
+      // runtime falls back to an ObjectValue carrying this marker so
+      // `type(type)` / `type(assert)` correctly report "function"
+      // (rather than "table" or "nil").
+      if (raw.has("__stdlib_fn")) return "function";
+      return "table";
+    }
+    if (typeof raw === "object") return "table";
   }
   if (typeof v === "number") return "number";
   if (typeof v === "string") return "string";
@@ -4256,6 +4280,13 @@ export function lookupStateAwareStdLib(name: string): StdLibEntry | null {
   const entry = STDLIB[name];
   if (entry == null || entry.pure) return null;
   return entry;
+}
+
+// True when `name` is a known stdlib function (state-aware or pure).
+// Used by the runtime variable-lookup fallback to push a callable
+// sentinel for `type(type) == 'function'`-style references.
+export function isStdLibFunctionName(name: string): boolean {
+  return STDLIB[name] != null;
 }
 
 // Normalize an entry's `pure` field to a concrete list of operand

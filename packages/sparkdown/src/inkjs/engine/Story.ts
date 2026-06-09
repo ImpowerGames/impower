@@ -29,6 +29,7 @@ import { VariableReference } from "./VariableReference";
 import { NativeFunctionCall } from "./NativeFunctionCall";
 import {
   BUILTIN_ITER_TAG,
+  isStdLibFunctionName,
   lookupStateAwareStdLib,
   stepBuiltinIterator,
 } from "./StdLib";
@@ -2715,6 +2716,20 @@ export class Story extends InkObject {
           if (knotContainer && knotContainer.path) {
             foundValue = new DivertTargetValue(knotContainer.path);
           }
+        }
+
+        // Stdlib-function-name fallback: `type`, `assert`, `print`,
+        // etc. are Luau globals that the user can reference as
+        // values (`local f = type; f(x)` / `type(type) == 'function'`).
+        // No real ink variable exists for them, so push a marker
+        // ObjectValue tagged `__stdlib_fn` so `luauTypeOf` reports
+        // "function". Actual call dispatch on the marker (`f(x)`)
+        // is a separate fix — for now the marker covers the
+        // type-inspection cases at least.
+        if (foundValue == null && varRef.name && isStdLibFunctionName(varRef.name)) {
+          const marker = new Map<string, AbstractValue>();
+          marker.set("__stdlib_fn", new StringValue(varRef.name));
+          foundValue = new ObjectValue(marker);
         }
 
         if (foundValue == null) {
