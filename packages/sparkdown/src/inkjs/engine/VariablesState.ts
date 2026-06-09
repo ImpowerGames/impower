@@ -314,6 +314,18 @@ export class VariablesState extends VariablesStateAccessor<
   public GetRawVariableWithName(name: string | null, contextIndex: number) {
     let varValue: InkObject | null = null;
 
+    // Luau-superset semantics: locals shadow globals. Check the
+    // call-stack temporaries FIRST, then fall back to globals / list
+    // items if nothing's in scope. Ink's original order was
+    // globals-first (because ink temps were rare `~temp` declarations
+    // scoped to knots, never overlapping with global names), but
+    // sparkdown's `local x = …` is the common case and must shadow
+    // any same-named global. See `do local g = … end` patterns in
+    // calls.luau (line 22–31) which previously read the OUTER global
+    // `g = false` from inside the do-block.
+    varValue = this._callStack.GetTemporaryVariableWithName(name, contextIndex);
+    if (varValue != null) return varValue;
+
     if (contextIndex == 0 || contextIndex == -1) {
       let variableValue = null;
       if (this.patch !== null) {
@@ -340,9 +352,7 @@ export class VariablesState extends VariablesStateAccessor<
       if (listItemValue) return listItemValue;
     }
 
-    varValue = this._callStack.GetTemporaryVariableWithName(name, contextIndex);
-
-    return varValue;
+    return null;
   }
 
   public ValueAtVariablePointer(pointer: VariablePointerValue) {
@@ -366,7 +376,19 @@ export class VariablesState extends VariablesStateAccessor<
     if (varAss.isNewDeclaration) {
       setGlobal = varAss.isGlobal;
     } else {
-      setGlobal = this.GlobalVariableExistsWithName(name);
+      // Luau-superset semantics: a temp variable shadows any
+      // same-named global for both READ and WRITE. Without this
+      // check, `g = false; do local g = nil; g = closure end` writes
+      // the closure to the GLOBAL `g` (because the global exists)
+      // instead of updating the local TEMP — breaking `local
+      // function g(...)` self-recursive declarations whose two-step
+      // (declareNil + assignClosure) lowering relies on the closure
+      // landing in the temp slot. Only fall back to the global path
+      // when no temp with this name is in scope.
+      const tempExists =
+        this._callStack.GetTemporaryVariableWithName(name, contextIndex) !==
+        null;
+      setGlobal = !tempExists && this.GlobalVariableExistsWithName(name);
     }
 
     if (varAss.isNewDeclaration) {
