@@ -4,15 +4,38 @@ import { ConstantDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierar
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
+import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
+import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
+import { lower } from "../lower";
 import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import { wrapInWeave } from "../utils/wrapInWeave";
+
+// Statement-like nodes that can appear as siblings inside a
+// `LuauVariableDefinition_content` when sparkdown's grammar's
+// permissive expression-pattern set lets multiple statements share
+// a single source line — e.g. `local x = 5 return x end`. The
+// grammar parses these correctly; the lowerer must recognize them
+// as ADJACENT statements rather than mis-treating them as trailing
+// multi-RHS values.
+const TRAILING_STATEMENT_NAMES: ReadonlySet<string> = new Set([
+  "LuauReturnStatement",
+  "LuauBreakStatement",
+  "LuauContinueStatement",
+  "LuauGotoStatement",
+  "LuauLabel",
+  "LuauFunctionDefinition",
+  "LuauVariableDefinition",
+  "LuauUntilStatement",
+  "LuauReassignment",
+  "LuauExplicitStatement",
+]);
 
 export function lowerVariableDefinition(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -42,6 +65,12 @@ export function lowerVariableDefinition(
   const trailingRhsGroups: SyntaxNode[][] = [];
   let sawAssignmentOp = false;
   let currentRhsGroup: SyntaxNode[] = [];
+  // When the grammar accepts multiple statements on one line (e.g.
+  // `local x = 5 return x end`), the LuauVariableDefinition_content
+  // captures siblings BEYOND the variable assignment — they're
+  // adjacent statements, not trailing multi-RHS values. Collect them
+  // into `trailingStatements` and lower them after the VA below.
+  const trailingStatements: SyntaxNode[] = [];
 
   if (contentNode) {
     let child = contentNode.firstChild;
@@ -76,6 +105,24 @@ export function lowerVariableDefinition(
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
         }
+        child = child.nextSibling;
+        continue;
+      }
+      // Statement-like node — sparkdown's grammar lets these share a
+      // single source line with the variable definition (e.g.
+      // `local x = 5 return x end`). The VA captures everything up
+      // to (but not including) the statement; the statement itself
+      // is a sibling that needs its own lowering pass.
+      if (TRAILING_STATEMENT_NAMES.has(child.name)) {
+        // Flush any partial RHS group first — `local a, b = 1 return x`
+        // shouldn't be possible in valid Luau, but if it appears we
+        // treat the RHS slot as complete and the statement as a
+        // sibling.
+        if (currentRhsGroup.length > 0) {
+          trailingRhsGroups.push(currentRhsGroup);
+          currentRhsGroup = [];
+        }
+        trailingStatements.push(child);
         child = child.nextSibling;
         continue;
       }
@@ -115,9 +162,13 @@ export function lowerVariableDefinition(
   // either form for `const`).
   if (scope === "const") {
     if (targets.length !== 1 || expressions.length !== 1) return {};
-    return wrapInWeave([
-      new ConstantDeclaration(new Identifier(lastTarget.name), expressions[0]!),
-    ]);
+    return wrapInWeave(
+      withTrailingStatements(
+        [new ConstantDeclaration(new Identifier(lastTarget.name), expressions[0]!)],
+        trailingStatements,
+        ctx,
+      ),
+    );
   }
 
   // Multi-target. Two paths:
@@ -140,9 +191,13 @@ export function lowerVariableDefinition(
   if (targets.length > 1) {
     if (scope === "local") {
       const targetIdents = targets.map((t) => new Identifier(t.name));
-      return wrapInWeave([
-        new MultiVariableAssignment(targetIdents, expressions, true),
-      ]);
+      return wrapInWeave(
+        withTrailingStatements(
+          [new MultiVariableAssignment(targetIdents, expressions, true)],
+          trailingStatements,
+          ctx,
+        ),
+      );
     }
     if (scope === "store") {
       const vas = targets.map((t, i) => {
@@ -153,7 +208,7 @@ export function lowerVariableDefinition(
           isGlobalDeclaration: true,
         });
       });
-      return wrapInWeave(vas);
+      return wrapInWeave(withTrailingStatements(vas, trailingStatements, ctx));
     }
     // `const a, b = …` — not supported.
     return {};
@@ -184,7 +239,36 @@ export function lowerVariableDefinition(
     isTemporaryNewDeclaration: isTemp,
   });
 
-  return wrapInWeave([va]);
+  return wrapInWeave(withTrailingStatements([va], trailingStatements, ctx));
+}
+
+// Lower each trailing-statement node via the main `lower()` dispatcher
+// and append the resulting ParsedObjects to the head list. Used when
+// the grammar's permissive content rules let a `LuauVariableDefinition`
+// share a source line with following statements (e.g.
+// `local x = 5 return x end` — the `return x` is a sibling, not part
+// of the RHS).
+function withTrailingStatements(
+  head: ParsedObject[],
+  trailingStatements: SyntaxNode[],
+  ctx: LowerContext,
+): ParsedObject[] {
+  if (trailingStatements.length === 0) return head;
+  const out: ParsedObject[] = [...head];
+  for (const stmt of trailingStatements) {
+    const block = lower(stmt as unknown as SparkdownSyntaxNodeRef, ctx);
+    if (!block?.content) continue;
+    for (const obj of block.content) {
+      // Unwrap inner Weave returned by some statement lowerers so
+      // every entry in the final Weave is a leaf statement.
+      if (obj instanceof Weave) {
+        for (const inner of obj.content) out.push(inner);
+      } else {
+        out.push(obj);
+      }
+    }
+  }
+  return out;
 }
 
 function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
