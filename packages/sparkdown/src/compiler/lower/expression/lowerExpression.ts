@@ -950,8 +950,16 @@ export function scanFreeVariables(
     // `LuauVariableName` lives inside both binding sites and
     // reference sites. We only want REFERENCES — these appear under
     // `LuauVariable` (which is itself under `LuauAccessPart`).
+    // `self` is tagged as `LuauSelfKeyword` inside `LuauVariable`,
+    // so include it in the fallback chain — without this, an
+    // inner anonymous function inside a colon-method body
+    // (`function t:m() return (function() return self.f end)() end`)
+    // wouldn't capture `self` as an upval and the runtime would
+    // resolve it to nil.
     if (n.name === "LuauVariable") {
-      const nameNode = getDescendent("LuauVariableName", n);
+      const nameNode =
+        getDescendent("LuauVariableName", n) ??
+        getDescendent("LuauSelfKeyword", n);
       if (!nameNode) return;
       maybeCaptureFree(ctx.read(nameNode.from, nameNode.to));
       return;
@@ -1094,7 +1102,13 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
   "tostring", "type", "typeof", "unpack", "xpcall",
   // Keywords / control (shouldn't be referenced as values but just in case)
   "true", "false", "nil",
-  "self", // method receiver
+  // NOTE: `self` is NOT in this set. It's an implicit method receiver
+  // parameter (for colon-form methods) or an ordinary user parameter
+  // — never a stdlib-resolved global. When a nested closure inside a
+  // method body references `self`, it must be captured as an upval
+  // pointing at the outer frame's parameter slot. Treating it as a
+  // stdlib name would block that capture and the inner closure would
+  // see nil at runtime.
 ]);
 
 function isStdLibName(name: string): boolean {

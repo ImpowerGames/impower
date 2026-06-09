@@ -407,6 +407,10 @@ function lowerPropertyTargetFunctionDefinition(
   if (!finalInner) return {};
 
   // Determine the form (dot vs colon) and extract the method name.
+  // `LuauFunctionAccessor` covers BOTH `.name(` and `:name(` shapes
+  // (the grammar tags accessors as LuauFunctionAccessor whenever a
+  // call-start follows the name) — so dispatch on the actual operator
+  // text, not the node name.
   let methodName: string | null = null;
   let isColonForm = false;
   if (finalInner.name === "LuauPropertyAccessor") {
@@ -415,7 +419,9 @@ function lowerPropertyTargetFunctionDefinition(
       getDescendent("LuauStdLibMethods", finalInner);
     if (nameNode) methodName = ctx.read(nameNode.from, nameNode.to);
   } else if (finalInner.name === "LuauFunctionAccessor") {
-    isColonForm = true;
+    const opNode = getDescendent("LuauAccessorOperator", finalInner);
+    const opText = opNode ? ctx.read(opNode.from, opNode.to).trim() : ".";
+    isColonForm = opText === ":";
     const nameNode = getDescendent("LuauFunctionName", finalInner);
     if (nameNode) methodName = ctx.read(nameNode.from, nameNode.to);
   }
