@@ -2213,18 +2213,23 @@ export const STDLIB: Record<string, StdLibEntry> = {
       ),
   },
   collectgarbage: {
+    // No-op stub: sparkdown runs on JavaScript's GC, so user code
+    // can't force collection or query memory. We accept the call
+    // shapes (`collectgarbage()`, `collectgarbage("collect")`,
+    // `collectgarbage("count")`, etc.) and return 0 so Luau test
+    // suites that sprinkle GC calls between assertions run cleanly —
+    // those tests use the calls to provoke specific upvalue-capture
+    // and weak-reference timing, not to require the collector to do
+    // anything concrete. Returning 0 for `"count"` is a safe
+    // approximation (memory tracking isn't available in the harness).
     arity: -1,
-    fn: (story) =>
-      story.Error(
-        "collectgarbage: not implemented in sparkdown (JS runtime has no GC hook)",
-      ),
+    fn: () => 0,
   },
   gcinfo: {
+    // No-op stub: pre-Luau alias for `collectgarbage("count")`.
+    // See `collectgarbage` rationale above.
     arity: -1,
-    fn: (story) =>
-      story.Error(
-        "gcinfo: not implemented in sparkdown (JS runtime has no GC hook)",
-      ),
+    fn: () => 0,
   },
   getfenv: {
     arity: -1,

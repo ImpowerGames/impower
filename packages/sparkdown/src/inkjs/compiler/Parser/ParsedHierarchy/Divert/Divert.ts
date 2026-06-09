@@ -407,6 +407,32 @@ export class Divert extends ParsedObject {
     }
 
     if (!targetWasFound && !isBuiltIn && !isExternal) {
+      // Luau-superset semantics: a bare `NAME(args)` call lowers to a
+      // Divert(-> NAME) with `isFunctionCall = true`. If NAME doesn't
+      // resolve to a knot at compile time, Luau allows the call to
+      // proceed — the runtime resolves the global, and a missing one
+      // fails at call time rather than compile time. Promote
+      // single-component unresolved CALL targets to variable-target
+      // diverts so the runtime variable-divert path takes over (it
+      // handles closures, `__stdlib_fn` markers, `__call` metatables,
+      // etc.).
+      //
+      // Ink-style standalone diverts (`-> nowhere`) keep the compile-
+      // time error — those are explicit divert-to-knot syntax with no
+      // Luau equivalent, and silently routing them to the runtime
+      // would hide genuine typos in ink stories. The `isFunctionCall`
+      // flag distinguishes the two: it's set when the call site was
+      // `foo()` (or `func foo()` etc.), false when it was `-> foo`.
+      // Multi-component paths also stay as errors — they look like
+      // knot navigation that genuinely failed (`-> a.b.c`).
+      if (
+        this.isFunctionCall &&
+        this.target.numberOfComponents === 1 &&
+        this.target.firstComponent
+      ) {
+        this.runtimeDivert.variableDivertName = this.target.firstComponent;
+        return;
+      }
       this.Error(
         `target not found: \`${this.target}\``,
         this.pathIdentifiers ? new Identifier(...this.pathIdentifiers) : this,
