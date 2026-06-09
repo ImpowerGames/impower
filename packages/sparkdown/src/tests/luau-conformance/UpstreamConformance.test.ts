@@ -71,6 +71,17 @@ const SKIP_FILES = new Set([
   // vs surrounding-context interaction, but the fixture itself is
   // mostly untestable under Luau either way.
   "locals.luau",
+  // classes.luau exercises a `class Name ... end` syntax that isn't
+  // in production Luau — it's a proposed/RFC feature being prototyped
+  // in upstream's conformance suite (file starts with `--!nocheck`
+  // since the typechecker can't validate it either). Sparkdown
+  // intentionally takes a different OOP path: `define Name with ...
+  // end` (see `project_define_is_class_sugar.md`), which desugars to
+  // class-like behaviour via the existing struct/inheritance
+  // machinery. We'd implement OOP-conformance fixtures against
+  // `define` if we wrote them; the upstream `class`-syntax fixture
+  // doesn't apply.
+  "classes.luau",
 ]);
 
 type FileResult = {
