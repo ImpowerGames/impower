@@ -2362,7 +2362,19 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const callArgs = args.slice(1) as AbstractValue[];
       const result = story.CallLuauFunctionProtected(fn, callArgs);
       if (result.ok) {
-        return new MultiValue([new BoolValue(true), ...result.values]);
+        // Flatten any inner MultiValue from the call's return. The
+        // protected callee that did `return 1, 2, 3` left a single
+        // MultiValue on the eval stack (via PackTuple at the
+        // return); `result.values` is then `[MV([1, 2, 3])]`. To
+        // give pcall's caller `(true, 1, 2, 3)` rather than
+        // `(true, MultiValue)`, splice the MultiValue's inner
+        // values into the result here.
+        const flat: AbstractValue[] = [new BoolValue(true)];
+        for (const v of result.values) {
+          if (v instanceof MultiValue) flat.push(...v.values);
+          else flat.push(v);
+        }
+        return new MultiValue(flat);
       }
       return new MultiValue([
         new BoolValue(false),

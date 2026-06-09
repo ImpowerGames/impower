@@ -2668,6 +2668,28 @@ export class Story extends InkObject {
               values.unshift(v);
             }
           }
+          // Variadic call-site spread when extras = 0: the
+          // SYNTACTICALLY LAST expression is the call's last regular
+          // arg (already pushed before this PackTuple). If it's a
+          // MultiValue, spread it so its first inner value stays as
+          // the regular arg and the rest land in the vararg
+          // MultiValue we're building. E.g. `f(pcall(...))` against
+          // `function f(head, ...)`: pcall returns
+          // `MultiValue([true, nil])` → head=true, ...=(nil).
+          if (n === 0 && this.state.evaluationStack.length > 0) {
+            const peeked = this.state.PeekEvaluationStack();
+            if (peeked instanceof MultiValue) {
+              this.state.PopEvaluationStack();
+              if (peeked.values.length > 0) {
+                this.state.PushEvaluationStack(peeked.values[0]!);
+                for (let k = 1; k < peeked.values.length; k++) {
+                  values.push(peeked.values[k]!);
+                }
+              } else {
+                this.state.PushEvaluationStack(new NullValue());
+              }
+            }
+          }
           this.state.PushEvaluationStack(new MultiValue(values));
           break;
         }
@@ -3391,6 +3413,15 @@ export class Story extends InkObject {
       const results: AbstractValue[] = [];
       while (this.state.evaluationStack.length > savedEvalLen) {
         results.unshift(this.state.PopEvaluationStack() as AbstractValue);
+      }
+      // Empty-return functions push a `Void` sentinel at PopFunction
+      // time. From pcall's perspective that's "the function returned
+      // zero values" — so `pcall(function() end)` returns just
+      // `(true)` rather than `(true, void)`. Strip leading Voids so
+      // the wrapping `MultiValue([true, ...values])` in `pcall` /
+      // `xpcall` reflects the actual return count Lua sees.
+      while (results.length > 0 && results[0] instanceof Void) {
+        results.shift();
       }
       return { ok: true, values: results };
     } finally {
