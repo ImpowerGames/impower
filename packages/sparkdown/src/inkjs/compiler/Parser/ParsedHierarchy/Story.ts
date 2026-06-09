@@ -596,9 +596,19 @@ export class Story extends FlowBase {
 
     const knotOrFunction = asOrNull(maybeKnotOrFunction, FlowBase);
 
+    // Luau-superset semantics: function parameters (Arg) and local
+    // variables (Temp) may shadow top-level knot/function names. This
+    // matters for closure upvalues — `scanFreeVariables` captures any
+    // referenced top-level callable as an upval, which is then
+    // prepended to the synthetic closure's parameter list. Original
+    // ink errored on parameter/local names colliding with knots; that
+    // breaks `local function f() ... concat(...) end` whenever `concat`
+    // is itself a top-level function (basic.luau line 4).
     if (
       knotOrFunction &&
-      (knotOrFunction !== obj || symbolType === SymbolType.Arg)
+      knotOrFunction !== obj &&
+      symbolType !== SymbolType.Arg &&
+      symbolType !== SymbolType.Temp
     ) {
       if (obj instanceof Stitch && knotOrFunction.identifier) {
         this.NameConflictError(
@@ -689,15 +699,24 @@ export class Story extends FlowBase {
     }
 
     // Stitches, Choices and Gathers
-    const path = new Path(identifier);
-    const targetContent = path.ResolveFromContext(obj);
-    if (targetContent && targetContent !== obj) {
-      this.NameConflictError(
-        obj,
-        identifier,
-        targetContent?.identifier || targetContent,
-      );
-      return;
+    // Skip path-resolution shadowing for Arg/Temp: Luau-superset
+    // semantics allow function parameters and local variables to
+    // shadow any callable, including stitches and gather labels.
+    // Closure upvalues are added as synthetic parameters, so without
+    // this exception any upval named after a top-level knot or stitch
+    // (e.g. a body that references `concat` when there's a
+    // `function concat(...)` at file scope) would error here.
+    if (symbolType !== SymbolType.Arg && symbolType !== SymbolType.Temp) {
+      const path = new Path(identifier);
+      const targetContent = path.ResolveFromContext(obj);
+      if (targetContent && targetContent !== obj) {
+        this.NameConflictError(
+          obj,
+          identifier,
+          targetContent?.identifier || targetContent,
+        );
+        return;
+      }
     }
 
     if (symbolType < SymbolType.Arg) {
