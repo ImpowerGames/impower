@@ -1100,7 +1100,29 @@ export class SparkdownCompiler {
   }
 
   populateLocations(program: SparkProgram, obj: InkObject) {
-    const metadata = obj?.ownDebugMetadata;
+    // Prefer the object's OWN metadata when set — it's the most
+    // specific source range. Fall back to inherited metadata (walks
+    // parent chain) so every path in the bytecode gets a location
+    // entry, even when individual ControlCommands inside a parent
+    // Container weren't stamped by the lowerer. Inherited entries
+    // are coarser (point at the enclosing statement or function),
+    // but they let runtime consumers (like the conformance harness's
+    // `error()` formatter) recover at least the enclosing-scope
+    // line from a deeply nested ControlCommand's path.
+    //
+    // KNOWN LIMITATION (worth a focused investigation): for Luau-
+    // lowered function bodies, every ControlCommand inside the
+    // function's runtime container ends up with the SAME stamped
+    // metadata — the function-definition node's range, not the
+    // individual statement's. The lowerer's per-statement
+    // `stampDebugMetadata` call sets it on the top-level
+    // ParsedObjects, but the metadata-propagation pass at runtime
+    // generation (`ParsedObject.runtimeObject` getter) appears to
+    // overwrite or collapse to the enclosing function's metadata
+    // for inner items. Until that's untangled, the `error()`
+    // formatter reports the enclosing function's start line rather
+    // than the actual call site.
+    const metadata = obj?.ownDebugMetadata ?? obj?.debugMetadata;
     if (metadata) {
       const uri = metadata.filePath ?? program.uri;
       const scriptIndex = Object.keys(program.scripts).indexOf(uri || "");
