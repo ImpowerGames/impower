@@ -1504,11 +1504,15 @@ export function lowerSimpleAccessPath(
         // alongside the regular `LuauVariableName` capture. Look
         // for any of the three so paths like `math.pi`,
         // `utf8.charpattern`, and standalone `_VERSION` all feed
-        // into the constant short-circuit below.
+        // into the constant short-circuit below. `self` is tagged
+        // as `LuauSelfKeyword` — treat it as a plain identifier so
+        // colon-method bodies' `self` reads resolve to the prepended
+        // parameter.
         const nameNode =
           getDescendent("LuauVariableName", inner) ??
           getDescendent("LuauStdLibConstants", inner) ??
-          getDescendent("LuauStdLibGlobals", inner);
+          getDescendent("LuauStdLibGlobals", inner) ??
+          getDescendent("LuauSelfKeyword", inner);
         if (nameNode) {
           identifiers.push(
             new Identifier(ctx.read(nameNode.from, nameNode.to)),
@@ -1626,7 +1630,9 @@ export function lowerValueChainAccessPath(
       const inner = parts[i]!.firstChild;
       if (!inner) continue;
       if (inner.name === "LuauVariable") {
-        const nameNode = getDescendent("LuauVariableName", inner);
+        const nameNode =
+          getDescendent("LuauVariableName", inner) ??
+          getDescendent("LuauSelfKeyword", inner);
         if (nameNode) {
           leading.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
         }

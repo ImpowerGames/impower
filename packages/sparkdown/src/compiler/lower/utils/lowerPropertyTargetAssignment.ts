@@ -170,10 +170,13 @@ function lowerBaseFromParts(
   // The base identifier can be tagged as either a plain `LuauVariableName`
   // or a `LuauStdLibConstants` (for stdlib namespaces like `lang`, `count`).
   // Both are valid roots for a property-target assignment — e.g.
-  // `lang.current = "ar"` must write into the `lang` store.
+  // `lang.current = "ar"` must write into the `lang` store. `self`
+  // (tagged as `LuauSelfKeyword`) is also a valid base — needed for
+  // `self.property = value` inside colon-form method bodies.
   const nameNode =
     getDescendent("LuauStdLibConstants", firstInner) ??
-    getDescendent("LuauVariableName", firstInner);
+    getDescendent("LuauVariableName", firstInner) ??
+    getDescendent("LuauSelfKeyword", firstInner);
   if (!nameNode) return null;
   current = new VariableReference([
     new Identifier(ctx.read(nameNode.from, nameNode.to)),
