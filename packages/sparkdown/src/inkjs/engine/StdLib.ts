@@ -2071,7 +2071,16 @@ export const STDLIB: Record<string, StdLibEntry> = {
   error: {
     arity: 1,
     fn: (story, [msg]) => {
-      const message = coerceString(msg) ?? "error";
+      const raw = coerceString(msg) ?? "error";
+      // Hook for hosts that want to inject `<source>:<line>: `
+      // prefix into the message (Luau-spec format used by the
+      // conformance test suite). Production hosts (LSP) leave the
+      // formatter unset — source/line is surfaced through the
+      // diagnostic UI separately, so a prefix in the message body
+      // would be redundant.
+      const message = story.errorMessageFormatter
+        ? story.errorMessageFormatter(story, raw)
+        : raw;
       // `story.Error` THROWS (raises a `StoryException`), so it's
       // trappable by `pcall`. `story.AddError` would call
       // `ForceEnd`, wiping the call stack and defeating pcall's

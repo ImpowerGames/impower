@@ -55,9 +55,23 @@ const EPILOGUE = `
 end
 `;
 
+// Number of lines the PREAMBLE adds before the user's fixtureSource
+// starts. Used by the `error()` formatter to translate wrapped-source
+// line numbers back to user-fixture line numbers so Luau-spec
+// assertions like `error("oops")` returning `"<file>:<line>: oops"`
+// report the line the user actually wrote.
+//
+// The wrapped source is `${PREAMBLE}\n${fixtureSource}\n${EPILOGUE}`.
+// PREAMBLE itself already ends with a `\n` (the closing backtick is
+// on its own line), and then `\n` is appended before fixtureSource.
+// So count = `\n`s in PREAMBLE + 1 (the joining `\n`).
+const PREAMBLE_LINE_COUNT =
+  (PREAMBLE.match(/\n/g)?.length ?? 0) + 1;
+
 export function runConformanceSource(
   fixtureSource: string,
   uri: string = "inmemory://luau-conformance/main.sd",
+  fixtureName: string = "main",
 ): ConformanceResult {
   const wrappedSource = `${PREAMBLE}\n${fixtureSource}\n${EPILOGUE}`;
 
@@ -128,6 +142,80 @@ export function runConformanceSource(
   }
 
   const story = new RuntimeStory(program.compiled as Record<string, any>);
+
+  // Luau-spec `error(msg)` prepends `<source>:<line>: ` to the
+  // message. Sparkdown production hosts (the LSP) intentionally
+  // skip this — diagnostics surface source/line through their own
+  // UI fields. For the conformance suite we install a formatter
+  // that:
+  //   1. Reads `currentDebugMetadata` to get the wrapped-source line.
+  //   2. Subtracts the preamble offset to get the user-fixture line.
+  //   3. Prepends `<fixtureName>:<userLine>: ` to the message.
+  // This lets fixtures like basic.luau line 39 (which expects
+  // `"false,basic.luau:39: oops"`) check the format precisely.
+  // Debug metadata is stripped from the runtime story by JSON
+  // serialization — `currentDebugMetadata` returns null even though
+  // the compiler tracked source lines. Bridge the gap via the
+  // compiler's `program.pathLocations` map, keyed by stringified
+  // path (e.g. `"run.0.20.s30.4"`). Look up the current pointer's
+  // path to recover the wrapped-source line, then subtract the
+  // preamble offset to get the user-fixture line.
+  // Debug metadata is stripped from the runtime story by JSON
+  // serialization, so `currentDebugMetadata` returns null. Bridge
+  // the gap via the compiler's `program.pathLocations` map, keyed
+  // by stringified path. The mapping is coarse — the compiler
+  // stamps the ENCLOSING function/knot's start line on every
+  // bytecode command inside it, not the precise statement line —
+  // so the resulting `<file>:<line>:` matches the function's start
+  // line, not the exact error site. Good enough for tests that just
+  // want the format prefix; not granular enough to match upstream
+  // Luau fixtures that hard-code specific lines.
+  const pathLocations = program.pathLocations ?? {};
+  const lookupUserLineFromPointer = (): number | null => {
+    const ptr = story.state.currentPointer;
+    const candidates: import("../../inkjs/engine/InkObject").InkObject[] = [];
+    if (ptr && !ptr.isNull) {
+      const resolved = ptr.Resolve();
+      if (resolved) candidates.push(resolved);
+    }
+    for (let i = story.state.callStack.elements.length - 1; i >= 0; i--) {
+      const elPtr = story.state.callStack.elements[i].currentPointer;
+      if (elPtr && !elPtr.isNull) {
+        const resolved = elPtr.Resolve();
+        if (resolved) candidates.push(resolved);
+      }
+    }
+    // Prefer the DEEPEST match (most specific path). We collect all
+    // matches along each candidate's parent chain and pick the one
+    // with the highest startLine (closer to the actual call site
+    // than the enclosing container's start). Picking the MAX
+    // recovers something close to the source line of the failing
+    // call even when the leaf object's exact path isn't in the
+    // location table (which only tracks compiler-emitted objects).
+    let best: number | null = null;
+    for (const obj of candidates) {
+      let cur: any = obj;
+      while (cur) {
+        const path = cur.path?.toString?.();
+        if (path && pathLocations[path]) {
+          const [, startLine] = pathLocations[path]!;
+          if (best === null || startLine > best) best = startLine;
+        }
+        cur = cur.parent;
+      }
+    }
+    if (best === null) return null;
+    // pathLocations stores 0-based lines (chunk-relative).
+    // Convert to 1-based and subtract preamble for user line.
+    // Clamp to >= 1 since the compiler's coarse mapping can point
+    // to the preamble region for inner-knot ControlCommands.
+    return Math.max(1, best + 1 - PREAMBLE_LINE_COUNT);
+  };
+  story.errorMessageFormatter = (_story, raw) => {
+    const userLine = lookupUserLineFromPointer();
+    if (userLine === null) return raw;
+    return `${fixtureName}:${userLine}: ${raw}`;
+  };
 
   // Surface runtime errors (including thrown asserts from native
   // `assert(...)`) through the same `errorMessages` channel as

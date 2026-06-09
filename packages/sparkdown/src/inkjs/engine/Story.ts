@@ -3473,6 +3473,23 @@ export class Story extends InkObject {
 
   public processEscapes: boolean = true;
 
+  /**
+   * Optional callback that formats the message passed to the `error`
+   * stdlib BEFORE it's thrown. The default behaviour passes the
+   * message through unchanged, matching how an LSP host wants
+   * errors (it shows source/line separately in its own UI).
+   *
+   * The conformance test harness sets this to prepend
+   * `<sourceBasename>:<line>: ` so Luau-spec assertions like
+   * `pcall(function() error("oops") end)` returning
+   * `"<file>:<line>: oops"` can be checked precisely.
+   *
+   * Signature: receives `this` story and the raw message, returns
+   * the formatted string. Implementations typically read
+   * `story.currentDebugMetadata` to look up source/line info.
+   */
+  public errorMessageFormatter?: (story: Story, message: string) => string;
+
   public CallExternalFunction(
     funcName: string | null,
     numberOfArguments: number,

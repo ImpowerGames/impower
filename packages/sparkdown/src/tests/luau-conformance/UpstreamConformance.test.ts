@@ -120,7 +120,10 @@ describe("Luau upstream conformance baseline", () => {
       const source = readFileSync(join(UPSTREAM_ROOT, f), "utf8");
       let outcome: FileResult;
       try {
-        const r = runConformanceSource(source);
+        // Pass the fixture filename so the harness's
+        // `errorMessageFormatter` can build Luau-spec error prefixes
+        // like `basic.luau:39: oops`.
+        const r = runConformanceSource(source, undefined, f);
         let status: FileResult["status"];
         if (r.errorMessages.length > 0) {
           // Classify by the FIRST message — primary cause. `AddError`
