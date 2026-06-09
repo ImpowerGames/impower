@@ -869,6 +869,34 @@ export function collectImmediateBodyDeclarations(
       const ids = collectVarDefIdentifiers(n, ctx);
       for (const id of ids) out.add(id);
     }
+    // Numeric `for var = start, stop[, step] do ... end` and generic
+    // `for k, v in iter do ... end` both implicitly declare loop
+    // variables. They're not LuauVariableDefinition nodes (the for
+    // grammar embeds them inside `LuauForCondition`), so without this
+    // branch they wouldn't appear in the enclosing function's
+    // declared-locals set. That bit `scanFreeVariables` inside an
+    // anonymous function whose body contains a for-loop: the loop
+    // variable would be misclassified as a free variable, captured
+    // as an upval, and end up duplicating the for-loop's own
+    // binding.
+    if (n.name === "LuauForLoop" || n.name === "LuauGenericForLoop") {
+      const condNode = getDescendent("LuauForCondition", n);
+      if (condNode) {
+        const stack: SyntaxNode[] = [condNode];
+        while (stack.length > 0) {
+          const cur = stack.pop()!;
+          if (cur.name === "LuauVariableName") {
+            out.add(ctx.read(cur.from, cur.to));
+            continue;
+          }
+          let c = cur.firstChild;
+          while (c) {
+            stack.push(c);
+            c = c.nextSibling;
+          }
+        }
+      }
+    }
     let c = n.firstChild;
     while (c) {
       walk(c);
@@ -939,6 +967,31 @@ export function scanFreeVariables(
       if (declName) {
         const nameNode = getDescendent("LuauFunctionName", declName);
         if (nameNode) bound.add(ctx.read(nameNode.from, nameNode.to));
+      }
+    }
+    // Numeric / generic for-loops implicitly declare loop variables
+    // that aren't `LuauVariableDefinition` nodes. Without binding
+    // them here, `for b=1,9 do ... end` inside a closure body would
+    // misclassify `b` as a free variable, capture it as an upval,
+    // and surface as "Duplicate identifier `b`. A parameter named
+    // `b` already exists for __anon_fn_X" when the for-loop's own
+    // declaration then collides with the synthesized upval-param.
+    if (n.name === "LuauForLoop" || n.name === "LuauGenericForLoop") {
+      const condNode = getDescendent("LuauForCondition", n);
+      if (condNode) {
+        const stack: SyntaxNode[] = [condNode];
+        while (stack.length > 0) {
+          const cur = stack.pop()!;
+          if (cur.name === "LuauVariableName") {
+            bound.add(ctx.read(cur.from, cur.to));
+            continue;
+          }
+          let c = cur.firstChild;
+          while (c) {
+            stack.push(c);
+            c = c.nextSibling;
+          }
+        }
       }
     }
   });
