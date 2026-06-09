@@ -37,36 +37,70 @@ import { runConformanceSource } from "./conformanceTestHarness";
 // `scanFreeVariables` so they don't get captured as upvals.
 
 describe("per-statement debug metadata at runtime", () => {
-  test("error() at later line reports its own line, not function-level", () => {
-    // 4 statements before the error so the function-level metadata
-    // is clearly distinguishable from the error()'s statement
-    // metadata. The exact reported line may be off by one (a
-    // separate refinement around runtime-pointer position at
-    // throw time), but it MUST be a positive line greater than 1
-    // — proving statement metadata flowed through.
-    const r = runConformanceSource(
-      `local a = 1\nlocal b = 2\nlocal c = 3\nlocal d = 4\nerror("at line 5")`,
-      undefined,
-      "smoke",
-    );
-    const errMsg = r.errorMessages.find((e) => e.includes("at line 5")) ?? "";
-    const match = errMsg.match(/smoke:(\d+):/);
-    expect(match).not.toBeNull();
-    const reportedLine = parseInt(match![1]!, 10);
-    expect(reportedLine).toBeGreaterThan(1);
+  // Each test verifies the formatter reports the EXACT user-fixture
+  // line that `error()` was called from. The off-by-one (`best + 2`
+  // vs `best + 1`) is corrected — pathLocations stores
+  // `metadata.startLineNumber - 1` (legacy inkjs 1-based assumption)
+  // AND sparkdown's `metadata.startLineNumber` is itself 0-based
+  // (`ctx.lineNumber` returns 0-based), so the lookup needs a +2 to
+  // get back to 1-based user lines.
+
+  test("error() at user line 1 reports line 1", () => {
+    const r = runConformanceSource(`error("oops")`, undefined, "smoke");
+    expect(
+      r.errorMessages.find((e) => e.includes("smoke:1: oops")),
+    ).toBeDefined();
   });
 
-  test("error() at line 3 reports a line > 1", () => {
+  test("error() at user line 3 reports line 3", () => {
     const r = runConformanceSource(
-      `local x = 1\nlocal y = 2\nerror("at line 3")`,
+      `local x = 1\nlocal y = 2\nerror("oops")`,
       undefined,
       "smoke",
     );
-    const errMsg = r.errorMessages.find((e) => e.includes("at line 3")) ?? "";
-    const match = errMsg.match(/smoke:(\d+):/);
-    expect(match).not.toBeNull();
-    const reportedLine = parseInt(match![1]!, 10);
-    expect(reportedLine).toBeGreaterThan(1);
+    expect(
+      r.errorMessages.find((e) => e.includes("smoke:3: oops")),
+    ).toBeDefined();
+  });
+
+  test("error() at user line 5 reports line 5", () => {
+    const r = runConformanceSource(
+      `local a = 1\nlocal b = 2\nlocal c = 3\nlocal d = 4\nerror("oops")`,
+      undefined,
+      "smoke",
+    );
+    expect(
+      r.errorMessages.find((e) => e.includes("smoke:5: oops")),
+    ).toBeDefined();
+  });
+
+  test("error() at user line 10 reports line 10", () => {
+    const r = runConformanceSource(
+      `local a = 1\nlocal b = 2\nlocal c = 3\nlocal d = 4\nlocal e = 5\n` +
+      `local f = 6\nlocal g = 7\nlocal h = 8\nlocal i = 9\nerror("oops")`,
+      undefined,
+      "smoke",
+    );
+    expect(
+      r.errorMessages.find((e) => e.includes("smoke:10: oops")),
+    ).toBeDefined();
+  });
+
+  test("pcall captures the error()'s precise source line", () => {
+    // basic.luau line 39 shape — verifies the line number flows
+    // through pcall correctly. The error() is on user line 1.
+    const r = runConformanceSource(
+      `local ok, err = pcall(function() error("oops") end)\n` +
+      `assert(err == "basic.luau:1: oops", "got " .. tostring(err))`,
+      undefined,
+      "basic.luau",
+    );
+    expect(
+      r.errorMessages.filter(
+        (e) => !e.startsWith("RUNTIME") && !e.includes("Can't use a divert target"),
+      ),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
   });
 });
 

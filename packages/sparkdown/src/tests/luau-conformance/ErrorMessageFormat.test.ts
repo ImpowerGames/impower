@@ -17,6 +17,11 @@ import { runConformanceSource } from "./conformanceTestHarness";
 // This lets Luau-spec fixtures like basic.luau line 39 — which
 // expects `pcall(function() error("oops") end)` to return
 // `(false, "basic.luau:39: oops")` — check the format precisely.
+//
+// Line precision: after the per-statement debug metadata work
+// (PerStatementSourceMapping.test.ts) and the formatter
+// off-by-one correction (`best + 2 - PREAMBLE_LINE_COUNT`), the
+// reported line now matches the source statement exactly.
 
 describe("error message format (test-suite prefix)", () => {
   test("error() message includes fixture-name prefix", () => {

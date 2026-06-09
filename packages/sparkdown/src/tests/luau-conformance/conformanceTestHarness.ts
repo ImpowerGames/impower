@@ -205,11 +205,18 @@ export function runConformanceSource(
       }
     }
     if (best === null) return null;
-    // pathLocations stores 0-based lines (chunk-relative).
-    // Convert to 1-based and subtract preamble for user line.
-    // Clamp to >= 1 since the compiler's coarse mapping can point
-    // to the preamble region for inner-knot ControlCommands.
-    return Math.max(1, best + 1 - PREAMBLE_LINE_COUNT);
+    // `pathLocations[path][1]` is `metadata.startLineNumber - 1`
+    // (legacy inkjs subtraction inherited from a 1-based metadata
+    // convention) AND sparkdown's `metadata.startLineNumber` is
+    // already 0-based document line (since `ctx.lineNumber` returns
+    // 0-based — see CompilationAnnotator.lineNumber). So `best` is
+    // `0-based document line - 1`. To get 1-based user line:
+    //   user_line = (0-based_doc_line + 1) - PREAMBLE_LINE_COUNT
+    //             = (best + 1) + 1 - PREAMBLE_LINE_COUNT
+    //             = best + 2 - PREAMBLE_LINE_COUNT
+    // Clamp to >= 1 since the compiler's coarse mapping can still
+    // point at the preamble region for inner-knot ControlCommands.
+    return Math.max(1, best + 2 - PREAMBLE_LINE_COUNT);
   };
   story.errorMessageFormatter = (_story, raw) => {
     const userLine = lookupUserLineFromPointer();
