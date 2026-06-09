@@ -133,6 +133,27 @@ export function lowerExpressionFromNodes(
       }
     }
     collectFromNode(node, ctx, tokens);
+    // IIFE / value-call on a parenthesized expression in arg context:
+    // `(function() return X end)()` and `(expr)(args)` appear as two
+    // adjacent LuauParenthetical siblings inside a function-call's
+    // arg list. Mirror `collectTokens`'s post-operand fold so the
+    // shape works inside `assert(IIFE() == X)`, `f(IIFE())`, and
+    // similar call-position uses. Without this, the pratt parser
+    // saw two adjacent operands inside the arg expression and
+    // emitted broken bytecode (the closure leaked as a divert
+    // target into the assertion, hitting `Can't cast` at runtime).
+    const last = tokens[tokens.length - 1];
+    if (last?.kind === "operand") {
+      let j = i + 1;
+      while (j < nodes.length) {
+        if (isSkippableName(nodes[j]!.name)) { j++; continue; }
+        if (nodes[j]!.name !== "LuauParenthetical") break;
+        const args = lowerParentheticalArgList(nodes[j]!, ctx);
+        last.expr = new CallValueExpression(last.expr, args);
+        i = j;
+        j++;
+      }
+    }
   }
   return prattParse(tokens, 0);
 }

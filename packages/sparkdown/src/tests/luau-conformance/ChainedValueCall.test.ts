@@ -95,4 +95,29 @@ assert(t == 5, "got " .. tostring(t))`);
     expect(r.errorMessages).toEqual([]);
     expect(r.returnedOK).toBe(true);
   });
+
+  test("IIFE inside assert: assert((function() return X end)() == X)", () => {
+    // The IIFE-in-arg-context shape needs the same fold as
+    // `collectTokens` but also inside `lowerExpressionFromNodes`
+    // (which handles function-call argument expressions and doesn't
+    // route through `collectTokens`). Without the second fold, the
+    // pratt parser saw two adjacent LuauParenthetical operands inside
+    // the assert's compare-expression argument and emitted broken
+    // bytecode — the closure leaked through as a DivertTarget, hitting
+    // "Can't cast" at runtime. Common Luau pattern in conformance
+    // fixtures (basic.luau uses this dozens of times).
+    const r = runConformanceSource(`assert((function() return 5 end)() == 5)`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("IIFE inside binary op arg: f((function() return X end)() + 1)", () => {
+    // Same fold needed inside any expression context: arithmetic,
+    // concat, etc. — the LHS of the `+` is an IIFE that must call,
+    // not just evaluate to a closure value.
+    const r = runConformanceSource(`local function f(x) return x end
+assert(f((function() return 5 end)() + 1) == 6)`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
 });
