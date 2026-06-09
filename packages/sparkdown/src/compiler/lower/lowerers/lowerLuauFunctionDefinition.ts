@@ -28,6 +28,7 @@ import {
   countUserParameters,
   scanFreeVariables,
 } from "../expression/lowerExpression";
+import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -58,7 +59,7 @@ export function lowerLuauFunctionDefinition(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  const declName = getDescendent("LuauFunctionDeclarationName", nodeRef.node);
+  const declName = findOwnDeclarationName(nodeRef.node);
   if (!declName) {
     // Two non-named cases share this branch:
     //
@@ -540,3 +541,4 @@ function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
   }
   return null;
 }
+

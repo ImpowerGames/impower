@@ -1,5 +1,6 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
@@ -752,8 +753,12 @@ function lowerAnonymousFunction(
     // primary cleanly.
     return null;
   }
-  // Skip named definitions — those are statement-level.
-  if (getDescendent("LuauFunctionDeclarationName", node)) return null;
+  // Skip named definitions — those are statement-level. Scope the check
+  // to this node's OWN header (not deep descendants); otherwise an
+  // anonymous outer fn containing a nested `local function NAME ... end`
+  // would be mis-classified as named and skipped, leaving the IIFE
+  // unlowered and `(IIFE)()` returning nil at runtime.
+  if (findOwnDeclarationName(node)) return null;
 
   const synthName = `__anon_fn_${node.from}`;
   // Identify free variables (referenced inside the body but not bound
@@ -840,8 +845,10 @@ export function collectImmediateBodyDeclarations(
     if (n.name === "LuauFunctionDefinition" && n !== fnDef) {
       // Nested function — record the declared name on the parent
       // frame, but DON'T descend into the nested body (its locals
-      // are scoped to itself).
-      const declName = getDescendent("LuauFunctionDeclarationName", n);
+      // are scoped to itself). Scope the declaration-name lookup to
+      // THIS nested fn's own header — `getDescendent` would otherwise
+      // walk into further-nested function bodies.
+      const declName = findOwnDeclarationName(n);
       if (declName) {
         const nameNode = getDescendent("LuauFunctionName", declName);
         if (nameNode) out.add(ctx.read(nameNode.from, nameNode.to));
@@ -893,7 +900,10 @@ export function scanFreeVariables(
     // names of nested function parameters? — no, those are scoped
     // to the nested function's body, not visible here.
     if (n.name === "LuauFunctionDefinition") {
-      const declName = getDescendent("LuauFunctionDeclarationName", n);
+      // Scope the declaration-name lookup to THIS nested fn's own
+      // header — `getDescendent` would otherwise walk into
+      // further-nested function bodies and bind the wrong name.
+      const declName = findOwnDeclarationName(n);
       if (declName) {
         const nameNode = getDescendent("LuauFunctionName", declName);
         if (nameNode) bound.add(ctx.read(nameNode.from, nameNode.to));
