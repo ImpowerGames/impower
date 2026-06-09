@@ -602,7 +602,12 @@ export class Divert extends ParsedObject {
   ): void {
     // Could be getting an error from a nested Divert
     if (source !== this && source) {
-      super.Error(message, source);
+      // Forward the warning flag — without it, a warning emitted on
+      // a child object (e.g. a DivertTarget's "Can't use a divert
+      // target like that" Luau-superset hint) gets re-routed as a
+      // severity-1 error when the propagation path crosses a Divert
+      // ancestor.
+      super.Error(message, source, isWarning);
       return;
     }
 

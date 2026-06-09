@@ -724,7 +724,16 @@ export class Story extends FlowBase {
     }
 
     // Arguments to the current flow
-    if (symbolType !== SymbolType.Arg) {
+    //
+    // Luau-superset semantics: function parameters and local
+    // variables (`SymbolType.Temp`) may freely shadow each other.
+    // `function f(b) local b = 1 end` is valid Luau — the inner
+    // `local b` shadows the parameter `b` within its block scope.
+    // Same for synthesized upval-as-params on closures (which is
+    // how nested `function NAME(b)` declarations lower): an inner
+    // `local b` SHOULD shadow the captured-upval parameter, not
+    // error. So skip the duplicate-param check entirely for Temp.
+    if (symbolType !== SymbolType.Arg && symbolType !== SymbolType.Temp) {
       let flow: FlowBase | null = asOrNull(obj, FlowBase);
       if (!flow) {
         flow = ClosestFlowBase(obj);

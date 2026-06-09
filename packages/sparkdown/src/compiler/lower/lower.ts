@@ -364,9 +364,18 @@ export function lowerStatements(
           consumedParen = parenScan;
         }
         const callExpr = lowerExpressionFromNodes(callNodes, ctx);
+        // Compute the statement's source range — spans the access path
+        // plus the trailing parenthetical (if any). Used by
+        // `wrapInWeave` to attach per-statement debug metadata so the
+        // call's runtime objects report their actual source line, not
+        // the enclosing function's start line.
+        const stmtRange = {
+          from: child.from,
+          to: (consumedParen ?? child).to,
+        };
         if (callExpr instanceof FunctionCall) {
           callExpr.shouldPopReturnedValue = true;
-          appendBlockContent(result, wrapInWeave([callExpr]));
+          appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx));
           child = (consumedParen ?? child).nextSibling;
           continue;
         }
@@ -375,7 +384,7 @@ export function lowerStatements(
         // statement-context treatment: pop the unused return value.
         if (callExpr instanceof CallValueExpression) {
           callExpr.shouldPopReturnedValue = true;
-          appendBlockContent(result, wrapInWeave([callExpr]));
+          appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx));
           child = (consumedParen ?? child).nextSibling;
           continue;
         }
@@ -676,7 +685,11 @@ function appendBlockContent(
   if (!block.content) return;
   for (const obj of block.content) {
     if (obj instanceof Weave) {
+      const wrapperMetadata = obj.ownDebugMetadata;
       for (const inner of obj.content) {
+        if (wrapperMetadata && !inner.ownDebugMetadata) {
+          inner.debugMetadata = wrapperMetadata;
+        }
         result.push(inner);
       }
     } else {
