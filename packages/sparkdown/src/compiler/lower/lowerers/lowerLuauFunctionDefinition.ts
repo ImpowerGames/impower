@@ -1,9 +1,17 @@
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { type SyntaxNode } from "@lezer/common";
+import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Knot } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
+import { StorePropertyAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
+import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import { IndexExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/IndexExpression";
+import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
+import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { DivertTarget } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
@@ -52,9 +60,32 @@ export function lowerLuauFunctionDefinition(
 ): CompiledBlock {
   const declName = getDescendent("LuauFunctionDeclarationName", nodeRef.node);
   if (!declName) {
-    // Anonymous function (no name after `function`) — skip at statement
-    // level; expression-position anonymous fns are handled by the
-    // expression lowerer.
+    // Two non-named cases share this branch:
+    //
+    // 1. Property-target function: `function a.f(...) ... end` or
+    //    `function a:m(...) ... end`. The grammar's
+    //    LuauFunctionDeclarationName has a `(?!{{LUAU_ACCESSOR_OPERATOR}})`
+    //    negative lookahead that rejects dotted/colon names, so the
+    //    name parses as a `LuauAccessPath` child of the function
+    //    definition instead. Lower as property assignment:
+    //    `a.f = function(...) ... end` (or with `self` prepended for
+    //    the colon form).
+    //
+    // 2. Anonymous function: no name at all. Expression-position
+    //    anonymous fns are handled by the expression lowerer; at
+    //    statement level there's nothing to emit.
+    const accessPath = findChildByName(
+      findChildByName(nodeRef.node, "LuauFunctionDefinition_content") ??
+        nodeRef.node,
+      "LuauAccessPath",
+    );
+    if (accessPath) {
+      return lowerPropertyTargetFunctionDefinition(
+        nodeRef.node,
+        accessPath,
+        ctx,
+      );
+    }
     return {};
   }
   const nameNode = getDescendent("LuauFunctionName", declName);
@@ -331,4 +362,175 @@ function lowerNestedAsSubFlow(
     new Function(identifier, [...innerHoisted, ...body, ...nested], args),
   );
   return {};
+}
+
+// `function a.f(p) BODY end` and `function a:m(p) BODY end` — the
+// grammar's `LuauFunctionDeclarationName` excludes dotted/colon names
+// (its `(?!{{LUAU_ACCESSOR_OPERATOR}})` lookahead), so these forms
+// parse with the name as a `LuauAccessPath` child of the function
+// definition instead of a `LuauFunctionDeclarationName`.
+//
+// Lua desugars these as:
+//   `function a.f(p) BODY end`  →  `a.f = function(p) BODY end`
+//   `function a:m(p) BODY end`  →  `a.m = function(self, p) BODY end`
+//
+// We synthesize an anonymous Function (subFlow on the enclosing
+// scope's buffer or the chunk's hoisted-knots list), then emit a
+// `StorePropertyAssignment(base, "name", DivertTarget(synthName))`
+// to write the closure value into the table key. For the colon form,
+// the function body's free-variable scan also receives `self` as a
+// declared local so its references resolve as parameter reads.
+//
+// Limitations of the initial version:
+//   - Upval capture: free variables from outer scopes are captured
+//     by lowering through `buildAnonymousFunction`, but the closure
+//     wrapper (with `__closure_upvals`) isn't built — the
+//     `StorePropertyAssignment` stores a bare `DivertTarget`. Calls
+//     work via the runtime's value-call dispatch but mutated outer
+//     locals won't be reflected. Acceptable for the common
+//     `function a.f` declaration where no outer locals are captured.
+//   - Multi-level dotted (`function a.b.c.f`) is supported only when
+//     the base is a single variable reference. Deeper bases fall
+//     through to the existing access-path lowering.
+function lowerPropertyTargetFunctionDefinition(
+  node: SyntaxNode,
+  accessPath: SyntaxNode,
+  ctx: LowerContext,
+): CompiledBlock {
+  const parts = collectAccessParts(accessPath);
+  if (parts.length < 2) {
+    // Just `a` — not a property-target declaration. Treat as anon.
+    return {};
+  }
+  const finalPart = parts[parts.length - 1]!;
+  const finalInner = finalPart.firstChild;
+  if (!finalInner) return {};
+
+  // Determine the form (dot vs colon) and extract the method name.
+  let methodName: string | null = null;
+  let isColonForm = false;
+  if (finalInner.name === "LuauPropertyAccessor") {
+    const nameNode =
+      getDescendent("LuauPropertyName", finalInner) ??
+      getDescendent("LuauStdLibMethods", finalInner);
+    if (nameNode) methodName = ctx.read(nameNode.from, nameNode.to);
+  } else if (finalInner.name === "LuauFunctionAccessor") {
+    isColonForm = true;
+    const nameNode = getDescendent("LuauFunctionName", finalInner);
+    if (nameNode) methodName = ctx.read(nameNode.from, nameNode.to);
+  }
+  if (!methodName) return {};
+
+  // Build the base expression. For multi-level paths like
+  // `a.b.c.f`, the base is `a.b.c` — an IndexExpression chain.
+  // Simple single-variable case: just `VariableReference([a])`.
+  const baseParts = parts.slice(0, -1);
+  const baseExpr = lowerBaseExpression(baseParts, ctx);
+  if (!baseExpr) return {};
+
+  // Build the function as an anonymous synthetic knot. Push it on
+  // the enclosing scope's buffer (or hoistedKnots at the chunk top).
+  // For the colon form, prepend `self` as an implicit first parameter
+  // so the body's `self` references resolve as a parameter read.
+  const synthName = `__anon_fn_${node.from}`;
+  const userArgs = lowerArguments(node, ctx);
+  const finalArgs: Argument[] = isColonForm
+    ? [new Argument(new Identifier("self"), false, false), ...userArgs]
+    : userArgs;
+
+  const content = getFunctionBodyContent(node);
+  if (!content) return {};
+
+  const nested: ParsedObject[] = [];
+  ctx.functionScopeStack?.push(nested);
+  const ownLocals = collectImmediateBodyDeclarations(node, ctx);
+  ctx.declaredLocalsStack?.push(ownLocals);
+  const innerHoisted: ParsedObject[] = [];
+  ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
+  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  ctx.hoistedNestedFnDeclsStack?.pop();
+  ctx.declaredLocalsStack?.pop();
+  ctx.functionScopeStack?.pop();
+
+  const fn = new Function(
+    new Identifier(synthName),
+    [...innerHoisted, ...body, ...nested],
+    finalArgs,
+  );
+
+  const stack = ctx.functionScopeStack;
+  const enclosingScope =
+    stack && stack.length > 0 ? stack[stack.length - 1] : null;
+  if (enclosingScope) {
+    enclosingScope.push(fn);
+  } else if (ctx.hoistedKnots) {
+    ctx.hoistedKnots.push(fn);
+  } else {
+    return {};
+  }
+
+  const closureValue = new DivertTarget(
+    new Divert([new Identifier(synthName)]),
+  );
+  const keyExpr = new StringExpression([new Text(methodName)]);
+  const store = new StorePropertyAssignment(baseExpr, keyExpr, closureValue);
+  return wrapInWeave([store]);
+}
+
+// Walk a `LuauAccessPath` into its top-level `LuauAccessPart` segments.
+function collectAccessParts(accessPath: SyntaxNode): SyntaxNode[] {
+  const out: SyntaxNode[] = [];
+  const content = findChildByName(accessPath, "LuauAccessPath_content");
+  const root = content ?? accessPath;
+  let inner = root.firstChild;
+  while (inner) {
+    if (inner.name === "LuauAccessPart") out.push(inner);
+    inner = inner.nextSibling;
+  }
+  return out;
+}
+
+// Build a value-chain expression for the base portion of a
+// property-target function definition's name. Mirrors a subset of
+// `lowerBaseFromParts` in `lowerPropertyTargetAssignment.ts` — kept
+// inline to avoid a circular import.
+function lowerBaseExpression(
+  parts: SyntaxNode[],
+  ctx: LowerContext,
+): Expression | null {
+  if (parts.length === 0) return null;
+  // First part must be a LuauVariable. Build a VariableReference.
+  const firstInner = parts[0]!.firstChild;
+  if (firstInner?.name !== "LuauVariable") return null;
+  const nameNode =
+    getDescendent("LuauStdLibConstants", firstInner) ??
+    getDescendent("LuauVariableName", firstInner);
+  if (!nameNode) return null;
+  let current: Expression = new VariableReference([
+    new Identifier(ctx.read(nameNode.from, nameNode.to)),
+  ]);
+  // Subsequent parts must be LuauPropertyAccessor — fold into
+  // IndexExpression chain.
+  for (let i = 1; i < parts.length; i++) {
+    const inner = parts[i]!.firstChild;
+    if (inner?.name !== "LuauPropertyAccessor") return null;
+    const propNameNode =
+      getDescendent("LuauPropertyName", inner) ??
+      getDescendent("LuauStdLibMethods", inner);
+    if (!propNameNode) return null;
+    current = new IndexExpression(
+      current,
+      new StringExpression([new Text(ctx.read(propNameNode.from, propNameNode.to))]),
+    );
+  }
+  return current;
+}
+
+function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
+  let child = parent.firstChild;
+  while (child) {
+    if (child.name === name) return child;
+    child = child.nextSibling;
+  }
+  return null;
 }
