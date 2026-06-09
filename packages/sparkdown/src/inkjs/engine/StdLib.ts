@@ -2072,7 +2072,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: 1,
     fn: (story, [msg]) => {
       const message = coerceString(msg) ?? "error";
-      story.AddError(message);
+      // `story.Error` THROWS (raises a `StoryException`), so it's
+      // trappable by `pcall`. `story.AddError` would call
+      // `ForceEnd`, wiping the call stack and defeating pcall's
+      // protection — see project_pcall_protected_dispatch.md.
+      story.Error(message);
     },
   },
 
