@@ -809,18 +809,12 @@ function lowerAnonymousFunction(
     return null;
   }
 
-  // No upvals → plain `DivertTarget(synthName)`; no closure wrapper
-  // needed. This is the existing fast path; it keeps backwards
-  // compatibility with the V1-without-closures behaviour.
-  if (upvals.length === 0) {
-    return new DivertTarget(new Divert([new Identifier(synthName)]));
-  }
-
-  // Closure value: `ObjectExpression` of the shape recognized by
-  // `CallValueAsFunction`'s closure-aware dispatch in Story.ts.
-  // Each upval is captured by READING the current variable value
-  // at definition site — so mutations to the outer variable after
-  // closure definition don't propagate (snapshot-on-definition).
+  // Always emit the closure-shaped ObjectValue (even when there are
+  // no upvals) so the runtime CallValueAsFunction dispatch has the
+  // `__closure_user_arity` field available to pad under-supplied
+  // args with nil. The no-upvals path is essentially free at runtime
+  // (empty upvals map, fast extractClosurePath) so we don't lose
+  // anything by unifying the two.
   const userArity = countUserParameters(node, ctx);
   return buildClosureExpression(synthName, upvals, userArity);
 }

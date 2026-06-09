@@ -46,7 +46,14 @@ export class CallValueExpression extends Expression {
       arg.GenerateIntoContainer(container);
     }
     this.targetExpression.GenerateIntoContainer(container);
-    container.AddContent(RuntimeControlCommand.CallValueAsFunction());
+    // Pass the call-site arg count so the runtime closure dispatch
+    // can pad missing args with nil when the closure expects more
+    // params than the caller supplied — Luau's `f(1)` against
+    // `function f(a, b) ... end` binds `b` to nil rather than
+    // popping garbage from the caller's eval context.
+    container.AddContent(
+      RuntimeControlCommand.CallValueAsFunction(this.args.length),
+    );
     if (this.shouldPopReturnedValue) {
       container.AddContent(RuntimeControlCommand.PopEvaluatedValue());
     }

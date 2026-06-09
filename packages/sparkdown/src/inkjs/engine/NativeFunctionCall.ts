@@ -176,13 +176,20 @@ export class NativeFunctionCall extends InkObject {
     }
 
     let hasList = false;
-    for (let p of parameters) {
-      if (p instanceof Void)
-        throw new StoryException(
-          "Attempting to perform " +
-            this.name +
-            ' on a void value. Did you forget to "return" a value from a function you called here?',
-        );
+    for (let i = 0; i < parameters.length; i++) {
+      const p = parameters[i];
+      if (p instanceof Void) {
+        // Luau-superset semantics: a function with no return values
+        // produces `nil` in single-value contexts. The runtime
+        // pushes a `Void` sentinel at PopFunction time so multi-
+        // return / `select('#', ...)` callers can distinguish
+        // "returned no values" from "returned nil"; for ordinary
+        // single-value consumers (binary ops, comparisons) we
+        // coerce Void to `nil` here so `(function() end)() == nil`
+        // evaluates to true instead of erroring.
+        parameters[i] = new NullValue();
+        continue;
+      }
       if (p instanceof ListValue) hasList = true;
     }
 

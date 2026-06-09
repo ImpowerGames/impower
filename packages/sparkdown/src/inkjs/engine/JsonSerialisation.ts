@@ -295,6 +295,18 @@ export class JsonSerialisation {
         writer.Write(`unpack:${controlCmd._tupleArity}`);
         return;
       }
+      // `CallValueAsFunction(n)` — encode the call-site arg count so
+      // the runtime closure dispatch can pad missing args with nil.
+      // Untracked sites encode plainly as `func()` (preserves legacy
+      // serialization) and the runtime falls back to its old behaviour.
+      if (
+        controlCmd.commandType ===
+          ControlCommand.CommandType.CallValueAsFunction &&
+        controlCmd._callValueArgCount >= 0
+      ) {
+        writer.Write(`func(${controlCmd._callValueArgCount})`);
+        return;
+      }
       writer.Write(
         JsonSerialisation._controlCommandNames[controlCmd.commandType]!,
       );
@@ -454,6 +466,17 @@ export class JsonSerialisation {
       if (str.startsWith("unpack:")) {
         const arity = parseInt(str.slice("unpack:".length), 10);
         if (Number.isFinite(arity)) return ControlCommand.UnpackTuple(arity);
+      }
+
+      // `func(N)` — CallValueAsFunction with explicit call-site arg
+      // count. Round-trip of `CallValueAsFunction(N)` (see serializer).
+      // Bare `CallValueAsFunction` (no count) falls through to the
+      // generic control-command-names match below.
+      if (str.startsWith("func(") && str.endsWith(")")) {
+        const arity = parseInt(str.slice("func(".length, str.length - 1), 10);
+        if (Number.isFinite(arity)) {
+          return ControlCommand.CallValueAsFunction(arity);
+        }
       }
 
       // Control commands (would looking up in a hash set be faster?)

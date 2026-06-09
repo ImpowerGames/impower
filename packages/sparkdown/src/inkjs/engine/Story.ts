@@ -2186,6 +2186,69 @@ export class Story extends InkObject {
           // with upvals prepended to user params, so parameter
           // binding reads them in the right order. See
           // `lowerAnonymousFunction` in `lowerExpression.ts`.
+          //
+          // Luau under-supplied args: if the call site pushed fewer
+          // args than the closure's user arity, pad with `NullValue`
+          // BEFORE popping for upval reordering — otherwise
+          // `extractClosurePath` would dig into the caller's eval
+          // context. The call-site arg count is encoded on the
+          // ControlCommand via CallValueExpression's
+          // `CallValueAsFunction(this.args.length)`; -1 means
+          // "untracked" (legacy bytecode).
+          const callSiteArgCount = evalCommand._callValueArgCount;
+          if (callSiteArgCount >= 0) {
+            // Peek the callTarget BEFORE popping to know the closure's
+            // user arity, then normalize the eval-stack args to
+            // exactly `userArity` values so `extractClosurePath` can
+            // pop them cleanly. Two adjustments:
+            //   1. If the LAST positional arg is a MultiValue (from
+            //      `g()` returning multiple values), spread its inner
+            //      values inline. This is what
+            //      `spreadLastMultiIfNonVariadic` does, but we need
+            //      it BEFORE the pop loop so the count is right.
+            //   2. If after spread the effective arg count is still
+            //      less than `userArity`, pad with nil on top so the
+            //      missing trailing params bind to nil rather than
+            //      digging into caller-context.
+            const peeked = this.state.PeekEvaluationStack();
+            if (peeked instanceof ObjectValue) {
+              const userArityVal = (peeked.value as Map<string, AbstractValue>)?.get(
+                "__closure_user_arity",
+              );
+              if (userArityVal instanceof IntValue) {
+                const userArity = userArityVal.value ?? 0;
+                const callable = this.state.PopEvaluationStack();
+                let effectiveArgCount = callSiteArgCount;
+                if (callSiteArgCount > 0) {
+                  const lastArg = this.state.PeekEvaluationStack();
+                  if (lastArg instanceof MultiValue) {
+                    this.state.PopEvaluationStack();
+                    for (const v of lastArg.values) {
+                      this.state.PushEvaluationStack(v);
+                    }
+                    effectiveArgCount =
+                      callSiteArgCount - 1 + lastArg.values.length;
+                  }
+                }
+                if (effectiveArgCount < userArity) {
+                  for (let i = effectiveArgCount; i < userArity; i++) {
+                    this.state.PushEvaluationStack(new NullValue());
+                  }
+                } else if (effectiveArgCount > userArity) {
+                  // Lua overflow semantics: extra args at a non-variadic
+                  // call site are dropped. Without this the closure's
+                  // param binding would pop the LAST args instead of
+                  // the first — `foo(1, 2, 3)` against `function
+                  // foo(a, b)` would bind a=2, b=3 (wrong) instead of
+                  // a=1, b=2.
+                  for (let i = userArity; i < effectiveArgCount; i++) {
+                    this.state.PopEvaluationStack();
+                  }
+                }
+                this.state.PushEvaluationStack(callable as AbstractValue);
+              }
+            }
+          }
           const callTarget = this.state.PopEvaluationStack();
           // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
           // returns an ObjectValue marked with `__builtin_iter`. The
@@ -2676,6 +2739,12 @@ export class Story extends InkObject {
           // it's not the last arg). Pure stdlib fns (registered with
           // NativeFunctionCall) don't pass through here and continue
           // to auto-unwrap via MultiValue's transparent valueObject.
+          //
+          // Void (from `(function() end)()`) is conceptually an
+          // empty MultiValue. As the last arg, it spreads to 0
+          // values — `select('#', (function() end)())` returns 0,
+          // matching Luau's empty-return semantics. As a non-last
+          // arg, it's clamped to nil (same as MultiValue truncation).
           for (let k = 0; k < args.length; k++) {
             const a = args[k];
             if (a instanceof MultiValue) {
@@ -2683,6 +2752,12 @@ export class Story extends InkObject {
                 args.splice(k, 1, ...a.values);
               } else {
                 args[k] = a.values[0] ?? new NullValue();
+              }
+            } else if (a instanceof Void) {
+              if (k === args.length - 1) {
+                args.splice(k, 1);
+              } else {
+                args[k] = new NullValue();
               }
             }
           }

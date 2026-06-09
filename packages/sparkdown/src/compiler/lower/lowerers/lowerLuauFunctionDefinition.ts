@@ -275,10 +275,16 @@ function lowerNestedNamedFunction(
 
   const userArity = countUserParameters(node, ctx);
 
-  const closureValue =
-    upvals.length === 0
-      ? new DivertTarget(new Divert([new Identifier(synthName)]))
-      : buildClosureExpression(synthName, upvals, userArity);
+  // Always emit the closure-shaped ObjectValue (even when there are
+  // no upvals) so the runtime CallValueAsFunction dispatch has the
+  // `__closure_user_arity` field available to pad under-supplied
+  // args with nil. Without this, callers like `function foo(a, b);
+  // ... end; foo(1)` would have the function body's param binding
+  // pop garbage from the caller's eval context for the missing `b`.
+  // The no-upvals path is essentially free at runtime (empty upvals
+  // map, fast extractClosurePath) so we don't lose anything by
+  // unifying the two.
+  const closureValue = buildClosureExpression(synthName, upvals, userArity);
 
   // `local function NAME ... end` — declaration scoped to the
   // innermost block (Luau spec). Emit the binding in place.

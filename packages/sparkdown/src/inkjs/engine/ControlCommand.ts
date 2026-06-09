@@ -24,6 +24,16 @@ export class ControlCommand extends InkObject {
   // `"unpack:<n>"`).
   public _tupleArity: number = 0;
 
+  // For `CallValueAsFunction` ControlCommands — carry the call-site
+  // arg count so the runtime closure dispatch can pad missing args
+  // with `nil` when the closure expects more parameters than the
+  // caller supplied (Luau semantics: `local function foo(a, b) return
+  // b end; foo(1)` → b is nil). Without this, `extractClosurePath`
+  // would pop garbage from the caller's eval context. Default is -1
+  // meaning "not set" so we can distinguish "call site provided no
+  // arg count info" (legacy/missing) from "0 args".
+  public _callValueArgCount: number = -1;
+
   constructor(
     commandType: ControlCommand.CommandType = ControlCommand.CommandType.NotSet,
   ) {
@@ -36,6 +46,7 @@ export class ControlCommand extends InkObject {
     copy._stdLibName = this._stdLibName;
     copy._stdLibArity = this._stdLibArity;
     copy._tupleArity = this._tupleArity;
+    copy._callValueArgCount = this._callValueArgCount;
     return copy;
   }
   public static EvalStart() {
@@ -116,8 +127,10 @@ export class ControlCommand extends InkObject {
   public static StoreIndex() {
     return new ControlCommand(ControlCommand.CommandType.StoreIndex);
   }
-  public static CallValueAsFunction() {
-    return new ControlCommand(ControlCommand.CommandType.CallValueAsFunction);
+  public static CallValueAsFunction(argCount: number = -1) {
+    const cmd = new ControlCommand(ControlCommand.CommandType.CallValueAsFunction);
+    cmd._callValueArgCount = argCount;
+    return cmd;
   }
   public static BeginScope() {
     return new ControlCommand(ControlCommand.CommandType.BeginScope);
