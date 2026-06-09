@@ -1518,14 +1518,20 @@ export function lowerSimpleAccessPath(
           // `LuauFunctionCallParameters` and pick the wrong one
           // (e.g. `select("#", multi())` resolving to `multi`).
           const nameStr = readFunctionCallName(inner, ctx);
-          const args = lowerCallArguments(inner, ctx);
+          // The grammar's greedy `LuauFunctionCall` body absorbs
+          // multiple `(args)` runs into one call node — `f(a)(b)`
+          // parses as `LuauFunctionCall(f, params=(a), params=(b))`.
+          // Collect EVERY parameter-set so we can chain value-calls.
+          const argLists = collectAllCallParameterArgLists(inner, ctx);
+          const args = argLists[0] ?? [];
           if (nameStr) {
-            return makeGlobalFunctionCall(
+            const base = makeGlobalFunctionCall(
               new Identifier(nameStr),
               args,
               inner,
               ctx,
             );
+            return wrapChainedValueCalls(base, argLists.slice(1));
           }
         }
         break;
@@ -1583,8 +1589,13 @@ export function lowerValueChainAccessPath(
     const nameStr = readFunctionCallName(firstInner, ctx);
     if (!nameStr) return null;
     const name = new Identifier(nameStr);
-    const args = lowerCallArguments(firstInner, ctx);
-    current = makeGlobalFunctionCall(name, args, firstInner, ctx);
+    // Greedy grammar packs `f(a)(b)(c)` into one call node with N
+    // parameter-sets. Collect all, use the first as the base call's
+    // args, and chain the rest as `CallValueExpression` wrappers.
+    const argLists = collectAllCallParameterArgLists(firstInner, ctx);
+    const args = argLists[0] ?? [];
+    const base = makeGlobalFunctionCall(name, args, firstInner, ctx);
+    current = wrapChainedValueCalls(base, argLists.slice(1));
     i = 1;
   } else {
     // Gather the leading dot-path identifier run as the initial
@@ -1709,4 +1720,84 @@ function isSkippableName(name: string): boolean {
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace"
   );
+}
+
+// Walk a `LuauFunctionCall` node's `_content` and collect each
+// `LuauFunctionCallParameters` child. Lua's `f(a)(b)(c)` syntax
+// chains value-calls — the grammar's greedy LuauFunctionCall body
+// consumes ALL the `(args)` runs as siblings within the same call
+// container. We return the per-call arg lists so the caller can
+// build a `CallValueExpression` chain on top of the initial
+// `FunctionCall(name, args[0])`.
+function collectAllCallParameterArgLists(
+  callNode: SyntaxNode,
+  ctx: LowerContext,
+): Expression[][] {
+  const content = findChildByName(callNode, "LuauFunctionCall_content");
+  if (!content) {
+    // No content wrapper — fall back to scanning direct children.
+    return collectParameterArgListsFromContainer(callNode, ctx);
+  }
+  return collectParameterArgListsFromContainer(content, ctx);
+}
+
+function collectParameterArgListsFromContainer(
+  container: SyntaxNode,
+  ctx: LowerContext,
+): Expression[][] {
+  const allArgs: Expression[][] = [];
+  let child = container.firstChild;
+  while (child) {
+    if (child.name === "LuauFunctionCallParameters") {
+      allArgs.push(lowerArgListFromParams(child, ctx));
+    }
+    child = child.nextSibling;
+  }
+  return allArgs;
+}
+
+// Lower the comma-separated content of a single
+// `LuauFunctionCallParameters` node into an `Expression[]`. Same
+// shape as `lowerCallArguments` but works on the params node directly
+// (instead of searching for it in a parent).
+function lowerArgListFromParams(
+  params: SyntaxNode,
+  ctx: LowerContext,
+): Expression[] {
+  const content = findChildByName(params, "LuauFunctionCallParameters_content");
+  if (!content) return [];
+  const args: Expression[] = [];
+  let group: SyntaxNode[] = [];
+  const flush = () => {
+    if (group.length === 0) return;
+    const expr = lowerExpressionFromNodes(group, ctx);
+    if (expr) args.push(expr);
+    group = [];
+  };
+  let child = content.firstChild;
+  while (child) {
+    if (child.name === "LuauCommaSeparator") {
+      flush();
+    } else if (!isSkippableName(child.name)) {
+      group.push(child);
+    }
+    child = child.nextSibling;
+  }
+  flush();
+  return args;
+}
+
+// Wrap a base call expression in `CallValueExpression` links for each
+// extra arg-list past the first. `f(a)(b)(c)` → `CallValue(CallValue(
+// FunctionCall(f, a), b), c)`. The first call uses the base; the rest
+// are value-call dispatches on the result via `CallValueAsFunction`.
+function wrapChainedValueCalls(
+  base: Expression,
+  extraArgLists: Expression[][],
+): Expression {
+  let expr = base;
+  for (const args of extraArgLists) {
+    expr = new CallValueExpression(expr, args);
+  }
+  return expr;
 }
