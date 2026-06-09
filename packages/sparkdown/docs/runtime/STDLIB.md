@@ -67,10 +67,10 @@ literal expression at compile time (no runtime dispatch). Top-level
 constants like `_G` / `_VERSION` are tagged by `LuauStdLibGlobals`
 in the grammar.
 
-| Name       | Lua | Luau | Status | Notes                                                                   |
-| ---------- | :-: | :--: | :----: | ----------------------------------------------------------------------- |
+| Name       | Lua | Luau | Status | Notes                                                                                                                                                                                                                                                                                                                           |
+| ---------- | :-: | :--: | :----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `_G`       | ✅  |  ✅  |   ⬜   | Global env table. Becomes load-bearing once `define`'s class-and-method runtime lands: instance method dispatch (`bird.fly()` resolving to the right override across inheritance) needs a runtime class registry, and `_G[ClassName]` is the natural place to keep it. Until then, sparkdown's flat declarations don't need it. |
-| `_VERSION` | ✅  |  ✅  |   ✅   | Reports `"Luau"`.                                                       |
+| `_VERSION` | ✅  |  ✅  |   ✅   | Reports `"Luau"`.                                                                                                                                                                                                                                                                                                               |
 
 Math constants (`math.pi`, `math.huge`) live in the `math` section
 below for convenience.
@@ -81,45 +81,45 @@ below for convenience.
 
 Reference: https://luau-lang.org/library#math-library
 
-| Method                                      |   Lua   | Luau | Status | Notes                                                                                                                            |
-| ------------------------------------------- | :-----: | :--: | :----: | -------------------------------------------------------------------------------------------------------------------------------- |
-| `math.abs(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.acos(x)`                              |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.asin(x)`                              |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.atan(x)` / `math.atan(y, x)`          |   ✅    |  ✅  |   ✅   | 2-arg form (Lua 5.3+ / Luau) is equivalent to `math.atan2(y, x)`.                                                                |
-| `math.atan2(y, x)`                          | 5.1–5.2 |  ✅  |   ✅   | **Deprecated** — use 2-arg `math.atan(y, x)`. Removed in Lua 5.3; kept in Luau for compat.                                       |
-| `math.ceil(x)`                              |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.clamp(x, min, max)`                   |   ❌    |  ✅  |   ✅   | Luau-only.                                                                                                                       |
-| `math.cos(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.cosh(x)`                              | 5.1–5.2 |  ✅  |   ✅   | Removed in Lua 5.3; kept in Luau.                                                                                                |
-| `math.deg(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.exp(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.floor(x)`                             |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.fmod(x, y)`                           |   ✅    |  ✅  |   ✅   | Truncate-toward-zero remainder (matches JS `%`).                                                                                 |
-| `math.frexp(x)`                             | 5.1–5.2 |  ✅  |   ✅   | Removed in Lua 5.3; kept in Luau. Multi-return: mantissa `m` and exponent `e` such that `x = m * 2^e`, with `0.5 <= |m| < 1`.    |
-| `math.huge`                                 |   ✅    |  ✅  |   ✅   | Constant. Stored as `3.4e38` (Float32 max) — inkjs's JSON serializer clamps `Infinity` since JSON has no Infinity literal.        |
-| `math.ldexp(x, e)`                          | 5.1–5.2 |  ✅  |   ✅   | Removed in Lua 5.3; kept in Luau.                                                                                                |
-| `math.log(x [, base])`                      |   ✅    |  ✅  |   ✅   | Optional `base` (Lua 5.2+ / Luau). With base: returns `log(x) / log(base)`.                                                      |
-| `math.lerp(a, b, t)`                        |   ❌    |  ✅  |   ✅   | Luau 0.6+. Linear interpolation; not clamped (extrapolates for `t` outside [0, 1]).                                              |
-| `math.log10(x)`                             |   5.1   |  ✅  |   ✅   | Removed in Lua 5.2 (use `math.log(x, 10)`); kept in Luau.                                                                        |
-| `math.map(x, inMin, inMax, outMin, outMax)` |   ❌    |  ✅  |   ✅   | Luau-only.                                                                                                                       |
-| `math.max(a, b, ...)`                       |   ✅    |  ✅  |   ✅   | Variadic.                                                                                                                        |
-| `math.min(a, b, ...)`                       |   ✅    |  ✅  |   ✅   | Variadic.                                                                                                                        |
+| Method                                      |   Lua   | Luau | Status | Notes                                                                                                                                                                             |
+| ------------------------------------------- | :-----: | :--: | :----: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ----- |
+| `math.abs(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.acos(x)`                              |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.asin(x)`                              |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.atan(x)` / `math.atan(y, x)`          |   ✅    |  ✅  |   ✅   | 2-arg form (Lua 5.3+ / Luau) is equivalent to `math.atan2(y, x)`.                                                                                                                 |
+| `math.atan2(y, x)`                          | 5.1–5.2 |  ✅  |   ✅   | **Deprecated** — use 2-arg `math.atan(y, x)`. Removed in Lua 5.3; kept in Luau for compat.                                                                                        |
+| `math.ceil(x)`                              |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.clamp(x, min, max)`                   |   ❌    |  ✅  |   ✅   | Luau-only.                                                                                                                                                                        |
+| `math.cos(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.cosh(x)`                              | 5.1–5.2 |  ✅  |   ✅   | Removed in Lua 5.3; kept in Luau.                                                                                                                                                 |
+| `math.deg(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.exp(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.floor(x)`                             |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.fmod(x, y)`                           |   ✅    |  ✅  |   ✅   | Truncate-toward-zero remainder (matches JS `%`).                                                                                                                                  |
+| `math.frexp(x)`                             | 5.1–5.2 |  ✅  |   ✅   | Removed in Lua 5.3; kept in Luau. Multi-return: mantissa `m` and exponent `e` such that `x = m * 2^e`, with `0.5 <=                                                               | m   | < 1`. |
+| `math.huge`                                 |   ✅    |  ✅  |   ✅   | Constant. Stored as `3.4e38` (Float32 max) — inkjs's JSON serializer clamps `Infinity` since JSON has no Infinity literal.                                                        |
+| `math.ldexp(x, e)`                          | 5.1–5.2 |  ✅  |   ✅   | Removed in Lua 5.3; kept in Luau.                                                                                                                                                 |
+| `math.log(x [, base])`                      |   ✅    |  ✅  |   ✅   | Optional `base` (Lua 5.2+ / Luau). With base: returns `log(x) / log(base)`.                                                                                                       |
+| `math.lerp(a, b, t)`                        |   ❌    |  ✅  |   ✅   | Luau 0.6+. Linear interpolation; not clamped (extrapolates for `t` outside [0, 1]).                                                                                               |
+| `math.log10(x)`                             |   5.1   |  ✅  |   ✅   | Removed in Lua 5.2 (use `math.log(x, 10)`); kept in Luau.                                                                                                                         |
+| `math.map(x, inMin, inMax, outMin, outMax)` |   ❌    |  ✅  |   ✅   | Luau-only.                                                                                                                                                                        |
+| `math.max(a, b, ...)`                       |   ✅    |  ✅  |   ✅   | Variadic.                                                                                                                                                                         |
+| `math.min(a, b, ...)`                       |   ✅    |  ✅  |   ✅   | Variadic.                                                                                                                                                                         |
 | `math.modf(x)`                              |   ✅    |  ✅  |   ✅   | Multi-return: integer part (same sign as x) + fractional part. Consumed via `local i, f = math.modf(x)` (full unpack) or `local x = math.modf(...)` (auto-unwrap to first value). |
-| `math.noise(x [, y [, z]])`                 |   ❌    |  ✅  |   ✅   | Ken Perlin's improved 3D noise. Output roughly in `[-1, 1]`. Permutation table differs from Roblox's, so absolute values won't match Roblox exactly. |
-| `math.pi`                                   |   ✅    |  ✅  |   ✅   | Constant.                                                                                                                        |
-| `math.pow(a, b)`                            | 5.1–5.2 |  ✅  |   ✅   | **Deprecated** — use the `^` exponentiation operator (`a ^ b`). Removed in Lua 5.3; kept in Luau for compat.                     |
-| `math.rad(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.random([m [, n]])`                    |   ✅    |  ✅  |   ✅   | All three forms: 0-arg → float in `[0, 1)`; 1-arg → integer in `[1, m]`; 2-arg → integer in `[m, n]`. Shared deterministic PRNG. |
-| `math.randomseed([seed])`                   |   ✅    |  ✅  |   ✅   | 0-arg form (Luau) seeds from `Date.now()` (non-deterministic across saves). Always resets `previousRandom` to 0.                 |
-| `math.round(x)`                             |   ❌    |  ✅  |   ✅   | Luau-only.                                                                                                                       |
-| `math.sign(x)`                              |   ❌    |  ✅  |   ✅   | Luau-only.                                                                                                                       |
-| `math.sin(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.sinh(x)`                              | 5.1–5.2 |  ✅  |   ✅   | Removed in Lua 5.3; kept in Luau.                                                                                                |
-| `math.sqrt(x)`                              |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.tan(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                  |
-| `math.tanh(x)`                              | 5.1–5.2 |  ✅  |   ✅   | Removed in Lua 5.3; kept in Luau.                                                                                                |
-| `math.ult(a, b)`                            |   5.3   |  ✅  |   ✅   | Unsigned-int less-than. Both operands coerced to uint32 before compare. Returns boolean.                                         |
+| `math.noise(x [, y [, z]])`                 |   ❌    |  ✅  |   ✅   | Ken Perlin's improved 3D noise. Output roughly in `[-1, 1]`. Permutation table differs from Roblox's, so absolute values won't match Roblox exactly.                              |
+| `math.pi`                                   |   ✅    |  ✅  |   ✅   | Constant.                                                                                                                                                                         |
+| `math.pow(a, b)`                            | 5.1–5.2 |  ✅  |   ✅   | **Deprecated** — use the `^` exponentiation operator (`a ^ b`). Removed in Lua 5.3; kept in Luau for compat.                                                                      |
+| `math.rad(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.random([m [, n]])`                    |   ✅    |  ✅  |   ✅   | All three forms: 0-arg → float in `[0, 1)`; 1-arg → integer in `[1, m]`; 2-arg → integer in `[m, n]`. Shared deterministic PRNG.                                                  |
+| `math.randomseed([seed])`                   |   ✅    |  ✅  |   ✅   | 0-arg form (Luau) seeds from `Date.now()` (non-deterministic across saves). Always resets `previousRandom` to 0.                                                                  |
+| `math.round(x)`                             |   ❌    |  ✅  |   ✅   | Luau-only.                                                                                                                                                                        |
+| `math.sign(x)`                              |   ❌    |  ✅  |   ✅   | Luau-only.                                                                                                                                                                        |
+| `math.sin(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.sinh(x)`                              | 5.1–5.2 |  ✅  |   ✅   | Removed in Lua 5.3; kept in Luau.                                                                                                                                                 |
+| `math.sqrt(x)`                              |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.tan(x)`                               |   ✅    |  ✅  |   ✅   |                                                                                                                                                                                   |
+| `math.tanh(x)`                              | 5.1–5.2 |  ✅  |   ✅   | Removed in Lua 5.3; kept in Luau.                                                                                                                                                 |
+| `math.ult(a, b)`                            |   5.3   |  ✅  |   ✅   | Unsigned-int less-than. Both operands coerced to uint32 before compare. Returns boolean.                                                                                          |
 
 ---
 
@@ -127,31 +127,31 @@ Reference: https://luau-lang.org/library#math-library
 
 Reference: https://luau-lang.org/library#string-library
 
-| Method                                       | Lua  | Luau | Status | Notes                                                                       |
-| -------------------------------------------- | :--: | :--: | :----: | --------------------------------------------------------------------------- |
-| `string.byte(s [, i [, j]])`                 |  ✅  |  ✅  |   ✅   | Multi-return: code-unit values for chars in `[i, j]` (1-indexed, negative counts from end). Uses `charCodeAt()` — matches Lua for ASCII; surrogate code units for higher planes. |
-| `string.char(...)`                           |  ✅  |  ✅  |   ✅   | Variadic; pure. Wraps `String.fromCharCode(...)`.                           |
-| `string.contains(s, sub)`                    |  ❌  |  ❌  |   ✅   | Sparkdown-only convenience (mirrors JS `String.includes`). Pure substring check, no patterns. Returns boolean.                   |
-| `string.endswith(s, suffix)`                 |  ❌  |  ❌  |   ✅   | Sparkdown-only (mirrors JS `String.endsWith`). Returns boolean.             |
-| `string.find(s, pattern [, init [, plain]])` |  ✅  |  ✅  |   ✅   | Multi-return `(start, end, …captures)`. Full Lua-pattern surface including `%b{}` balanced match, `%f[]` frontier, `()` position capture. Translated via `luaPatternToJs` → `executeLuaPattern`. |
-| `string.format(fmt, ...)`                    |  ✅  |  ✅  |   ✅   | Variadic. Supports `d i u o x X e E f g G c s q %` conversions plus `[flags][width][.precision]` modifiers (`- + space 0 #`).   |
-| `string.gmatch(s, pattern)`                  |  ✅  |  ✅  |   ✅   | Generic-for iterator over every non-overlapping match. Yields captures (or whole match if no captures). Full Lua-pattern surface (including `%b{}` / `%f[]` / `()`). |
+| Method                                       | Lua  | Luau | Status | Notes                                                                                                                                                                                                              |
+| -------------------------------------------- | :--: | :--: | :----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `string.byte(s [, i [, j]])`                 |  ✅  |  ✅  |   ✅   | Multi-return: code-unit values for chars in `[i, j]` (1-indexed, negative counts from end). Uses `charCodeAt()` — matches Lua for ASCII; surrogate code units for higher planes.                                   |
+| `string.char(...)`                           |  ✅  |  ✅  |   ✅   | Variadic; pure. Wraps `String.fromCharCode(...)`.                                                                                                                                                                  |
+| `string.contains(s, sub)`                    |  ❌  |  ❌  |   ✅   | Sparkdown-only convenience (mirrors JS `String.includes`). Pure substring check, no patterns. Returns boolean.                                                                                                     |
+| `string.endswith(s, suffix)`                 |  ❌  |  ❌  |   ✅   | Sparkdown-only (mirrors JS `String.endsWith`). Returns boolean.                                                                                                                                                    |
+| `string.find(s, pattern [, init [, plain]])` |  ✅  |  ✅  |   ✅   | Multi-return `(start, end, …captures)`. Full Lua-pattern surface including `%b{}` balanced match, `%f[]` frontier, `()` position capture. Translated via `luaPatternToJs` → `executeLuaPattern`.                   |
+| `string.format(fmt, ...)`                    |  ✅  |  ✅  |   ✅   | Variadic. Supports `d i u o x X e E f g G c s q %` conversions plus `[flags][width][.precision]` modifiers (`- + space 0 #`).                                                                                      |
+| `string.gmatch(s, pattern)`                  |  ✅  |  ✅  |   ✅   | Generic-for iterator over every non-overlapping match. Yields captures (or whole match if no captures). Full Lua-pattern surface (including `%b{}` / `%f[]` / `()`).                                               |
 | `string.gsub(s, pattern, repl [, n])`        |  ✅  |  ✅  |   ✅   | All three replacement forms supported: string template (`%0`–`%9`, `%%`), table lookup by first capture, and function called per match (return string/number to substitute, nil/false to keep the original match). |
-| `string.len(s)`                              |  ✅  |  ✅  |   ✅   | Covered by `#s` length operator too.                                        |
-| `string.lower(s)`                            |  ✅  |  ✅  |   ✅   |                                                                             |
-| `string.match(s, pattern [, init])`          |  ✅  |  ✅  |   ✅   | Returns the captures (or whole match if none). Same matcher as `string.find` — full Lua-pattern surface.                    |
-| `string.pack(fmt, ...)`                      | 5.3+ |  ✅  |   ✅   | Binary packing via DataView. Supports `< > = ! ( )`, `b B h H i[N] I[N] l L j J T f d n s[N] z c[N] x[N]`. Output is a byte string (each char ∈ [0, 255]) round-tripping with `string.byte` / `char`. |
-| `string.packsize(fmt)`                       | 5.3+ |  ✅  |   ✅   | Byte size of a fixed-width format. Errors on variable-width specs (`s`, `z`). |
-| `string.rep(s, n [, sep])`                   |  ✅  |  ✅  |   ✅   | Optional `sep` (Lua 5.3+) inserted between copies.                          |
-| `string.reverse(s)`                          |  ✅  |  ✅  |   ✅   |                                                                             |
-| `string.split(s, separator)`                 |  ❌  |  ✅  |   ✅   | Luau-only. 1-indexed array table. Empty separator splits into characters.   |
-| `string.startswith(s, prefix)`               |  ❌  |  ❌  |   ✅   | Sparkdown-only (mirrors JS `String.startsWith`). Returns boolean.           |
-| `string.sub(s, i [, j])`                     |  ✅  |  ✅  |   ✅   | Lua 1-based inclusive indices; supports negative indices counting from end. |
-| `string.trim(s)`                             |  ❌  |  ❌  |   ✅   | Sparkdown-only (mirrors JS `String.trim`). Strips ASCII + Unicode whitespace both sides. |
-| `string.trimstart(s)`                        |  ❌  |  ❌  |   ✅   | Sparkdown-only (mirrors JS `String.trimStart`).                             |
-| `string.trimend(s)`                          |  ❌  |  ❌  |   ✅   | Sparkdown-only (mirrors JS `String.trimEnd`).                               |
-| `string.unpack(fmt, s [, pos])`              | 5.3+ |  ✅  |   ✅   | Read values out of a byte string. Returns each value + the next 1-indexed position (multi-return). Optional `pos` resumes from a mid-buffer offset. |
-| `string.upper(s)`                            |  ✅  |  ✅  |   ✅   |                                                                             |
+| `string.len(s)`                              |  ✅  |  ✅  |   ✅   | Covered by `#s` length operator too.                                                                                                                                                                               |
+| `string.lower(s)`                            |  ✅  |  ✅  |   ✅   |                                                                                                                                                                                                                    |
+| `string.match(s, pattern [, init])`          |  ✅  |  ✅  |   ✅   | Returns the captures (or whole match if none). Same matcher as `string.find` — full Lua-pattern surface.                                                                                                           |
+| `string.pack(fmt, ...)`                      | 5.3+ |  ✅  |   ✅   | Binary packing via DataView. Supports `< > = ! ( )`, `b B h H i[N] I[N] l L j J T f d n s[N] z c[N] x[N]`. Output is a byte string (each char ∈ [0, 255]) round-tripping with `string.byte` / `char`.              |
+| `string.packsize(fmt)`                       | 5.3+ |  ✅  |   ✅   | Byte size of a fixed-width format. Errors on variable-width specs (`s`, `z`).                                                                                                                                      |
+| `string.rep(s, n [, sep])`                   |  ✅  |  ✅  |   ✅   | Optional `sep` (Lua 5.3+) inserted between copies.                                                                                                                                                                 |
+| `string.reverse(s)`                          |  ✅  |  ✅  |   ✅   |                                                                                                                                                                                                                    |
+| `string.split(s, separator)`                 |  ❌  |  ✅  |   ✅   | Luau-only. 1-indexed array table. Empty separator splits into characters.                                                                                                                                          |
+| `string.startswith(s, prefix)`               |  ❌  |  ❌  |   ✅   | Sparkdown-only (mirrors JS `String.startsWith`). Returns boolean.                                                                                                                                                  |
+| `string.sub(s, i [, j])`                     |  ✅  |  ✅  |   ✅   | Lua 1-based inclusive indices; supports negative indices counting from end.                                                                                                                                        |
+| `string.trim(s)`                             |  ❌  |  ❌  |   ✅   | Sparkdown-only (mirrors JS `String.trim`). Strips ASCII + Unicode whitespace both sides.                                                                                                                           |
+| `string.trimstart(s)`                        |  ❌  |  ❌  |   ✅   | Sparkdown-only (mirrors JS `String.trimStart`).                                                                                                                                                                    |
+| `string.trimend(s)`                          |  ❌  |  ❌  |   ✅   | Sparkdown-only (mirrors JS `String.trimEnd`).                                                                                                                                                                      |
+| `string.unpack(fmt, s [, pos])`              | 5.3+ |  ✅  |   ✅   | Read values out of a byte string. Returns each value + the next 1-indexed position (multi-return). Optional `pos` resumes from a mid-buffer offset.                                                                |
+| `string.upper(s)`                            |  ✅  |  ✅  |   ✅   |                                                                                                                                                                                                                    |
 
 ---
 
@@ -159,25 +159,25 @@ Reference: https://luau-lang.org/library#string-library
 
 Reference: https://luau-lang.org/library#table-library
 
-| Method                                | Lua  | Luau | Status | Notes                                                                                |
-| ------------------------------------- | :--: | :--: | :----: | ------------------------------------------------------------------------------------ |
-| `table.clear(t)`                      |  ❌  |  ✅  |   ✅   | Luau-only. Mutates `t`. Refuses on a frozen table.                                   |
-| `table.clone(t)`                      |  ❌  |  ✅  |   ✅   | Luau-only. Shallow copy. Result is unfrozen even if source was (matches Luau).       |
-| `table.concat(t [, sep [, i [, j]]])` |  ✅  |  ✅  |   ✅   | Reads array portion only. Numeric elements stringify; non-string/non-number errors.  |
-| `table.create(count [, value])`       |  ❌  |  ✅  |   ✅   | Luau-only. Shares one reference across all slots (mutations to the value propagate). |
-| `table.find(t, value [, init])`       |  ❌  |  ✅  |   ✅   | Luau-only. Linear search of array portion; strict equality on unwrapped values.      |
-| `table.foreach(t, f)`                 | 5.1  |  ✅  |   ✅   | **Deprecated** — use `for k, v in pairs(t) do … end`. Calls `f(k, v)` for every entry; a non-nil return ends iteration and propagates. |
-| `table.foreachi(t, f)`                | 5.1  |  ✅  |   ✅   | **Deprecated** — use `for i, v in ipairs(t) do … end`. Walks the array portion; calls `f(i, v)` for each. |
-| `table.freeze(t)`                     |  ❌  |  ✅  |   ✅   | Luau-only. Marks `t` read-only; subsequent mutation calls error. Returns `t`.        |
-| `table.getn(t)`                       | 5.1  |  ✅  |   ✅   | **Deprecated** — use `#t`. Removed in Lua 5.2; kept in Luau for compat.              |
-| `table.insert(t, [pos,] value)`       |  ✅  |  ✅  |   ✅   | Mutates `t` (refuses if frozen). 2-arg appends; 3-arg inserts at `pos` shifting later elements right. |
-| `table.isfrozen(t)`                   |  ❌  |  ✅  |   ✅   | Luau-only. Returns `false` for non-table args (matches Luau's tolerant behavior).    |
+| Method                                | Lua  | Luau | Status | Notes                                                                                                                                                           |
+| ------------------------------------- | :--: | :--: | :----: | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `table.clear(t)`                      |  ❌  |  ✅  |   ✅   | Luau-only. Mutates `t`. Refuses on a frozen table.                                                                                                              |
+| `table.clone(t)`                      |  ❌  |  ✅  |   ✅   | Luau-only. Shallow copy. Result is unfrozen even if source was (matches Luau).                                                                                  |
+| `table.concat(t [, sep [, i [, j]]])` |  ✅  |  ✅  |   ✅   | Reads array portion only. Numeric elements stringify; non-string/non-number errors.                                                                             |
+| `table.create(count [, value])`       |  ❌  |  ✅  |   ✅   | Luau-only. Shares one reference across all slots (mutations to the value propagate).                                                                            |
+| `table.find(t, value [, init])`       |  ❌  |  ✅  |   ✅   | Luau-only. Linear search of array portion; strict equality on unwrapped values.                                                                                 |
+| `table.foreach(t, f)`                 | 5.1  |  ✅  |   ✅   | **Deprecated** — use `for k, v in pairs(t) do … end`. Calls `f(k, v)` for every entry; a non-nil return ends iteration and propagates.                          |
+| `table.foreachi(t, f)`                | 5.1  |  ✅  |   ✅   | **Deprecated** — use `for i, v in ipairs(t) do … end`. Walks the array portion; calls `f(i, v)` for each.                                                       |
+| `table.freeze(t)`                     |  ❌  |  ✅  |   ✅   | Luau-only. Marks `t` read-only; subsequent mutation calls error. Returns `t`.                                                                                   |
+| `table.getn(t)`                       | 5.1  |  ✅  |   ✅   | **Deprecated** — use `#t`. Removed in Lua 5.2; kept in Luau for compat.                                                                                         |
+| `table.insert(t, [pos,] value)`       |  ✅  |  ✅  |   ✅   | Mutates `t` (refuses if frozen). 2-arg appends; 3-arg inserts at `pos` shifting later elements right.                                                           |
+| `table.isfrozen(t)`                   |  ❌  |  ✅  |   ✅   | Luau-only. Returns `false` for non-table args (matches Luau's tolerant behavior).                                                                               |
 | `table.maxn(t)`                       | 5.1  |  ✅  |   ✅   | **Deprecated** — if you need sparse-int-key scan, write the loop explicitly with `pairs`. Largest positive integer key. Returns 0 for empty / non-numeric keys. |
-| `table.move(a1, f, e, t [, a2])`      | 5.3+ |  ✅  |   ✅   | Added in Lua 5.3. Picks safe iteration direction for overlapping ranges. Refuses if destination is frozen. |
-| `table.pack(...)`                     | 5.2+ |  ✅  |   ✅   | Added in Lua 5.2. Returns a table with args at "1".."N" plus an `n` field.            |
-| `table.remove(t [, pos])`             |  ✅  |  ✅  |   ✅   | Mutates `t` (refuses if frozen). Returns the removed value or nil.                   |
-| `table.sort(t [, comp])`              |  ✅  |  ✅  |   ✅   | In-place stable sort of the array portion. Default comparator is `<`. User comparator (closure or bare-knot) runs via `story.CallLuauFunction`. |
-| `table.unpack(t [, i [, j]])`         | 5.2+ |  ✅  |   ✅   | Added in Lua 5.2 (was global `unpack` in 5.1). Multi-return: `t[i], t[i+1], …, t[j]`. Missing slots in the range become nil. |
+| `table.move(a1, f, e, t [, a2])`      | 5.3+ |  ✅  |   ✅   | Added in Lua 5.3. Picks safe iteration direction for overlapping ranges. Refuses if destination is frozen.                                                      |
+| `table.pack(...)`                     | 5.2+ |  ✅  |   ✅   | Added in Lua 5.2. Returns a table with args at "1".."N" plus an `n` field.                                                                                      |
+| `table.remove(t [, pos])`             |  ✅  |  ✅  |   ✅   | Mutates `t` (refuses if frozen). Returns the removed value or nil.                                                                                              |
+| `table.sort(t [, comp])`              |  ✅  |  ✅  |   ✅   | In-place stable sort of the array portion. Default comparator is `<`. User comparator (closure or bare-knot) runs via `story.CallLuauFunction`.                 |
+| `table.unpack(t [, i [, j]])`         | 5.2+ |  ✅  |   ✅   | Added in Lua 5.2 (was global `unpack` in 5.1). Multi-return: `t[i], t[i+1], …, t[j]`. Missing slots in the range become nil.                                    |
 
 ---
 
@@ -217,12 +217,12 @@ the library and adds Luau-only entries (`byteswap`, `countlz`, `countrz`).
 
 Reference: https://luau-lang.org/library#os-library
 
-| Method                       | Lua | Luau | Status | Notes                                                                                               |
-| ---------------------------- | :-: | :--: | :----: | --------------------------------------------------------------------------------------------------- |
-| `os.clock()`                 | ✅  |  ✅  |   ✅   | Uses `performance.now()` / 1000 when available, else `Date.now()` / 1000. Wall-clock, not CPU time. |
+| Method                       | Lua | Luau | Status | Notes                                                                                                                                                                                                                                      |
+| ---------------------------- | :-: | :--: | :----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `os.clock()`                 | ✅  |  ✅  |   ✅   | Uses `performance.now()` / 1000 when available, else `Date.now()` / 1000. Wall-clock, not CPU time.                                                                                                                                        |
 | `os.date([format [, time]])` | ✅  |  ✅  |   ✅   | strftime-style formatting. Supports `%a %A %b %B %c %d %H %I %j %M %m %p %S %w %x %X %y %Y %Z %%`. `*t` returns a table with year/month/day/hour/min/sec/wday/yday/isdst fields. `!` prefix selects UTC. English-only month/weekday names. |
-| `os.difftime(t2, t1)`        | ✅  |  ✅  |   ✅   |                                                                                                     |
-| `os.time([t])`               | ✅  |  ✅  |   ✅   | No-arg form returns current Unix timestamp. Table form `{year, month, day [, hour, min, sec]}` treats fields as local time (matches Lua); month is 1-indexed. Accepts both `{year = ...}` and `{["year"] = ...}` table-key shapes. |
+| `os.difftime(t2, t1)`        | ✅  |  ✅  |   ✅   |                                                                                                                                                                                                                                            |
+| `os.time([t])`               | ✅  |  ✅  |   ✅   | No-arg form returns current Unix timestamp. Table form `{year, month, day [, hour, min, sec]}` treats fields as local time (matches Lua); month is 1-indexed. Accepts both `{year = ...}` and `{["year"] = ...}` table-key shapes.         |
 
 ---
 
@@ -232,16 +232,16 @@ Reference: https://luau-lang.org/library#utf8-library
 
 The `utf8` library was added in Lua 5.3 and Luau.
 
-| Method                          | Lua  | Luau | Status | Notes                                                                                   |
-| ------------------------------- | :--: | :--: | :----: | --------------------------------------------------------------------------------------- |
-| `utf8.char(...)`                | 5.3+ |  ✅  |   ✅   | Variadic. Wraps `String.fromCodePoint(...)`.                                            |
-| `utf8.charpattern`              | 5.3+ |  ✅  |   ✅   | Constant. The Lua-pattern string itself; pattern matching is blocked on a Lua-pattern engine. |
-| `utf8.codepoint(s [, i [, j]])` | 5.3+ |  ✅  |   ✅   | Multi-return: codepoints for chars whose starting byte lies in `[i, j]` (1-indexed bytes). JS strings are always valid Unicode, so the "invalid UTF-8" error path never triggers. |
+| Method                          | Lua  | Luau | Status | Notes                                                                                                                                                                                 |
+| ------------------------------- | :--: | :--: | :----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `utf8.char(...)`                | 5.3+ |  ✅  |   ✅   | Variadic. Wraps `String.fromCodePoint(...)`.                                                                                                                                          |
+| `utf8.charpattern`              | 5.3+ |  ✅  |   ✅   | Constant. The Lua-pattern string itself; pattern matching is blocked on a Lua-pattern engine.                                                                                         |
+| `utf8.codepoint(s [, i [, j]])` | 5.3+ |  ✅  |   ✅   | Multi-return: codepoints for chars whose starting byte lies in `[i, j]` (1-indexed bytes). JS strings are always valid Unicode, so the "invalid UTF-8" error path never triggers.     |
 | `utf8.codes(s)`                 | 5.3+ |  ✅  |   ✅   | Generic-for iterator yielding `(byte_position, codepoint)` for each character in `s`. Byte positions are 1-indexed and match the convention used by `utf8.codepoint` / `utf8.offset`. |
-| `utf8.len(s [, i [, j]])`       | 5.3+ |  ✅  |   ✅   | Counts code points across UTF-8 byte range `[i, j]`. Negative indices count from end. JS strings are always valid Unicode, so the "first invalid byte" error path never triggers. |
-| `utf8.nfcnormalize(s)`          |  ❌  |  ✅  |   ✅   | Luau-only. Wraps `String.prototype.normalize("NFC")`.                                   |
-| `utf8.nfdnormalize(s)`          |  ❌  |  ✅  |   ✅   | Luau-only. Wraps `String.prototype.normalize("NFD")`.                                   |
-| `utf8.offset(s, n [, i])`       | 5.3+ |  ✅  |   ✅   | Returns 1-based UTF-8 byte position. Supports `n=0` (char containing byte `i`) and negative `n` (count backward). |
+| `utf8.len(s [, i [, j]])`       | 5.3+ |  ✅  |   ✅   | Counts code points across UTF-8 byte range `[i, j]`. Negative indices count from end. JS strings are always valid Unicode, so the "first invalid byte" error path never triggers.     |
+| `utf8.nfcnormalize(s)`          |  ❌  |  ✅  |   ✅   | Luau-only. Wraps `String.prototype.normalize("NFC")`.                                                                                                                                 |
+| `utf8.nfdnormalize(s)`          |  ❌  |  ✅  |   ✅   | Luau-only. Wraps `String.prototype.normalize("NFD")`.                                                                                                                                 |
+| `utf8.offset(s, n [, i])`       | 5.3+ |  ✅  |   ✅   | Returns 1-based UTF-8 byte position. Supports `n=0` (char containing byte `i`) and negative `n` (count backward).                                                                     |
 
 ---
 
@@ -314,16 +314,16 @@ runtime investment. Tracked here so imported Luau libraries that
 touch `coroutine.*` get a clear "not yet" instead of a silent
 not-found.
 
-| Method                       | Lua | Luau | Status |
-| ---------------------------- | :-: | :--: | :----: |
-| `coroutine.close(co)`        | ✅  |  ✅  |   ⬜   |
-| `coroutine.create(f)`        | ✅  |  ✅  |   ⬜   |
-| `coroutine.isyieldable()`    | ✅  |  ✅  |   ⬜   |
-| `coroutine.resume(co, ...)`  | ✅  |  ✅  |   ⬜   |
-| `coroutine.running()`        | ✅  |  ✅  |   ⬜   |
-| `coroutine.status(co)`       | ✅  |  ✅  |   ⬜   |
-| `coroutine.wrap(f)`          | ✅  |  ✅  |   ⬜   |
-| `coroutine.yield(...)`       | ✅  |  ✅  |   ⬜   |
+| Method                      | Lua | Luau | Status |
+| --------------------------- | :-: | :--: | :----: |
+| `coroutine.close(co)`       | ✅  |  ✅  |   ⬜   |
+| `coroutine.create(f)`       | ✅  |  ✅  |   ⬜   |
+| `coroutine.isyieldable()`   | ✅  |  ✅  |   ⬜   |
+| `coroutine.resume(co, ...)` | ✅  |  ✅  |   ⬜   |
+| `coroutine.running()`       | ✅  |  ✅  |   ⬜   |
+| `coroutine.status(co)`      | ✅  |  ✅  |   ⬜   |
+| `coroutine.wrap(f)`         | ✅  |  ✅  |   ⬜   |
+| `coroutine.yield(...)`      | ✅  |  ✅  |   ⬜   |
 
 ---
 
@@ -335,10 +335,10 @@ Useful for game-author diagnostics — call-stack introspection, error
 traces — but not narrative-flow-critical. Achievable since the inkjs
 runtime already tracks a call stack.
 
-| Method                                              | Lua | Luau | Status | Notes                                                                                          |
-| --------------------------------------------------- | :-: | :--: | :----: | ---------------------------------------------------------------------------------------------- |
-| `debug.info(level, options)`                        | ❌  |  ✅  |   ✅   | Luau-only. Returns multi-value matching `options` codes: `s` (path), `l` (-1, no line info), `n` (leaf name), `a` (0), `f` (nil), `r` (-1, -1). |
-| `debug.traceback([message [, level]])`              | ✅  |  ✅  |   ✅   | Returns the current call-stack dump (delegated to `CallStack.callStackTrace`). Optional `message` is prepended. `level` accepted for compat but ignored. |
+| Method                                 | Lua | Luau | Status | Notes                                                                                                                                                    |
+| -------------------------------------- | :-: | :--: | :----: | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `debug.info(level, options)`           | ❌  |  ✅  |   ✅   | Luau-only. Returns multi-value matching `options` codes: `s` (path), `l` (-1, no line info), `n` (leaf name), `a` (0), `f` (nil), `r` (-1, -1).          |
+| `debug.traceback([message [, level]])` | ✅  |  ✅  |   ✅   | Returns the current call-stack dump (delegated to `CallStack.callStackTrace`). Optional `message` is prepended. `level` accepted for compat but ignored. |
 
 ---
 
@@ -350,13 +350,13 @@ The Roblox task scheduler API. Depends on the coroutine scheduler
 (above) and on the host providing a frame loop / delta-time. `task.wait`
 could be modelled as story-time advance once that infra lands.
 
-| Method                              | Lua | Luau | Status | Notes                                                                              |
-| ----------------------------------- | :-: | :--: | :----: | ---------------------------------------------------------------------------------- |
-| `task.spawn(f, ...)`                | ❌  |  ✅  |   ⬜   | Schedules a coroutine. Blocked on `coroutine.*` infra.                             |
-| `task.defer(f, ...)`                | ❌  |  ✅  |   ⬜   | Resume-end-of-frame scheduling. Needs frame loop.                                  |
-| `task.delay(duration, f, ...)`      | ❌  |  ✅  |   ⬜   | Schedule after wall-clock delay. Needs scheduler + wall-clock hook.                |
-| `task.wait([duration])`             | ❌  |  ✅  |   ⬜   | Yields the current coroutine. Blocked on `coroutine.*` infra.                      |
-| `task.cancel(thread)`               | ❌  |  ✅  |   ⬜   | Blocked on `coroutine.*` infra.                                                    |
+| Method                         | Lua | Luau | Status | Notes                                                               |
+| ------------------------------ | :-: | :--: | :----: | ------------------------------------------------------------------- |
+| `task.spawn(f, ...)`           | ❌  |  ✅  |   ⬜   | Schedules a coroutine. Blocked on `coroutine.*` infra.              |
+| `task.defer(f, ...)`           | ❌  |  ✅  |   ⬜   | Resume-end-of-frame scheduling. Needs frame loop.                   |
+| `task.delay(duration, f, ...)` | ❌  |  ✅  |   ⬜   | Schedule after wall-clock delay. Needs scheduler + wall-clock hook. |
+| `task.wait([duration])`        | ❌  |  ✅  |   ⬜   | Yields the current coroutine. Blocked on `coroutine.*` infra.       |
+| `task.cancel(thread)`          | ❌  |  ✅  |   ⬜   | Blocked on `coroutine.*` infra.                                     |
 
 ---
 
@@ -370,18 +370,18 @@ a new `ValueType.Buffer` runtime value plus per-typed-op dispatch
 write op is a one-liner once the value type and a `DataView` helper
 are in place.
 
-| Method                                                 | Lua | Luau | Status |
-| ------------------------------------------------------ | :-: | :--: | :----: |
-| `buffer.create(size)`                                  | ❌  |  ✅  |   ⬜   |
-| `buffer.fromstring(s)`                                 | ❌  |  ✅  |   ⬜   |
-| `buffer.tostring(b)`                                   | ❌  |  ✅  |   ⬜   |
-| `buffer.len(b)`                                        | ❌  |  ✅  |   ⬜   |
-| `buffer.copy(target, targetOff, src, srcOff?, count?)` | ❌  |  ✅  |   ⬜   |
-| `buffer.fill(b, off, value, count?)`                   | ❌  |  ✅  |   ⬜   |
-| `buffer.readi8` / `readu8` / `readi16` / `readu16` / `readi32` / `readu32` / `readf32` / `readf64` | ❌ | ✅ | ⬜ | Byte / int / float reads at offset. |
-| `buffer.writei8` / `writeu8` / ... `writef64`          | ❌  |  ✅  |   ⬜   | Companion writes.                  |
-| `buffer.readstring(b, off, count)`                     | ❌  |  ✅  |   ⬜   |                                    |
-| `buffer.writestring(b, off, s, count?)`                | ❌  |  ✅  |   ⬜   |                                    |
+| Method                                                                                             | Lua | Luau | Status |
+| -------------------------------------------------------------------------------------------------- | :-: | :--: | :----: | ----------------------------------- |
+| `buffer.create(size)`                                                                              | ❌  |  ✅  |   ⬜   |
+| `buffer.fromstring(s)`                                                                             | ❌  |  ✅  |   ⬜   |
+| `buffer.tostring(b)`                                                                               | ❌  |  ✅  |   ⬜   |
+| `buffer.len(b)`                                                                                    | ❌  |  ✅  |   ⬜   |
+| `buffer.copy(target, targetOff, src, srcOff?, count?)`                                             | ❌  |  ✅  |   ⬜   |
+| `buffer.fill(b, off, value, count?)`                                                               | ❌  |  ✅  |   ⬜   |
+| `buffer.readi8` / `readu8` / `readi16` / `readu16` / `readi32` / `readu32` / `readf32` / `readf64` | ❌  |  ✅  |   ⬜   | Byte / int / float reads at offset. |
+| `buffer.writei8` / `writeu8` / ... `writef64`                                                      | ❌  |  ✅  |   ⬜   | Companion writes.                   |
+| `buffer.readstring(b, off, count)`                                                                 | ❌  |  ✅  |   ⬜   |                                     |
+| `buffer.writestring(b, off, s, count?)`                                                            | ❌  |  ✅  |   ⬜   |                                     |
 
 ---
 
@@ -390,52 +390,52 @@ are in place.
 These are tagged by `LuauStdLibFunctions` in the grammar and registered
 in `STDLIB` (StdLib.ts) as state-aware entries.
 
-| Function                      | Lua | Luau | Status | Notes                                                                                                      |
-| ----------------------------- | :-: | :--: | :----: | ---------------------------------------------------------------------------------------------------------- |
-| `assert(v [, message])`       | ✅  |  ✅  |   ✅   | Falsy `v` raises a runtime error via `story.AddError`. Sparkdown truthiness: `nil`/`0`/`false`/`""` falsy. |
-| `collectgarbage([opt])`       | ✅  |  ✅  |   ⛔   | No JS GC hook.                                                                                             |
-| `error(message [, level])`    | ✅  |  ✅  |   ✅   | `level` arg ignored; force-ends the story. Sparkdown doesn't track call-frame depth.                       |
-| `gcinfo()`                    | ❌  |  ✅  |   ⛔   | Luau-specific (Roblox GC stat). No JS equivalent.                                                          |
-| `getfenv([f])`                | 5.1 |  ❌  |   ⛔   | Removed in Lua 5.2 and not in Luau. No first-class environments.                                           |
-| `getmetatable(t)`             | ✅  |  ✅  |   ✅   | Returns `t`'s metatable, or its `__metatable` field if set (Luau metatable protection). Non-table args return nil. |
-| `ipairs(t)`                   | ✅  |  ✅  |   ✅   | Generic-for iterator over consecutive integer keys starting at 1. Stops at first nil. Uses builtin-iterator dispatch (`__builtin_iter` marker). |
-| `loadstring(s [, chunkname])` | 5.1 |  ✅  |   ⬜   | Removed in Lua 5.2 (use `load`); kept in Luau. Would need the sparkdown compiler embedded in the runtime to eval at runtime — large but tractable. |
-| `newproxy([metatable])`       | 5.1 |  ✅  |   ✅   | Returns a fresh ObjectValue. `newproxy(true)` gives it an empty metatable; passing a table sets the new proxy's metatable to it. |
-| `next(t [, index])`           | ✅  |  ✅  |   ✅   | Returns the next key/value pair after `index` in insertion order, or nil when iteration ends.              |
-| `pairs(t)`                    | ✅  |  ✅  |   ✅   | Generic-for iterator over every key in insertion order. Uses builtin-iterator dispatch (`__builtin_iter` marker). |
+| Function                      | Lua | Luau | Status | Notes                                                                                                                                                                                                        |
+| ----------------------------- | :-: | :--: | :----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `assert(v [, message])`       | ✅  |  ✅  |   ✅   | Falsy `v` raises a runtime error via `story.AddError`. Sparkdown truthiness: `nil`/`0`/`false`/`""` falsy.                                                                                                   |
+| `collectgarbage([opt])`       | ✅  |  ✅  |   ⛔   | No JS GC hook.                                                                                                                                                                                               |
+| `error(message [, level])`    | ✅  |  ✅  |   ✅   | `level` arg ignored; force-ends the story. Sparkdown doesn't track call-frame depth.                                                                                                                         |
+| `gcinfo()`                    | ❌  |  ✅  |   ⛔   | Luau-specific (Roblox GC stat). No JS equivalent.                                                                                                                                                            |
+| `getfenv([f])`                | 5.1 |  ❌  |   ⛔   | Removed in Lua 5.2 and not in Luau. No first-class environments.                                                                                                                                             |
+| `getmetatable(t)`             | ✅  |  ✅  |   ✅   | Returns `t`'s metatable, or its `__metatable` field if set (Luau metatable protection). Non-table args return nil.                                                                                           |
+| `ipairs(t)`                   | ✅  |  ✅  |   ✅   | Generic-for iterator over consecutive integer keys starting at 1. Stops at first nil. Uses builtin-iterator dispatch (`__builtin_iter` marker).                                                              |
+| `loadstring(s [, chunkname])` | 5.1 |  ✅  |   ⬜   | Removed in Lua 5.2 (use `load`); kept in Luau. Would need the sparkdown compiler embedded in the runtime to eval at runtime — large but tractable.                                                           |
+| `newproxy([metatable])`       | 5.1 |  ✅  |   ✅   | Returns a fresh ObjectValue. `newproxy(true)` gives it an empty metatable; passing a table sets the new proxy's metatable to it.                                                                             |
+| `next(t [, index])`           | ✅  |  ✅  |   ✅   | Returns the next key/value pair after `index` in insertion order, or nil when iteration ends.                                                                                                                |
+| `pairs(t)`                    | ✅  |  ✅  |   ✅   | Generic-for iterator over every key in insertion order. Uses builtin-iterator dispatch (`__builtin_iter` marker).                                                                                            |
 | `pcall(f, ...)`               | ✅  |  ✅  |   ✅   | Protected call. Catches `story.Error` thrown by stdlib (`assert`, `error`, etc.) and returns `(false, errMsg)`. Trapped errors don't surface to the host. Implementation: `Story.CallLuauFunctionProtected`. |
-| `print(...)`                  | ✅  |  ✅  |   ✅   | Variadic; currently a no-op. Sparkdown's narrative runtime has no implicit stdout.                         |
-| `rawequal(a, b)`              | ✅  |  ✅  |   ✅   | Strict `===` on underlying values; bypasses `__eq`.                                                        |
-| `rawget(t, k)`                | ✅  |  ✅  |   ✅   | Bypasses `__index` — returns the field stored directly on `t`, or nil if absent.                            |
-| `rawset(t, k, v)`             | ✅  |  ✅  |   ✅   | Bypasses `__newindex` — writes directly to `t`. Returns `t`.                                                |
-| `require(modname)`            | ✅  |  ✅  |   ⬜   | Sparkdown's `run "path"` covers .luau loading; `require` for module-return-values still TBD.               |
-| `select(n, ...)`              | ✅  |  ✅  |   ✅   | `select("#", ...)` → count (single int). `select(n, ...)` → multi-return tail starting at 1-indexed `n` (negative counts from end).   |
-| `setfenv(f, table)`           | 5.1 |  ❌  |   ⛔   | Removed in Lua 5.2 and not in Luau.                                                                        |
-| `setmetatable(t, mt)`         | ✅  |  ✅  |   ✅   | Attaches `mt` (or nil to clear) to `t`'s metatable slot. Errors if `t` is not a table, `mt` is neither nil nor a table, or `t`'s existing metatable carries `__metatable` (protection). |
-| `tonumber(e [, base])`        | ✅  |  ✅  |   ✅   | Returns `nil` (null) on failure. Optional `base` arg for integer parsing.                                  |
-| `tostring(v)`                 | ✅  |  ✅  |   ✅   |                                                                                                            |
-| `type(v)`                     | ✅  |  ✅  |   ✅   | Returns `"nil"`/`"number"`/`"string"`/`"boolean"`/`"table"`/`"userdata"`.                                  |
-| `typeof(v)`                   | ❌  |  ✅  |   ✅   | Luau-only. Currently identical to `type` (no userdata typeNames yet).                                      |
-| `unpack(t [, i [, j]])`       | 5.1 |  ✅  |   ✅   | **Deprecated** — use `table.unpack(t, ...)`. Moved to `table.unpack` in Lua 5.2; the global is kept in Luau for compat. |
-| `xpcall(f, msgh, ...)`        | ✅  |  ✅  |   ✅   | Protected call with custom message handler. On error, `msgh(errMsg)` runs (also via `CallLuauFunctionProtected` — if handler itself errors, the raw error is returned). |
+| `print(...)`                  | ✅  |  ✅  |   ✅   | Variadic; currently a no-op. Sparkdown's narrative runtime has no implicit stdout.                                                                                                                           |
+| `rawequal(a, b)`              | ✅  |  ✅  |   ✅   | Strict `===` on underlying values; bypasses `__eq`.                                                                                                                                                          |
+| `rawget(t, k)`                | ✅  |  ✅  |   ✅   | Bypasses `__index` — returns the field stored directly on `t`, or nil if absent.                                                                                                                             |
+| `rawset(t, k, v)`             | ✅  |  ✅  |   ✅   | Bypasses `__newindex` — writes directly to `t`. Returns `t`.                                                                                                                                                 |
+| `require(modname)`            | ✅  |  ✅  |   ⬜   | Sparkdown's `run "path"` covers .luau loading; `require` for module-return-values still TBD.                                                                                                                 |
+| `select(n, ...)`              | ✅  |  ✅  |   ✅   | `select("#", ...)` → count (single int). `select(n, ...)` → multi-return tail starting at 1-indexed `n` (negative counts from end).                                                                          |
+| `setfenv(f, table)`           | 5.1 |  ❌  |   ⛔   | Removed in Lua 5.2 and not in Luau.                                                                                                                                                                          |
+| `setmetatable(t, mt)`         | ✅  |  ✅  |   ✅   | Attaches `mt` (or nil to clear) to `t`'s metatable slot. Errors if `t` is not a table, `mt` is neither nil nor a table, or `t`'s existing metatable carries `__metatable` (protection).                      |
+| `tonumber(e [, base])`        | ✅  |  ✅  |   ✅   | Returns `nil` (null) on failure. Optional `base` arg for integer parsing.                                                                                                                                    |
+| `tostring(v)`                 | ✅  |  ✅  |   ✅   |                                                                                                                                                                                                              |
+| `type(v)`                     | ✅  |  ✅  |   ✅   | Returns `"nil"`/`"number"`/`"string"`/`"boolean"`/`"table"`/`"userdata"`.                                                                                                                                    |
+| `typeof(v)`                   | ❌  |  ✅  |   ✅   | Luau-only. Currently identical to `type` (no userdata typeNames yet).                                                                                                                                        |
+| `unpack(t [, i [, j]])`       | 5.1 |  ✅  |   ✅   | **Deprecated** — use `table.unpack(t, ...)`. Moved to `table.unpack` in Lua 5.2; the global is kept in Luau for compat.                                                                                      |
+| `xpcall(f, msgh, ...)`        | ✅  |  ✅  |   ✅   | Protected call with custom message handler. On error, `msgh(errMsg)` runs (also via `CallLuauFunctionProtected` — if handler itself errors, the raw error is returned).                                      |
 
 ---
 
 ## Meta-methods
 
-| Name                                                          | Lua  | Luau | Status | Notes                                                   |
-| ------------------------------------------------------------- | :--: | :--: | :----: | ------------------------------------------------------- |
-| `__add`, `__sub`, `__mul`, `__div`, `__mod`, `__pow`, `__unm` |  ✅  |  ✅  |   ✅   | Arithmetic metamethods. Fire when either operand is a table; LHS metatable consulted first, then RHS. Function-form handlers dispatched via `story.CallLuauFunction`. |
-| `__idiv`                                                      | 5.3+ |  ✅  |   ⬜   | Floor-division metamethod (Lua 5.3+ / Luau). Sparkdown's grammar doesn't expose `//` yet. |
-| `__concat`                                                    |  ✅  |  ✅  |   ⚠️   | Sparkdown maps `..` and `+` to the same runtime native (`Add`), so `__concat` and `__add` collapse — concat-style `t .. s` triggers `__add`. Acceptable trade-off until the lowerer keeps the ops distinct. |
-| `__len`                                                       | 5.2+ |  ✅  |   ✅   | Unary `#t` consults the metatable before the built-in object-size path. |
-| `__eq`, `__lt`, `__le`                                        |  ✅  |  ✅  |   ✅   | `__eq` fires only when both operands are tables (Luau-fidelity). `>` / `>=` swap args and call `__lt` / `__le` respectively. `!=` inverts `__eq`. |
-| `__index`, `__newindex`                                       |  ✅  |  ✅  |   ✅   | Table-form chains lookup (Lua-style class inheritance via `{__index = parent}`). Function-form calls `__index(t, key)` / `__newindex(t, key, val)`. Hooked at the `IndexValue` / `StoreIndex` bytecode ops and at the dotted-path variable-lookup fallback. |
+| Name                                                          | Lua  | Luau | Status | Notes                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------- | :--: | :--: | :----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `__add`, `__sub`, `__mul`, `__div`, `__mod`, `__pow`, `__unm` |  ✅  |  ✅  |   ✅   | Arithmetic metamethods. Fire when either operand is a table; LHS metatable consulted first, then RHS. Function-form handlers dispatched via `story.CallLuauFunction`.                                                                                                     |
+| `__idiv`                                                      | 5.3+ |  ✅  |   ⬜   | Floor-division metamethod (Lua 5.3+ / Luau). Sparkdown's grammar doesn't expose `//` yet.                                                                                                                                                                                 |
+| `__concat`                                                    |  ✅  |  ✅  |   ⚠️   | Sparkdown maps `..` and `+` to the same runtime native (`Add`), so `__concat` and `__add` collapse — concat-style `t .. s` triggers `__add`. Acceptable trade-off until the lowerer keeps the ops distinct.                                                               |
+| `__len`                                                       | 5.2+ |  ✅  |   ✅   | Unary `#t` consults the metatable before the built-in object-size path.                                                                                                                                                                                                   |
+| `__eq`, `__lt`, `__le`                                        |  ✅  |  ✅  |   ✅   | `__eq` fires only when both operands are tables (Luau-fidelity). `>` / `>=` swap args and call `__lt` / `__le` respectively. `!=` inverts `__eq`.                                                                                                                         |
+| `__index`, `__newindex`                                       |  ✅  |  ✅  |   ✅   | Table-form chains lookup (Lua-style class inheritance via `{__index = parent}`). Function-form calls `__index(t, key)` / `__newindex(t, key, val)`. Hooked at the `IndexValue` / `StoreIndex` bytecode ops and at the dotted-path variable-lookup fallback.               |
 | `__call`                                                      |  ✅  |  ✅  |   ⚠️   | Closure-form handlers infer arg count from `__closure_user_arity`. Bare DivertTarget handlers default to "1 arg = self" — user args pushed at the call site stay on the eval stack. Authors needing multi-arg `__call` with a bare-knot handler should wrap as a closure. |
-| `__tostring`                                                  |  ✅  |  ✅  |   ✅   | `tostring(t)` consults `__tostring` before the default representation. Non-string returns fall through to the default. |
-| `__metatable`                                                 |  ✅  |  ✅  |   ✅   | When the metatable has `__metatable`, `getmetatable(t)` returns that field's value (instead of the real metatable) and `setmetatable(t, ...)` errors. |
-| `__mode`                                                      |  ✅  |  ✅  |   ⛔   | Weak-table mode (`"k"`/`"v"`/`"kv"`). Needs GC hooks — no JS equivalent. |
-| `__iter`                                                      |  ❌  |  ✅  |   ⬜   | Luau-only. Would need generic-for to detect table-typed iter-expression and substitute with `__iter(t)`. Deferred. |
+| `__tostring`                                                  |  ✅  |  ✅  |   ✅   | `tostring(t)` consults `__tostring` before the default representation. Non-string returns fall through to the default.                                                                                                                                                    |
+| `__metatable`                                                 |  ✅  |  ✅  |   ✅   | When the metatable has `__metatable`, `getmetatable(t)` returns that field's value (instead of the real metatable) and `setmetatable(t, ...)` errors.                                                                                                                     |
+| `__mode`                                                      |  ✅  |  ✅  |   ⛔   | Weak-table mode (`"k"`/`"v"`/`"kv"`). Needs GC hooks — no JS equivalent.                                                                                                                                                                                                  |
+| `__iter`                                                      |  ❌  |  ✅  |   ⬜   | Luau-only. Would need generic-for to detect table-typed iter-expression and substitute with `__iter(t)`. Deferred.                                                                                                                                                        |
 
 ---
 
@@ -590,8 +590,7 @@ The runtime still dispatches the call — we keep deprecated entries
 for source compatibility with imported Luau code — but the lowerer
 emits an Information-severity LSP diagnostic tagged
 `DiagnosticTag.Deprecated` (= 2), which editors render
-strikethrough. Mark the corresponding status row with 🪦 in this
-file's tables.
+strikethrough.
 
 ### After adding the entry
 
