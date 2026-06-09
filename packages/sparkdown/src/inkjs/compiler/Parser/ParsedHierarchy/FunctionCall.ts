@@ -186,12 +186,21 @@ export class FunctionCall extends Expression {
         !nativeCall.isVariadic &&
         nativeCall.numberOfParameters !== this.args.length
       ) {
-        let msg = `${FunctionCall.name} should take ${nativeCall.numberOfParameters} parameter`;
+        let msg = `${this.name} should take ${nativeCall.numberOfParameters} parameter`;
         if (nativeCall.numberOfParameters > 1) {
           msg += "s";
         }
-
-        this.Error(msg);
+        msg += `, got ${this.args.length}`;
+        // Demoted from error → warning so Luau patterns that
+        // deliberately call a native with the wrong arity to trigger
+        // a trappable runtime error (e.g. `pcall(function() return
+        // math.abs() end)` to verify the runtime "missing argument"
+        // path) compile cleanly. The runtime still validates arity
+        // and throws "Unexpected number of parameters" — which pcall
+        // catches as a regular Luau error. Calls outside pcall fail
+        // at runtime with the same error message, matching what Luau
+        // does.
+        this.Error(msg, this, true);
       }
 
       for (let ii = 0; ii < this.args.length; ii += 1) {

@@ -170,7 +170,13 @@ export class VariableReference extends Expression {
       const pathStr = this.path.join(".");
       let errorMsg = `Cannot find item or path named \`${pathStr}\``;
 
-      this.Error(errorMsg);
+      // Luau-superset semantics: same logic as the single-name
+      // "Cannot find variable named" diagnostic below — downgrade
+      // unresolved dotted paths to a warning so the runtime can fall
+      // back to `NullValue` for property reads (`_G.bar`,
+      // `unknown.field`, ...). The diagnostic still surfaces in the
+      // IDE as a probable typo / forgotten declaration.
+      this.Error(errorMsg, this, true);
 
       return;
     }
