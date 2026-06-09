@@ -138,33 +138,25 @@ describe("Variables (ported from inkjs)", () => {
     }).toThrow();
   });
 
-  test("temp not found (forward reference triggers runtime warning + throw)", () => {
-    // Upstream ink fixture:
+  test("temp forward reference resolves to nil (Luau semantics)", () => {
+    // Upstream ink fixture (Luau-ported semantics):
     //   {x}
-    //   ~temp x = 5
+    //   & local x = 5
     //   hello
     //
-    // Line 1 references `x` before its declaration on line 2. The
-    // runtime hits the unresolved `VariableReference("x")` and fires
-    // `Story.Warning(...)` (visible via `state.hasWarning` /
-    // `state.currentWarnings`), defaults `x` to `0`, and continues.
-    // `ContinueInternal` then throws a `StoryException` containing
-    // the accumulated warning text on the next dispatch — that's why
-    // `ContinueMaximally()` throws even though the runtime kept going
-    // past the bad reference.
-    //
-    // Sparkdown rewrite uses `& local x = 5` for `~temp x = 5`.
-    // Same shape — `x` referenced one line before its decl.
+    // Line 1 references `x` before its declaration on line 2. Ink's
+    // original behaviour was to emit a runtime warning ("Variable not
+    // found: 'x'. Using default value of 0") and throw on the next
+    // dispatch. Sparkdown follows Luau-superset semantics instead:
+    // undefined names resolve to `nil` silently. The forward-reference
+    // value reads as nil ("" when interpolated); the declaration runs
+    // normally afterwards. No warning, no throw.
     const ctx = makeRuntimeStoryFromFile("variables", "temp-not-found");
     expect(ctx.errorMessages).toEqual([]);
-
-    expect(() => ctx.story.ContinueMaximally()).toThrow(
-      /Variable not found: 'x'/,
-    );
-    expect(ctx.story.hasWarning).toBe(true);
-    expect(
-      ctx.story.state.currentWarnings?.some((w) => /Variable not found/.test(w)),
-    ).toBe(true);
+    const output = ctx.story.ContinueMaximally();
+    // Empty interpolation for the forward-ref nil, then "hello".
+    expect(output).toMatch(/hello/);
+    expect(ctx.story.hasWarning).toBe(false);
   });
 
   test("variable holds a divert target (`store x = -> here`)", () => {

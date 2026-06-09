@@ -176,7 +176,16 @@ export class VariableReference extends Expression {
     }
 
     if (!context.ResolveVariableWithName(this.name, this).found) {
-      this.Error(`Cannot find variable named \`${this.name}\``, this);
+      // Luau-superset semantics: undefined names resolve to `nil` at
+      // runtime, not a compile error. Downgraded to a warning so it
+      // still surfaces in the IDE as a probable typo / forgotten
+      // declaration. The runtime falls back to `NullValue` (see
+      // Story.PerformLogicAndFlowControl's variable-reference branch).
+      this.Error(
+        `Cannot find variable named \`${this.name}\``,
+        this,
+        true,
+      );
     }
   }
 

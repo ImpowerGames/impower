@@ -237,6 +237,27 @@ function collectTokens(
       }
     }
     collectFromNode(child, ctx, tokens);
+    // Value-call on a parenthesized expression: `(expr)(args)`,
+    // including the IIFE shape `(function() ... end)(args)`. The
+    // grammar emits both as a `LuauParenthetical` followed by another
+    // `LuauParenthetical` sibling (with no operator between, since
+    // operator rules like `LuauArithmeticOperation` would have
+    // consumed the operator + RHS together). The pratt parser can't
+    // handle two adjacent operands, so we fold the trailing
+    // parenthetical as a value-call here. Subsequent `(args)`
+    // siblings chain in the same way (`(expr)(a)(b)`).
+    const last = tokens[tokens.length - 1];
+    if (last?.kind === "operand") {
+      let after: SyntaxNode | null = child.nextSibling;
+      while (after) {
+        while (after && isSkippableName(after.name)) after = after.nextSibling;
+        if (!after || after.name !== "LuauParenthetical") break;
+        const args = lowerParentheticalArgList(after, ctx);
+        last.expr = new CallValueExpression(last.expr, args);
+        child = after;
+        after = after.nextSibling;
+      }
+    }
     child = child.nextSibling;
   }
 }

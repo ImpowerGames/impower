@@ -2718,12 +2718,15 @@ export class Story extends InkObject {
         }
 
         if (foundValue == null) {
-          this.Warning(
-            "Variable not found: '" +
-              varRef.name +
-              "'. Using default value of 0 (false). This can happen with temporary variables if the declaration hasn't yet been hit. Globals are always given a default value on load if a value doesn't exist in the save state.",
-          );
-          foundValue = new IntValue(0);
+          // Luau-superset semantics: undefined names resolve to `nil`
+          // (not `0`). The compile-time "Cannot find variable named"
+          // diagnostic is already downgraded to a warning in
+          // `VariableReference.ResolveReferences` — runtime stays
+          // silent so undefined-as-nil is a clean, non-noisy lookup.
+          // Arithmetic on the resulting `NullValue` errors at runtime
+          // via `Cast` (same as Lua), which is the correct trap shape
+          // for typos. Interpolation / `tostring` produce "nil".
+          foundValue = new NullValue();
         }
       }
 

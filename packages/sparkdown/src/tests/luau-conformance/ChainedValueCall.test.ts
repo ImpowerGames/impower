@@ -38,10 +38,60 @@ local x = k(1)(2)`);
     ).toEqual([]);
   });
 
+  test("named-fn returning anon-fn, chained call: make()(5)", () => {
+    // Combines the chained-call lowering (`make()(5)`) with the
+    // closure-as-return-value path. Previously crashed at runtime
+    // with "Cannot read properties of undefined (reading
+    // 'temporaryScopes')" because `Assign` ran with no active call
+    // frame (the inner closure had popped) and `GetTemporaryVariableWithName`
+    // didn't guard against an undefined `contextElement`.
+    const r = runConformanceSource(`local function make() return function(n) return n end end
+local t = make()(5)
+assert(t == 5, "got " .. tostring(t))`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("named-fn returning anon-fn, two-step: f = make(); f(5)", () => {
+    // Same shape as above but split across two statements — exercises
+    // the same Assign-at-empty-callstack path on the first
+    // assignment (`local f = make()`) where the second call hasn't
+    // happened yet.
+    const r = runConformanceSource(`local function make() return function(n) return n end end
+local f = make()
+local t = f(5)
+assert(t == 5, "got " .. tostring(t))`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
   test("regression: single-call f(a) still works (no chain)", () => {
     const r = runConformanceSource(`local function double(x) return x * 2 end
 local t = double(5)
 assert(t == 10, "got " .. tostring(t))`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("IIFE: (function() ... end)() — anon-fn immediately invoked", () => {
+    // `(function() return "x" end)()` — the parenthesized anon-fn
+    // followed by `()` parses as two adjacent LuauParenthetical
+    // siblings (the inner content, then empty call-args). Without
+    // a fold, the pratt parser saw two adjacent operands and emitted
+    // broken bytecode — the result was the closure value itself
+    // (DivertTargetValue), printed verbatim in interpolation
+    // (`"Welcome to DivertTargetValue(run.__anon_fn_794)!"`).
+    const r = runConformanceSource(`local x = (function() return "Luau" end)()
+assert(x == "Luau", "got " .. tostring(x))`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("IIFE with args: (function(x) return x end)(5)", () => {
+    // Arguments inside the trailing parenthetical route through the
+    // value-call dispatch.
+    const r = runConformanceSource(`local t = (function(x) return x end)(5)
+assert(t == 5, "got " .. tostring(t))`);
     expect(r.errorMessages).toEqual([]);
     expect(r.returnedOK).toBe(true);
   });
