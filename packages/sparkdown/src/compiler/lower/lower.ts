@@ -1,10 +1,17 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { CallValueExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
+import { Expression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { IndexExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/IndexExpression";
 import { MultiVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { StorePropertyAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/StorePropertyAssignment";
+import { StringExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
+import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
+import { VariableReference } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
@@ -473,23 +480,193 @@ function lowerMultiTargetReassignment(
   multi: MultiTargetReassignment,
   ctx: LowerContext,
 ): CompiledBlock {
-  // Reject any target that isn't a plain `LuauVariableName` — property
-  // targets (`obj.field`) and indexed targets (`arr[k]`) in multi-target
-  // reassignment are deferred (would need per-target StorePropertyAssignment).
-  const targetIdents: Identifier[] = [];
-  for (const t of multi.targets) {
-    const nameNode = getDescendent("LuauVariableName", t);
-    if (!nameNode) return {};
-    targetIdents.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
-  }
+  // Inspect each target. If they're all plain `LuauVariableName`,
+  // route through `MultiVariableAssignment` directly (fast path —
+  // single ParsedObject, no temp expansion). If any target is a
+  // property access (`a.x`, `a[k]`), fall through to the
+  // temp-expansion path below: stash the RHS values into synthetic
+  // locals, then emit per-target stores. Multi-target with mixed
+  // property and variable targets is common in Luau (`a.x, b = …`,
+  // `a[f()], b, a[f()+3] = f(), a, 'x'`) — this fixture shape is
+  // attrib.luau lines 13, 15.
+  const allSimple = multi.targets.every((t) => isSimpleVariableTarget(t));
   const firstRhs = lowerExpressionFromContainer(multi.op, ctx);
   const trailingExprs = multi.trailingExprGroups
     .map((nodes) => lowerExpressionFromNodes(nodes, ctx))
     .filter((e): e is NonNullable<typeof e> => e != null);
   const expressions = firstRhs ? [firstRhs, ...trailingExprs] : trailingExprs;
-  return wrapInWeave([
-    new MultiVariableAssignment(targetIdents, expressions, false),
+
+  if (allSimple) {
+    const targetIdents: Identifier[] = [];
+    for (const t of multi.targets) {
+      const nameNode = getDescendent("LuauVariableName", t);
+      if (!nameNode) return {};
+      targetIdents.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
+    }
+    return wrapInWeave([
+      new MultiVariableAssignment(targetIdents, expressions, false),
+    ]);
+  }
+
+  // Mixed shape: stash each RHS slot into a synthetic local, then
+  // emit per-target stores. Offset-tagged temp names keep multiple
+  // multi-target assignments in the same function body from
+  // colliding. The MultiVariableAssignment handles PackTuple +
+  // UnpackTuple semantics — including spreading a multi-return f()
+  // in the LAST RHS expression across as many temps as we declare.
+  const offset = multi.targets[0]!.from;
+  const tempIdents = multi.targets.map(
+    (_, i) => new Identifier(`__mt_${offset}_${i}`),
+  );
+  const tempDecl = new MultiVariableAssignment(tempIdents, expressions, true);
+
+  const writes: ParsedObject[] = [];
+  for (let i = 0; i < multi.targets.length; i++) {
+    const target = multi.targets[i]!;
+    const tempRef = new VariableReference([tempIdents[i]!]);
+    const write = buildTargetWrite(target, tempRef, ctx);
+    if (write) writes.push(write);
+  }
+  return wrapInWeave([tempDecl, ...writes]);
+}
+
+// True when the LuauAccessPath consists of a single LuauVariable
+// segment (no property accessor, no indexer, no function call).
+function isSimpleVariableTarget(accessPath: SyntaxNode): boolean {
+  const content = findChildByName(accessPath, "LuauAccessPath_content");
+  const root = content ?? accessPath;
+  let part: SyntaxNode | null = null;
+  let child = root.firstChild;
+  while (child) {
+    if (child.name === "LuauAccessPart") {
+      if (part) return false; // more than one part — not simple
+      part = child;
+    }
+    child = child.nextSibling;
+  }
+  if (!part) return false;
+  return part.firstChild?.name === "LuauVariable";
+}
+
+// Build a write that stores `valueExpr` into the target (variable or
+// property access). Mirrors `lowerReassignment` and
+// `lowerPropertyTargetAssignment` for the simple plain-`=` shape but
+// driven by a pre-computed value expression (the temp slot) instead
+// of lowering the RHS from a sibling op node.
+function buildTargetWrite(
+  accessPath: SyntaxNode,
+  valueExpr: Expression,
+  ctx: LowerContext,
+): ParsedObject | null {
+  const content = findChildByName(accessPath, "LuauAccessPath_content");
+  const root = content ?? accessPath;
+  const parts: SyntaxNode[] = [];
+  let child = root.firstChild;
+  while (child) {
+    if (child.name === "LuauAccessPart") parts.push(child);
+    child = child.nextSibling;
+  }
+  if (parts.length === 0) return null;
+
+  // Single-segment variable target → `VariableAssignment` reassign.
+  if (parts.length === 1) {
+    const inner = parts[0]!.firstChild;
+    if (inner?.name !== "LuauVariable") return null;
+    const nameNode =
+      getDescendent("LuauVariableName", inner) ??
+      getDescendent("LuauStdLibConstants", inner) ??
+      getDescendent("LuauSelfKeyword", inner);
+    if (!nameNode) return null;
+    return new VariableAssignment({
+      variableIdentifier: new Identifier(ctx.read(nameNode.from, nameNode.to)),
+      assignedExpression: valueExpr,
+      isTemporaryNewDeclaration: false,
+    });
+  }
+
+  // Multi-segment target — build base + key for StorePropertyAssignment.
+  // Base is everything before the final segment. Key comes from the
+  // final segment (either a `.name` accessor or a `[expr]` indexer).
+  const finalPart = parts[parts.length - 1]!;
+  const finalInner = finalPart.firstChild;
+  if (!finalInner) return null;
+
+  let keyExpr: Expression | null = null;
+  if (finalInner.name === "LuauPropertyAccessor") {
+    const nameNode =
+      getDescendent("LuauPropertyName", finalInner) ??
+      getDescendent("LuauStdLibMethods", finalInner);
+    if (!nameNode) return null;
+    keyExpr = new StringExpression([
+      new Text(ctx.read(nameNode.from, nameNode.to)),
+    ]);
+  } else if (finalInner.name === "LuauPropertyIndexer") {
+    const indexerContent = findChildByName(
+      finalInner,
+      "LuauPropertyIndexer_content",
+    );
+    keyExpr = indexerContent
+      ? lowerExpressionFromContainer(indexerContent, ctx)
+      : null;
+  } else {
+    return null;
+  }
+  if (!keyExpr) return null;
+
+  const baseExpr = buildBaseFromParts(parts.slice(0, -1), ctx);
+  if (!baseExpr) return null;
+  return new StorePropertyAssignment(baseExpr, keyExpr, valueExpr);
+}
+
+// Build a value-chain expression for a property-target's base
+// segments. Mirrors `lowerBaseFromParts` in
+// `lowerPropertyTargetAssignment.ts` (kept inline to avoid the
+// circular import — `lowerPropertyTargetAssignment.ts` already
+// imports from this module via the expression lowerer).
+function buildBaseFromParts(
+  parts: SyntaxNode[],
+  ctx: LowerContext,
+): Expression | null {
+  if (parts.length === 0) return null;
+  const firstInner = parts[0]!.firstChild;
+  if (firstInner?.name !== "LuauVariable") return null;
+  const nameNode =
+    getDescendent("LuauStdLibConstants", firstInner) ??
+    getDescendent("LuauVariableName", firstInner) ??
+    getDescendent("LuauSelfKeyword", firstInner);
+  if (!nameNode) return null;
+  let current: Expression = new VariableReference([
+    new Identifier(ctx.read(nameNode.from, nameNode.to)),
   ]);
+  for (let i = 1; i < parts.length; i++) {
+    const inner = parts[i]!.firstChild;
+    if (!inner) return null;
+    if (inner.name === "LuauPropertyAccessor") {
+      const propNameNode =
+        getDescendent("LuauPropertyName", inner) ??
+        getDescendent("LuauStdLibMethods", inner);
+      if (!propNameNode) return null;
+      current = new IndexExpression(
+        current,
+        new StringExpression([
+          new Text(ctx.read(propNameNode.from, propNameNode.to)),
+        ]),
+      );
+    } else if (inner.name === "LuauPropertyIndexer") {
+      const indexerContent = findChildByName(
+        inner,
+        "LuauPropertyIndexer_content",
+      );
+      const key = indexerContent
+        ? lowerExpressionFromContainer(indexerContent, ctx)
+        : null;
+      if (!key) return null;
+      current = new IndexExpression(current, key);
+    } else {
+      return null;
+    }
+  }
+  return current;
 }
 
 function appendBlockContent(
