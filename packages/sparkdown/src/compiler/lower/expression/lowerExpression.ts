@@ -1706,30 +1706,48 @@ function lowerCallArguments(
   callNode: SyntaxNode,
   ctx: LowerContext,
 ): Expression[] {
+  // Lua/Luau call-sugar: `f{...}` and `f"..."` are equivalent to
+  // `f({...})` / `f("...")` — a single table-/string-arg call. The
+  // grammar absorbs the table/string as a body child of the
+  // LuauFunctionCall instead of wrapping it in LuauFunctionCallParameters.
+  // Check the FIRST `_content` child to see which shape we have, then
+  // route accordingly. Falls back to () empty args if neither shape
+  // matches (defensive — should not happen in practice).
   const params = getDescendent("LuauFunctionCallParameters", callNode);
-  if (!params) return [];
-  const content = findChildByName(params, "LuauFunctionCallParameters_content");
-  if (!content) return [];
+  if (params) {
+    return lowerArgListFromParams(params, ctx);
+  }
+  const sugar = findCallSugarArgNode(callNode);
+  if (sugar) {
+    const expr = lowerPrimary(sugar, ctx);
+    return expr ? [expr] : [];
+  }
+  return [];
+}
 
-  const args: Expression[] = [];
-  let group: SyntaxNode[] = [];
-  const flush = () => {
-    if (group.length === 0) return;
-    const expr = lowerExpressionFromNodes(group, ctx);
-    if (expr) args.push(expr);
-    group = [];
-  };
-  let child = content.firstChild;
+// Find the first table-/string-sugar arg child of a LuauFunctionCall —
+// the body shape used by `f{...}` and `f"..."` / `f[[...]]` calls.
+function findCallSugarArgNode(callNode: SyntaxNode): SyntaxNode | null {
+  const content = findChildByName(callNode, "LuauFunctionCall_content");
+  const root = content ?? callNode;
+  let child = root.firstChild;
   while (child) {
-    if (child.name === "LuauCommaSeparator") {
-      flush();
-    } else if (!isSkippableName(child.name)) {
-      group.push(child);
-    }
+    if (isCallSugarArg(child)) return child;
     child = child.nextSibling;
   }
-  flush();
-  return args;
+  return null;
+}
+
+
+function isCallSugarArg(node: SyntaxNode): boolean {
+  const k = node.name;
+  return (
+    k === "LuauTable" ||
+    k === "LuauDoubleQuotedString" ||
+    k === "LuauSingleQuotedString" ||
+    k === "LuauMultilineString" ||
+    k === "LuauInterpolatedString"
+  );
 }
 
 function isSkippableName(name: string): boolean {
@@ -1771,6 +1789,13 @@ function collectParameterArgListsFromContainer(
   while (child) {
     if (child.name === "LuauFunctionCallParameters") {
       allArgs.push(lowerArgListFromParams(child, ctx));
+    } else if (isCallSugarArg(child)) {
+      // Table-/string-sugar call link: `f{...}`, `f"..."`. The
+      // body child IS the single arg. Lower as a primary and wrap
+      // it in a single-element arg list so the chain-folding caller
+      // produces `CallValueExpression(prev, [sugarArg])`.
+      const expr = lowerPrimary(child, ctx);
+      allArgs.push(expr ? [expr] : []);
     }
     child = child.nextSibling;
   }
