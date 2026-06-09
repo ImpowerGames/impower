@@ -1652,6 +1652,26 @@ export function lowerSimpleAccessPath(
           const argLists = collectAllCallParameterArgLists(inner, ctx);
           const args = argLists[0] ?? [];
           if (nameStr) {
+            // If the callee name resolves to an enclosing-scope
+            // LOCAL binding (not a stdlib, knot, or sibling
+            // variadic SubFlow), route through `CallValueExpression`
+            // on a `VariableReference` instead of `FunctionCall`.
+            // Otherwise the lowerer emits `Divert(-> NAME)` which
+            // fails compile-time `target not found` when NAME is a
+            // variable, not a knot. The runtime variable-divert
+            // path already handles closures, `__call` metamethods,
+            // and (now) `__stdlib_fn` markers from a CallValue
+            // dispatch site.
+            //
+            // We DON'T re-route for stdlib names, top-level callables,
+            // or sibling variadic SubFlows — those resolve via
+            // FunctionCall + Divert correctly. Limiting the re-route
+            // to declared-locals avoids regressing the common path.
+            if (isEnclosingLocalName(nameStr, ctx)) {
+              const receiver = new VariableReference([new Identifier(nameStr)]);
+              const baseCall = new CallValueExpression(receiver, args);
+              return wrapChainedValueCalls(baseCall, argLists.slice(1));
+            }
             const base = makeGlobalFunctionCall(
               new Identifier(nameStr),
               args,
@@ -1721,8 +1741,18 @@ export function lowerValueChainAccessPath(
     // args, and chain the rest as `CallValueExpression` wrappers.
     const argLists = collectAllCallParameterArgLists(firstInner, ctx);
     const args = argLists[0] ?? [];
-    const base = makeGlobalFunctionCall(name, args, firstInner, ctx);
-    current = wrapChainedValueCalls(base, argLists.slice(1));
+    // Mirror the dispatch decision in lowerCallStartingAccessPath
+    // above: an enclosing-scope local binding becomes a value-call.
+    if (isEnclosingLocalName(nameStr, ctx)) {
+      const receiver = new VariableReference([new Identifier(nameStr)]);
+      current = wrapChainedValueCalls(
+        new CallValueExpression(receiver, args),
+        argLists.slice(1),
+      );
+    } else {
+      const base = makeGlobalFunctionCall(name, args, firstInner, ctx);
+      current = wrapChainedValueCalls(base, argLists.slice(1));
+    }
     i = 1;
   } else {
     // Gather the leading dot-path identifier run as the initial
@@ -1789,6 +1819,28 @@ export function lowerValueChainAccessPath(
 // inside its `_begin` subtree only. Without the scope restriction,
 // `getDescendent("LuauFunctionName", node)` would walk past the
 // function's begin block into its `LuauFunctionCallParameters` and
+// Is `name` declared as a local in any enclosing function scope?
+// Walks `ctx.declaredLocalsStack` from innermost to outermost — any
+// match means the callee resolves to a variable binding, not a knot
+// path. The lowerer uses this to route bare `NAME(args)` calls
+// through `CallValueExpression(VariableReference([NAME]), args)`
+// instead of `FunctionCall(NAME, args)` when NAME is a local var;
+// FunctionCall lowers to a Divert that errors at compile time with
+// `target not found: -> NAME` since NAME isn't a knot.
+//
+// Variadic sibling SubFlows (tracked separately on
+// `siblingSubFlowNamesStack`) are intentionally NOT here — those
+// resolve via FunctionCall + Divert against the SubFlow's actual
+// name, which the resolver finds via ink's relative-path walk.
+function isEnclosingLocalName(name: string, ctx: LowerContext): boolean {
+  const stack = ctx.declaredLocalsStack;
+  if (!stack) return false;
+  for (let i = stack.length - 1; i >= 0; i--) {
+    if (stack[i]!.has(name)) return true;
+  }
+  return false;
+}
+
 // surface a nested call's name — e.g. `select("#", multi())` would
 // resolve to "multi" instead of "select" because select is captured
 // as `LuauStdLibFunctions` (not `LuauFunctionName`).

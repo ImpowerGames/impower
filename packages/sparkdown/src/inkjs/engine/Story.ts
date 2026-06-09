@@ -30,6 +30,7 @@ import { NativeFunctionCall } from "./NativeFunctionCall";
 import {
   BUILTIN_ITER_TAG,
   isStdLibFunctionName,
+  lookupAnyStdLib,
   lookupStateAwareStdLib,
   stepBuiltinIterator,
 } from "./StdLib";
@@ -1582,6 +1583,66 @@ export class Story extends InkObject {
               return true;
             }
           }
+          // Stdlib-function reference: variable holds an ObjectValue
+          // marked with `__stdlib_fn` (the call-site reference resolved
+          // to a name like `math.abs` whose actual implementation lives
+          // in the STDLIB registry, not as an ink knot). Look up the
+          // entry, pop its args, invoke `entry.fn`, push the result.
+          // Variadic stdlib entries (`arity === -1`) can't be dispatched
+          // here yet — the call site didn't push an arg count — and
+          // fall through to the existing error. Fixed-arity entries
+          // (which covers the common case: `math.abs`, `tostring`,
+          // `type`, etc.) work.
+          if (varContents instanceof ObjectValue) {
+            const stdlibTag = (varContents.value as Map<string, AbstractValue>)?.get(
+              "__stdlib_fn",
+            );
+            if (stdlibTag instanceof StringValue) {
+              const stdlibName = stdlibTag.value;
+              const entry = lookupAnyStdLib(stdlibName);
+              if (entry && entry.arity >= 0) {
+                const args: any[] = [];
+                for (let i = 0; i < entry.arity; i++) {
+                  args.unshift(this.state.PopEvaluationStack());
+                }
+                // Last-arg MultiValue spread (matches RunStdLibFunction
+                // semantics). Earlier args truncate any MultiValue to
+                // its first inner value.
+                for (let k = 0; k < args.length; k++) {
+                  const a = args[k];
+                  if (a instanceof MultiValue) {
+                    if (k === args.length - 1) {
+                      args.splice(k, 1, ...a.values);
+                    } else {
+                      args[k] = a.values[0] ?? new NullValue();
+                    }
+                  }
+                }
+                const result = entry.fn(this, args);
+                if (result !== undefined) {
+                  if (Array.isArray(result)) {
+                    const wrapped: AbstractValue[] = [];
+                    for (const r of result) {
+                      if (r instanceof InkObject) {
+                        wrapped.push(r as AbstractValue);
+                      } else {
+                        const w = Value.Create(r);
+                        if (w !== null) wrapped.push(w);
+                      }
+                    }
+                    this.state.PushEvaluationStack(new MultiValue(wrapped));
+                  } else if (result instanceof InkObject) {
+                    this.state.PushEvaluationStack(result as AbstractValue);
+                  } else {
+                    const w = Value.Create(result);
+                    if (w !== null) this.state.PushEvaluationStack(w);
+                  }
+                }
+                return true;
+              }
+            }
+          }
+
           // Closure value: variable holds a closure-shaped ObjectValue.
           // Rearrange the eval stack (push upvals before user args)
           // and divert to the synthetic knot's path. See
@@ -2159,6 +2220,61 @@ export class Story extends InkObject {
             const closureTarget = this.ContentAtPath(closurePath).obj;
             spreadLastMultiIfNonVariadic(this, closureTarget);
             break;
+          }
+          // `__stdlib_fn` marker dispatch: the target is an
+          // ObjectValue tagged with a stdlib function name (created
+          // by the variable-lookup fallback for stdlib references
+          // like `local f = type` / `local abs = math.abs`). Look up
+          // the entry, pop args by its fixed arity, invoke `entry.fn`,
+          // and push the result. Variadic stdlib entries (`arity ===
+          // -1`) can't be dispatched here yet — the call site didn't
+          // push an arg count — and fall through to the existing
+          // "non-function value" error.
+          if (callTarget instanceof ObjectValue) {
+            const stdlibTag = (callTarget.value as Map<string, AbstractValue>)?.get(
+              "__stdlib_fn",
+            );
+            if (stdlibTag instanceof StringValue) {
+              const stdlibName = stdlibTag.value;
+              const entry = lookupAnyStdLib(stdlibName);
+              if (entry && entry.arity >= 0) {
+                const args: any[] = [];
+                for (let i = 0; i < entry.arity; i++) {
+                  args.unshift(this.state.PopEvaluationStack());
+                }
+                for (let k = 0; k < args.length; k++) {
+                  const a = args[k];
+                  if (a instanceof MultiValue) {
+                    if (k === args.length - 1) {
+                      args.splice(k, 1, ...a.values);
+                    } else {
+                      args[k] = a.values[0] ?? new NullValue();
+                    }
+                  }
+                }
+                const result = entry.fn(this, args);
+                if (result !== undefined) {
+                  if (Array.isArray(result)) {
+                    const wrapped: AbstractValue[] = [];
+                    for (const r of result) {
+                      if (r instanceof InkObject) {
+                        wrapped.push(r as AbstractValue);
+                      } else {
+                        const w = Value.Create(r);
+                        if (w !== null) wrapped.push(w);
+                      }
+                    }
+                    this.state.PushEvaluationStack(new MultiValue(wrapped));
+                  } else if (result instanceof InkObject) {
+                    this.state.PushEvaluationStack(result as AbstractValue);
+                  } else {
+                    const w = Value.Create(result);
+                    if (w !== null) this.state.PushEvaluationStack(w);
+                  }
+                }
+                break;
+              }
+            }
           }
           // `__call` metamethod: the target is a plain ObjectValue
           // (table) that isn't a closure or builtin iterator, but its

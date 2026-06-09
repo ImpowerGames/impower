@@ -4289,6 +4289,16 @@ export function isStdLibFunctionName(name: string): boolean {
   return STDLIB[name] != null;
 }
 
+// Lookup any stdlib entry by name regardless of pure / state-aware
+// classification. Used by runtime call-on-marker dispatch (variable-
+// divert path in Story.ts) to invoke a `__stdlib_fn`-tagged ObjectValue
+// — the call site doesn't know whether the wrapped name is pure or
+// state-aware, just that it's a Luau stdlib callable. Returns null if
+// `name` isn't registered.
+export function lookupAnyStdLib(name: string): StdLibEntry | null {
+  return STDLIB[name] ?? null;
+}
+
 // Normalize an entry's `pure` field to a concrete list of operand
 // types. `pure: true` is shorthand for the classic numeric type.
 // Returns `null` for state-aware entries (so callers can use a single
