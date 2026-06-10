@@ -172,9 +172,12 @@ function lowerBaseFromParts(
   // Both are valid roots for a property-target assignment — e.g.
   // `lang.current = "ar"` must write into the `lang` store. `self`
   // (tagged as `LuauSelfKeyword`) is also a valid base — needed for
-  // `self.property = value` inside colon-form method bodies.
+  // `self.property = value` inside colon-form method bodies. `_G`
+  // (tagged `LuauStdLibGlobals`) is too — `_G.foo = 1` stores through
+  // the globals-table proxy.
   const nameNode =
     getDescendent("LuauStdLibConstants", firstInner) ??
+    getDescendent("LuauStdLibGlobals", firstInner) ??
     getDescendent("LuauVariableName", firstInner) ??
     getDescendent("LuauSelfKeyword", firstInner);
   if (!nameNode) return null;

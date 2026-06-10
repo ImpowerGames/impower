@@ -303,6 +303,25 @@ export class VariablesState extends VariablesStateAccessor<
     return val.exists ? val.result : null;
   }
 
+  // Global-only lookup, used by the `_G` globals-table proxy. Unlike
+  // `GetVariableWithName` (which checks call-stack temporaries first
+  // because locals shadow globals), reads through `_G` must see THE
+  // GLOBAL binding even when a same-named local is in scope —
+  // `local x = 1  _G.x` reads the global x (or nil), never the local.
+  public GetGlobalVariableValue(name: string): InkObject | null {
+    if (this.patch !== null) {
+      const patched = this.patch.TryGetGlobal(name, null);
+      if (patched.exists) return patched.result!;
+    }
+    const current = tryGetValueFromMap(this._globalVariables, name, null);
+    if (current.exists) return current.result;
+    if (this._defaultGlobalVariables !== null) {
+      const dflt = tryGetValueFromMap(this._defaultGlobalVariables, name, null);
+      if (dflt.exists) return dflt.result;
+    }
+    return null;
+  }
+
   public GlobalVariableExistsWithName(name: string) {
     return (
       this._globalVariables.has(name) ||

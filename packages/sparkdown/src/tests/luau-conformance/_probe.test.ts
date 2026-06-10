@@ -97,10 +97,12 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  // Next blocker: line 48 — `_G.foo = 1` / `_G['foo'] = 1`. Needs
-  // the `_G` globals-table stdlib binding (separate feature).
-  tryRange(1, 47);
-  tryRange(1, 48);
+  // Next blocker: line 50 — a parenthesized IIFE *statement* right
+  // after a local declaration on the same line, mutating the
+  // enclosing local through its closure upvalue:
+  //   local a = 1 (function () a = 2 end)() return a
+  tryRange(1, 49);
+  tryRange(1, 50);
 });
 
 test(`probe ${PROBE_FILE}`, () => {

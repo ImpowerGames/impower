@@ -29,6 +29,7 @@ import { VariableReference } from "./VariableReference";
 import { NativeFunctionCall } from "./NativeFunctionCall";
 import {
   BUILTIN_ITER_TAG,
+  GLOBALS_PROXY_TAG,
   isStdLibFunctionName,
   lookupAnyStdLib,
   lookupStateAwareStdLib,
@@ -2087,6 +2088,20 @@ export class Story extends InkObject {
           const indexBase = this.state.PopEvaluationStack();
           let resolved: InkObject | null = null;
           const keyStr = indexKey?.toString() ?? "";
+          // `_G` globals-table proxy: route the read to global
+          // variable storage. Misses push nil (Luau's semantics for
+          // absent globals), NOT the generic empty-string sentinel
+          // below — `_G['nope'] == nil` must hold.
+          if (
+            indexBase instanceof ObjectValue &&
+            indexBase.value?.has(GLOBALS_PROXY_TAG)
+          ) {
+            this.state.PushEvaluationStack(
+              this.state.variablesState.GetGlobalVariableValue(keyStr) ??
+                new NullValue(),
+            );
+            break;
+          }
           if (indexBase instanceof ObjectValue) {
             const direct = indexBase.value?.get(keyStr) ?? null;
             if (direct != null) {
@@ -2131,6 +2146,21 @@ export class Story extends InkObject {
           const storeValue = this.state.PopEvaluationStack();
           const storeKey = this.state.PopEvaluationStack();
           const storeBase = this.state.PopEvaluationStack();
+          // `_G` globals-table proxy: `_G.foo = v` / `_G['foo'] = v`
+          // writes the global directly. `SetGlobal` is patch-aware,
+          // so snapshot/rewind semantics match ordinary global
+          // assignments.
+          if (
+            storeBase instanceof ObjectValue &&
+            storeBase.value?.has(GLOBALS_PROXY_TAG)
+          ) {
+            const globalName = storeKey?.toString() ?? "";
+            const globalVal = asOrNull(storeValue, AbstractValue);
+            if (globalName && globalVal !== null) {
+              this.state.variablesState.SetGlobal(globalName, globalVal);
+            }
+            break;
+          }
           if (storeBase instanceof ObjectValue) {
             const keyStr = storeKey?.toString() ?? "";
             const val = asOrNull(storeValue, AbstractValue);
@@ -2864,6 +2894,19 @@ export class Story extends InkObject {
 
       // Normal variable reference
       else {
+        // `_G` — Luau's global environment table. A bare reference
+        // resolves to a marker-tagged proxy ObjectValue; the
+        // `IndexValue` / `StoreIndex` handlers route reads and writes
+        // through global variable storage when they see the tag.
+        // (`luauTypeOf` reports ObjectValue as "table", matching
+        // `type(_G) == "table"`.)
+        if (varRef.name === "_G") {
+          const proxyMap = new Map<string, AbstractValue>();
+          proxyMap.set(GLOBALS_PROXY_TAG, new BoolValue(true));
+          this.state.PushEvaluationStack(new ObjectValue(proxyMap));
+          return true;
+        }
+
         foundValue = this.state.variablesState.GetVariableWithName(varRef.name);
 
         // Property-access via dotted name (sparkdown extension). If the
@@ -2879,11 +2922,21 @@ export class Story extends InkObject {
         // segment isn't an ObjectValue / Map.
         if (foundValue == null && varRef.name && varRef.name.includes(".")) {
           const segs = varRef.name.split(".");
-          let cur: unknown = this.state.variablesState.GetVariableWithName(
-            segs[0]!,
-          );
+          // `_G.x[.y...]` — strip the `_G` hop and start the walk at
+          // the GLOBAL binding for the next segment. Global-only
+          // lookup (not GetVariableWithName) because reads through
+          // `_G` must not see a same-named local shadowing the
+          // global.
+          let walkStart = 1;
+          let cur: unknown;
+          if (segs[0] === "_G" && segs.length > 1) {
+            cur = this.state.variablesState.GetGlobalVariableValue(segs[1]!);
+            walkStart = 2;
+          } else {
+            cur = this.state.variablesState.GetVariableWithName(segs[0]!);
+          }
           if (cur != null) {
-            for (let i = 1; i < segs.length; i++) {
+            for (let i = walkStart; i < segs.length; i++) {
               // `__index` chain — fold each dotted segment through
               // the metatable lookup so `t.x` resolves to either
               // `rawget(t, "x")` (when present) or

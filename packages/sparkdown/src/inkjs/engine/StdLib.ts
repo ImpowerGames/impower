@@ -1420,6 +1420,15 @@ export type InkBuiltinAlias = string | ((argCount: number) => string | null);
 // dispatches to the registered iterator below instead of trying to
 // divert to a user-defined target.
 export const BUILTIN_ITER_TAG = "__builtin_iter";
+
+// Sentinel key marking an `ObjectValue` as the `_G` globals-table
+// proxy. A bare `_G` reference resolves to a fresh marker-tagged
+// ObjectValue (identity doesn't matter — only the tag is checked);
+// the runtime's `IndexValue` / `StoreIndex` handlers route reads and
+// writes through `VariablesState` global storage when they see it,
+// so `_G.foo = 1` / `_G['foo']` behave as Luau's global-environment
+// access without a real backing table.
+export const GLOBALS_PROXY_TAG = "__globals_proxy";
 // Auxiliary state — table to iterate, plus a cursor. Stored on the
 // same ObjectValue so each call can advance the cursor in place.
 const BUILTIN_ITER_STATE = "__builtin_iter_state";

@@ -1809,8 +1809,15 @@ export function lowerValueChainAccessPath(
       const inner = parts[i]!.firstChild;
       if (!inner) continue;
       if (inner.name === "LuauVariable") {
+        // Mirror lowerSimpleAccessPath: stdlib namespaces and globals
+        // (`math`, `_G`, ...) are tagged `LuauStdLibConstants` /
+        // `LuauStdLibGlobals` instead of `LuauVariableName`, but they
+        // are valid value-chain roots — `_G['foo']` indexes the
+        // globals-table proxy.
         const nameNode =
           getDescendent("LuauVariableName", inner) ??
+          getDescendent("LuauStdLibConstants", inner) ??
+          getDescendent("LuauStdLibGlobals", inner) ??
           getDescendent("LuauSelfKeyword", inner);
         if (nameNode) {
           leading.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
