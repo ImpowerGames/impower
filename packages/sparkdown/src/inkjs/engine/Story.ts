@@ -1306,25 +1306,46 @@ export class Story extends InkObject {
         let contextIdx = this.state.callStack.ContextForVariableNamed(
           varPointer.variableName,
         );
-        // Lua-style upvalue dedup: if a closure / by-ref arg created
-        // earlier in this frame's lifetime already produced an open
-        // pointer for (contextIdx, varName), reuse it so multiple
-        // closures share the same cell. The shared pointer also makes
-        // the close-on-pop step a single observable event for all
-        // closures that captured this variable.
-        const existing = this.state.callStack.FindOpenUpvalue(
-          contextIdx,
-          varPointer.variableName,
-        );
-        if (existing) {
-          currentContentObj = existing;
+        // Upvalue flattening (Lua semantics): if the slot we're about
+        // to point at ALREADY holds a VariablePointerValue — i.e. a
+        // captured upval being re-captured by a nested closure
+        // (`local a = 1 function foo() return function() return a
+        // end end`: foo's prepended upval param `a` holds the pointer
+        // to the outer cell) — reuse that pointer directly so every
+        // nesting level shares ONE cell. Without this, the inner
+        // closure points at foo's slot, reads dereference only one
+        // level, and the OUTER pointer leaks out raw (`Can't cast …
+        // from 0 to 5` when the leaked pointer hits a comparison).
+        const slotValue =
+          contextIdx > 0
+            ? this.state.callStack.GetTemporaryVariableWithName(
+                varPointer.variableName,
+                contextIdx,
+              )
+            : null;
+        if (slotValue instanceof VariablePointerValue) {
+          currentContentObj = slotValue;
         } else {
-          const newPtr = new VariablePointerValue(
-            varPointer.variableName,
+          // Lua-style upvalue dedup: if a closure / by-ref arg created
+          // earlier in this frame's lifetime already produced an open
+          // pointer for (contextIdx, varName), reuse it so multiple
+          // closures share the same cell. The shared pointer also makes
+          // the close-on-pop step a single observable event for all
+          // closures that captured this variable.
+          const existing = this.state.callStack.FindOpenUpvalue(
             contextIdx,
+            varPointer.variableName,
           );
-          this.state.callStack.RegisterOpenUpvalue(newPtr, contextIdx);
-          currentContentObj = newPtr;
+          if (existing) {
+            currentContentObj = existing;
+          } else {
+            const newPtr = new VariablePointerValue(
+              varPointer.variableName,
+              contextIdx,
+            );
+            this.state.callStack.RegisterOpenUpvalue(newPtr, contextIdx);
+            currentContentObj = newPtr;
+          }
         }
       }
 
