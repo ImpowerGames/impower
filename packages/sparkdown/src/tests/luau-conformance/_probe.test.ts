@@ -97,12 +97,13 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  // Next blocker: line 53 — multi-target assignment with property
-  // targets + Lua's "all RHS (and LHS subscripts) evaluate before
-  // any store" conflict semantics:
-  //   local a, b = 1, {} a, b[a] = 43, -1 return a + b[1]
-  tryRange(1, 52);
-  tryRange(1, 53);
+  // Next blocker: line 62 — upvalue propagation through NESTED
+  // closures plus a chained call of the result:
+  //   local a = 1 function foo() return function() return a end end
+  //   return foo()()
+  // Fails with `Can't cast 1 from 0 to 5` (Int → DivertTarget?).
+  tryRange(1, 61);
+  tryRange(1, 62);
   // Separate pre-existing bug found while writing IIFE regression
   // tests (fails on a clean tree too): `table.insert` through a
   // local function's captured-upvalue table doesn't stick —

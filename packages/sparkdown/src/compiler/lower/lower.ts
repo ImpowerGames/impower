@@ -574,14 +574,48 @@ function lowerMultiTargetReassignment(
   );
   const tempDecl = new MultiVariableAssignment(tempIdents, expressions, true);
 
+  // Lua's "assignments with local conflicts" semantics (basic.luau
+  // lines 53-55): ALL expressions — RHS values AND each property
+  // target's base + subscript — evaluate before ANY store happens.
+  // `local a, b = 1, {} a, b[a] = 43, -1` must store into `b[1]`
+  // (the OLD a), not `b[43]`; `a[1], a = 43, -1` must store 43 into
+  // the table `a` referenced BEFORE `a` is overwritten with -1. So
+  // property targets stash their base + key into temps up front
+  // (`preStores`), and the store phase references only temps.
+  const preStores: ParsedObject[] = [];
   const writes: ParsedObject[] = [];
   for (let i = 0; i < multi.targets.length; i++) {
     const target = multi.targets[i]!;
     const tempRef = new VariableReference([tempIdents[i]!]);
+    const decomposed = decomposeTargetBaseAndKey(target, ctx);
+    if (decomposed) {
+      const baseTemp = new Identifier(`__mt_base_${offset}_${i}`);
+      const keyTemp = new Identifier(`__mt_key_${offset}_${i}`);
+      preStores.push(
+        new VariableAssignment({
+          variableIdentifier: baseTemp,
+          assignedExpression: decomposed.base,
+          isTemporaryNewDeclaration: true,
+        }),
+        new VariableAssignment({
+          variableIdentifier: keyTemp,
+          assignedExpression: decomposed.key,
+          isTemporaryNewDeclaration: true,
+        }),
+      );
+      writes.push(
+        new StorePropertyAssignment(
+          new VariableReference([baseTemp]),
+          new VariableReference([keyTemp]),
+          tempRef,
+        ),
+      );
+      continue;
+    }
     const write = buildTargetWrite(target, tempRef, ctx);
     if (write) writes.push(write);
   }
-  return wrapInWeave([tempDecl, ...writes]);
+  return wrapInWeave([tempDecl, ...preStores, ...writes]);
 }
 
 // True when the LuauAccessPath consists of a single LuauVariable
@@ -639,8 +673,40 @@ function buildTargetWrite(
   }
 
   // Multi-segment target — build base + key for StorePropertyAssignment.
-  // Base is everything before the final segment. Key comes from the
-  // final segment (either a `.name` accessor or a `[expr]` indexer).
+  const decomposed = decomposeTargetBaseAndKey(accessPath, ctx);
+  if (!decomposed) return null;
+  return new StorePropertyAssignment(
+    decomposed.base,
+    decomposed.key,
+    valueExpr,
+  );
+}
+
+// Decompose a property-access target (`b[a]`, `obj.field`, `a.b.c[k]`)
+// into a base GET expression (everything before the final segment) and
+// a key expression (the final `.name` as a string literal, or the
+// `[expr]` indexer lowered). Returns null for single-segment variable
+// targets and anything unrecognized — callers fall back to the simple
+// variable-write path. Used by `lowerMultiTargetReassignment` to stash
+// base + key into temps BEFORE any store happens (Lua's multi-
+// assignment conflict semantics) and by `buildTargetWrite` for the
+// plain inline store.
+function decomposeTargetBaseAndKey(
+  accessPath: SyntaxNode,
+  ctx: LowerContext,
+): { base: Expression; key: Expression } | null {
+  const content = findChildByName(accessPath, "LuauAccessPath_content");
+  const root = content ?? accessPath;
+  const parts: SyntaxNode[] = [];
+  let child = root.firstChild;
+  while (child) {
+    if (child.name === "LuauAccessPart") parts.push(child);
+    child = child.nextSibling;
+  }
+  if (parts.length < 2) return null;
+
+  // Key comes from the final segment (either a `.name` accessor or a
+  // `[expr]` indexer).
   const finalPart = parts[parts.length - 1]!;
   const finalInner = finalPart.firstChild;
   if (!finalInner) return null;
@@ -669,7 +735,7 @@ function buildTargetWrite(
 
   const baseExpr = buildBaseFromParts(parts.slice(0, -1), ctx);
   if (!baseExpr) return null;
-  return new StorePropertyAssignment(baseExpr, keyExpr, valueExpr);
+  return { base: baseExpr, key: keyExpr };
 }
 
 // Build a value-chain expression for a property-target's base
