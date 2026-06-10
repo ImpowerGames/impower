@@ -63,9 +63,43 @@ test(`survey: first blocker per failing fixture`, () => {
   }
 });
 
-test(`bisect`, () => {
-  // Edit freely. Keep something passing here so the file stays green.
-  probe("noop", `local x = 1`);
+test(`bisect-basic`, () => {
+  const src = readFileSync(join(UPSTREAM_ROOT, "basic.luau"), "utf8");
+  const lines = src.split("\n");
+  const tryRange = (startLine: number, endLine: number) => {
+    const slice = lines.slice(startLine - 1, endLine).join("\n");
+    try {
+      const r = runConformanceSource(slice, undefined, "basic.luau");
+      const compileErr = r.errorMessages.find((e) => !e.startsWith("RUNTIME"));
+      const runtimeErr = r.errorMessages.find((e) => e.startsWith("RUNTIME"));
+      const status = compileErr
+        ? `compile=${JSON.stringify(compileErr.slice(0, 80))}`
+        : runtimeErr
+          ? `runtime=${JSON.stringify(runtimeErr.slice(0, 120))}`
+          : "ok";
+      // eslint-disable-next-line no-console
+      console.log(`[lines 1-${endLine}] ${status}`);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.log(`[lines 1-${endLine}] THREW: ${(e as Error).message}`);
+    }
+  };
+  const tryProbe = (label: string, src: string) => {
+    try {
+      const r = runConformanceSource(src);
+      const compileErr = r.errorMessages.find((e) => !e.startsWith("RUNTIME"));
+      const runtimeErr = r.errorMessages.find((e) => e.startsWith("RUNTIME"));
+      const status = compileErr ? `compile=${JSON.stringify(compileErr.slice(0, 100))}` : runtimeErr ? `runtime=${JSON.stringify(runtimeErr.slice(0, 100))}` : "ok";
+      // eslint-disable-next-line no-console
+      console.log(`[${label}] ${status} output=${JSON.stringify(r.output.slice(0, 200))}`);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.log(`[${label}] THREW: ${(e as Error).message}`);
+    }
+  };
+  // Next blocker: line 46 — multi-target reassignment (`a, b = b, a` swap).
+  tryRange(1, 45);
+  tryRange(1, 46);
 });
 
 test(`probe ${PROBE_FILE}`, () => {

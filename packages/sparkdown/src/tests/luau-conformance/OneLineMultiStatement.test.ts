@@ -71,4 +71,55 @@ assert(f() == 5)`);
     expect(r.errorMessages).toEqual([]);
     expect(r.returnedOK).toBe(true);
   });
+
+  test("two same-line bare reassignments inside IIFE (basic.luau line 43)", () => {
+    // Before the `LuauReassignment` end-pattern was widened to
+    // terminate on a following `IDENT = ...` lookahead, the grammar
+    // packed `a = 1 a = 2` into ONE LuauReassignment node — and the
+    // lowerer silently dropped everything after the first
+    // AccessPath + AssignmentOperation pair. `return a` then read
+    // the still-1 value. Reproduces basic.luau line 43 verbatim.
+    const r = runConformanceSource(
+      `assert((function() a = 1 a = 2 return a end)() == 2)`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("three same-line bare reassignments inside IIFE", () => {
+    const r = runConformanceSource(
+      `assert((function() a = 1 a = 2 a = 3 return a end)() == 3)`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("two same-line bare reassignments at top level", () => {
+    // The top-level case already worked (covered separately), but
+    // pin it here to lock in the no-regression baseline.
+    const r = runConformanceSource(
+      `a = 1 a = 2\nassert(a == 2, "got " .. tostring(a))`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("same-line bare reassignment doesn't swallow following `if`", () => {
+    // The pre-existing keyword-boundary end pattern (covered by the
+    // comment in the grammar) is still respected — the new
+    // `IDENT = ...` lookahead is additive.
+    const r = runConformanceSource(
+      `b = 1 if b == 1 then b = 99 end\nassert(b == 99, "got " .. tostring(b))`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
 });
