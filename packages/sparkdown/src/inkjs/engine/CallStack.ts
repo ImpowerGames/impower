@@ -421,8 +421,30 @@ export namespace CallStack {
     // Pop the innermost scope. Called by the runtime when it executes
     // an `EndScope` control command. Refuses to pop the outermost
     // (function-level) frame.
+    //
+    // Lua closes upvalues when the BLOCK that declared the variable
+    // exits, not only at function return. Any open upvalue whose
+    // variable is bound in the scope being popped closes here with
+    // that binding's live value — `do local a = 1 f = function()
+    // return a end end` must let the escaped closure read 1 after the
+    // do-block ends. Without this, the pointer survived to the frame
+    // pop, by which time the binding was gone, and closed as a
+    // dangling null. Upvalues whose names live in OUTER scopes of
+    // this frame stay open (their binding is still alive).
     public PopScope() {
       if (this.temporaryScopes.length > 1) {
+        const popping = this.temporaryScopes[this.temporaryScopes.length - 1]!;
+        if (this.openUpvalues.length > 0) {
+          const stillOpen: VariablePointerValue[] = [];
+          for (const ptr of this.openUpvalues) {
+            if (!ptr.isClosed && popping.has(ptr.variableName)) {
+              ptr.closedValue = popping.get(ptr.variableName) ?? null;
+              continue;
+            }
+            if (!ptr.isClosed) stillOpen.push(ptr);
+          }
+          this.openUpvalues = stillOpen;
+        }
         this.temporaryScopes.pop();
       }
     }

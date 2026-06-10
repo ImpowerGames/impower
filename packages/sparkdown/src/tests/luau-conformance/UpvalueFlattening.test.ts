@@ -88,3 +88,97 @@ assert(f() == 6)`,
     expect(r.returnedOK).toBe(true);
   });
 });
+
+// Upvalues over BLOCK-scoped locals — Lua closes an upvalue when the
+// block that declared the variable exits, not only at function
+// return. Two runtime bugs broke this:
+//
+//   1. `Element.PopScope` dropped the scope Map without closing
+//      upvalues pointing at its locals, so the pointer survived to
+//      the frame pop — by which time the binding was gone and the
+//      close-on-pop "closed" it with null.
+//   2. `VariablePointerValue.isClosed` was `closedValue !== null`,
+//      so that null-close left the pointer dangling OPEN at a stale
+//      contextIndex. The next call at the same stack depth bound the
+//      pointer into its own target slot — a self-referential pointer
+//      that sent reads into infinite `GetVariableWithName` ⇄
+//      `ValueAtVariablePointer` recursion (JS stack overflow).
+//
+// Fixes: PopScope closes upvalues whose variable is bound in the
+// popping scope (with the live value), and closed-ness is an explicit
+// flag so closed-with-nil is representable. Unlocks basic.luau
+// lines 68-83.
+
+describe("upvalues over block-scoped locals (close at scope exit)", () => {
+  test("closure over do-block local escapes the block (basic.luau line 68)", () => {
+    const r = runConformanceSource(
+      `assert((function() function foo() local f do local a = 1 f = function () return a end end local b = 2 return f end return foo()() end)() == 1)`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("escaped do-block closure called while frame is still live", () => {
+    // Same shape but f() runs INSIDE foo — exercises the scope-pop
+    // close (value must be 1, not nil) without any frame pop.
+    const r = runConformanceSource(
+      `function foo()
+  local f
+  do
+    local a = 1
+    f = function () return a end
+  end
+  return f()
+end
+assert(foo() == 1, "got " .. tostring(foo()))`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("local mutability: capture then reassign (basic.luau line 71)", () => {
+    // `a = 2` happens AFTER the closure captures `a` but BEFORE the
+    // frame pops — the closure must see 2 (live cell, not a copy).
+    const r = runConformanceSource(
+      `assert((function() function foo() local a = 1 local function f() return a end a = 2 return f end return foo()() end)() == 2)`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("upval mutability: IIFE writes the upval (basic.luau line 74)", () => {
+    const r = runConformanceSource(
+      `assert((function() function foo() local a = 1 (function () a = 2 end)() return a end return foo() end)() == 2)`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("upvalue whose value is nil still closes cleanly", () => {
+    // closed-with-nil must read as nil, not dangle open (the exact
+    // sentinel-conflation that caused the stack overflow).
+    const r = runConformanceSource(
+      `function foo()
+  local f
+  do
+    local a
+    f = function () return a end
+  end
+  return f
+end
+assert(foo()() == nil)`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+});

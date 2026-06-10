@@ -97,26 +97,11 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  // Next blocker: line 68 — a closure capturing a do-block local,
-  // assigned via REASSIGNMENT (not declaration) to an outer `local f`,
-  // escaping the block. Throws a JS "Maximum call stack size
-  // exceeded" (infinite recursion in lowering or runtime;
-  // pre-existing — reproduces on a tree without the upvalue-
-  // flattening fix too).
-  tryRange(1, 67);
-  tryRange(1, 68);
-  tryProbe("line 68 isolated (do-block aliasing)",
-    `assert((function() function foo() local f do local a = 1 f = function () return a end end local b = 2 return f end return foo()() end)() == 1)`);
-  tryProbe("line 68 simplified: closure escapes do-block",
-    `function foo()
-  local f
-  do
-    local a = 1
-    f = function () return a end
-  end
-  return f
-end
-assert(foo()() == 1)`);
+  // Next blocker: line 84 — `local a` with NO initializer must read
+  // as nil (falsy in `if a then`):
+  //   assert((function() local a if a then a = 2 end return a end)() == nil)
+  tryRange(1, 83);
+  tryRange(1, 84);
   // Separate pre-existing bug found while writing IIFE regression
   // tests (fails on a clean tree too): `table.insert` through a
   // local function's captured-upvalue table doesn't stick —

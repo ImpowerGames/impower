@@ -388,23 +388,43 @@ export class DivertTargetValue extends Value<Path> {
 export class VariablePointerValue extends Value<string> {
   public _contextIndex: number;
 
-  // Lua-style open/close upvalues. While the parent frame the pointer
-  // references is still on the call stack, `closedValue` is `null` and
-  // the pointer is "open" — reads/writes resolve through the frame's
-  // slot via `contextIndex`. When that frame pops, `CallStack.Pop`
-  // snapshots the current value into `closedValue`; the pointer is
-  // then "closed" and behaves like a heap cell — reads return
+  // Lua-style open/close upvalues. While the parent frame (or block
+  // scope) the pointer references is still alive, the pointer is
+  // "open" — reads/writes resolve through the frame's slot via
+  // `contextIndex`. When that frame pops (`CallStack.Pop`) or the
+  // declaring block scope exits (`Element.PopScope`), the current
+  // value is snapshotted into `closedValue`; the pointer is then
+  // "closed" and behaves like a heap cell — reads return
   // `closedValue`, writes update it in place.
+  //
+  // Closed-ness is an EXPLICIT flag, not `closedValue !== null` — a
+  // captured variable legitimately holding nil must still close
+  // (closed-with-null reads as nil). Conflating the two left such
+  // pointers dangling "open" at a stale contextIndex; when a later
+  // call re-occupied that stack depth and bound the pointer into its
+  // own target slot, reads chased the self-referential pointer into
+  // infinite `GetVariableWithName` ⇄ `ValueAtVariablePointer`
+  // recursion. Any assignment to `closedValue` closes the pointer.
   //
   // Lua semantics: multiple closures that capture the same outer
   // variable share ONE upvalue, so when one closure writes, the others
   // see it. Dedup happens at pointer-creation time (the auto-resolve
   // path in `Story.ts` looks up an existing open pointer for the
   // target frame+name before creating a new one).
-  public closedValue: InkObject | null = null;
+  private _closedValue: InkObject | null = null;
+  private _isClosed: boolean = false;
+
+  public get closedValue(): InkObject | null {
+    return this._closedValue;
+  }
+
+  public set closedValue(value: InkObject | null) {
+    this._closedValue = value;
+    this._isClosed = true;
+  }
 
   public get isClosed(): boolean {
-    return this.closedValue !== null;
+    return this._isClosed;
   }
 
   constructor(variableName: string, contextIndex: number = -1) {
