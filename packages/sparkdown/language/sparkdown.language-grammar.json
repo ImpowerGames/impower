@@ -4949,7 +4949,7 @@
       "tag": "meta",
       "name": "meta.parameter.luau",
       "brackets": true,
-      "begin": "([(])",
+      "begin": "((?<=(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|>)(?:[^\\S\\n\\r])*)[(])",
       "beginCaptures": {
         "1": {
           "patterns": [

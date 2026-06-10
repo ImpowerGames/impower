@@ -97,12 +97,24 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  // Next blocker: line 50 — a parenthesized IIFE *statement* right
-  // after a local declaration on the same line, mutating the
-  // enclosing local through its closure upvalue:
-  //   local a = 1 (function () a = 2 end)() return a
-  tryRange(1, 49);
-  tryRange(1, 50);
+  // Next blocker: line 53 — multi-target assignment with property
+  // targets + Lua's "all RHS (and LHS subscripts) evaluate before
+  // any store" conflict semantics:
+  //   local a, b = 1, {} a, b[a] = 43, -1 return a + b[1]
+  tryRange(1, 52);
+  tryRange(1, 53);
+  // Separate pre-existing bug found while writing IIFE regression
+  // tests (fails on a clean tree too): `table.insert` through a
+  // local function's captured-upvalue table doesn't stick —
+  //   local log = {}
+  //   local function note(s) table.insert(log, s) end
+  //   note("x")            -- log stays empty
+  // Direct upvalue writes (`total = total + n`) work fine.
+  tryProbe("pre-existing: table.insert via upvalue",
+    `local log = {}
+local function note(s) table.insert(log, s) end
+note("x")
+assert(log[1] == "x", "log1=" .. tostring(log[1]))`);
 });
 
 test(`probe ${PROBE_FILE}`, () => {

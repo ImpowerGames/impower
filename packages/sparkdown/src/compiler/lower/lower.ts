@@ -389,6 +389,51 @@ export function lowerStatements(
           continue;
         }
       }
+      // IIFE statement: `(function () ... end)(args)` — a parenthesized
+      // value immediately followed by call parens, both parsing as
+      // adjacent sibling `LuauParenthetical` nodes at statement level.
+      // The expression-context equivalent is folded inside
+      // `collectTokens`, but statement-level parentheticals reach this
+      // dispatcher directly and previously fell through to `default:
+      // undefined` — the whole statement (including its upvalue
+      // writes) silently vanished. basic.luau line 50:
+      //   local a = 1 (function () a = 2 end)() return a
+      // Collect the value parenthetical plus every trailing call
+      // parenthetical (`(fn)(a)(b)` chains) and lower the run as one
+      // value-call expression, popping the unused return value.
+      if (child.name === "LuauParenthetical") {
+        const callNodes: SyntaxNode[] = [child];
+        let lastNode: SyntaxNode = child;
+        let scan: SyntaxNode | null = child.nextSibling;
+        while (scan) {
+          while (scan && ASSIGNMENT_PAIR_BRIDGE.has(scan.name)) {
+            scan = scan.nextSibling;
+          }
+          if (!scan || scan.name !== "LuauParenthetical") break;
+          callNodes.push(scan);
+          lastNode = scan;
+          scan = scan.nextSibling;
+        }
+        if (callNodes.length > 1) {
+          const callExpr = lowerExpressionFromNodes(callNodes, ctx);
+          if (
+            callExpr instanceof CallValueExpression ||
+            callExpr instanceof FunctionCall
+          ) {
+            callExpr.shouldPopReturnedValue = true;
+            appendBlockContent(
+              result,
+              wrapInWeave(
+                [callExpr],
+                { from: child.from, to: lastNode.to },
+                ctx,
+              ),
+            );
+            child = lastNode.nextSibling;
+            continue;
+          }
+        }
+      }
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
       if (block?.content) {
         appendBlockContent(result, block);
