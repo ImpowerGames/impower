@@ -2822,15 +2822,19 @@ repository:
     # statement-boundary keyword (`if`, `while`, `for`, `repeat`, `do`,
     # `function`, `end`, `return`, `local`, `break`, `continue`,
     # `elseif`, `else`, `then`, `until`), OR an upcoming bare
-    # reassignment statement (`IDENT = ...`) on the same line. Without
-    # the keyword lookaheads, `b = b * 2 if a == 1 then break end`
-    # would let LuauReassignment swallow the trailing `if`; without
-    # the next-IDENT-EQUALS lookahead, two adjacent same-line
-    # reassignments (`a = 1 a = 2`, common inside single-line
-    # function bodies like `function() a = 1 a = 2 return a end`)
-    # would parse as a SINGLE LuauReassignment node — and the lowerer
-    # would silently drop everything after the first pair.
-    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|$
+    # reassignment statement on the same line. Without the keyword
+    # lookaheads, `b = b * 2 if a == 1 then break end` would let
+    # LuauReassignment swallow the trailing `if`; without the
+    # reassignment-start lookahead, two adjacent same-line reassignments
+    # (e.g. `a = 1 a = 2` or `b = 2 a, b = b, a`, common inside
+    # single-line function bodies like
+    # `function() a = 1 a = 2 return a end` and basic.luau's swap
+    # idiom) would parse as a SINGLE LuauReassignment node — and the
+    # lowerer would silently drop everything after the first pair. The
+    # reassignment-start lookahead mirrors the `begin` pattern's shape:
+    # `IDENT (access-chain)* WS* ASSIGN_OP`, where access-chain covers
+    # `.field`, `[...]`, and `,IDENT` (the multi-target form).
+    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|$
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------

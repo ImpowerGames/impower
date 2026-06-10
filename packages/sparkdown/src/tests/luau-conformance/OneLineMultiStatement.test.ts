@@ -122,4 +122,50 @@ assert(f() == 5)`);
     ).toEqual([]);
     expect(r.returnedOK).toBe(true);
   });
+
+  test("bare reassign + multi-target swap on same line (basic.luau line 46)", () => {
+    // The follow-up to the single-target packing bug: the
+    // reassignment-start lookahead in LuauReassignment's end pattern
+    // also has to recognise the multi-target form
+    // (`IDENT , IDENT (... =)`). Without that extension, `b = 2`
+    // would packs with `a, b = b, a`, and the lowerer drops the swap
+    // — `return a` reads the stale `local a = 1` instead of the
+    // post-swap `2`.
+    const r = runConformanceSource(
+      `assert((function() local a = 1 b = 2 a, b = b, a return a end)() == 2)`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("bare reassign + multi-target multi-RHS on same line", () => {
+    // The non-swap shape: `b = 2 a, b = 10, 20` — the multi-target
+    // doesn't read either of its own LHS, but it's still a
+    // multi-target. Same grammar bug; same fix.
+    const r = runConformanceSource(
+      `local a = 1 b = 2 a, b = 10, 20\nassert(a == 10, "got a=" .. tostring(a))\nassert(b == 20, "got b=" .. tostring(b))`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("regression: multi-RHS for single LHS still parses as one stmt", () => {
+    // Sanity-check the no-false-positive case. `a = b, c` is a
+    // single-target reassignment whose RHS has a trailing
+    // multi-expr (the extra values are discarded in Lua). The
+    // grammar must NOT terminate at the comma. The added
+    // reassignment-start lookahead requires `IDENT WS* ,
+    // IDENT (... =)`, not just `IDENT WS* ,`, so this case is safe.
+    const r = runConformanceSource(
+      `local b = 7 local c = 11 local a a = b, c\nassert(a == 7, "got a=" .. tostring(a))`,
+    );
+    expect(
+      r.errorMessages.filter((e) => !e.startsWith("RUNTIME")),
+    ).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
 });
