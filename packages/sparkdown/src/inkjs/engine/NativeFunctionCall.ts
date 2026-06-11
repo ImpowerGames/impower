@@ -6,6 +6,7 @@ import {
   FloatValue,
   ListValue,
   BoolValue,
+  MultiValue,
   NullValue,
   StringValue,
 } from "./Value";
@@ -223,6 +224,14 @@ export class NativeFunctionCall extends InkObject {
         // coerce Void to `nil` here so `(function() end)() == nil`
         // evaluates to true instead of erroring.
         parameters[i] = new NullValue();
+        continue;
+      }
+      // Lua single-value context: a multi-return operand truncates to
+      // its FIRST value; an EMPTY pack (a variadic function returning
+      // zero values — `function foo(...) return ... end; foo() == nil`)
+      // is nil. basic.luau line 355.
+      if (p instanceof MultiValue) {
+        parameters[i] = p.values[0] ?? new NullValue();
         continue;
       }
       if (p instanceof ListValue) hasList = true;

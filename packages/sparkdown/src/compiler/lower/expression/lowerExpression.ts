@@ -1737,7 +1737,14 @@ export function lowerSimpleAccessPath(
             // or sibling variadic SubFlows — those resolve via
             // FunctionCall + Divert correctly. Limiting the re-route
             // to declared-locals avoids regressing the common path.
-            if (isEnclosingLocalName(nameStr, ctx)) {
+            // The sibling-subflow check comes FIRST: it's the
+            // innermost binding, so a variadic `function foo(...)` in
+            // THIS function shadows a same-named local in an outer
+            // scope (see isSiblingSubFlowName).
+            if (
+              !isSiblingSubFlowName(nameStr, ctx) &&
+              isEnclosingLocalName(nameStr, ctx)
+            ) {
               const receiver = new VariableReference([new Identifier(nameStr)]);
               const baseCall = new CallValueExpression(receiver, args);
               return wrapChainedValueCalls(baseCall, argLists.slice(1));
@@ -1812,8 +1819,12 @@ export function lowerValueChainAccessPath(
     const argLists = collectAllCallParameterArgLists(firstInner, ctx);
     const args = argLists[0] ?? [];
     // Mirror the dispatch decision in lowerCallStartingAccessPath
-    // above: an enclosing-scope local binding becomes a value-call.
-    if (isEnclosingLocalName(nameStr, ctx)) {
+    // above: an enclosing-scope local binding becomes a value-call —
+    // unless a sibling variadic SubFlow shadows it (innermost wins).
+    if (
+      !isSiblingSubFlowName(nameStr, ctx) &&
+      isEnclosingLocalName(nameStr, ctx)
+    ) {
       const receiver = new VariableReference([new Identifier(nameStr)]);
       current = wrapChainedValueCalls(
         new CallValueExpression(receiver, args),
@@ -1911,6 +1922,25 @@ export function lowerValueChainAccessPath(
 // name, which the resolver finds via ink's relative-path walk.
 function isEnclosingLocalName(name: string, ctx: LowerContext): boolean {
   const stack = ctx.declaredLocalsStack;
+  if (!stack) return false;
+  for (let i = stack.length - 1; i >= 0; i--) {
+    if (stack[i]!.has(name)) return true;
+  }
+  return false;
+}
+
+// Is `name` a variadic sibling SubFlow in the CURRENT function scope?
+// Variadic nested fns (`function foo(...)`) lower as real SubFlows
+// with no `local NAME = closure` binding, so calls to them must route
+// through FunctionCall + Divert (relative-path resolution) — NOT the
+// value-call path. Checked BEFORE `isEnclosingLocalName` at the call
+// dispatch: the sibling subflow is the INNERMOST binding, so it wins
+// over a same-named local in an outer scope (basic.luau line 342's
+// variadic `foo` vs the chunk-level `local function foo` at line 30 —
+// the value-call path resolved the OUTER local and called the wrong
+// function).
+function isSiblingSubFlowName(name: string, ctx: LowerContext): boolean {
+  const stack = ctx.siblingSubFlowNamesStack;
   if (!stack) return false;
   for (let i = stack.length - 1; i >= 0; i--) {
     if (stack[i]!.has(name)) return true;

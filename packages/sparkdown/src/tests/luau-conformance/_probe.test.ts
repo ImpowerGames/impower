@@ -102,9 +102,24 @@ test(`bisect-basic`, () => {
     }
   };
   // Drill into basic.luau line 84: uninitialized local + truthiness.
-  // Next blocker: somewhere in 339-348 — "Tried to call a ..." in an
-  // anonymous function (multiple-returns section).
-  tryRange(1, 338);
+  tryProbe("multi-return foo then variadic foo (lines 332+342)",
+    `assert((function() function foo() return 2, 3, 4 end local a, b, c = foo() return ''..a..b..c end)() == "234")
+assert((function() function foo(...) local a, b, c = ... return a + b + c end return foo(1, 2, 3) end)() == 6)`);
+  const tryStartRange = (startLine: number, endLine: number) => {
+    const slice = lines.slice(startLine - 1, endLine).join("\n");
+    try {
+      const r = runConformanceSource(slice, undefined, "basic.luau");
+      const runtimeErr = r.errorMessages.find((e) => e.startsWith("RUNTIME"));
+      // eslint-disable-next-line no-console
+      console.log(`[lines ${startLine}-${endLine}] ${runtimeErr ? `runtime=${JSON.stringify(runtimeErr.slice(0, 90))}` : "ok"}`);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.log(`[lines ${startLine}-${endLine}] THREW: ${(e as Error).message}`);
+    }
+  };
+  // Next blocker: between 363-374 (varargs call/multiple-assignment
+  // section — lines 1-362 all pass).
+  tryRange(1, 362);
   // Separate pre-existing bug found while writing IIFE regression
   // tests (fails on a clean tree too): `table.insert` through a
   // local function's captured-upvalue table doesn't stick —
