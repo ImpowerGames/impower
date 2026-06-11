@@ -97,11 +97,13 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  // Next blocker: line 84 — `local a` with NO initializer must read
-  // as nil (falsy in `if a then`):
-  //   assert((function() local a if a then a = 2 end return a end)() == nil)
-  tryRange(1, 83);
-  tryRange(1, 84);
+  // Drill into basic.luau line 84: uninitialized local + truthiness.
+  // Next blocker: line 86 — Lua truthiness: 0 is TRUTHY (only nil
+  // and false are falsy). `local a = 0 if a then a = 1 else a = 2
+  // end` must take the then-branch. The ink-derived runtime likely
+  // treats Int 0 as falsy.
+  tryRange(1, 85);
+  tryRange(1, 86);
   // Separate pre-existing bug found while writing IIFE regression
   // tests (fails on a clean tree too): `table.insert` through a
   // local function's captured-upvalue table doesn't stick —

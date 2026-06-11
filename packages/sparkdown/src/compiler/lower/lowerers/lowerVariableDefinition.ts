@@ -108,6 +108,30 @@ export function lowerVariableDefinition(
         child = child.nextSibling;
         continue;
       }
+      // Bare declaration target — `local a` with NO initializer. When
+      // no `=` follows the name (because a same-line statement comes
+      // next, e.g. `local a if a then ... end`), the grammar emits the
+      // name as a plain `LuauAccessPath` instead of a
+      // `LuauVariableAssignment` wrapper. Without this case the path
+      // fell through to the RHS-expression bucket, `targets` stayed
+      // empty, and the whole declaration was silently dropped — so
+      // `a` resolved to any same-named GLOBAL instead of a fresh nil
+      // local (basic.luau line 84). Only a single-segment plain
+      // variable counts; property paths (`t.x`) really are RHS
+      // expressions. Restricted to BEFORE any `=` is seen — after an
+      // assignment op, access paths are RHS values.
+      if (
+        child.name === "LuauAccessPath" &&
+        !sawAssignmentOp &&
+        currentRhsGroup.length === 0
+      ) {
+        const bareName = bareVariableNameFromAccessPath(child, ctx);
+        if (bareName) {
+          targets.push({ name: bareName, assignNode: child });
+          child = child.nextSibling;
+          continue;
+        }
+      }
       // Statement-like node — sparkdown's grammar lets these share a
       // single source line with the variable definition (e.g.
       // `local x = 5 return x end`). The VA captures everything up
@@ -191,9 +215,17 @@ export function lowerVariableDefinition(
   if (targets.length > 1) {
     if (scope === "local") {
       const targetIdents = targets.map((t) => new Identifier(t.name));
+      // Bare multi-declaration (`local a, b` with no `= …`): give
+      // UnpackTuple one NullExpression to unpack — it pads the
+      // remaining slots with nil. With zero expressions it would pop
+      // whatever junk happened to be on the eval stack.
+      const multiExprs =
+        expressions.length === 0 && !sawAssignmentOp
+          ? [new NullExpression()]
+          : expressions;
       return wrapInWeave(
         withTrailingStatements(
-          [new MultiVariableAssignment(targetIdents, expressions, true)],
+          [new MultiVariableAssignment(targetIdents, multiExprs, true)],
           trailingStatements,
           ctx,
         ),
@@ -278,6 +310,32 @@ function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
     child = child.nextSibling;
   }
   return null;
+}
+
+// Returns the variable name when the access path is exactly ONE
+// plain-variable segment (`a` — no property accessors, indexers, or
+// calls); null otherwise. Used to recognize the bare uninitialized
+// declaration form (`local a`) when the grammar emits the name as a
+// plain `LuauAccessPath`.
+function bareVariableNameFromAccessPath(
+  accessPath: SyntaxNode,
+  ctx: LowerContext,
+): string | null {
+  const content = findChildByName(accessPath, "LuauAccessPath_content");
+  const root = content ?? accessPath;
+  let part: SyntaxNode | null = null;
+  let child = root.firstChild;
+  while (child) {
+    if (child.name === "LuauAccessPart") {
+      if (part) return null;
+      part = child;
+    }
+    child = child.nextSibling;
+  }
+  const inner = part?.firstChild;
+  if (inner?.name !== "LuauVariable") return null;
+  const nameNode = getDescendent("LuauVariableName", inner);
+  return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
 }
 
 function isSkippableName(name: string): boolean {
