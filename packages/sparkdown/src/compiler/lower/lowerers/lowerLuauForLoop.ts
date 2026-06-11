@@ -8,6 +8,7 @@ import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expre
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
+import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
@@ -28,31 +29,46 @@ import { lowerLuauGenericForLoop } from "./lowerLuauGenericForLoop";
 //
 // Compiles to a labeled gather (same pattern as Phase A's while-loop):
 //   BeginScope
-//     local i = start
+//     local __forIdx_<off> = start       (HIDDEN internal index)
 //     local __forStop_<off> = stop
 //     local __forStep_<off> = step       (defaults to 1)
 //     - (__for_<off>_loop)
-//       { (__forStep > 0 and i <= __forStop) or (__forStep < 0 and i >= __forStop) :
+//       { (__forStep > 0 and __forIdx <= __forStop) or ((not (__forStep > 0)) and __forIdx >= __forStop) :
+//         local i = __forIdx              (fresh user-visible copy)
 //         BODY
-//         i = i + __forStep
-//         -> __for_<off>_loop
+//         -> __for_<off>_step
 //       }
+//       -> __for_<off>_break
+//     - (__for_<off>_step)
+//       __forIdx = __forIdx + __forStep
+//       -> __for_<off>_loop
+//     - (__for_<off>_break)
 //   EndScope
 //
 // The scope wrap (BeginScope / EndScope) keeps the loop variable and
-// the snapshot stop/step temps from leaking into the enclosing scope.
+// the snapshot index/stop/step temps from leaking into the enclosing
+// scope.
+//
+// Hidden-index semantics (Lua): iteration is driven by an internal
+// index the body can't see. The user variable is a fresh COPY each
+// iteration, so `b = nil` inside the body neither breaks the step
+// arithmetic nor affects how many times the loop runs (basic.luau
+// line 188).
 //
 // Snapshot semantics: `stop` and `step` are evaluated ONCE at loop
 // entry. Mutating them inside the body doesn't change the loop bound
 // or direction. Matches Lua/Luau.
 //
-// Direction handling: the condition is evaluated at runtime as the
-// OR of "step positive AND i in range" / "step negative AND i in
-// range". A literal-step compile-time specialization would emit a
-// simpler check, but the runtime version is correct in all cases and
-// the bytecode overhead is small. Generic `for k, v in iter` is NOT
-// handled here — that goes through `lowerLuauGenericForLoop` (Phase D
-// generic-for work, separate file).
+// Direction handling (Luau): `step > 0` selects the forward check
+// (`idx <= stop`); EVERYTHING ELSE — negative, zero, and nan steps —
+// uses the backward check (`idx >= stop`). That's why the second arm
+// is `not (step > 0)` rather than `step < 0`: `for i=10,1,0` must
+// iterate (backward check 10 >= 1 holds, index never advances —
+// broken out by the body), and a nan step iterates exactly once when
+// start >= stop (basic.luau lines 194-211). A nan INDEX also exits:
+// both comparisons are false against nan (lines 214-215). Generic
+// `for k, v in iter` is NOT handled here — that goes through
+// `lowerLuauGenericForLoop`.
 
 const FOR_BODY_SKIP: ReadonlySet<string> = new Set([
   "LuauForCondition",
@@ -109,6 +125,7 @@ export function lowerLuauForLoop(
       ? lowerExpressionFromNodes(trailingGroups[1], ctx)
       : new NumberExpression(1, "int");
 
+  const idxName = `__forIdx_${nodeRef.node.from}`;
   const stopName = `__forStop_${nodeRef.node.from}`;
   const stepName = `__forStep_${nodeRef.node.from}`;
   const loopLabel = `__for_${nodeRef.node.from}_loop`;
@@ -121,12 +138,22 @@ export function lowerLuauForLoop(
   const bodyStatements = lowerStatements(bodyContent, ctx, FOR_BODY_SKIP);
   ctx.loopStack?.pop();
 
-  // Condition: (step > 0 and i <= stop) or (step < 0 and i >= stop).
-  const condExpr = buildLoopCondition(loopVarName, stopName, stepName);
+  // Condition drives the HIDDEN index, not the user variable.
+  const condExpr = buildLoopCondition(idxName, stopName, stepName);
+
+  // Each iteration starts by copying the hidden index into the
+  // user-visible loop variable — body writes to it can't affect
+  // iteration (Lua semantics, basic.luau line 188).
+  const copyLoopVar = new VariableAssignment({
+    variableIdentifier: new Identifier(loopVarName),
+    assignedExpression: new VariableReference([new Identifier(idxName)]),
+    isTemporaryNewDeclaration: true,
+  });
 
   // The body's natural fall-through goes to the step-update label;
   // `continue` also targets it. `break` targets `breakLabel`.
   const branch = new ConditionalSingleBranch([
+    copyLoopVar,
     ...bodyStatements,
     new Divert([new Identifier(stepLabel)]),
   ]);
@@ -141,13 +168,14 @@ export function lowerLuauForLoop(
   loopGather.AddContent(conditional);
   loopGather.AddContent(new Divert([new Identifier(breakLabel)]));
 
-  // Step gather: increment then divert back to the loop head. Only
-  // reachable from the body (via natural fall-through or `continue`).
+  // Step gather: increment the hidden index then divert back to the
+  // loop head. Only reachable from the body (via natural fall-through
+  // or `continue`).
   const stepGather = new Gather(new Identifier(stepLabel), 1);
   stepGather.AddContent(
     new VariableAssignment({
-      variableIdentifier: new Identifier(loopVarName),
-      assignedExpression: buildAdd(loopVarName, stepName),
+      variableIdentifier: new Identifier(idxName),
+      assignedExpression: buildAdd(idxName, stepName),
     }),
   );
   stepGather.AddContent(new Divert([new Identifier(loopLabel)]));
@@ -155,10 +183,10 @@ export function lowerLuauForLoop(
   // Break gather: sentinel for natural loop exit and `break` divert.
   const breakGather = new Gather(new Identifier(breakLabel), 1);
 
-  // Init: local declarations for the loop variable and the snapshot
+  // Init: local declarations for the hidden index and the snapshot
   // stop / step bindings. These run once at loop entry.
-  const initLoopVar = new VariableAssignment({
-    variableIdentifier: new Identifier(loopVarName),
+  const initIdx = new VariableAssignment({
+    variableIdentifier: new Identifier(idxName),
     assignedExpression: startExpr,
     isTemporaryNewDeclaration: true,
   });
@@ -174,7 +202,7 @@ export function lowerLuauForLoop(
   });
 
   const scoped = wrapInScope([
-    initLoopVar,
+    initIdx,
     initStop,
     initStep,
     loopGather,
@@ -226,9 +254,14 @@ function buildAdd(loopVar: string, stepName: string): Expression {
   );
 }
 
-// Build the per-iteration condition:
-//   (step > 0 and i <= stop) or (step < 0 and i >= stop)
-// Evaluated at runtime; correct for any sign of step.
+// Build the per-iteration condition (Luau semantics):
+//   (step > 0 and idx <= stop) or ((not (step > 0)) and idx >= stop)
+// `step > 0` selects the forward check; EVERYTHING ELSE — negative,
+// zero, and nan steps — uses the backward check. `not (step > 0)`
+// (rather than `step < 0`) is what makes zero/nan steps iterate when
+// start >= stop, matching Luau (basic.luau lines 194-211). Both
+// comparisons are false when the INDEX itself is nan, so the loop
+// exits (lines 214-215).
 function buildLoopCondition(
   loopVar: string,
   stopName: string,
@@ -239,10 +272,13 @@ function buildLoopCondition(
     new NumberExpression(0, "int"),
     ">",
   );
-  const stepNegative = new BinaryExpression(
-    new VariableReference([new Identifier(stepName)]),
-    new NumberExpression(0, "int"),
-    "<",
+  const stepNotPositive = new UnaryExpression(
+    new BinaryExpression(
+      new VariableReference([new Identifier(stepName)]),
+      new NumberExpression(0, "int"),
+      ">",
+    ),
+    "not",
   );
   const iLeStop = new BinaryExpression(
     new VariableReference([new Identifier(loopVar)]),
@@ -255,6 +291,6 @@ function buildLoopCondition(
     ">=",
   );
   const positiveCase = new BinaryExpression(stepPositive, iLeStop, "and");
-  const negativeCase = new BinaryExpression(stepNegative, iGeStop, "and");
-  return new BinaryExpression(positiveCase, negativeCase, "or");
+  const backwardCase = new BinaryExpression(stepNotPositive, iGeStop, "and");
+  return new BinaryExpression(positiveCase, backwardCase, "or");
 }

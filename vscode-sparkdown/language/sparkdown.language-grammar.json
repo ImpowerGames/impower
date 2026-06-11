@@ -5274,7 +5274,7 @@
           "include": "#LuauSparkdownBlockBody"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?<=\\bend)|$"
     },
     "LuauForLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(for)\\b((?:[^\\S\\n\\r])*)",
@@ -5310,7 +5310,7 @@
           "include": "#LuauBlockBody"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?<=\\bend)|$"
     },
     "LuauForCondition": {
       "begin": "(?<=for\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|do\\b)",
@@ -5367,7 +5367,7 @@
           "include": "#LuauSparkdownBlockBody"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?<=\\bend)|$"
     },
     "LuauWhileLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(while)\\b((?:[^\\S\\n\\r])*)",
@@ -5403,7 +5403,7 @@
           "include": "#LuauBlockBody"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?<=\\bend)|$"
     },
     "LuauWhileCondition": {
       "begin": "(?<=while\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|do\\b)",
@@ -5523,7 +5523,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|$"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then)\\b)|(?=(?:[^\\S\\n\\r])+(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]|,(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)))*(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))|$"
     },
     "LuauSparkdownDoBlock": {
       "begin": "((?:[^\\S\\n\\r])*)(do)\\b((?:[^\\S\\n\\r])*)",
@@ -7715,12 +7715,6 @@
         },
         {
           "include": "#LuauNumericDecimal"
-        },
-        {
-          "include": "#LuauNaN"
-        },
-        {
-          "include": "#LuauInfinity"
         }
       ]
     },
@@ -7774,16 +7768,6 @@
           ]
         }
       }
-    },
-    "LuauNaN": {
-      "tag": "atom",
-      "name": "constant.language.nan.sd",
-      "match": "\\b(nan)\\b"
-    },
-    "LuauInfinity": {
-      "tag": "atom",
-      "name": "constant.language.infinity.sd",
-      "match": "\\b(inf)\\b"
     },
     "LuauString": {
       "patterns": [

@@ -878,22 +878,14 @@ export function collectImmediateBodyDeclarations(
     // anonymous function whose body contains a for-loop: the loop
     // variable would be misclassified as a free variable, captured
     // as an upval, and end up duplicating the for-loop's own
-    // binding.
+    // binding. ONLY the loop targets count — names inside the
+    // start/stop/step or iterator expressions are ordinary reads
+    // (see collectForLoopTargetNames).
     if (n.name === "LuauForLoop" || n.name === "LuauGenericForLoop") {
       const condNode = getDescendent("LuauForCondition", n);
       if (condNode) {
-        const stack: SyntaxNode[] = [condNode];
-        while (stack.length > 0) {
-          const cur = stack.pop()!;
-          if (cur.name === "LuauVariableName") {
-            out.add(ctx.read(cur.from, cur.to));
-            continue;
-          }
-          let c = cur.firstChild;
-          while (c) {
-            stack.push(c);
-            c = c.nextSibling;
-          }
+        for (const name of collectForLoopTargetNames(condNode, ctx)) {
+          out.add(name);
         }
       }
     }
@@ -909,6 +901,44 @@ export function collectImmediateBodyDeclarations(
     child = child.nextSibling;
   }
   return out;
+}
+
+// Collect ONLY the loop-target variable names from a
+// `LuauForCondition` — the names being DECLARED by the loop:
+//
+//   for i = start, stop, step   → [i]      (names before the `=`)
+//   for k, v in iterator        → [k, v]   (names before `in`)
+//
+// Names inside the start/stop/step or iterator expressions are
+// ordinary reads of enclosing-scope variables. Treating them as
+// loop-bound (the old behavior walked the WHOLE condition) broke
+// upvalue capture: `local z = 0` + an IIFE containing
+// `for i=10,1,z do` classified `z` as locally bound, skipped the
+// capture, and the loop's step read nil at runtime (basic.luau
+// lines 196-197).
+function collectForLoopTargetNames(
+  condNode: SyntaxNode,
+  ctx: LowerContext,
+): string[] {
+  const content =
+    findContentChild(condNode, "LuauForCondition_content") ?? condNode;
+  const names: string[] = [];
+  let child = content.firstChild;
+  while (child) {
+    // Target list ends at the `=` (numeric) or `in` (generic).
+    if (
+      child.name === "LuauAssignmentOperation" ||
+      child.name === "LuauInKeyword"
+    ) {
+      break;
+    }
+    if (child.name === "LuauAccessPath") {
+      const nameNode = getDescendent("LuauVariableName", child);
+      if (nameNode) names.push(ctx.read(nameNode.from, nameNode.to));
+    }
+    child = child.nextSibling;
+  }
+  return names;
 }
 
 // Does the immediate `LuauFunctionParameters` of this
@@ -976,21 +1006,14 @@ export function scanFreeVariables(
     // and surface as "Duplicate identifier `b`. A parameter named
     // `b` already exists for __anon_fn_X" when the for-loop's own
     // declaration then collides with the synthesized upval-param.
+    // ONLY the loop targets are bound — names in the start/stop/step
+    // or iterator expressions are reads of enclosing-scope variables
+    // that MUST still be captured (see collectForLoopTargetNames).
     if (n.name === "LuauForLoop" || n.name === "LuauGenericForLoop") {
       const condNode = getDescendent("LuauForCondition", n);
       if (condNode) {
-        const stack: SyntaxNode[] = [condNode];
-        while (stack.length > 0) {
-          const cur = stack.pop()!;
-          if (cur.name === "LuauVariableName") {
-            bound.add(ctx.read(cur.from, cur.to));
-            continue;
-          }
-          let c = cur.firstChild;
-          while (c) {
-            stack.push(c);
-            c = c.nextSibling;
-          }
+        for (const name of collectForLoopTargetNames(condNode, ctx)) {
+          bound.add(name);
         }
       }
     }

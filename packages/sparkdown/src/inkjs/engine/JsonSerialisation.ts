@@ -427,11 +427,25 @@ export class JsonSerialisation {
     if (typeof token === "string") {
       let str = token.toString();
 
-      //Explicit float value of the form "123.00f"
-      const floatRepresentation = /^([0-9]+.[0-9]+f)$/.exec(str);
+      // Explicit float value: "123.00f", plus exponent forms like
+      // "3.4e+38f" (large integral floats stringify with an exponent,
+      // so the writer appends a bare `f` there — see
+      // SimpleJson.WriteFloat).
+      const floatRepresentation =
+        /^(-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?f)$/.exec(str);
       if (floatRepresentation) {
         return new FloatValue(parseFloat(floatRepresentation[0]));
       }
+
+      // Non-finite floats — JSON can't carry Infinity/NaN, so the
+      // writer (SimpleJson.WriteFloat) emits these string markers.
+      // Required for Lua semantics: `math.huge` compiles to a real
+      // Infinity constant and `0/0` results must stay NaN through
+      // the story-JSON round trip (clamping them to 3.4e38 / 0 broke
+      // basic.luau's fp-special fixtures).
+      if (str === "inff") return new FloatValue(Infinity);
+      if (str === "-inff") return new FloatValue(-Infinity);
+      if (str === "nanf") return new FloatValue(NaN);
 
       // String value
       let firstChar = str[0];

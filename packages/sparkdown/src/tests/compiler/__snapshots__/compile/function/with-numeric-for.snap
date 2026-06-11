@@ -24,7 +24,7 @@
         {
           "type": "VariableAssignment",
           "kind": "temp",
-          "name": "i",
+          "name": "__forIdx_42",
           "expression": {
             "type": "NumberExpression",
             "value": 1,

@@ -189,14 +189,19 @@ describe("SimpleJson.Writer", () => {
       expect(writer.toString()).toEqual('["3.0f","4.0f"]');
     });
 
-    it("converts infinity and NaN", () => {
+    it("converts infinity and NaN to recoverable string markers", () => {
+      // Formerly clamped to 3.4e38 / -3.4e38 / 0 (the upstream inkjs
+      // behavior), which silently CHANGED the values — math.huge
+      // stopped being infinity after a JSON round trip. The markers
+      // are recovered as true Infinity/NaN FloatValues by
+      // JsonSerialisation.JTokenToRuntimeObject (Lua conformance).
       writer.WriteArrayStart();
       writer.WriteFloat(Infinity);
       writer.WriteFloat(-Infinity);
       writer.WriteFloat(NaN);
       writer.WriteArrayEnd();
 
-      expect(writer.toString()).toEqual("[3.4e+38,-3.4e+38,0]");
+      expect(writer.toString()).toEqual('["inff","-inff","nanf"]');
     });
   });
 });

@@ -98,11 +98,12 @@ test(`bisect-basic`, () => {
     }
   };
   // Drill into basic.luau line 84: uninitialized local + truthiness.
-  // Next blocker: line 164 — a one-line `while cond do BODY end`
-  // inside a one-line IIFE body:
-  //   local a = 10 local b = 1 while a > 1 do b = b * 2 a = a - 1 end return b
-  tryRange(1, 163);
-  tryRange(1, 164);
+  // Next blocker: line 224 — `ipairs({5, 6, 7, nil, 8})` must stop
+  // at the nil gap (iterate k=1..3 only). Either the table
+  // constructor drops the nil (shifting 8 into slot 4) or the ipairs
+  // iterator doesn't stop on a nil value.
+  tryRange(1, 223);
+  tryRange(1, 224);
   // Separate pre-existing bug found while writing IIFE regression
   // tests (fails on a clean tree too): `table.insert` through a
   // local function's captured-upvalue table doesn't stick —

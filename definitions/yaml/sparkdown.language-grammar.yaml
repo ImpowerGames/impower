@@ -3309,7 +3309,10 @@ repository:
     patterns:
       - { include: "#LuauForCondition" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|$
+    # `(?<=\bend)` — close right after the do-block's `end` so one-line
+    # `for ... do BODY end return x` doesn't swallow trailing
+    # statements (see LuauSparkdownWhileLoop).
+    end: (?={{BEAT}})|(?<=\bend)|$
 
   LuauForLoop:
     begin: ({{WS}}*)(for)\b({{WS}}*)
@@ -3327,7 +3330,9 @@ repository:
     patterns:
       - { include: "#LuauForCondition" }
       - { include: "#LuauBlockBody" }
-    end: (?={{BEAT}})|$
+    # See LuauSparkdownWhileLoop's end comment (one-line trailing
+    # statements).
+    end: (?={{BEAT}})|(?<=\bend)|$
 
   LuauForCondition:
     # See `LuauIfBlockCondition` for the multi-line trick: begin's
@@ -3365,7 +3370,13 @@ repository:
     patterns:
       - { include: "#LuauWhileCondition" }
       - { include: "#LuauSparkdownBlockBody" }
-    end: (?={{BEAT}})|$
+    # `(?<=\bend)` closes the loop immediately after its do-block's
+    # `end` token, so a one-line `while c do BODY end return x` doesn't
+    # swallow the trailing statements into the loop (the `$` alternative
+    # only fires at end-of-line). The lookbehind can't false-trigger on
+    # identifiers like `friend` — `\b` requires a word boundary before
+    # the `e`.
+    end: (?={{BEAT}})|(?<=\bend)|$
 
   LuauWhileLoop:
     begin: ({{WS}}*)(while)\b({{WS}}*)
@@ -3383,7 +3394,9 @@ repository:
     patterns:
       - { include: "#LuauWhileCondition" }
       - { include: "#LuauBlockBody" }
-    end: (?={{BEAT}})|$
+    # See LuauSparkdownWhileLoop's end comment (one-line trailing
+    # statements).
+    end: (?={{BEAT}})|(?<=\bend)|$
 
   LuauWhileCondition:
     # See `LuauIfBlockCondition` for the multi-line trick.
@@ -3449,7 +3462,13 @@ repository:
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|$
+    # Terminate the until-condition at an upcoming statement-boundary
+    # keyword or bare reassignment so a one-line
+    # `repeat BODY until cond return x` doesn't swallow `return x`
+    # into the condition expression. Mirrors LuauReassignment's end
+    # lookaheads. (`until` itself is excluded — it's this rule's own
+    # keyword; nested repeats close their own until first.)
+    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|$
 
   # ----------------------------------------------------------------------------
   # Do Block
@@ -4859,13 +4878,18 @@ repository:
   # Number Values
   # ----------------------------------------------------------------------------
 
+  # Note: `nan` and `inf` are ORDINARY IDENTIFIERS, not literals —
+  # matching Luau, where `local nan = tonumber("nan")` declares a
+  # plain variable (basic.luau line 201). They were briefly grammar
+  # literals (LuauNaN / LuauInfinity), which hijacked any variable
+  # named `nan`/`inf` into a constant node the lowerer didn't even
+  # handle. Authors write `0/0` and `math.huge` (or `1/0`) for the
+  # values.
   LuauNumber:
     patterns:
       - { include: "#LuauNumericHex" }
       - { include: "#LuauNumericBinary" }
       - { include: "#LuauNumericDecimal" }
-      - { include: "#LuauNaN" }
-      - { include: "#LuauInfinity" }
 
   LuauNumericHex:
     match: (0_*[xX]_*[\da-fA-F_]*(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{_LUAU_BINARY_OPERATOR_AHEAD_}}
@@ -4899,16 +4923,6 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
-
-  LuauNaN:
-    tag: atom
-    name: constant.language.nan.sd
-    match: \b(nan)\b
-
-  LuauInfinity:
-    tag: atom
-    name: constant.language.infinity.sd
-    match: \b(inf)\b
 
   # ----------------------------------------------------------------------------
   # String Values

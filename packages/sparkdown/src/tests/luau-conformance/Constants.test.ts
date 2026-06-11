@@ -35,11 +35,12 @@ end
     expect(recorded).toEqual([Math.PI]);
   });
 
-  test("math.huge evaluates to a very large number", () => {
-    // Inkjs's `SimpleJson.WriteFloat` clamps Infinity to `3.4e38`
-    // (Float32 max) because JSON has no Infinity literal — that's
-    // an upstream inkjs constraint. Sparkdown's `math.huge` is
-    // effectively `3.4e38` end-to-end. Documented divergence.
+  test("math.huge evaluates to true Infinity", () => {
+    // `SimpleJson.WriteFloat` serializes Infinity as the "inff"
+    // string marker (JSON has no Infinity literal) and the loader
+    // recovers it as a real Infinity FloatValue — so math.huge is
+    // genuinely infinite end-to-end, matching Lua. (It was formerly
+    // clamped to 3.4e38, a documented divergence now removed.)
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
@@ -49,7 +50,7 @@ host_record(math.huge)
 end
 `);
     expect(errors).toEqual([]);
-    expect(recorded).toEqual([3.4e38]);
+    expect(recorded).toEqual([Infinity]);
   });
 
   test("_VERSION evaluates to 'Luau'", () => {
