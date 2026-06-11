@@ -303,6 +303,40 @@ function containerIsVariadic(target: any): boolean {
   return false;
 }
 
+// Lua argument-count normalization for the JS-driven call paths
+// (`CallLuauFunction` / `CallLuauFunctionProtected`): extra args are
+// DISCARDED and missing args pad with nil, exactly as a Lua call
+// site would. Without the truncation, a surplus arg pushed for a
+// callee that never pops it survives the call on the eval stack and
+// gets mis-collected as a return value — e.g. the `__len` metamethod
+// receives the table operand per Lua, but a zero-param handler
+// (`__len = function() return 42 end`) left the table stranded, and
+// `#t` "returned" the table itself. Variadic callees keep all args
+// (extras flow into `...`); arity comes from the closure's
+// `__closure_user_arity` field, so plain DivertTargetValue functions
+// (top-level knots) pass through unchanged.
+function normalizeLuauCallArgs(
+  story: any,
+  fnValue: AbstractValue,
+  args: AbstractValue[],
+): AbstractValue[] {
+  if (!(fnValue instanceof ObjectValue)) return args;
+  const map = fnValue.value as Map<string, AbstractValue> | null;
+  const arityVal = map?.get("__closure_user_arity");
+  if (!(arityVal instanceof IntValue) || typeof arityVal.value !== "number") {
+    return args;
+  }
+  const fnTarget = map?.get("__closure_fn");
+  if (fnTarget instanceof DivertTargetValue && fnTarget.value != null) {
+    const target = story.ContentAtPath(fnTarget.value).obj;
+    if (containerIsVariadic(target)) return args;
+  }
+  const arity = arityVal.value;
+  const out = args.slice(0, arity);
+  while (out.length < arity) out.push(new NullValue());
+  return out;
+}
+
 // Lua-fidelity multi-return spread: if the syntactically LAST arg of
 // a function call returned multiple values (a `MultiValue`), spread
 // its inner values onto the eval stack so the callee's parameter
@@ -3267,15 +3301,18 @@ export class Story extends InkObject {
 
     let path: Path | null = null;
     try {
+      // Lua call-site semantics: discard extra args / pad missing
+      // with nil (see normalizeLuauCallArgs).
+      const callArgs = normalizeLuauCallArgs(this, fnValue, args);
       // Closure case: extractClosurePath modifies the eval stack
       // (pops user args, pushes upvals, re-pushes user args). So push
       // user args first, then let it rearrange.
       if (fnValue instanceof ObjectValue) {
-        for (const a of args) this.state.PushEvaluationStack(a);
+        for (const a of callArgs) this.state.PushEvaluationStack(a);
         const p = extractClosurePath(fnValue, this);
         if (p == null) {
           // Not a closure-shaped ObjectValue. Restore stack + bail.
-          for (let i = 0; i < args.length; i++)
+          for (let i = 0; i < callArgs.length; i++)
             this.state.PopEvaluationStack();
           throw new StoryException(
             "CallLuauFunction: ObjectValue is not a closure (missing `__closure_fn`)",
@@ -3283,7 +3320,7 @@ export class Story extends InkObject {
         }
         path = p as Path;
       } else if (fnValue instanceof DivertTargetValue) {
-        for (const a of args) this.state.PushEvaluationStack(a);
+        for (const a of callArgs) this.state.PushEvaluationStack(a);
         path = fnValue.value;
       } else {
         throw new StoryException(
@@ -3398,11 +3435,14 @@ export class Story extends InkObject {
     let path: Path | null = null;
     let trappedError: string | null = null;
     try {
+      // Lua call-site semantics: discard extra args / pad missing
+      // with nil (see normalizeLuauCallArgs).
+      const callArgs = normalizeLuauCallArgs(this, fnValue, args);
       if (fnValue instanceof ObjectValue) {
-        for (const a of args) this.state.PushEvaluationStack(a);
+        for (const a of callArgs) this.state.PushEvaluationStack(a);
         const p = extractClosurePath(fnValue, this);
         if (p == null) {
-          for (let i = 0; i < args.length; i++)
+          for (let i = 0; i < callArgs.length; i++)
             this.state.PopEvaluationStack();
           return {
             ok: false,
@@ -3413,7 +3453,7 @@ export class Story extends InkObject {
         }
         path = p as Path;
       } else if (fnValue instanceof DivertTargetValue) {
-        for (const a of args) this.state.PushEvaluationStack(a);
+        for (const a of callArgs) this.state.PushEvaluationStack(a);
         path = fnValue.value;
       } else {
         return {

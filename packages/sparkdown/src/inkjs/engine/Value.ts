@@ -43,6 +43,14 @@ export abstract class AbstractValue extends InkObject {
       return new NullValue();
     }
 
+    // NaN is a first-class float in Lua (`0/0`, `inf - inf`). Without
+    // this branch it fell through every check below and `Create`
+    // returned null — which the native-op dispatch then pushed onto
+    // the eval stack as a raw null, crashing the next pop.
+    if (typeof val === "number" && Number.isNaN(val)) {
+      return new FloatValue(NaN);
+    }
+
     if (typeof val === "boolean") {
       return new BoolValue(Boolean(val));
     }
@@ -224,7 +232,9 @@ export class NullValue extends Value<any> {
 
 export class IntValue extends Value<number> {
   constructor(val: number) {
-    super(val || 0);
+    // `?? 0` (not `|| 0`): negative zero is falsy in JS, so `|| 0`
+    // silently dropped the sign — Lua requires tostring(-0) == "-0".
+    super(val ?? 0);
   }
   public get isTruthy() {
     return this.value != 0;
@@ -258,7 +268,10 @@ export class IntValue extends Value<number> {
 
 export class FloatValue extends Value<number> {
   constructor(val: number) {
-    super(val || 0.0);
+    // `?? 0.0` (not `|| 0.0`): NaN and -0 are falsy in JS, so `|| 0.0`
+    // silently normalized BOTH to +0 — `inf - inf` came out as 0
+    // instead of nan, and negative zero lost its sign.
+    super(val ?? 0.0);
   }
   public get isTruthy() {
     return this.value != 0.0;

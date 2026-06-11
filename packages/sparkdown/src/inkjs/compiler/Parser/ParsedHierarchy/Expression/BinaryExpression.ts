@@ -39,16 +39,18 @@ export class BinaryExpression extends Expression {
     // existing ink runtime native names:
     //   - `mod` → `%`: keyword form of the modulo symbol.
     //   - `^`   → `POW`: Luau exponentiation (matching `math.pow`).
-    //   - `..`  → `+`:  Luau string concatenation; `+` for strings is
-    //     already a concat at runtime, so the alias reuses it.
+    //   - `..` flows through as its OWN native op (a Lua-semantics
+    //     special case in `NativeFunctionCall.Call`): it stringifies
+    //     number operands (`1 .. 2` is "12", NOT 3 — the old `+`
+    //     alias ADDED numeric operands) and raises Lua's "attempt to
+    //     concatenate <type> with <type>" on nil/boolean/table
+    //     operands (basic.luau line 123 pattern-matches that message
+    //     through pcall).
     if (opName === "mod") {
       return "%";
     }
     if (opName === "^") {
       return NativeFunctionCall.Pow;
-    }
-    if (opName === "..") {
-      return NativeFunctionCall.Add;
     }
     if (opName === "~=") {
       // Luau not-equal — the runtime registers the C-style `!=` form.

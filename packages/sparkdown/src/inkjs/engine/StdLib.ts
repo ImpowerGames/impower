@@ -152,6 +152,41 @@ export function coerceNumber(v: any): number | null {
   return null;
 }
 
+/**
+ * Format a JS number the way Lua's `tostring` does for the special
+ * values: `nan` (not "NaN"), `inf` / `-inf` (not "Infinity"), and
+ * `-0` (JS `String(-0)` drops the sign). Ordinary numbers use JS
+ * String() formatting, which matches Lua's %.14g closely enough for
+ * the conformance surface.
+ */
+export function luauNumberToString(n: number): string {
+  if (Number.isNaN(n)) return "nan";
+  if (n === Infinity) return "inf";
+  if (n === -Infinity) return "-inf";
+  if (Object.is(n, -0)) return "-0";
+  return String(n);
+}
+
+/**
+ * Parse a string as a Lua number, returning null when the text isn't
+ * a valid Lua numeral. Accepts decimal / scientific / hex (`0xff`)
+ * forms plus Luau's `nan` / `inf` / `-inf` spellings, with
+ * surrounding whitespace tolerated. Shared by `tonumber` and the
+ * arithmetic string-coercion path (`1 + "2"`, `2 * "0xa"`).
+ */
+export function parseLuauNumber(s: string): number | null {
+  const t = s.trim();
+  if (t === "") return null;
+  if (t === "nan" || t === "-nan") return NaN;
+  if (t === "inf") return Infinity;
+  if (t === "-inf") return -Infinity;
+  // JS Number() already parses 0x hex, decimal, and scientific
+  // notation; it returns NaN for anything else (and we've handled
+  // the literal "nan" spelling above, so NaN here means invalid).
+  const n = Number(t);
+  return Number.isNaN(n) ? null : n;
+}
+
 /** Pull a JS string out of a `StringValue`, or accept raw. */
 export function coerceString(v: any): string | null {
   if (typeof v === "string") return v;
@@ -2036,9 +2071,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
         const raw = (v as any).value;
         if (raw == null) return "nil";
         if (typeof raw === "boolean") return raw ? "true" : "false";
+        // Lua-format special numbers: nan / inf / -inf / -0.
+        if (typeof raw === "number") return luauNumberToString(raw);
         return String(raw);
       }
       if (typeof v === "boolean") return v ? "true" : "false";
+      if (typeof v === "number") return luauNumberToString(v);
       return String(v);
     },
   },
@@ -2055,9 +2093,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (n !== null && baseVal === null) return n;
       const s = coerceString(v);
       if (s === null) return null;
-      const parsed =
-        baseVal !== null ? parseInt(s, baseVal) : Number(s);
-      return Number.isFinite(parsed) ? parsed : null;
+      if (baseVal !== null) {
+        const parsed = parseInt(s, baseVal);
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      // Luau accepts "nan" / "inf" spellings (`tonumber("nan")` is
+      // nan, not nil) — parseLuauNumber handles those plus hex.
+      return parseLuauNumber(s);
     },
   },
 

@@ -3,9 +3,11 @@ import {
   Value,
   ValueType,
   IntValue,
+  FloatValue,
   ListValue,
   BoolValue,
   NullValue,
+  StringValue,
 } from "./Value";
 import { StoryException } from "./StoryException";
 import { Void } from "./Void";
@@ -20,12 +22,28 @@ import {
   METHOD_DISPATCH,
   METHOD_PREFIX,
   callBuiltinMethod,
+  luauNumberToString,
+  luauTypeOf,
+  parseLuauNumber,
 } from "./StdLib";
 import { asOrNull, asOrThrows, asBooleanOrThrows } from "./TypeAssertion";
 import { isLuauTruthy } from "./LuauTruthiness";
 import { throwNullException } from "./NullException";
 
 type BinaryOp<T> = (left: T, right: T) => any;
+
+// Ops that trigger Lua's numeric-string coercion (`1 + "2"` → 3).
+// Comparison / logical ops are NOT included — Lua does not coerce
+// strings for `<` / `==` etc.
+const ARITHMETIC_OP_NAMES: ReadonlySet<string> = new Set([
+  "+",
+  "-",
+  "*",
+  "/",
+  "%",
+  "POW",
+  "//",
+]);
 type UnaryOp<T> = (val: T) => any;
 
 export class NativeFunctionCall extends InkObject {
@@ -62,6 +80,13 @@ export class NativeFunctionCall extends InkObject {
   // `if {} then` are all truthy per Lua, where ink would treat
   // them as falsy.
   public static readonly LuauTruthy: string = "TRUTHY";
+  // Lua `..` string concatenation — a first-class op (formerly
+  // aliased to `+`, which silently ADDED numeric operands: `1 .. 2`
+  // produced 3 instead of "12"). Numbers stringify via
+  // `luauNumberToString`; nil / boolean / table operands raise Lua's
+  // "attempt to concatenate <type> with <type>" error, which pcall
+  // fixtures pattern-match (basic.luau line 123).
+  public static readonly Concat: string = "..";
   public static readonly Min: string = "MIN";
   public static readonly Max: string = "MAX";
   public static readonly Pow: string = "POW";
@@ -247,6 +272,65 @@ export class NativeFunctionCall extends InkObject {
       this.name === NativeFunctionCall.LuauTruthy
     ) {
       return new BoolValue(isLuauTruthy(parameters[0]));
+    }
+
+    // Lua arithmetic coercion: a numeric STRING operand mixed with a
+    // number converts to a number — `1 + "2"` is 3, `2 * "0xa"` is 20
+    // (basic.luau lines 145-146). Without this, ink's max-type
+    // coercion would cast the NUMBER to a string and `+` would
+    // concatenate. String+string `+` is deliberately left alone (ink
+    // narrative content uses it as concat); Lua-style string
+    // arithmetic across two strings can revisit that if a fixture
+    // demands it. A non-numeric string raises Lua's arithmetic error.
+    if (parameters.length === 2 && ARITHMETIC_OP_NAMES.has(this.name)) {
+      const p0 = parameters[0];
+      const p1 = parameters[1];
+      const isNum = (p: InkObject | undefined) =>
+        p instanceof IntValue || p instanceof FloatValue;
+      const oneStrOneNum =
+        (isNum(p0) && p1 instanceof StringValue) ||
+        (p0 instanceof StringValue && isNum(p1));
+      if (oneStrOneNum) {
+        for (let i = 0; i < 2; i++) {
+          const p = parameters[i];
+          if (p instanceof StringValue) {
+            const n = parseLuauNumber(p.value ?? "");
+            if (n === null) {
+              throw new StoryException(
+                `attempt to perform arithmetic (${this.name}) on string`,
+              );
+            }
+            const replaced = Value.Create(n);
+            if (replaced !== null) parameters[i] = replaced;
+          }
+        }
+      }
+    }
+
+    // Lua `..` concatenation (see the `Concat` declaration). Strings
+    // pass through; numbers stringify Lua-style (nan / inf / -0
+    // formatting included); anything else — nil, booleans, tables,
+    // functions — raises Lua's concat error naming both operand
+    // types, e.g. "attempt to concatenate nil with string".
+    if (
+      parameters.length === 2 &&
+      this.name === NativeFunctionCall.Concat
+    ) {
+      const coerce = (p: InkObject | undefined): string | null => {
+        if (p instanceof StringValue) return p.value ?? "";
+        if (p instanceof IntValue || p instanceof FloatValue) {
+          return luauNumberToString(p.value ?? 0);
+        }
+        return null;
+      };
+      const l = coerce(parameters[0]);
+      const r = coerce(parameters[1]);
+      if (l === null || r === null) {
+        throw new StoryException(
+          `attempt to concatenate ${luauTypeOf(parameters[0])} with ${luauTypeOf(parameters[1])}`,
+        );
+      }
+      return new StringValue(l + r);
     }
 
     if (parameters.length == 2 && hasList) {
@@ -593,8 +677,17 @@ export class NativeFunctionCall extends InkObject {
       this.AddIntBinaryOp(this.Add, (x, y) => x + y);
       this.AddIntBinaryOp(this.Subtract, (x, y) => x - y);
       this.AddIntBinaryOp(this.Multiply, (x, y) => x * y);
-      this.AddIntBinaryOp(this.Divide, (x, y) => Math.floor(x / y));
-      this.AddIntBinaryOp(this.Mod, (x, y) => x % y);
+      // Lua `/` is ALWAYS true (float) division — `1 / 2` is 0.5 even
+      // for integer operands (basic.luau line 93). The fractional
+      // result auto-promotes to FloatValue via `Value.Create`'s
+      // preferred-type fallthrough; `1 / 0` promotes to
+      // FloatValue(Infinity), matching Lua's inf. Floor division is
+      // the separate `//` op below.
+      this.AddIntBinaryOp(this.Divide, (x, y) => x / y);
+      // Lua `%` is FLOOR-mod (`a - floor(a/b)*b`), not JS's truncated
+      // remainder — they differ for negative operands: `-5 % 3` is 1
+      // in Lua, -2 in JS.
+      this.AddIntBinaryOp(this.Mod, (x, y) => x - Math.floor(x / y) * y);
       this.AddIntUnaryOp(this.Negate, (x) => -x);
 
       this.AddIntBinaryOp(this.Equal, (x, y) => x == y);
@@ -604,11 +697,12 @@ export class NativeFunctionCall extends InkObject {
       this.AddIntBinaryOp(this.LessThanOrEquals, (x, y) => x <= y);
       this.AddIntBinaryOp(this.NotEquals, (x, y) => x != y);
       this.AddIntUnaryOp(this.Not, (x) => x == 0);
-      // `TRUTHY` is fully handled by the Lua-truthiness special case in
-      // `Call` — this registration only exists so the name is known to
-      // `CallWithName` / `CallExistsWithName` (JSON round-trip). The op
-      // body is unreachable.
+      // `TRUTHY` and `..` are fully handled by Lua-semantics special
+      // cases in `Call` — these registrations only exist so the names
+      // are known to `CallWithName` / `CallExistsWithName` (JSON
+      // round-trip). The op bodies are unreachable.
       this.AddIntUnaryOp(this.LuauTruthy, (x) => x != 0);
+      this.AddIntBinaryOp(this.Concat, (x, y) => `${x}${y}`);
 
       this.AddIntBinaryOp(this.And, (x, y) => x != 0 && y != 0);
       this.AddIntBinaryOp(this.Or, (x, y) => x != 0 || y != 0);
@@ -617,10 +711,9 @@ export class NativeFunctionCall extends InkObject {
       this.AddIntBinaryOp(this.Min, (x, y) => Math.min(x, y));
 
       this.AddIntBinaryOp(this.Pow, (x, y) => Math.pow(x, y));
-      // Luau `//` floor division. For integers this matches `/` already
-      // (ink's integer Divide also floors), but registering it under its
-      // own runtime name keeps semantics clear and decouples `//` from
-      // any future change to `/`-on-ints behavior.
+      // Luau `//` floor division (rounds toward -infinity): `1 // 2`
+      // is 0, `-3 // 2` is -2. Distinct from `/`, which is always
+      // true float division.
       this.AddIntBinaryOp("//", (x, y) => Math.floor(x / y));
       this.AddIntUnaryOp(this.Floor, NativeFunctionCall.Identity);
       this.AddIntUnaryOp(this.Ceiling, NativeFunctionCall.Identity);
@@ -632,7 +725,8 @@ export class NativeFunctionCall extends InkObject {
       this.AddFloatBinaryOp(this.Subtract, (x, y) => x - y);
       this.AddFloatBinaryOp(this.Multiply, (x, y) => x * y);
       this.AddFloatBinaryOp(this.Divide, (x, y) => x / y);
-      this.AddFloatBinaryOp(this.Mod, (x, y) => x % y);
+      // Lua floor-mod (see the Int registration above).
+      this.AddFloatBinaryOp(this.Mod, (x, y) => x - Math.floor(x / y) * y);
       this.AddFloatUnaryOp(this.Negate, (x) => -x);
 
       this.AddFloatBinaryOp(this.Equal, (x, y) => x == y);
@@ -716,7 +810,15 @@ export class NativeFunctionCall extends InkObject {
       // or entries in an object.
       this.AddStringUnaryOp(this.Length, (x) => x.length);
       this.AddListUnaryOp(this.Length, (x) => x.Count);
-      this.AddObjectUnaryOp(this.Length, (x) => x.size);
+      // Lua `#t` is the ARRAY-PORTION length (consecutive integer
+      // keys from 1), not the total entry count: `#{1,2}` is 2 but
+      // `#{a=1,b=2}` is 0 — and `#_G` is 0 (its marker key is
+      // non-numeric). Formerly `x.size`, which counted every entry.
+      this.AddObjectUnaryOp(this.Length, (x: Map<string, any>) => {
+        let n = 0;
+        while (x.has(String(n + 1))) n++;
+        return n;
+      });
 
       let divertTargetsEqual = (d1: Path, d2: Path) => d1.Equals(d2);
       let divertTargetsNotEqual = (d1: Path, d2: Path) => !d1.Equals(d2);

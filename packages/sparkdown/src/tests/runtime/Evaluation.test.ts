@@ -20,8 +20,11 @@ describe("Evaluation (ported from inkjs)", () => {
     // enhancement if author-facing `mod` parity is wanted.
     const ctx = makeRuntimeStoryFromFile("evaluation", "arithmetic");
     expect(ctx.errorMessages).toEqual([]);
+    // `7 / 3` is 2.333... — Lua `/` is always float division (the
+    // inkjs original expected truncating int division; `//` is the
+    // floor-division operator now).
     expect(runToEnd(ctx.story)).toBe(
-      "36\n2\n3\n2\n2.3333333333333335\n8\n8\n",
+      "36\n2\n3\n2.3333333333333335\n2.3333333333333335\n8\n8\n",
     );
   });
 

@@ -98,11 +98,11 @@ test(`bisect-basic`, () => {
     }
   };
   // Drill into basic.luau line 84: uninitialized local + truthiness.
-  // Next blocker: line 93 — `/` must be FLOAT division regardless of
-  // operand types (Lua semantics): `local a = 1 a = a / 2` must yield
-  // 0.5, but ink's Int/Int `/` truncates to integer division.
-  tryRange(1, 92);
-  tryRange(1, 93);
+  // Next blocker: line 164 — a one-line `while cond do BODY end`
+  // inside a one-line IIFE body:
+  //   local a = 10 local b = 1 while a > 1 do b = b * 2 a = a - 1 end return b
+  tryRange(1, 163);
+  tryRange(1, 164);
   // Separate pre-existing bug found while writing IIFE regression
   // tests (fails on a clean tree too): `table.insert` through a
   // local function's captured-upvalue table doesn't stick —
