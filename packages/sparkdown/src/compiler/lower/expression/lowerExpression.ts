@@ -410,7 +410,20 @@ function lowerMethodCall(
           // (e.g. `table.getn(t)`, `math.pow(a, b)`). Runtime still
           // dispatches normally; the diagnostic is purely a hint.
           validateStdLibDeprecation(builtin, accessPath, ctx);
-          return new FunctionCall(new Identifier(builtin), callArgs);
+          const call = new FunctionCall(new Identifier(builtin), callArgs);
+          // `count.visited(-> t)` — boolean shorthand: wrap the
+          // READ_COUNT call in `> 0` so authors get a genuine boolean
+          // ("has the reader been here?") instead of a count. The
+          // explicit form replaces the old ink idiom of relying on
+          // 0-falsy read counts, which Lua truthiness removed.
+          if (receiverName === "count" && methodNameText === "visited") {
+            return new BinaryExpression(
+              call,
+              new NumberExpression(0, "int"),
+              ">",
+            );
+          }
+          return call;
         }
       }
     }

@@ -302,6 +302,7 @@ to the STDLIB lookup.
 | `count.turns()`           |  —  |  —   |   ✅   | `STDLIB["count.turns"]` (state-aware, 0-arg). Alias of ink's `TURNS`.                               |
 | `count.turns(-> target)`  |  —  |  —   |   ✅   | `INK_BUILTIN_ALIASES.count.turns` → `TURNS_SINCE` (legacy ControlCommand, needs compile-time setup) |
 | `count.visits(-> target)` |  —  |  —   |   ✅   | `INK_BUILTIN_ALIASES.count.visits` → `READ_COUNT` (legacy ControlCommand)                           |
+| `count.visited(-> target)`|  —  |  —   |   ✅   | Boolean shorthand for `count.visits(-> t) > 0` — the lowerer wraps `READ_COUNT` in `> 0`. The idiomatic "has the reader been here?" check (a bare read count is no longer falsy at 0 under Lua truthiness). |
 
 ---
 

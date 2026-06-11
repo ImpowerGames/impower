@@ -4314,6 +4314,15 @@ export const INK_BUILTIN_ALIASES: Record<
     // that doesn't fit the generic dispatcher.
     turns: (argCount) => (argCount === 1 ? "TURNS_SINCE" : null),
     visits: "READ_COUNT",
+    // `count.visited(-> t)` — boolean shorthand for
+    // `count.visits(-> t) > 0`. Same READ_COUNT machinery (the alias
+    // triggers the compile-time container-counting setup); the
+    // lowerer wraps the call in `> 0` so it yields a genuine boolean
+    // that behaves identically under Lua truthiness and in ink-style
+    // narrative conditions. The idiomatic "has the reader been
+    // here?" check now that bare read counts are no longer falsy-at-0
+    // in Luau code.
+    visited: "READ_COUNT",
   },
 };
 

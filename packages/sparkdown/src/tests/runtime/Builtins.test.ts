@@ -74,6 +74,19 @@ describe("Builtins (ported from inkjs)", () => {
     expect(ctx.story.ContinueMaximally()).toBe("0\nInside aside.\n1\n");
   });
 
+  test("count.visited(-> t) — boolean has-the-reader-been-here shorthand", () => {
+    // `count.visited(-> t)` lowers to `READ_COUNT(t) > 0` and yields
+    // a genuine boolean — the explicit "unvisited/visited" check now
+    // that Lua truthiness no longer treats a 0 read count as falsy in
+    // Luau code. Works in interpolations, Luau `if` conditions, and
+    // composes with `not`.
+    const ctx = makeRuntimeStoryFromFile("builtins", "visited-shorthand");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(
+      "false\nInside aside.\ntrue\nSeen it.\nNever been there.\n",
+    );
+  });
+
   test("read count dot-separated path", () => {
     // Upstream ink fixture:
     //   -> hi ->
