@@ -1632,9 +1632,14 @@ export class Story extends InkObject {
               BUILTIN_ITER_TAG,
             );
             if (tag != null) {
-              this.state.PopEvaluationStack();
-              this.state.PopEvaluationStack();
-              const result = stepBuiltinIterator(varContents);
+              // Args were pushed (state, ctrl) — pops reverse that.
+              const iterCtrl = this.state.PopEvaluationStack();
+              const iterState = this.state.PopEvaluationStack();
+              const result = stepBuiltinIterator(
+                varContents,
+                iterState as AbstractValue,
+                iterCtrl as AbstractValue,
+              );
               this.state.PushEvaluationStack(result);
               return true;
             }
@@ -2101,7 +2106,17 @@ export class Story extends InkObject {
           const entries = new Map<string, AbstractValue>();
           const pairEnd = between.length - 1; // index of last value
           for (let i = 1; i + 1 < between.length; i += 2) {
-            const keyObj = asOrNull(between[i], StringValue);
+            // Static keys arrive as StringValues; COMPUTED bracket
+            // keys (`{[1+2] = 4}`) arrive as whatever the expression
+            // produced — stringify to the canonical map-key form
+            // (IntValue 3 → "3", matching how `t[3]` reads index).
+            const rawKey = asOrNull(between[i], AbstractValue);
+            const keyObj =
+              rawKey instanceof StringValue
+                ? rawKey
+                : rawKey != null && !(rawKey instanceof NullValue)
+                  ? new StringValue(rawKey.toString())
+                  : null;
             let valObj = asOrNull(between[i + 1], AbstractValue);
             if (!keyObj || keyObj.value === null || !valObj) continue;
             // Lua-style table-spread: if this is the LAST entry, its
@@ -2119,13 +2134,28 @@ export class Story extends InkObject {
             ) {
               const startIdx = parseInt(keyObj.value, 10);
               for (let k = 0; k < valObj.values.length; k++) {
-                entries.set(String(startIdx + k), valObj.values[k]!);
+                const spreadVal = valObj.values[k]!;
+                // nil entries don't exist (see the non-spread branch).
+                if (spreadVal instanceof NullValue) continue;
+                entries.set(String(startIdx + k), spreadVal);
               }
             } else {
               if (valObj instanceof MultiValue) {
                 valObj = valObj.values[0] ?? new NullValue();
               }
-              entries.set(keyObj.value, valObj);
+              // Lua: a nil-valued entry does not EXIST — the key is
+              // simply absent. `{5, 6, 7, nil, 8}` has keys 1,2,3,5
+              // (position counting still advanced past the nil at
+              // lower time), so `pairs` yields "1235" and `t[4]` is
+              // nil (lines 224-240). DELETE rather than skip:
+              // duplicate fields assign left-to-right, so a later
+              // `data = nil` must remove an earlier `data = 4`
+              // (basic.luau line 328).
+              if (valObj instanceof NullValue) {
+                entries.delete(keyObj.value);
+              } else {
+                entries.set(keyObj.value, valObj);
+              }
             }
           }
           this.state.PushEvaluationStack(new ObjectValue(entries));
@@ -2175,9 +2205,10 @@ export class Story extends InkObject {
             }
           }
           if (resolved === null) {
-            // Miss → push an empty string sentinel (matches Luau's nil-coerce
-            // behavior in expression contexts; full nil support is deferred).
-            resolved = new StringValue("");
+            // Miss → nil. (Formerly an empty-string sentinel from
+            // before nil was first-class; `t[missing] == nil` must
+            // hold per Lua.)
+            resolved = new NullValue();
           }
           this.state.PushEvaluationStack(resolved);
           break;
@@ -2240,7 +2271,14 @@ export class Story extends InkObject {
                   : undefined;
                 patch.RecordPropertyMutation(storeBase.value, keyStr, oldValue);
               }
-              storeBase.value.set(keyStr, val);
+              // Lua: assigning nil REMOVES the key — a nil-valued
+              // entry doesn't exist (`t[k] = nil` is the idiomatic
+              // delete; `pairs` must not see the key afterwards).
+              if (val instanceof NullValue) {
+                storeBase.value.delete(keyStr);
+              } else {
+                storeBase.value.set(keyStr, val);
+              }
             }
           } else {
             throw new StoryException(
@@ -2348,11 +2386,20 @@ export class Story extends InkObject {
               BUILTIN_ITER_TAG,
             );
             if (tag != null) {
-              // Generic-for pushes 2 args (state, ctrl). The iterator
-              // ignores them — its state lives on the ObjectValue.
-              this.state.PopEvaluationStack();
-              this.state.PopEvaluationStack();
-              const result = stepBuiltinIterator(callTarget);
+              // Call sites push 2 args (state, ctrl) — both the
+              // generic-for protocol and manual iterator invocation
+              // (`inext(t, 2)`). Pops reverse the push order. The
+              // step honors them when state is non-nil (stateless
+              // Lua protocol); stateful iterators (gmatch,
+              // utf8codes) pass nil state and use the marker's
+              // internal cursor.
+              const iterCtrl = this.state.PopEvaluationStack();
+              const iterState = this.state.PopEvaluationStack();
+              const result = stepBuiltinIterator(
+                callTarget,
+                iterState as AbstractValue,
+                iterCtrl as AbstractValue,
+              );
               this.state.PushEvaluationStack(result);
               break;
             }
@@ -2375,9 +2422,12 @@ export class Story extends InkObject {
           // like `local f = type` / `local abs = math.abs`). Look up
           // the entry, pop args by its fixed arity, invoke `entry.fn`,
           // and push the result. Variadic stdlib entries (`arity ===
-          // -1`) can't be dispatched here yet — the call site didn't
-          // push an arg count — and fall through to the existing
-          // "non-function value" error.
+          // -1`) dispatch using the CALL-SITE arg count carried on
+          // the CallValueAsFunction command (`_callValueArgCount`,
+          // set by CallValueExpression at lower time) — needed for
+          // `for k in next, t do` where the generic-for protocol
+          // calls the first-class `next` (variadic) with exactly two
+          // args (basic.luau lines 253-258).
           if (callTarget instanceof ObjectValue) {
             const stdlibTag = (callTarget.value as Map<string, AbstractValue>)?.get(
               "__stdlib_fn",
@@ -2385,9 +2435,17 @@ export class Story extends InkObject {
             if (stdlibTag instanceof StringValue) {
               const stdlibName = stdlibTag.value;
               const entry = lookupAnyStdLib(stdlibName);
-              if (entry && entry.arity >= 0) {
+              const callSiteArgCount =
+                evalCommand._callValueArgCount ?? -1;
+              const popCount =
+                entry && entry.arity >= 0
+                  ? entry.arity
+                  : entry && callSiteArgCount >= 0
+                    ? callSiteArgCount
+                    : -1;
+              if (entry && popCount >= 0) {
                 const args: any[] = [];
-                for (let i = 0; i < entry.arity; i++) {
+                for (let i = 0; i < popCount; i++) {
                   args.unshift(this.state.PopEvaluationStack());
                 }
                 for (let k = 0; k < args.length; k++) {

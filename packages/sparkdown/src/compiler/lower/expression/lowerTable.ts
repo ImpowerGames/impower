@@ -1,5 +1,6 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import {
   ObjectExpression,
   ObjectExpressionEntry,
@@ -19,11 +20,11 @@ import {
 //   `{1, 2, 3}`         — array-style entry. Bare expression nodes;
 //                         auto-incremented integer keys ("1", "2", ...).
 //
-// Both keyed shapes resolve to a static string at compile time and
-// emit an `ObjectExpressionEntry(key, value)`. Dynamic keys
-// (`[i + 1] = value`) require runtime StoreIndex emission and are
-// silently deferred — bracket forms whose inner expression isn't a
-// string literal or numeric literal produce no entry.
+// Static keyed shapes resolve to a string at compile time and emit an
+// `ObjectExpressionEntry(key, value)`. COMPUTED bracket keys
+// (`{[1+2] = 4}`, `{[i] = v}`) lower the bracket's inner expression
+// and emit an Expression-keyed entry — the runtime EndObject
+// stringifies the evaluated key (basic.luau line 293).
 //
 // `LuauTableIndexDeclaration` wraps the bracket-key form
 // (`[<expr>]`). Inside is a `LuauExpression` (we drill through to
@@ -44,7 +45,7 @@ export function lowerTable(
   // bare value (treat as array-style) — but only when it came from an
   // `LuauAccessPath`, since `LuauTableIndexDeclaration` is meaningless
   // without an assignment.
-  let pendingKey: string | null = null;
+  let pendingKey: string | Expression | null = null;
   let pendingKeyNode: SyntaxNode | null = null;
   let pendingKeyIsBracket = false;
   let arrayIndex = 1;
@@ -88,7 +89,18 @@ export function lowerTable(
       child.name === "LuauTableIndexDeclaration" &&
       pendingKey === null
     ) {
+      // Static literal key first; otherwise lower the bracket's
+      // inner expression for runtime evaluation (`{[1+2] = 4}`).
       pendingKey = readStaticBracketKey(child, ctx);
+      if (pendingKey === null) {
+        const bracketContent = findChildByName(
+          child,
+          "LuauTableIndexDeclaration_content",
+        );
+        pendingKey = bracketContent
+          ? lowerExpressionFromContainer(bracketContent, ctx)
+          : null;
+      }
       pendingKeyNode = child;
       pendingKeyIsBracket = true;
       child = child.nextSibling;
@@ -172,15 +184,24 @@ function readStaticBracketKey(
     "LuauNumericHex",
     "LuauNumericBinary",
   ]);
-  let literal: SyntaxNode | null = null;
-  for (const name of [...STRING_NODES, ...NUMBER_NODES]) {
-    const found = getDescendent(name, indexDecl);
-    if (found) {
-      literal = found;
-      break;
-    }
+  // The bracket counts as STATIC only when its content is exactly ONE
+  // literal node. A deep `getDescendent` walk here would grab the
+  // leading `1` out of `[1+2]` and silently key the entry as "1" —
+  // compound keys must fall through to the computed-expression path
+  // (lowerTable's caller).
+  const content = findChildByName(indexDecl, "LuauTableIndexDeclaration_content");
+  if (!content) return null;
+  const significant: SyntaxNode[] = [];
+  let child = content.firstChild;
+  while (child) {
+    if (!isSkippableName(child.name)) significant.push(child);
+    child = child.nextSibling;
   }
-  if (!literal) return null;
+  if (significant.length !== 1) return null;
+  const literal = significant[0]!;
+  if (!STRING_NODES.has(literal.name) && !NUMBER_NODES.has(literal.name)) {
+    return null;
+  }
   const raw = ctx.read(literal.from, literal.to).trim();
   if (STRING_NODES.has(literal.name)) {
     return stripQuotes(raw);

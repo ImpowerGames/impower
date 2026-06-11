@@ -19,6 +19,7 @@
 // The aggregate "X% of files reach OK" is what we watch over time.
 
 import { readdirSync, readFileSync, existsSync } from "node:fs";
+import { applyUpstreamPatches } from "./upstreamPatches";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "vitest";
@@ -117,7 +118,12 @@ describe("Luau upstream conformance baseline", () => {
         continue;
       }
 
-      const source = readFileSync(join(UPSTREAM_ROOT, f), "utf8");
+      // Patched at read time for documented spec-vs-implementation
+      // divergences (pairs iteration order) — see upstreamPatches.ts.
+      const source = applyUpstreamPatches(
+        f,
+        readFileSync(join(UPSTREAM_ROOT, f), "utf8"),
+      );
       let outcome: FileResult;
       try {
         // Pass the fixture filename so the harness's

@@ -1538,6 +1538,10 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
     const i = prev + 1;
     if (!map.has(String(i))) return null;
     const v = map.get(String(i))! as AbstractValue;
+    // Lua: ipairs stops at the FIRST nil value, not just a missing
+    // key — `ipairs({5, 6, 7, nil, 8})` iterates k=1..3 even though
+    // slot 5 holds 8 (basic.luau lines 224-226).
+    if (v instanceof NullValue) return null;
     return { values: [new IntValue(i), v], nextCursor: new IntValue(i) };
   },
   // `utf8codes(s)` — Lua 5.3+ / Luau iterator. Each step yields the
@@ -1648,13 +1652,31 @@ function makeBuiltinIterator(name: string, table: ObjectValue): ObjectValue {
 }
 
 /**
- * Runtime entry point: advance the iterator stored on `iter` by one
- * step. Returns the yielded values as a `MultiValue` (or the single
- * value directly when there's only one), or a `NullValue` when
- * iteration ends. Called from `Story.ts`'s `CallValueAsFunction`
- * handler.
+ * Runtime entry point: advance the iterator one step. Returns the
+ * yielded values as a `MultiValue` (or the single value directly when
+ * there's only one), or a `NullValue` when iteration ends. Called
+ * from `Story.ts`'s `CallValueAsFunction` handler and the
+ * variable-divert dispatch path.
+ *
+ * STATELESS mode (Lua's iterator protocol): when the call site passes
+ * an explicit non-nil `state` arg — `ipairs(t)` returns the triple
+ * `(iterator, t, 0)` so generic-for threads the real table and
+ * previous control value, and manual calls like `inext(t, 2)` pass
+ * them directly (basic.luau line 230) — the step uses the PASSED
+ * (state, control) and the marker's internal cursor is neither read
+ * nor written.
+ *
+ * STATEFUL fallback: iterators whose state can't be expressed in the
+ * (state, control) protocol (`gmatch`, `utf8codes` — also Lua's own
+ * stateful-iterator pattern) return just the marker, so generic-for
+ * passes state=nil and the internal STATE/CURSOR fields drive the
+ * iteration as before.
  */
-export function stepBuiltinIterator(iter: ObjectValue): AbstractValue {
+export function stepBuiltinIterator(
+  iter: ObjectValue,
+  stateArg?: AbstractValue | null,
+  ctrlArg?: AbstractValue | null,
+): AbstractValue {
   const map = iter.value as Map<string, AbstractValue> | null;
   if (!map) return new NullValue();
   const tagVal = map.get(BUILTIN_ITER_TAG);
@@ -1662,6 +1684,17 @@ export function stepBuiltinIterator(iter: ObjectValue): AbstractValue {
   if (!name) return new NullValue();
   const step = BUILTIN_ITERATORS[name];
   if (!step) return new NullValue();
+
+  const explicitState =
+    stateArg != null && !(stateArg instanceof NullValue) ? stateArg : null;
+  if (explicitState !== null) {
+    const result = step(explicitState, ctrlArg ?? null);
+    if (!result) return new NullValue();
+    if (result.values.length === 0) return new NullValue();
+    if (result.values.length === 1) return result.values[0]!;
+    return new MultiValue(result.values);
+  }
+
   const state = map.get(BUILTIN_ITER_STATE) as AbstractValue | undefined;
   if (state == null) return new NullValue();
   const cursor = (map.get(BUILTIN_ITER_CURSOR) ?? null) as AbstractValue | null;
@@ -3814,6 +3847,15 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return new MultiValue([keyValue, nextValue as AbstractValue]);
     },
   },
+  // `pairs(t)` / `ipairs(t)` return Lua's full iterator-protocol
+  // triple `(iterator, state, control)` so:
+  //   - generic-for threads the REAL table + previous control value
+  //     into each step (`__iter(__state, __ctrl)`), and
+  //   - manually-invoked iterators work: `local inext = ipairs(t)`
+  //     takes the first value (the iterator marker) and
+  //     `inext({5,6,7}, 2)` returns `(3, 7)` (basic.luau line 230).
+  // The marker still carries internal state as a fallback for call
+  // sites that pass nil state (see stepBuiltinIterator).
   pairs: {
     arity: 1,
     fn: (story, [t]) => {
@@ -3825,7 +3867,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("pairs: argument must be a table");
         return new NullValue();
       }
-      return makeBuiltinIterator("pairs", t as ObjectValue);
+      return [
+        makeBuiltinIterator("pairs", t as ObjectValue),
+        t as ObjectValue,
+        new NullValue(),
+      ];
     },
   },
   ipairs: {
@@ -3839,7 +3885,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("ipairs: argument must be a table");
         return new NullValue();
       }
-      return makeBuiltinIterator("ipairs", t as ObjectValue);
+      return [
+        makeBuiltinIterator("ipairs", t as ObjectValue),
+        t as ObjectValue,
+        new IntValue(0),
+      ];
     },
   },
 

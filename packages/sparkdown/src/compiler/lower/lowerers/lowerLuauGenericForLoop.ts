@@ -1,6 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
+import { CallValueExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
@@ -93,7 +94,14 @@ export function lowerLuauGenericForLoop(
   while (cursor) {
     if (cursor.name === "LuauInKeyword") {
       seenIn = true;
-    } else if (!isSkippable(cursor.name)) {
+    } else if (
+      !isSkippable(cursor.name) ||
+      // Top-level commas in the POST-`in` region are the expression-
+      // list separators (`for k, v in next, t do`) — the group-split
+      // below needs them. Pre-`in` commas just separate loop targets
+      // and stay skipped.
+      (seenIn && cursor.name === "LuauCommaSeparator")
+    ) {
       if (!seenIn) {
         if (cursor.name === "LuauAccessPath") {
           loopVarNodes.push(cursor);
@@ -117,14 +125,36 @@ export function lowerLuauGenericForLoop(
     loopVarNames.push(ctx.read(nameNode.from, nameNode.to));
   }
 
-  // The iter expression is the FIRST node after `in`. Anything past
-  // it (commas + extra expressions) would form a multi-return tuple
-  // `(f, s, var)` — but our parser puts them as separate sibling
-  // nodes. We treat the whole post-`in` sibling list as a single
-  // expression sequence and let `lowerExpressionFromNodes` either
-  // merge an access-path + call shape, OR fall through.
-  const iterExpr = lowerExpressionFromNodes(iterExprNodes, ctx);
-  if (!iterExpr) return {};
+  // The post-`in` region is an EXPRESSION LIST: `f, s, var` — most
+  // commonly a single call (`pairs(t)`, which returns the whole
+  // triple) but Lua also allows the explicit form
+  // `for k, v in next, t do` (basic.luau lines 253-258). Split the
+  // sibling nodes on top-level commas and lower each group as its
+  // own expression; the MultiVariableAssignment below distributes
+  // them across (f, s, var) with spread-last semantics (a single
+  // multi-return call still fills all three slots).
+  const iterExprGroups: SyntaxNode[][] = [];
+  {
+    let current: SyntaxNode[] = [];
+    for (const n of iterExprNodes) {
+      if (n.name === "LuauCommaSeparator") {
+        if (current.length > 0) {
+          iterExprGroups.push(current);
+          current = [];
+        }
+      } else {
+        current.push(n);
+      }
+    }
+    if (current.length > 0) iterExprGroups.push(current);
+  }
+  const iterExprs: Expression[] = [];
+  for (const group of iterExprGroups) {
+    const e = lowerExpressionFromNodes(group, ctx);
+    if (!e) return {};
+    iterExprs.push(e);
+  }
+  if (iterExprs.length === 0) return {};
 
   const iterName = `__forIn_${nodeRef.node.from}_iter`;
   const stateName = `__forIn_${nodeRef.node.from}_state`;
@@ -132,13 +162,14 @@ export function lowerLuauGenericForLoop(
   const loopLabel = `__forIn_${nodeRef.node.from}_loop`;
   const breakLabel = `__forIn_${nodeRef.node.from}_break`;
 
-  // Init: pull (f, s, var) from the iter expression via a multi-
-  // variable assignment with new-declaration semantics. When the
-  // expression returns a single value (closure case),
-  // MultiVariableAssignment fills the rest with nulls.
+  // Init: pull (f, s, var) from the iterator expression list via a
+  // multi-variable assignment with new-declaration semantics. A
+  // single multi-return call (`pairs(t)`) spreads across all three
+  // slots; explicit lists (`next, t`) fill positionally with nil
+  // padding for the rest.
   const initTuple = new MultiVariableAssignment(
     [new Identifier(iterName), new Identifier(stateName), new Identifier(ctrlName)],
-    [iterExpr],
+    iterExprs,
     /* isTemporaryNewDeclaration */ true,
   );
 
@@ -151,10 +182,21 @@ export function lowerLuauGenericForLoop(
   // Iteration step: call __iter(__state, __ctrl), unpack into the
   // user's loop variables. Declared as locals (re-set each iteration
   // in the same slot under the single-scope wrap).
-  const iterCall = new FunctionCall(new Identifier(iterName), [
-    new VariableReference([new Identifier(stateName)]),
-    new VariableReference([new Identifier(ctrlName)]),
-  ]);
+  //
+  // `CallValueExpression` (NOT ink's `FunctionCall`): the iterator is
+  // a first-class VALUE — a closure, a builtin-iterator marker, or a
+  // stdlib-fn marker like `next` in `for k in next, t do`. The
+  // value-call op carries the call-site arg count, which the
+  // `__stdlib_fn` dispatch needs to invoke VARIADIC entries (`next`
+  // has arity -1; the divert-based FunctionCall path can't dispatch
+  // those — basic.luau lines 253-258).
+  const iterCall = new CallValueExpression(
+    new VariableReference([new Identifier(iterName)]),
+    [
+      new VariableReference([new Identifier(stateName)]),
+      new VariableReference([new Identifier(ctrlName)]),
+    ],
+  );
   const callAndUnpack = new MultiVariableAssignment(
     loopVarNames.map((n) => new Identifier(n)),
     [iterCall],

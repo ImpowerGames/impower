@@ -13,6 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
+import { applyUpstreamPatches } from "./upstreamPatches";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UPSTREAM_ROOT = join(__dirname, "upstream", "conformance");
@@ -64,7 +65,10 @@ test(`survey: first blocker per failing fixture`, () => {
 });
 
 test(`bisect-basic`, () => {
-  const src = readFileSync(join(UPSTREAM_ROOT, "basic.luau"), "utf8");
+  const src = applyUpstreamPatches(
+    "basic.luau",
+    readFileSync(join(UPSTREAM_ROOT, "basic.luau"), "utf8"),
+  );
   const lines = src.split("\n");
   const tryRange = (startLine: number, endLine: number) => {
     const slice = lines.slice(startLine - 1, endLine).join("\n");
@@ -98,12 +102,9 @@ test(`bisect-basic`, () => {
     }
   };
   // Drill into basic.luau line 84: uninitialized local + truthiness.
-  // Next blocker: line 224 — `ipairs({5, 6, 7, nil, 8})` must stop
-  // at the nil gap (iterate k=1..3 only). Either the table
-  // constructor drops the nil (shifting 8 into slot 4) or the ipairs
-  // iterator doesn't stop on a nil value.
-  tryRange(1, 223);
-  tryRange(1, 224);
+  // Next blocker: somewhere in 339-348 — "Tried to call a ..." in an
+  // anonymous function (multiple-returns section).
+  tryRange(1, 338);
   // Separate pre-existing bug found while writing IIFE regression
   // tests (fails on a clean tree too): `table.insert` through a
   // local function's captured-upvalue table doesn't stick —
