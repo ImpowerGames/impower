@@ -75,16 +75,19 @@ end
     expect(errors[0]).toContain("custom failure");
   });
 
-  test("assert(0) is falsy under sparkdown coercion", () => {
-    // Sparkdown treats 0 as falsy (documented divergence from Luau,
-    // where 0 is truthy). Authors porting from Luau need to be aware.
+  test("assert(0) and assert('') pass under Lua truthiness", () => {
+    // Only nil and false are falsy in Lua — 0 and "" are truthy, so
+    // these assertions succeed. (Formerly a documented divergence
+    // where sparkdown treated 0/"" as falsy; removed for Luau
+    // conformance — basic.luau's truthiness section.)
     const { errors } = compileAndRun(`& run()
 done
 
 function run()
 assert(0)
+assert("")
 end
 `);
-    expect(errors.length).toBe(1);
+    expect(errors).toEqual([]);
   });
 });

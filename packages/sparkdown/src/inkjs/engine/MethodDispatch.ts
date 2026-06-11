@@ -14,10 +14,10 @@
 //     that conceptually mutate (`:insert`, `:remove`, `:sort`) build and
 //     return a new `ObjectValue`.
 //
-//   - `nil` is represented as `IntValue(0)` (mirrors `LuauNil` in the
-//     lowerer). Methods like `:find` and `:at` return this on miss /
-//     out-of-range so `if t:find(x) then ... end` works as a standard
-//     Luau idiom (IntValue(0) is falsy).
+//   - `nil` is a real `NullValue`. Methods like `:find` and `:at`
+//     return it on miss / out-of-range so `if t:find(x) then ... end`
+//     works as a standard Luau idiom (nil is falsy; numbers — even
+//     0 — are truthy under Lua truthiness).
 //
 //   - Indices are 1-based throughout; negative indices on `:at` / `:sub`
 //     count from the end and follow Luau `string.sub` semantics.
@@ -32,10 +32,16 @@ import {
   BoolValue,
   FloatValue,
   IntValue,
+  NullValue,
   ObjectValue,
   StringValue,
 } from "./Value";
 import { StoryException } from "./StoryException";
+// LuaPatterns is a pure leaf module (zero imports), so a static
+// import is cycle-safe — the lazy `require("./LuaPatterns")` this
+// replaces failed under vitest's ESM transform ("Cannot find module")
+// and was guarding against a StdLib cycle that doesn't apply here.
+import { executeLuaPattern, luaPatternToJs } from "./LuaPatterns";
 
 // Prefix the lowerer adds to method names before emitting the
 // FunctionCall. Exposed so the lowerer / dispatch use a single source of
@@ -51,10 +57,15 @@ export type BuiltinMethod = (params: InkObject[]) => InkObject | null;
 // Helpers
 // ============================================================================
 
-// Sparkdown nil ≡ IntValue(0) — same representation `LuauNil` lowers to
-// (`packages/sparkdown/src/compiler/lower/expression/lowerExpression.ts`).
+// Real first-class nil. Methods like `:find` / `:at` return this on
+// miss / out-of-range, matching METHODS.md's documented contract
+// ("1-based position or `nil`") and Lua truthiness — `if t:find(x)`
+// and `not t:find(x)` both behave correctly because NullValue is
+// falsy while any number (including 0) is truthy. (Historically this
+// returned IntValue(0), which only read as "miss" under ink's
+// 0-is-falsy coercion.)
 function NIL(): InkObject {
-  return new IntValue(0);
+  return new NullValue();
 }
 
 function asString(
@@ -274,18 +285,9 @@ function methodGsub(params: InkObject[]): InkObject {
 // `luaPatternToJs` engine used by `string.match` / `string.find` /
 // `string.gmatch` / `string.gsub` in StdLib.ts. Returns the captures
 // (or whole match if no captures), or nil on miss.
-//
-// Lazy-imported to break a module-graph cycle: StdLib.ts → Value.ts;
-// MethodDispatch.ts → StdLib.ts would close the loop. Inline require()
-// is fine since the runtime only hits this path lazily anyway.
 function methodMatch(params: InkObject[]): InkObject {
   const s = asString(params[0], "match", "receiver");
   const pattern = asString(params[1], "match", "pattern");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { luaPatternToJs, executeLuaPattern } = require("./LuaPatterns") as {
-    luaPatternToJs: (p: string) => any;
-    executeLuaPattern: (c: any, input: string, start: number) => any;
-  };
   let compiled;
   try {
     compiled = luaPatternToJs(pattern);
@@ -389,8 +391,20 @@ function methodFind(params: InkObject[]): InkObject {
   if (r instanceof StringValue) {
     const needle = asString(params[1], "find", "needle");
     if (needle === "") return new IntValue(1); // matches Luau `string.find(s, "")`
-    const idx = (r.value ?? "").indexOf(needle);
-    return idx < 0 ? NIL() : new IntValue(idx + 1);
+    // Lua-pattern search, like `string.find(s, pattern)` — needles
+    // are PATTERNS, so `s:find("%d+")` works. Returns the 1-based
+    // match start, or nil on miss. (Formerly a plain `indexOf`
+    // substring search whose IntValue(0) miss-return made
+    // `x:find(pat) ~= nil` accidentally true — the nil-on-miss fix
+    // exposed that patterns never matched here.)
+    let compiled;
+    try {
+      compiled = luaPatternToJs(needle);
+    } catch {
+      return NIL();
+    }
+    const matched = executeLuaPattern(compiled, r.value ?? "", 0);
+    return matched ? new IntValue(matched.index + 1) : NIL();
   }
   if (r instanceof ObjectValue) {
     const arr = arrayPortion(r.value ?? new Map());

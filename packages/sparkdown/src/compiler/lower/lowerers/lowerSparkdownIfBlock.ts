@@ -2,6 +2,8 @@ import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
+import { NativeFunctionCall } from "../../../inkjs/engine/NativeFunctionCall";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -108,7 +110,17 @@ function buildBranch(
 ): ConditionalSingleBranch {
   const branch = new ConditionalSingleBranch(body.length > 0 ? body : null);
   if (condition) {
-    branch.ownExpression = condition;
+    // Normalize the condition to a real boolean under LUA truthiness
+    // (only nil and false are falsy — `if 0 then` / `if "" then` /
+    // `if {} then` all take the then-branch, basic.luau line 86). The
+    // runtime branch test (`Story.IsTruthy` on the conditional divert)
+    // keeps ink truthiness for narrative constructs, so Luau `if`
+    // conditions must arrive as a BoolValue. The `TRUTHY` native op
+    // pops the value and pushes `BoolValue(isLuauTruthy(v))`.
+    branch.ownExpression = new UnaryExpression(
+      condition,
+      NativeFunctionCall.LuauTruthy,
+    );
   }
   branch.isElse = isElse;
   return branch;

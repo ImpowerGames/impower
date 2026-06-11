@@ -22,6 +22,7 @@ import {
   callBuiltinMethod,
 } from "./StdLib";
 import { asOrNull, asOrThrows, asBooleanOrThrows } from "./TypeAssertion";
+import { isLuauTruthy } from "./LuauTruthiness";
 import { throwNullException } from "./NullException";
 
 type BinaryOp<T> = (left: T, right: T) => any;
@@ -52,6 +53,15 @@ export class NativeFunctionCall extends InkObject {
   public static readonly Not: string = "not";
   public static readonly And: string = "and";
   public static readonly Or: string = "or";
+  // Lua-truthiness normalize op. Pops one value and pushes
+  // `BoolValue(isLuauTruthy(v))`. The compiler wraps Luau `if` /
+  // `elseif` / `while` condition expressions in this op so the
+  // conditional-divert test (`Story.IsTruthy`, which keeps ink
+  // semantics for narrative constructs) only ever sees a real
+  // boolean for Luau control flow — `if 0 then` / `if "" then` /
+  // `if {} then` are all truthy per Lua, where ink would treat
+  // them as falsy.
+  public static readonly LuauTruthy: string = "TRUTHY";
   public static readonly Min: string = "MIN";
   public static readonly Max: string = "MAX";
   public static readonly Pow: string = "POW";
@@ -200,6 +210,10 @@ export class NativeFunctionCall extends InkObject {
     //   `a or b`  → `a` if `a` is truthy, else `b`
     // This lets idioms like `cond and "yes" or "no"` work across mixed
     // operand types, matching the keyword-based source syntax users write.
+    // The predicate is LUA truthiness (only nil/false falsy) — `0 and x`
+    // returns x, `"" or y` returns "", `{} or y` returns the table —
+    // NOT ink's `isTruthy` (which treats 0 / "" / empty containers as
+    // falsy). basic.luau lines 132-140.
     if (
       parameters.length === 2 &&
       (this.name === NativeFunctionCall.And ||
@@ -207,10 +221,32 @@ export class NativeFunctionCall extends InkObject {
     ) {
       const a = parameters[0];
       const b = parameters[1];
-      const aTruthy = a instanceof AbstractValue ? a.isTruthy : false;
+      const aTruthy = isLuauTruthy(a);
       const pickA =
         this.name === NativeFunctionCall.And ? !aTruthy : aTruthy;
       return pickA ? a : b;
+    }
+
+    // Luau `not` — always returns a genuine boolean, with Lua
+    // truthiness: `not 0` is false, `not ""` is false, `not nil` is
+    // true, `not {}` is false. Handled here (before the nil-operand
+    // guard and type coercion) because the legacy numeric unary ops
+    // returned ink-truthiness Ints, crashed on tables ("Cannot perform
+    // operation not on Object"), and silently returned null for nil
+    // operands. basic.luau lines 149-151.
+    if (
+      parameters.length === 1 &&
+      this.name === NativeFunctionCall.Not
+    ) {
+      return new BoolValue(!isLuauTruthy(parameters[0]));
+    }
+
+    // Lua-truthiness normalize op (see the `LuauTruthy` declaration).
+    if (
+      parameters.length === 1 &&
+      this.name === NativeFunctionCall.LuauTruthy
+    ) {
+      return new BoolValue(isLuauTruthy(parameters[0]));
     }
 
     if (parameters.length == 2 && hasList) {
@@ -568,6 +604,11 @@ export class NativeFunctionCall extends InkObject {
       this.AddIntBinaryOp(this.LessThanOrEquals, (x, y) => x <= y);
       this.AddIntBinaryOp(this.NotEquals, (x, y) => x != y);
       this.AddIntUnaryOp(this.Not, (x) => x == 0);
+      // `TRUTHY` is fully handled by the Lua-truthiness special case in
+      // `Call` — this registration only exists so the name is known to
+      // `CallWithName` / `CallExistsWithName` (JSON round-trip). The op
+      // body is unreachable.
+      this.AddIntUnaryOp(this.LuauTruthy, (x) => x != 0);
 
       this.AddIntBinaryOp(this.And, (x, y) => x != 0 && y != 0);
       this.AddIntBinaryOp(this.Or, (x, y) => x != 0 || y != 0);

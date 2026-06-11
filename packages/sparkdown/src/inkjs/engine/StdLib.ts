@@ -209,20 +209,24 @@ export function luauTypeOf(v: any): string {
 }
 
 /**
- * Sparkdown truthiness check. Returns `false` for: `nil`/`null`/
- * `undefined`, JS `false`, numeric `0`, empty string `""`, `Void`
- * instances, and any wrapped Value whose `.value` is one of the
- * above. Used by `assert`, `if`, etc.
+ * LUA truthiness check over JS-level or wrapped values. Returns
+ * `false` only for: `nil`/`null`/`undefined`, `false`, `Void`
+ * instances (function returned nothing → nil), and any wrapped Value
+ * whose `.value` is null or `false`. Everything else — including `0`
+ * and `""` — is truthy, matching Luau. Used by `assert`,
+ * `string.find`'s plain flag, `table.sort` comparator results,
+ * `newproxy`, etc. — all sites where Lua semantics apply.
  *
- * Note: differs from Luau, where `0` and `""` are truthy. Documented
- * divergence in docs/runtime/DIVERGENCES.md.
+ * (Formerly treated 0 / "" as falsy — an ink-style divergence that
+ * broke basic.luau's truthiness section. The engine-value equivalent
+ * for runtime control flow is `isLuauTruthy` in LuauTruthiness.ts.)
  */
 export function isTruthy(v: any): boolean {
   if (v == null) return false;
-  if (v === false || v === 0 || v === "") return false;
+  if (v === false) return false;
   if (typeof v === "object" && "value" in v) {
     const raw = (v as any).value;
-    if (raw == null || raw === false || raw === 0 || raw === "") return false;
+    if (raw == null || raw === false) return false;
   }
   // Void from the runtime engine is treated as falsy (function returned
   // nothing). Duck-typed via the constructor name to avoid the import.
@@ -4164,10 +4168,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
   },
 
   // `assert(cond [, message])` — Luau-style assertion. Raises a
-  // runtime error via `story.AddError(message)` when `cond` is
-  // falsy. Sparkdown truthiness: `nil` / `0` / `false` / `""` are
-  // falsy (documented divergence from Luau where `0` is truthy —
-  // see docs/runtime/DIVERGENCES.md).
+  // runtime error when `cond` is falsy. Lua truthiness: only `nil`
+  // and `false` are falsy — `assert(0)` and `assert("")` pass.
   assert: {
     arity: 2,
     fn: (story, [cond, msg]) => {

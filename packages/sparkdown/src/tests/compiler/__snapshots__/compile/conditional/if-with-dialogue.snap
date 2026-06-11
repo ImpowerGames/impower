@@ -11,10 +11,14 @@
               "type": "ConditionalSingleBranch",
               "isElse": false,
               "cond": {
-                "type": "VariableReference",
-                "path": [
-                  "happy"
-                ]
+                "type": "UnaryExpression",
+                "op": "TRUTHY",
+                "operand": {
+                  "type": "VariableReference",
+                  "path": [
+                    "happy"
+                  ]
+                }
               },
               "body": [
                 {

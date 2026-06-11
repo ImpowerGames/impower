@@ -38,10 +38,14 @@ export class UnaryExpression extends Expression {
           return new NumberExpression(-innerNumber.value, "float");
         }
       } else if (op == "not") {
-        if (innerNumber.isInt()) {
-          return new NumberExpression(innerNumber.value == 0, "bool");
-        } else if (innerNumber.isFloat()) {
-          return new NumberExpression(innerNumber.value == 0.0, "bool");
+        // Lua truthiness: every number is truthy (only nil and false
+        // are falsy), so `not <number literal>` always folds to false.
+        // Folding `not 0` to true here would bake ink truthiness into
+        // the bytecode and contradict the runtime's Lua-correct `not`
+        // (NativeFunctionCall's special case). basic.luau line 86's
+        // section relies on 0 being truthy.
+        if (innerNumber.isInt() || innerNumber.isFloat()) {
+          return new NumberExpression(false, "bool");
         } else if (innerNumber.isBool()) {
           return new NumberExpression(!innerNumber.value, "bool");
         }

@@ -1,7 +1,7 @@
 -> main
 scene main
   choose
-    * if not test visible choice
+    * if (test == 0) visible choice
     * if test visible choice
   end
   done

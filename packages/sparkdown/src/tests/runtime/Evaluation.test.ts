@@ -151,7 +151,11 @@ describe("Evaluation (ported from inkjs)", () => {
   test("literal unary", () => {
     const ctx = makeRuntimeStoryFromFile("evaluation", "literal-unary");
     expect(ctx.errorMessages).toEqual([]);
-    expect(runToEnd(ctx.story)).toBe("-1\nfalse\ntrue\n");
+    // `not 0` is FALSE under Lua truthiness (0 is truthy; only nil
+    // and false are falsy). The upstream ink fixture expected `true`
+    // (ink treats 0 as falsy), but sparkdown's `not` is the Luau
+    // operator — one semantics everywhere, matching basic.luau.
+    expect(runToEnd(ctx.story)).toBe("-1\nfalse\nfalse\n");
   });
 
   test("increment / decrement (compound assignment)", () => {

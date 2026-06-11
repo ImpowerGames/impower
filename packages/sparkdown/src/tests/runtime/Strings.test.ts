@@ -32,8 +32,9 @@ describe("Strings (ported from inkjs)", () => {
     const ctx = makeRuntimeStoryFromFile("strings", "string-contains");
     expect(ctx.errorMessages).toEqual([]);
     // `:find("World")` returns 8 (1-based position of "W" in "Hello, World!")
-    // `:find("zzz")` returns nil, which sparkdown renders as 0
-    expect(ctx.story.ContinueMaximally()).toBe("8\n0\n");
+    // `:find("zzz")` returns real nil (Lua truthiness fix — formerly
+    // an IntValue(0) placeholder), which interpolates as "nil".
+    expect(ctx.story.ContinueMaximally()).toBe("8\nnil\n");
   });
 
   test("explicit string↔number conversion via concat (sparkdown is strictly typed)", () => {

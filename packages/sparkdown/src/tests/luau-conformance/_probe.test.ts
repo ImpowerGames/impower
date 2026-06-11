@@ -98,12 +98,11 @@ test(`bisect-basic`, () => {
     }
   };
   // Drill into basic.luau line 84: uninitialized local + truthiness.
-  // Next blocker: line 86 — Lua truthiness: 0 is TRUTHY (only nil
-  // and false are falsy). `local a = 0 if a then a = 1 else a = 2
-  // end` must take the then-branch. The ink-derived runtime likely
-  // treats Int 0 as falsy.
-  tryRange(1, 85);
-  tryRange(1, 86);
+  // Next blocker: line 93 — `/` must be FLOAT division regardless of
+  // operand types (Lua semantics): `local a = 1 a = a / 2` must yield
+  // 0.5, but ink's Int/Int `/` truncates to integer division.
+  tryRange(1, 92);
+  tryRange(1, 93);
   // Separate pre-existing bug found while writing IIFE regression
   // tests (fails on a clean tree too): `table.insert` through a
   // local function's captured-upvalue table doesn't stick —

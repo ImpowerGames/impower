@@ -16,18 +16,22 @@
               "type": "ConditionalSingleBranch",
               "isElse": false,
               "cond": {
-                "type": "BinaryExpression",
-                "op": ">",
-                "left": {
-                  "type": "VariableReference",
-                  "path": [
-                    "n"
-                  ]
-                },
-                "right": {
-                  "type": "NumberExpression",
-                  "value": 0,
-                  "subtype": "int"
+                "type": "UnaryExpression",
+                "op": "TRUTHY",
+                "operand": {
+                  "type": "BinaryExpression",
+                  "op": ">",
+                  "left": {
+                    "type": "VariableReference",
+                    "path": [
+                      "n"
+                    ]
+                  },
+                  "right": {
+                    "type": "NumberExpression",
+                    "value": 0,
+                    "subtype": "int"
+                  }
                 }
               },
               "body": [

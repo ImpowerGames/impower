@@ -4,6 +4,8 @@ import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHi
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/UnaryExpression";
+import { NativeFunctionCall } from "../../../inkjs/engine/NativeFunctionCall";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
@@ -100,7 +102,15 @@ export function lowerLuauWhileLoop(
     ...bodyStatements,
     tailDivert,
   ]);
-  if (condExpr) branch.ownExpression = condExpr;
+  // Normalize to a boolean under LUA truthiness (only nil/false are
+  // falsy — `while 0 do` / `while "" do` must loop). Same TRUTHY
+  // wrapping as if/elseif conditions in lowerSparkdownIfBlock.
+  if (condExpr) {
+    branch.ownExpression = new UnaryExpression(
+      condExpr,
+      NativeFunctionCall.LuauTruthy,
+    );
+  }
   branch.isElse = false;
   const conditional = new Conditional(null as never, [branch]);
 

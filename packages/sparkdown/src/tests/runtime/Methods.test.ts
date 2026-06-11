@@ -34,7 +34,9 @@ describe("Builtin methods (strings)", () => {
         "true",
         "true",
         "8",
-        "0",
+        // find-miss returns real nil (Lua truthiness fix) — formerly
+        // the IntValue(0) "sparkdown nil" placeholder.
+        "nil",
         "Hello, Luau!",
         "ababab",
         "x-x-x",
@@ -83,7 +85,8 @@ describe("Builtin methods (tables)", () => {
         "1",
         "5",
         "3",
-        "0",
+        // find-miss returns real nil (Lua truthiness fix).
+        "nil",
         "1-2-3-4-5",
         "5,4,3,2,1",
         "1,1,2,3,4,5,6,9",
@@ -96,8 +99,8 @@ describe("Builtin methods (tables)", () => {
   test("min / max / random — comparison-based and probabilistic picks", () => {
     // `:min()` and `:max()` use the same `compareValues` helper that
     // `:sort()` does — number-to-number and string-to-string comparisons
-    // are allowed, mixed types raise. Empty table returns `nil`
-    // (IntValue(0), falsy under `if t:min() then`).
+    // are allowed, mixed types raise. Empty table returns real `nil`
+    // (falsy under `if t:min() then` per Lua truthiness).
     //
     // `:random()` picks any element from the array portion. The
     // fixture's deterministic lines pin min/max; the test below
@@ -111,9 +114,9 @@ describe("Builtin methods (tables)", () => {
         "9", // nums:max()
         "apple", // strs:min()
         "pear", // strs:max()
-        "0", // empty:min() → nil
-        "0", // empty:max() → nil
-        "0", // empty:random() → nil
+        "nil", // empty:min() → nil
+        "nil", // empty:max() → nil
+        "nil", // empty:random() → nil
         "",
       ].join("\n"),
     );

@@ -202,10 +202,15 @@ describe("Choices (ported from inkjs)", () => {
     expect(ctx.story.currentChoices).toEqual([]);
   });
   test("has-read condition uses scene visit count as boolean", () => {
-    // `{ not test }` interpolates as the visit count of scene `test`,
-    // which is 0 (unvisited) — so `not test` is true and the choice
-    // is visible. `{ test }` is 0 → false → filtered out. Only one
-    // visible choice remains.
+    // `if (test == 0)` tests "scene `test` not yet visited" via its
+    // visit count (arbitrary choice-condition expressions must be
+    // parenthesized per the Choice grammar). The upstream ink fixture
+    // used `not test`, but sparkdown's `not` is the LUAU operator —
+    // `not 0` is false under Lua truthiness — so the explicit
+    // read-count comparison is the sanctioned "unvisited" idiom. The
+    // BARE read-count condition `if test` keeps ink truthiness via
+    // Story.IsTruthy: visit count 0 → falsy → that choice is filtered
+    // out. Only one visible choice remains.
     const ctx = makeRuntimeStoryFromFile("choices", "has-read-on-choice");
     expect(ctx.errorMessages).toEqual([]);
     ctx.story.ContinueMaximally();
