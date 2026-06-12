@@ -295,6 +295,15 @@ export class JsonSerialisation {
         writer.Write(`unpack:${controlCmd._tupleArity}`);
         return;
       }
+      // Lua `and`/`or` short-circuit jump: `sc:<op>:<skipCount>`.
+      if (
+        controlCmd.commandType === ControlCommand.CommandType.ShortCircuit
+      ) {
+        writer.Write(
+          `sc:${controlCmd._shortCircuitOp}:${controlCmd._shortCircuitSkipCount}`,
+        );
+        return;
+      }
       // `CallValueAsFunction(n)` — encode the call-site arg count so
       // the runtime closure dispatch can pad missing args with nil.
       // Untracked sites encode plainly as `func()` (preserves legacy
@@ -480,6 +489,18 @@ export class JsonSerialisation {
       if (str.startsWith("unpack:")) {
         const arity = parseInt(str.slice("unpack:".length), 10);
         if (Number.isFinite(arity)) return ControlCommand.UnpackTuple(arity);
+      }
+
+      // Lua `and`/`or` short-circuit jump: `sc:<op>:<skipCount>`.
+      if (str.startsWith("sc:")) {
+        const lastColon = str.lastIndexOf(":");
+        if (lastColon > "sc:".length - 1) {
+          const skip = parseInt(str.slice(lastColon + 1), 10);
+          const op = str.slice("sc:".length, lastColon);
+          if (Number.isFinite(skip) && (op === "and" || op === "or")) {
+            return ControlCommand.ShortCircuit(op, skip);
+          }
+        }
       }
 
       // `func(N)` — CallValueAsFunction with explicit call-site arg
@@ -991,6 +1012,10 @@ export class JsonSerialisation {
     // "no missing names" validation loop below.
     _controlCommandNames[ControlCommand.CommandType.PackTuple] = "pack:?";
     _controlCommandNames[ControlCommand.CommandType.UnpackTuple] = "unpack:?";
+    // Placeholder — actual serialization uses the dynamic
+    // `sc:<op>:<skipCount>` form (see WriteRuntimeObject's special
+    // case for ShortCircuit).
+    _controlCommandNames[ControlCommand.CommandType.ShortCircuit] = "sc:?";
 
     for (let i = 0; i < ControlCommand.CommandType.TOTAL_VALUES; ++i) {
       if (_controlCommandNames[i] == null)

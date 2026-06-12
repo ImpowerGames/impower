@@ -468,9 +468,29 @@ function lowerPropertyTargetFunctionDefinition(
   // so the body's `self` references resolve as a parameter read.
   const synthName = `__anon_fn_${node.from}`;
   const userArgs = lowerArguments(node, ctx);
+
+  // Upvalue capture — `function Class.new()` bodies routinely
+  // reference outer locals (`setmetatable(self, Class)` captures
+  // `Class` itself, the canonical Lua OOP pattern at basic.luau
+  // lines 419-438). Scan free variables and prepend them as
+  // parameters, exactly like lowerNestedNamedFunction; the stored
+  // value below becomes a closure-shaped ObjectValue instead of the
+  // old bare DivertTarget (which never captured, so `Class` read as
+  // nil inside the body). The colon form's implicit `self` is a
+  // PARAMETER, not a free variable — exclude it from capture.
+  const upvals = scanFreeVariables(node, ctx).filter(
+    (n) => !(isColonForm && n === "self"),
+  );
+  const upvalArgs = upvals.map(
+    (n) => new Argument(new Identifier(n), false, false),
+  );
   const finalArgs: Argument[] = isColonForm
-    ? [new Argument(new Identifier("self"), false, false), ...userArgs]
-    : userArgs;
+    ? [
+        ...upvalArgs,
+        new Argument(new Identifier("self"), false, false),
+        ...userArgs,
+      ]
+    : [...upvalArgs, ...userArgs];
 
   const content = getFunctionBodyContent(node);
   if (!content) return {};
@@ -506,9 +526,14 @@ function lowerPropertyTargetFunctionDefinition(
     return {};
   }
 
-  const closureValue = new DivertTarget(
-    new Divert([new Identifier(synthName)]),
-  );
+  // Closure-shaped value (always — even with zero upvals the
+  // `__closure_user_arity` field lets the call site pad missing
+  // args with nil; see lowerNestedNamedFunction's identical choice).
+  // User arity counts the implicit `self` for colon-form methods:
+  // the method-call dispatch passes the receiver as the first user
+  // arg.
+  const userArity = (isColonForm ? 1 : 0) + userArgs.length;
+  const closureValue = buildClosureExpression(synthName, upvals, userArity);
   const keyExpr = new StringExpression([new Text(methodName)]);
   const store = new StorePropertyAssignment(baseExpr, keyExpr, closureValue);
   return wrapInWeave([store]);

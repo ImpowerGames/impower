@@ -1326,9 +1326,33 @@ function formatOneSpec(
     case "g":
     case "G": {
       const n = numericArg();
-      const p = precision ?? 6;
-      let body = Math.abs(n).toPrecision(Math.max(1, p));
-      // toPrecision can return scientific notation; normalize "e" case.
+      const p = Math.max(1, precision ?? 6);
+      const abs = Math.abs(n);
+      let body: string;
+      if (!isFinite(abs)) {
+        body = Number.isNaN(abs) ? "nan" : "inf";
+      } else if (abs === 0) {
+        body = "0";
+      } else {
+        // C `%g` rule: exponential when the (rounded) decimal exponent
+        // X satisfies X < -4 or X >= precision, else fixed with
+        // `p - 1 - X` fraction digits; trailing zeros (and a bare
+        // trailing point) are stripped in both styles. Note this
+        // differs from JS `toPrecision`, which switches to scientific
+        // at X < -7 — `%g` of 1e-5 must be "1e-05", not "0.00001".
+        const exp = parseInt(abs.toExponential(p - 1).split("e")[1]!, 10);
+        if (exp < -4 || exp >= p) {
+          body = abs
+            .toExponential(p - 1)
+            .replace(/\.?0+e/, "e")
+            .replace(/e([+-])(\d)$/, "e$10$2");
+        } else {
+          body = abs.toFixed(Math.max(0, p - 1 - exp));
+          if (body.indexOf(".") >= 0) {
+            body = body.replace(/\.?0+$/, "");
+          }
+        }
+      }
       if (type === "G") body = body.toUpperCase();
       return (n < 0 ? "-" : signPrefix(n)) + body;
     }

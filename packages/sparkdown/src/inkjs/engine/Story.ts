@@ -36,6 +36,7 @@ import {
   stepBuiltinIterator,
 } from "./StdLib";
 import { StoryException } from "./StoryException";
+import { isLuauTruthy } from "./LuauTruthiness";
 import { PRNG } from "./PRNG";
 import { StringBuilder } from "./StringBuilder";
 import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
@@ -185,8 +186,10 @@ const BINOP_TO_METAMETHOD: Record<string, string> = {
   "-": "__sub",
   "*": "__mul",
   "/": "__div",
+  "//": "__idiv",
   "%": "__mod",
   POW: "__pow",
+  "..": "__concat",
   "==": "__eq",
   "!=": "__eq",
   "<": "__lt",
@@ -212,6 +215,62 @@ const UNOP_TO_METAMETHOD: Record<string, string> = {
 //     `__le` (the standard Lua inversion).
 //   - `!=` inverts the boolean returned by `__eq` (or the raw `==`
 //     comparison if no metamethod fired).
+// rawequal for function-shaped values, used by the `__eq` same-handler
+// rule. Closure ObjectValues compare by underlying-Map identity (same
+// notion as table `==`); bare DivertTargetValues compare by target
+// path, so the same named function referenced twice matches even if
+// the wrapper instances differ.
+function sameLuauFunctionValue(a: any, b: any): boolean {
+  if (a == null || b == null) return false;
+  if (a === b) return true;
+  if (a instanceof ObjectValue && b instanceof ObjectValue) {
+    return a.value === b.value;
+  }
+  if (a instanceof DivertTargetValue && b instanceof DivertTargetValue) {
+    return a.value?.toString() === b.value?.toString();
+  }
+  return false;
+}
+
+// Direct JS-side dispatch for `__stdlib_fn` marker values — stdlib
+// builtins referenced first-class and invoked through the JS call
+// helpers (e.g. `pcall(rawequal, a, b)`, or a stdlib fn stored in a
+// variable handed to `table.sort`). Returns the wrapped result array,
+// or `null` when `fnValue` isn't a resolvable stdlib marker. Under-
+// application of a fixed-arity entry raises (Lua's C functions check
+// required args via `luaL_checkany`), so `pcall(rawequal, "a")` traps
+// a missing-argument error instead of comparing against nil.
+function tryInvokeStdLibMarkerValue(
+  story: any,
+  fnValue: any,
+  args: AbstractValue[],
+): AbstractValue[] | null {
+  if (!(fnValue instanceof ObjectValue)) return null;
+  const tag = (fnValue.value as Map<string, AbstractValue>)?.get(
+    "__stdlib_fn",
+  );
+  if (!(tag instanceof StringValue)) return null;
+  const entry = lookupAnyStdLib(tag.value);
+  if (!entry) return null;
+  if (entry.arity >= 0 && args.length < entry.arity) {
+    story.Error(`missing argument #${args.length + 1} to '${tag.value}'`);
+  }
+  const callArgs = entry.arity >= 0 ? args.slice(0, entry.arity) : [...args];
+  const result = entry.fn(story, callArgs);
+  if (result === undefined) return [];
+  const rawResults = Array.isArray(result) ? result : [result];
+  const wrapped: AbstractValue[] = [];
+  for (const r of rawResults) {
+    if (r instanceof InkObject) {
+      wrapped.push(r as AbstractValue);
+    } else {
+      const w = Value.Create(r);
+      if (w !== null) wrapped.push(w as AbstractValue);
+    }
+  }
+  return wrapped;
+}
+
 function tryBinaryMetamethod(
   story: any,
   opName: string,
@@ -241,8 +300,33 @@ function tryBinaryMetamethod(
   if (opName === "!=") {
     invertEq = true;
   }
-  let handler =
-    lookupMetamethod(callLhs, metaName) ?? lookupMetamethod(callRhs, metaName);
+  let handler: any;
+  if (metaName === "__eq") {
+    // Lua's getequalhandler rule: primitive (reference) equality is
+    // checked FIRST — `a == a` never consults the metamethod. The
+    // handler then fires only when BOTH operands have an `__eq` and
+    // the two handlers are the same value (rawequal). Different
+    // handlers → plain reference equality (which is false here,
+    // since the primitive check above already ruled out identity).
+    if (lhs.value === rhs.value) {
+      return new BoolValue(!invertEq);
+    }
+    const handlerL = lookupMetamethod(callLhs, metaName);
+    const handlerR = lookupMetamethod(callRhs, metaName);
+    if (
+      handlerL == null ||
+      handlerR == null ||
+      handlerL instanceof NullValue ||
+      handlerR instanceof NullValue ||
+      !sameLuauFunctionValue(handlerL, handlerR)
+    ) {
+      return null;
+    }
+    handler = handlerL;
+  } else {
+    handler =
+      lookupMetamethod(callLhs, metaName) ?? lookupMetamethod(callRhs, metaName);
+  }
   if (handler == null) return null;
   const results = story.CallLuauFunction(handler, [callLhs, callRhs]) as
     | AbstractValue[]
@@ -2531,6 +2615,47 @@ export class Story extends InkObject {
           }
           const targetVal = asOrNull(callTarget, DivertTargetValue);
           if (targetVal === null || targetVal.value === null) {
+            // `__namecall` fallback (Luau): a colon-call whose method
+            // lookup missed arrives here with a NIL target — the
+            // receiver was threaded as the FIRST pushed arg
+            // (`CallValueExpression(IndexExpression(recv, name),
+            // [recv, ...])`). If that receiver's metatable defines
+            // `__namecall`, dispatch `__namecall(self, args...)`
+            // (basic.luau line 462's userdata namecall). Heuristic:
+            // non-colon nil-target calls whose first arg happens to
+            // carry __namecall would also match, but Lua errors on
+            // those anyway, so the worst case is a more permissive
+            // dispatch than stock Luau.
+            const nmArgCount = evalCommand._callValueArgCount ?? -1;
+            if (callTarget instanceof NullValue && nmArgCount >= 1) {
+              const nmArgs: AbstractValue[] = [];
+              for (let i = 0; i < nmArgCount; i++) {
+                nmArgs.unshift(
+                  this.state.PopEvaluationStack() as AbstractValue,
+                );
+              }
+              const nmReceiver = nmArgs[0];
+              const nmHandler =
+                nmReceiver instanceof ObjectValue
+                  ? lookupMetamethod(nmReceiver, "__namecall")
+                  : null;
+              if (nmHandler != null && !(nmHandler instanceof NullValue)) {
+                const results = this.CallLuauFunction(nmHandler, nmArgs) as
+                  | AbstractValue[]
+                  | null;
+                if (results && results.length === 1) {
+                  this.state.PushEvaluationStack(results[0]!);
+                } else if (results && results.length > 1) {
+                  this.state.PushEvaluationStack(new MultiValue(results));
+                } else {
+                  this.state.PushEvaluationStack(new NullValue());
+                }
+                break;
+              }
+              // No __namecall — restore the popped args so the error
+              // below reports with the stack intact.
+              for (const a of nmArgs) this.state.PushEvaluationStack(a);
+            }
             throw new StoryException(
               "Tried to call a non-function value as a function" +
                 (callTarget ? " (got " + callTarget + ")" : ""),
@@ -2867,6 +2992,34 @@ export class Story extends InkObject {
           }
           for (let i = values.length - 1; i >= 0; i--) {
             this.state.PushEvaluationStack(values[i]!);
+          }
+          break;
+        }
+
+        case ControlCommand.CommandType.ShortCircuit: {
+          // Lua `and`/`or` short-circuit. The LHS result is on top of
+          // the eval stack. If it alone decides the expression (falsy
+          // for `and`, truthy for `or` — Lua truthiness), leave it on
+          // the stack as the result and jump the content pointer over
+          // the RHS ops (Step's tail-end NextContent advances one
+          // further, landing just past them). Otherwise pop it so the
+          // RHS ops produce the expression's value.
+          let lhs = this.state.PeekEvaluationStack() as AbstractValue;
+          if (lhs instanceof MultiValue) {
+            // Operator position adjusts a multi-value to one value.
+            this.state.PopEvaluationStack();
+            lhs = (lhs.values[0] as AbstractValue) ?? new NullValue();
+            this.state.PushEvaluationStack(lhs);
+          }
+          const truthy = isLuauTruthy(lhs);
+          const decides =
+            evalCommand._shortCircuitOp === "and" ? !truthy : truthy;
+          if (decides) {
+            const p = this.state.currentPointer.copy();
+            p.index = (p.index ?? 0) + evalCommand._shortCircuitSkipCount;
+            this.state.currentPointer = p;
+          } else {
+            this.state.PopEvaluationStack();
           }
           break;
         }
@@ -3363,6 +3516,11 @@ export class Story extends InkObject {
       return this.CallLuauFunction(resolved, args);
     }
 
+    // `__stdlib_fn` marker: stdlib builtin referenced first-class —
+    // dispatch the entry directly (there's no ink frame to drive).
+    const stdlibResults = tryInvokeStdLibMarkerValue(this, fnValue, args);
+    if (stdlibResults != null) return stdlibResults;
+
     const savedCallStackLen = this.state.callStack.elements.length;
     const savedEvalLen = this.state.evaluationStack.length;
     const savedPointer = this.state.currentPointer.copy();
@@ -3384,6 +3542,14 @@ export class Story extends InkObject {
           // Not a closure-shaped ObjectValue. Restore stack + bail.
           for (let i = 0; i < callArgs.length; i++)
             this.state.PopEvaluationStack();
+          // `__call` metamethod: a plain table is callable when its
+          // metatable defines `__call`; Lua rewrites `t(args...)` to
+          // `__call(t, args...)`. Recurse with the handler so chained
+          // callables (handler itself a `__call` table) also resolve.
+          const callHandler = lookupMetamethod(fnValue, "__call");
+          if (callHandler != null && !(callHandler instanceof NullValue)) {
+            return this.CallLuauFunction(callHandler, [fnValue, ...args]);
+          }
           throw new StoryException(
             "CallLuauFunction: ObjectValue is not a closure (missing `__closure_fn`)",
           );
@@ -3495,6 +3661,38 @@ export class Story extends InkObject {
       return this.CallLuauFunctionProtected(resolved, args);
     }
 
+    // `__stdlib_fn` marker: stdlib builtin referenced first-class
+    // (e.g. `pcall(rawequal, "a", "a")`). Dispatch the entry directly
+    // and trap anything it raises — both `story.Error` throws and
+    // errors recorded on `state.currentErrors`.
+    if (
+      fnValue instanceof ObjectValue &&
+      (fnValue.value as Map<string, AbstractValue>)?.get("__stdlib_fn") != null
+    ) {
+      const errCountBefore = this.state.currentErrors?.length ?? 0;
+      try {
+        const values = tryInvokeStdLibMarkerValue(this, fnValue, args);
+        if (values != null) {
+          const errsNow = this.state.currentErrors;
+          if (errsNow && errsNow.length > errCountBefore) {
+            const msg = errsNow[errCountBefore]!;
+            errsNow.length = errCountBefore;
+            return { ok: false, values: [], errorMessage: msg };
+          }
+          return { ok: true, values };
+        }
+      } catch (e) {
+        if (e instanceof StoryException) {
+          const errsNow = this.state.currentErrors;
+          if (errsNow && errsNow.length > errCountBefore) {
+            errsNow.length = errCountBefore;
+          }
+          return { ok: false, values: [], errorMessage: e.message };
+        }
+        throw e;
+      }
+    }
+
     const savedCallStackLen = this.state.callStack.elements.length;
     const savedEvalLen = this.state.evaluationStack.length;
     const savedPointer = this.state.currentPointer.copy();
@@ -3514,6 +3712,15 @@ export class Story extends InkObject {
         if (p == null) {
           for (let i = 0; i < callArgs.length; i++)
             this.state.PopEvaluationStack();
+          // `__call` metamethod: same callable-table rewrite as
+          // CallLuauFunction — `t(args...)` → `__call(t, args...)`.
+          const callHandler = lookupMetamethod(fnValue, "__call");
+          if (callHandler != null && !(callHandler instanceof NullValue)) {
+            return this.CallLuauFunctionProtected(callHandler, [
+              fnValue,
+              ...args,
+            ]);
+          }
           return {
             ok: false,
             values: [],

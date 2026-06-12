@@ -101,44 +101,11 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  // Drill into basic.luau line 84: uninitialized local + truthiness.
-  tryProbe("multi-return foo then variadic foo (lines 332+342)",
-    `assert((function() function foo() return 2, 3, 4 end local a, b, c = foo() return ''..a..b..c end)() == "234")
-assert((function() function foo(...) local a, b, c = ... return a + b + c end return foo(1, 2, 3) end)() == 6)`);
-  const tryStartRange = (startLine: number, endLine: number) => {
-    const slice = lines.slice(startLine - 1, endLine).join("\n");
-    try {
-      const r = runConformanceSource(slice, undefined, "basic.luau");
-      const runtimeErr = r.errorMessages.find((e) => e.startsWith("RUNTIME"));
-      // eslint-disable-next-line no-console
-      console.log(`[lines ${startLine}-${endLine}] ${runtimeErr ? `runtime=${JSON.stringify(runtimeErr.slice(0, 90))}` : "ok"}`);
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.log(`[lines ${startLine}-${endLine}] THREW: ${(e as Error).message}`);
-    }
-  };
-  const PACK_DEF = `function pack(first, ...)
-  if not first then return {} end
-  local t = pack(...)
-  table.insert(t, 1, first)
-  return t
-end
-`;
-  // Next blocker: between 437-448 ("Tried to..." in __anon_fn_24250).
-  // Lines 1-436 all pass.
-  tryRange(1, 436);
-  // Separate pre-existing bug found while writing IIFE regression
-  // tests (fails on a clean tree too): `table.insert` through a
-  // local function's captured-upvalue table doesn't stick —
-  //   local log = {}
-  //   local function note(s) table.insert(log, s) end
-  //   note("x")            -- log stays empty
-  // Direct upvalue writes (`total = total + n`) work fine.
-  tryProbe("pre-existing: table.insert via upvalue",
-    `local log = {}
-local function note(s) table.insert(log, s) end
-note("x")
-assert(log[1] == "x", "log1=" .. tostring(log[1]))`);
+  // Current frontier (basic.luau, patched line coords): string
+  // relational comparison — `'a' < 'b'` raises "Cannot perform
+  // operation < on String" (string `<`/`<=`/`>`/`>=` not registered
+  // in NativeFunctionCall). Blocks lines 563+ (the cmp section).
+  for (const n of [562, 574]) tryRange(1, n);
 });
 
 test(`probe ${PROBE_FILE}`, () => {

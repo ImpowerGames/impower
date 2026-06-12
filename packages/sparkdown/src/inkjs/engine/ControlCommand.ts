@@ -34,6 +34,16 @@ export class ControlCommand extends InkObject {
   // arg count info" (legacy/missing) from "0 args".
   public _callValueArgCount: number = -1;
 
+  // For `ShortCircuit` ControlCommands — Lua `and`/`or` short-circuit
+  // evaluation. `_shortCircuitOp` is "and" or "or"; `_shortCircuitSkipCount`
+  // is how many content elements (the RHS operand's ops) to jump over
+  // when the LHS alone decides the result. Populated by
+  // `ShortCircuit(op, n)` (the count is patched in by
+  // `BinaryExpression.GenerateIntoContainer` after the RHS is
+  // generated) and encoded as `"sc:<op>:<n>"` in JSON.
+  public _shortCircuitOp: string = "";
+  public _shortCircuitSkipCount: number = 0;
+
   constructor(
     commandType: ControlCommand.CommandType = ControlCommand.CommandType.NotSet,
   ) {
@@ -47,6 +57,8 @@ export class ControlCommand extends InkObject {
     copy._stdLibArity = this._stdLibArity;
     copy._tupleArity = this._tupleArity;
     copy._callValueArgCount = this._callValueArgCount;
+    copy._shortCircuitOp = this._shortCircuitOp;
+    copy._shortCircuitSkipCount = this._shortCircuitSkipCount;
     return copy;
   }
   public static EvalStart() {
@@ -174,6 +186,22 @@ export class ControlCommand extends InkObject {
     cmd._tupleArity = arity;
     return cmd;
   }
+  // `ShortCircuit(op, n)` — at runtime: peek the top eval-stack value
+  // (the LHS of a Lua `and`/`or`). If the LHS alone decides the result
+  // (falsy for `and`, truthy for `or` — Lua truthiness), leave it on
+  // the stack as the expression result and jump over the next `n`
+  // content elements (the RHS operand's ops). Otherwise pop it and
+  // fall through into the RHS ops, whose result becomes the
+  // expression's value. Emitted by `BinaryExpression` for `and`/`or`
+  // so the untaken operand is never evaluated (Lua short-circuit —
+  // `t and t.field` must not index a nil `t`, and metamethod-bearing
+  // operands must not dispatch from the untaken branch).
+  public static ShortCircuit(op: string, skipCount: number = 0) {
+    const cmd = new ControlCommand(ControlCommand.CommandType.ShortCircuit);
+    cmd._shortCircuitOp = op;
+    cmd._shortCircuitSkipCount = skipCount;
+    return cmd;
+  }
   public toString() {
     return "ControlCommand " + this.commandType.toString();
   }
@@ -243,6 +271,11 @@ export namespace ControlCommand {
     // pop one value as usual. Both carry their N as `_tupleArity`.
     PackTuple, // 30
     UnpackTuple, // 31
+
+    // Lua `and`/`or` short-circuit jump. Carries the op kind
+    // (`_shortCircuitOp`) and the RHS op count to skip
+    // (`_shortCircuitSkipCount`). See `ShortCircuit()`.
+    ShortCircuit, // 32
 
     TOTAL_VALUES,
   }

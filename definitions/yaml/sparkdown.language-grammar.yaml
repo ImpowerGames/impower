@@ -2821,9 +2821,10 @@ repository:
     # End at: next BEAT (scene/branch), end of line, an upcoming
     # statement-boundary keyword (`if`, `while`, `for`, `repeat`, `do`,
     # `function`, `end`, `return`, `local`, `break`, `continue`,
-    # `elseif`, `else`, `then`, `until`), OR an upcoming bare
-    # reassignment statement on the same line. Without the keyword
-    # lookaheads, `b = b * 2 if a == 1 then break end` would let
+    # `elseif`, `else`, `then`, `until`), an upcoming bare
+    # reassignment statement, OR an upcoming bare call statement on
+    # the same line. Without the keyword lookaheads,
+    # `b = b * 2 if a == 1 then break end` would let
     # LuauReassignment swallow the trailing `if`; without the
     # reassignment-start lookahead, two adjacent same-line reassignments
     # (e.g. `a = 1 a = 2` or `b = 2 a, b = b, a`, common inside
@@ -2834,7 +2835,18 @@ repository:
     # reassignment-start lookahead mirrors the `begin` pattern's shape:
     # `IDENT (access-chain)* WS* ASSIGN_OP`, where access-chain covers
     # `.field`, `[...]`, and `,IDENT` (the multi-target form).
-    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|$
+    #
+    # The call-statement lookahead (`IDENT (access-chain)* WS* (`)
+    # handles `mt = { ... } setmetatable(a, mt)` — without it the
+    # trailing call is swallowed into the value expression and
+    # silently dropped by the lowerer. `and`/`or`/`not` are excluded
+    # from the leading identifier because a parenthesized operand
+    # after a logical keyword (`a = b and (x)`) would otherwise match
+    # the call shape and truncate the value mid-expression. This is
+    # safe at value-START positions because every operator/separator
+    # rule consumes its TRAILING whitespace, so a call that begins an
+    # operand never has the `{{WS}}+` prefix this lookahead requires.
+    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -3470,12 +3482,14 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
     # Terminate the until-condition at an upcoming statement-boundary
-    # keyword or bare reassignment so a one-line
+    # keyword, bare reassignment, or bare call statement so a one-line
     # `repeat BODY until cond return x` doesn't swallow `return x`
     # into the condition expression. Mirrors LuauReassignment's end
-    # lookaheads. (`until` itself is excluded — it's this rule's own
-    # keyword; nested repeats close their own until first.)
-    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|$
+    # lookaheads (see there for why `and`/`or`/`not` are excluded from
+    # the call-statement alternative). (`until` itself is excluded —
+    # it's this rule's own keyword; nested repeats close their own
+    # until first.)
+    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
 
   # ----------------------------------------------------------------------------
   # Do Block
