@@ -2726,7 +2726,15 @@ repository:
       # `LuauChainedFunctionCall` so any mix of `:m(x).y[i]:n()` works.
       - { include: "#LuauChainedPropertyAccess" }
       - { include: "#LuauTypeAnnotationOperation" }
-      - { include: "#LuauSemicolonSeparator" }
+      # NB: `LuauSemicolonSeparator` is deliberately NOT included here.
+      # `;` is a STATEMENT separator — it lives in `LuauBlockBody` (and
+      # `LuauTable`, where it separates fields). When it was included
+      # at expression level, statement rules whose patterns include
+      # `LuauExpression` (e.g. `LuauVariableDefinition`) swallowed the
+      # `;` and the following statement instead of closing — turning
+      # `local x = {}; for i=1,n do ... end; return ...` into one
+      # mangled definition (the for-loop degraded to a once-through
+      # do-block).
 
   LuauDeclarations:
     patterns:
@@ -2806,7 +2814,7 @@ repository:
     # target case so `a, b = 10, 20` parses as a single reassignment.
     # `LuauCommaSeparator` is added to the inner patterns so commas
     # between targets AND between RHS expressions can be consumed.
-    begin: ({{WS}}*)(?={{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    begin: ({{WS}}*)(?={{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
     beginCaptures:
       1:
         patterns:
@@ -2846,7 +2854,7 @@ repository:
     # safe at value-START positions because every operator/separator
     # rule consumes its TRAILING whitespace, so a call that begins an
     # operand never has the `{{WS}}+` prefix this lookahead requires.
-    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    end: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -3305,6 +3313,12 @@ repository:
       - { include: "#LuauControlBlock" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
+      # Statement separator (`local x = {}; for i=1,n do ... end`).
+      # Owned by the statement context, NOT by `LuauExpression` — see
+      # the note there. Statement rules close before the `;` (their
+      # patterns no longer match it), this consumes it, and the next
+      # statement parses fresh.
+      - { include: "#LuauSemicolonSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
 
@@ -3489,7 +3503,7 @@ repository:
     # the call-statement alternative). (`until` itself is excluded —
     # it's this rule's own keyword; nested repeats close their own
     # until first.)
-    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
 
   # ----------------------------------------------------------------------------
   # Do Block
@@ -4305,7 +4319,10 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    # `;` alternative: `return f(x); end`-style one-liners close the
+    # return statement before the separator (`;` no longer parses
+    # inside `LuauExpression`).
+    end: (?={{BEAT}})|(?=$|{{WS}}|;)
   # `external message(x)` — single-line declaration of a host-bound callable.
   # Captures the `external` keyword, the function name (via the regular
   # `LuauFunctionDeclarationName`), and a paren-delimited parameter list

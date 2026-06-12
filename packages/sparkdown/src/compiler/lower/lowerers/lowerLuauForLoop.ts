@@ -5,6 +5,7 @@ import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Cond
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
@@ -108,21 +109,39 @@ export function lowerLuauForLoop(
   // LuauAssignmentOperation node.
   const opNode = findChildByName(condContent, "LuauAssignmentOperation");
   if (!opNode) return {};
-  const startExpr = lowerExpressionFromContainer(opNode, ctx);
-  if (!startExpr) return {};
+  // Lua numeric-for coerces string bounds to numbers
+  // (`for i="10","1","-2"` — iter.luau line 30). Wrap each bound in
+  // `tonumber(...)`: numbers pass through, numeric strings coerce,
+  // and anything else becomes nil — which the loop condition's
+  // comparison then rejects with a runtime error instead of looping
+  // forever on string arithmetic. Statically-numeric bounds
+  // (literals, negated literals) skip the wrap — they can't need
+  // coercion.
+  const staticallyNumeric = (e: Expression): boolean =>
+    e instanceof NumberExpression ||
+    (e instanceof UnaryExpression &&
+      e.innerExpression instanceof NumberExpression);
+  const coerce = (e: Expression): Expression =>
+    staticallyNumeric(e)
+      ? e
+      : new FunctionCall(new Identifier("tonumber"), [e]);
+  const rawStartExpr = lowerExpressionFromContainer(opNode, ctx);
+  if (!rawStartExpr) return {};
+  const startExpr = coerce(rawStartExpr);
 
   // Trailing expressions: comma-separated groups appearing after the
   // assignment-operation node. Group 0 is `stop`; group 1 (optional)
   // is `step`.
   const trailingGroups = collectTrailingExpressionGroups(opNode);
-  const stopExpr =
+  const rawStopExpr =
     trailingGroups[0] && trailingGroups[0].length > 0
       ? lowerExpressionFromNodes(trailingGroups[0], ctx)
       : null;
-  if (!stopExpr) return {};
+  if (!rawStopExpr) return {};
+  const stopExpr = coerce(rawStopExpr);
   const stepExpr =
     trailingGroups[1] && trailingGroups[1].length > 0
-      ? lowerExpressionFromNodes(trailingGroups[1], ctx)
+      ? coerce(lowerExpressionFromNodes(trailingGroups[1], ctx) ?? new NumberExpression(1, "int"))
       : new NumberExpression(1, "int");
 
   const idxName = `__forIdx_${nodeRef.node.from}`;

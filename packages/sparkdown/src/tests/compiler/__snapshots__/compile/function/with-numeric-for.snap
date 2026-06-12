@@ -36,9 +36,15 @@
           "kind": "temp",
           "name": "__forStop_42",
           "expression": {
-            "type": "VariableReference",
-            "path": [
-              "n"
+            "type": "FunctionCall",
+            "name": "tonumber",
+            "args": [
+              {
+                "type": "VariableReference",
+                "path": [
+                  "n"
+                ]
+              }
             ]
           }
         },

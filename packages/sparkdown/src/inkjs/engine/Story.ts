@@ -136,6 +136,33 @@ function luauIndexTargetError(v: unknown): string | null {
   return null;
 }
 
+// Derive the string map-key for a Lua table index. Sparkdown tables
+// are string-keyed Maps, so non-string Lua keys must stringify — but
+// TABLE keys must use POINTER IDENTITY (Lua semantics): two distinct
+// empty tables are distinct keys, a self-referential `a[a] = a` must
+// not recurse (ObjectValue.toString serializes contents), and the key
+// must stay stable as the table mutates. The WeakMap keys off the
+// underlying value Map — the true shared identity across ObjectValue
+// wrappers. Stdlib markers (`a[print]`) are the exception: each
+// source reference to `print` builds a FRESH marker object, so they
+// key by their tag name instead of identity.
+const TABLE_IDENTITY_IDS = new WeakMap<object, number>();
+let nextTableIdentityId = 1;
+function luauMapKeyString(v: any): string {
+  if (v instanceof ObjectValue && v.value) {
+    const map = v.value as Map<string, AbstractValue>;
+    const stdTag = map.get("__stdlib_fn");
+    if (stdTag instanceof StringValue) return `__stdlibfn:${stdTag.value}`;
+    let id = TABLE_IDENTITY_IDS.get(map);
+    if (id === undefined) {
+      id = nextTableIdentityId++;
+      TABLE_IDENTITY_IDS.set(map, id);
+    }
+    return `__tableid:${id}`;
+  }
+  return v?.toString() ?? "";
+}
+
 // Look up a metamethod on the metatable of `obj` (e.g. `__index`,
 // `__add`, `__call`). Returns the value stored at that key, or `null`
 // if the table has no metatable or the metatable lacks that field
@@ -345,6 +372,22 @@ function tryBinaryMetamethod(
     // since the primitive check above already ruled out identity).
     if (lhs.value === rhs.value) {
       return new BoolValue(!invertEq);
+    }
+    // Stdlib markers compare by TAG, not identity — every source
+    // reference to `print` builds a fresh marker object, so
+    // `a[f] == print` (where a[f] holds a previously-stored `print`)
+    // must still be true.
+    {
+      const tagL = (lhs.value as Map<string, AbstractValue>)?.get(
+        "__stdlib_fn",
+      );
+      const tagR = (rhs.value as Map<string, AbstractValue>)?.get(
+        "__stdlib_fn",
+      );
+      if (tagL instanceof StringValue && tagR instanceof StringValue) {
+        const same = tagL.value === tagR.value;
+        return new BoolValue(invertEq ? !same : same);
+      }
     }
     const handlerL = lookupMetamethod(callLhs, metaName);
     const handlerR = lookupMetamethod(callRhs, metaName);
@@ -2228,13 +2271,15 @@ export class Story extends InkObject {
             // Static keys arrive as StringValues; COMPUTED bracket
             // keys (`{[1+2] = 4}`) arrive as whatever the expression
             // produced — stringify to the canonical map-key form
-            // (IntValue 3 → "3", matching how `t[3]` reads index).
+            // (IntValue 3 → "3", matching how `t[3]` reads index;
+            // table/function keys get identity tokens via
+            // luauMapKeyString).
             const rawKey = asOrNull(between[i], AbstractValue);
             const keyObj =
               rawKey instanceof StringValue
                 ? rawKey
                 : rawKey != null && !(rawKey instanceof NullValue)
-                  ? new StringValue(rawKey.toString())
+                  ? new StringValue(luauMapKeyString(rawKey))
                   : null;
             let valObj = asOrNull(between[i + 1], AbstractValue);
             if (!keyObj || keyObj.value === null || !valObj) continue;
@@ -2291,7 +2336,7 @@ export class Story extends InkObject {
           const indexKey = this.state.PopEvaluationStack();
           const indexBase = this.state.PopEvaluationStack();
           let resolved: InkObject | null = null;
-          const keyStr = indexKey?.toString() ?? "";
+          const keyStr = luauMapKeyString(indexKey);
           // `_G` globals-table proxy: route the read to global
           // variable storage. Misses push nil (Luau's semantics for
           // absent globals), NOT the generic empty-string sentinel
@@ -2377,7 +2422,7 @@ export class Story extends InkObject {
             break;
           }
           if (storeBase instanceof ObjectValue) {
-            const keyStr = storeKey?.toString() ?? "";
+            const keyStr = luauMapKeyString(storeKey);
             const val = asOrNull(storeValue, AbstractValue);
             if (storeBase.value && val !== null) {
               // `__newindex`: only consulted on a raw miss (key not

@@ -44,7 +44,13 @@ test(`survey: first blocker per failing fixture`, () => {
     "vararg.luau",
   ];
   for (const name of fixtures) {
-    const src = readFileSync(join(UPSTREAM_ROOT, name), "utf8");
+    // Apply read-time patches — among other things they neutralize
+    // closure.luau's GC-detection loop, which would otherwise hang
+    // the survey synchronously (vitest timeouts can't interrupt it).
+    const src = applyUpstreamPatches(
+      name,
+      readFileSync(join(UPSTREAM_ROOT, name), "utf8"),
+    );
     let firstError: string;
     try {
       const r = runConformanceSource(src);
@@ -66,8 +72,8 @@ test(`survey: first blocker per failing fixture`, () => {
 
 test(`bisect-basic`, () => {
   const src = applyUpstreamPatches(
-    "ifelseexpr.luau",
-    readFileSync(join(UPSTREAM_ROOT, "ifelseexpr.luau"), "utf8"),
+    "attrib.luau",
+    readFileSync(join(UPSTREAM_ROOT, "attrib.luau"), "utf8"),
   );
   const lines = src.split("\n");
   const tryRange = (startLine: number, endLine: number) => {
@@ -101,7 +107,9 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  tryRange(1, lines.length);
+  for (const end of [95, 104, lines.length]) {
+    tryRange(1, end);
+  }
 });
 
 test(`probe ${PROBE_FILE}`, () => {

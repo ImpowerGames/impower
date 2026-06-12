@@ -216,6 +216,7 @@ describe("Luau upstream conformance baseline", () => {
   // the same day. Add fixtures here as they go green.
   const PASSING_FIXTURES = [
     "assert.luau",
+    "attrib.luau",
     "basic.luau",
     "clear.luau",
     "ifelseexpr.luau",

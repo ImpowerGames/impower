@@ -704,6 +704,23 @@ function decomposeTargetBaseAndKey(
     child = child.nextSibling;
   }
   if (parts.length < 2) return null;
+  // Call-rooted targets (`f(a)[2] = 10` — attrib.luau line 85) have a
+  // FunctionCall first part the segment-walk below can't root a
+  // VariableReference on. The expression lowerer already builds the
+  // full read chain for any path shape; an IndexExpression's
+  // base/key are exactly the store's base/key. Walk-based
+  // decomposition stays first because it's also used by paths the
+  // expression lowerer would mis-handle as a READ-then-store.
+  const decomposeViaExpression = (): {
+    base: Expression;
+    key: Expression;
+  } | null => {
+    const expr = lowerExpressionFromNodes([accessPath], ctx);
+    if (expr instanceof IndexExpression) {
+      return { base: expr.baseExpression, key: expr.keyExpression };
+    }
+    return null;
+  };
 
   // Key comes from the final segment (either a `.name` accessor or a
   // `[expr]` indexer).
@@ -729,12 +746,12 @@ function decomposeTargetBaseAndKey(
       ? lowerExpressionFromContainer(indexerContent, ctx)
       : null;
   } else {
-    return null;
+    return decomposeViaExpression();
   }
-  if (!keyExpr) return null;
+  if (!keyExpr) return decomposeViaExpression();
 
   const baseExpr = buildBaseFromParts(parts.slice(0, -1), ctx);
-  if (!baseExpr) return null;
+  if (!baseExpr) return decomposeViaExpression();
   return { base: baseExpr, key: keyExpr };
 }
 

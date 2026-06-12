@@ -61,6 +61,28 @@ export const UPSTREAM_PATCHES: Record<string, UpstreamPatch[]> = {
         "sparkdown stories are precompiled (no runtime compiler); loadstring returns (nil, message) for every chunk, with our message text",
     },
   ],
+  "closure.luau": [
+    {
+      // "repeat until GC": spins creating garbage until a weak table
+      // (`__mode = 'kv'`) loses its entry to the garbage collector.
+      // Sparkdown has no GC and no weak tables — `x[1]` never
+      // disappears and the loop never exits (it HANGS the suite
+      // synchronously, which vitest timeouts can't interrupt).
+      // Zero iterations is semantically valid here: the assertions
+      // after the loop are written to hold for ANY number of
+      // iterations (they add the post-loop `A` at call time).
+      find: `while x[1] do   -- repeat until GC
+  local a = A..A..A..A  -- create garbage
+  A = A+1
+end`,
+      replace: `while false do   -- [sparkdown] no GC/weak tables; was: while x[1] do
+  local a = A..A..A..A  -- create garbage
+  A = A+1
+end`,
+      reason:
+        "sparkdown has no garbage collector or weak tables; the GC-detection loop never terminates, so it is disabled (assertions after it hold for any iteration count)",
+    },
+  ],
 };
 
 /**
@@ -77,7 +99,17 @@ export function applyUpstreamPatches(
   if (!patches) return source;
   let out = source;
   for (const p of patches) {
-    out = out.replace(p.find, p.replace);
+    if (out.includes(p.find)) {
+      out = out.replace(p.find, p.replace);
+      continue;
+    }
+    // Windows checkouts materialize the vendored fixtures with CRLF
+    // line endings (git text normalization), so multi-line `find`
+    // strings written with `\n` won't match verbatim. Retry with the
+    // CRLF form before giving up.
+    const findCrlf = p.find.replace(/\n/g, "\r\n");
+    const replaceCrlf = p.replace.replace(/\n/g, "\r\n");
+    out = out.replace(findCrlf, replaceCrlf);
   }
   return out;
 }
