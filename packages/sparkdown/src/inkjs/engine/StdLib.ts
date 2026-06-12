@@ -405,243 +405,348 @@ export function resolveInit(arg: any, strLen: number): number {
 
 // ============================================================
 // `string.pack` / `string.unpack` / `string.packsize` — binary
-// packing via `DataView`. Format spec mirrors Lua 5.3:
+// packing, ported from Luau's lstrlib.cpp (itself Lua 5.3's
+// implementation with Luau-specific type sizes):
 //
-//   < > =        endianness (`=` is the platform default; we
-//                pick little-endian to match x86/ARM)
+//   < > =        endianness (`=`/default = native = little)
+//   ![N]         set max alignment to N, 1..16 (bare `!` = 8);
+//                items pad to min(item size, maxalign) boundaries
 //   b B          1-byte signed / unsigned int
 //   h H          2-byte signed / unsigned int
-//   i[N] I[N]    N-byte (1..8) signed / unsigned int (default 4)
-//   l L          8-byte signed / unsigned int
-//   j J          lua_Integer / lua_Unsigned (8-byte)
-//   T            size_t (8-byte unsigned)
+//   l L          8-byte signed / unsigned int (long long)
+//   j J T        4-byte int (Luau's lua_Integer / size_t are 32-bit)
+//   i[N] I[N]    N-byte (1..16) signed / unsigned int (default 4)
 //   f            float (4 bytes)
 //   d n          double / lua_Number (8 bytes)
-//   sN           string with N-byte length prefix (default size_t = 8)
+//   s[N]         string with N-byte length prefix (default 4)
 //   z            null-terminated string
-//   cN           fixed-size N-byte string
-//   xN           N padding bytes (Lua's `x` consumes 1 padding byte;
-//                we extend `xN` to allow runs)
-//   ( )          group markers (no-op; used to scope alignment in
-//                full Lua but ignored here since we don't enforce
-//                alignment by default)
+//   cN           fixed-size N-byte string (never aligned)
+//   x            exactly one zero padding byte
+//   Xop          align-only: pad to `op`'s alignment, pack nothing;
+//                `op` is consumed and contributes no data
+//   (space)      ignored
 //
-// Alignment (`!N`) is parsed but treated as `!1` — most narrative-
-// fiction use cases don't need C-struct alignment, and Lua's `!`
-// semantics interact with `Xop` markers we also skip. Patterns that
-// need precise alignment can be expressed with explicit `xN`.
+// Integer sizes run up to MAXINTSIZE (16). Values are carried as
+// 64-bit two's complement (BigInt) with sign/zero fill beyond 8
+// bytes, matching packint/unpackint — including unpack's
+// "%d-byte integer does not fit into Lua Integer" check that the
+// extra bytes are pure sign extension.
 //
 // Strings are encoded as JS strings where each character is a byte
 // value in [0, 255]. This matches the convention used by
 // `string.byte` / `string.char` already in the runtime — `string.pack`
 // output round-trips through those for byte-level inspection.
 
-type PackSpec =
-  | { kind: "int"; size: number; signed: boolean; littleEndian: boolean }
-  | { kind: "float32"; littleEndian: boolean }
-  | { kind: "float64"; littleEndian: boolean }
-  | {
-      kind: "string";
-      lenSize: number; // bytes for the length prefix; 0 = null-terminated; -N = fixed N bytes
-      littleEndian: boolean;
-    }
-  | { kind: "pad"; size: number };
+const PACK_MAXINTSIZE = 16; // max bytes in a packed integer
+const PACK_SZINT = 8; // sizeof(long long) — the 64-bit value window
+const PACK_MAXALIGN = 8; // bare `!` alignment
+const PACK_MAXSSIZE = 1 << 30; // Luau's 1GB string-size ceiling
+const PACK_INT_MAX = 2147483647;
 
-function parsePackFormat(
-  fmt: string,
-  story: any,
-): PackSpec[] | null {
-  const specs: PackSpec[] = [];
+type PackItem =
+  | {
+      kind: "int";
+      size: number;
+      signed: boolean;
+      littleEndian: boolean;
+      align: number;
+    }
+  | { kind: "float"; size: 4 | 8; littleEndian: boolean; align: number }
+  | { kind: "char"; size: number } // `cN` — never aligned
+  | { kind: "string"; lenSize: number; littleEndian: boolean; align: number }
+  | { kind: "zstr" } // `z`
+  | { kind: "padding" } // `x` — exactly one zero byte
+  | { kind: "alignpad"; align: number }; // `Xop` — alignment only, no data
+
+// The option's data footprint in bytes (string = its length prefix;
+// variable-size `z` and the no-data options are 0).
+function packDataSize(item: PackItem): number {
+  switch (item.kind) {
+    case "int":
+    case "float":
+    case "char":
+      return item.size;
+    case "string":
+      return item.lenSize;
+    case "padding":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function packItemAlign(item: PackItem): number {
+  return "align" in item ? item.align : 0;
+}
+
+// Pad bytes needed to bring `pos` up to an `align` boundary
+// (align is 0 or a power of 2 — validated at parse time).
+function packPadCount(align: number, pos: number): number {
+  if (align <= 1) return 0;
+  return (align - (pos & (align - 1))) & (align - 1);
+}
+
+function parsePackFormat(fmt: string, story: any): PackItem[] | null {
+  const items: PackItem[] = [];
   let i = 0;
-  let littleEndian = true; // `=` default; we pick LE for narrative portability
-  while (i < fmt.length) {
-    const c = fmt.charAt(i);
+  let littleEndian = true; // native endianness = little
+  let maxAlign = 1;
+
+  const isDigit = () => {
+    const c = fmt.charCodeAt(i);
+    return c >= 48 && c <= 57;
+  };
+
+  // lstrlib.cpp getnum: read a decimal numeral or return `df`.
+  const getNum = (df: number): number => {
+    if (i >= fmt.length || !isDigit()) return df;
+    let a = 0;
+    do {
+      a = a * 10 + (fmt.charCodeAt(i++) - 48);
+    } while (i < fmt.length && isDigit() && a <= (PACK_INT_MAX - 9) / 10);
+    if (a > PACK_MAXSSIZE || (i < fmt.length && isDigit())) {
+      story.Error("string.pack: size specifier is too large");
+    }
+    return a;
+  };
+
+  // getnumlimit: numeral bounded to [1, MAXINTSIZE].
+  const getNumLimit = (df: number): number => {
+    const sz = getNum(df);
+    if (sz > PACK_MAXINTSIZE || sz <= 0) {
+      story.Error(
+        `string.pack: integral size (${sz}) out of limits [1,${PACK_MAXINTSIZE}]`,
+      );
+    }
+    return sz;
+  };
+
+  type PackOpt =
+    | { k: "int"; size: number; signed: boolean }
+    | { k: "float"; size: 4 | 8 }
+    | { k: "char"; size: number }
+    | { k: "string"; lenSize: number }
+    | { k: "zstr" }
+    | { k: "padding" }
+    | { k: "alignpad" }
+    | { k: "nop" };
+
+  const optSize = (o: PackOpt): number => {
+    switch (o.k) {
+      case "int":
+      case "float":
+      case "char":
+        return o.size;
+      case "string":
+        return o.lenSize;
+      case "padding":
+        return 1;
+      default:
+        return 0;
+    }
+  };
+
+  // lstrlib.cpp getoption: read and classify one option, updating
+  // endianness/alignment state as a side effect.
+  const getOption = (): PackOpt | null => {
+    const c = fmt.charAt(i++);
     switch (c) {
-      case "<":
-        littleEndian = true;
-        i++;
-        continue;
-      case ">":
-        littleEndian = false;
-        i++;
-        continue;
-      case "=":
-        littleEndian = true;
-        i++;
-        continue;
-      case "!": {
-        // Skip optional digits after `!` — alignment is ignored.
-        i++;
-        while (i < fmt.length && /\d/.test(fmt.charAt(i))) i++;
-        continue;
-      }
-      case "(":
-      case ")":
-      case " ":
-      case "\t":
-        i++;
-        continue;
       case "b":
-        specs.push({ kind: "int", size: 1, signed: true, littleEndian });
-        i++;
-        continue;
+        return { k: "int", size: 1, signed: true };
       case "B":
-        specs.push({ kind: "int", size: 1, signed: false, littleEndian });
-        i++;
-        continue;
+        return { k: "int", size: 1, signed: false };
       case "h":
-        specs.push({ kind: "int", size: 2, signed: true, littleEndian });
-        i++;
-        continue;
+        return { k: "int", size: 2, signed: true };
       case "H":
-        specs.push({ kind: "int", size: 2, signed: false, littleEndian });
-        i++;
-        continue;
+        return { k: "int", size: 2, signed: false };
       case "l":
-      case "j":
-        specs.push({ kind: "int", size: 8, signed: true, littleEndian });
-        i++;
-        continue;
+        return { k: "int", size: 8, signed: true };
       case "L":
+        return { k: "int", size: 8, signed: false };
+      // Luau's lua_Integer and size_t are 32-bit.
+      case "j":
+        return { k: "int", size: 4, signed: true };
       case "J":
       case "T":
-        specs.push({ kind: "int", size: 8, signed: false, littleEndian });
-        i++;
-        continue;
-      case "i":
-      case "I": {
-        const signed = c === "i";
-        i++;
-        let size = 4;
-        if (i < fmt.length && /\d/.test(fmt.charAt(i))) {
-          const start = i;
-          while (i < fmt.length && /\d/.test(fmt.charAt(i))) i++;
-          size = parseInt(fmt.slice(start, i), 10);
-          if (size < 1 || size > 8) {
-            story.Error(
-              `string.pack: integer size ${size} out of range (1..8)`,
-            );
-            return null;
-          }
-        }
-        specs.push({ kind: "int", size, signed, littleEndian });
-        continue;
-      }
+        return { k: "int", size: 4, signed: false };
       case "f":
-        specs.push({ kind: "float32", littleEndian });
-        i++;
-        continue;
+        return { k: "float", size: 4 };
       case "d":
       case "n":
-        specs.push({ kind: "float64", littleEndian });
-        i++;
-        continue;
-      case "s": {
-        i++;
-        let lenSize = 8;
-        if (i < fmt.length && /\d/.test(fmt.charAt(i))) {
-          const start = i;
-          while (i < fmt.length && /\d/.test(fmt.charAt(i))) i++;
-          lenSize = parseInt(fmt.slice(start, i), 10);
-          if (lenSize < 1 || lenSize > 8) {
-            story.Error(
-              `string.pack: string length-prefix size ${lenSize} out of range (1..8)`,
-            );
-            return null;
-          }
-        }
-        specs.push({ kind: "string", lenSize, littleEndian });
-        continue;
-      }
-      case "z":
-        specs.push({ kind: "string", lenSize: 0, littleEndian });
-        i++;
-        continue;
+        return { k: "float", size: 8 };
+      case "i":
+        return { k: "int", size: getNumLimit(4), signed: true };
+      case "I":
+        return { k: "int", size: getNumLimit(4), signed: false };
+      case "s":
+        return { k: "string", lenSize: getNumLimit(4) };
       case "c": {
-        i++;
-        if (i >= fmt.length || !/\d/.test(fmt.charAt(i))) {
-          story.Error("string.pack: `c` must be followed by a size (e.g. c4)");
+        const size = getNum(-1);
+        if (size === -1) {
+          story.Error("string.pack: missing size for format option 'c'");
           return null;
         }
-        const start = i;
-        while (i < fmt.length && /\d/.test(fmt.charAt(i))) i++;
-        const size = parseInt(fmt.slice(start, i), 10);
-        specs.push({ kind: "string", lenSize: -size, littleEndian });
-        continue;
+        return { k: "char", size };
       }
-      case "x": {
-        i++;
-        let size = 1;
-        if (i < fmt.length && /\d/.test(fmt.charAt(i))) {
-          const start = i;
-          while (i < fmt.length && /\d/.test(fmt.charAt(i))) i++;
-          size = parseInt(fmt.slice(start, i), 10);
-        }
-        specs.push({ kind: "pad", size });
-        continue;
-      }
+      case "z":
+        return { k: "zstr" };
+      case "x":
+        return { k: "padding" };
+      case "X":
+        return { k: "alignpad" };
+      case " ":
+        return { k: "nop" };
+      case "<":
+        littleEndian = true;
+        return { k: "nop" };
+      case ">":
+        littleEndian = false;
+        return { k: "nop" };
+      case "=":
+        littleEndian = true;
+        return { k: "nop" };
+      case "!":
+        maxAlign = getNumLimit(PACK_MAXALIGN);
+        return { k: "nop" };
       default:
-        story.Error(
-          `string.pack: unknown format character "${c}" at position ${i}`,
-        );
+        story.Error(`string.pack: invalid format option '${c}'`);
         return null;
     }
+  };
+
+  while (i < fmt.length) {
+    const opt = getOption();
+    if (opt == null) return null;
+    let align = optSize(opt);
+    if (opt.k === "alignpad") {
+      // `X` takes its alignment from the immediately following
+      // option, which is consumed and contributes no data.
+      if (i >= fmt.length) {
+        story.Error("string.pack: invalid next option for option 'X'");
+        return null;
+      }
+      const next = getOption();
+      if (next == null) return null;
+      align = optSize(next);
+      if (next.k === "char" || align === 0) {
+        story.Error("string.pack: invalid next option for option 'X'");
+        return null;
+      }
+    }
+    let resolvedAlign = 0;
+    if (align > 1 && opt.k !== "char") {
+      if (align > maxAlign) align = maxAlign; // enforce maximum alignment
+      if ((align & (align - 1)) !== 0) {
+        story.Error("string.pack: format asks for alignment not power of 2");
+        return null;
+      }
+      resolvedAlign = align;
+    }
+    switch (opt.k) {
+      case "int":
+        items.push({
+          kind: "int",
+          size: opt.size,
+          signed: opt.signed,
+          littleEndian,
+          align: resolvedAlign,
+        });
+        break;
+      case "float":
+        items.push({
+          kind: "float",
+          size: opt.size,
+          littleEndian,
+          align: resolvedAlign,
+        });
+        break;
+      case "char":
+        items.push({ kind: "char", size: opt.size });
+        break;
+      case "string":
+        items.push({
+          kind: "string",
+          lenSize: opt.lenSize,
+          littleEndian,
+          align: resolvedAlign,
+        });
+        break;
+      case "zstr":
+        items.push({ kind: "zstr" });
+        break;
+      case "padding":
+        items.push({ kind: "padding" });
+        break;
+      case "alignpad":
+        items.push({ kind: "alignpad", align: resolvedAlign });
+        break;
+      case "nop":
+        break;
+    }
   }
-  return specs;
+  return items;
 }
 
-function writeIntToBytes(
+// packint (lstrlib.cpp): append `size` two's-complement bytes of `n`.
+// The value occupies the low 8 bytes; anything beyond is sign-fill
+// (0xFF when packing a negative signed value, else 0x00).
+function writePackedInt(
   bytes: number[],
-  value: number,
+  n: bigint,
   size: number,
-  signed: boolean,
   littleEndian: boolean,
+  negFill: boolean,
 ) {
-  // Compute two's-complement bytes manually so we can support
-  // sizes beyond DataView's 8-byte ceiling (we cap at 8 in the
-  // parser, so this is straightforward).
-  let v = value;
-  if (signed && v < 0) {
-    // Two's-complement: add 2^(8*size).
-    v = v + 2 ** (8 * size);
-  }
-  v = v >>> 0; // Force integer for size <= 4. For 8-byte we lose
-  // precision above 2^53 — acceptable for narrative use; precise
-  // 64-bit needs BigInt support, which sparkdown doesn't have.
-  // Re-broaden by using the original value for size > 4.
-  if (size > 4) {
-    v = signed && value < 0 ? value + 2 ** (8 * size) : value;
-  }
-  const arr: number[] = [];
+  const low = BigInt.asUintN(64, n);
+  const buff = new Array<number>(size);
   for (let k = 0; k < size; k++) {
-    arr.push(v & 0xff);
-    v = Math.floor(v / 256);
+    const b =
+      k < PACK_SZINT
+        ? Number((low >> BigInt(8 * k)) & 0xffn)
+        : negFill
+          ? 0xff
+          : 0x00;
+    buff[littleEndian ? k : size - 1 - k] = b;
   }
-  if (!littleEndian) arr.reverse();
-  for (const b of arr) bytes.push(b);
+  for (const b of buff) bytes.push(b);
 }
 
-function readIntFromBytes(
-  bytes: string,
+// unpackint (lstrlib.cpp): read a `size`-byte integer. The value
+// lives in the low 8 bytes; for size > 8 every extra byte must be
+// pure sign/zero extension or the value doesn't fit in 64 bits.
+function readPackedInt(
+  data: string,
   offset: number,
   size: number,
   signed: boolean,
   littleEndian: boolean,
+  story: any,
 ): number {
-  const slice: number[] = [];
-  for (let k = 0; k < size; k++) {
-    slice.push(bytes.charCodeAt(offset + k));
+  const byteAt = (k: number) =>
+    data.charCodeAt(offset + (littleEndian ? k : size - 1 - k)) & 0xff;
+  const limit = Math.min(size, PACK_SZINT);
+  let res = 0n;
+  for (let k = limit - 1; k >= 0; k--) {
+    res = (res << 8n) | BigInt(byteAt(k));
   }
-  if (!littleEndian) slice.reverse();
-  let v = 0;
-  for (let k = size - 1; k >= 0; k--) {
-    v = v * 256 + slice[k]!;
+  if (size < PACK_SZINT) {
+    if (signed) {
+      const mask = 1n << BigInt(8 * size - 1);
+      res = (res ^ mask) - mask; // sign extension
+    }
+  } else if (size > PACK_SZINT) {
+    const fill = !signed || BigInt.asIntN(64, res) >= 0n ? 0 : 0xff;
+    for (let k = limit; k < size; k++) {
+      if (byteAt(k) !== fill) {
+        story.Error(
+          `string.unpack: ${size}-byte integer does not fit into Lua Integer`,
+        );
+      }
+    }
   }
-  if (signed) {
-    const max = 2 ** (8 * size - 1);
-    if (v >= max) v -= 2 ** (8 * size);
-  }
-  return v;
+  return signed
+    ? Number(BigInt.asIntN(64, res))
+    : Number(BigInt.asUintN(64, res));
 }
 
 function bytesToString(bytes: number[]): string {
@@ -650,97 +755,120 @@ function bytesToString(bytes: number[]): string {
   return s;
 }
 
-function packString(
-  fmt: string,
-  args: any[],
-  story: any,
-): string | null {
-  const specs = parsePackFormat(fmt, story);
-  if (specs == null) return null;
+function packString(fmt: string, args: any[], story: any): string | null {
+  const items = parsePackFormat(fmt, story);
+  if (items == null) return null;
   const bytes: number[] = [];
   let argIdx = 0;
-  for (const spec of specs) {
-    if (spec.kind === "pad") {
-      for (let k = 0; k < spec.size; k++) bytes.push(0);
-      continue;
-    }
+  const nextNumber = (): number | null => {
     if (argIdx >= args.length) {
       story.Error("string.pack: not enough arguments for format");
       return null;
     }
-    const arg = args[argIdx++];
-    if (spec.kind === "int") {
-      const n = coerceNumber(arg);
-      if (n == null) {
-        story.Error("string.pack: integer argument expected");
+    const n = coerceNumber(args[argIdx++]);
+    if (n == null) {
+      story.Error("string.pack: number expected");
+      return null;
+    }
+    return n;
+  };
+  const nextString = (): string | null => {
+    if (argIdx >= args.length) {
+      story.Error("string.pack: not enough arguments for format");
+      return null;
+    }
+    const s = coerceString(args[argIdx++]);
+    if (s == null) {
+      story.Error("string.pack: string expected");
+      return null;
+    }
+    return s;
+  };
+  for (const item of items) {
+    // `bytes.length` is the running totalsize — alignment pads first.
+    const pad = packPadCount(packItemAlign(item), bytes.length);
+    for (let k = 0; k < pad; k++) bytes.push(0);
+    if (item.kind === "alignpad") continue;
+    if (item.kind === "padding") {
+      bytes.push(0);
+      continue;
+    }
+    if (item.kind === "int") {
+      const raw = nextNumber();
+      if (raw == null) return null;
+      if (!Number.isFinite(raw)) {
+        // BigInt can't carry inf/nan; C's double→long long cast here
+        // is UB anyway, so reject like Lua's integer-representation
+        // check does.
+        story.Error("string.pack: number has no integer representation");
         return null;
       }
-      writeIntToBytes(
-        bytes,
-        Math.trunc(n),
-        spec.size,
-        spec.signed,
-        spec.littleEndian,
-      );
-    } else if (spec.kind === "float32") {
-      const n = coerceNumber(arg);
-      if (n == null) {
-        story.Error("string.pack: float argument expected");
-        return null;
-      }
-      const view = new DataView(new ArrayBuffer(4));
-      view.setFloat32(0, n, spec.littleEndian);
-      for (let k = 0; k < 4; k++) bytes.push(view.getUint8(k));
-    } else if (spec.kind === "float64") {
-      const n = coerceNumber(arg);
-      if (n == null) {
-        story.Error("string.pack: float argument expected");
-        return null;
-      }
-      const view = new DataView(new ArrayBuffer(8));
-      view.setFloat64(0, n, spec.littleEndian);
-      for (let k = 0; k < 8; k++) bytes.push(view.getUint8(k));
-    } else if (spec.kind === "string") {
-      const s = coerceString(arg);
-      if (s == null) {
-        story.Error("string.pack: string argument expected");
-        return null;
-      }
-      if (spec.lenSize > 0) {
-        // Length-prefixed string.
-        writeIntToBytes(
-          bytes,
-          s.length,
-          spec.lenSize,
-          /*signed*/ false,
-          spec.littleEndian,
-        );
-        for (let k = 0; k < s.length; k++) bytes.push(s.charCodeAt(k) & 0xff);
-      } else if (spec.lenSize === 0) {
-        // Null-terminated.
-        for (let k = 0; k < s.length; k++) {
-          const c = s.charCodeAt(k) & 0xff;
-          if (c === 0) {
-            story.Error(
-              "string.pack: null-terminated string `z` cannot contain a null byte",
-            );
+      const n = BigInt(Math.trunc(raw));
+      if (item.size < PACK_SZINT) {
+        if (item.signed) {
+          const lim = 1n << BigInt(item.size * 8 - 1);
+          if (!(-lim <= n && n < lim)) {
+            story.Error("string.pack: integer overflow");
             return null;
           }
-          bytes.push(c);
-        }
-        bytes.push(0);
-      } else {
-        // Fixed-size (lenSize = -N).
-        const size = -spec.lenSize;
-        if (s.length > size) {
-          story.Error(
-            `string.pack: fixed-size string longer than allotted ${size} bytes`,
-          );
+        } else if (BigInt.asUintN(64, n) >= 1n << BigInt(item.size * 8)) {
+          story.Error("string.pack: unsigned overflow");
           return null;
         }
-        for (let k = 0; k < s.length; k++) bytes.push(s.charCodeAt(k) & 0xff);
-        for (let k = s.length; k < size; k++) bytes.push(0);
       }
+      writePackedInt(
+        bytes,
+        n,
+        item.size,
+        item.littleEndian,
+        item.signed && n < 0n,
+      );
+    } else if (item.kind === "float") {
+      const n = nextNumber();
+      if (n == null) return null;
+      const view = new DataView(new ArrayBuffer(item.size));
+      if (item.size === 4) view.setFloat32(0, n, item.littleEndian);
+      else view.setFloat64(0, n, item.littleEndian);
+      for (let k = 0; k < item.size; k++) bytes.push(view.getUint8(k));
+    } else if (item.kind === "char") {
+      const s = nextString();
+      if (s == null) return null;
+      if (s.length > item.size) {
+        story.Error("string.pack: string longer than given size");
+        return null;
+      }
+      for (let k = 0; k < s.length; k++) bytes.push(s.charCodeAt(k) & 0xff);
+      for (let k = s.length; k < item.size; k++) bytes.push(0);
+    } else if (item.kind === "string") {
+      const s = nextString();
+      if (s == null) return null;
+      if (
+        item.lenSize < PACK_SZINT &&
+        s.length >= 2 ** (8 * item.lenSize)
+      ) {
+        story.Error("string.pack: string length does not fit in given size");
+        return null;
+      }
+      writePackedInt(
+        bytes,
+        BigInt(s.length),
+        item.lenSize,
+        item.littleEndian,
+        false,
+      );
+      for (let k = 0; k < s.length; k++) bytes.push(s.charCodeAt(k) & 0xff);
+    } else if (item.kind === "zstr") {
+      const s = nextString();
+      if (s == null) return null;
+      for (let k = 0; k < s.length; k++) {
+        const c = s.charCodeAt(k) & 0xff;
+        if (c === 0) {
+          story.Error("string.pack: string contains zeros");
+          return null;
+        }
+        bytes.push(c);
+      }
+      bytes.push(0);
     }
   }
   return bytesToString(bytes);
@@ -749,121 +877,104 @@ function packString(
 function unpackString(
   fmt: string,
   data: string,
-  startPos: number,
+  posArg: number,
   story: any,
 ): { values: AbstractValue[]; nextPos: number } | null {
-  const specs = parsePackFormat(fmt, story);
-  if (specs == null) return null;
-  const values: AbstractValue[] = [];
-  let offset = startPos - 1; // 1-indexed → 0-indexed
-  for (const spec of specs) {
-    if (spec.kind === "pad") {
-      offset += spec.size;
-      continue;
-    }
-    if (spec.kind === "int") {
-      if (offset + spec.size > data.length) {
-        story.Error("string.unpack: data too short for format");
-        return null;
-      }
-      const v = readIntFromBytes(
-        data,
-        offset,
-        spec.size,
-        spec.signed,
-        spec.littleEndian,
-      );
-      values.push(new IntValue(v));
-      offset += spec.size;
-    } else if (spec.kind === "float32") {
-      if (offset + 4 > data.length) {
-        story.Error("string.unpack: data too short for float");
-        return null;
-      }
-      const buf = new ArrayBuffer(4);
-      const v = new DataView(buf);
-      for (let k = 0; k < 4; k++) v.setUint8(k, data.charCodeAt(offset + k));
-      values.push(new FloatValue(v.getFloat32(0, spec.littleEndian)));
-      offset += 4;
-    } else if (spec.kind === "float64") {
-      if (offset + 8 > data.length) {
-        story.Error("string.unpack: data too short for double");
-        return null;
-      }
-      const buf = new ArrayBuffer(8);
-      const v = new DataView(buf);
-      for (let k = 0; k < 8; k++) v.setUint8(k, data.charCodeAt(offset + k));
-      values.push(new FloatValue(v.getFloat64(0, spec.littleEndian)));
-      offset += 8;
-    } else if (spec.kind === "string") {
-      if (spec.lenSize > 0) {
-        if (offset + spec.lenSize > data.length) {
-          story.Error("string.unpack: data too short for length prefix");
-          return null;
-        }
-        const len = readIntFromBytes(
-          data,
-          offset,
-          spec.lenSize,
-          false,
-          spec.littleEndian,
-        );
-        offset += spec.lenSize;
-        if (offset + len > data.length) {
-          story.Error("string.unpack: data too short for string body");
-          return null;
-        }
-        values.push(new StringValue(data.slice(offset, offset + len)));
-        offset += len;
-      } else if (spec.lenSize === 0) {
-        // Null-terminated.
-        const start = offset;
-        while (offset < data.length && data.charCodeAt(offset) !== 0) {
-          offset++;
-        }
-        if (offset >= data.length) {
-          story.Error("string.unpack: missing null terminator");
-          return null;
-        }
-        values.push(new StringValue(data.slice(start, offset)));
-        offset += 1; // skip the null
-      } else {
-        const size = -spec.lenSize;
-        if (offset + size > data.length) {
-          story.Error("string.unpack: data too short for fixed-size string");
-          return null;
-        }
-        values.push(new StringValue(data.slice(offset, offset + size)));
-        offset += size;
-      }
-    }
+  const ld = data.length;
+  // posrelat + clamp (str_unpack): negative counts back from the
+  // end; 0 and out-of-range-negative clamp to the string start.
+  let rel = Math.trunc(posArg);
+  if (rel < 0) rel += ld + 1;
+  if (rel < 0) rel = 0;
+  let pos = rel - 1; // 1-indexed → 0-indexed
+  if (pos < 0) pos = 0;
+  if (pos > ld) {
+    story.Error("string.unpack: initial position out of string");
+    return null;
   }
-  return { values, nextPos: offset + 1 }; // 0-indexed → 1-indexed
+  const items = parsePackFormat(fmt, story);
+  if (items == null) return null;
+  const values: AbstractValue[] = [];
+  for (const item of items) {
+    const pad = packPadCount(packItemAlign(item), pos);
+    const size = packDataSize(item);
+    if (pad + size > ld - pos) {
+      story.Error("string.unpack: data string too short");
+      return null;
+    }
+    pos += pad; // skip alignment
+    if (item.kind === "int") {
+      values.push(
+        new IntValue(
+          readPackedInt(
+            data,
+            pos,
+            item.size,
+            item.signed,
+            item.littleEndian,
+            story,
+          ),
+        ),
+      );
+    } else if (item.kind === "float") {
+      const view = new DataView(new ArrayBuffer(item.size));
+      for (let k = 0; k < item.size; k++) {
+        view.setUint8(k, data.charCodeAt(pos + k) & 0xff);
+      }
+      values.push(
+        new FloatValue(
+          item.size === 4
+            ? view.getFloat32(0, item.littleEndian)
+            : view.getFloat64(0, item.littleEndian),
+        ),
+      );
+    } else if (item.kind === "char") {
+      values.push(new StringValue(data.slice(pos, pos + item.size)));
+    } else if (item.kind === "string") {
+      const len = readPackedInt(
+        data,
+        pos,
+        item.lenSize,
+        false,
+        item.littleEndian,
+        story,
+      );
+      if (len > ld - pos - size) {
+        story.Error("string.unpack: data string too short");
+        return null;
+      }
+      values.push(new StringValue(data.slice(pos + size, pos + size + len)));
+      pos += len; // skip string body (prefix added below as `size`)
+    } else if (item.kind === "zstr") {
+      let end = pos;
+      while (end < ld && data.charCodeAt(end) !== 0) end++;
+      if (end >= ld) {
+        story.Error("string.unpack: unfinished string for format 'z'");
+        return null;
+      }
+      values.push(new StringValue(data.slice(pos, end)));
+      pos = end + 1; // skip string plus final '\0'
+    }
+    pos += size;
+  }
+  return { values, nextPos: pos + 1 }; // 0-indexed → 1-indexed
 }
 
 function packSize(fmt: string, story: any): number | null {
-  const specs = parsePackFormat(fmt, story);
-  if (specs == null) return null;
+  const items = parsePackFormat(fmt, story);
+  if (items == null) return null;
   let total = 0;
-  for (const spec of specs) {
-    if (spec.kind === "pad") {
-      total += spec.size;
-    } else if (spec.kind === "int") {
-      total += spec.size;
-    } else if (spec.kind === "float32") {
-      total += 4;
-    } else if (spec.kind === "float64") {
-      total += 8;
-    } else if (spec.kind === "string") {
-      if (spec.lenSize < 0) {
-        total += -spec.lenSize;
-      } else {
-        story.Error(
-          "string.packsize: variable-length specs (`s` and `z`) are not supported",
-        );
-        return null;
-      }
+  for (const item of items) {
+    if (item.kind === "string" || item.kind === "zstr") {
+      story.Error("string.packsize: variable-length format");
+      return null;
     }
+    const size = packPadCount(packItemAlign(item), total) + packDataSize(item);
+    if (total > PACK_MAXSSIZE - size) {
+      story.Error("string.packsize: format result too large");
+      return null;
+    }
+    total += size;
   }
   return total;
 }
@@ -3335,8 +3446,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (story, args) => {
       const fmt = coerceString(args[0]) ?? "";
       const data = coerceString(args[1]) ?? "";
-      const pos =
-        args.length > 2 ? Math.max(1, coerceNumber(args[2]) ?? 1) : 1;
+      const pos = args.length > 2 ? (coerceNumber(args[2]) ?? 1) : 1;
       const result = unpackString(fmt, data, pos, story);
       if (result == null) return new NullValue();
       return new MultiValue([

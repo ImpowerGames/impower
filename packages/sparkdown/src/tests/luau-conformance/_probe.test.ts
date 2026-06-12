@@ -72,8 +72,8 @@ test(`survey: first blocker per failing fixture`, () => {
 
 test(`bisect-basic`, () => {
   const src = applyUpstreamPatches(
-    "math.luau",
-    readFileSync(join(UPSTREAM_ROOT, "math.luau"), "utf8"),
+    "pm.luau",
+    readFileSync(join(UPSTREAM_ROOT, "pm.luau"), "utf8"),
   );
   const lines = src.split("\n");
   const tryRange = (startLine: number, endLine: number) => {
@@ -109,78 +109,16 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  tryProbe("redeclare-vf", `local inf = math.huge
-local v,e = math.frexp("1.5")
-assert(v == 0.75 and e == 1)
-assert(math.log("0") == -inf, "log0")
-local v,f = math.modf("1.5")
-assert(v == 1 and f == 0.5, "modf is " .. tostring(v) .. "," .. tostring(f))
-assert(math.pow("2", 2) == 4, "pow")`);
-  tryProbe("tail501", `assert(math.modf("1.5") == 1, "modf")
-assert(math.pow("2", 2) == 4, "pow")
-assert(math.rad("0") == 0, "rad")
-assert(math.sinh("0") == 0, "sinh")
-assert(math.sin("0") == 0, "sin")
-assert(math.sqrt("4") == 2, "sqrt")
-assert(math.tanh("0") == 0, "tanh")
-assert(math.tan("0") == 0, "tan")`);
-  tryProbe("frexpstr", `local v,e = math.frexp("1.5")
-assert(v == 0.75, "v is " .. tostring(v))
-assert(e == 1, "e is " .. tostring(e))
-local v2,f2 = math.modf("1.5")
-assert(v2 == 1 and f2 == 0.5, "modf")`);
-  tryProbe("powstr", `assert(math.pow("2", 2) == 4, "pow")
-assert(math.ldexp("0.75", 1) == 1.5, "ldexp")
-assert(math.log("8", 2) == 3, "log2")
-assert(math.fmod("1.5", 1) == 0.5, "fmod")
-assert(math.clamp("0", 2, 3) == 2, "clamp")`);
-  tryProbe("isinf", `assert(math.isinf(math.huge), "1")
-assert(math.isinf(0/0) == false, "2")
-assert(math.isfinite(123.45), "3")
-local function noinline(x, ...) local s, r = pcall(function(y) return y end, x) return r end
-assert(math.isinf(noinline(math.huge)), "4")
-assert(math.isfinite(noinline(123.45)), "5")`);
-  tryProbe("selecthash", `assert(select('#', math.floor(1.4)) == 1, "floor")
-assert(select('#', math.modf(1.5)) == 2, "modf")
-assert(select(2, math.modf(1.5)) == 0.5, "modf2")`);
-  tryProbe("noise", `error(tostring(math.noise(0.5)) .. " | " .. tostring(math.noise(0.5, 0.5)) .. " | " .. tostring(math.noise(0.5, 0.5, -0.5)) .. " | " .. tostring(math.noise(455.7204209769105, 340.80410508750134, 121.80087666537628)))`);
-  tryProbe("ret-then-corostatus", `do return('OK') end
-assert(type(f) == "thread" and coroutine.status(f) == "suspended")`);
-  tryProbe("ret-then-unknowncall", `do return('OK') end
-assert(unknown.status(f) == "suspended")`);
-  tryProbe("ret-then-status-only", `do return('OK') end
-local q = coroutine.status(f)`);
-  tryProbe("doreturn-then-code", `local x = 1
-do return('OK') end
-x = 2
-error("should not reach")`);
-  tryProbe("doreturn-then-loop", `local x = 1
-do return('OK') end
-for i = 1, 3 do x = x + 1 end
-error("should not reach")`);
-  tryProbe("topdoreturn", `local x = 1
-do return('OK') end
-error("should not reach")`);
-  tryProbe("doreturn", `local function f()
-  do return 7 end
-  return 9
-end
-assert(f() == 7, "f is " .. tostring(f()))`);
-  tryProbe("breakclosure-rebind", `function f(x) return x end
-for k, v in pairs{"a", "b"} do
-  f = function () return k, v end
-  break
-end
-local r = {f()}
-assert(r[1] == 1, "r1 is " .. tostring(r[1]))
-assert(r[2] == "a", "r2 is " .. tostring(r[2]))`);
-  tryProbe("breakclosure-tblidx", `local f
-for k, v in pairs{"a", "b"} do
-  f = function () return k, v end
-  break
-end
-assert(({f()})[1] == 1, "t1")
-assert(({f()})[2] == "a", "t2")`);
+  tryProbe("paren-string-method", `local s = ("ab"):rep(3)
+assert(s == "ababab", "rep is " .. tostring(s))`);
+  tryProbe("paren-string-method-hex", `local s = ("\\xFF"):rep(2)
+assert(#s == 2, "len is " .. tostring(#s))
+assert(string.byte(s, 1) == 255, "byte is " .. tostring(string.byte(s, 1)))`);
+  tryProbe("paren-string-reverse", `local s = ("abc"):reverse()
+assert(s == "cba", "rev is " .. tostring(s))`);
+  tryProbe("local-string-method", `local x = "ab"
+local s = x:rep(3)
+assert(s == "ababab", "rep is " .. tostring(s))`);
   tryRange(1, lines.length);
 });
 

@@ -297,6 +297,6 @@ local s = string.pack("Q", 42)
 end
 `);
     expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0]!).toContain("unknown format");
+    expect(errors[0]!).toContain("invalid format option");
   });
 });

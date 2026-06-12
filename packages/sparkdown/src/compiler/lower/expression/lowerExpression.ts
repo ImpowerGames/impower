@@ -164,6 +164,25 @@ export function lowerExpressionFromNodes(
           j++;
           continue;
         }
+        // Method call on the running value in arg context —
+        // `assert(("ab"):rep(3) == "ababab")`. Mirror collectTokens.
+        if (nodes[j]!.name === "LuauChainedFunctionCall") {
+          let k = j + 1;
+          while (k < nodes.length && isSkippableName(nodes[k]!.name)) k++;
+          const chainParen = nodes[k];
+          if (!chainParen || chainParen.name !== "LuauParenthetical") break;
+          const chained = lowerChainedMethodCall(
+            nodes[j]!,
+            chainParen,
+            last.expr,
+            ctx,
+          );
+          if (!chained) break;
+          last.expr = chained;
+          i = k;
+          j = k + 1;
+          continue;
+        }
         if (nodes[j]!.name !== "LuauParenthetical") break;
         const args = lowerParentheticalArgList(nodes[j]!, ctx);
         last.expr = new CallValueExpression(last.expr, args);
@@ -312,6 +331,24 @@ function collectTokens(
           last.expr = linked;
           child = after;
           after = after.nextSibling;
+          continue;
+        }
+        // Method call on the running value: `("ab"):rep(3)` parses as
+        // LuauParenthetical + LuauChainedFunctionCall + LuauParenthetical
+        // siblings (same chain-link shape as `a:m(x):n(y)` tails).
+        if (after.name === "LuauChainedFunctionCall") {
+          const chainParen = findNextNonSkippableSibling(after);
+          if (!chainParen || chainParen.name !== "LuauParenthetical") break;
+          const chained = lowerChainedMethodCall(
+            after,
+            chainParen,
+            last.expr,
+            ctx,
+          );
+          if (!chained) break;
+          last.expr = chained;
+          child = chainParen;
+          after = chainParen.nextSibling;
           continue;
         }
         if (after.name !== "LuauParenthetical") break;
