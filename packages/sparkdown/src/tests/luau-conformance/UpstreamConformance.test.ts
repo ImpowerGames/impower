@@ -59,6 +59,11 @@ const SKIP_FILES = new Set([
   "interrupt.luau",
   "explicit_type_instantiations.luau", // type system
   "pcall.luau", // heavily coroutine-dependent (uses coroutine.yield + resumeerror)
+  // debug.luau exercises debug.traceback / debug.info with REAL
+  // call-stack introspection, threaded through coroutines from line
+  // 10 onward (`coroutine.create(bar)` + tracebacks of suspended
+  // coroutines). Coroutines are skip-class infra (see pcall.luau).
+  "debug.luau",
   // locals.luau heavily uses `loadstring` / `getfenv` / `setfenv` —
   // Lua 5.1-only features removed in Luau itself. It also trips a
   // grammar quirk: multi-line `[[...]]` raw strings containing `%s`
@@ -89,6 +94,13 @@ const SKIP_FILES = new Set([
   // `getmetatable(_G).__index`. Neither exists outside that harness;
   // the fixture isn't testable in sparkdown.
   "types.luau",
+  // literals.luau is a SCANNER test — it exercises the lexer by
+  // compiling source strings at runtime (13 `loadstring`/`dostring`
+  // sites: escape handling, long-string level counting, number
+  // formats). Sparkdown stories are precompiled with no runtime
+  // compiler, so the fixture is untestable here — same reasoning as
+  // locals.luau.
+  "literals.luau",
 ]);
 
 type FileResult = {

@@ -89,11 +89,18 @@ function extractClosurePath(callTarget: any, story: any): any | null {
   if (fnVal.value === null) return null;
   const upvalsMap = upvalsVal.value;
   if (!(upvalsMap instanceof Map)) return null;
-  const userArity = userArityVal.value ?? 0;
+  // `__closure_user_arity` counts FIXED params only. A variadic
+  // target binds one extra slot — the packed `...` MultiValue the
+  // call-site normalization (packVariadicValueCallArgs /
+  // normalizeLuauCallArgs) pushed on top of the fixed args — so the
+  // upval reorder must lift fixed args AND the pack above the upvals.
+  const fnContainer = story.ContentAtPath(fnVal.value).obj;
+  const popCount =
+    (userArityVal.value ?? 0) + (containerIsVariadic(fnContainer) ? 1 : 0);
   // Pop K user args (they sit on top of the stack — well, ABOVE the
   // closure value which we already popped).
   const userArgs: AbstractValue[] = [];
-  for (let i = 0; i < userArity; i++) {
+  for (let i = 0; i < popCount; i++) {
     userArgs.unshift(story.state.PopEvaluationStack() as AbstractValue);
   }
   // Push upvals in numerical-key order (0, 1, 2, ...).
@@ -465,6 +472,64 @@ function containerIsVariadic(target: any): boolean {
   return false;
 }
 
+// Count the leading parameter-binding `VariableAssignment` ops in a
+// function container's content — the slots its entry bytecode pops
+// off the eval stack. Skips any leading ControlCommands (mirroring
+// `containerIsVariadic`'s scan) and stops at the first non-VA item
+// after the run starts. For a variadic function the count INCLUDES
+// the `__varargs__` slot.
+function countLeadingParamBindings(target: any): number {
+  if (!target) return 0;
+  const content = target._content;
+  if (!Array.isArray(content)) return 0;
+  let n = 0;
+  for (const item of content) {
+    const va = item as { isVarargsSlot?: boolean };
+    if (va && typeof va.isVarargsSlot === "boolean") {
+      n++;
+      continue;
+    }
+    if (n === 0 && item && (item as any).commandType !== undefined) {
+      continue;
+    }
+    break;
+  }
+  return n;
+}
+
+// Lua value-call argument normalization for a VARIADIC target whose
+// callee was only known at runtime (the static call site never
+// emitted a `PackTuple`): bind the first `fixedCount` args
+// positionally (padding missing ones with nil) and pack the rest
+// into ONE MultiValue for the `...` slot's parameter binding. The
+// callable must already be popped; the user args sit on top of the
+// eval stack. A trailing MultiValue (a `g()` multi-return as the
+// last call-site arg) spreads first, per Lua.
+function packVariadicValueCallArgs(
+  story: any,
+  callSiteArgCount: number,
+  fixedCount: number,
+): void {
+  let effective = callSiteArgCount;
+  if (effective > 0) {
+    const top = story.state.PeekEvaluationStack();
+    if (top instanceof MultiValue) {
+      story.state.PopEvaluationStack();
+      for (const v of top.values) story.state.PushEvaluationStack(v);
+      effective += top.values.length - 1;
+    }
+  }
+  const args: AbstractValue[] = [];
+  for (let i = 0; i < effective; i++) {
+    args.unshift(story.state.PopEvaluationStack() as AbstractValue);
+  }
+  const fixed = args.slice(0, fixedCount);
+  while (fixed.length < fixedCount) fixed.push(new NullValue());
+  const extras = args.slice(fixedCount);
+  for (const a of fixed) story.state.PushEvaluationStack(a);
+  story.state.PushEvaluationStack(new MultiValue(extras));
+}
+
 // Lua argument-count normalization for the JS-driven call paths
 // (`CallLuauFunction` / `CallLuauFunctionProtected`): extra args are
 // DISCARDED and missing args pad with nil, exactly as a Lua call
@@ -473,8 +538,10 @@ function containerIsVariadic(target: any): boolean {
 // gets mis-collected as a return value — e.g. the `__len` metamethod
 // receives the table operand per Lua, but a zero-param handler
 // (`__len = function() return 42 end`) left the table stranded, and
-// `#t` "returned" the table itself. Variadic callees keep all args
-// (extras flow into `...`); arity comes from the closure's
+// `#t` "returned" the table itself. Variadic callees bind their
+// fixed params positionally and receive the extras packed into one
+// MultiValue (the `__varargs__` slot — same shape a static call
+// site's PackTuple produces); arity comes from the closure's
 // `__closure_user_arity` field, so plain DivertTargetValue functions
 // (top-level knots) pass through unchanged.
 function normalizeLuauCallArgs(
@@ -488,12 +555,23 @@ function normalizeLuauCallArgs(
   if (!(arityVal instanceof IntValue) || typeof arityVal.value !== "number") {
     return args;
   }
+  const arity = arityVal.value;
   const fnTarget = map?.get("__closure_fn");
   if (fnTarget instanceof DivertTargetValue && fnTarget.value != null) {
     const target = story.ContentAtPath(fnTarget.value).obj;
-    if (containerIsVariadic(target)) return args;
+    if (containerIsVariadic(target)) {
+      // Spread a trailing MultiValue, then pack extras beyond the
+      // fixed arity for the `...` slot.
+      const spread = [...args];
+      const last = spread[spread.length - 1];
+      if (last instanceof MultiValue) {
+        spread.splice(spread.length - 1, 1, ...last.values);
+      }
+      const fixed = spread.slice(0, arity);
+      while (fixed.length < arity) fixed.push(new NullValue());
+      return [...fixed, new MultiValue(spread.slice(arity))];
+    }
   }
-  const arity = arityVal.value;
   const out = args.slice(0, arity);
   while (out.length < arity) out.push(new NullValue());
   return out;
@@ -1860,6 +1938,11 @@ export class Story extends InkObject {
                     const w = Value.Create(result);
                     if (w !== null) this.state.PushEvaluationStack(w);
                   }
+                } else {
+                  // Void return (`print`, `table.insert`, ...): push
+                  // the Void sentinel so the eval stack stays
+                  // balanced — same contract as RunStdLibFunction.
+                  this.state.PushEvaluationStack(new Void());
                 }
                 return true;
               }
@@ -2509,40 +2592,54 @@ export class Story extends InkObject {
             //      digging into caller-context.
             const peeked = this.state.PeekEvaluationStack();
             if (peeked instanceof ObjectValue) {
-              const userArityVal = (peeked.value as Map<string, AbstractValue>)?.get(
-                "__closure_user_arity",
-              );
+              const peekedMap = peeked.value as Map<string, AbstractValue>;
+              const userArityVal = peekedMap?.get("__closure_user_arity");
               if (userArityVal instanceof IntValue) {
                 const userArity = userArityVal.value ?? 0;
-                const callable = this.state.PopEvaluationStack();
-                let effectiveArgCount = callSiteArgCount;
-                if (callSiteArgCount > 0) {
-                  const lastArg = this.state.PeekEvaluationStack();
-                  if (lastArg instanceof MultiValue) {
-                    this.state.PopEvaluationStack();
-                    for (const v of lastArg.values) {
-                      this.state.PushEvaluationStack(v);
+                // VARIADIC closure target: `__closure_user_arity`
+                // counts fixed params only; the extras must pack into
+                // one MultiValue for the `...` slot instead of being
+                // dropped by the overflow logic below.
+                const fnTargetVal = peekedMap?.get("__closure_fn");
+                const isVariadicTarget =
+                  fnTargetVal instanceof DivertTargetValue &&
+                  fnTargetVal.value != null &&
+                  containerIsVariadic(this.ContentAtPath(fnTargetVal.value).obj);
+                if (isVariadicTarget) {
+                  const callable = this.state.PopEvaluationStack();
+                  packVariadicValueCallArgs(this, callSiteArgCount, userArity);
+                  this.state.PushEvaluationStack(callable as AbstractValue);
+                } else {
+                  const callable = this.state.PopEvaluationStack();
+                  let effectiveArgCount = callSiteArgCount;
+                  if (callSiteArgCount > 0) {
+                    const lastArg = this.state.PeekEvaluationStack();
+                    if (lastArg instanceof MultiValue) {
+                      this.state.PopEvaluationStack();
+                      for (const v of lastArg.values) {
+                        this.state.PushEvaluationStack(v);
+                      }
+                      effectiveArgCount =
+                        callSiteArgCount - 1 + lastArg.values.length;
                     }
-                    effectiveArgCount =
-                      callSiteArgCount - 1 + lastArg.values.length;
                   }
+                  if (effectiveArgCount < userArity) {
+                    for (let i = effectiveArgCount; i < userArity; i++) {
+                      this.state.PushEvaluationStack(new NullValue());
+                    }
+                  } else if (effectiveArgCount > userArity) {
+                    // Lua overflow semantics: extra args at a non-variadic
+                    // call site are dropped. Without this the closure's
+                    // param binding would pop the LAST args instead of
+                    // the first — `foo(1, 2, 3)` against `function
+                    // foo(a, b)` would bind a=2, b=3 (wrong) instead of
+                    // a=1, b=2.
+                    for (let i = userArity; i < effectiveArgCount; i++) {
+                      this.state.PopEvaluationStack();
+                    }
+                  }
+                  this.state.PushEvaluationStack(callable as AbstractValue);
                 }
-                if (effectiveArgCount < userArity) {
-                  for (let i = effectiveArgCount; i < userArity; i++) {
-                    this.state.PushEvaluationStack(new NullValue());
-                  }
-                } else if (effectiveArgCount > userArity) {
-                  // Lua overflow semantics: extra args at a non-variadic
-                  // call site are dropped. Without this the closure's
-                  // param binding would pop the LAST args instead of
-                  // the first — `foo(1, 2, 3)` against `function
-                  // foo(a, b)` would bind a=2, b=3 (wrong) instead of
-                  // a=1, b=2.
-                  for (let i = userArity; i < effectiveArgCount; i++) {
-                    this.state.PopEvaluationStack();
-                  }
-                }
-                this.state.PushEvaluationStack(callable as AbstractValue);
               }
             }
           }
@@ -2651,6 +2748,11 @@ export class Story extends InkObject {
                     const w = Value.Create(result);
                     if (w !== null) this.state.PushEvaluationStack(w);
                   }
+                } else {
+                  // Void return (`print`, `table.insert`, ...): push
+                  // the Void sentinel so the eval stack stays
+                  // balanced — same contract as RunStdLibFunction.
+                  this.state.PushEvaluationStack(new Void());
                 }
                 break;
               }
@@ -2758,7 +2860,27 @@ export class Story extends InkObject {
             this.state.outputStream.length,
           );
           const targetContainer = this.ContentAtPath(targetVal.value).obj;
-          spreadLastMultiIfNonVariadic(this, targetContainer);
+          if (
+            containerIsVariadic(targetContainer) &&
+            evalCommand._callValueArgCount >= 0
+          ) {
+            // Variadic function reached as a bare DivertTargetValue
+            // (e.g. a sibling variadic subflow passed first-class):
+            // no static PackTuple ran, so bind fixed params
+            // positionally and pack the extras here. Fixed count =
+            // the target's param-binding slots minus the `...` slot.
+            const fixedCount = Math.max(
+              0,
+              countLeadingParamBindings(targetContainer) - 1,
+            );
+            packVariadicValueCallArgs(
+              this,
+              evalCommand._callValueArgCount,
+              fixedCount,
+            );
+          } else {
+            spreadLastMultiIfNonVariadic(this, targetContainer);
+          }
           break;
         }
 

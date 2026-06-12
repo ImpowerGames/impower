@@ -72,8 +72,8 @@ test(`survey: first blocker per failing fixture`, () => {
 
 test(`bisect-basic`, () => {
   const src = applyUpstreamPatches(
-    "attrib.luau",
-    readFileSync(join(UPSTREAM_ROOT, "attrib.luau"), "utf8"),
+    "vararg.luau",
+    readFileSync(join(UPSTREAM_ROOT, "vararg.luau"), "utf8"),
   );
   const lines = src.split("\n");
   const tryRange = (startLine: number, endLine: number) => {
@@ -107,7 +107,7 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  for (const end of [95, 104, lines.length]) {
+  for (const end of [45, 60, 90, 120, 150, lines.length]) {
     tryRange(1, end);
   }
 });

@@ -945,6 +945,16 @@ export function collectImmediateBodyDeclarations(
   ctx: LowerContext,
 ): Set<string> {
   const out = new Set<string>();
+  // Parameters are locals too (Lua scoping): a body call through a
+  // param holding a function value (`function (g) return g(1, 2)
+  // end`) must route through the VALUE-CALL path (CallValueExpression
+  // carries the call-site arg count the runtime needs for variadic
+  // packing), not static FunctionCall dispatch — and a nested
+  // closure referencing a param must capture it as an upval rather
+  // than treat it as a global.
+  for (const p of collectParameterNames(fnDef, ctx)) {
+    out.add(p);
+  }
   const bodyContent = getFunctionBodyContent(fnDef);
   if (!bodyContent) return out;
   const walk = (n: SyntaxNode) => {
@@ -1869,10 +1879,7 @@ export function lowerSimpleAccessPath(
             // innermost binding, so a variadic `function foo(...)` in
             // THIS function shadows a same-named local in an outer
             // scope (see isSiblingSubFlowName).
-            if (
-              !isSiblingSubFlowName(nameStr, ctx) &&
-              isEnclosingLocalName(nameStr, ctx)
-            ) {
+            if (resolveCallableBinding(nameStr, ctx) === "local") {
               const receiver = new VariableReference([new Identifier(nameStr)]);
               const baseCall = new CallValueExpression(receiver, args);
               return wrapChainedValueCalls(baseCall, argLists.slice(1));
@@ -1895,6 +1902,25 @@ export function lowerSimpleAccessPath(
   }
 
   if (identifiers.length > 0) {
+    // Sibling variadic subflow referenced as a VALUE (`call(c12, ...)`,
+    // `local h = c12`, `type(c12)`): variadic nested fns stay
+    // knot-form subflows of the enclosing function (see
+    // lowerLuauFunctionDefinition) — there's no local variable
+    // holding a closure, so a VariableReference would read nil and
+    // the runtime Knot fallback only checks TOP-LEVEL knots. Emit a
+    // DivertTarget; ink's name resolution finds the sibling subflow
+    // relative to the enclosing knot, and the runtime value-call
+    // path packs `...` args for bare DivertTargets. Limitation:
+    // upvals aren't carried by a bare divert target — an
+    // upval-capturing variadic subflow passed first-class loses its
+    // captures (the call-site upval-prepend only runs for direct
+    // calls).
+    if (
+      identifiers.length === 1 &&
+      resolveCallableBinding(identifiers[0]!.name, ctx) === "sibling"
+    ) {
+      return new DivertTarget(new Divert([identifiers[0]!]));
+    }
     // Stdlib constant short-circuit: when the dotted path matches a
     // registered constant (`math.pi`, `math.huge`, `_VERSION`, ...),
     // emit the value directly instead of a `VariableReference` that
@@ -1949,10 +1975,7 @@ export function lowerValueChainAccessPath(
     // Mirror the dispatch decision in lowerCallStartingAccessPath
     // above: an enclosing-scope local binding becomes a value-call —
     // unless a sibling variadic SubFlow shadows it (innermost wins).
-    if (
-      !isSiblingSubFlowName(nameStr, ctx) &&
-      isEnclosingLocalName(nameStr, ctx)
-    ) {
+    if (resolveCallableBinding(nameStr, ctx) === "local") {
       const receiver = new VariableReference([new Identifier(nameStr)]);
       current = wrapChainedValueCalls(
         new CallValueExpression(receiver, args),
@@ -2062,16 +2085,40 @@ function isEnclosingLocalName(name: string, ctx: LowerContext): boolean {
   return false;
 }
 
-// Is `name` a variadic sibling SubFlow in the CURRENT function scope?
-// Variadic nested fns (`function foo(...)`) lower as real SubFlows
-// with no `local NAME = closure` binding, so calls to them must route
-// through FunctionCall + Divert (relative-path resolution) — NOT the
-// value-call path. Checked BEFORE `isEnclosingLocalName` at the call
-// dispatch: the sibling subflow is the INNERMOST binding, so it wins
-// over a same-named local in an outer scope (basic.luau line 342's
-// variadic `foo` vs the chunk-level `local function foo` at line 30 —
-// the value-call path resolved the OUTER local and called the wrong
-// function).
+// Resolve a bare callable name against the lexical scope chain,
+// innermost frame first. Every function-lowering site pushes one
+// frame onto BOTH `declaredLocalsStack` and
+// `siblingSubFlowNamesStack` in tandem (see
+// lowerLuauFunctionDefinition / lowerAnonymousFunction), so frames
+// align by index. Within one frame a variadic sibling subflow wins
+// over a same-named local; ACROSS frames the inner binding wins
+// regardless of kind — a lambda param `f` shadows an outer variadic
+// `function f(...)` (vararg.luau's `call = function (f, args)`), and
+// an inner variadic `function foo(...)` shadows an outer
+// `local function foo` (basic.luau line 342). A flat
+// "sibling-check-first" rule gets one of those two wrong whichever
+// way it's ordered.
+function resolveCallableBinding(
+  name: string,
+  ctx: LowerContext,
+): "sibling" | "local" | null {
+  const locals = ctx.declaredLocalsStack ?? [];
+  const siblings = ctx.siblingSubFlowNamesStack ?? [];
+  const depth = Math.max(locals.length, siblings.length);
+  for (let i = depth - 1; i >= 0; i--) {
+    if (siblings[i]?.has(name)) return "sibling";
+    if (locals[i]?.has(name)) return "local";
+  }
+  return null;
+}
+
+// Is `name` a variadic sibling SubFlow in ANY enclosing function
+// scope? Variadic nested fns (`function foo(...)`) lower as real
+// SubFlows with no `local NAME = closure` binding. NOTE: call/value
+// dispatch should use `resolveCallableBinding` instead — it respects
+// per-frame shadowing (a lambda param `f` beats an outer sibling
+// `f`); this flat check remains for the free-variable scan, where
+// any-frame membership is the right question.
 function isSiblingSubFlowName(name: string, ctx: LowerContext): boolean {
   const stack = ctx.siblingSubFlowNamesStack;
   if (!stack) return false;
