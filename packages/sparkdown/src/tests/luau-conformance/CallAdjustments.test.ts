@@ -138,6 +138,50 @@ end
   });
 });
 
+describe("operator results adjust to one value", () => {
+  test("and/or results truncate a multi-return RHS", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local function f() return 1, 2, 3 end
+local a, b = 3 and f()
+host_record(a)
+host_record(b)
+local c, d = nil or f()
+host_record(c)
+host_record(d)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([1, null, 1, null]);
+  });
+
+  test("table constructor entries lower whole node groups", () => {
+    // Paren-less call sugar followed by an operator inside a
+    // constructor (`{f'alo'..'xixi'}` — constructs.luau line 50)
+    // arrives as two sibling nodes; the entry must lower BOTH.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local function f (i) return i end
+local x = {f'alo'..'xixi'}
+host_record(x[1])
+host_record(#x)
+local y = {f'a', k = f'b'..'c', f'd'}
+host_record(y[1])
+host_record(y.k)
+host_record(y[2])
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["aloxixi", 1, "a", "bc", "d"]);
+  });
+});
+
 describe("self as a plain variable outside methods", () => {
   test("chunk-level self assignment is readable from dot-form functions", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)

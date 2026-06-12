@@ -43,6 +43,14 @@ export class BinaryExpression extends Expression {
       container.AddContent(ControlCommand.ShortCircuit(this.opName, 1));
       const rhsContainer = new RuntimeContainer();
       this.rightExpression.GenerateIntoContainer(rhsContainer);
+      // Operator results adjust to ONE value (Lua): `3 and f()`
+      // where f multi-returns yields only f's FIRST value —
+      // `local a,b = 3 and f()` binds b to nil, not f's second
+      // return (constructs.luau line 137). UnpackTuple(1) truncates
+      // a MultiValue / coerces Void to nil / passes scalars through.
+      // (The LHS-decides path already truncates via the ShortCircuit
+      // handler's peek.)
+      rhsContainer.AddContent(ControlCommand.UnpackTuple(1));
       container.AddContent(rhsContainer);
       // Keep the wrapper intact — TryFlattenContainer would inline it
       // into the parent and break the one-element jump.

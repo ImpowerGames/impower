@@ -129,6 +129,64 @@ end`,
         "stack-overflow recovery is VM-resource-specific; upstream skips these blocks on limited-stack platforms and the JS call stack qualifies",
     },
   ],
+  "constructs.luau": [
+    {
+      // Compiles a whitespace-mangled chunk at runtime (the gsub
+      // forces a SETLINE opcode between every token — a bytecode-
+      // compiler concern with no sparkdown analogue). The chunk's
+      // VALUE (operator-precedence function + table-or-table
+      // expression) is preserved verbatim as direct code.
+      find: `f = [[
+return function ( a , b , c , d , e )
+  local x = a >= b or c or ( d and e ) or nil
+  return x
+end , { a = 1 , b = 2 >= 1 , } or { 1 };
+]]
+f = string.gsub(f, "%s+", "\\n");   -- force a SETLINE between opcodes
+f,a = loadstring(f)();`,
+      replace: `f = function ( a , b , c , d , e )
+  local x = a >= b or c or ( d and e ) or nil
+  return x
+end
+a = { a = 1 , b = 2 >= 1 , } or { 1 };`,
+      reason:
+        "no runtime compiler; the loadstring chunk's function + table expression inlined directly (the SETLINE-forcing gsub tests the bytecode compiler, which sparkdown doesn't have)",
+    },
+    {
+      // The boolean-operator permutation tester: builds all 1024
+      // combinations of `[not] ([not] arg op [not] arg)` as SOURCE
+      // STRINGS and compiles each via loadstring. Untestable without
+      // a runtime compiler; the and/or/==/~=/not semantics it sweeps
+      // are covered directly by basic.luau's operator sections and
+      // this fixture's own g/h comparisons above.
+      find: `local i = 0
+repeat
+  c = 1
+  local s = f(neg, i)..'ID('..f(neg, i)..f(arg, i)..f(op, i)..f(neg, i)..'ID('..f(arg, i)..'))'
+  local s1 = string.gsub(s, 'ID', '')
+  K,X,NX,WX1,WX2 = nil
+  s = string.format([[
+      local a = %s
+      local b = not %s
+      K = b
+      local xxx; 
+      if %s then X = a  else X = b end
+      if %s then NX = b  else NX = a end
+      while %s do WX1 = a; break end
+      while %s do WX2 = a; break end
+      repeat if (%s) then break end; assert(b)  until not(%s)
+  ]], s1, s, s1, s, s1, s, s1, s, s)
+  assert(loadstring(s))()
+  assert(X and not NX and not WX1 == K and not WX2 == K)
+  if i%4000 == 0 then print('+') end
+  i = i+1
+until i==c`,
+      replace: `-- [sparkdown] permutation tester skipped: compiles 1024 generated
+-- chunks via loadstring (no runtime compiler)`,
+      reason:
+        "no runtime compiler; the tester compiles 1024 generated source permutations at runtime",
+    },
+  ],
   "closure.luau": [
     {
       // "repeat until GC": spins creating garbage until a weak table

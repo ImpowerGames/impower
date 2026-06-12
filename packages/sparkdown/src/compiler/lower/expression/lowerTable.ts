@@ -38,105 +38,77 @@ export function lowerTable(
   if (!content) return new ObjectExpression([]);
 
   const entries: ObjectExpressionEntry[] = [];
-  // When non-null: `{ key, … }` is being parsed and we're holding the
-  // resolved key string from the most-recent identifier or bracket
-  // expression. If the next non-skippable child is a `LuauAssignmentOperation`,
-  // we emit `(pendingKey, value)`. Otherwise we flush `pendingKey` as a
-  // bare value (treat as array-style) — but only when it came from an
-  // `LuauAccessPath`, since `LuauTableIndexDeclaration` is meaningless
-  // without an assignment.
-  let pendingKey: string | Expression | null = null;
-  let pendingKeyNode: SyntaxNode | null = null;
-  let pendingKeyIsBracket = false;
   let arrayIndex = 1;
 
-  const emitBareValue = (valueNode: SyntaxNode) => {
-    const value = lowerExpressionFromNodes([valueNode], ctx);
-    if (value) {
-      entries.push(new ObjectExpressionEntry(String(arrayIndex++), value));
-    }
-  };
-
+  // Split the constructor body into per-entry NODE GROUPS at the
+  // comma/semicolon separators. Each group is then classified whole:
+  //   - [AccessPath, AssignmentOperation]            → `key = value`
+  //   - [TableIndexDeclaration, AssignmentOperation] → `[expr] = value`
+  //   - anything else                                → array-style value,
+  //     lowered from ALL group nodes — an entry like `f'alo'..'xixi'`
+  //     (paren-less call sugar + operator) arrives as TWO sibling
+  //     nodes (constructs.luau line 50); lowering only the first
+  //     dropped the concat tail.
+  const groups: SyntaxNode[][] = [];
+  let current: SyntaxNode[] = [];
   let child = content.firstChild;
   while (child) {
     if (
       child.name === "LuauCommaSeparator" ||
       child.name === "LuauSemicolonSeparator"
     ) {
-      if (pendingKeyNode !== null && !pendingKeyIsBracket) {
-        // Bare identifier acting as an array-style value
-        // (`{foo, bar}`).
-        emitBareValue(pendingKeyNode);
-      }
-      pendingKey = null;
-      pendingKeyNode = null;
-      pendingKeyIsBracket = false;
-      child = child.nextSibling;
-      continue;
+      if (current.length > 0) groups.push(current);
+      current = [];
+    } else if (!isSkippableName(child.name)) {
+      current.push(child);
     }
-    if (isSkippableName(child.name)) {
-      child = child.nextSibling;
-      continue;
-    }
-    if (child.name === "LuauAccessPath" && pendingKey === null) {
-      pendingKey = readSingleIdentifier(child, ctx);
-      pendingKeyNode = child;
-      pendingKeyIsBracket = false;
-      child = child.nextSibling;
-      continue;
-    }
+    child = child.nextSibling;
+  }
+  if (current.length > 0) groups.push(current);
+
+  for (const group of groups) {
+    const first = group[0]!;
+    const second = group[1];
     if (
-      child.name === "LuauTableIndexDeclaration" &&
-      pendingKey === null
+      second?.name === "LuauAssignmentOperation" &&
+      (first.name === "LuauAccessPath" ||
+        first.name === "LuauTableIndexDeclaration")
     ) {
-      // Static literal key first; otherwise lower the bracket's
-      // inner expression for runtime evaluation (`{[1+2] = 4}`).
-      pendingKey = readStaticBracketKey(child, ctx);
-      if (pendingKey === null) {
-        const bracketContent = findChildByName(
-          child,
-          "LuauTableIndexDeclaration_content",
-        );
-        pendingKey = bracketContent
-          ? lowerExpressionFromContainer(bracketContent, ctx)
-          : null;
+      // Keyed entry. Identifier keys read their single name; bracket
+      // keys try a static literal first, then lower the inner
+      // expression for runtime evaluation (`{[1+2] = 4}`).
+      let key: string | Expression | null;
+      if (first.name === "LuauAccessPath") {
+        key = readSingleIdentifier(first, ctx);
+      } else {
+        key = readStaticBracketKey(first, ctx);
+        if (key === null) {
+          const bracketContent = findChildByName(
+            first,
+            "LuauTableIndexDeclaration_content",
+          );
+          key = bracketContent
+            ? lowerExpressionFromContainer(bracketContent, ctx)
+            : null;
+        }
       }
-      pendingKeyNode = child;
-      pendingKeyIsBracket = true;
-      child = child.nextSibling;
-      continue;
-    }
-    if (child.name === "LuauAssignmentOperation" && pendingKey !== null) {
-      const keyName = pendingKey;
-      pendingKey = null;
-      pendingKeyNode = null;
-      pendingKeyIsBracket = false;
       const opContent = findChildByName(
-        child,
+        second,
         "LuauAssignmentOperation_content",
       );
       const value = opContent
         ? lowerExpressionFromContainer(opContent, ctx)
         : null;
-      if (value && keyName !== null) {
-        entries.push(new ObjectExpressionEntry(keyName, value));
+      if (key !== null && value) {
+        entries.push(new ObjectExpressionEntry(key, value));
       }
-      child = child.nextSibling;
       continue;
     }
-    // Either a leftover pending key with no `=` (treat as bare value), or a
-    // bare expression entry (array-style).
-    if (pendingKeyNode !== null && !pendingKeyIsBracket) {
-      emitBareValue(pendingKeyNode);
+    // Array-style value from the whole group.
+    const value = lowerExpressionFromNodes(group, ctx);
+    if (value) {
+      entries.push(new ObjectExpressionEntry(String(arrayIndex++), value));
     }
-    pendingKey = null;
-    pendingKeyNode = null;
-    pendingKeyIsBracket = false;
-    emitBareValue(child);
-    child = child.nextSibling;
-  }
-  if (pendingKeyNode !== null && !pendingKeyIsBracket) {
-    emitBareValue(pendingKeyNode);
   }
   return new ObjectExpression(entries);
 }
