@@ -51,10 +51,15 @@ export function lowerReassignment(
   // closure body reassigning a locally-shadowed `count = count + 1`
   // would silently produce no VariableAssignment and the write would
   // disappear.
+  // `self` is grammar-tagged `LuauSelfKeyword` even in plain
+  // identifier position — outside a method body it's an ordinary
+  // variable in Lua (`self = 20` at chunk level, calls.luau line
+  // 33), so accept it as an assignment target too.
   const nameNode =
     getDescendent("LuauVariableName", lhsPath) ??
     getDescendent("LuauStdLibConstants", lhsPath) ??
-    getDescendent("LuauStdLibFunctions", lhsPath);
+    getDescendent("LuauStdLibFunctions", lhsPath) ??
+    getDescendent("LuauSelfKeyword", lhsPath);
   if (!nameNode) return {};
   const variableName = ctx.read(nameNode.from, nameNode.to);
   const identifier = new Identifier(variableName);
@@ -62,22 +67,35 @@ export function lowerReassignment(
   // `f = <expr>` REBINDS the name to a runtime value (Lua's
   // `function f` is itself sugar for this kind of assignment —
   // vararg.luau line 155 reassigns the twice-defined `f` to a fresh
-  // function value). Two registry effects, both consulted in lexical
-  // order during lowering so earlier call sites keep their original
-  // binding:
-  //   1. Drop any sibling-subflow entries — subsequent `f(...)` must
-  //      not statically divert to the stale knot.
-  //   2. Record the name as a dispatch-known binding (the
-  //      declared-locals frame): subsequent `f(...)` calls route
-  //      through CallValueExpression, which reads the variable AND
-  //      carries the call-site arg count the runtime needs to pack
-  //      `...` args for variadic function values.
-  if (ctx.siblingSubFlowNamesStack) {
+  // function value). For names that are NOT already locals (bare
+  // globals and former sibling subflows), record the rebind in the
+  // sibling registry — consulted in lexical order during lowering,
+  // so earlier call sites keep their original binding:
+  //   - any stale subflow entries are dropped (subsequent `f(...)`
+  //     must not statically divert to the old knot);
+  //   - the `rebound` marker makes subsequent calls value-dispatch
+  //     through the variable (CallValueExpression carries the
+  //     call-site arg count the runtime needs to pack `...` args)
+  //     while still suppressing upval capture — a closure
+  //     referencing a bare-assigned GLOBAL (`self = 20` then
+  //     `function a.y (x) return x+self end` — calls.luau line 34)
+  //     reads the global, it doesn't capture a pointer.
+  // Already-local names skip all of this: their dispatch is value-
+  // call via declaredLocals anyway, and registering them here would
+  // wrongly suppress their upval capture.
+  const isKnownLocal =
+    ctx.declaredLocalsStack?.some((f) => f.has(variableName)) ?? false;
+  if (!isKnownLocal && ctx.siblingSubFlowNamesStack) {
     for (const frame of ctx.siblingSubFlowNamesStack) {
       frame.delete(variableName);
     }
+    ctx.siblingSubFlowNamesStack.at(-1)?.set(variableName, {
+      upvals: [],
+      arity: -1,
+      knotName: variableName,
+      rebound: true,
+    });
   }
-  ctx.declaredLocalsStack?.at(-1)?.add(variableName);
 
   let expr = lowerExpressionFromContainer(opNode, ctx);
 

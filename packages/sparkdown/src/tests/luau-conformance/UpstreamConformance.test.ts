@@ -230,6 +230,7 @@ describe("Luau upstream conformance baseline", () => {
     "assert.luau",
     "attrib.luau",
     "basic.luau",
+    "calls.luau",
     "clear.luau",
     "ifelseexpr.luau",
     "move.luau",

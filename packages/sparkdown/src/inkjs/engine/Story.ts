@@ -2691,7 +2691,13 @@ export class Story extends InkObject {
               this.state.outputStream.length,
             );
             const closureTarget = this.ContentAtPath(closurePath).obj;
-            spreadLastMultiIfNonVariadic(this, closureTarget);
+            // ZERO-arg call sites have nothing to spread — the eval
+            // stack's top belongs to the CALLER (`local a,b,c = g(),
+            // g()`: the second g()'s dispatch must not spread the
+            // first g()'s pending multi-return — calls.luau line 207).
+            if (evalCommand._callValueArgCount !== 0) {
+              spreadLastMultiIfNonVariadic(this, closureTarget);
+            }
             break;
           }
           // `__stdlib_fn` marker dispatch: the target is an
@@ -2888,7 +2894,9 @@ export class Story extends InkObject {
               evalCommand._callValueArgCount,
               fixedCount,
             );
-          } else {
+          } else if (evalCommand._callValueArgCount !== 0) {
+            // Zero-arg call sites have nothing to spread — don't
+            // touch the caller's pending eval-stack values.
             spreadLastMultiIfNonVariadic(this, targetContainer);
           }
           break;
@@ -3150,10 +3158,20 @@ export class Story extends InkObject {
               for (let k = v.values.length - 1; k >= 0; k--) {
                 values.unshift(v.values[k]!);
               }
+            } else if (i === 0 && v instanceof Void) {
+              // Last expression returned NO values (a function that
+              // fell off its end): it spreads to ZERO values, not a
+              // nil — `return t[i], unlpack(t, i+1)` where the
+              // terminal recursion level returns nothing must pack
+              // exactly the collected items (calls.luau line 204
+              // packed one phantom extra per chain).
             } else if (v instanceof MultiValue) {
               // Non-last expression truncates to its first value
               // (or nil if it returned zero values).
               values.unshift(v.values[0] ?? new NullValue());
+            } else if (v instanceof Void) {
+              // Non-last no-value expression adjusts to nil.
+              values.unshift(new NullValue());
             } else {
               values.unshift(v);
             }

@@ -215,9 +215,18 @@ export class FunctionCall extends Expression {
       // validation reports them as Lua's trappable "missing argument
       // #N to 'abs'" (and any other op fails its own type validation
       // on the Void rather than corrupting the stack).
+      //
+      // OVER-application discards the extras Lua-style: all args
+      // still EVALUATE (side effects run), then the surplus pops off
+      // the top so the native sees the FIRST N — `math.sin(1,2) ==
+      // math.sin(1)` (calls.luau line 220); without the pops the
+      // native would consume the LAST args and strand the first.
       if (!nativeCall.isVariadic) {
         for (let ii = this.args.length; ii < nativeCall.numberOfParameters; ii += 1) {
           container.AddContent(new RuntimeVoid());
+        }
+        for (let ii = nativeCall.numberOfParameters; ii < this.args.length; ii += 1) {
+          container.AddContent(RuntimeControlCommand.PopEvaluatedValue());
         }
       }
 

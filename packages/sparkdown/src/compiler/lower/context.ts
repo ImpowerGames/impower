@@ -199,6 +199,17 @@ export interface SiblingSubFlowInfo {
   upvals: string[];
   arity: number;
   knotName: string;
+  /**
+   * The name no longer refers to a knot at all: a plain `NAME =
+   * <expr>` assignment rebound it to a runtime value (Lua's
+   * `function f` is sugar for exactly that, so a later assignment
+   * wins). Rebound entries make `resolveCallableBinding` answer
+   * "local" (subsequent calls value-dispatch through the variable,
+   * carrying the arg count the runtime's variadic packing needs)
+   * while still suppressing upval capture — a bare-assigned GLOBAL
+   * is read as a global inside closures, not captured by pointer.
+   */
+  rebound?: boolean;
 }
 
 // Builds a `LowerContext` from a raw source string. Used by the snapshot

@@ -8,6 +8,8 @@ import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expre
 import { CallValueExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
 import { IndexExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/IndexExpression";
 import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
+import { SingleValueExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/SingleValueExpression";
+import { StashAndRereadExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StashAndRereadExpression";
 import {
   TernaryExpression,
   TernaryBranch,
@@ -109,11 +111,18 @@ export function lowerExpressionFromNodes(
         // Chained method calls — mirror the tree-walking logic in
         // `collectTokens`. Fold subsequent
         // `LuauChainedFunctionCall + LuauParenthetical` pairs into the
-        // chain, threading the previous result as the receiver.
+        // chain, threading the previous result as the receiver, and
+        // `LuauChainedPropertyAccess` links (`a:m(x).y` / `[i]`) as
+        // IndexExpressions on the running value.
         let j = i + 2;
         while (expr && j < nodes.length) {
           const after = nodes[j]!;
           if (isSkippableName(after.name)) {
+            j++;
+            continue;
+          }
+          if (after.name === "LuauChainedPropertyAccess") {
+            expr = lowerChainedPropertyLink(after, expr, ctx);
             j++;
             continue;
           }
@@ -245,10 +254,19 @@ function collectTokens(
         // chained `:method(args)` link (see grammar rule
         // `LuauChainedFunctionCall` and the comment in `LuauExpression`).
         // Each pair threads the previous result as the receiver.
+        // `LuauChainedPropertyAccess` links (`a:m(x).y` / `[i]`) fold
+        // as IndexExpressions on the running value and may interleave
+        // with further chained calls (`a:m(x).y[i]:n()`).
         let after: SyntaxNode | null = args.nextSibling;
         while (expr && after) {
           while (after && isSkippableName(after.name)) after = after.nextSibling;
-          if (!after || after.name !== "LuauChainedFunctionCall") break;
+          if (!after) break;
+          if (after.name === "LuauChainedPropertyAccess") {
+            expr = lowerChainedPropertyLink(after, expr, ctx);
+            after = after.nextSibling;
+            continue;
+          }
+          if (after.name !== "LuauChainedFunctionCall") break;
           const chainParen = findNextNonSkippableSibling(after);
           if (!chainParen || chainParen.name !== "LuauParenthetical") break;
           expr = lowerChainedMethodCall(after, chainParen, expr, ctx);
@@ -312,21 +330,66 @@ function lowerChainedMethodCall(
     );
   }
   // User-defined method on a chained-call receiver — same value-call
-  // dispatch as the top-level method-call case. Trade-off: the
-  // receiver expression is referenced twice (once for index lookup,
-  // once as the threaded `self` arg). If the receiver is itself a
-  // call (e.g. `a:m1():m2()` — `m1()`'s result is the receiver for
-  // `:m2()`), that call gets evaluated twice. A future temp-local
-  // hoist would fix this; for now it's accepted as a known wart.
+  // dispatch as the top-level method-call case. The colon form needs
+  // the receiver twice (lookup + threaded `self`), and here the
+  // receiver IS the previous call's result — re-generating it would
+  // re-run the call (`a:add(10):add(20)` ran `add(10)` twice and
+  // produced 40 instead of 30). Stash once, read twice.
   const opNode = getDescendent("LuauAccessorOperator", accessor);
   const opText = opNode ? ctx.read(opNode.from, opNode.to).trim() : ":";
   const isColonForm = opText === ":";
+  if (isColonForm) {
+    const tempName = `__mcall_${chainNode.from}`;
+    const targetExpr = new IndexExpression(
+      new VariableReference([new Identifier(tempName)]),
+      new StringExpression([new Text(methodNameText)]),
+    );
+    return new CallValueExpression(targetExpr, [
+      new StashAndRereadExpression(receiver, tempName),
+      ...callArgs,
+    ]);
+  }
   const targetExpr = new IndexExpression(
     receiver,
     new StringExpression([new Text(methodNameText)]),
   );
-  const finalArgs = isColonForm ? [receiver, ...callArgs] : callArgs;
-  return new CallValueExpression(targetExpr, finalArgs);
+  return new CallValueExpression(targetExpr, callArgs);
+}
+
+// Fold one `LuauChainedPropertyAccess` link (`.name` or `[expr]`
+// trailing a method call — `a:m(x).y`) into an IndexExpression on the
+// running chain value.
+function lowerChainedPropertyLink(
+  linkNode: SyntaxNode,
+  receiver: Expression,
+  ctx: LowerContext,
+): Expression | null {
+  const content =
+    findChildByName(linkNode, "LuauChainedPropertyAccess_content") ?? linkNode;
+  const accessor = getDescendent("LuauPropertyAccessor", content);
+  if (accessor) {
+    const nameNode =
+      getDescendent("LuauPropertyName", accessor) ??
+      getDescendent("LuauStdLibMethods", accessor);
+    if (!nameNode) return null;
+    return new IndexExpression(
+      receiver,
+      new StringExpression([new Text(ctx.read(nameNode.from, nameNode.to))]),
+    );
+  }
+  const indexer = getDescendent("LuauPropertyIndexer", content);
+  if (indexer) {
+    const indexerContent = findChildByName(
+      indexer,
+      "LuauPropertyIndexer_content",
+    );
+    const key = indexerContent
+      ? lowerExpressionFromContainer(indexerContent, ctx)
+      : null;
+    if (!key) return null;
+    return new IndexExpression(receiver, key);
+  }
+  return null;
 }
 
 function hasTrailingMethodAccessor(accessPath: SyntaxNode): boolean {
@@ -463,22 +526,29 @@ function lowerMethodCall(
   const opText = opNode ? ctx.read(opNode.from, opNode.to).trim() : ":";
   const isColonForm = opText === ":";
 
-  // Build a SECOND receiver expression for the index lookup. Reusing
-  // the same `receiver` ParsedObject would double-attach it (each
-  // ParsedObject's AddContent sets parent pointers). The cheap repeat-
-  // lower mirrors what `lowerPropertyTargetAssignment` does for
-  // compound LHS — semantically the receiver is evaluated twice. Lua
-  // spec says once, but matching that needs a temp-local hoist (the
-  // same compound-assignment trade-off applies here).
-  const receiverForLookup = lowerPartsAsExpression(receiverParts, ctx);
-  if (!receiverForLookup) return null;
+  // Colon form needs the receiver TWICE (method lookup + threaded
+  // `self` arg) but Lua evaluates it exactly ONCE. Stash it in a
+  // temp via the first generated arg (CallValueExpression generates
+  // args before the target), and read the temp for the index lookup
+  // — `a:add(10):add(20)` must not run `add(10)` twice (calls.luau
+  // line 47). The dot form uses the receiver only in the lookup, so
+  // it generates directly.
+  if (isColonForm) {
+    const tempName = `__mcall_${accessPath.from}`;
+    const targetExpr = new IndexExpression(
+      new VariableReference([new Identifier(tempName)]),
+      new StringExpression([new Text(methodNameText)]),
+    );
+    return new CallValueExpression(targetExpr, [
+      new StashAndRereadExpression(receiver, tempName),
+      ...callArgs,
+    ]);
+  }
   const targetExpr = new IndexExpression(
-    receiverForLookup,
+    receiver,
     new StringExpression([new Text(methodNameText)]),
   );
-
-  const finalArgs = isColonForm ? [receiver, ...callArgs] : callArgs;
-  return new CallValueExpression(targetExpr, finalArgs);
+  return new CallValueExpression(targetExpr, callArgs);
 }
 
 function lowerPartsAsExpression(
@@ -726,8 +796,23 @@ export function lowerPrimary(
       return lowerString(node, ctx);
     case "LuauAccessPath":
       return lowerAccessPath(node, ctx);
-    case "LuauParenthetical":
-      return lowerExpressionFromContainer(node, ctx);
+    case "LuauParenthetical": {
+      // Lua adjusts `(expr)` to exactly ONE value — a parenthesized
+      // multi-return call truncates (`(ret2(f()))` is one value,
+      // calls.luau line 210). Only potentially-multi-valued inners
+      // need the runtime adjustment op; literals/operators/etc. are
+      // single-valued by construction and pass through unwrapped
+      // (keeps `(42)` structurally identical to `42`).
+      const inner = lowerExpressionFromContainer(node, ctx);
+      if (!inner) return inner;
+      const maybeMultiValued =
+        inner instanceof FunctionCall ||
+        inner instanceof CallValueExpression ||
+        inner instanceof TernaryExpression ||
+        (inner instanceof VariableReference &&
+          inner.name === VARARGS_LOCAL_NAME);
+      return maybeMultiValued ? new SingleValueExpression(inner) : inner;
+    }
     case "LuauTable":
       return lowerTable(node, ctx);
     case "LuauDivertTargetLiteral":
@@ -1166,7 +1251,12 @@ export function scanFreeVariables(
     const stack = ctx.siblingSubFlowNamesStack;
     if (!stack) return false;
     for (let i = stack.length - 1; i >= 0; i--) {
-      if (stack[i]!.has(name)) return true;
+      const entry = stack[i]!.get(name);
+      // Rebound entries (`f = <expr>` over a global/former subflow)
+      // are dispatch metadata only — they must NOT suppress upval
+      // capture decisions; the name resolves like any other
+      // global/local reference here.
+      if (entry !== undefined && !entry.rebound) return true;
     }
     return false;
   };
@@ -2119,7 +2209,12 @@ function resolveCallableBinding(
   const siblings = ctx.siblingSubFlowNamesStack ?? [];
   const depth = Math.max(locals.length, siblings.length);
   for (let i = depth - 1; i >= 0; i--) {
-    if (siblings[i]?.has(name)) return "sibling";
+    const sibling = siblings[i]?.get(name);
+    if (sibling !== undefined) {
+      // Rebound names (`f = <expr>` over a former subflow or a bare
+      // global) dispatch as VALUE calls, not static diverts.
+      return sibling.rebound ? "local" : "sibling";
+    }
     if (locals[i]?.has(name)) return "local";
   }
   return null;

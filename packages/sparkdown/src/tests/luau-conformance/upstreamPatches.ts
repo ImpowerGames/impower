@@ -91,6 +91,44 @@ end`,
         "no runtime compiler; main-chunk varargs replaced by a function literal with identical `...` semantics",
     },
   ],
+  "calls.luau": [
+    {
+      // `fat` recurses THROUGH loadstring (compiling "return fat(n-1)"
+      // each step) to exercise the compiler from inside a call. No
+      // runtime compiler in sparkdown — direct recursion preserves
+      // the function's value as a recursion/arith test.
+      find: `  else return x*loadstring("return fat(" .. x-1 .. ")")()`,
+      replace: `  else return x*fat(x-1)`,
+      reason:
+        "no runtime compiler; loadstring-mediated recursion replaced by direct recursion",
+    },
+    {
+      find: `assert(loadstring "loadstring 'assert(fat(6)==720)' () ")()`,
+      replace: `assert(fat(6)==720)`,
+      reason:
+        "no runtime compiler; nested loadstring indirection reduced to the assertion it ultimately runs",
+    },
+    {
+      find: `a = loadstring('return fat(5), 3')`,
+      replace: `a = function() return fat(5), 3 end`,
+      reason:
+        "no runtime compiler; loadstring chunk replaced by a function literal with the same body",
+    },
+    {
+      // The final two blocks deliberately exhaust the C stack
+      // (recursive pcall-until-overflow, 19000-deep recursion with
+      // 4000-value unpacks) and assert on the VM's overflow recovery
+      // messages. Upstream's own harness skips them on stack-limited
+      // platforms via the `limitedstack` global (types.luau's ignore
+      // list documents it as test-executable-only); sparkdown runs on
+      // the JS call stack, which is exactly such a platform.
+      find: `-- C-stack overflow while handling C-stack overflow`,
+      replace: `limitedstack = true -- [sparkdown] JS call stack: take upstream's limited-stack skip path
+-- C-stack overflow while handling C-stack overflow`,
+      reason:
+        "stack-overflow recovery is VM-resource-specific; upstream skips these blocks on limited-stack platforms and the JS call stack qualifies",
+    },
+  ],
   "closure.luau": [
     {
       // "repeat until GC": spins creating garbage until a weak table
