@@ -175,7 +175,30 @@ export interface LowerContext {
    * each function-definition lowerer pushes one frame on entry and
    * pops on exit.
    */
-  siblingSubFlowNamesStack?: Map<string, string[]>[];
+  siblingSubFlowNamesStack?: Map<string, SiblingSubFlowInfo>[];
+}
+
+/**
+ * Registry entry for a variadic nested function lowered as a
+ * knot-form SubFlow (`lowerNestedAsSubFlow`). `upvals` are the
+ * captured free-variable names — prepended as parameters on the
+ * SubFlow and as `VariablePointerExpression` args at direct call
+ * sites. `arity` is the declared FIXED parameter count (excludes
+ * both the prepended upvals and the `...` slot) — value references
+ * need it to build a closure-shaped value whose
+ * `__closure_user_arity` drives the runtime's variadic arg packing.
+ * `knotName` is the SubFlow's actual container name: normally the
+ * source name, but a REDEFINITION (`function f(...)` twice in one
+ * function body — vararg.luau lines 9/64) gets a mangled name so
+ * both bodies survive as distinct containers. The registry is
+ * consulted in lexical order during lowering, so call sites before
+ * the redefinition bind the first container and sites after bind
+ * the second — matching Lua's assign-a-global semantics.
+ */
+export interface SiblingSubFlowInfo {
+  upvals: string[];
+  arity: number;
+  knotName: string;
 }
 
 // Builds a `LowerContext` from a raw source string. Used by the snapshot

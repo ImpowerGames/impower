@@ -107,9 +107,7 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  for (const end of [45, 60, 90, 120, 150, lines.length]) {
-    tryRange(1, end);
-  }
+  tryRange(1, lines.length);
 });
 
 test(`probe ${PROBE_FILE}`, () => {

@@ -108,6 +108,67 @@ end
     expect(recorded).toEqual([1, 2]);
   });
 
+  test("variadic method definitions bind self correctly", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local t = {1, 10}
+function t:f (...)
+  local arg = { n=select('#',...), ... }
+  return self[arg[1]]+arg.n
+end
+host_record(t:f(1,4))
+host_record(t:f(2))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([3, 11]);
+  });
+
+  test("redefined variadic function routes per lexical position", () => {
+    // Lua's `function f` is sugar for a global assignment: calls
+    // before a redefinition hit the first body, calls after hit the
+    // second, and a later plain `f = <expr>` rebinds again.
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+function f(...) return "first" end
+host_record(f())
+function f(a, b, ...) return select('#', ...) end
+host_record(f(1, 2, 3, 4))
+f = function(...) return {...} end
+local x = f(2, 3)
+host_record(x[1])
+host_record(x[2])
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["first", 2, 2, 3]);
+  });
+
+  test("variadic natives spread an unpacked last arg; pure fns unwrap through markers", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+host_record(math.max(table.unpack({3, 9, 4})))
+local callit = function (g, args) return g(table.unpack(args)) end
+host_record(callit(math.max, {5, 2, 8}))
+local ok, v = pcall(math.abs, -5)
+host_record(ok)
+host_record(v)
+host_record(select('3', 10, 20, 30))
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([9, 8, true, 5, 30]);
+  });
+
   test("void stdlib marker through a param reads as nil", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()

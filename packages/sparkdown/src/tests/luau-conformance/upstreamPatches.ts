@@ -61,6 +61,36 @@ export const UPSTREAM_PATCHES: Record<string, UpstreamPatch[]> = {
         "sparkdown stories are precompiled (no runtime compiler); loadstring returns (nil, message) for every chunk, with our message text",
     },
   ],
+  "vararg.luau": [
+    {
+      // "varargs for main chunks": compiles vararg-using MAIN CHUNKS
+      // at runtime via loadstring. Sparkdown has no runtime compiler
+      // and doesn't model main-chunk varargs — but a function literal
+      // has IDENTICAL `...` semantics, so the assertions keep their
+      // full value with `loadstring[[ ... ]]` swapped for
+      // `function(...) ... end`.
+      find: `f = loadstring[[ return {...} ]]`,
+      replace: `f = function(...) return {...} end`,
+      reason:
+        "no runtime compiler; main-chunk varargs replaced by a function literal with identical `...` semantics",
+    },
+    {
+      find: `f = loadstring[[
+  local x = {...}
+  for i=1,select('#', ...) do assert(x[i] == select(i, ...)) end
+  assert(x[select('#', ...)+1] == nil)
+  return true
+]]`,
+      replace: `f = function(...)
+  local x = {...}
+  for i=1,select('#', ...) do assert(x[i] == select(i, ...)) end
+  assert(x[select('#', ...)+1] == nil)
+  return true
+end`,
+      reason:
+        "no runtime compiler; main-chunk varargs replaced by a function literal with identical `...` semantics",
+    },
+  ],
   "closure.luau": [
     {
       // "repeat until GC": spins creating garbage until a weak table

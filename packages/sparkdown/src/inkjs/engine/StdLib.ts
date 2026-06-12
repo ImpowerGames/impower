@@ -2679,7 +2679,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (first === "#") {
         return args.length - 1;
       }
-      const n = coerceNumber(args[0]);
+      // Lua coerces a numeric-string index (`select('3', ...)` —
+      // vararg.luau line 151).
+      const n =
+        coerceNumber(args[0]) ??
+        (first !== null ? parseLuauNumber(first) : null);
       if (n === null) {
         story.Error(
           'select: first argument must be a positive integer or "#"',
@@ -4668,6 +4672,35 @@ export function pureStdLibTypes(entry: StdLibEntry): PureStdLibType[] | null {
   if (entry.pure === true) return ["number"];
   if (Array.isArray(entry.pure) && entry.pure.length > 0) return entry.pure;
   return null;
+}
+
+// PURE entries' `fn`s receive RAW JS values (numbers/strings) — when
+// dispatched as NativeFunctionCalls the engine's type coercion has
+// already unwrapped them. The first-class marker paths in Story.ts
+// (`pcall(math.abs, -5)`, `call(math.max, t)` via a stored
+// `__stdlib_fn` value) pop AbstractValues off the eval stack instead,
+// so they must unwrap before invoking a pure `fn` — `Math.abs(IntValue)`
+// is NaN and `IntValue > -Infinity` compares an object. Numeric
+// strings coerce per Lua (`math.abs('-5')`). State-aware entries take
+// the wrapped values and are returned unchanged.
+export function unwrapArgsForPureStdLibFn(
+  entry: StdLibEntry,
+  args: any[],
+): any[] {
+  const types = pureStdLibTypes(entry);
+  if (!types) return args;
+  const numeric = types.length === 1 && types[0] === "number";
+  return args.map((v) => {
+    if (v != null && typeof v === "object" && "value" in v) {
+      const raw = (v as { value: unknown }).value;
+      if (numeric && typeof raw === "string") {
+        const n = parseLuauNumber(raw);
+        if (n !== null) return n;
+      }
+      return raw;
+    }
+    return v;
+  });
 }
 
 // If `name` resolves to a stdlib entry that's marked `deprecated`,

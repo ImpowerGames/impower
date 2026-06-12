@@ -59,6 +59,26 @@ export function lowerReassignment(
   const variableName = ctx.read(nameNode.from, nameNode.to);
   const identifier = new Identifier(variableName);
 
+  // `f = <expr>` REBINDS the name to a runtime value (Lua's
+  // `function f` is itself sugar for this kind of assignment —
+  // vararg.luau line 155 reassigns the twice-defined `f` to a fresh
+  // function value). Two registry effects, both consulted in lexical
+  // order during lowering so earlier call sites keep their original
+  // binding:
+  //   1. Drop any sibling-subflow entries — subsequent `f(...)` must
+  //      not statically divert to the stale knot.
+  //   2. Record the name as a dispatch-known binding (the
+  //      declared-locals frame): subsequent `f(...)` calls route
+  //      through CallValueExpression, which reads the variable AND
+  //      carries the call-site arg count the runtime needs to pack
+  //      `...` args for variadic function values.
+  if (ctx.siblingSubFlowNamesStack) {
+    for (const frame of ctx.siblingSubFlowNamesStack) {
+      frame.delete(variableName);
+    }
+  }
+  ctx.declaredLocalsStack?.at(-1)?.add(variableName);
+
   let expr = lowerExpressionFromContainer(opNode, ctx);
 
   if (opText && opText !== "=" && expr) {

@@ -29,7 +29,7 @@ import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Obj
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { LowerContext } from "../context";
+import { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments, VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
@@ -1485,7 +1485,7 @@ export function buildAnonymousFunction(
   ctx.declaredLocalsStack?.push(ownLocals);
   const innerHoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
-  const innerSiblingSubFlows = new Map<string, string[]>();
+  const innerSiblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
   const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP);
   ctx.siblingSubFlowNamesStack?.pop();
@@ -1884,8 +1884,13 @@ export function lowerSimpleAccessPath(
               const baseCall = new CallValueExpression(receiver, args);
               return wrapChainedValueCalls(baseCall, argLists.slice(1));
             }
+            // Sibling subflows dispatch against their CONTAINER name
+            // — mangled when the source name was redefined (see
+            // SiblingSubFlowInfo.knotName).
+            const callName =
+              siblingSubFlowInfo(nameStr, ctx)?.knotName ?? nameStr;
             const base = makeGlobalFunctionCall(
-              new Identifier(nameStr),
+              new Identifier(callName),
               withSiblingSubFlowUpvalArgs(nameStr, args, ctx),
               inner,
               ctx,
@@ -1907,19 +1912,24 @@ export function lowerSimpleAccessPath(
     // knot-form subflows of the enclosing function (see
     // lowerLuauFunctionDefinition) — there's no local variable
     // holding a closure, so a VariableReference would read nil and
-    // the runtime Knot fallback only checks TOP-LEVEL knots. Emit a
-    // DivertTarget; ink's name resolution finds the sibling subflow
-    // relative to the enclosing knot, and the runtime value-call
-    // path packs `...` args for bare DivertTargets. Limitation:
-    // upvals aren't carried by a bare divert target — an
-    // upval-capturing variadic subflow passed first-class loses its
-    // captures (the call-site upval-prepend only runs for direct
-    // calls).
+    // the runtime Knot fallback only checks TOP-LEVEL knots. No
+    // captures → a bare DivertTarget (the runtime value-call path
+    // packs `...` args for those). With captures → a closure-shaped
+    // value whose upval pointers snapshot the enclosing frame's
+    // cells at REFERENCE time, exactly like anonymous closures —
+    // `extractClosurePath` re-threads them below the user args at
+    // call time (vararg.luau line 74: `call(f, a)` where f captures
+    // `lim`).
     if (
       identifiers.length === 1 &&
       resolveCallableBinding(identifiers[0]!.name, ctx) === "sibling"
     ) {
-      return new DivertTarget(new Divert([identifiers[0]!]));
+      const info = siblingSubFlowInfo(identifiers[0]!.name, ctx);
+      const knotName = info?.knotName ?? identifiers[0]!.name;
+      if (info && info.upvals.length > 0) {
+        return buildClosureExpression(knotName, info.upvals, info.arity);
+      }
+      return new DivertTarget(new Divert([new Identifier(knotName)]));
     }
     // Stdlib constant short-circuit: when the dotted path matches a
     // registered constant (`math.pi`, `math.huge`, `_VERSION`, ...),
@@ -1982,8 +1992,11 @@ export function lowerValueChainAccessPath(
         argLists.slice(1),
       );
     } else {
+      // Sibling subflows dispatch against their CONTAINER name —
+      // mangled when the source name was redefined.
+      const callName = siblingSubFlowInfo(nameStr, ctx)?.knotName ?? nameStr;
       const base = makeGlobalFunctionCall(
-        name,
+        new Identifier(callName),
         withSiblingSubFlowUpvalArgs(nameStr, args, ctx),
         firstInner,
         ctx,
@@ -2128,17 +2141,18 @@ function isSiblingSubFlowName(name: string, ctx: LowerContext): boolean {
   return false;
 }
 
-// The captured-upvalue names of a sibling variadic SubFlow, or null
-// when `name` isn't a registered subflow. Call sites prepend one
+// The registry entry of a sibling variadic SubFlow (captured upval
+// names + declared fixed arity), or null when `name` isn't a
+// registered subflow. Call sites prepend one
 // `VariablePointerExpression` per upval (mirroring the closure-upval
 // mechanism) so the subflow's prepended upval PARAMETERS receive the
 // enclosing scope's cells — reads and writes go through the shared
 // cell, and self-recursive calls thread the subflow's own upval
 // params down each level.
-function siblingSubFlowUpvals(
+function siblingSubFlowInfo(
   name: string,
   ctx: LowerContext,
-): string[] | null {
+): SiblingSubFlowInfo | null {
   const stack = ctx.siblingSubFlowNamesStack;
   if (!stack) return null;
   for (let i = stack.length - 1; i >= 0; i--) {
@@ -2146,6 +2160,13 @@ function siblingSubFlowUpvals(
     if (hit !== undefined) return hit;
   }
   return null;
+}
+
+function siblingSubFlowUpvals(
+  name: string,
+  ctx: LowerContext,
+): string[] | null {
+  return siblingSubFlowInfo(name, ctx)?.upvals ?? null;
 }
 
 // Prepend a sibling subflow's upval pointers to a call's arg list.

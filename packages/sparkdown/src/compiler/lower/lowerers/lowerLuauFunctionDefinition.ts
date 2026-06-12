@@ -18,7 +18,7 @@ import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Di
 import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { LowerContext } from "../context";
+import { LowerContext, SiblingSubFlowInfo } from "../context";
 import { lowerStatements } from "../lower";
 import {
   bodyReferencesNameAsCall,
@@ -174,7 +174,7 @@ export function lowerLuauFunctionDefinition(
   // populates this so inner closures know to skip upval capture for
   // these names — see `siblingSubFlowNamesStack` comment in
   // `LowerContext`).
-  const siblingSubFlows = new Map<string, string[]>();
+  const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
   ctx.siblingSubFlowNamesStack?.pop();
@@ -259,7 +259,7 @@ function lowerNestedNamedFunction(
     ctx.declaredLocalsStack?.push(ownLocals);
     const innerHoisted: ParsedObject[] = [];
     ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
-    const innerSiblingSubFlows = new Map<string, string[]>();
+    const innerSiblingSubFlows = new Map<string, SiblingSubFlowInfo>();
     ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
     const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
     ctx.siblingSubFlowNamesStack?.pop();
@@ -382,8 +382,29 @@ function lowerNestedAsSubFlow(
   // pointers as external callers (threading this fn's own upval
   // params down each level).
   const enclosingSiblingFrame = ctx.siblingSubFlowNamesStack?.at(-1);
+  const fixedArity = args.filter((a) => !a.isVararg).length;
+  // REDEFINITION (`function f(...)` twice in one function body —
+  // vararg.luau lines 9/64): both bodies must survive as distinct
+  // containers (`_subFlowsByName` is name-keyed, so a second
+  // same-named Function would silently replace the first and calls
+  // BEFORE the redefinition would jump into the wrong body). Mangle
+  // the second+ definition's container name; the registry entry maps
+  // the source name to it, and since registration happens in lexical
+  // order, call sites before the redefinition bound the first
+  // container and sites after bind this one — matching Lua's
+  // assign-a-global semantics.
+  const knotName =
+    enclosingSiblingFrame?.has(identifier.name ?? "")
+      ? `${identifier.name}__redef_${node.from}`
+      : (identifier.name ?? "");
+  const knotIdentifier =
+    knotName === identifier.name ? identifier : new Identifier(knotName);
   if (enclosingSiblingFrame && identifier.name) {
-    enclosingSiblingFrame.set(identifier.name, []);
+    enclosingSiblingFrame.set(identifier.name, {
+      upvals: [],
+      arity: fixedArity,
+      knotName,
+    });
   }
   // Free-variable scan BEFORE pushing this fn's own scope frames —
   // the scan binds the fn's params/locals internally and consults the
@@ -393,7 +414,11 @@ function lowerNestedAsSubFlow(
     (n) => new Argument(new Identifier(n), false, false),
   );
   if (enclosingSiblingFrame && identifier.name) {
-    enclosingSiblingFrame.set(identifier.name, upvals);
+    enclosingSiblingFrame.set(identifier.name, {
+      upvals,
+      arity: fixedArity,
+      knotName,
+    });
   }
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
@@ -401,7 +426,7 @@ function lowerNestedAsSubFlow(
   ctx.declaredLocalsStack?.push(ownLocals);
   const innerHoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
-  const innerSiblingSubFlows = new Map<string, string[]>();
+  const innerSiblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
   ctx.siblingSubFlowNamesStack?.pop();
@@ -410,7 +435,7 @@ function lowerNestedAsSubFlow(
   ctx.functionScopeStack?.pop();
   enclosingScope.push(
     new Function(
-      identifier,
+      knotIdentifier,
       [...innerHoisted, ...body, ...nested],
       [...upvalArgs, ...args],
     ),
@@ -527,7 +552,7 @@ function lowerPropertyTargetFunctionDefinition(
   ctx.declaredLocalsStack?.push(ownLocals);
   const innerHoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
-  const innerSiblingSubFlows = new Map<string, string[]>();
+  const innerSiblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
   ctx.siblingSubFlowNamesStack?.pop();
@@ -555,10 +580,17 @@ function lowerPropertyTargetFunctionDefinition(
   // Closure-shaped value (always — even with zero upvals the
   // `__closure_user_arity` field lets the call site pad missing
   // args with nil; see lowerNestedNamedFunction's identical choice).
-  // User arity counts the implicit `self` for colon-form methods:
-  // the method-call dispatch passes the receiver as the first user
-  // arg.
-  const userArity = (isColonForm ? 1 : 0) + userArgs.length;
+  // User arity counts the implicit `self` for colon-form methods
+  // (the method-call dispatch passes the receiver as the first user
+  // arg) but NOT the `__varargs__` Argument that lowerArguments
+  // appends for `...` — `__closure_user_arity` is the FIXED-param
+  // count by contract; the runtime value-call packing pushes the
+  // packed `...` MultiValue as one extra slot beyond it. Counting
+  // the varargs slot here shifted every binding by one (`function
+  // t:f(...)` bound self to the first user arg — vararg.luau line
+  // 53).
+  const userArity =
+    (isColonForm ? 1 : 0) + userArgs.filter((a) => !a.isVararg).length;
   const closureValue = buildClosureExpression(synthName, upvals, userArity);
   const keyExpr = new StringExpression([new Text(methodName)]);
   const store = new StorePropertyAssignment(baseExpr, keyExpr, closureValue);

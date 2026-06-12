@@ -35,6 +35,7 @@ import {
   lookupAnyStdLib,
   lookupStateAwareStdLib,
   stepBuiltinIterator,
+  unwrapArgsForPureStdLibFn,
 } from "./StdLib";
 import { StoryException } from "./StoryException";
 import { isLuauTruthy } from "./LuauTruthiness";
@@ -324,7 +325,10 @@ function tryInvokeStdLibMarkerValue(
   ) {
     story.Error(`missing argument #${args.length + 1} to '${tag.value}'`);
   }
-  const callArgs = entry.arity >= 0 ? args.slice(0, entry.arity) : [...args];
+  const callArgs = unwrapArgsForPureStdLibFn(
+    entry,
+    entry.arity >= 0 ? args.slice(0, entry.arity) : [...args],
+  );
   const result = entry.fn(story, callArgs);
   if (result === undefined) return [];
   const rawResults = Array.isArray(result) ? result : [result];
@@ -1919,7 +1923,10 @@ export class Story extends InkObject {
                     }
                   }
                 }
-                const result = entry.fn(this, args);
+                const result = entry.fn(
+                  this,
+                  unwrapArgsForPureStdLibFn(entry, args),
+                );
                 if (result !== undefined) {
                   if (Array.isArray(result)) {
                     const wrapped: AbstractValue[] = [];
@@ -2729,7 +2736,10 @@ export class Story extends InkObject {
                     }
                   }
                 }
-                const result = entry.fn(this, args);
+                const result = entry.fn(
+                  this,
+                  unwrapArgsForPureStdLibFn(entry, args),
+                );
                 if (result !== undefined) {
                   if (Array.isArray(result)) {
                     const wrapped: AbstractValue[] = [];

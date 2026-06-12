@@ -212,6 +212,20 @@ export class NativeFunctionCall extends InkObject {
       throw new Error("Unexpected number of parameters");
     }
 
+    // Lua call-site spread for VARIADIC natives
+    // (`math.max(unpack(t))` — vararg.luau line 80): the
+    // syntactically LAST argument's multi-return spreads into
+    // individual parameters. Earlier MultiValues still truncate to
+    // their first value (the per-arg loops below). Must run before
+    // the pure-number coercion, which would otherwise truncate the
+    // pack to one value.
+    if (this._numberOfParameters === VARIADIC_ARITY && parameters.length > 0) {
+      const last = parameters[parameters.length - 1];
+      if (last instanceof MultiValue) {
+        parameters.splice(parameters.length - 1, 1, ...last.values);
+      }
+    }
+
     // Lua argument semantics for PURE number stdlib ops (`math.abs`,
     // `math.floor`, ...): numeric strings coerce to numbers
     // (`math.abs('-5')` is 5); a missing argument — the `Void`
