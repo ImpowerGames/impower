@@ -243,6 +243,7 @@ describe("Luau upstream conformance baseline", () => {
     "ifelseexpr.luau",
     "iter.luau",
     "move.luau",
+    "sort.luau",
     "strconv.luau",
     "stringinterp.luau",
     "vararg.luau",

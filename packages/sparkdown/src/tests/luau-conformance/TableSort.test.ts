@@ -174,7 +174,7 @@ table.sort(t)
 end
 `);
     expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0]!).toContain("frozen");
+    expect(errors[0]!).toContain("readonly");
   });
 
   test("default comparator errors on mismatched types", () => {

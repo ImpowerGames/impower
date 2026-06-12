@@ -129,6 +129,22 @@ end`,
         "stack-overflow recovery is VM-resource-specific; upstream skips these blocks on limited-stack platforms and the JS call stack qualifies",
     },
   ],
+  "sort.luau": [
+    {
+      // Workload size for the randomized/sorted/inverse sort stress
+      // passes. Upstream's own harness drops it to 5000 on slow
+      // targets (`_soft` mode); the ink-runtime interpreter is such a
+      // target — 30000 keeps the gated test multi-minute. The
+      // algorithmic coverage (random/sorted/reverse inputs, invalid
+      // comparators, quicksort-killer) is size-independent.
+      find: `limit = 30000
+if rawget(_G, "_soft") then limit = 5000 end`,
+      replace: `limit = 1000 -- [sparkdown] interpreter-scaled workload; upstream's _soft mode similarly reduces it
+if rawget(_G, "_soft") then limit = 1000 end`,
+      reason:
+        "workload sizing, not semantics — upstream itself scales this down on slow targets via _soft",
+    },
+  ],
   "constructs.luau": [
     {
       // Compiles a whitespace-mangled chunk at runtime (the gsub

@@ -72,8 +72,8 @@ test(`survey: first blocker per failing fixture`, () => {
 
 test(`bisect-basic`, () => {
   const src = applyUpstreamPatches(
-    "iter.luau",
-    readFileSync(join(UPSTREAM_ROOT, "iter.luau"), "utf8"),
+    "sort.luau",
+    readFileSync(join(UPSTREAM_ROOT, "sort.luau"), "utf8"),
   );
   const lines = src.split("\n");
   const tryRange = (startLine: number, endLine: number) => {
@@ -107,15 +107,17 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  tryProbe("iter42", `local ok, err = pcall(function() for x in 42 do end end)
-assert(not ok, "ok is " .. tostring(ok))
-assert(err:match("attempt to iterate"), "err is " .. tostring(err))`);
-  tryProbe("iterniliter", `local obj = {}
-setmetatable(obj, { __iter = function() end })
-local ok, err = pcall(function() for x in obj do end end)
-assert(not ok, "ok is " .. tostring(ok))
-assert(err:match("attempt to call a nil value"), "err is " .. tostring(err))`);
-  for (const end of [26, 50, 75, 100, 125, 150, 175, lines.length]) {
+  tryProbe("sortargs", `local r1 = pcall(table.sort)
+assert(r1 == false, "r1 is " .. tostring(r1))
+local r2 = pcall(table.sort, "abc")
+assert(r2 == false, "r2 is " .. tostring(r2))
+local r3 = pcall(table.sort, {}, 42)
+assert(r3 == false, "r3 is " .. tostring(r3))
+local r4 = pcall(table.sort, {}, {})
+assert(r4 == false, "r4 is " .. tostring(r4))
+local r5 = pcall(table.sort, table.freeze({2, 1}))
+assert(r5 == false, "r5 is " .. tostring(r5))`);
+  for (const end of [20, 40, 60, 80, 100, 120, 140, lines.length]) {
     process.stdout.write(`START 1-${end}
 `);
     tryRange(1, end);

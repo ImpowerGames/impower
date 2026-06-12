@@ -3699,14 +3699,28 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // so the comparator can't leak narrative text into the story.
   "table.sort": {
     arity: -1,
+    validatesArgs: true,
     fn: (story, args) => {
-      const t = args[0];
-      if (!(t instanceof ObjectValue)) {
-        story.Error("table.sort: first argument must be a table");
-        return undefined;
+      const t = requireTableArg(story, args[0], 1, "sort");
+      // Luau validates the comparator's TYPE up front — even for
+      // tables too short to sort, `table.sort({}, 42)` raises
+      // (sort.luau line 43).
+      const cmpArg = args[1];
+      if (
+        cmpArg !== undefined &&
+        !(cmpArg instanceof NullValue) &&
+        (cmpArg as any)?.constructor?.name !== "Void"
+      ) {
+        const cmpType = luauTypeOf(cmpArg);
+        if (cmpType !== "function") {
+          story.Error(
+            `invalid argument #2 to 'sort' (function expected, got ${cmpType})`,
+          );
+          return undefined;
+        }
       }
       if (t.isFrozen) {
-        story.Error("table.sort: cannot mutate a frozen table");
+        story.Error("attempt to modify a readonly table");
         return undefined;
       }
       const map = t.value!;
@@ -3730,8 +3744,21 @@ export const STDLIB: Record<string, StdLibEntry> = {
         const bv = (b as any)?.value;
         if (typeof av === "number" && typeof bv === "number") return av < bv;
         if (typeof av === "string" && typeof bv === "string") return av < bv;
+        // Lua's `<`: tables compare through their `__lt` metamethod
+        // (sort.luau line 112 sorts metatabled records with the
+        // DEFAULT comparator).
+        const mt = (a as { metatable?: any })?.metatable;
+        const ltFn =
+          mt != null && mt.value instanceof Map ? mt.value.get("__lt") : null;
+        if (ltFn != null && !(ltFn instanceof NullValue)) {
+          const results = story.CallLuauFunction(ltFn, [a, b]) as
+            | AbstractValue[]
+            | null;
+          const top = results?.[0];
+          return top != null && isTruthy(top);
+        }
         story.Error(
-          "table.sort: attempt to compare incompatible values; supply a comparator",
+          `attempt to compare two ${luauTypeOf(a)} values`,
         );
         return false;
       };
