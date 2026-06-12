@@ -315,10 +315,10 @@ end
 
 describe("stdlib os.time table form", () => {
   test("os.time({year, month, day [, hour, min, sec]}) converts to a Unix timestamp", () => {
-    // Local-time semantics: the absolute timestamp depends on host
-    // TZ, so compare against a JS Date constructed the same way.
+    // Luau semantics: date-table fields are UTC (timegm), so the
+    // result is timezone-independent. Hour defaults to 12.
     const expected = Math.floor(
-      new Date(2026, 0, 15, 12, 0, 0).getTime() / 1000,
+      Date.UTC(2026, 0, 15, 12, 0, 0) / 1000,
     );
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
@@ -334,7 +334,7 @@ end
 
   test("os.time accepts bracket-key table form too", () => {
     const expected = Math.floor(
-      new Date(2026, 0, 15, 9, 30, 0).getTime() / 1000,
+      Date.UTC(2026, 0, 15, 9, 30, 0) / 1000,
     );
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()

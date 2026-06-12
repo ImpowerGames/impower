@@ -242,6 +242,7 @@ describe("Luau upstream conformance baseline", () => {
     "clear.luau",
     "closure.luau",
     "constructs.luau",
+    "datetime.luau",
     "ifelseexpr.luau",
     "iter.luau",
     "math.luau",

@@ -189,6 +189,6 @@ host_record(os.date("!%Y-%", ${FIXED_EPOCH}))
 end
 `);
     expect(errors.length).toBeGreaterThan(0);
-    expect(errors[0]!).toContain("dangling");
+    expect(errors[0]!).toContain("invalid conversion specifier");
   });
 });

@@ -1201,10 +1201,11 @@ function formatDateString(
         out += "%";
         break;
       case "":
-        story.Error("os.date: dangling `%` at end of format string");
+        story.Error("os.date: invalid conversion specifier '%'");
         return "";
       default:
-        story.Error(`os.date: unknown conversion "%${next}"`);
+        // loslib's message — checkerr greps for the exact phrase.
+        story.Error(`os.date: invalid conversion specifier '%${next}'`);
         return "";
     }
     i += 2;
@@ -4875,15 +4876,18 @@ export const STDLIB: Record<string, StdLibEntry> = {
         : Date.now() / 1000,
   },
   // `os.time([t])` — Unix timestamp. With no arg, current time. With
-  // a table arg `{year, month, day [, hour, min, sec]}`, treat the
-  // fields as **local time** (matches Lua/Luau) and convert to a
-  // Unix timestamp. `month` is 1-indexed per Lua (JS Date is 0-indexed,
-  // so we subtract 1 when handing off). Defaults: `hour=12`, `min=0`,
-  // `sec=0` — matching Lua's `os.time` documentation.
+  // a table arg `{year, month, day [, hour, min, sec]}`, Luau (unlike
+  // Lua 5.x's mktime) interprets the fields as **UTC** — that's how
+  // `os.time({year=1970, month=1, day=1, hour=0, min=0, sec=0}) == 0`
+  // holds exactly regardless of host timezone (datetime.luau line
+  // 22). Out-of-range fields normalize arithmetically (JS Date.UTC
+  // matches mktime's field normalization); times before the epoch
+  // are unrepresentable and return nil. Defaults: `hour=12`,
+  // `min=0`, `sec=0` — matching loslib's getfield defaults.
   "os.time": {
     arity: -1,
     fn: (story, args) => {
-      if (args.length === 0 || args[0] == null) {
+      if (args.length === 0 || args[0] == null || args[0] instanceof NullValue) {
         return Math.floor(Date.now() / 1000);
       }
       const t = args[0];
@@ -4897,20 +4901,30 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       const field = (k: string): number | null => {
         const v = map.get(k);
-        return v == null ? null : coerceNumber(v);
+        if (v == null || v instanceof NullValue) return null;
+        const n = coerceNumber(v);
+        return n == null ? null : Math.trunc(n);
       };
-      const year = field("year");
-      const month = field("month");
-      const day = field("day");
-      if (year === null || month === null || day === null) {
-        story.Error("os.time: table must have year, month, day fields");
-        return 0;
-      }
+      const requireField = (k: string): number | null => {
+        const v = field(k);
+        if (v === null) {
+          story.Error(`os.time: field '${k}' missing in date table`);
+          return null;
+        }
+        return v;
+      };
+      const year = requireField("year");
+      if (year === null) return 0;
+      const month = requireField("month");
+      if (month === null) return 0;
+      const day = requireField("day");
+      if (day === null) return 0;
       const hour = field("hour") ?? 12;
       const min = field("min") ?? 0;
       const sec = field("sec") ?? 0;
-      const d = new Date(year, month - 1, day, hour, min, sec);
-      return Math.floor(d.getTime() / 1000);
+      const ms = Date.UTC(year, month - 1, day, hour, min, sec);
+      if (!Number.isFinite(ms) || ms < 0) return null; // pre-epoch → nil
+      return Math.floor(ms / 1000);
     },
   },
   "os.difftime": { arity: 2, pure: true, fn: (_, [t2, t1]) => t2 - t1 },
@@ -4934,11 +4948,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
           ? (coerceString(args[0]) ?? "%c")
           : "%c";
       const timeArg =
-        args.length > 1 && args[1] != null
+        args.length > 1 && args[1] != null && !(args[1] instanceof NullValue)
           ? coerceNumber(args[1])
           : null;
-      const epochMs =
-        timeArg != null ? timeArg * 1000 : Date.now();
+      // Negative times are unrepresentable (gmtime fails) —
+      // `os.date("", -1) == nil` (datetime.luau line 19).
+      if (timeArg != null && timeArg < 0) return null;
+      const epochMs = timeArg != null ? Math.trunc(timeArg) * 1000 : Date.now();
       let utc = false;
       if (fmt.startsWith("!")) {
         utc = true;
@@ -4957,8 +4973,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         map.set("sec", new IntValue(fields.sec));
         map.set("wday", new IntValue(fields.wday));
         map.set("yday", new IntValue(fields.yday));
-        // Sparkdown has no boolean primitive — use IntValue(0)/(1).
-        map.set("isdst", new IntValue(fields.isdst ? 1 : 0));
+        // Real boolean — `type(D.isdst) == 'boolean'` (datetime.luau).
+        map.set("isdst", new BoolValue(fields.isdst));
         return new ObjectValue(map);
       }
       return formatDateString(fmt, fields, story);
