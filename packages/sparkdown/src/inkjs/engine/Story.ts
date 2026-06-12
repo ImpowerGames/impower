@@ -2958,6 +2958,18 @@ export class Story extends InkObject {
                 this.state.PushEvaluationStack(wrapped);
               }
             }
+          } else {
+            // The stdlib fn returned no value (`table.insert`,
+            // `table.sort`, `print`, ...). Push the Void sentinel so
+            // the eval stack stays BALANCED: statement-position call
+            // sites emit a static PopEvaluatedValue, which previously
+            // consumed whatever operand happened to sit beneath
+            // (silently no-opping only when the stack was empty) —
+            // `1 + #pack(7, 8)` lost the `1` to an inner
+            // `table.insert` statement. Void coerces to nil in
+            // single-value contexts and spreads to zero values in
+            // call-arg position, matching Lua's "no return values".
+            this.state.PushEvaluationStack(new Void());
           }
           break;
         }

@@ -3069,18 +3069,25 @@ repository:
     tag: meta
     name: meta.parameter.luau
     brackets: true
-    # Anchored to header position: a parameter list's `(` is always
-    # immediately preceded (modulo inline whitespace) by a function
-    # name, the `function` keyword (anonymous form — keyword is
-    # identifier-shaped so the IDENTIFIER alternative covers it), or
-    # a generics `>` — never by a number / string / `)` / `=`.
-    # Without the lookbehind, a one-line function body like
-    #   function f() local a = 1 (function () a = 2 end)() end
-    # re-matched this rule at the IIFE's `(` and consumed the whole
-    # IIFE as a bogus parameter list (one-line bodies parse directly
-    # inside LuauFunctionDefinition_content where this rule stays
-    # live, since LuauFunctionBody only opens after a newline).
-    begin: ((?<=(?:{{LUAU_IDENTIFIER}}|>){{WS}}*)[(])
+    # Anchored to HEADER position: a parameter list's `(` is preceded
+    # (modulo inline whitespace) by one of:
+    #   - a header keyword (`function` / `scene` / `branch` /
+    #     `external`) plus an optional dotted/colon name path and an
+    #     optional generics `<T>` run — covers `function (x)`,
+    #     `function pack(first, ...)`, `function t.g(x)`,
+    #     `function t:m(x)`, `function f<T>(x)`, `scene foo(x)`,
+    #     `external host(x)`; or
+    #   - line-start + identifier — define-block method headers
+    #     (`NAME(params)` on its own line inside LuauMethodDefinition).
+    # The earlier any-identifier lookbehind let BARE-CALL STATEMENTS
+    # in one-line function bodies match as parameter lists:
+    #   function pack(first, ...) ... table.insert(t, 1, first) ...
+    # ate `(t, 1, first)` as a bogus second param list (one-line
+    # bodies parse directly inside LuauFunctionDefinition_content
+    # where this rule stays live, since LuauFunctionBody only opens
+    # after a newline). `table.insert(` now fails the lookbehind —
+    # no header keyword before it, and it's mid-line.
+    begin: ((?<=\b(?:function|scene|branch|external)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
     beginCaptures:
       1:
         patterns:

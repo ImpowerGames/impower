@@ -4949,7 +4949,7 @@
       "tag": "meta",
       "name": "meta.parameter.luau",
       "brackets": true,
-      "begin": "((?<=(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|>)(?:[^\\S\\n\\r])*)[(])",
+      "begin": "((?<=\\b(?:function|scene|branch|external)\\b(?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)?(?:<[^<>\\n]*>)?(?:[^\\S\\n\\r])*|^(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*)[(])",
       "beginCaptures": {
         "1": {
           "patterns": [

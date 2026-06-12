@@ -117,20 +117,16 @@ assert((function() function foo(...) local a, b, c = ... return a + b + c end re
       console.log(`[lines ${startLine}-${endLine}] THREW: ${(e as Error).message}`);
     }
   };
-  // Next blocker: line 364 — SELF-RECURSIVE variadic subflow.
-  // Diagnosed so far: `function pack(first, ...) ... end` + a plain
-  // call `pack(7, 8)` binds `first` = nil and returns {} immediately
-  // (`len=0`), while the IDENTICAL shape with two sibling fns
-  // (line 360-361 `bar(a, ...)` calling `foo(a*2, ...)`) works.
-  // Suspect: when lowering pack's OWN body, `pack` may not yet be in
-  // siblingSubFlowNamesStack, or the call-site PackTuple computes
-  // extras with the wrong named-arity for self-referential variadic
-  // subflows. Minimal repro:
-  //   function pack(first, ...) if not first then return {} end
-  //     local t = pack(...) table.insert(t, 1, first) return t end
-  //   pack(7, 8) --> should be {7, 8}, got {}
-  tryRange(1, 363);
-  tryRange(1, 364);
+  const PACK_DEF = `function pack(first, ...)
+  if not first then return {} end
+  local t = pack(...)
+  table.insert(t, 1, first)
+  return t
+end
+`;
+  // Next blocker: between 437-448 ("Tried to..." in __anon_fn_24250).
+  // Lines 1-436 all pass.
+  tryRange(1, 436);
   // Separate pre-existing bug found while writing IIFE regression
   // tests (fails on a clean tree too): `table.insert` through a
   // local function's captured-upvalue table doesn't stick —
