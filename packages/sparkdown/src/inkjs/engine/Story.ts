@@ -329,6 +329,8 @@ function tryInvokeStdLibMarkerValue(
   const callArgs = unwrapArgsForPureStdLibFn(
     entry,
     entry.arity >= 0 ? args.slice(0, entry.arity) : [...args],
+    story,
+    tag.value,
   );
   const result = entry.fn(story, callArgs);
   if (result === undefined) return [];
@@ -1926,7 +1928,7 @@ export class Story extends InkObject {
                 }
                 const result = entry.fn(
                   this,
-                  unwrapArgsForPureStdLibFn(entry, args),
+                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName),
                 );
                 if (result !== undefined) {
                   if (Array.isArray(result)) {
@@ -2745,7 +2747,7 @@ export class Story extends InkObject {
                 }
                 const result = entry.fn(
                   this,
-                  unwrapArgsForPureStdLibFn(entry, args),
+                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName),
                 );
                 if (result !== undefined) {
                   if (Array.isArray(result)) {

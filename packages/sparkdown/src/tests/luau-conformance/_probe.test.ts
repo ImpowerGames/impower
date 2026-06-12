@@ -72,8 +72,8 @@ test(`survey: first blocker per failing fixture`, () => {
 
 test(`bisect-basic`, () => {
   const src = applyUpstreamPatches(
-    "sort.luau",
-    readFileSync(join(UPSTREAM_ROOT, "sort.luau"), "utf8"),
+    "bitwise.luau",
+    readFileSync(join(UPSTREAM_ROOT, "bitwise.luau"), "utf8"),
   );
   const lines = src.split("\n");
   const tryRange = (startLine: number, endLine: number) => {
@@ -107,17 +107,7 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  tryProbe("sortargs", `local r1 = pcall(table.sort)
-assert(r1 == false, "r1 is " .. tostring(r1))
-local r2 = pcall(table.sort, "abc")
-assert(r2 == false, "r2 is " .. tostring(r2))
-local r3 = pcall(table.sort, {}, 42)
-assert(r3 == false, "r3 is " .. tostring(r3))
-local r4 = pcall(table.sort, {}, {})
-assert(r4 == false, "r4 is " .. tostring(r4))
-local r5 = pcall(table.sort, table.freeze({2, 1}))
-assert(r5 == false, "r5 is " .. tostring(r5))`);
-  for (const end of [20, 40, 60, 80, 100, 120, 140, lines.length]) {
+  for (const end of [30, 60, 90, 120, 150, 180, 210, 240, lines.length]) {
     process.stdout.write(`START 1-${end}
 `);
     tryRange(1, end);

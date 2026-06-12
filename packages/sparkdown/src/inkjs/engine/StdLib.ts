@@ -1,4 +1,5 @@
 import { getPluralCategory } from "./PluralRules";
+import { StoryException } from "./StoryException";
 import { PRNG } from "./PRNG";
 import {
   ObjectValue,
@@ -186,6 +187,41 @@ export function luauNumberToString(n: number): string {
  * surrounding whitespace tolerated. Shared by `tonumber` and the
  * arithmetic string-coercion path (`1 + "2"`, `2 * "0xa"`).
  */
+// Lua 5.2 bit-field range validation for `bit32.extract` /
+// `bit32.replace` — raises trappable StoryExceptions with Lua's
+// message shapes (bitwise.luau lines 166-169 pcall these).
+function checkBitField(field: number, width: number, name: string): void {
+  if (field < 0) {
+    throw new StoryException(
+      `invalid argument #2 to '${name}' (field cannot be negative)`,
+    );
+  }
+  if (width <= 0) {
+    throw new StoryException(
+      `invalid argument #3 to '${name}' (width must be positive)`,
+    );
+  }
+  if (field + width > 32) {
+    throw new StoryException("trying to access non-existent bits");
+  }
+}
+
+// Lua 5.2 bit32 shifts: negative counts shift the other direction,
+// counts >= 32 produce 0. (JS `<<`/`>>>` wrap the count mod 32.)
+function luaLshift(v: number, n: number): number {
+  const c = Math.trunc(n);
+  if (c < 0) return luaRshift(v, -c);
+  if (c >= 32) return 0;
+  return (v << c) >>> 0;
+}
+
+function luaRshift(v: number, n: number): number {
+  const c = Math.trunc(n);
+  if (c < 0) return luaLshift(v, -c);
+  if (c >= 32) return 0;
+  return (v >>> 0) >>> c;
+}
+
 export function parseLuauNumber(s: string): number | null {
   const t = s.trim();
   if (t === "") return null;
@@ -3249,20 +3285,30 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // for Lua-style unsigned semantics.
   // ============================================================
   "bit32.bnot": { arity: 1, pure: true, fn: (_, [v]) => (~v) >>> 0 },
+  // Lua 5.2 bit32 shift semantics (JS shifts wrap counts mod 32 and
+  // have no negative-count handling): a NEGATIVE count shifts the
+  // OTHER direction, counts >= 32 saturate to 0 (or to all-ones for
+  // arshift of a negative-signed value) — bitwise.luau lines 59-76.
   "bit32.lshift": {
     arity: 2,
     pure: true,
-    fn: (_, [v, n]) => (v << n) >>> 0,
+    fn: (_, [v, n]) => luaLshift(v, n),
   },
   "bit32.rshift": {
     arity: 2,
     pure: true,
-    fn: (_, [v, n]) => v >>> n,
+    fn: (_, [v, n]) => luaRshift(v, n),
   },
   "bit32.arshift": {
     arity: 2,
     pure: true,
-    fn: (_, [v, n]) => (v >> n) >>> 0,
+    fn: (_, [v, n]) => {
+      const x = v >>> 0;
+      const c = Math.trunc(n);
+      if (c < 0) return luaLshift(x, -c);
+      if (c >= 32) return x & 0x80000000 ? 0xffffffff : 0;
+      return ((x | 0) >> c) >>> 0;
+    },
   },
   // Luau-only bit32 extensions
   "bit32.byteswap": {
@@ -3362,8 +3408,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
     pure: true,
     fn: (_, args: number[]) => {
       const n = (args[0] ?? 0) >>> 0;
-      const field = args[1] ?? 0;
-      const width = args.length > 2 ? (args[2] ?? 1) : 1;
+      const field = Math.trunc(args[1] ?? 0);
+      const width = Math.trunc(args.length > 2 ? (args[2] ?? 1) : 1);
+      checkBitField(field, width, "extract");
       const mask = width >= 32 ? 0xffffffff : ((1 << width) - 1) >>> 0;
       return ((n >>> field) & mask) >>> 0;
     },
@@ -3376,8 +3423,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (_, args: number[]) => {
       let n = (args[0] ?? 0) >>> 0;
       const v = (args[1] ?? 0) >>> 0;
-      const field = args[2] ?? 0;
-      const width = args.length > 3 ? (args[3] ?? 1) : 1;
+      const field = Math.trunc(args[2] ?? 0);
+      const width = Math.trunc(args.length > 3 ? (args[3] ?? 1) : 1);
+      checkBitField(field, width, "replace");
       const mask = width >= 32 ? 0xffffffff : ((1 << width) - 1) >>> 0;
       const shiftedMask = (mask << field) >>> 0;
       n = (n & ~shiftedMask) >>> 0;
@@ -4799,16 +4847,35 @@ export function pureStdLibTypes(entry: StdLibEntry): PureStdLibType[] | null {
 export function unwrapArgsForPureStdLibFn(
   entry: StdLibEntry,
   args: any[],
+  story?: any,
+  name?: string,
 ): any[] {
   const types = pureStdLibTypes(entry);
   if (!types) return args;
   const numeric = types.length === 1 && types[0] === "number";
-  return args.map((v) => {
+  const shortName =
+    name != null && name.includes(".")
+      ? name.slice(name.lastIndexOf(".") + 1)
+      : name;
+  return args.map((v, i) => {
     if (v != null && typeof v === "object" && "value" in v) {
       const raw = (v as { value: unknown }).value;
-      if (numeric && typeof raw === "string") {
-        const n = parseLuauNumber(raw);
-        if (n !== null) return n;
+      if (numeric) {
+        if (typeof raw === "number") return raw;
+        if (typeof raw === "string") {
+          const n = parseLuauNumber(raw);
+          if (n !== null) return n;
+        }
+        // Pure NUMBER entries reject non-coercible args with Lua's
+        // trappable message — `pcall(bit32.band, {})` must be false
+        // (bitwise.luau lines 128-132). Only when the caller passes
+        // `story` (the first-class marker dispatch paths); the
+        // static NativeFunctionCall path has its own validation.
+        if (story && shortName) {
+          story.Error(
+            `invalid argument #${i + 1} to '${shortName}' (number expected, got ${luauTypeOf(v)})`,
+          );
+        }
       }
       return raw;
     }
