@@ -75,6 +75,33 @@ end
     expect(errors[0]).toContain("custom failure");
   });
 
+  test("returns its arguments; zero args raises missing-argument", () => {
+    // Luau: `assert(v, ...)` returns ALL its arguments on success
+    // (`assert(1) == 1`, `select('#', assert(1,2,3)) == 3`). The
+    // `chunk:line: ` message prefix (Luau routes assert through
+    // luaL_error, unlike PUC Lua) only appears when the host installs
+    // `errorMessageFormatter` — this harness doesn't, so check the
+    // message body by substring. The prefixed form is covered by the
+    // gated assert.luau fixture in UpstreamConformance.test.ts.
+    const { errors } = compileAndRun(`& run()
+done
+
+function run()
+assert(assert(1) == 1)
+assert(type(assert({})) == 'table')
+assert(select('#', assert(1, 2, 3)) == 3)
+assert(table.concat(table.pack(assert(1, 2, 3)), "") == "123")
+local ok, err = pcall(function() assert() end)
+assert(not ok)
+assert(err:find("missing argument #1") ~= nil)
+local ok2, err2 = pcall(function() assert(nil) end)
+assert(not ok2)
+assert(err2:find("assertion failed!", 1, true) ~= nil)
+end
+`);
+    expect(errors).toEqual([]);
+  });
+
   test("assert(0) and assert('') pass under Lua truthiness", () => {
     // Only nil and false are falsy in Lua — 0 and "" are truthy, so
     // these assertions succeed. (Formerly a documented divergence

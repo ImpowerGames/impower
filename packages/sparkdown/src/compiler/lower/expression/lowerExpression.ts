@@ -56,13 +56,6 @@ function makeGlobalFunctionCall(
 ): FunctionCall {
   const resolved = lookupGlobalStdLibBuiltin(name.name, args.length);
   if (!resolved) return new FunctionCall(name, args);
-  // State-aware globals keep their source name verbatim — the lowerer
-  // just normalizes args. `assert(cond)` is padded with a default
-  // `"assertion failed"` message string so the runtime handler always
-  // sees exactly two stack pushes.
-  if (resolved === "assert" && args.length === 1) {
-    args = [...args, new StringExpression([new Text("assertion failed")])];
-  }
   // Editor-side strikethrough for deprecated stdlib calls (e.g.
   // `unpack(t)`). Runtime still dispatches normally; the diagnostic
   // is purely a hint. Caller may omit `callNode`/`ctx` from synthetic

@@ -166,12 +166,11 @@ export class FunctionCall extends Expression {
       // looks up `STDLIB[name]`, and calls
       // `fn(story, args)`. Optional return value is pushed back.
       //
-      // The lowerer (`makeGlobalFunctionCall` in lowerExpression.ts)
-      // normalizes the call site before reaching here — e.g.
-      // pads `assert(cond)` to `assert(cond, "assertion failed")`
-      // so the runtime always sees the registered arity. This means
-      // we don't need per-function arity validation here — the
-      // lowerer or the registered `fn` handles it.
+      // The `RunStdLibFunction` command carries the ACTUAL arg
+      // count from the call site, so variadic entries (`assert`,
+      // `print`, `select`) and fixed-arity entries alike validate
+      // inside the registered `fn` — no compile-time arity check
+      // needed here.
       for (const arg of this.args) {
         arg.GenerateIntoContainer(container);
       }

@@ -209,6 +209,7 @@ describe("Luau upstream conformance baseline", () => {
   // OK on 2026-06-12; strconv.luau and stringinterp.luau followed
   // the same day. Add fixtures here as they go green.
   const PASSING_FIXTURES = [
+    "assert.luau",
     "basic.luau",
     "strconv.luau",
     "stringinterp.luau",

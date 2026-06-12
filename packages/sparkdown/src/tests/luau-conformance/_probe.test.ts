@@ -66,8 +66,8 @@ test(`survey: first blocker per failing fixture`, () => {
 
 test(`bisect-basic`, () => {
   const src = applyUpstreamPatches(
-    "basic.luau",
-    readFileSync(join(UPSTREAM_ROOT, "basic.luau"), "utf8"),
+    "assert.luau",
+    readFileSync(join(UPSTREAM_ROOT, "assert.luau"), "utf8"),
   );
   const lines = src.split("\n");
   const tryRange = (startLine: number, endLine: number) => {
@@ -101,9 +101,12 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  // basic.luau reaches end-to-end OK as of 2026-06-12 (gated in
-  // UpstreamConformance.test.ts). Keep one full-fixture run here for
-  // quick eyeball confirmation when probing other fixtures.
+  tryProbe("reteq", `assert(assert(1) == 1)`);
+  tryProbe("rettbl", `assert(type(assert({})) == 'table')`);
+  tryProbe("multi", `assert(select('#', assert(1, 2, 3)) == 3)`);
+  tryProbe("multicat", `assert(table.concat(table.pack(assert(1, 2, 3)), "") == "123")`);
+  tryProbe("noargs", `local ok, err = pcall(function() assert() end) assert(not ok) assert(err:sub(err:find(": ") + 2, #err) == "missing argument #1")`);
+  tryProbe("msg", `local ok, err = pcall(function() assert(nil, "epic fail") end) assert(not ok) assert(err:sub(err:find(": ") + 2, #err) == "epic fail")`);
   tryRange(1, lines.length);
 });
 

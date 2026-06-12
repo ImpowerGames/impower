@@ -4357,21 +4357,40 @@ export const STDLIB: Record<string, StdLibEntry> = {
     },
   },
 
-  // `assert(cond [, message])` — Luau-style assertion. Raises a
-  // runtime error when `cond` is falsy. Lua truthiness: only `nil`
-  // and `false` are falsy — `assert(0)` and `assert("")` pass.
+  // `assert(v, [message], ...)` — Luau-style assertion. Raises a
+  // runtime error when `v` is falsy; on success returns ALL its
+  // arguments (`assert(1) == 1`, `select('#', assert(1,2,3)) == 3`).
+  // Lua truthiness: only `nil` and `false` are falsy — `assert(0)`
+  // and `assert("")` pass. Zero args raises "missing argument #1"
+  // (Luau's exact message — no `to 'assert'` suffix).
   assert: {
-    arity: 2,
-    fn: (story, [cond, msg]) => {
-      if (!isTruthy(cond)) {
-        const message = coerceString(msg) ?? "assertion failed";
+    arity: -1,
+    fn: (story, args) => {
+      // Luau's assert raises through `luaL_error`, which prepends
+      // the `chunkname:line: ` position prefix — unlike PUC Lua,
+      // where a provided message object propagates verbatim. The
+      // conformance suite strips that prefix with
+      // `err:sub(err:find(": ") + 2)`, so it must be present.
+      const raise = (raw: string) => {
+        const message = story.errorMessageFormatter
+          ? story.errorMessageFormatter(story, raw)
+          : raw;
         // Throw via story.Error (matches Lua semantics — `assert`
         // raises a runtime error, which `pcall` can trap). Using
         // story.AddError instead would call ForceEnd which wipes
         // the call stack — fine for unhandled errors, but defeats
         // pcall's protection.
         story.Error(message);
+      };
+      if (args.length === 0) {
+        raise("missing argument #1");
+        return [];
       }
+      if (!isTruthy(args[0])) {
+        raise(coerceString(args[1]) ?? "assertion failed!");
+        return [];
+      }
+      return args;
     },
   },
 };
