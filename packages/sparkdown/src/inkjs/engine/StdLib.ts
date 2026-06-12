@@ -158,9 +158,13 @@ export const VARIADIC_ARITY = -1;
 /** Pull a JS number out of an `IntValue` / `FloatValue`, or accept raw. */
 export function coerceNumber(v: any): number | null {
   if (typeof v === "number") return v;
+  if (typeof v === "string") return parseLuauNumber(v);
   if (v != null && typeof v === "object" && "value" in v) {
     const raw = (v as any).value;
     if (typeof raw === "number") return raw;
+    // Lua's tonumber coercion: numeric STRINGS convert wherever a
+    // number is expected (`math.frexp("1.5")` — math.luau line 489).
+    if (typeof raw === "string") return parseLuauNumber(raw);
   }
   return null;
 }
@@ -1104,31 +1108,46 @@ for (let i = 0; i < 256; i++) {
   PERLIN_P[i + 256] = PERLIN_PERMUTATION[i]!;
 }
 
+// Luau computes `math.noise` entirely in FLOAT32 (lmathlib's perlin
+// is `float`-typed) — math.luau asserts BIT-EXACT doubles produced by
+// that float pipeline (`math.noise(455.72..., ...) ==
+// 0.5010709762573242`), so every intermediate here goes through
+// Math.fround.
+const fr = Math.fround;
+
 function perlinFade(t: number): number {
-  return t * t * t * (t * (t * 6 - 15) + 10);
+  // C left-association with per-op float rounding:
+  // ((t*t)*t) * ((t*(t*6-15))+10)
+  const t6m15 = fr(fr(t * 6) - 15);
+  const inner = fr(fr(t * t6m15) + 10);
+  const ttt = fr(fr(t * t) * t);
+  return fr(ttt * inner);
 }
 
 function perlinLerp(t: number, a: number, b: number): number {
-  return a + t * (b - a);
+  return fr(a + fr(t * fr(b - a)));
 }
 
 function perlinGrad(hash: number, x: number, y: number, z: number): number {
   const h = hash & 15;
   const u = h < 8 ? x : y;
   const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
-  return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+  return fr(((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v));
 }
 
-function perlinNoise(x: number, y: number, z: number): number {
+function perlinNoise(xIn: number, yIn: number, zIn: number): number {
+  let x = fr(xIn);
+  let y = fr(yIn);
+  let z = fr(zIn);
   const fx = Math.floor(x);
   const fy = Math.floor(y);
   const fz = Math.floor(z);
   const X = fx & 255;
   const Y = fy & 255;
   const Z = fz & 255;
-  x -= fx;
-  y -= fy;
-  z -= fz;
+  x = fr(x - fx);
+  y = fr(y - fy);
+  z = fr(z - fz);
   const u = perlinFade(x);
   const v = perlinFade(y);
   const w = perlinFade(z);
@@ -1145,25 +1164,25 @@ function perlinNoise(x: number, y: number, z: number): number {
       perlinLerp(
         u,
         perlinGrad(PERLIN_P[AA]!, x, y, z),
-        perlinGrad(PERLIN_P[BA]!, x - 1, y, z),
+        perlinGrad(PERLIN_P[BA]!, fr(x - 1), y, z),
       ),
       perlinLerp(
         u,
-        perlinGrad(PERLIN_P[AB]!, x, y - 1, z),
-        perlinGrad(PERLIN_P[BB]!, x - 1, y - 1, z),
+        perlinGrad(PERLIN_P[AB]!, x, fr(y - 1), z),
+        perlinGrad(PERLIN_P[BB]!, fr(x - 1), fr(y - 1), z),
       ),
     ),
     perlinLerp(
       v,
       perlinLerp(
         u,
-        perlinGrad(PERLIN_P[AA + 1]!, x, y, z - 1),
-        perlinGrad(PERLIN_P[BA + 1]!, x - 1, y, z - 1),
+        perlinGrad(PERLIN_P[AA + 1]!, x, y, fr(z - 1)),
+        perlinGrad(PERLIN_P[BA + 1]!, fr(x - 1), y, fr(z - 1)),
       ),
       perlinLerp(
         u,
-        perlinGrad(PERLIN_P[AB + 1]!, x, y - 1, z - 1),
-        perlinGrad(PERLIN_P[BB + 1]!, x - 1, y - 1, z - 1),
+        perlinGrad(PERLIN_P[AB + 1]!, x, fr(y - 1), fr(z - 1)),
+        perlinGrad(PERLIN_P[BB + 1]!, fr(x - 1), fr(y - 1), fr(z - 1)),
       ),
     ),
   );
@@ -1929,12 +1948,19 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // `math.max(a, b, ...)` / `math.min(a, b, ...)` — Luau variadic.
   // Pure: NativeFunctionCall registers them with VARIADIC_ARITY; the
   // call site captures the actual arg count.
+  // Pairwise fold seeded from the FIRST argument (Luau semantics):
+  // a leading NaN propagates (`math.min(nan, 2)` is nan — every
+  // comparison against nan is false, so the accumulator never
+  // replaces) while a non-leading NaN loses (`math.min(1, nan)` is
+  // 1) — math.luau lines 302-305.
   "math.max": {
     arity: -1,
     pure: true,
     fn: (_, args: number[]) => {
-      let m = -Infinity;
-      for (const n of args) if (n > m) m = n;
+      let m = args.length > 0 ? args[0]! : -Infinity;
+      for (let i = 1; i < args.length; i++) {
+        if (args[i]! > m) m = args[i]!;
+      }
       return m;
     },
   },
@@ -1942,8 +1968,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     pure: true,
     fn: (_, args: number[]) => {
-      let m = Infinity;
-      for (const n of args) if (n < m) m = n;
+      let m = args.length > 0 ? args[0]! : Infinity;
+      for (let i = 1; i < args.length; i++) {
+        if (args[i]! < m) m = args[i]!;
+      }
       return m;
     },
   },
@@ -1955,8 +1983,28 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (_, [a, b]) => Math.pow(a, b),
   },
   "math.rad": { arity: 1, pure: true, fn: (_, [v]) => (v * Math.PI) / 180 },
-  "math.round": { arity: 1, pure: true, fn: (_, [v]) => Math.round(v) },
-  "math.sign": { arity: 1, pure: true, fn: (_, [v]) => Math.sign(v) },
+  // C round(): half away from ZERO (JS Math.round goes toward +inf,
+  // so Math.round(-0.5) is -0 not -1) and WITHOUT the `v + 0.5`
+  // double-rounding bug (`math.round(0.49999999999999994)` must be
+  // 0; adding 0.5 rounds the sum up to exactly 1) — math.luau
+  // round section.
+  "math.round": {
+    arity: 1,
+    pure: true,
+    fn: (_, [v]) => {
+      const a = Math.abs(v);
+      const f = Math.floor(a);
+      const r = a - f >= 0.5 ? f + 1 : f;
+      return v < 0 ? -r : r;
+    },
+  },
+  // NaN signs as 0 in Luau (JS Math.sign(NaN) is NaN) — math.luau
+  // line 326.
+  "math.sign": {
+    arity: 1,
+    pure: true,
+    fn: (_, [v]) => (v > 0 ? 1 : v < 0 ? -1 : 0),
+  },
   "math.sin": { arity: 1, pure: true, fn: (_, [v]) => Math.sin(v) },
   "math.sinh": { arity: 1, pure: true, fn: (_, [v]) => Math.sinh(v) },
   "math.sqrt": { arity: 1, pure: true, fn: (_, [v]) => Math.sqrt(v) },
@@ -2017,6 +2065,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "math.random": {
     arity: -1,
     fn: (story, args) => {
+      // Lua accepts at most (m, n) — a third argument raises
+      // (math.luau line 258 pattern-matches the message).
+      if (args.length > 2) {
+        story.Error("math.random: wrong number of arguments");
+        return 0;
+      }
       const seed = story.state.storySeed + story.state.previousRandom;
       const prng = new PRNG(seed);
       const next = prng.next();
@@ -2160,10 +2214,33 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // `math.lerp(a, b, t)` — Luau 0.6+. Linear interpolation between
   // `a` and `b` parameterised by `t` (not clamped — `t` outside [0,1]
   // extrapolates).
+  // Luau 0.6+ float classification predicates (math.luau's
+  // isnan/isinf/isfinite section). Booleans, not numbers — and they
+  // take ANY number (no string coercion needed beyond the pure
+  // pipeline's).
+  "math.isnan": {
+    arity: 1,
+    pure: true,
+    fn: (_, [v]) => Number.isNaN(v),
+  },
+  "math.isinf": {
+    arity: 1,
+    pure: true,
+    fn: (_, [v]) => v === Infinity || v === -Infinity,
+  },
+  "math.isfinite": {
+    arity: 1,
+    pure: true,
+    fn: (_, [v]) => Number.isFinite(v),
+  },
+
+  // Luau's lerp is EXACT at t == 1 (the naive a + t*(b-a) drifts:
+  // math.luau line 417's "(fails for a + t*(b-a))" comment) — the
+  // implementation special-cases the endpoint per the lerp RFC.
   "math.lerp": {
     arity: 3,
     pure: true,
-    fn: (_, [a, b, t]) => a + (b - a) * t,
+    fn: (_, [a, b, t]) => (t === 1 ? b : a + t * (b - a)),
   },
 
   // `math.ult(a, b)` — Lua 5.3+ / Luau. Unsigned integer less-than:
@@ -4743,6 +4820,12 @@ export const STDLIB_CONSTANTS: Record<string, number | string | boolean> = {
   // Standard Luau math constants.
   "math.pi": Math.PI,
   "math.huge": Infinity,
+  // Luau 0.6+ named constants (math.luau "math constants" section).
+  "math.tau": Math.PI * 2,
+  "math.sqrt2": Math.SQRT2,
+  "math.e": Math.E,
+  "math.phi": (1 + Math.sqrt(5)) / 2,
+  "math.nan": NaN,
 
   // UTF-8 helper constant. Lua's `utf8.charpattern` is a Lua-pattern
   // that matches a single UTF-8 character: `[\0-\x7F\xC2-\xFD][\x80-\xBF]*`.

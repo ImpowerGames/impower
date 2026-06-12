@@ -32,6 +32,7 @@ import {
   BoolValue,
   FloatValue,
   IntValue,
+  MultiValue,
   NullValue,
   ObjectValue,
   StringValue,
@@ -744,6 +745,16 @@ export function callBuiltinMethod(
   const impl = METHOD_DISPATCH[methodName];
   if (!impl) {
     throw new StoryException(`Unknown builtin method :${methodName}`);
+  }
+  // Single-value adjustment of the RECEIVER slot: a multi-return in
+  // receiver position truncates to its first value —
+  // `select(2, pcall(...)):match(...)` calls :match on select's
+  // (single-element) multi-return (math.luau line 258).
+  if (params.length > 0 && params[0] instanceof MultiValue) {
+    params = [
+      (params[0] as MultiValue).values[0] ?? new NullValue(),
+      ...params.slice(1),
+    ];
   }
   return impl(params);
 }

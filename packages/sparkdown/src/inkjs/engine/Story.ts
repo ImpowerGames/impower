@@ -2515,6 +2515,18 @@ export class Story extends InkObject {
             break;
           }
           if (storeBase instanceof ObjectValue) {
+            // Lua rejects nil and NaN as table KEYS on write (reads
+            // just produce nil) — `a[NaN] = 1` raises "table index
+            // is NaN" through pcall (math.luau NaN section).
+            if (storeKey == null || storeKey instanceof NullValue) {
+              throw new StoryException("table index is nil");
+            }
+            {
+              const numKey = (storeKey as { value?: unknown }).value;
+              if (typeof numKey === "number" && Number.isNaN(numKey)) {
+                throw new StoryException("table index is NaN");
+              }
+            }
             const keyStr = luauMapKeyString(storeKey);
             const val = asOrNull(storeValue, AbstractValue);
             if (storeBase.value && val !== null) {

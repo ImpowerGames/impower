@@ -45,6 +45,7 @@ const ARITHMETIC_OP_NAMES: ReadonlySet<string> = new Set([
   "%",
   "POW",
   "//",
+  "_", // unary negate — `-" 10 "` is -10
 ]);
 type UnaryOp<T> = (val: T) => any;
 
@@ -352,39 +353,6 @@ export class NativeFunctionCall extends InkObject {
       return new BoolValue(isLuauTruthy(parameters[0]));
     }
 
-    // Lua arithmetic coercion: a numeric STRING operand mixed with a
-    // number converts to a number — `1 + "2"` is 3, `2 * "0xa"` is 20
-    // (basic.luau lines 145-146). Without this, ink's max-type
-    // coercion would cast the NUMBER to a string and `+` would
-    // concatenate. String+string `+` is deliberately left alone (ink
-    // narrative content uses it as concat); Lua-style string
-    // arithmetic across two strings can revisit that if a fixture
-    // demands it. A non-numeric string raises Lua's arithmetic error.
-    if (parameters.length === 2 && ARITHMETIC_OP_NAMES.has(this.name)) {
-      const p0 = parameters[0];
-      const p1 = parameters[1];
-      const isNum = (p: InkObject | undefined) =>
-        p instanceof IntValue || p instanceof FloatValue;
-      const oneStrOneNum =
-        (isNum(p0) && p1 instanceof StringValue) ||
-        (p0 instanceof StringValue && isNum(p1));
-      if (oneStrOneNum) {
-        for (let i = 0; i < 2; i++) {
-          const p = parameters[i];
-          if (p instanceof StringValue) {
-            const n = parseLuauNumber(p.value ?? "");
-            if (n === null) {
-              throw new StoryException(
-                `attempt to perform arithmetic (${this.name}) on string`,
-              );
-            }
-            const replaced = Value.Create(n);
-            if (replaced !== null) parameters[i] = replaced;
-          }
-        }
-      }
-    }
-
     // Lua `..` concatenation (see the `Concat` declaration). Strings
     // pass through; numbers stringify Lua-style (nan / inf / -0
     // formatting included); anything else — nil, booleans, tables,
@@ -437,6 +405,29 @@ export class NativeFunctionCall extends InkObject {
         throw new StoryException(
           `Attempting to perform ${this.name} on a nil value.`,
         );
+      }
+    }
+
+    // (set defined at module scope below the class — see
+    // ARITHMETIC_OP_NAMES)
+    // Lua arithmetic string coercion: numeric-string operands of the
+    // ARITHMETIC ops convert via tonumber rules — `"2" + " 3e0 " == 5`,
+    // `-" 10  " == -10` (math.luau lines 5-10; whitespace-padded
+    // strings included). `..`/comparisons/equality keep their own
+    // string semantics, so only the arithmetic op names coerce.
+    if (ARITHMETIC_OP_NAMES.has(this.name)) {
+      for (let i = 0; i < parameters.length; i++) {
+        const p = parameters[i];
+        if (p instanceof StringValue && p.value !== null) {
+          const n = parseLuauNumber(p.value);
+          if (n === null) {
+            throw new StoryException(
+              `attempt to perform arithmetic (${this.name}) on a string value`,
+            );
+          }
+          const replaced = Value.Create(n);
+          if (replaced !== null) parameters[i] = replaced;
+        }
       }
     }
 

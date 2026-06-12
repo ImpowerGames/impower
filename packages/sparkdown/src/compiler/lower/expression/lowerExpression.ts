@@ -154,6 +154,16 @@ export function lowerExpressionFromNodes(
       let j = i + 1;
       while (j < nodes.length) {
         if (isSkippableName(nodes[j]!.name)) { j++; continue; }
+        // Trailing property/index links — mirror collectTokens
+        // (`({f()})[1]` in arg context).
+        if (nodes[j]!.name === "LuauChainedPropertyAccess") {
+          const linked = lowerChainedPropertyLink(nodes[j]!, last.expr, ctx);
+          if (!linked) break;
+          last.expr = linked;
+          i = j;
+          j++;
+          continue;
+        }
         if (nodes[j]!.name !== "LuauParenthetical") break;
         const args = lowerParentheticalArgList(nodes[j]!, ctx);
         last.expr = new CallValueExpression(last.expr, args);
@@ -292,7 +302,19 @@ function collectTokens(
       let after: SyntaxNode | null = child.nextSibling;
       while (after) {
         while (after && isSkippableName(after.name)) after = after.nextSibling;
-        if (!after || after.name !== "LuauParenthetical") break;
+        if (!after) break;
+        // Trailing property/index links on the running value:
+        // `({f()})[1]` parses as LuauParenthetical +
+        // LuauChainedPropertyAccess siblings (closure.luau line 85).
+        if (after.name === "LuauChainedPropertyAccess") {
+          const linked = lowerChainedPropertyLink(after, last.expr, ctx);
+          if (!linked) break;
+          last.expr = linked;
+          child = after;
+          after = after.nextSibling;
+          continue;
+        }
+        if (after.name !== "LuauParenthetical") break;
         const args = lowerParentheticalArgList(after, ctx);
         last.expr = new CallValueExpression(last.expr, args);
         child = after;
