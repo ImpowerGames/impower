@@ -253,6 +253,7 @@ describe("Luau upstream conformance baseline", () => {
     "strings.luau",
     "tables.luau",
     "tpack.luau",
+    "utf8.luau",
     "vararg.luau",
   ];
   for (const fixture of PASSING_FIXTURES) {

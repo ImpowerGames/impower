@@ -1805,6 +1805,83 @@ function unpackImpl(story: any, args: any[], fnName: string): any[] {
   return out;
 }
 
+// ============================================================
+// utf8 byte model (lutf8lib.cpp port).
+//
+// Sparkdown strings follow the byte-string convention the rest of
+// the string library uses (string.pack / byte / char / sub): every
+// JS char with code <= 0xFF IS one byte — so `"\xE3"` is the raw
+// (invalid) byte E3, exactly as in Lua source. Chars above 0xFF
+// (real text like "汉") expand to their UTF-8 encoding so
+// `utf8.len("汉字") == 2` still holds for narrative text. Latin-1
+// chars typed directly as text (`"é"`, U+00E9) are therefore RAW
+// BYTES from utf8's point of view — byte-true code should build
+// such strings via utf8.char or `\xNN` escapes.
+// ============================================================
+
+function luauStringToBytes(s: string): number[] {
+  const out: number[] = [];
+  for (const ch of s) {
+    const cp = ch.codePointAt(0)!;
+    if (cp <= 0xff) out.push(cp);
+    else if (cp <= 0x7ff) out.push(0xc0 | (cp >> 6), 0x80 | (cp & 0x3f));
+    else if (cp <= 0xffff)
+      out.push(
+        0xe0 | (cp >> 12),
+        0x80 | ((cp >> 6) & 0x3f),
+        0x80 | (cp & 0x3f),
+      );
+    else
+      out.push(
+        0xf0 | (cp >> 18),
+        0x80 | ((cp >> 12) & 0x3f),
+        0x80 | ((cp >> 6) & 0x3f),
+        0x80 | (cp & 0x3f),
+      );
+  }
+  return out;
+}
+
+// utf8_decode (lutf8lib.cpp): decode one sequence starting at byte
+// index `i`. Returns the codepoint + index just past the sequence,
+// or null for any invalid sequence (bad continuation, overlong,
+// > U+10FFFF, surrogates).
+const UTF8_DECODE_LIMITS = [0xff, 0x7f, 0x7ff, 0xffff];
+function utf8DecodeBytes(
+  bytes: number[],
+  i: number,
+): { code: number; next: number } | null {
+  const c = bytes[i];
+  if (c === undefined) return null;
+  if (c < 0x80) return { code: c, next: i + 1 };
+  let count = 0;
+  let res = 0;
+  let cshift = c;
+  while (cshift & 0x40) {
+    count++;
+    const cc = bytes[i + count];
+    if (cc === undefined || (cc & 0xc0) !== 0x80) return null;
+    res = (res << 6) | (cc & 0x3f);
+    cshift = (cshift << 1) & 0xff_ff; // keep it a small int; bits used below
+  }
+  res |= (cshift & 0x7f) << (count * 5);
+  if (count > 3 || res > 0x10ffff || res <= UTF8_DECODE_LIMITS[count]!) {
+    return null;
+  }
+  if (res >= 0xd800 && res < 0xe000) return null; // surrogate
+  return { code: res, next: i + count + 1 };
+}
+
+const utf8IsCont = (bytes: number[], i: number) =>
+  ((bytes[i] ?? 0) & 0xc0) === 0x80;
+
+// u_posrelat (lutf8lib.cpp): negative positions count from the end.
+function utf8PosRelat(pos: number, len: number): number {
+  if (pos >= 0) return pos;
+  if (-pos > len) return 0;
+  return len + pos + 1;
+}
+
 /**
  * Walk `s` and produce the byte offset (0-based, into the UTF-8
  * encoding) of each code-point boundary, plus a trailing entry for
@@ -1989,44 +2066,47 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
     if (v instanceof NullValue) return null;
     return { values: [new IntValue(i), v], nextCursor: new IntValue(i) };
   },
-  // `utf8codes(s)` — Lua 5.3+ / Luau iterator. Each step yields the
-  // 1-indexed UTF-8 byte position + the codepoint at that position.
-  // State carries the input string; cursor is the 0-indexed codepoint
-  // number (advanced by 1 each step, regardless of UTF-8 byte width).
+  // `utf8codes(s)` — iter_aux (lutf8lib.cpp). Each step yields the
+  // 1-indexed byte position + codepoint of the next character. The
+  // control value is the byte position of the PREVIOUS character (0
+  // on the first call), so the iterator also works when called
+  // directly with explicit (s, n) args — `local f = utf8.codes("");
+  // f("", 2)` (utf8.luau lines 122-125). Malformed sequences raise
+  // "invalid UTF-8 code" (trappable).
   utf8codes: (state, cursor) => {
-    if (!(state instanceof ObjectValue)) return null;
-    const stateMap = state.value as Map<string, AbstractValue> | null;
-    if (!stateMap) return null;
-    const inputVal = stateMap.get(UTF8CODES_INPUT);
-    const input =
-      inputVal instanceof Value ? (inputVal.value as string) : null;
+    let input: string | null = null;
+    if (state instanceof StringValue) {
+      input = state.value;
+    } else if (state instanceof ObjectValue) {
+      const stateMap = state.value as Map<string, AbstractValue> | null;
+      const inputVal = stateMap?.get(UTF8CODES_INPUT);
+      input = inputVal instanceof Value ? (inputVal.value as string) : null;
+    }
     if (input == null) return null;
-    const cpIndex =
+    const bytes = luauStringToBytes(input);
+    const len = bytes.length;
+    const prev =
       cursor == null ||
       cursor instanceof NullValue ||
       (cursor as any).value == null
         ? 0
-        : Number((cursor as any).value);
-    // Walk the codepoints up to `cpIndex` and yield the next one.
-    // O(n) per step; for narrative-length strings this is fine. If
-    // perf ever matters, switch to caching offsets on the state map.
-    let i = 0;
-    let byteOffset = 0;
-    for (const cp of input) {
-      if (i === cpIndex) {
-        const code = cp.codePointAt(0)!;
-        return {
-          values: [new IntValue(byteOffset + 1), new IntValue(code)],
-          nextCursor: new IntValue(cpIndex + 1),
-        };
-      }
-      if (cp.codePointAt(0)! < 0x80) byteOffset += 1;
-      else if (cp.codePointAt(0)! < 0x800) byteOffset += 2;
-      else if (cp.codePointAt(0)! < 0x10000) byteOffset += 3;
-      else byteOffset += 4;
-      i++;
+        : Math.trunc(Number((cursor as any).value));
+    let n = prev - 1;
+    if (n < 0) {
+      n = 0; // first iteration
+    } else if (n < len) {
+      n++; // skip current byte
+      while (utf8IsCont(bytes, n)) n++; // and its continuations
     }
-    return null;
+    if (n >= len) return null;
+    const d = utf8DecodeBytes(bytes, n);
+    if (d === null || utf8IsCont(bytes, d.next)) {
+      throw new StoryException("invalid UTF-8 code");
+    }
+    return {
+      values: [new IntValue(n + 1), new IntValue(d.code)],
+      nextCursor: new IntValue(n + 1),
+    };
   },
   // `gmatch(s, pattern)` — iterate every non-overlapping match. The
   // state is a wrapper ObjectValue carrying `{input, pattern}`; the
@@ -4892,17 +4972,41 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // ============================================================
   "utf8.char": {
     arity: -1,
-    fn: (_, args) => {
-      // Lua's utf8.char(...) takes codepoint integers and returns a
-      // single string. JS handles supplementary planes via
-      // String.fromCodePoint (since ES2015).
-      const codepoints: number[] = [];
+    fn: (story, args) => {
+      // utfchar (lutf8lib.cpp): encode each codepoint to its UTF-8
+      // BYTES (byte-string convention — each result char <= 0xFF).
+      // Codepoints outside [0, 0x10FFFF] raise "value out of range".
+      let out = "";
       for (const v of args) {
         const n = coerceNumber(v);
-        if (n === null) continue;
-        codepoints.push(n);
+        if (n === null) {
+          story.Error("utf8.char: number expected");
+          return "";
+        }
+        const cp = Math.trunc(n);
+        if (!(cp >= 0 && cp <= 0x10ffff)) {
+          story.Error("utf8.char: value out of range");
+          return "";
+        }
+        if (cp < 0x80) out += String.fromCharCode(cp);
+        else if (cp <= 0x7ff) {
+          out += String.fromCharCode(0xc0 | (cp >> 6), 0x80 | (cp & 0x3f));
+        } else if (cp <= 0xffff) {
+          out += String.fromCharCode(
+            0xe0 | (cp >> 12),
+            0x80 | ((cp >> 6) & 0x3f),
+            0x80 | (cp & 0x3f),
+          );
+        } else {
+          out += String.fromCharCode(
+            0xf0 | (cp >> 18),
+            0x80 | ((cp >> 12) & 0x3f),
+            0x80 | ((cp >> 6) & 0x3f),
+            0x80 | (cp & 0x3f),
+          );
+        }
       }
-      return String.fromCodePoint(...codepoints);
+      return out;
     },
   },
   // `utf8.len(s [, i [, j]])` — number of UTF-8 code points in `s`
@@ -4918,27 +5022,40 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "utf8.codepoint": {
     arity: -1,
     fn: (story, args) => {
+      // codepoint (lutf8lib.cpp): codepoints for all characters
+      // STARTING in byte range [i, j]; decode failures raise.
       const s = coerceString(args[0]) ?? "";
-      const [cpOffsets, totalBytes] = utf8CodepointOffsets(s);
-      const iArg = args.length > 1 ? coerceNumber(args[1]) : 1;
-      if (iArg === null) {
-        story.Error("utf8.codepoint: position must be a number");
+      const bytes = luauStringToBytes(s);
+      const len = bytes.length;
+      const iArg =
+        args.length > 1 && !(args[1] instanceof NullValue)
+          ? (coerceNumber(args[1]) ?? 1)
+          : 1;
+      const posi = utf8PosRelat(Math.trunc(iArg), len);
+      const jArg =
+        args.length > 2 && !(args[2] instanceof NullValue)
+          ? (coerceNumber(args[2]) ?? posi)
+          : posi;
+      const pose = utf8PosRelat(Math.trunc(jArg), len);
+      if (posi < 1) {
+        story.Error("utf8.codepoint: out of range");
         return [];
       }
-      const i = iArg;
-      const j = args.length > 2 ? (coerceNumber(args[2]) ?? i) : i;
-      if (i < 1 || i > totalBytes) {
-        story.Error("utf8.codepoint: position out of bounds");
+      if (pose > len) {
+        story.Error("utf8.codepoint: out of range");
         return [];
       }
+      if (posi > pose) return [];
       const codepoints: number[] = [];
-      let idx = 0;
-      for (const cp of s) {
-        const offset = cpOffsets[idx]!;
-        if (offset >= i - 1 && offset <= j - 1) {
-          codepoints.push(cp.codePointAt(0)!);
+      let k = posi - 1;
+      while (k < pose) {
+        const d = utf8DecodeBytes(bytes, k);
+        if (d === null) {
+          story.Error("utf8.codepoint: invalid UTF-8 code");
+          return [];
         }
-        idx++;
+        codepoints.push(d.code);
+        k = d.next;
       }
       return codepoints;
     },
@@ -4946,24 +5063,42 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "utf8.len": {
     arity: -1,
     fn: (story, args) => {
-      const str = coerceString(args[0]) ?? "";
-      const [cpOffsets, totalBytes] = utf8CodepointOffsets(str);
-      let i = args.length > 1 ? (coerceNumber(args[1]) ?? 1) : 1;
-      let j = args.length > 2 ? (coerceNumber(args[2]) ?? -1) : -1;
-      if (i < 0) i = totalBytes + 1 + i;
-      if (j < 0) j = totalBytes + 1 + j;
-      if (i < 1) i = 1;
-      if (j > totalBytes) j = totalBytes;
-      if (i > totalBytes + 1) {
-        story.Error("utf8.len: starting position out of bounds");
+      // utflen (lutf8lib.cpp): characters STARTING in byte range
+      // [i, j]; on a malformed sequence returns (nil, position)
+      // instead of raising.
+      const s = coerceString(args[0]) ?? "";
+      const bytes = luauStringToBytes(s);
+      const len = bytes.length;
+      const iArg =
+        args.length > 1 && !(args[1] instanceof NullValue)
+          ? (coerceNumber(args[1]) ?? 1)
+          : 1;
+      const jArg =
+        args.length > 2 && !(args[2] instanceof NullValue)
+          ? (coerceNumber(args[2]) ?? -1)
+          : -1;
+      let posi = utf8PosRelat(Math.trunc(iArg), len);
+      let posj = utf8PosRelat(Math.trunc(jArg), len);
+      if (!(1 <= posi && posi - 1 <= len)) {
+        story.Error("utf8.len: initial position out of string");
         return null;
       }
-      let count = 0;
-      // `cpOffsets` has one entry per code point plus a terminal offset.
-      for (let k = 0; k < cpOffsets.length - 1; k++) {
-        if (cpOffsets[k] >= i - 1 && cpOffsets[k] <= j - 1) count++;
+      posi--;
+      posj--;
+      if (!(posj < len)) {
+        story.Error("utf8.len: final position out of string");
+        return null;
       }
-      return count;
+      let n = 0;
+      while (posi <= posj) {
+        const d = utf8DecodeBytes(bytes, posi);
+        if (d === null) {
+          return new MultiValue([new NullValue(), new IntValue(posi + 1)]);
+        }
+        posi = d.next;
+        n++;
+      }
+      return n;
     },
   },
   // `utf8.offset(s, n [, i])` — byte position where the n-th UTF-8
@@ -4974,52 +5109,57 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "utf8.offset": {
     arity: -1,
     fn: (story, args) => {
+      // byteoffset (lutf8lib.cpp): byte index where the n-th
+      // character counting from position i starts; n == 0 finds the
+      // start of the sequence CONTAINING byte i. nil when there's no
+      // such character; raises for out-of-range i or a continuation-
+      // byte start.
       const s = coerceString(args[0]) ?? "";
       const nArg = coerceNumber(args[1]);
       if (nArg === null) {
-        story.Error("utf8.offset: second argument must be a number");
+        story.Error("utf8.offset: number expected");
         return null;
       }
-      const n = Math.trunc(nArg);
-      const [cpOffsets, totalBytes] = utf8CodepointOffsets(s);
-      const defaultI = n >= 0 ? 1 : totalBytes + 1;
-      let iArg = args.length > 2 ? (coerceNumber(args[2]) ?? defaultI) : defaultI;
-      let i = Math.trunc(iArg);
-      if (i < 0) i = totalBytes + 1 + i;
-      if (i < 1 || i > totalBytes + 1) {
-        story.Error("utf8.offset: position out of bounds");
+      let n = Math.trunc(nArg);
+      const bytes = luauStringToBytes(s);
+      const len = bytes.length;
+      const defaultI = n >= 0 ? 1 : len + 1;
+      const iArg =
+        args.length > 2 && !(args[2] instanceof NullValue)
+          ? (coerceNumber(args[2]) ?? defaultI)
+          : defaultI;
+      let posi = utf8PosRelat(Math.trunc(iArg), len);
+      if (!(1 <= posi && posi - 1 <= len)) {
+        story.Error("utf8.offset: position out of range");
         return null;
       }
-      const byteI = i - 1;
+      posi--;
       if (n === 0) {
-        // Return position (1-based) of the character whose encoding
-        // contains byte `byteI`. Walk forward through code-point
-        // boundaries until we'd pass it.
-        let result = 0;
-        for (const off of cpOffsets) {
-          if (off > byteI) break;
-          result = off;
+        while (posi > 0 && utf8IsCont(bytes, posi)) posi--;
+      } else {
+        if (utf8IsCont(bytes, posi)) {
+          story.Error("utf8.offset: initial position is a continuation byte");
+          return null;
         }
-        return result + 1;
-      }
-      // Locate the code-point boundary at `byteI`. `i` is required
-      // to sit on a boundary (or at the one-past-end position) for
-      // n != 0.
-      let cpIdx = -1;
-      for (let k = 0; k < cpOffsets.length; k++) {
-        if (cpOffsets[k] === byteI) {
-          cpIdx = k;
-          break;
+        if (n < 0) {
+          while (n < 0 && posi > 0) {
+            do {
+              posi--;
+            } while (posi > 0 && utf8IsCont(bytes, posi));
+            n++;
+          }
+        } else {
+          n--;
+          while (n > 0 && posi < len) {
+            do {
+              posi++;
+            } while (utf8IsCont(bytes, posi));
+            n--;
+          }
         }
       }
-      if (cpIdx === -1) {
-        story.Error("utf8.offset: position is not at a character boundary");
-        return null;
-      }
-      // n=1 → current boundary; n=2 → next; n=-1 → previous; etc.
-      const targetIdx = n > 0 ? cpIdx + n - 1 : cpIdx + n;
-      if (targetIdx < 0 || targetIdx >= cpOffsets.length) return null;
-      return cpOffsets[targetIdx] + 1;
+      if (n === 0) return posi + 1;
+      return null;
     },
   },
   // `utf8.codes(s)` — Lua 5.3+ / Luau. Returns a generic-for
@@ -5303,12 +5443,12 @@ export const STDLIB_CONSTANTS: Record<string, number | string | boolean> = {
   "math.phi": (1 + Math.sqrt(5)) / 2,
   "math.nan": NaN,
 
-  // UTF-8 helper constant. Lua's `utf8.charpattern` is a Lua-pattern
-  // that matches a single UTF-8 character: `[\0-\x7F\xC2-\xFD][\x80-\xBF]*`.
-  // Sparkdown doesn't have Lua-pattern matching yet, but the string
-  // constant itself is accessible — useful for code that introspects
-  // the value or for forward-compat with future pattern support.
-  "utf8.charpattern": "[\0-\x7F\xC2-\xFD][\x80-\xBF]*",
+  // UTF-8 helper constant — Luau's UTF8PATT (lutf8lib.cpp): a
+  // Lua-pattern matching one UTF-8 byte sequence. Used with
+  // string.gmatch over byte strings (`for c in s:gmatch(
+  // utf8.charpattern)`); the lead-byte class tops out at \xF4
+  // (sequences above U+10FFFF are invalid).
+  "utf8.charpattern": "[\0-\x7F\xC2-\xF4][\x80-\xBF]*",
 
   // Globals (non-namespaced) — single-identifier access.
   // `_VERSION` is the language version string; sparkdown reports

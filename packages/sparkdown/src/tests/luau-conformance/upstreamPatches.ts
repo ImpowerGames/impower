@@ -91,6 +91,122 @@ end`,
         "no runtime compiler; main-chunk varargs replaced by a function literal with identical `...` semantics",
     },
   ],
+  // utf8.luau tests BYTE-level UTF-8 handling. Lua source strings
+  // are byte sequences, so literals like "汉字" arrive as 6 bytes;
+  // sparkdown lexes literals as UTF-16 TEXT (one JS char per
+  // codepoint). All multi-byte literals below are rewritten as
+  // explicit `\xNN` byte escapes — chars <= 0xFF ARE bytes under
+  // sparkdown's byte-string convention, so the byte-level contract
+  // each assertion tests is unchanged. `\u{...}` escapes (which the
+  // sparkdown lexer doesn't support) are likewise pre-encoded to the
+  // exact bytes Lua's scanner would produce.
+  "utf8.luau": [
+    {
+      // checksyntax compiles "\u{...}" strings at runtime via
+      // loadstring — no runtime compiler; the escape-scanning
+      // round-trip reduces to its value-level contract.
+      find: `local function checksyntax (s, t)
+  -- creates a string "return '\\u{t[1]}...\\u{t[n]}'"
+  local ts = {"return '"}
+  for i = 1, #t do ts[i + 1] = string.format("\\\\u{%x}", t[i]) end
+  ts[#t + 2] = "'"
+  ts = table.concat(ts)
+  -- its execution should result in 's'
+  assert(assert(loadstring(ts))() == s)
+end`,
+      replace: `local function checksyntax (s, t)
+  -- [sparkdown] no runtime compiler: the \\u{...} escape-scanning
+  -- round-trip reduces to its value-level contract.
+  assert(utf8.char(table.unpack(t)) == s)
+end`,
+      reason:
+        "no runtime compiler; the loadstring escape-scanning round-trip reduces to its value-level contract",
+    },
+    {
+      find: `  check("汉字\\x80", #("汉字") + 1)`,
+      replace: `  check("\\xE6\\xB1\\x89\\xE5\\xAD\\x97\\x80", #("\\xE6\\xB1\\x89\\xE5\\xAD\\x97") + 1)`,
+      reason: "multi-byte literal rewritten as explicit byte escapes",
+    },
+    {
+      find: `  check("汉字\\xBF", #("汉字") + 1)`,
+      replace: `  check("\\xE6\\xB1\\x89\\xE5\\xAD\\x97\\xBF", #("\\xE6\\xB1\\x89\\xE5\\xAD\\x97") + 1)`,
+      reason: "multi-byte literal rewritten as explicit byte escapes",
+    },
+    {
+      find: `  errorcodes("αλφ\\xBFα")`,
+      replace: `  errorcodes("\\xCE\\xB1\\xCE\\xBB\\xCF\\x86\\xBF\\xCE\\xB1")`,
+      reason: "multi-byte literal rewritten as explicit byte escapes",
+    },
+    {
+      find: `checkerror("continuation byte", utf8.offset, "𦧺", 1, 2)
+checkerror("continuation byte", utf8.offset, "𦧺", 1, 2)`,
+      replace: `checkerror("continuation byte", utf8.offset, "\\xF0\\xA6\\xA7\\xBA", 1, 2)
+checkerror("continuation byte", utf8.offset, "\\xF0\\xA6\\xA7\\xBA", 1, 2)`,
+      reason: "multi-byte literal rewritten as explicit byte escapes",
+    },
+    {
+      find: `check("汉字/漢字", {27721, 23383, 47, 28450, 23383,})`,
+      replace: `check("\\xE6\\xB1\\x89\\xE5\\xAD\\x97/\\xE6\\xBC\\xA2\\xE5\\xAD\\x97", {27721, 23383, 47, 28450, 23383,})`,
+      reason: "multi-byte literal rewritten as explicit byte escapes",
+    },
+    {
+      find: `  local s = "áéí\\128"`,
+      replace: `  local s = "\\xC3\\xA1\\xC3\\xA9\\xC3\\xAD\\x80"`,
+      reason: "multi-byte literal rewritten as explicit byte escapes",
+    },
+    {
+      find: `  assert(utf8.codepoint("\\u{D7FF}") == 0xD800 - 1)
+  assert(utf8.codepoint("\\u{E000}") == 0xDFFF + 1)
+  assert(pcall(utf8.codepoint, "\\u{D800}") == false) -- allowed in Luau 5.4 when called with lax=true
+  assert(pcall(utf8.codepoint, "\\u{DFFF}") == false) -- allowed in Luau 5.4 when called with lax=true`,
+      replace: `  assert(utf8.codepoint("\\xED\\x9F\\xBF") == 0xD800 - 1)
+  assert(utf8.codepoint("\\xEE\\x80\\x80") == 0xDFFF + 1)
+  assert(pcall(utf8.codepoint, "\\xED\\xA0\\x80") == false) -- allowed in Luau 5.4 when called with lax=true
+  assert(pcall(utf8.codepoint, "\\xED\\xBF\\xBF") == false) -- allowed in Luau 5.4 when called with lax=true`,
+      reason:
+        "sparkdown's lexer has no \\u{...} escapes; encoded to the same bytes Lua's scanner would produce",
+    },
+    {
+      find: `invalid("\\u{D800}")
+invalid("\\u{DFFF}")`,
+      replace: `invalid("\\xED\\xA0\\x80")
+invalid("\\xED\\xBF\\xBF")`,
+      reason:
+        "sparkdown's lexer has no \\u{...} escapes; encoded to the same bytes Lua's scanner would produce",
+    },
+    {
+      // `\z` (skip-following-whitespace escape) isn't in sparkdown's
+      // lexer; flatten the continuation lines. The following
+      // `string.gsub(s, " ", "")` line is untouched and strips the
+      // remaining spaces exactly as upstream intends.
+      find: `s = "\\0 \\x7F\\z
+     \\xC2\\x80 \\xDF\\xBF\\z
+     \\xE0\\xA0\\x80 \\xEF\\xBF\\xBF\\z
+     \\xF0\\x90\\x80\\x80  \\xF4\\x8F\\xBF\\xBF"`,
+      replace: `s = "\\0 \\x7F \\xC2\\x80 \\xDF\\xBF \\xE0\\xA0\\x80 \\xEF\\xBF\\xBF \\xF0\\x90\\x80\\x80  \\xF4\\x8F\\xBF\\xBF"`,
+      reason:
+        "no \\z line-continuation escape in sparkdown's lexer; flattened to one line (the gsub below strips the spaces)",
+    },
+    {
+      find: `local x = "日本語a-4\\0éó"`,
+      replace: `local x = "\\xE6\\x97\\xA5\\xE6\\x9C\\xAC\\xE8\\xAA\\x9Ea-4\\0\\xC3\\xA9\\xC3\\xB3"`,
+      reason: "multi-byte literal rewritten as explicit byte escapes",
+    },
+    {
+      find: `check("𣲷𠜎𠱓𡁻𠵼ab𠺢",
+      {0x23CB7, 0x2070E, 0x20C53, 0x2107B, 0x20D7C, 0x61, 0x62, 0x20EA2,})`,
+      replace: `check("\\xF0\\xA3\\xB2\\xB7\\xF0\\xA0\\x9C\\x8E\\xF0\\xA0\\xB1\\x93\\xF0\\xA1\\x81\\xBB\\xF0\\xA0\\xB5\\xBCab\\xF0\\xA0\\xBA\\xA2",
+      {0x23CB7, 0x2070E, 0x20C53, 0x2107B, 0x20D7C, 0x61, 0x62, 0x20EA2,})`,
+      reason: "multi-byte literal rewritten as explicit byte escapes",
+    },
+    {
+      find: `check("𨳊𩶘𦧺𨳒𥄫𤓓\\xF4\\x8F\\xBF\\xBF",
+      {0x28CCA, 0x29D98, 0x269FA, 0x28CD2, 0x2512B, 0x244D3, 0x10ffff})`,
+      replace: `check("\\xF0\\xA8\\xB3\\x8A\\xF0\\xA9\\xB6\\x98\\xF0\\xA6\\xA7\\xBA\\xF0\\xA8\\xB3\\x92\\xF0\\xA5\\x84\\xAB\\xF0\\xA4\\x93\\x93\\xF4\\x8F\\xBF\\xBF",
+      {0x28CCA, 0x29D98, 0x269FA, 0x28CD2, 0x2512B, 0x244D3, 0x10ffff})`,
+      reason: "multi-byte literal rewritten as explicit byte escapes",
+    },
+  ],
   "tables.luau": [
     {
       // `setfenv(f, env)` swaps a FUNCTION's global environment —

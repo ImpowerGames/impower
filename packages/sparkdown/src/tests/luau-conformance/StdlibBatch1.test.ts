@@ -136,13 +136,16 @@ end
   });
 
   test("byte positions account for multi-byte UTF-8", () => {
-    // 'é' (U+00E9) is 2 bytes; 'B' is 1 byte; '€' (U+20AC) is 3 bytes.
+    // 'é' (U+00E9) spelled as its UTF-8 bytes \xC3\xA9 — under the
+    // byte-string convention a bare "é" char IS the raw byte E9
+    // (invalid UTF-8). 'B' is 1 byte; '€' (U+20AC, > 0xFF) encodes
+    // automatically.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
 
 function run()
-for p, c in utf8.codes("éB€") do
+for p, c in utf8.codes("\\xC3\\xA9B€") do
 host_record(p)
 host_record(c)
 end

@@ -287,14 +287,15 @@ end
   });
 
   test("utf8.codepoint over a multi-byte char", () => {
-    // "é" is U+00E9 = decimal 233, encoded as 2 UTF-8 bytes.
-    const s = "é";
+    // "é" (U+00E9 = decimal 233) spelled as its UTF-8 bytes \xC3\xA9
+    // — under the byte-string convention a bare "é" char IS the raw
+    // byte E9, which is not valid UTF-8.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
 
 function run()
-host_record(utf8.codepoint("${s}"))
+host_record(utf8.codepoint("\\xC3\\xA9"))
 end
 `);
     expect(errors).toEqual([]);

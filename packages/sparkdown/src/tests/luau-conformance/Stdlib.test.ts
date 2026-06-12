@@ -212,25 +212,29 @@ end
 done
 
 function run()
-host_record(utf8.len(utf8.nfcnormalize("${combining}")))
-host_record(utf8.len(utf8.nfdnormalize("${precomposed}")))
+host_record(#utf8.nfcnormalize("${combining}"))
+host_record(#utf8.nfdnormalize("${precomposed}"))
 end
 `);
     expect(errors).toEqual([]);
+    // CHAR counts via `#` — utf8.len isn't usable here: under the
+    // byte-string convention the precomposed U+00E9 char is the raw
+    // byte E9, which is not valid UTF-8.
     expect(recorded).toEqual([1, 2]);
   });
 
   test("utf8.len counts code points across byte ranges", () => {
-    // "héllo" — 5 chars, but "é" takes 2 UTF-8 bytes (6 bytes total).
-    const s = "héllo";
+    // "héllo" with é spelled as its UTF-8 bytes \xC3\xA9 (under the
+    // byte-string convention a bare "é" char IS the raw byte E9) —
+    // 5 characters in 6 bytes.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
 
 function run()
-host_record(utf8.len("${s}"))
-host_record(utf8.len("${s}", 1, 1))
-host_record(utf8.len("${s}", 2, 3))
+host_record(utf8.len("h\\xC3\\xA9llo"))
+host_record(utf8.len("h\\xC3\\xA9llo", 1, 1))
+host_record(utf8.len("h\\xC3\\xA9llo", 2, 3))
 end
 `);
     expect(errors).toEqual([]);
@@ -238,18 +242,17 @@ end
   });
 
   test("utf8.offset returns 1-based byte positions", () => {
-    // "héllo": h=1byte, é=2bytes, l=1, l=1, o=1 → boundaries at
-    // bytes 1, 2, 4, 5, 6, 7 (the trailing entry is one past end).
-    const s = "héllo";
+    // "héllo" (é as bytes \xC3\xA9): h=1byte, é=2bytes, l=1, l=1,
+    // o=1 → boundaries at bytes 1, 2, 4, 5, 6, 7.
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 & run()
 done
 
 function run()
-host_record(utf8.offset("${s}", 1))
-host_record(utf8.offset("${s}", 2))
-host_record(utf8.offset("${s}", 3))
-host_record(utf8.offset("${s}", 0, 3))
+host_record(utf8.offset("h\\xC3\\xA9llo", 1))
+host_record(utf8.offset("h\\xC3\\xA9llo", 2))
+host_record(utf8.offset("h\\xC3\\xA9llo", 3))
+host_record(utf8.offset("h\\xC3\\xA9llo", 0, 3))
 end
 `);
     expect(errors).toEqual([]);
