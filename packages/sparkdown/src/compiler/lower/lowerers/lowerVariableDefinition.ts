@@ -166,6 +166,24 @@ export function lowerVariableDefinition(
     return {};
   }
 
+  // `local f = ...` over a name that statically referred to a sibling
+  // variadic subflow (`function f(...)` earlier in this function):
+  // the local SHADOWS the subflow from here on, lexically — drop the
+  // registry entries so later `f` references and calls resolve as the
+  // variable instead of emitting diverts to the knot (math.luau line
+  // 503's `local v,f = math.modf(...)` after the chunk-level
+  // `function f(...)`; the stale value-ref produced an unresolvable
+  // DivertTarget that crashed JSON serialization). Mirrors
+  // lowerReassignment's rebind handling — registry consulted in
+  // lexical order, so earlier call sites keep the knot binding.
+  if (ctx.siblingSubFlowNamesStack) {
+    for (const t of targets) {
+      for (const frame of ctx.siblingSubFlowNamesStack) {
+        frame.delete(t.name);
+      }
+    }
+  }
+
   // The LAST target's `LuauAssignmentOperation` carries the first
   // RHS value. Subsequent RHS values are at the def-content level.
   const lastTarget = targets[targets.length - 1]!;

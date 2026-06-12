@@ -181,9 +181,7 @@ for k, v in pairs{"a", "b"} do
 end
 assert(({f()})[1] == 1, "t1")
 assert(({f()})[2] == "a", "t2")`);
-  tryRange(460, 510);
-  tryRange(485, 510);
-  tryRange(497, 505);
+  tryRange(1, lines.length);
 });
 
 test(`probe ${PROBE_FILE}`, () => {
