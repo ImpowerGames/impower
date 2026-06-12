@@ -72,8 +72,8 @@ test(`survey: first blocker per failing fixture`, () => {
 
 test(`bisect-basic`, () => {
   const src = applyUpstreamPatches(
-    "tables.luau",
-    readFileSync(join(UPSTREAM_ROOT, "tables.luau"), "utf8"),
+    "utf8.luau",
+    readFileSync(join(UPSTREAM_ROOT, "utf8.luau"), "utf8"),
   );
   const lines = src.split("\n");
   const tryRange = (startLine: number, endLine: number) => {
@@ -109,13 +109,6 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  tryProbe("parenless-string-arg", `assert(string.reverse"abc" == "cba", "r1 is " .. tostring(string.reverse"abc"))`);
-  tryProbe("parenless-empty-arg", `assert(string.reverse"" == "", "r2")`);
-  tryProbe("parenless-statement", `local t = {}
-table.insert(t, 1)
-print "hello"
-assert(#t == 1, "t")`);
-  tryProbe("parens-reverse", `assert(string.reverse("abc") == "cba", "r3")`);
   tryRange(1, lines.length);
 });
 

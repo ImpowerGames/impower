@@ -91,6 +91,186 @@ end`,
         "no runtime compiler; main-chunk varargs replaced by a function literal with identical `...` semantics",
     },
   ],
+  "tables.luau": [
+    {
+      // `setfenv(f, env)` swaps a FUNCTION's global environment —
+      // Lua 5.1 semantics Luau retains. Sparkdown functions always
+      // close over the single global environment; per-function env
+      // tables aren't representable (same class of divergence as the
+      // skipped locals.luau).
+      find: `local function foo ()
+  local getfenv, setfenv, assert, next =
+        getfenv, setfenv, assert, next
+  local n = {gl1=3}
+  setfenv(foo, n)
+  assert(getfenv(foo) == getfenv(1))
+  assert(getfenv(foo) == n)
+  assert(print == nil and gl1 == 3)
+  gl1 = nil
+  gl = 1
+  assert(n.gl == 1 and next(n, 'gl') == nil)
+end
+foo()`,
+      replace: `--[==[ sparkdown: setfenv(f, env) per-function environments aren't representable
+local function foo ()
+  local getfenv, setfenv, assert, next =
+        getfenv, setfenv, assert, next
+  local n = {gl1=3}
+  setfenv(foo, n)
+  assert(getfenv(foo) == getfenv(1))
+  assert(getfenv(foo) == n)
+  assert(print == nil and gl1 == 3)
+  gl1 = nil
+  gl = 1
+  assert(n.gl == 1 and next(n, 'gl') == nil)
+end
+foo()
+]==]`,
+      reason:
+        "setfenv(f, env) per-function environment swapping isn't representable; sparkdown functions close over the single global env",
+    },
+    {
+      // `makelud` (lightuserdata factory) is registered by Luau's
+      // C++ test executable — it doesn't exist in production Luau.
+      // Same class as the skipped types.luau RTTI global. The second
+      // block also setfenv-swaps countud's environment.
+      find: `-- test iteration with lightuserdata keys
+do
+  function countud()
+    local t = {}
+    t[makelud(1)] = 1
+    t[makelud(2)] = 2
+
+    local count = 0
+    for k,v in pairs(t) do
+      count += v
+    end
+
+    return count
+  end
+
+  assert(countud() == 3)
+end
+
+-- test iteration with lightuserdata keys with a substituted environment
+do
+  local env = { makelud = makelud, pairs = pairs }
+  setfenv(countud, env)
+  assert(countud() == 3)
+end`,
+      replace: `--[==[ sparkdown: makelud is injected by Luau's C++ test harness (not production Luau)
+-- test iteration with lightuserdata keys
+do
+  function countud()
+    local t = {}
+    t[makelud(1)] = 1
+    t[makelud(2)] = 2
+
+    local count = 0
+    for k,v in pairs(t) do
+      count += v
+    end
+
+    return count
+  end
+
+  assert(countud() == 3)
+end
+
+-- test iteration with lightuserdata keys with a substituted environment
+do
+  local env = { makelud = makelud, pairs = pairs }
+  setfenv(countud, env)
+  assert(countud() == 3)
+end
+]==]`,
+      reason:
+        "makelud is a Luau C++ test-harness global (lightuserdata factory); not present in production Luau",
+    },
+    {
+      find: `-- check that fast path for table lookup can't be tricked into assuming a light user data with string pointer is a string
+assert((function ()
+  local t = {}
+  t[makelud("hi")] = "no"
+  return t.hi
+end)() == nil)`,
+      replace: `--[==[ sparkdown: makelud is injected by Luau's C++ test harness (not production Luau)
+assert((function ()
+  local t = {}
+  t[makelud("hi")] = "no"
+  return t.hi
+end)() == nil)
+]==]`,
+      reason:
+        "makelud is a Luau C++ test-harness global (lightuserdata factory); not present in production Luau",
+    },
+    {
+      // Sparkdown tables are string-keyed Maps: `t[1000]` and
+      // `t["1000"]` are THE SAME slot (numeric keys stringify). The
+      // string-key-vs-number-key distinction maxn tests here is
+      // unobservable; keep the intent (non-numeric keys don't count)
+      // with a key that isn't a numeral.
+      find: `assert(table.maxn{["1000"] = true} == 0)
+assert(table.maxn{["1000"] = true, [24.5] = 3} == 24.5)`,
+      replace: `assert(table.maxn{["x1000"] = true} == 0)
+assert(table.maxn{["x1000"] = true, [24.5] = 3} == 24.5)`,
+      reason:
+        "numeric keys stringify in sparkdown's string-keyed tables, so [1000] and [\"1000\"] alias; non-numeral key preserves the test's intent",
+    },
+    {
+      // The "insertion/iteration order" block asserts Luau's actual
+      // constant-key HASH order (thing, bar, foo — reverse of source
+      // order). Sparkdown's Maps iterate true insertion order, which
+      // the block's own comment says is the contract being protected.
+      find: `    if idx == 3 then
+      assert(key == "foo")
+      assert(val == 1)
+    elseif idx == 2 then
+      assert(key == "bar")
+      assert(val == "string")
+    elseif idx == 1 then
+      assert(key == "thing")
+      assert(val == true)
+    end`,
+      replace: `    if idx == 1 then
+      assert(key == "foo")
+      assert(val == 1)
+    elseif idx == 2 then
+      assert(key == "bar")
+      assert(val == "string")
+    elseif idx == 3 then
+      assert(key == "thing")
+      assert(val == true)
+    end`,
+      reason:
+        "pairs order is unspecified in Lua; upstream asserts Luau's hash-bucket order, sparkdown iterates insertion order",
+    },
+    {
+      // Coroutines are skip-class infra (see pcall.luau /
+      // closure.luau); this block also leans on real GC
+      // ("collect dead keys").
+      find: `-- testing next x GC of deleted keys
+do
+  local co = coroutine.wrap(function (t)`,
+      replace: `--[==[ sparkdown: coroutines + GC are skip-class infra
+-- testing next x GC of deleted keys
+do
+  local co = coroutine.wrap(function (t)`,
+      reason:
+        "coroutine.wrap + collectgarbage('collect') — coroutines and real GC are skip-class infra",
+    },
+    {
+      find: `  assert(count == 0 and next(t) == nil)    -- traversed the whole table
+end
+  `,
+      replace: `  assert(count == 0 and next(t) == nil)    -- traversed the whole table
+end
+]==]
+  `,
+      reason:
+        "closes the coroutine/GC long-bracket comment opened by the previous patch",
+    },
+  ],
   "strings.luau": [
     {
       // A scanner test (chunk ending in a comment with no trailing

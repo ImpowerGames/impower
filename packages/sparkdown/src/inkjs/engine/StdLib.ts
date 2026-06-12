@@ -1793,6 +1793,11 @@ function unpackImpl(story: any, args: any[], fnName: string): any[] {
   while (map.has(String(len + 1))) len++;
   const i = args.length > 1 ? (coerceNumber(args[1]) ?? 1) : 1;
   const j = args.length > 2 ? (coerceNumber(args[2]) ?? len) : len;
+  // Luau caps unpack at LUAI_MAXCSTACK-ish result counts — unpacking
+  // 8000 elements must trap while 7999 succeeds (tables.luau).
+  if (j - i + 1 > 7999) {
+    throw new StoryException("too many results to unpack");
+  }
   const out: any[] = [];
   for (let k = i; k <= j; k++) {
     out.push(map.get(String(k)) ?? null);
@@ -1898,23 +1903,46 @@ const BUILTIN_ITER_CURSOR = "__builtin_iter_cursor";
 type IterStep = (
   state: AbstractValue,
   cursor: AbstractValue | null,
+  // The iterator's own marker map — per-iteration scratch space
+  // (e.g. pairs' key snapshot). Null when the step is driven with
+  // explicit state (`next`-style calls) instead of a live iterator.
+  scratch?: Map<string, AbstractValue> | null,
 ) => { values: AbstractValue[]; nextCursor: AbstractValue } | null;
+
+// Scratch key holding pairs' key snapshot (a raw string[] smuggled
+// through the AbstractValue-typed marker map).
+const ITER_KEY_SNAPSHOT = "__iter_key_snapshot";
 
 const BUILTIN_ITERATORS: Record<string, IterStep> = {
   // `pairs(t)` — visit every key in insertion order. Cursor is the
   // previous key (string in the underlying Map). `nil` cursor →
-  // start at the first entry.
-  pairs: (state, cursor) => {
+  // start at the first entry. Keys are SNAPSHOTTED at iteration
+  // start (when scratch is available): Lua allows clearing the
+  // CURRENT field during traversal, and a live scan can't find the
+  // successor of a deleted cursor. Keys deleted since the snapshot
+  // are skipped at step time; keys added mid-iteration aren't
+  // visited (Lua leaves that unspecified).
+  pairs: (state, cursor, scratch) => {
     if (!(state instanceof ObjectValue)) return null;
     const map = state.value as Map<string, AbstractValue> | null;
     if (!map) return null;
-    const keys = Array.from(map.keys());
-    let idx: number;
-    if (
+    const atStart =
       cursor == null ||
       cursor instanceof NullValue ||
-      (cursor as any).value === null
-    ) {
+      (cursor as any).value === null;
+    let keys: string[];
+    if (scratch) {
+      if (atStart || !scratch.has(ITER_KEY_SNAPSHOT)) {
+        keys = Array.from(map.keys());
+        scratch.set(ITER_KEY_SNAPSHOT, keys as any);
+      } else {
+        keys = scratch.get(ITER_KEY_SNAPSHOT) as any as string[];
+      }
+    } else {
+      keys = Array.from(map.keys());
+    }
+    let idx: number;
+    if (atStart) {
       idx = 0;
     } else {
       const cstr =
@@ -1924,6 +1952,8 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
       const i = keys.indexOf(cstr);
       idx = i < 0 ? keys.length : i + 1;
     }
+    // Skip entries deleted since the snapshot.
+    while (idx < keys.length && !map.has(keys[idx]!)) idx++;
     if (idx >= keys.length) return null;
     const key = keys[idx]!;
     const value = map.get(key)! as AbstractValue;
@@ -2103,7 +2133,10 @@ export function stepBuiltinIterator(
   const explicitState =
     stateArg != null && !(stateArg instanceof NullValue) ? stateArg : null;
   if (explicitState !== null) {
-    const result = step(explicitState, ctrlArg ?? null);
+    // The marker map still serves as per-iteration scratch (pairs'
+    // key snapshot) — a fresh marker is minted per `pairs(t)` call,
+    // and a nil ctrl (loop start) refreshes the snapshot.
+    const result = step(explicitState, ctrlArg ?? null, map);
     if (!result) return new NullValue();
     if (result.values.length === 0) return new NullValue();
     if (result.values.length === 1) return result.values[0]!;
@@ -2113,7 +2146,7 @@ export function stepBuiltinIterator(
   const state = map.get(BUILTIN_ITER_STATE) as AbstractValue | undefined;
   if (state == null) return new NullValue();
   const cursor = (map.get(BUILTIN_ITER_CURSOR) ?? null) as AbstractValue | null;
-  const result = step(state, cursor);
+  const result = step(state, cursor, map);
   if (!result) {
     // End-of-iteration — leave the cursor untouched, return nil.
     return new NullValue();
@@ -2745,6 +2778,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (story, [t, mt]) => {
       if (!(t instanceof ObjectValue)) {
         story.Error("setmetatable: first argument must be a table");
+        return;
+      }
+      if (t.isFrozen) {
+        story.Error("setmetatable: attempt to modify a readonly table");
         return;
       }
       // Luau metatable protection: if the current metatable carries a
@@ -3893,10 +3930,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       let max = 0;
       for (const k of map.keys()) {
-        if (/^[1-9]\d*$/.test(k)) {
-          const n = parseInt(k, 10);
-          if (n > max) max = n;
-        }
+        // Largest positive NUMERIC key — Lua's maxn counts floats
+        // too (`maxn{[24.5] = 3} == 24.5`). Identity-key markers
+        // (`__tableid:N`) and plain string keys parse as NaN.
+        const n = Number(k);
+        if (Number.isFinite(n) && n > max) max = n;
       }
       return max;
     },
@@ -3917,7 +3955,19 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("table.concat: first argument must be a table");
         return "";
       }
-      const sep = args.length > 1 ? (coerceString(args[1]) ?? "") : "";
+      let sep = "";
+      if (args.length > 1 && args[1] != null && !(args[1] instanceof NullValue)) {
+        const s = coerceString(args[1]);
+        if (s === null) {
+          // `pcall(table.concat, t, false)` must trap — an explicit
+          // non-string/non-number separator is an argument error.
+          story.Error(
+            "table.concat: invalid argument #2 to 'concat' (string expected)",
+          );
+          return "";
+        }
+        sep = s;
+      }
       const i = args.length > 2 ? (coerceNumber(args[2]) ?? 1) : 1;
       let len = 0;
       while (map.has(String(len + 1))) len++;
@@ -3965,8 +4015,41 @@ export const STDLIB: Record<string, StdLibEntry> = {
         target != null && typeof target === "object" && "value" in target
           ? (target as any).value
           : target;
-      const init =
-        args.length > 2 ? Math.max(1, coerceNumber(args[2]) ?? 1) : 1;
+      const init = args.length > 2 ? (coerceNumber(args[2]) ?? 1) : 1;
+      if (init < 1) {
+        // ltablib tfind: `luaL_argcheck(init > 0, "index out of range")`
+        // — pcall(table.find, {}, 42, 0) must trap.
+        story.Error("table.find: index out of range");
+        return null;
+      }
+      // Lua's `__eq` rule, as in equality ops: both operands tables,
+      // both metatables carry __eq, and the handlers are the same
+      // value — then the handler decides (tables.luau lines 418-455).
+      const eqViaMetamethod = (a: any, b: any): boolean => {
+        if (!(a instanceof ObjectValue) || !(b instanceof ObjectValue)) {
+          return false;
+        }
+        const handlerOf = (o: ObjectValue) =>
+          o.metatable instanceof ObjectValue
+            ? ((o.metatable.value as Map<string, AbstractValue>)?.get(
+                "__eq",
+              ) ?? null)
+            : null;
+        const ha = handlerOf(a);
+        const hb = handlerOf(b);
+        if (ha == null || hb == null || ha instanceof NullValue) return false;
+        const same =
+          ha === hb ||
+          ((ha as any).value != null && (ha as any).value === (hb as any).value);
+        if (!same) return false;
+        const results = story.CallLuauFunction(ha, [a, b]);
+        const top = results?.[0];
+        return (
+          top != null &&
+          !(top instanceof NullValue) &&
+          (top as any).value !== false
+        );
+      };
       let k = init;
       while (map.has(String(k))) {
         const v = map.get(String(k));
@@ -3974,7 +4057,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
           v != null && typeof v === "object" && "value" in v
             ? (v as any).value
             : v;
-        if (raw === targetRaw) return k;
+        if (raw === targetRaw || eqViaMetamethod(v, target)) return k;
         k++;
       }
       return null;
@@ -4080,20 +4163,29 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (args.length === 2) {
         pos = len + 1;
         value = args[1];
-      } else if (args.length >= 3) {
+      } else if (args.length === 3) {
         const p = coerceNumber(args[1]);
-        if (p === null || !Number.isInteger(p) || p < 1 || p > len + 1) {
-          story.Error("table.insert: position out of bounds");
+        if (p === null) {
+          story.Error("table.insert: position must be a number");
           return undefined;
         }
-        pos = p;
+        pos = Math.trunc(p);
         value = args[2];
-        for (let k = len; k >= pos; k--) {
-          const existing = map.get(String(k));
-          if (existing !== undefined) {
-            map.set(String(k + 1), existing);
+        // ltablib's tinsert shifts up only for in-range positions
+        // (1 <= pos <= len); anything else — 0, past-the-end,
+        // negative, NaN — just sets t[pos] = v directly
+        // (tables.luau's "out of range insertion" block).
+        if (pos >= 1 && pos <= len) {
+          for (let k = len; k >= pos; k--) {
+            const existing = map.get(String(k));
+            if (existing !== undefined) {
+              map.set(String(k + 1), existing);
+            }
           }
         }
+      } else if (args.length > 3) {
+        story.Error("wrong number of arguments to 'insert'");
+        return undefined;
       } else {
         story.Error("table.insert: missing value argument");
         return undefined;
@@ -4264,7 +4356,16 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("table.clear: cannot mutate a frozen table");
         return undefined;
       }
-      t.value!.clear();
+      const map = t.value!;
+      // Luau's table.clear RETAINS the allocated array part — a
+      // cleared 16-element table behaves like table.create(16) for
+      // `#` border searches (clear.luau's length-mismatch loop).
+      let len = 0;
+      while (map.has(String(len + 1))) len++;
+      const prevCap = (map as any).__luauCapacity ?? 0;
+      map.clear();
+      (map as any).__luauCapacity = Math.max(prevCap, len);
+      (map as any).__luauBoundary = 0;
       return undefined;
     },
   },
@@ -4278,9 +4379,24 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("table.clone: argument must be a table");
         return null;
       }
+      // Luau's tclone refuses tables with a protected metatable.
+      if (t.metatable instanceof ObjectValue) {
+        const protect = (
+          t.metatable.value as Map<string, AbstractValue>
+        )?.get("__metatable");
+        if (protect != null && !(protect instanceof NullValue)) {
+          story.Error("table.clone: table has a protected metatable");
+          return null;
+        }
+      }
       const next = new Map<string, AbstractValue>();
       for (const [k, v] of t.value!) next.set(k, v);
-      return new ObjectValue(next);
+      const clone = new ObjectValue(next);
+      // The clone shares the source's metatable (same object), but
+      // NOT its frozen state (`table.clone(table.freeze(t))` yields
+      // a mutable copy).
+      clone.metatable = t.metatable ?? null;
+      return clone;
     },
   },
   // `table.create(count [, value])` — Luau-only. New table with
@@ -4298,6 +4414,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
         );
         return null;
       }
+      // Luau caps the preallocated array size — `pcall(table.create,
+      // 1e9)` must trap (tables.luau line 768).
+      if (count > 2 ** 26) {
+        story.Error("table.create: size out of range");
+        return null;
+      }
       const map = new Map<string, AbstractValue>();
       const value = args.length > 1 ? args[1] : null;
       const valueIsNil =
@@ -4311,7 +4433,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
         for (let k = 1; k <= count; k++) {
           map.set(String(k), value as AbstractValue);
         }
+        (map as any).__luauBoundary = count;
       }
+      // Array-part capacity hint — `#` consults this so
+      // `local t = table.create(5); t[5] = 5; #t == 5` ("magic")
+      // matches Luau's array-sized border search.
+      (map as any).__luauCapacity = count;
       return new ObjectValue(map);
     },
   },
@@ -4416,6 +4543,21 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (!(t instanceof ObjectValue)) {
         story.Error("table.freeze: argument must be a table");
         return t;
+      }
+      if (t.isFrozen) {
+        story.Error("table.freeze: table is already frozen");
+        return t;
+      }
+      // Luau's tfreeze refuses tables with a PROTECTED metatable
+      // (`__metatable` set) — tables.luau lines 512-516.
+      if (t.metatable instanceof ObjectValue) {
+        const protect = (
+          t.metatable.value as Map<string, AbstractValue>
+        )?.get("__metatable");
+        if (protect != null && !(protect instanceof NullValue)) {
+          story.Error("table.freeze: table has a protected metatable");
+          return t;
+        }
       }
       t.Freeze();
       return t;

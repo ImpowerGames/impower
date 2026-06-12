@@ -402,6 +402,35 @@ export function lowerStatements(
       // parenthetical (`(fn)(a)(b)` chains) and lower the run as one
       // value-call expression, popping the unused return value.
       if (child.name === "LuauParenthetical") {
+        // Parenthesized-base index store: `(expr)['k'] = v` — incl.
+        // ternary bases like `(if c then t else u).x = v`
+        // (tables.luau's aliasing block). Shape: LuauParenthetical +
+        // LuauChainedPropertyAccess+ + LuauAssignmentOperation.
+        {
+          const links: SyntaxNode[] = [];
+          let scanStore: SyntaxNode | null = child.nextSibling;
+          while (scanStore) {
+            while (scanStore && ASSIGNMENT_PAIR_BRIDGE.has(scanStore.name)) {
+              scanStore = scanStore.nextSibling;
+            }
+            if (
+              !scanStore ||
+              scanStore.name !== "LuauChainedPropertyAccess"
+            ) {
+              break;
+            }
+            links.push(scanStore);
+            scanStore = scanStore.nextSibling;
+          }
+          if (links.length > 0 && scanStore?.name === "LuauAssignmentOperation") {
+            const block = lowerParenTargetStore(child, links, scanStore, ctx);
+            if (block) {
+              appendBlockContent(result, block);
+              child = scanStore.nextSibling;
+              continue;
+            }
+          }
+        }
         const callNodes: SyntaxNode[] = [child];
         let lastNode: SyntaxNode = child;
         let scan: SyntaxNode | null = child.nextSibling;
@@ -442,6 +471,67 @@ export function lowerStatements(
     child = child.nextSibling;
   }
   return result;
+}
+
+// Lower `(base)[k1][k2]... = value`. The base is the parenthetical
+// (plus all property links except the last, folded as reads); the
+// LAST link supplies the store key. Only plain `=` is supported —
+// compound ops on paren targets return null and fall through.
+function lowerParenTargetStore(
+  paren: SyntaxNode,
+  links: SyntaxNode[],
+  opNode: SyntaxNode,
+  ctx: LowerContext,
+): CompiledBlock | null {
+  const opMarker = getDescendent("LuauAssignmentOperator", opNode);
+  const opText = opMarker
+    ? ctx.read(opMarker.from, opMarker.to).trim()
+    : "=";
+  if (opText !== "=") return null;
+  const baseExpr = lowerExpressionFromNodes(
+    [paren, ...links.slice(0, -1)],
+    ctx,
+  );
+  if (!baseExpr) return null;
+  const lastLink = links[links.length - 1]!;
+  const content =
+    findChildByName(lastLink, "LuauChainedPropertyAccess_content") ?? lastLink;
+  // Key extraction — direct children only (an indexer's CONTENT can
+  // itself contain accessors, e.g. `(t)[a.b] = 1`).
+  let keyExpr: Expression | null = null;
+  let inner = content.firstChild;
+  while (inner) {
+    if (inner.name === "LuauPropertyAccessor") {
+      const nameNode =
+        getDescendent("LuauPropertyName", inner) ??
+        getDescendent("LuauStdLibMethods", inner);
+      if (nameNode) {
+        keyExpr = new StringExpression([
+          new Text(ctx.read(nameNode.from, nameNode.to)),
+        ]);
+      }
+      break;
+    }
+    if (inner.name === "LuauPropertyIndexer") {
+      const indexerContent = findChildByName(
+        inner,
+        "LuauPropertyIndexer_content",
+      );
+      keyExpr = indexerContent
+        ? lowerExpressionFromContainer(indexerContent, ctx)
+        : null;
+      break;
+    }
+    inner = inner.nextSibling;
+  }
+  if (!keyExpr) return null;
+  const valueExpr = lowerExpressionFromContainer(opNode, ctx);
+  if (!valueExpr) return null;
+  return wrapInWeave(
+    [new StorePropertyAssignment(baseExpr, keyExpr, valueExpr)],
+    { from: paren.from, to: opNode.to },
+    ctx,
+  );
 }
 
 function findAssignmentOperationAfter(

@@ -886,14 +886,34 @@ export class NativeFunctionCall extends InkObject {
       // or entries in an object.
       this.AddStringUnaryOp(this.Length, (x) => x.length);
       this.AddListUnaryOp(this.Length, (x) => x.Count);
-      // Lua `#t` is the ARRAY-PORTION length (consecutive integer
-      // keys from 1), not the total entry count: `#{1,2}` is 2 but
-      // `#{a=1,b=2}` is 0 — and `#_G` is 0 (its marker key is
-      // non-numeric). Formerly `x.size`, which counted every entry.
+      // Lua `#t` is a BORDER (t[n] ~= nil and t[n+1] == nil), not the
+      // total entry count: `#{1,2}` is 2 but `#{a=1,b=2}` is 0 — and
+      // `#_G` is 0 (its marker key is non-numeric). Luau resolves
+      // ambiguous borders through a per-table boundary cache tied to
+      // the array part's capacity; we model that with a cached
+      // boundary stashed on the underlying Map (seeded by
+      // `table.create`, adjusted here by walking down from the cache
+      // while that slot is empty, then up while the next is filled).
+      // This reproduces the fixture-observable behaviors: deleting
+      // t[10] of a filled create(10) gives 9 (walk down), reverse-
+      // filling 5..2 gives 0 until t[1] lands (walk up from 0), and
+      // create(5,42) keeps #t == 5 after t[1] is cleared (cache).
       this.AddObjectUnaryOp(this.Length, (x: Map<string, any>) => {
-        let n = 0;
-        while (x.has(String(n + 1))) n++;
-        return n;
+        // Capacity fast path: when the last array-part slot is
+        // occupied, Luau's getn returns sizearray (and beyond, via
+        // unbound search) regardless of interior holes —
+        // `t = table.create(5); t[5] = 5; #t == 5`.
+        const cap: number = (x as any).__luauCapacity ?? 0;
+        if (cap > 0 && x.has(String(cap))) {
+          let n = cap;
+          while (x.has(String(n + 1))) n++;
+          return n;
+        }
+        let b: number = (x as any).__luauBoundary ?? 0;
+        while (b > 0 && !x.has(String(b))) b--;
+        while (x.has(String(b + 1))) b++;
+        (x as any).__luauBoundary = b;
+        return b;
       });
 
       let divertTargetsEqual = (d1: Path, d2: Path) => d1.Equals(d2);
