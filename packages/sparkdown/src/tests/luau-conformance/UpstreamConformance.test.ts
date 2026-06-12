@@ -206,19 +206,27 @@ describe("Luau upstream conformance baseline", () => {
   // Fixtures that fully pass are GATED — unlike the calibration
   // report above, a regression here is a hard failure. basic.luau
   // (1018 lines of language/library fundamentals) reached end-to-end
-  // OK on 2026-06-12; keep it green.
-  test(
-    "basic.luau passes end-to-end",
-    () => {
-      if (!existsSync(UPSTREAM_ROOT)) return;
-      const source = applyUpstreamPatches(
-        "basic.luau",
-        readFileSync(join(UPSTREAM_ROOT, "basic.luau"), "utf8"),
-      );
-      const r = runConformanceSource(source, undefined, "basic.luau");
-      expect(r.errorMessages).toEqual([]);
-      expect(r.returnedOK).toBe(true);
-    },
-    300000,
-  );
+  // OK on 2026-06-12; strconv.luau and stringinterp.luau followed
+  // the same day. Add fixtures here as they go green.
+  const PASSING_FIXTURES = [
+    "basic.luau",
+    "strconv.luau",
+    "stringinterp.luau",
+  ];
+  for (const fixture of PASSING_FIXTURES) {
+    test(
+      `${fixture} passes end-to-end`,
+      () => {
+        if (!existsSync(UPSTREAM_ROOT)) return;
+        const source = applyUpstreamPatches(
+          fixture,
+          readFileSync(join(UPSTREAM_ROOT, fixture), "utf8"),
+        );
+        const r = runConformanceSource(source, undefined, fixture);
+        expect(r.errorMessages).toEqual([]);
+        expect(r.returnedOK).toBe(true);
+      },
+      300000,
+    );
+  }
 });

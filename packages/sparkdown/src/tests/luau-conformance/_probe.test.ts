@@ -18,7 +18,7 @@ import { applyUpstreamPatches } from "./upstreamPatches";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const UPSTREAM_ROOT = join(__dirname, "upstream", "conformance");
 
-const PROBE_FILE = "exceptions.luau";
+const PROBE_FILE = "strconv.luau";
 
 function probe(label: string, src: string) {
   const r = runConformanceSource(src);
@@ -108,14 +108,15 @@ test(`bisect-basic`, () => {
 });
 
 test(`probe ${PROBE_FILE}`, () => {
-  const src = readFileSync(join(UPSTREAM_ROOT, PROBE_FILE), "utf8");
-  const r = runConformanceSource(src);
-  // eslint-disable-next-line no-console
-  console.log("errors:", r.errorMessages);
-  // eslint-disable-next-line no-console
-  console.log("warnings:", r.warningMessages);
-  // eslint-disable-next-line no-console
-  console.log("output:", JSON.stringify(r.output));
-  // eslint-disable-next-line no-console
-  console.log("returnedOK:", r.returnedOK);
+  for (const name of [PROBE_FILE, "stringinterp.luau"]) {
+    const src = applyUpstreamPatches(
+      name,
+      readFileSync(join(UPSTREAM_ROOT, name), "utf8"),
+    );
+    const r = runConformanceSource(src, undefined, name);
+    // eslint-disable-next-line no-console
+    console.log(`[${name}] errors:`, r.errorMessages);
+    // eslint-disable-next-line no-console
+    console.log(`[${name}] returnedOK:`, r.returnedOK);
+  }
 });
