@@ -121,28 +121,30 @@ describe("block-transition squish — blank line between blocks must remain visi
         `pdf: no blank line between "${c.beforeNeedle}" and "${c.afterNeedle}"`,
       ).toBe(true);
 
-      // (2) Rendered DOM: there must be at least one cm-line between
-      // the line containing beforeNeedle and the line containing
-      // afterNeedle, and that intervening cm-line must be empty (no
-      // text content). That empty cm-line is what gives the visible
-      // vertical separation — even at opacity:0 it still occupies the
-      // default cm-line line-height and reads as blank space. If a
-      // widget consumed the source's trailing blank line, the two
-      // blocks become adjacent cm-lines with no empty cm-line between.
-      const beforeIdx = indexOfLineContaining(r.lines, c.beforeNeedle);
-      const afterIdx = indexOfLineContaining(r.lines, c.afterNeedle);
+      // (2) Rendered DOM: visible vertical separation must exist
+      // between the two anchors. Dual dialogue renders as a block
+      // widget (sibling of cm-lines) so beforeNeedle isn't in any
+      // cm-line in that case — we need to look at the raw cm-content
+      // HTML to find the anchor positions, then assert that an empty
+      // cm-line (or collapse cm-line) sits between them.
+      const before = c.beforeNeedle;
+      const after = c.afterNeedle;
+      const beforeIdxCH = r.contentHTML.indexOf(before);
+      const afterIdxCH = r.contentHTML.indexOf(after);
+      expect(beforeIdxCH, `rendered DOM missing "${before}"`).toBeGreaterThan(-1);
+      expect(afterIdxCH, `rendered DOM missing "${after}"`).toBeGreaterThan(
+        beforeIdxCH,
+      );
+      const between = r.contentHTML.slice(beforeIdxCH, afterIdxCH);
+      // Match any cm-line whose body has no actual text — only
+      // widgetBuffer images, empty spans, and whitespace. That empty
+      // line is what gives visible separation.
+      const emptyCmLine = between.match(
+        /<div class="cm-line[^"]*"[^>]*>(?:<img[^>]*>|<span[^>]*><\/span>|<br[^>]*>|\s)*<\/div>/g,
+      );
       expect(
-        beforeIdx,
-        `rendered DOM missing "${c.beforeNeedle}"`,
-      ).toBeGreaterThan(-1);
-      expect(
-        afterIdx,
-        `rendered DOM missing "${c.afterNeedle}"`,
-      ).toBeGreaterThan(-1);
-      const between = r.lines.slice(beforeIdx + 1, afterIdx);
-      expect(
-        between.some((l) => l.text.trim() === ""),
-        `rendered DOM: no empty cm-line between "${c.beforeNeedle}" (idx ${beforeIdx}) and "${c.afterNeedle}" (idx ${afterIdx}) — the widget consumed the trailing blank line, leaving the blocks squished. Intervening lines: ${JSON.stringify(between.map((l) => l.text))}`,
+        (emptyCmLine?.length ?? 0) > 0,
+        `rendered DOM: no empty separator cm-line between "${before}" and "${after}". Snippet: ${between.slice(0, 600)}`,
       ).toBe(true);
     });
   }

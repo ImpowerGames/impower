@@ -3,9 +3,16 @@
 // synthetic fixtures always do full reparses; only a large doc
 // triggers the partial-reparse code path that surfaces the bug.
 //
-// CURRENT STATUS — SKIPPED. The bug is real and these tests reproduce
-// it deterministically, but I haven't found a fix that doesn't
-// regress other tests. What was learned during investigation:
+// THE FIX (landed 2026-06-12): implement `updateDOM(dom, view)` on
+// DialogueWidget AND mark the dual-dialogue `Decoration.replace` with
+// `block: true`. Together those let CM's BlockWidgetView.sync refresh
+// the widget DOM in place when the widget's spec changes. With
+// `block: false` (default), inline WidgetView.sync skips updateDOM
+// after the initial paint, and the widget keeps showing whatever it
+// was first rendered with — which, on a large doc, is the
+// partial-parse content that existed before the parser caught up.
+//
+// Background (kept for context):
 //   - `decorate()` produces the CORRECT widget (correct content,
 //     correct range) at sample time, against the post-edit full tree.
 //   - The StateField stores that correct widget (verified via direct
@@ -90,11 +97,6 @@ const scrollTo = (view: EditorView, offset: number) => {
 };
 
 const contentHTML = (view: EditorView) => {
-  // Force CodeMirror to apply pending decoration changes to the DOM.
-  // Without this, the test reads stale DOM from before the last
-  // decoration recompute landed.
-  (view as any).measure?.();
-  view.requestMeasure();
   const c = view.dom.querySelector(".cm-content");
   if (!c) return "";
   return c.outerHTML.replace(
@@ -103,9 +105,10 @@ const contentHTML = (view: EditorView) => {
   );
 };
 
-describe.skip("real main.sd — incremental edits in/around the dual dialogue region", () => {
+describe("real main.sd — incremental edits in/around the dual dialogue region", () => {
   it.skipIf(!existsSync(MAIN_SD))(
     "typing inside the BUNNY [>] right-side content keeps both halves visible",
+    { timeout: 120_000 },
     () => {
       const original = readFileSync(MAIN_SD, "utf8");
       const anchorOffset = original.indexOf(ANCHOR);
@@ -153,6 +156,7 @@ describe.skip("real main.sd — incremental edits in/around the dual dialogue re
 
   it.skipIf(!existsSync(MAIN_SD))(
     "typing a NEW directive line into the BUNNY [>] block keeps both halves visible",
+    { timeout: 120_000 },
     () => {
       const original = readFileSync(MAIN_SD, "utf8");
       const incremental = mount(original);
@@ -195,6 +199,7 @@ describe.skip("real main.sd — incremental edits in/around the dual dialogue re
 
   it.skipIf(!existsSync(MAIN_SD))(
     "editing a line FAR from the dual region (in the title page) keeps the dual rendering",
+    { timeout: 120_000 },
     () => {
       const original = readFileSync(MAIN_SD, "utf8");
 

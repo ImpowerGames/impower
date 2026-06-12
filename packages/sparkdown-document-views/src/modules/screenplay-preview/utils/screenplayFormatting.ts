@@ -211,6 +211,7 @@ const createDecorations = (
         ...createRevealDecorations(doc, spec.from, spec.to),
         Decoration.replace({
           widget: new DialogueWidget(spec),
+          block: true,
         }).range(spec.from, spec.to),
       ];
     } else {
