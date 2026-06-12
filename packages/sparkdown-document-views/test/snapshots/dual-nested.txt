@@ -1,0 +1,73 @@
+## fixture
+== scene_a
+  BUNNY:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    I can do crime!!
+
+  RAFFLES [<]:
+    B--
+
+  BUNNY [>]:
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    Would'ya QUIT Bunny-ing me??
+    [[animate stage with shake]]
+    ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+    I REFUSE TO BE 'BUNNY'-ED!!!
+
+  RAFFLES:
+    Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.
+
+## pdf
+<knot> scenea
+<character> BUNNY
+<dialogue> I can do crime!!
+
+<character dual=l> RAFFLES
+<dialogue dual=l> B--
+<character dual=r> BUNNY
+<dialogue dual=r> Would'ya QUIT Bunny-ing me??
+<dialogue dual=r> I REFUSE TO BE 'BUNNY'-ED!!!
+
+<character> RAFFLES
+<dialogue> Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.
+## preview
+<dialogue> BUNNY
+
+<dialogue> I can do crime!!
+
+<dialogue> RAFFLES
+<dialogue> Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.
+## rendered
+# 10 lines
+--- line 0 ---
+text: ""
+html: <div class="cm-line" style="opacity: 1;"><hr></div>
+--- line 1 ---
+text: "BUNNY"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px 0px 0px 16%;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">BUNNY<img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 2 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 3 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 4 ---
+text: "I can do crime!!"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">I can do crime!!</div>
+--- line 5 ---
+text: ""
+html: <div class="cm-line collapse"><br></div>
+--- line 6 ---
+text: ""
+html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 7 ---
+text: "RAFFLES"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px 0px 0px 16%;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">RAFFLES<img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 8 ---
+text: "Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack."
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.</div>
+--- line 9 ---
+text: ""
+html: <div class="cm-line"><br></div>

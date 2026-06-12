@@ -66,27 +66,14 @@ describe("back-to-back dual dialogue", () => {
     expect(pdf).toContain("Ehp, ehp, ehp!");
     expect(pdf).toContain("(cutting him off)");
 
-    // The rendered DOM is allowed to contain the text either way — the
-    // PREVIEW_THEME sets `.cm-line { opacity: 0 }` as a default and the
-    // reveal decoration (line attribute `style="opacity: 1"`) is what
-    // makes a line visible. Parent opacity:0 propagates to children
-    // via CSS compositing, so the inner block styles' "opacity: 1"
-    // can't rescue an opacity:0 cm-line. Check the OUTER cm-line
-    // attribute directly.
-    const dialogueLines = r.lines.filter((l) =>
-      l.html.includes("cutting him off") ||
-      l.html.includes("You mean--") ||
-      l.html.includes("But--"),
-    );
-    expect(dialogueLines.length).toBeGreaterThanOrEqual(2);
-    const OUTER_CM_LINE_OPACITY_1 =
-      /^<div class="cm-line"[^>]*style="[^"]*\bopacity:\s*1\b/;
-    for (const line of dialogueLines) {
-      expect(
-        OUTER_CM_LINE_OPACITY_1.test(line.html),
-        `dual-dialogue cm-line ${line.index} has no opacity:1 on the OUTER cm-line — PREVIEW_THEME's opacity:0 default makes the entire widget invisible. html: ${line.html.slice(0, 200)}`,
-      ).toBe(true);
-    }
+    // Dual widget is rendered as a block decoration — a sibling of
+    // cm-lines under .cm-content, not inside one. Verify both pairs'
+    // grid containers are present with the expected content.
+    const gridMatches = r.contentHTML.match(/<div style="[^"]*display: grid[^"]*">/g);
+    expect(gridMatches?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(r.contentHTML).toContain("You mean--");
+    expect(r.contentHTML).toContain("But--");
+    expect(r.contentHTML).toContain("cutting him off");
   });
 
   it("emits a blank-line separator between a dual-dialogue pair and a following action when the blank line carries indent", () => {
@@ -122,22 +109,25 @@ describe("back-to-back dual dialogue", () => {
       `pdf: expected blank line between YUP (idx ${yupIdx}) and action (idx ${actionIdx}); got ${JSON.stringify(pdfLines.slice(yupIdx + 1, actionIdx))}`,
     ).toBe(true);
 
-    // (extractPreviewText doesn't surface widget-rendered dialogue
-    // content — the dialogue source lines look "empty" to its per-line
-    // walk. Use the rendered DOM to verify the preview's visual
-    // separation instead.)
-    const yupIdx_dom = r.lines.findIndex((l) => l.html.includes("YUP"));
-    const actionIdx_dom = r.lines.findIndex((l) =>
-      l.html.includes("The crew scatters."),
+    // Preview rendering: the dual widget is a BLOCK widget rendered
+    // as a sibling of cm-lines. The action line is in its own cm-line.
+    // There must be at least one empty cm-line between them — visual
+    // blank that prevents the widget and action from squishing together.
+    expect(r.contentHTML).toContain("YUP");
+    expect(r.contentHTML).toContain("The crew scatters.");
+    const yupIdxCH = r.contentHTML.indexOf("YUP");
+    const actionIdxCH = r.contentHTML.indexOf("The crew scatters.");
+    expect(yupIdxCH).toBeGreaterThan(-1);
+    expect(actionIdxCH).toBeGreaterThan(yupIdxCH);
+    const between = r.contentHTML.slice(yupIdxCH, actionIdxCH);
+    // Match an empty cm-line (with only widgetBuffer markers / spans,
+    // no actual text content beyond &nbsp;-like whitespace).
+    const emptyCmLineMatches = between.match(
+      /<div class="cm-line[^"]*"[^>]*>(?:<img[^>]*>|<span[^>]*><\/span>|\s)*<\/div>/g,
     );
-    expect(yupIdx_dom, "rendered DOM missing YUP").toBeGreaterThan(-1);
-    expect(actionIdx_dom, "rendered DOM missing action").toBeGreaterThan(
-      yupIdx_dom,
-    );
-    const between_dom = r.lines.slice(yupIdx_dom + 1, actionIdx_dom);
     expect(
-      between_dom.some((l) => l.text.trim() === ""),
-      `rendered DOM: no empty cm-line between YUP and action — widget squished them`,
+      (emptyCmLineMatches?.length ?? 0) > 0,
+      `expected an empty separator cm-line between the dual widget and the action; got: ${between.slice(0, 500)}`,
     ).toBe(true);
   });
 
@@ -170,18 +160,14 @@ describe("back-to-back dual dialogue", () => {
       }
     }
 
-    // Preview: render must still show both pairs at opacity:1 — the
-    // squish bug here is "separator missing", but verify the second
-    // pair is still visible too (regression check on the prior fix).
-    const OUTER_CM_LINE_OPACITY_1 =
-      /^<div class="cm-line"[^>]*style="[^"]*\bopacity:\s*1\b/;
-    const visiblePairs = r.lines.filter(
-      (l) =>
-        OUTER_CM_LINE_OPACITY_1.test(l.html) &&
-        (l.html.includes("You mean--") ||
-          l.html.includes("But--") ||
-          l.html.includes("cutting him off")),
-    );
-    expect(visiblePairs.length).toBeGreaterThanOrEqual(2);
+    // Preview: render must still show both pairs — the squish bug here
+    // is "separator missing", but verify the second pair is still
+    // visible too (regression check on the prior fix). Dual widgets
+    // are blocks; check both grid containers render with content.
+    const gridMatches2 = r.contentHTML.match(/<div style="[^"]*display: grid[^"]*">/g);
+    expect(gridMatches2?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(r.contentHTML).toContain("You mean--");
+    expect(r.contentHTML).toContain("But--");
+    expect(r.contentHTML).toContain("cutting him off");
   });
 });
