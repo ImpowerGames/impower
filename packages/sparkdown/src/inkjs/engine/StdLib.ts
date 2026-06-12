@@ -2323,12 +2323,35 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return out;
     },
   },
+  // `loadstring(chunk)` — Lua's contract is to return the compiled
+  // chunk as a function, or `(nil, errormessage)` when the chunk
+  // fails to load. Sparkdown stories are precompiled (the runtime
+  // has no compiler), so EVERY chunk "fails to load": return
+  // `(nil, message)` in Lua's chunk-id format rather than raising.
+  // This keeps the common defensive pattern
+  // `local f, err = loadstring(s) if not f then ... end` working
+  // (basic.luau's "load error" assertion checks exactly that shape;
+  // the expected message text is patched to ours in
+  // upstreamPatches.ts — a documented divergence).
   loadstring: {
     arity: -1,
-    fn: (story) =>
-      story.Error(
-        "loadstring: not implemented in sparkdown (would require embedding the compiler in the runtime)",
-      ),
+    fn: (_, args) => {
+      const chunkRaw = args[0];
+      const chunk =
+        chunkRaw != null &&
+        typeof chunkRaw === "object" &&
+        "value" in chunkRaw &&
+        typeof (chunkRaw as any).value === "string"
+          ? ((chunkRaw as any).value as string)
+          : "?";
+      const firstLine = chunk.split("\n")[0] ?? chunk;
+      return [
+        new NullValue(),
+        new StringValue(
+          `[string "${firstLine}"]:1: loadstring is not supported in sparkdown`,
+        ),
+      ];
+    },
   },
   require: {
     arity: -1,

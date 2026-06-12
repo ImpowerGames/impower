@@ -174,10 +174,19 @@ export function lowerLuauGenericForLoop(
   );
 
   // Push break/continue targets so the body's `break` / `continue`
-  // emit diverts to the right label.
-  ctx.loopStack?.push({ continueLabel: loopLabel, breakLabel });
+  // emit diverts to the right label. The body runs inside the loop's
+  // own scope wrap (see the `wrapInScope` in the return) — count it
+  // in `scopeDepth` so `break`/`continue` inside nested scoped blocks
+  // know how many EndScopes to emit before diverting.
+  ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
+  ctx.loopStack?.push({
+    continueLabel: loopLabel,
+    breakLabel,
+    scopeDepth: ctx.scopeDepth,
+  });
   const bodyStatements = lowerStatements(bodyContent, ctx, FOR_IN_BODY_SKIP);
   ctx.loopStack?.pop();
+  ctx.scopeDepth--;
 
   // Iteration step: call __iter(__state, __ctrl), unpack into the
   // user's loop variables. Declared as locals (re-set each iteration

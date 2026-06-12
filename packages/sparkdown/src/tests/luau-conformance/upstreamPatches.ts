@@ -49,6 +49,17 @@ export const UPSTREAM_PATCHES: Record<string, UpstreamPatch[]> = {
       reason:
         "pairs order is unspecified in Lua; upstream asserts Luau's hash-bucket order, sparkdown iterates insertion order",
     },
+    {
+      // "load error": upstream asserts Luau's exact PARSER message for
+      // a bad chunk. Sparkdown has no runtime compiler — its
+      // `loadstring` treats every chunk as failing to load and returns
+      // `(nil, message)` in the same chunk-id format. The shape of the
+      // contract (nil + string message) is what the test exercises.
+      find: `assert((function() return concat(loadstring('hello world')) end)() == "nil,[string \\"hello world\\"]:1: Incomplete statement: expected assignment or a function call")`,
+      replace: `assert((function() return concat(loadstring('hello world')) end)() == "nil,[string \\"hello world\\"]:1: loadstring is not supported in sparkdown")`,
+      reason:
+        "sparkdown stories are precompiled (no runtime compiler); loadstring returns (nil, message) for every chunk, with our message text",
+    },
   ],
 };
 

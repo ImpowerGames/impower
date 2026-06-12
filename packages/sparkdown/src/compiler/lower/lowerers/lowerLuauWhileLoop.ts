@@ -92,8 +92,15 @@ export function lowerLuauWhileLoop(
   // Push the loop's break/continue targets so any `break` /
   // `continue` inside the body lowers to a divert to the right label.
   // For `while`, continue = the loop gather itself (re-evaluates
-  // cond), break = the post-loop gather.
-  ctx.loopStack?.push({ continueLabel: loopLabel, breakLabel });
+  // cond), break = the post-loop gather. The while loop introduces NO
+  // scope wrap of its own, so the recorded `scopeDepth` is the
+  // current depth unchanged — `break`/`continue` only unwind scopes
+  // opened by nested blocks inside the body.
+  ctx.loopStack?.push({
+    continueLabel: loopLabel,
+    breakLabel,
+    scopeDepth: ctx.scopeDepth ?? 0,
+  });
   const bodyStatements = lowerStatements(bodyContent, ctx, WHILE_BODY_SKIP);
   ctx.loopStack?.pop();
 

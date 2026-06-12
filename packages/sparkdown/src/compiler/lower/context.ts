@@ -75,12 +75,33 @@ export interface LowerContext {
    * `breakLabel` is the gather immediately past the loop's exit.
    *
    * Each loop emits both labels — including a sentinel `loop_break`
-   * gather past the loop body — so the keyword lowerers just produce
-   * a `Divert`, no scope-cleanup bookkeeping needed (each loop
-   * structures its bytecode so falling through the break label
-   * naturally hits any required `EndScope`).
+   * gather past the loop body — so falling through the break label
+   * naturally hits the LOOP's own `EndScope`.
+   *
+   * `scopeDepth` records `ctx.scopeDepth` at the loop's body level
+   * (i.e. with the loop's own scope counted). A `break`/`continue`
+   * lowered at a deeper `ctx.scopeDepth` sits inside nested scoped
+   * blocks (`if` arms, `do` blocks) whose `EndScope` commands the
+   * divert would skip — the keyword lowerers emit one `EndScope` per
+   * level of difference so the runtime scope stack stays balanced
+   * (a leaked scope makes later upvalue closing snapshot the wrong
+   * binding — basic.luau's break-inside-if timely-closing test).
    */
-  loopStack?: { continueLabel: string; breakLabel: string }[];
+  loopStack?: {
+    continueLabel: string;
+    breakLabel: string;
+    scopeDepth?: number;
+  }[];
+  /**
+   * Number of scoped blocks (`if`/`elseif`/`else` arms, `do` bodies,
+   * loop bodies — anything whose lowered content is wrapped in
+   * `BeginScope`/`EndScope`) enclosing the statement currently being
+   * lowered, relative to the function body's top level (0). Each
+   * scope-wrapping lowerer increments around its body lowering.
+   * Consumed by `break`/`continue` to unwind skipped scopes (see
+   * `loopStack.scopeDepth`).
+   */
+  scopeDepth?: number;
   /**
    * Names that resolve to globally-addressable callables — top-level
    * function knots, `external NAME(...)` declarations, and `store`

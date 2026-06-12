@@ -93,7 +93,7 @@ test(`bisect-basic`, () => {
       const r = runConformanceSource(src);
       const compileErr = r.errorMessages.find((e) => !e.startsWith("RUNTIME"));
       const runtimeErr = r.errorMessages.find((e) => e.startsWith("RUNTIME"));
-      const status = compileErr ? `compile=${JSON.stringify(compileErr.slice(0, 100))}` : runtimeErr ? `runtime=${JSON.stringify(runtimeErr.slice(0, 100))}` : "ok";
+      const status = compileErr ? `compile=${JSON.stringify(compileErr.slice(0, 300))}` : runtimeErr ? `runtime=${JSON.stringify(runtimeErr.slice(0, 300))}` : "ok";
       // eslint-disable-next-line no-console
       console.log(`[${label}] ${status} output=${JSON.stringify(r.output.slice(0, 200))}`);
     } catch (e) {
@@ -101,11 +101,7 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  // Current frontier (basic.luau, patched line coords): string
-  // relational comparison — `'a' < 'b'` raises "Cannot perform
-  // operation < on String" (string `<`/`<=`/`>`/`>=` not registered
-  // in NativeFunctionCall). Blocks lines 563+ (the cmp section).
-  for (const n of [562, 574]) tryRange(1, n);
+  for (let n = 694; n <= 838; n += 12) tryRange(1, n);
 });
 
 test(`probe ${PROBE_FILE}`, () => {

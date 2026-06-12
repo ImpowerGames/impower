@@ -764,6 +764,13 @@ export class NativeFunctionCall extends InkObject {
       this.AddStringBinaryOp(this.Add, (x, y) => x + y); // concat
       this.AddStringBinaryOp(this.Equal, (x, y) => x === y);
       this.AddStringBinaryOp(this.NotEquals, (x, y) => !(x === y));
+      // Lua relational comparison on strings (lexicographic byte
+      // order — JS code-unit comparison matches for the single-byte
+      // strings Luau fixtures exercise, incl. embedded \0 and \200).
+      this.AddStringBinaryOp(this.Less, (x, y) => x < y);
+      this.AddStringBinaryOp(this.Greater, (x, y) => x > y);
+      this.AddStringBinaryOp(this.LessThanOrEquals, (x, y) => x <= y);
+      this.AddStringBinaryOp(this.GreaterThanOrEquals, (x, y) => x >= y);
 
       // Object (table) equality — Lua semantics: reference equality on
       // the underlying Map. Two ObjectValues with identical content

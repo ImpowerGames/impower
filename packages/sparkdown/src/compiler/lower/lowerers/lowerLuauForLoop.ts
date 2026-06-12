@@ -133,10 +133,19 @@ export function lowerLuauForLoop(
   const breakLabel = `__for_${nodeRef.node.from}_break`;
 
   // `continue` should perform the step and loop back, so its target
-  // is the step-update label, not the loop's head.
-  ctx.loopStack?.push({ continueLabel: stepLabel, breakLabel });
+  // is the step-update label, not the loop's head. The body runs
+  // inside the loop's own scope wrap — count it in `scopeDepth` so
+  // `break`/`continue` inside nested scoped blocks know how many
+  // EndScopes to emit before diverting.
+  ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
+  ctx.loopStack?.push({
+    continueLabel: stepLabel,
+    breakLabel,
+    scopeDepth: ctx.scopeDepth,
+  });
   const bodyStatements = lowerStatements(bodyContent, ctx, FOR_BODY_SKIP);
   ctx.loopStack?.pop();
+  ctx.scopeDepth--;
 
   // Condition drives the HIDDEN index, not the user variable.
   const condExpr = buildLoopCondition(idxName, stopName, stepName);

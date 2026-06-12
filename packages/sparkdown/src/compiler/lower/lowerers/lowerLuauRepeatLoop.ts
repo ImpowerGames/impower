@@ -76,9 +76,19 @@ export function lowerLuauRepeatLoop(
   const continueLabel = `__repeat_${nodeRef.node.from}_continue`;
   const breakLabel = `__repeat_${nodeRef.node.from}_break`;
 
-  ctx.loopStack?.push({ continueLabel, breakLabel });
+  // The body runs inside the loop's own scope wrap (see the
+  // `wrapInScope` in the return) — count it in `scopeDepth` so
+  // `break`/`continue` inside nested scoped blocks know how many
+  // EndScopes to emit before diverting.
+  ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
+  ctx.loopStack?.push({
+    continueLabel,
+    breakLabel,
+    scopeDepth: ctx.scopeDepth,
+  });
   const bodyStatements = lowerStatements(bodyContent, ctx, REPEAT_BODY_SKIP);
   ctx.loopStack?.pop();
+  ctx.scopeDepth--;
 
   // not cond — when until-condition is FALSE we want to loop, when
   // TRUE we want to exit. Inverting lets us reuse a single-branch

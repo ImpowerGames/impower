@@ -65,7 +65,12 @@ function lowerIfBlock(
   // the `else`-arm and vice versa, and neither leaks to the enclosing
   // function. The runtime pushes / pops a frame on the call-stack
   // element when it sees the BeginScope / EndScope markers.
+  // `ctx.scopeDepth` is bumped around each arm's body lowering so a
+  // `break`/`continue` inside the arm knows it must emit an EndScope
+  // for this frame before diverting out of the enclosing loop.
+  ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
   const mainBody = wrapInScope(lowerStatements(content, ctx, ifBodySkip));
+  ctx.scopeDepth--;
   branches.push(buildBranch(condExpr, mainBody, false));
 
   // ----- Any `elseif` branches -----
@@ -78,9 +83,11 @@ function lowerIfBlock(
       ? findChildByName(elseifContent, "LuauElseifBlockCondition")
       : null;
     const ecExpr = ec ? lowerExpressionFromContainer(ec, ctx) : null;
+    ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
     const body = wrapInScope(
       lowerStatements(elseifContent, ctx, ELSEIF_BODY_SKIP),
     );
+    ctx.scopeDepth--;
     branches.push(buildBranch(ecExpr, body, false));
   }
 
@@ -90,7 +97,9 @@ function lowerIfBlock(
     : null;
   if (elseNode) {
     const elseContent = findChildByName(elseNode, `${elseNodeName}_content`);
+    ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
     const body = wrapInScope(lowerStatements(elseContent, ctx));
+    ctx.scopeDepth--;
     branches.push(buildBranch(null, body, true));
   }
 

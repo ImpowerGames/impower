@@ -277,6 +277,29 @@ export class CallStack {
       const oldValue = tryGetValueFromMap(inner, name, null);
       if (oldValue.exists) {
         ListValue.RetainListOriginsForAssignment(oldValue.result, value);
+        // Lua timely closing across loop iterations: re-executing a
+        // `local x = ...` declaration in the SAME scope frame (loop
+        // bodies re-run their declarations every iteration — incl.
+        // the synthesized per-iteration loop-variable copy) creates a
+        // FRESH cell; the previous iteration's cell dies right here.
+        // Close any open upvalue captured against the old binding
+        // with its final value, so closures made in earlier
+        // iterations keep that iteration's value (basic.luau's
+        // "upvalues & loops (validates timely closing)" block).
+        // Genuine shadowing (`local x` in an INNER scope) never hits
+        // this path — the outer binding stays alive in its own frame
+        // and PopScope closes it when that block exits.
+        if (contextElement.openUpvalues.length > 0) {
+          const stillOpen: VariablePointerValue[] = [];
+          for (const ptr of contextElement.openUpvalues) {
+            if (!ptr.isClosed && ptr.variableName === name) {
+              ptr.closedValue = (oldValue.result as InkObject) ?? null;
+              continue;
+            }
+            if (!ptr.isClosed) stillOpen.push(ptr);
+          }
+          contextElement.openUpvalues = stillOpen;
+        }
       }
       inner.set(name, value);
       return;

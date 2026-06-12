@@ -33,6 +33,11 @@ export function lowerLuauDoBlock(
 ): CompiledBlock {
   const bodyContent = findChildByName(nodeRef.node, "LuauDoBlock_content");
   if (!bodyContent) return {};
+  // Bump `ctx.scopeDepth` around the body lowering so a `break` /
+  // `continue` inside the block knows to emit an EndScope for this
+  // frame before diverting out of the enclosing loop.
+  ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
   const body = lowerStatements(bodyContent, ctx, DO_BLOCK_SKIP);
+  ctx.scopeDepth--;
   return wrapInWeave(wrapInScope(body));
 }
