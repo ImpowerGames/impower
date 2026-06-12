@@ -44,12 +44,12 @@ BUNNY:
 <dialogue> (gestures with ball)
 <dialogue> ..."A Sticky Wicket"?
 
-<character> BUNNY
-
-<dialogue> (realizing)
-<dialogue> Oh!
-
-<dialogue> That weird baseball show.
+<unknown> BUNNY:
+<unknown>   [[bunny_realization~jacket]]
+<unknown>   <!>(realizing)
+<unknown>   Oh! >
+<unknown>   [[bunny_point~jacket]]
+<unknown>   That weird baseball show.
 ## rendered
 # 20 lines
 --- line 0 ---

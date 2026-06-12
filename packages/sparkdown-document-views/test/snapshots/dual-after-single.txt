@@ -1,0 +1,71 @@
+## fixture
+BUNNY:
+  [[animate stage with shake]]
+  ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+  I can do crime!!
+
+RAFFLES [<]:
+  B--
+
+BUNNY [>]:
+  [[animate stage with shake]]
+  ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+  Would'ya QUIT Bunny-ing me??
+  [[animate stage with shake]]
+  ((m_todo_sfx_emotional_yelling+temp_sfx_smack))
+  I REFUSE TO BE 'BUNNY'-ED!!!
+
+RAFFLES:
+  Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.
+
+## pdf
+<character> BUNNY
+<dialogue> I can do crime!!
+
+<character dual=l> RAFFLES
+<dialogue dual=l> B--
+<character dual=r> BUNNY
+<dialogue dual=r> Would'ya QUIT Bunny-ing me??
+<dialogue dual=r> I REFUSE TO BE 'BUNNY'-ED!!!
+
+<character> RAFFLES
+<dialogue> Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.
+## preview
+<character> BUNNY
+
+<dialogue> I can do crime!!
+
+<character> RAFFLES
+<dialogue> Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.
+## rendered
+# 10 lines
+--- line 0 ---
+text: "BUNNY"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px 0px 0px 16%;">BUNNY<img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 1 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 2 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 3 ---
+text: "I can do crime!!"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">I can do crime!!</div>
+--- line 4 ---
+text: ""
+html: <div class="cm-line collapse"><br></div>
+--- line 5 ---
+text: "RAFFLES [<]: <>B--BUNNY [>]: <>[[animate stage with shake]]<>((m_todo_sfx_emotional_yelling+temp_sfx_smack))<>Would'ya QUIT Bunny-ing me??<>[[animate stage with shake]]<>((m_todo_sfx_emotional_yelling+temp_sfx_smack))<>I REFUSE TO BE 'BUNNY'-ED!!!"
+html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><div style="pointer-events: none; margin-left: auto; margin-right: auto; width: 95%; display: grid; gap: 8px; grid-template-columns: 1fr 1fr;"><div style="width: 100%;"><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 16%;"><span>RAFFLES</span><span class="ͼ1k"> [&lt;]</span><span class="ͼ1t">:</span><span> </span></div><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 0;"><span class="ͼ1z">&lt;&gt;</span><span>B--</span></div></div><div style="width: 100%;"><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 16%;"><span>BUNNY</span><span class="ͼ1k"> [&gt;]</span><span class="ͼ1t">:</span><span> </span></div><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 0;"><span class="ͼ1z">&lt;&gt;</span><span class="ͼ1y">[[animate</span><span class="ͼ1y ͼ1r"> </span><span class="ͼ1y">stage</span><span class="ͼ1y ͼ1r"> </span><span class="ͼ1y">with</span><span class="ͼ1y ͼ1r"> </span><span class="ͼ1y">shake]]</span></div><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 0;"><span class="ͼ1z">&lt;&gt;</span><span class="ͼ1y">((m_todo_sfx_emotional_yelling+temp_sfx_smack))</span></div><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 0;"><span class="ͼ1z">&lt;&gt;</span><span>Would'ya QUIT Bunny-ing me??</span></div><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 0;"><span class="ͼ1z">&lt;&gt;</span><span class="ͼ1y">[[animate</span><span class="ͼ1y ͼ1r"> </span><span class="ͼ1y">stage</span><span class="ͼ1y ͼ1r"> </span><span class="ͼ1y">with</span><span class="ͼ1y ͼ1r"> </span><span class="ͼ1y">shake]]</span></div><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 0;"><span class="ͼ1z">&lt;&gt;</span><span class="ͼ1y">((m_todo_sfx_emotional_yelling+temp_sfx_smack))</span></div><div style="opacity: 1; margin: 0 auto; width: 90%; padding: 0 0 0 0;"><span class="ͼ1z">&lt;&gt;</span><span>I REFUSE TO BE 'BUNNY'-ED!!!</span></div></div></div><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 6 ---
+text: ""
+html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 7 ---
+text: "RAFFLES"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px 0px 0px 16%;">RAFFLES<img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 8 ---
+text: "Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack."
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.</div>
+--- line 9 ---
+text: ""
+html: <div class="cm-line"><br></div>

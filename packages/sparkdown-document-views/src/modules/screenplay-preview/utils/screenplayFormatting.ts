@@ -408,13 +408,19 @@ export const decorate = (
   };
 
   let lineStart = from;
-  // CodeMirror's incremental parser can emit duplicate Newline nodes at
-  // the trailing edge after edits — one extra per incremental reparse.
-  // Each duplicate would trigger processNewline again with the cursor
-  // already advanced past the newline, hitting the `end <= start`
-  // shortcut in isWhitespaceOnly and emitting a spurious separator
-  // collapse decoration. Dedupe by from-position so we process each
-  // newline at most once per decorate() call.
+  // Workaround for a textmate-grammar-tree incremental parser bug:
+  // after each reparse, duplicate `Newline` nodes accumulate at the
+  // trailing edge of the document (one extra per reparse). Each
+  // duplicate triggered processNewline with lineStart already past
+  // the newline, hit isWhitespaceOnly's `end <= start` short-circuit,
+  // and emitted a spurious `Decoration.line({class:"collapse"})` at
+  // the trailing line — the user-visible "preview deletes the old
+  // line and replaces it with the new one" sync drift.
+  //
+  // A proper fix exists on another branch of textmate-grammar-tree but
+  // hasn't been merged upstream as of 2026-05-29. When that lands and
+  // the parser stops emitting duplicates, this Set guard becomes a
+  // no-op and can be removed.
   const seenNewlineFrom = new Set<number>();
   const processNewline = (newlineFrom: number, newlineTo: number) => {
     if (seenNewlineFrom.has(newlineFrom)) return;
