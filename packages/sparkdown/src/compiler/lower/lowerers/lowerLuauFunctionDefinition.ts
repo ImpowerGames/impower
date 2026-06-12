@@ -174,7 +174,7 @@ export function lowerLuauFunctionDefinition(
   // populates this so inner closures know to skip upval capture for
   // these names — see `siblingSubFlowNamesStack` comment in
   // `LowerContext`).
-  const siblingSubFlows = new Set<string>();
+  const siblingSubFlows = new Map<string, string[]>();
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
   ctx.siblingSubFlowNamesStack?.pop();
@@ -259,7 +259,7 @@ function lowerNestedNamedFunction(
     ctx.declaredLocalsStack?.push(ownLocals);
     const innerHoisted: ParsedObject[] = [];
     ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
-    const innerSiblingSubFlows = new Set<string>();
+    const innerSiblingSubFlows = new Map<string, string[]>();
     ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
     const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
     ctx.siblingSubFlowNamesStack?.pop();
@@ -352,11 +352,17 @@ function lowerNestedNamedFunction(
 
 // Variadic nested fns keep the legacy "subFlow `Function` attached to
 // the enclosing flow" shape so their call sites can reach the static-
-// dispatch path that handles `PackTuple` for the `...` slot. Trade-off
-// for V1: variadic functions can't capture upvalues from outer scopes
-// (the closure-dispatch path doesn't yet pack surplus args at runtime,
-// see `extractClosurePath` in Story.ts). Self-recursion still works via
-// in-flow name resolution since the function lives at its own name.
+// dispatch path that handles `PackTuple` for the `...` slot.
+// Upvalue capture works by prepending the body's free variables as
+// PARAMETERS (the same shape closures use): every call site prepends
+// matching `VariablePointerExpression`s (see the sibling-subflow
+// lookup in `lowerExpression`'s call dispatch), so reads and writes
+// go through the shared cell — `local abs = math.abs function foo(...)
+// return abs(...) end` must read the enclosing local. Self-recursion
+// still works via in-flow name resolution since the function lives at
+// its own name — the self-call's prepended pointers reference the
+// subflow's OWN upval parameters, threading the same cells through
+// each recursion level.
 function lowerNestedAsSubFlow(
   node: import("@lezer/common").SyntaxNode,
   identifier: Identifier,
@@ -365,13 +371,37 @@ function lowerNestedAsSubFlow(
   enclosingScope: ParsedObject[],
 ): CompiledBlock {
   const content = getFunctionBodyContent(node);
+  // Register the NAME on the ENCLOSING scope's sibling-subFlow frame
+  // BEFORE the free-variable scan: a self-recursive body reference
+  // (`function concat(...) ... concat(...) end`) must resolve via
+  // in-flow name dispatch, NOT be captured as an upval of itself
+  // (the call site would then emit a pointer to a variable that
+  // doesn't exist). The placeholder empty upval list is replaced
+  // with the real list right after the scan — before the body
+  // lowers — so self-recursive call sites prepend the same upval
+  // pointers as external callers (threading this fn's own upval
+  // params down each level).
+  const enclosingSiblingFrame = ctx.siblingSubFlowNamesStack?.at(-1);
+  if (enclosingSiblingFrame && identifier.name) {
+    enclosingSiblingFrame.set(identifier.name, []);
+  }
+  // Free-variable scan BEFORE pushing this fn's own scope frames —
+  // the scan binds the fn's params/locals internally and consults the
+  // ENCLOSING declared-locals stack for what needs capturing.
+  const upvals = scanFreeVariables(node, ctx);
+  const upvalArgs = upvals.map(
+    (n) => new Argument(new Identifier(n), false, false),
+  );
+  if (enclosingSiblingFrame && identifier.name) {
+    enclosingSiblingFrame.set(identifier.name, upvals);
+  }
   const nested: ParsedObject[] = [];
   ctx.functionScopeStack?.push(nested);
   const ownLocals = collectImmediateBodyDeclarations(node, ctx);
   ctx.declaredLocalsStack?.push(ownLocals);
   const innerHoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
-  const innerSiblingSubFlows = new Set<string>();
+  const innerSiblingSubFlows = new Map<string, string[]>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
   ctx.siblingSubFlowNamesStack?.pop();
@@ -379,16 +409,12 @@ function lowerNestedAsSubFlow(
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
   enclosingScope.push(
-    new Function(identifier, [...innerHoisted, ...body, ...nested], args),
+    new Function(
+      identifier,
+      [...innerHoisted, ...body, ...nested],
+      [...upvalArgs, ...args],
+    ),
   );
-  // Register this variadic subFlow's name on the ENCLOSING scope's
-  // sibling-subFlow frame. Inner closures in the enclosing scope
-  // will then skip upval capture for this name — see
-  // `siblingSubFlowNamesStack` comment in `LowerContext`.
-  const enclosingSiblingFrame = ctx.siblingSubFlowNamesStack?.at(-1);
-  if (enclosingSiblingFrame && identifier.name) {
-    enclosingSiblingFrame.add(identifier.name);
-  }
   return {};
 }
 
@@ -501,7 +527,7 @@ function lowerPropertyTargetFunctionDefinition(
   ctx.declaredLocalsStack?.push(ownLocals);
   const innerHoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
-  const innerSiblingSubFlows = new Set<string>();
+  const innerSiblingSubFlows = new Map<string, string[]>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
   const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
   ctx.siblingSubFlowNamesStack?.pop();

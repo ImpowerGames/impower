@@ -12,6 +12,7 @@ import { NumberExpression } from "./Expression/NumberExpression";
 import { Path } from "./Path";
 import { Story } from "./Story";
 import { StringValue } from "../../../engine/Value";
+import { Void as RuntimeVoid } from "../../../engine/Void";
 import { VariableReference } from "./Variable/VariableReference";
 import { Identifier } from "./Identifier";
 import { asOrNull } from "../../../engine/TypeAssertion";
@@ -205,6 +206,20 @@ export class FunctionCall extends Expression {
 
       for (let ii = 0; ii < this.args.length; ii += 1) {
         this.args[ii].GenerateIntoContainer(container);
+      }
+
+      // Under-application of a fixed-arity native (`math.abs()`): the
+      // runtime pops the REGISTERED arity, so an unpadded call site
+      // underflows the eval stack with an untrappable JS "trying to
+      // pop too many objects". Pad the missing slots with `Void`
+      // sentinels — `NativeFunctionCall.Call`'s pure-number-op
+      // validation reports them as Lua's trappable "missing argument
+      // #N to 'abs'" (and any other op fails its own type validation
+      // on the Void rather than corrupting the stack).
+      if (!nativeCall.isVariadic) {
+        for (let ii = this.args.length; ii < nativeCall.numberOfParameters; ii += 1) {
+          container.AddContent(new RuntimeVoid());
+        }
       }
 
       // Pass the call-site arg count so variadic natives (`__method_*`)

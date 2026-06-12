@@ -79,7 +79,7 @@ test(`bisect-basic`, () => {
       const status = compileErr
         ? `compile=${JSON.stringify(compileErr.slice(0, 80))}`
         : runtimeErr
-          ? `runtime=${JSON.stringify(runtimeErr.slice(0, 120))}`
+          ? `runtime=${JSON.stringify(runtimeErr.slice(0, 300))}`
           : "ok";
       // eslint-disable-next-line no-console
       console.log(`[lines 1-${endLine}] ${status}`);
@@ -101,7 +101,10 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  for (let n = 694; n <= 838; n += 12) tryRange(1, n);
+  // basic.luau reaches end-to-end OK as of 2026-06-12 (gated in
+  // UpstreamConformance.test.ts). Keep one full-fixture run here for
+  // quick eyeball confirmation when probing other fixtures.
+  tryRange(1, lines.length);
 });
 
 test(`probe ${PROBE_FILE}`, () => {

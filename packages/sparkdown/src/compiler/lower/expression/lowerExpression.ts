@@ -1083,13 +1083,23 @@ export function scanFreeVariables(
   const seenFree = new Set<string>();
   const maybeCaptureFree = (name: string) => {
     if (bound.has(name) || seenFree.has(name)) return;
+    // Sibling-subflow check FIRST — mirrors the call-dispatch
+    // precedence (`isSiblingSubFlowName` before `isEnclosingLocalName`):
+    // a variadic `function foo(...)` sibling is the innermost binding
+    // and wins over a same-named local in an outer scope. Without
+    // this ordering, basic.luau's chunk-level `local function foo`
+    // (line 30) made every later sibling pair (`function foo(...) ...
+    // function bar(...) return foo(...)`) capture `foo` as a phantom
+    // upval — call sites then bound the first REAL arg to the
+    // prepended upval parameter and dispatched `foo` as a variable.
+    if (isSiblingSubFlow(name)) return;
     if (isShadowedLocal(name)) {
       // Shadowed — capture as upval regardless of stdlib status.
       seenFree.add(name);
       free.push(name);
       return;
     }
-    if (isStdLibName(name) || isGlobalCallable(name) || isSiblingSubFlow(name)) return;
+    if (isStdLibName(name) || isGlobalCallable(name)) return;
     seenFree.add(name);
     free.push(name);
   };
@@ -1366,7 +1376,7 @@ export function buildAnonymousFunction(
   ctx.declaredLocalsStack?.push(ownLocals);
   const innerHoisted: ParsedObject[] = [];
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
-  const innerSiblingSubFlows = new Set<string>();
+  const innerSiblingSubFlows = new Map<string, string[]>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
   const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP);
   ctx.siblingSubFlowNamesStack?.pop();
@@ -1457,12 +1467,18 @@ function lowerString(node: SyntaxNode, ctx: LowerContext): Expression {
   // quote check actually fires on the literal's real boundaries.
   const text = ctx.read(node.from, node.to).trim();
   const stripped = stripQuotes(text);
-  // Multiline `[[...]]` strings don't process escapes (Lua semantics).
-  // Everything else (single/double-quoted) interprets `\n`, `\t`, etc.
-  const processed =
-    node.name === "LuauMultilineString"
-      ? stripped
-      : processLuauEscapes(stripped);
+  // Multiline `[[...]]` strings don't process escapes (Lua semantics),
+  // but they DO normalize line endings to "\n" and drop a newline
+  // appearing immediately after the opening bracket (`[[\nfoo]]` is
+  // "foo"; `[[\n\n]]` is "\n"). Everything else (single/double-quoted)
+  // interprets `\n`, `\t`, etc.
+  let processed: string;
+  if (node.name === "LuauMultilineString") {
+    processed = stripped.replace(/\r\n|\r/g, "\n");
+    if (processed.startsWith("\n")) processed = processed.slice(1);
+  } else {
+    processed = processLuauEscapes(stripped);
+  }
   return new StringExpression([new Text(processed)]);
 }
 
@@ -1764,7 +1780,7 @@ export function lowerSimpleAccessPath(
             }
             const base = makeGlobalFunctionCall(
               new Identifier(nameStr),
-              args,
+              withSiblingSubFlowUpvalArgs(nameStr, args, ctx),
               inner,
               ctx,
             );
@@ -1844,7 +1860,12 @@ export function lowerValueChainAccessPath(
         argLists.slice(1),
       );
     } else {
-      const base = makeGlobalFunctionCall(name, args, firstInner, ctx);
+      const base = makeGlobalFunctionCall(
+        name,
+        withSiblingSubFlowUpvalArgs(nameStr, args, ctx),
+        firstInner,
+        ctx,
+      );
       current = wrapChainedValueCalls(base, argLists.slice(1));
     }
     i = 1;
@@ -1959,6 +1980,42 @@ function isSiblingSubFlowName(name: string, ctx: LowerContext): boolean {
     if (stack[i]!.has(name)) return true;
   }
   return false;
+}
+
+// The captured-upvalue names of a sibling variadic SubFlow, or null
+// when `name` isn't a registered subflow. Call sites prepend one
+// `VariablePointerExpression` per upval (mirroring the closure-upval
+// mechanism) so the subflow's prepended upval PARAMETERS receive the
+// enclosing scope's cells — reads and writes go through the shared
+// cell, and self-recursive calls thread the subflow's own upval
+// params down each level.
+function siblingSubFlowUpvals(
+  name: string,
+  ctx: LowerContext,
+): string[] | null {
+  const stack = ctx.siblingSubFlowNamesStack;
+  if (!stack) return null;
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const hit = stack[i]!.get(name);
+    if (hit !== undefined) return hit;
+  }
+  return null;
+}
+
+// Prepend a sibling subflow's upval pointers to a call's arg list.
+// No-op (returns `args` unchanged) when `name` isn't a registered
+// sibling subflow or captures nothing.
+function withSiblingSubFlowUpvalArgs(
+  name: string,
+  args: Expression[],
+  ctx: LowerContext,
+): Expression[] {
+  const upvals = siblingSubFlowUpvals(name, ctx);
+  if (!upvals || upvals.length === 0) return args;
+  return [
+    ...upvals.map((n) => new VariablePointerExpression(n)),
+    ...args,
+  ];
 }
 
 // surface a nested call's name — e.g. `select("#", multi())` would

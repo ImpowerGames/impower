@@ -22,7 +22,7 @@ import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { applyUpstreamPatches } from "./upstreamPatches";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -202,4 +202,23 @@ describe("Luau upstream conformance baseline", () => {
     // eslint-disable-next-line no-console
     console.log(lines.join("\n"));
   });
+
+  // Fixtures that fully pass are GATED — unlike the calibration
+  // report above, a regression here is a hard failure. basic.luau
+  // (1018 lines of language/library fundamentals) reached end-to-end
+  // OK on 2026-06-12; keep it green.
+  test(
+    "basic.luau passes end-to-end",
+    () => {
+      if (!existsSync(UPSTREAM_ROOT)) return;
+      const source = applyUpstreamPatches(
+        "basic.luau",
+        readFileSync(join(UPSTREAM_ROOT, "basic.luau"), "utf8"),
+      );
+      const r = runConformanceSource(source, undefined, "basic.luau");
+      expect(r.errorMessages).toEqual([]);
+      expect(r.returnedOK).toBe(true);
+    },
+    300000,
+  );
 });

@@ -23,6 +23,7 @@ import {
   METHOD_DISPATCH,
   METHOD_PREFIX,
   callBuiltinMethod,
+  isPureNumberStdLibOp,
   luauNumberToString,
   luauTypeOf,
   parseLuauNumber,
@@ -209,6 +210,60 @@ export class NativeFunctionCall extends InkObject {
       this.numberOfParameters != parameters.length
     ) {
       throw new Error("Unexpected number of parameters");
+    }
+
+    // Lua argument semantics for PURE number stdlib ops (`math.abs`,
+    // `math.floor`, ...): numeric strings coerce to numbers
+    // (`math.abs('-5')` is 5); a missing argument — the `Void`
+    // sentinel padded in by FunctionCall.GenerateIntoContainer for
+    // under-applied call sites, or an empty multi-return — raises
+    // "missing argument #N to 'abs'"; nil / tables / non-numeric
+    // strings raise "invalid argument #N to 'abs'". Both are Lua's
+    // message shapes (basic.luau pattern-matches them through pcall)
+    // and both are StoryExceptions so pcall traps them. Uses the
+    // SHORT name (`abs`, not `math.abs`) like Lua. Runs BEFORE the
+    // generic Void→nil coercion below, which would otherwise make a
+    // missing argument indistinguishable from an explicit nil.
+    if (isPureNumberStdLibOp(this.name)) {
+      const shortName = this.name.includes(".")
+        ? this.name.slice(this.name.lastIndexOf(".") + 1)
+        : this.name;
+      if (parameters.length === 0 && this.numberOfParameters >= 1) {
+        throw new StoryException(`missing argument #1 to '${shortName}'`);
+      }
+      for (let i = 0; i < parameters.length; i++) {
+        let p = parameters[i];
+        if (p instanceof MultiValue) {
+          // Single-value context truncation; an empty pack is a
+          // missing argument (Lua adjusts it to zero values).
+          if (p.values.length === 0) {
+            throw new StoryException(
+              `missing argument #${i + 1} to '${shortName}'`,
+            );
+          }
+          p = p.values[0]!;
+          parameters[i] = p;
+        }
+        if (p instanceof Void) {
+          throw new StoryException(
+            `missing argument #${i + 1} to '${shortName}'`,
+          );
+        }
+        if (p instanceof IntValue || p instanceof FloatValue) continue;
+        if (p instanceof StringValue) {
+          const n = parseLuauNumber(p.value ?? "");
+          if (n !== null) {
+            const replaced = Value.Create(n);
+            if (replaced !== null) {
+              parameters[i] = replaced;
+              continue;
+            }
+          }
+        }
+        throw new StoryException(
+          `invalid argument #${i + 1} to '${shortName}' (number expected, got ${luauTypeOf(p)})`,
+        );
+      }
     }
 
     let hasList = false;

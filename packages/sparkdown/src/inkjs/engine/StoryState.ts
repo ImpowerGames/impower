@@ -789,6 +789,18 @@ export class StoryState {
     // var text = obj as StringValue;
     let text = asOrNull(obj, StringValue);
     if (text !== null) {
+      // Inside a string evaluation (BeginString..EndString) the text
+      // is a VALUE under construction, not display flow — newlines
+      // are literal characters (Lua multiline `[[...]]` strings and
+      // `"\n"` escapes must round-trip; `#"\n"` is 1). Skip the
+      // head/tail whitespace splitting and the newline trimming in
+      // PushToOutputStreamIndividual, which would otherwise drop a
+      // whitespace-only string's content entirely.
+      if (this.inStringEvaluation) {
+        this.outputStream.push(text);
+        this.OutputStreamDirty();
+        return;
+      }
       let listText = this.TrySplittingHeadTailWhitespace(text);
       if (listText !== null) {
         for (let textObj of listText) {

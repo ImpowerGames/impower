@@ -198,6 +198,29 @@ export function coerceString(v: any): string | null {
 }
 
 /**
+ * Lua C-function argument contract: raise "missing argument #N to
+ * 'name'" (via `story.Error` — throws, so pcall traps it) when the
+ * argument slot is genuinely ABSENT: `undefined` (call site supplied
+ * fewer args), a `Void` sentinel (callee returned no values), or an
+ * empty multi-return. An explicit `nil` is NOT missing — entries that
+ * reject nil do so with their own "invalid argument" checks.
+ */
+function requireStdLibArg(
+  story: any,
+  v: any,
+  index: number,
+  name: string,
+): void {
+  const missing =
+    v === undefined ||
+    v?.constructor?.name === "Void" ||
+    (v instanceof MultiValue && v.values.length === 0);
+  if (missing) {
+    story.Error(`missing argument #${index} to '${name}'`);
+  }
+}
+
+/**
  * Lua/Luau `type(v)` semantics: returns one of `"nil"`, `"number"`,
  * `"string"`, `"boolean"`, `"table"`, `"function"`, `"userdata"`.
  * Approximated for sparkdown's runtime by inspecting the wrapped
@@ -233,6 +256,10 @@ export function luauTypeOf(v: any): string {
       // `type(type)` / `type(assert)` correctly report "function"
       // (rather than "table" or "nil").
       if (raw.has("__stdlib_fn")) return "function";
+      // `newproxy` sentinel — userdata-like values report "userdata".
+      // Intentionally NOT spoofable via a `__type` metatable field
+      // (matching Luau's anti-spoofing rule).
+      if (raw.has("__userdata")) return "userdata";
       return "table";
     }
     if (typeof raw === "object") return "table";
@@ -2165,7 +2192,15 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // Approximated via the runtime Value subclass's `.value` shape.
   type: {
     arity: 1,
-    fn: (_, [v]) => luauTypeOf(v),
+    fn: (story, [v]) => {
+      // Lua's C-function contract: `type()` REQUIRES an argument —
+      // a missing one (no arg at all, a Void from a function that
+      // returned nothing, or an empty multi-return) raises rather
+      // than reporting "nil" (`pcall(type) == false`,
+      // `pcall(function() return type(nothing()) end) == false`).
+      requireStdLibArg(story, v, 1, "type");
+      return luauTypeOf(v instanceof MultiValue ? v.values[0] : v);
+    },
   },
 
   // `typeof(v)` — Luau extension: `type(v)` for primitives, otherwise
@@ -2173,7 +2208,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // it behaves identically to `type` for now.
   typeof: {
     arity: 1,
-    fn: (_, [v]) => luauTypeOf(v),
+    fn: (story, [v]) => {
+      requireStdLibArg(story, v, 1, "typeof");
+      return luauTypeOf(v instanceof MultiValue ? v.values[0] : v);
+    },
   },
 
   // `error(message [, level])` — raise a runtime error. The `level`
@@ -2297,16 +2335,21 @@ export const STDLIB: Record<string, StdLibEntry> = {
       return mt;
     },
   },
-  // `newproxy([metatable])` — Luau-only. Returns a fresh table that
-  // can carry a metatable. With a `true` arg, the new table gets its
-  // own empty metatable (suitable for later setmetatable). With a
-  // table arg, the new table's metatable is set to that table. Used
-  // mostly to create userdata-like sentinels in Lua 5.1; in sparkdown
-  // a thin ObjectValue suffices.
+  // `newproxy([metatable])` — Luau-only. Returns a fresh userdata-like
+  // value that can carry a metatable. With a `true` arg, the proxy
+  // gets its own empty metatable (suitable for later setmetatable).
+  // With a table arg, the proxy's metatable is set to that table.
+  // The `__userdata` marker key makes `type()` / `typeof()` report
+  // "userdata" (NOT "table" — and intentionally NOT spoofable via a
+  // `__type` metatable field, matching Luau).
   newproxy: {
     arity: -1,
     fn: (_, args) => {
       const out = new ObjectValue();
+      (out.value as Map<string, AbstractValue>).set(
+        "__userdata",
+        new BoolValue(true),
+      );
       if (args.length === 0) return out;
       const arg = args[0];
       if (arg instanceof ObjectValue) {
@@ -2379,12 +2422,20 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     fn: () => 0,
   },
+  // `getfenv([f])` — Luau keeps this Lua 5.1 builtin (deprecated, and
+  // it deoptimizes fastcalls upstream). Sparkdown returns the same
+  // globals-proxy table `_G` resolves to, so reads route through
+  // global variable storage and `getfenv().math = {...}` writes a
+  // global named `math` — which the native-dispatch override hook in
+  // Story.ts then prefers over the static stdlib op (basic.luau's
+  // testgetfenv reassignment test).
   getfenv: {
     arity: -1,
-    fn: (story) =>
-      story.Error(
-        "getfenv: removed in Lua 5.2 and not in Luau",
-      ),
+    fn: () => {
+      const proxyMap = new Map<string, AbstractValue>();
+      proxyMap.set(GLOBALS_PROXY_TAG, new BoolValue(true));
+      return new ObjectValue(proxyMap);
+    },
   },
   setfenv: {
     arity: -1,
@@ -4476,6 +4527,37 @@ export function lookupStateAwareStdLib(name: string): StdLibEntry | null {
 // sentinel for `type(type) == 'function'`-style references.
 export function isStdLibFunctionName(name: string): boolean {
   return STDLIB[name] != null;
+}
+
+// True when `name` is a stdlib NAMESPACE root (`math`, `string`,
+// `table`, ...) — i.e. at least one registered entry lives under
+// `name + "."`. Used by the runtime dotted-read error path to
+// distinguish `math.idontexist` (a valid read of a missing member of
+// an existing table → nil) from `idontexist.a` (indexing nil →
+// "attempt to index a nil value").
+const STDLIB_NAMESPACES: Set<string> = (() => {
+  const out = new Set<string>();
+  for (const key of Object.keys(STDLIB)) {
+    const dot = key.indexOf(".");
+    if (dot > 0) out.add(key.slice(0, dot));
+  }
+  return out;
+})();
+export function isStdLibNamespaceName(name: string): boolean {
+  return STDLIB_NAMESPACES.has(name);
+}
+
+// True when `name` is a registered PURE stdlib op over numbers
+// (`math.abs`, `math.floor`, ...). Used by NativeFunctionCall.Call to
+// apply Lua's argument semantics: numeric strings coerce, and
+// missing / wrong-typed arguments raise Lua-formatted, pcall-trappable
+// errors ("missing argument #1 to 'abs'" / "invalid argument #1 to
+// 'abs'").
+export function isPureNumberStdLibOp(name: string): boolean {
+  const entry = STDLIB[name];
+  if (!entry) return false;
+  const types = pureStdLibTypes(entry);
+  return !!types && types.length === 1 && types[0] === "number";
 }
 
 // Lookup any stdlib entry by name regardless of pure / state-aware

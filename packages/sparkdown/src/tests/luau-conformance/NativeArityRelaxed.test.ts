@@ -46,19 +46,26 @@ describe("native function arity check is a warning, not an error", () => {
 
 describe("dotted-path unresolved variable is a warning, not an error", () => {
   test("undefined path: _G.bar reads as nil at runtime", () => {
-    // Sparkdown doesn't implement Luau's `_G` global env table. The
-    // lookup falls through to nil-default (same as undefined bare
-    // variables). Compile succeeds with a warning.
+    // `_G` resolves to the globals-proxy table; a missing member of
+    // an EXISTING table is nil (Luau semantics). Compile succeeds
+    // with a warning.
     const r = runConformanceSource(`assert(_G.bar == nil)`);
     expect(r.errorMessages).toEqual([]);
     expect(r.returnedOK).toBe(true);
   });
 
-  test("interpolation: dotted path produces 'nil' string", () => {
+  test("interpolation: unresolved dotted root raises Lua's index error", () => {
+    // Luau semantics: `unknown.path` indexes a nil value and raises
+    // (basic.luau's import-fallback block requires
+    // `pcall(function() return idontexist.a end) == false`).
+    // Previously sparkdown fell through to a lenient nil-default —
+    // that read every typo'd root as nil and masked real bugs. The
+    // raise is trappable via pcall like any Lua error.
     const r = runConformanceSource(`local s = \`val: {unknown.path}\`
 assert(s == "val: nil")`);
-    expect(r.errorMessages).toEqual([]);
-    expect(r.returnedOK).toBe(true);
+    expect(
+      r.errorMessages.some((e) => e.includes("attempt to index a nil value")),
+    ).toBe(true);
   });
 
   test("regression: defined dotted path still resolves", () => {

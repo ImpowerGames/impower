@@ -31,6 +31,7 @@ import {
   BUILTIN_ITER_TAG,
   GLOBALS_PROXY_TAG,
   isStdLibFunctionName,
+  isStdLibNamespaceName,
   lookupAnyStdLib,
   lookupStateAwareStdLib,
   stepBuiltinIterator,
@@ -106,6 +107,33 @@ function extractClosurePath(callTarget: any, story: any): any | null {
   // binding reads them last.
   for (const a of userArgs) story.state.PushEvaluationStack(a);
   return fnVal.value;
+}
+
+// Lua's index-type rule: only tables (and strings, via their library
+// metatable) are indexable. Returns the "attempt to index a X value"
+// message for non-indexable values, or `null` when `v` may be indexed.
+// Function values include bare DivertTargets, closure-shaped
+// ObjectValues, and `__stdlib_fn` markers (`math.pow.a` indexes a
+// builtin).
+function luauIndexTargetError(v: unknown): string | null {
+  if (v == null || v instanceof NullValue || v instanceof Void) {
+    return "attempt to index a nil value";
+  }
+  if (v instanceof BoolValue) return "attempt to index a boolean value";
+  if (v instanceof IntValue || v instanceof FloatValue) {
+    return "attempt to index a number value";
+  }
+  if (v instanceof DivertTargetValue) {
+    return "attempt to index a function value";
+  }
+  if (
+    v instanceof ObjectValue &&
+    ((v.value as Map<string, unknown>)?.has("__closure_fn") ||
+      (v.value as Map<string, unknown>)?.has("__stdlib_fn"))
+  ) {
+    return "attempt to index a function value";
+  }
+  return null;
 }
 
 // Look up a metamethod on the metatable of `obj` (e.g. `__index`,
@@ -2271,6 +2299,16 @@ export class Story extends InkObject {
             );
             break;
           }
+          // Lua's index-type rule: indexing nil / a boolean / a
+          // number / a function raises (trappable via pcall) —
+          // `idontexist.a` must NOT silently produce nil.
+          {
+            const idxErr = luauIndexTargetError(indexBase);
+            if (idxErr) {
+              this.Error(idxErr);
+              break;
+            }
+          }
           if (indexBase instanceof ObjectValue) {
             const direct = indexBase.value?.get(keyStr) ?? null;
             if (direct != null) {
@@ -3198,6 +3236,12 @@ export class Story extends InkObject {
         // Falls through to the normal `Variable not found` warning if
         // either the base variable doesn't exist or some intermediate
         // segment isn't an ObjectValue / Map.
+        let dottedIndexError: string | null = null;
+        // True when the dotted walk's ROOT resolved and the chain
+        // legitimately produced nil (missing last member, e.g.
+        // `t.data` after a nil-delete) — the read result is nil, not
+        // an index error.
+        let dottedResolvedToNil = false;
         if (foundValue == null && varRef.name && varRef.name.includes(".")) {
           const segs = varRef.name.split(".");
           // `_G.x[.y...]` — strip the `_G` hop and start the walk at
@@ -3210,18 +3254,40 @@ export class Story extends InkObject {
           if (segs[0] === "_G" && segs.length > 1) {
             cur = this.state.variablesState.GetGlobalVariableValue(segs[1]!);
             walkStart = 2;
+            if (cur == null) {
+              // `_G.x` of an ABSENT global is nil (Luau: the env
+              // table simply has no member) — but `_G.x.y` indexes
+              // that nil and raises.
+              if (segs.length > 2) {
+                dottedIndexError = "attempt to index a nil value";
+              } else {
+                dottedResolvedToNil = true;
+              }
+            }
           } else {
             cur = this.state.variablesState.GetVariableWithName(segs[0]!);
           }
           if (cur != null) {
             for (let i = walkStart; i < segs.length; i++) {
+              const seg = segs[i]!;
+              // Lua's index-type rule applies at each hop — indexing
+              // nil / a number / a function raises rather than
+              // silently producing nil (`local t = nil; t.a` must
+              // trap under pcall). Recorded, not thrown, so the
+              // knot / stdlib-marker fallbacks below keep their shot
+              // at resolving the full dotted name first.
+              const idxErr = luauIndexTargetError(cur);
+              if (idxErr) {
+                dottedIndexError = idxErr;
+                cur = null;
+                break;
+              }
               // `__index` chain — fold each dotted segment through
               // the metatable lookup so `t.x` resolves to either
               // `rawget(t, "x")` (when present) or
               // `__index(t, "x")` / chained-table lookup. Matches
               // the IndexValue ControlCommand's metamethod behavior.
               if (cur instanceof ObjectValue) {
-                const seg = segs[i]!;
                 const direct = cur.value?.get(seg);
                 if (direct != null) {
                   cur = direct;
@@ -3232,20 +3298,36 @@ export class Story extends InkObject {
                   cur = viaMt;
                   continue;
                 }
+                // Raw miss: nil when this is the last segment;
+                // indexing that nil (more segments remain) raises.
+                if (i < segs.length - 1) {
+                  dottedIndexError = "attempt to index a nil value";
+                }
                 cur = null;
                 break;
               }
               const obj = (cur as any)?.value;
               if (obj instanceof Map) {
-                cur = obj.get(segs[i]!) ?? null;
-                if (cur == null) break;
+                cur = obj.get(seg) ?? null;
+                if (cur == null) {
+                  if (i < segs.length - 1) {
+                    dottedIndexError = "attempt to index a nil value";
+                  }
+                  break;
+                }
               } else {
+                // Strings reach here (member reads like `("x").nope`
+                // resolve to nil, matching the string library's
+                // metatable miss); anything else non-indexable was
+                // already classified above.
                 cur = null;
                 break;
               }
             }
             if (cur != null) {
               foundValue = cur as Value;
+            } else if (dottedIndexError == null) {
+              dottedResolvedToNil = true;
             }
           }
         }
@@ -3277,6 +3359,56 @@ export class Story extends InkObject {
         }
 
         if (foundValue == null) {
+          // A dotted read that dead-ended on a non-indexable hop
+          // raises now that the knot / stdlib fallbacks have also
+          // missed (`local t = nil; t.a` → "attempt to index a nil
+          // value", trappable via pcall).
+          if (dottedIndexError) {
+            this.Error(dottedIndexError);
+            return true;
+          }
+          // Dotted reads whose ROOT never resolved: classify per
+          // Lua's index rule rather than silently producing nil.
+          //   - `math.pow.a`  → a stdlib FUNCTION prefix is being
+          //     indexed → "attempt to index a function value"
+          //   - `math.a.b`    → `math` is a real namespace, `math.a`
+          //     is a nil member, indexing it raises; but plain
+          //     `math.idontexist` (one unknown segment) stays nil
+          //   - `double.a`    → `double` names a knot (a function
+          //     value) → "attempt to index a function value"
+          //   - `idontexist.a` → indexing nil
+          // (Skipped when the walk's root DID resolve and the chain
+          // legitimately read a missing last member — that's nil.)
+          if (
+            !dottedResolvedToNil &&
+            varRef.name &&
+            varRef.name.includes(".")
+          ) {
+            const segs = varRef.name.split(".");
+            let prefixIsStdLibFn = false;
+            for (let cut = segs.length - 1; cut >= 1; cut--) {
+              if (isStdLibFunctionName(segs.slice(0, cut).join("."))) {
+                prefixIsStdLibFn = true;
+                break;
+              }
+            }
+            if (prefixIsStdLibFn) {
+              this.Error("attempt to index a function value");
+              return true;
+            }
+            if (isStdLibNamespaceName(segs[0]!)) {
+              if (segs.length > 2) {
+                this.Error("attempt to index a nil value");
+                return true;
+              }
+            } else if (this.KnotContainerWithName(segs[0]!)) {
+              this.Error("attempt to index a function value");
+              return true;
+            } else {
+              this.Error("attempt to index a nil value");
+              return true;
+            }
+          }
           // Luau-superset semantics: undefined names resolve to `nil`
           // (not `0`). The compile-time "Cannot find variable named"
           // diagnostic is already downgraded to a warning in
@@ -3298,6 +3430,48 @@ export class Story extends InkObject {
     else if (contentObj instanceof NativeFunctionCall) {
       let func = contentObj;
       let funcParams = this.state.PopEvaluationStack(func.numberOfParameters);
+      // Environment override: `getfenv().math = { abs = ... }` (or a
+      // plain global assignment `math = {...}`) replaces a stdlib
+      // namespace with a user table. Statically-lowered `math.abs(x)`
+      // call sites must then dispatch the REPLACEMENT member
+      // (basic.luau's testgetfenv reassignment block). Only dotted
+      // native names can be overridden, and a global-lookup miss
+      // keeps the fast static path.
+      const nsDotIdx = func.name.indexOf(".");
+      if (nsDotIdx > 0) {
+        const nsOverride = this.state.variablesState.GetGlobalVariableValue(
+          func.name.slice(0, nsDotIdx),
+        ) as AbstractValue | null;
+        if (
+          nsOverride instanceof ObjectValue &&
+          !(nsOverride.value as Map<string, AbstractValue>)?.has(
+            GLOBALS_PROXY_TAG,
+          )
+        ) {
+          const member = (
+            nsOverride.value as Map<string, AbstractValue>
+          )?.get(func.name.slice(nsDotIdx + 1));
+          if (member != null && !(member instanceof NullValue)) {
+            // Padded Void slots represent missing args — drop them;
+            // the Lua-call arg normalization pads nil as needed.
+            const callArgs = funcParams.filter(
+              (p: any) => !(p instanceof Void),
+            ) as AbstractValue[];
+            const results = this.CallLuauFunction(
+              member as AbstractValue,
+              callArgs,
+            ) as AbstractValue[] | null;
+            if (results && results.length === 1) {
+              this.state.PushEvaluationStack(results[0]!);
+            } else if (results && results.length > 1) {
+              this.state.PushEvaluationStack(new MultiValue(results));
+            } else {
+              this.state.PushEvaluationStack(new NullValue());
+            }
+            return true;
+          }
+        }
+      }
       // Metamethod dispatch: if any operand is an ObjectValue carrying a
       // metatable with a matching `__add` / `__sub` / `__eq` / etc., the
       // metamethod handles the op via `story.CallLuauFunction`. Returns
