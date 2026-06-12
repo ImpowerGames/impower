@@ -3889,13 +3889,20 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    # End on a BEAT (next scene/branch) or on the natural closing
-    # delimiter of any expression-host context — interpolation `}`,
-    # call/paren `)`, index `]`, an arg separator `,` or `;`. Without
-    # the bracket alternatives, the rule would only close via parent
-    # force-close (an `[ScopedRule:LuauTernaryExpression] Incomplete
-    # scope` warning at parse time).
-    end: (?={{BEAT}}|[)}\],;])
+    # End on a BEAT (next scene/branch), at end-of-line (statement
+    # position: `local x = if c then 1 else 2` must close before the
+    # newline or the open scope swallows the next line and the
+    # enclosing statement force-closes with ERROR_INCOMPLETE), or on
+    # the natural closing delimiter of any expression-host context —
+    # interpolation `}`, call/paren `)`, index `]`, an arg separator
+    # `,` or `;`. Without the bracket alternatives, the rule would
+    # only close via parent force-close (an
+    # `[ScopedRule:LuauTernaryExpression] Incomplete scope` warning at
+    # parse time). The `$` alternative makes the ternary single-line;
+    # the clause rules (`LuauThenExpression` / `LuauElseExpression`)
+    # already end at `$` themselves, so a line break mid-ternary was
+    # never parseable anyway.
+    end: (?={{BEAT}}|$|[)}\],;])
 
   LuauThenExpression:
     begin: (?=(?:then)\b)

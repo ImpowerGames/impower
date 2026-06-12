@@ -267,7 +267,10 @@ function sameLuauFunctionValue(a: any, b: any): boolean {
 // or `null` when `fnValue` isn't a resolvable stdlib marker. Under-
 // application of a fixed-arity entry raises (Lua's C functions check
 // required args via `luaL_checkany`), so `pcall(rawequal, "a")` traps
-// a missing-argument error instead of comparing against nil.
+// a missing-argument error instead of comparing against nil — EXCEPT
+// for entries marked `validatesArgs`, whose `fn` raises its own
+// Luau-exact message (e.g. `missing argument #1 to 'clear' (table
+// expected)`); the generic raise can't know the expected type.
 function tryInvokeStdLibMarkerValue(
   story: any,
   fnValue: any,
@@ -280,7 +283,11 @@ function tryInvokeStdLibMarkerValue(
   if (!(tag instanceof StringValue)) return null;
   const entry = lookupAnyStdLib(tag.value);
   if (!entry) return null;
-  if (entry.arity >= 0 && args.length < entry.arity) {
+  if (
+    entry.arity >= 0 &&
+    args.length < entry.arity &&
+    !(entry as { validatesArgs?: boolean }).validatesArgs
+  ) {
     story.Error(`missing argument #${args.length + 1} to '${tag.value}'`);
   }
   const callArgs = entry.arity >= 0 ? args.slice(0, entry.arity) : [...args];
@@ -3035,13 +3042,42 @@ export class Story extends InkObject {
         }
 
         case ControlCommand.CommandType.ShortCircuit: {
-          // Lua `and`/`or` short-circuit. The LHS result is on top of
-          // the eval stack. If it alone decides the expression (falsy
-          // for `and`, truthy for `or` — Lua truthiness), leave it on
-          // the stack as the result and jump the content pointer over
-          // the RHS ops (Step's tail-end NextContent advances one
-          // further, landing just past them). Otherwise pop it so the
-          // RHS ops produce the expression's value.
+          // Conditional content-pointer jumps, shared by Lua's
+          // short-circuiting `and`/`or` and the `if-then-else`
+          // EXPRESSION form. Ops:
+          //   - "jump": unconditional skip (no stack interaction) —
+          //     emitted after a ternary's then-container to hop over
+          //     the else-container.
+          //   - "if": pop the condition; falsy skips (over the
+          //     then-container + its trailing jump).
+          //   - "and"/"or": peek the LHS; if it alone decides the
+          //     expression (falsy for `and`, truthy for `or`), leave
+          //     it as the result and skip the RHS container,
+          //     otherwise pop it so the RHS produces the value.
+          // In every case "skip N" means `index += N` here plus
+          // Step's tail-end NextContent advancing one further,
+          // landing just past N content elements.
+          const scOp = evalCommand._shortCircuitOp;
+          const jump = () => {
+            const p = this.state.currentPointer.copy();
+            p.index = (p.index ?? 0) + evalCommand._shortCircuitSkipCount;
+            this.state.currentPointer = p;
+          };
+          if (scOp === "jump") {
+            jump();
+            break;
+          }
+          if (scOp === "if") {
+            let cond = this.state.PopEvaluationStack() as AbstractValue;
+            if (cond instanceof MultiValue) {
+              // Condition position adjusts a multi-value to one value.
+              cond = (cond.values[0] as AbstractValue) ?? new NullValue();
+            }
+            if (!isLuauTruthy(cond)) {
+              jump();
+            }
+            break;
+          }
           let lhs = this.state.PeekEvaluationStack() as AbstractValue;
           if (lhs instanceof MultiValue) {
             // Operator position adjusts a multi-value to one value.
@@ -3050,12 +3086,9 @@ export class Story extends InkObject {
             this.state.PushEvaluationStack(lhs);
           }
           const truthy = isLuauTruthy(lhs);
-          const decides =
-            evalCommand._shortCircuitOp === "and" ? !truthy : truthy;
+          const decides = scOp === "and" ? !truthy : truthy;
           if (decides) {
-            const p = this.state.currentPointer.copy();
-            p.index = (p.index ?? 0) + evalCommand._shortCircuitSkipCount;
-            this.state.currentPointer = p;
+            jump();
           } else {
             this.state.PopEvaluationStack();
           }

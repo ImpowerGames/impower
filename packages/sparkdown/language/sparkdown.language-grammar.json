@@ -6152,7 +6152,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|[)}\\],;])"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|[)}\\],;])"
     },
     "LuauThenExpression": {
       "begin": "(?=(?:then)\\b)",

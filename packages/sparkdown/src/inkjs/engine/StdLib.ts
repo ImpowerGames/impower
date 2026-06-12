@@ -108,6 +108,18 @@ export interface StdLibEntry {
    */
   deprecated?: string;
   /**
+   * The entry's `fn` performs its own argument validation with
+   * Luau-exact messages (e.g. `requireTableArg`'s `missing argument
+   * #1 to 'clear' (table expected)`). First-class dispatch
+   * (`tryInvokeStdLibMarkerValue` in Story.ts) skips its generic
+   * under-application pre-raise for these entries so the richer
+   * message wins; entries WITHOUT this flag get the generic
+   * `missing argument #N to 'name'` raise (Lua's `luaL_checkany`
+   * contract — `pcall(rawequal, "a")` must trap, not compare
+   * against nil).
+   */
+  validatesArgs?: boolean;
+  /**
    * Implementation. Receives popped args in source order (arg 0 first,
    * arg 1 second, …) — the runtime handler reverses the pop order so
    * implementations don't have to think about stack direction. For
@@ -218,6 +230,37 @@ function requireStdLibArg(
   if (missing) {
     story.Error(`missing argument #${index} to '${name}'`);
   }
+}
+
+/**
+ * Luau `luaL_checktable`-style validation. Raises Luau's exact
+ * messages: `missing argument #N to 'name' (table expected)` when
+ * the slot is absent, `invalid argument #N to 'name' (table
+ * expected, got X)` when present but not a table. `name` is the
+ * SHORT name (`'clear'`, not `'table.clear'`) — Luau errors use the
+ * C function's own name without the library prefix. Returns the
+ * unwrapped ObjectValue on success.
+ */
+function requireTableArg(
+  story: any,
+  v: any,
+  index: number,
+  name: string,
+): ObjectValue {
+  const missing =
+    v === undefined ||
+    v?.constructor?.name === "Void" ||
+    (v instanceof MultiValue && v.values.length === 0);
+  if (missing) {
+    story.Error(`missing argument #${index} to '${name}' (table expected)`);
+  }
+  const raw = v instanceof MultiValue ? v.values[0] : v;
+  if (!(raw instanceof ObjectValue)) {
+    story.Error(
+      `invalid argument #${index} to '${name}' (table expected, got ${luauTypeOf(raw)})`,
+    );
+  }
+  return raw as ObjectValue;
 }
 
 /**
@@ -3724,11 +3767,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // portion). Refuses on a frozen table.
   "table.clear": {
     arity: 1,
-    fn: (story, [t]) => {
-      if (!(t instanceof ObjectValue)) {
-        story.Error("table.clear: argument must be a table");
-        return undefined;
-      }
+    validatesArgs: true,
+    fn: (story, [tArg]) => {
+      const t = requireTableArg(story, tArg, 1, "clear");
       if (t.isFrozen) {
         story.Error("table.clear: cannot mutate a frozen table");
         return undefined;
@@ -3803,43 +3844,73 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // `a1[f..e]` to `a2[t..t+e-f]`. `a2` defaults to `a1` (in-place
   // move). Returns `a2`. Handles overlapping ranges by picking the
   // safe iteration direction. Refuses if `a2` is frozen.
+  // `table.move(a1, f, e, t [, a2])` — mirrors Luau's `tmove`:
+  // integer args validate FIRST (so `table.move(1, 2, 3, 4)` reports
+  // arg #1's type error only after 2-4 check out), ranges guard
+  // against 32-bit overflow with Luau's exact messages, and nil
+  // source slots CLEAR the destination slot (moving a range
+  // containing nils deletes the corresponding keys — Lua 5.4
+  // semantics the fixture checks with `eqT(a, {1, 10, nil, nil, 5})`).
   "table.move": {
     arity: -1,
     fn: (story, args) => {
-      if (args.length < 4) {
-        story.Error("table.move: requires at least 4 arguments");
-        return null;
-      }
-      if (!(args[0] instanceof ObjectValue)) {
-        story.Error("table.move: first argument must be a table");
-        return null;
-      }
-      const a1 = args[0];
-      const f = coerceNumber(args[1]);
-      const e = coerceNumber(args[2]);
-      const tPos = coerceNumber(args[3]);
-      if (f === null || e === null || tPos === null) {
-        story.Error("table.move: f, e, t must be numbers");
-        return null;
-      }
-      const a2 =
-        args.length > 4 && args[4] instanceof ObjectValue ? args[4] : a1;
-      if (a2.isFrozen) {
-        story.Error("table.move: destination table is frozen");
-        return null;
-      }
-      const src = a1.value!;
-      const dst = a2.value!;
-      if (e < f) return a2;
-      if (tPos > f && src === dst) {
-        for (let i = e; i >= f; i--) {
-          const v = src.get(String(i));
-          if (v !== undefined) dst.set(String(tPos + (i - f)), v);
+      const INT_MAX = 2147483647;
+      const checkInt = (v: any, idx: number): number => {
+        const missing =
+          v === undefined ||
+          v?.constructor?.name === "Void" ||
+          (v instanceof MultiValue && v.values.length === 0);
+        if (missing) {
+          story.Error(`missing argument #${idx} to 'move' (number expected)`);
         }
-      } else {
-        for (let i = f; i <= e; i++) {
-          const v = src.get(String(i));
-          if (v !== undefined) dst.set(String(tPos + (i - f)), v);
+        const raw = v instanceof MultiValue ? v.values[0] : v;
+        const n = coerceNumber(raw);
+        if (n === null) {
+          story.Error(
+            `invalid argument #${idx} to 'move' (number expected, got ${luauTypeOf(raw)})`,
+          );
+        }
+        return Math.trunc(n!);
+      };
+      const f = checkInt(args[1], 2);
+      const e = checkInt(args[2], 3);
+      const t = checkInt(args[3], 4);
+      const a1 = requireTableArg(story, args[0], 1, "move");
+      // Explicit nil (or absent) 5th arg means "same table as a1".
+      const a5 = args.length > 4 ? args[4] : undefined;
+      const a5Absent =
+        a5 === undefined ||
+        a5 instanceof NullValue ||
+        a5?.constructor?.name === "Void";
+      const a2 = a5Absent ? a1 : requireTableArg(story, a5, 5, "move");
+      if (e >= f) {
+        // Luau: luaL_argcheck(f > 0 || e < INT_MAX + f, 3, ...)
+        if (!(f > 0 || e < INT_MAX + f)) {
+          story.Error(
+            "invalid argument #3 to 'move' (too many elements to move)",
+          );
+        }
+        const n = e - f + 1;
+        if (!(t <= INT_MAX - n + 1)) {
+          story.Error("invalid argument #4 to 'move' (destination wrap around)");
+        }
+        if (a2.isFrozen) {
+          story.Error("attempt to modify a readonly table");
+        }
+        const src = a1.value!;
+        const dst = a2.value!;
+        const copy = (i: number) => {
+          const v = src.get(String(f + i));
+          const dk = String(t + i);
+          if (v !== undefined) dst.set(dk, v);
+          else dst.delete(dk);
+        };
+        // Forward unless the ranges overlap within the same table in
+        // a way that would clobber unread source slots.
+        if (t > e || t <= f || dst !== src) {
+          for (let i = 0; i < n; i++) copy(i);
+        } else {
+          for (let i = n - 1; i >= 0; i--) copy(i);
         }
       }
       return a2;

@@ -491,13 +491,18 @@ export class JsonSerialisation {
         if (Number.isFinite(arity)) return ControlCommand.UnpackTuple(arity);
       }
 
-      // Lua `and`/`or` short-circuit jump: `sc:<op>:<skipCount>`.
+      // Conditional content-pointer jump: `sc:<op>:<skipCount>`.
+      // Ops: `and`/`or` (Lua short-circuit), `if`/`jump` (ternary
+      // if-then-else expression arms).
       if (str.startsWith("sc:")) {
         const lastColon = str.lastIndexOf(":");
         if (lastColon > "sc:".length - 1) {
           const skip = parseInt(str.slice(lastColon + 1), 10);
           const op = str.slice("sc:".length, lastColon);
-          if (Number.isFinite(skip) && (op === "and" || op === "or")) {
+          if (
+            Number.isFinite(skip) &&
+            (op === "and" || op === "or" || op === "if" || op === "jump")
+          ) {
             return ControlCommand.ShortCircuit(op, skip);
           }
         }

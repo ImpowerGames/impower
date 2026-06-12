@@ -8,6 +8,10 @@ import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expre
 import { CallValueExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
 import { IndexExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/IndexExpression";
 import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
+import {
+  TernaryExpression,
+  TernaryBranch,
+} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/TernaryExpression";
 import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
 import {
   ObjectExpression,
@@ -206,6 +210,10 @@ const PRIMARY_NODES = new Set([
   // statement) and anonymous ones through `lowerAnonymousFunction`
   // (here) which synthesizes a uniquely-named hoisted knot.
   "LuauFunctionDefinition",
+  // Luau's `if cond then a else b` expression form — lowered to a
+  // `TernaryExpression` (conditional-evaluation jumps, see
+  // lowerTernaryExpression below).
+  "LuauTernaryExpression",
 ]);
 
 function collectTokens(
@@ -726,9 +734,107 @@ export function lowerPrimary(
       return lowerDivertTargetLiteral(node, ctx);
     case "LuauFunctionDefinition":
       return lowerAnonymousFunction(node, ctx);
+    case "LuauTernaryExpression":
+      return lowerTernaryExpression(node, ctx);
     default:
       return null;
   }
+}
+
+// Lower Luau's `if cond then a elseif cond2 then b else c` EXPRESSION
+// into a `TernaryExpression`. The grammar parses the clauses as
+// children of `LuauTernaryExpression` (same shape the interpolation
+// display path walks in lowerDisplay.ts):
+//
+//   LuauTernaryExpression
+//     ├ LuauTernaryExpressionCondition   (first if-cond)
+//     ├ LuauThenExpression               (`then <value1>`)
+//     ├ LuauElseifKeyword (×N)           → next cond follows
+//     ├ LuauTernaryExpressionCondition   (elseif-cond)
+//     ├ LuauThenExpression               (`then <valueN>`)
+//     └ LuauElseExpression?              (`else <value>`)
+//
+// Each branch value is itself a full expression (calls, nested
+// ternaries via `else if`, binary ops), lowered from the clause's
+// body nodes. Conditional evaluation is handled at runtime by the
+// generated jump layout — see TernaryExpression.
+function lowerTernaryExpression(
+  node: SyntaxNode,
+  ctx: LowerContext,
+): Expression | null {
+  const content = findChildByName(node, "LuauTernaryExpression_content") ?? node;
+
+  const isWhitespaceName = (name: string): boolean =>
+    name === "ExtraWhitespace" ||
+    name === "Whitespace" ||
+    name === "OptionalWhitespace" ||
+    name === "RequiredWhitespace" ||
+    name === "Newline";
+
+  // Body nodes of a then/else clause: everything inside its `_content`
+  // wrapper except the `then`/`else` operator and whitespace.
+  const collectClauseBody = (clause: SyntaxNode): SyntaxNode[] => {
+    const body: SyntaxNode[] = [];
+    const clauseContent =
+      findChildByName(clause, `${clause.name}_content`) ?? clause;
+    let bodyChild = clauseContent.firstChild;
+    while (bodyChild) {
+      if (
+        bodyChild.name !== "LuauThenOperator" &&
+        bodyChild.name !== "LuauElseOperator" &&
+        !isWhitespaceName(bodyChild.name)
+      ) {
+        body.push(bodyChild);
+      }
+      bodyChild = bodyChild.nextSibling;
+    }
+    return body;
+  };
+
+  const branches: TernaryBranch[] = [];
+  let pendingCond: Expression | null = null;
+  let child = content.firstChild;
+  while (child) {
+    if (child.name === "LuauTernaryExpressionCondition") {
+      const condContent =
+        getDescendent("LuauTernaryExpressionCondition_content", child) ?? child;
+      pendingCond = lowerExpressionFromContainer(condContent, ctx);
+      if (!pendingCond) return null;
+    } else if (child.name === "LuauThenExpression") {
+      const value = lowerExpressionFromNodes(collectClauseBody(child), ctx);
+      if (!value) return null;
+      // Unparenthesized ternary-in-condition (`if if C then a else b
+      // then x else y`): the grammar can't bracket the inner ternary
+      // (no counting), so its clause list comes out FLAT — the
+      // already-complete chain (ending in an else branch) followed by
+      // extra then/else clauses. Those extras belong to the ENCLOSING
+      // level: fold the completed chain into a nested
+      // TernaryExpression and use it as this clause's condition.
+      if (
+        pendingCond === null &&
+        branches.length > 0 &&
+        branches[branches.length - 1]!.condition === null
+      ) {
+        pendingCond = new TernaryExpression(branches.splice(0));
+      }
+      branches.push({ condition: pendingCond, value });
+      pendingCond = null;
+    } else if (child.name === "LuauElseExpression") {
+      const value = lowerExpressionFromNodes(collectClauseBody(child), ctx);
+      if (!value) return null;
+      branches.push({ condition: null, value });
+    }
+    child = child.nextSibling;
+  }
+
+  if (branches.length === 0) {
+    // No then/else clauses of our own: the condition swallowed the
+    // entire clause chain (the outer node of the flat nested-ternary
+    // mis-parse above). The folded condition IS the expression.
+    return pendingCond;
+  }
+  if (branches[0]!.condition === null) return null;
+  return new TernaryExpression(branches);
 }
 
 // Lower an anonymous function literal (`function(x) return x * 2 end`)

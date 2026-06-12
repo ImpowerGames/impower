@@ -83,6 +83,12 @@ const SKIP_FILES = new Set([
   // `define` if we wrote them; the upstream `class`-syntax fixture
   // doesn't apply.
   "classes.luau",
+  // types.luau cross-checks the VM's globals against `RTTI` — a
+  // global injected by Luau's C++ test executable (the fixture's own
+  // ignore list notes it's "only exposed in tests"). It also walks
+  // `getmetatable(_G).__index`. Neither exists outside that harness;
+  // the fixture isn't testable in sparkdown.
+  "types.luau",
 ]);
 
 type FileResult = {
@@ -211,6 +217,9 @@ describe("Luau upstream conformance baseline", () => {
   const PASSING_FIXTURES = [
     "assert.luau",
     "basic.luau",
+    "clear.luau",
+    "ifelseexpr.luau",
+    "move.luau",
     "strconv.luau",
     "stringinterp.luau",
   ];
