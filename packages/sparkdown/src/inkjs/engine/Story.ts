@@ -32,6 +32,7 @@ import {
   GLOBALS_PROXY_TAG,
   isStdLibFunctionName,
   isStdLibNamespaceName,
+  luauTypeOf,
   lookupAnyStdLib,
   lookupStateAwareStdLib,
   stepBuiltinIterator,
@@ -2864,8 +2865,10 @@ export class Story extends InkObject {
               // below reports with the stack intact.
               for (const a of nmArgs) this.state.PushEvaluationStack(a);
             }
+            // Lua's exact message shape — iter.luau line 174 matches
+            // `attempt to call a nil value` through pcall.
             throw new StoryException(
-              "Tried to call a non-function value as a function" +
+              `attempt to call a ${luauTypeOf(callTarget)} value` +
                 (callTarget ? " (got " + callTarget + ")" : ""),
             );
           }

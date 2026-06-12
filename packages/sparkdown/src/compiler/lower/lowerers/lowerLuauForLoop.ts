@@ -84,10 +84,15 @@ export function lowerLuauForLoop(
 ): CompiledBlock {
   const condNode = getDescendent("LuauForCondition", nodeRef.node);
   const doBlock = getDescendent("LuauDoBlock", nodeRef.node);
+  // An EMPTY body (`for x in t do end`) has no `_content` child —
+  // the loop must still lower: bounds/iterands evaluate (and can
+  // raise — `for x in 42 do end` must trap "attempt to iterate"
+  // through pcall, iter.luau line 164). `lowerStatements(null)`
+  // yields [].
   const bodyContent = doBlock
     ? findChildByName(doBlock, "LuauDoBlock_content")
     : null;
-  if (!condNode || !bodyContent) return {};
+  if (!condNode || !doBlock) return {};
 
   // Generic-for (`for k, v in iter do`) shares this grammar node but
   // contains `LuauInKeyword`. Routed to `lowerLuauGenericForLoop`.

@@ -4029,6 +4029,92 @@ export const STDLIB: Record<string, StdLibEntry> = {
   //     `inext({5,6,7}, 2)` returns `(3, 7)` (basic.luau line 230).
   // The marker still carries internal state as a fallback for call
   // sites that pass nil state (see stepBuiltinIterator).
+  // Hidden generic-for ENTRY adjustment (emitted by
+  // lowerLuauGenericForLoop right after the (f, s, ctrl) init —
+  // never user-callable, the `__` prefix is reserved). Implements
+  // Luau's iterand protocol for `for vars in EXPR do`:
+  //   - EXPR's metatable has `__iter` → call it with the iterand;
+  //     its returns become the (f, s, ctrl) triple.
+  //   - EXPR is a plain table (not a closure value, not a stdlib /
+  //     builtin-iterator marker, no `__call`) → implicit `pairs`
+  //     iteration (Luau's `for k, v in t do`).
+  //   - anything else (functions, markers, callable tables) passes
+  //     through unchanged — the step call dispatches them normally.
+  "__adjust_iter": {
+    arity: 3,
+    fn: (story, [fRaw, s, c]) => {
+      let f = fRaw;
+      // Single-value adjustment of the iterand slot: a multi-return
+      // takes its first value; a no-value (`__iter` that returned
+      // nothing, or an empty multi-return) is nil — the step's call
+      // then raises Lua's "attempt to call a nil value" (iter.luau
+      // line 174).
+      if (f instanceof MultiValue) f = f.values[0] ?? new NullValue();
+      if (f != null && (f as any).constructor?.name === "Void") {
+        f = new NullValue();
+      }
+      const map =
+        f != null && typeof f === "object" && "value" in f
+          ? (f as any).value
+          : null;
+      if (map instanceof Map) {
+        const mt = (f as { metatable?: any }).metatable;
+        const mtMap =
+          mt != null && typeof mt === "object" ? mt.value : null;
+        if (mtMap instanceof Map) {
+          const iterFn = mtMap.get("__iter");
+          if (iterFn != null && !(iterFn instanceof NullValue)) {
+            let results = (story.CallLuauFunction(iterFn, [f]) ??
+              []) as unknown[];
+            // A multi-return arrives as ONE MultiValue element —
+            // spread it across the (f, s, ctrl) triple. A no-value
+            // return (Void) adjusts to nil so the step raises
+            // "attempt to call a nil value".
+            if (results.length === 1 && results[0] instanceof MultiValue) {
+              results = (results[0] as MultiValue).values;
+            }
+            let r0 = results[0] ?? new NullValue();
+            if ((r0 as any)?.constructor?.name === "Void") {
+              r0 = new NullValue();
+            }
+            return [
+              r0,
+              results[1] ?? new NullValue(),
+              results[2] ?? new NullValue(),
+            ];
+          }
+        }
+        if (
+          map instanceof Map &&
+          !map.has("__closure_fn") &&
+          !map.has("__stdlib_fn") &&
+          !map.has(BUILTIN_ITER_TAG) &&
+          !(mtMap instanceof Map && mtMap.has("__call"))
+        ) {
+          // Plain table — Luau iterates it directly (generalized
+          // pairs, consistent with __iter's absence).
+          return [
+            makeBuiltinIterator("pairs", f as ObjectValue),
+            f as ObjectValue,
+            new NullValue(),
+          ];
+        }
+        return [f, s, c];
+      }
+      // Function values pass through; everything else can't be
+      // iterated — `for x in 42 do` raises Luau's trappable
+      // "attempt to iterate over a number value" (iter.luau line
+      // 164). nil iterands fall through to the step's call-a-nil
+      // error instead (an `__iter` that returned nothing must
+      // report "attempt to call a nil value", line 174).
+      const t = luauTypeOf(f);
+      if (t !== "function" && t !== "nil") {
+        story.Error(`attempt to iterate over a ${t} value`);
+      }
+      return [f, s, c];
+    },
+  },
+
   pairs: {
     arity: 1,
     fn: (story, [t]) => {

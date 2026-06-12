@@ -73,10 +73,14 @@ export function lowerLuauGenericForLoop(
 ): CompiledBlock {
   const condNode = getDescendent("LuauForCondition", nodeRef.node);
   const doBlock = getDescendent("LuauDoBlock", nodeRef.node);
+  // An EMPTY body (`for x in t do end`) has no `_content` child —
+  // the loop must still lower (the iterand evaluates, and
+  // `for x in 42 do end` must raise "attempt to iterate" through
+  // pcall — iter.luau line 164). `lowerStatements(null)` yields [].
   const bodyContent = doBlock
     ? findChildByName(doBlock, "LuauDoBlock_content")
     : null;
-  if (!condNode || !bodyContent) return {};
+  if (!condNode || !doBlock) return {};
 
   const condContent =
     findChildByName(condNode, "LuauForCondition_content") ?? condNode;
@@ -173,6 +177,24 @@ export function lowerLuauGenericForLoop(
     /* isTemporaryNewDeclaration */ true,
   );
 
+  // Luau iterand protocol (iter.luau "__iter" sections): when the
+  // single iterand carries an `__iter` metamethod, its returns
+  // replace the (f, s, ctrl) triple; a plain TABLE iterand iterates
+  // implicitly (`for k, v in t do` ≡ pairs). The hidden stdlib entry
+  // `__adjust_iter` (StdLib.ts) classifies at runtime — function
+  // values and markers pass through unchanged.
+  const adjustTuple = new MultiVariableAssignment(
+    [new Identifier(iterName), new Identifier(stateName), new Identifier(ctrlName)],
+    [
+      new FunctionCall(new Identifier("__adjust_iter"), [
+        new VariableReference([new Identifier(iterName)]),
+        new VariableReference([new Identifier(stateName)]),
+        new VariableReference([new Identifier(ctrlName)]),
+      ]),
+    ],
+    /* isTemporaryNewDeclaration */ false,
+  );
+
   // Push break/continue targets so the body's `break` / `continue`
   // emit diverts to the right label. The body runs inside the loop's
   // own scope wrap (see the `wrapInScope` in the return) — count it
@@ -255,7 +277,7 @@ export function lowerLuauGenericForLoop(
   const breakGather = new Gather(new Identifier(breakLabel), 1);
 
   return wrapInWeave(
-    wrapInScope([initTuple, loopGather, breakGather]),
+    wrapInScope([initTuple, adjustTuple, loopGather, breakGather]),
   );
 }
 

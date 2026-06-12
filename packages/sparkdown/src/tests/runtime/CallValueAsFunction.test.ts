@@ -106,7 +106,7 @@ describe("CallValueAsFunction control command", () => {
 
     const story = synthesizeStory(root);
     expect(() => story.ContinueMaximally()).toThrow(
-      /call a non-function value as a function/,
+      /attempt to call a \w+ value/,
     );
   });
 });

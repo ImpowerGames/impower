@@ -101,6 +101,13 @@ const SKIP_FILES = new Set([
   // compiler, so the fixture is untestable here — same reasoning as
   // locals.luau.
   "literals.luau",
+  // errors.luau checks compiler/VM error MESSAGES by compiling
+  // error-producing chunks at runtime — every assertion routes
+  // through `doit` (= loadstring + pcall), `checkmessage`,
+  // `checksyntax`, or `lineerror`. Upstream itself already stubbed
+  // out checkmessage's body (Luau messages diverge from Lua's).
+  // Untestable without a runtime compiler.
+  "errors.luau",
 ]);
 
 type FileResult = {
@@ -234,6 +241,7 @@ describe("Luau upstream conformance baseline", () => {
     "clear.luau",
     "constructs.luau",
     "ifelseexpr.luau",
+    "iter.luau",
     "move.luau",
     "strconv.luau",
     "stringinterp.luau",

@@ -72,8 +72,8 @@ test(`survey: first blocker per failing fixture`, () => {
 
 test(`bisect-basic`, () => {
   const src = applyUpstreamPatches(
-    "constructs.luau",
-    readFileSync(join(UPSTREAM_ROOT, "constructs.luau"), "utf8"),
+    "iter.luau",
+    readFileSync(join(UPSTREAM_ROOT, "iter.luau"), "utf8"),
   );
   const lines = src.split("\n");
   const tryRange = (startLine: number, endLine: number) => {
@@ -85,7 +85,7 @@ test(`bisect-basic`, () => {
       const status = compileErr
         ? `compile=${JSON.stringify(compileErr.slice(0, 80))}`
         : runtimeErr
-          ? `runtime=${JSON.stringify(runtimeErr.slice(0, 300))}`
+          ? `runtime=...${JSON.stringify(runtimeErr.slice(-200))}`
           : "ok";
       // eslint-disable-next-line no-console
       console.log(`[lines 1-${endLine}] ${status}`);
@@ -99,7 +99,7 @@ test(`bisect-basic`, () => {
       const r = runConformanceSource(src);
       const compileErr = r.errorMessages.find((e) => !e.startsWith("RUNTIME"));
       const runtimeErr = r.errorMessages.find((e) => e.startsWith("RUNTIME"));
-      const status = compileErr ? `compile=${JSON.stringify(compileErr.slice(0, 300))}` : runtimeErr ? `runtime=${JSON.stringify(runtimeErr.slice(0, 300))}` : "ok";
+      const status = compileErr ? `compile=${JSON.stringify(compileErr.slice(0, 300))}` : runtimeErr ? `runtime=...${JSON.stringify(runtimeErr.slice(-200))}` : "ok";
       // eslint-disable-next-line no-console
       console.log(`[${label}] ${status} output=${JSON.stringify(r.output.slice(0, 200))}`);
     } catch (e) {
@@ -107,7 +107,15 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  for (const end of [88, 102, 122, 142, 162, 182, 202, 222, 242, lines.length]) {
+  tryProbe("iter42", `local ok, err = pcall(function() for x in 42 do end end)
+assert(not ok, "ok is " .. tostring(ok))
+assert(err:match("attempt to iterate"), "err is " .. tostring(err))`);
+  tryProbe("iterniliter", `local obj = {}
+setmetatable(obj, { __iter = function() end })
+local ok, err = pcall(function() for x in obj do end end)
+assert(not ok, "ok is " .. tostring(ok))
+assert(err:match("attempt to call a nil value"), "err is " .. tostring(err))`);
+  for (const end of [26, 50, 75, 100, 125, 150, 175, lines.length]) {
     process.stdout.write(`START 1-${end}
 `);
     tryRange(1, end);
