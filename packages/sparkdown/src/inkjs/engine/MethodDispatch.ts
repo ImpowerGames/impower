@@ -390,22 +390,55 @@ function methodSub(params: InkObject[]): InkObject {
 function methodFind(params: InkObject[]): InkObject {
   const r = params[0];
   if (r instanceof StringValue) {
+    const s = r.value ?? "";
     const needle = asString(params[1], "find", "needle");
-    if (needle === "") return new IntValue(1); // matches Luau `string.find(s, "")`
-    // Lua-pattern search, like `string.find(s, pattern)` — needles
-    // are PATTERNS, so `s:find("%d+")` works. Returns the 1-based
-    // match start, or nil on miss. (Formerly a plain `indexOf`
-    // substring search whose IntValue(0) miss-return made
-    // `x:find(pat) ~= nil` accidentally true — the nil-on-miss fix
-    // exposed that patterns never matched here.)
+    // Full `string.find` semantics — `s:find(...)` must behave
+    // exactly like `string.find(s, ...)`: optional init (1-indexed,
+    // negative counts from the end), optional `plain` flag (literal
+    // substring search), multi-return `(start, end, captures...)`.
+    let init = 1;
+    const initParam = params[2];
+    if (initParam instanceof IntValue || initParam instanceof FloatValue) {
+      init = Math.trunc(initParam.value ?? 1);
+    } else if (initParam instanceof StringValue) {
+      const n = parseFloat(initParam.value ?? "");
+      if (!Number.isNaN(n)) init = Math.trunc(n);
+    }
+    if (init < 0) init = Math.max(s.length + init + 1, 1);
+    else if (init === 0) init = 1;
+    if (init > s.length + 1) return NIL();
+    const plainParam = params[3];
+    const plain =
+      plainParam != null &&
+      !(plainParam instanceof NullValue) &&
+      (plainParam as any).value !== false;
+    if (plain) {
+      const idx = s.indexOf(needle, init - 1);
+      if (idx < 0) return NIL();
+      return new MultiValue([
+        new IntValue(idx + 1),
+        new IntValue(idx + needle.length),
+      ]);
+    }
     let compiled;
     try {
       compiled = luaPatternToJs(needle);
-    } catch {
-      return NIL();
+    } catch (e) {
+      // Trappable, matching `string.find`'s error route.
+      throw new StoryException(`string.find: ${(e as Error).message}`);
     }
-    const matched = executeLuaPattern(compiled, r.value ?? "", 0);
-    return matched ? new IntValue(matched.index + 1) : NIL();
+    const matched = executeLuaPattern(compiled, s, init - 1);
+    if (!matched) return NIL();
+    const captures: AbstractValue[] = matched.captures.map((c) => {
+      if (c == null) return new NullValue();
+      if (typeof c === "number") return new IntValue(c);
+      return new StringValue(c);
+    });
+    return new MultiValue([
+      new IntValue(matched.index + 1),
+      new IntValue(matched.index + matched.length),
+      ...captures,
+    ]);
   }
   if (r instanceof ObjectValue) {
     const arr = arrayPortion(r.value ?? new Map());

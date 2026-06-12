@@ -106,7 +106,7 @@ export function lowerExpressionFromNodes(
     const node = nodes[i]!;
     if (node.name === "LuauAccessPath" && hasTrailingMethodAccessor(node)) {
       const next = nodes[i + 1];
-      if (next && next.name === "LuauParenthetical") {
+      if (next && CALL_ARG_NODE_NAMES.has(next.name)) {
         let expr = lowerMethodCall(node, next, ctx);
         // Chained method calls — mirror the tree-walking logic in
         // `collectTokens`. Fold subsequent
@@ -130,7 +130,7 @@ export function lowerExpressionFromNodes(
           let k = j + 1;
           while (k < nodes.length && isSkippableName(nodes[k]!.name)) k++;
           const chainParen = nodes[k];
-          if (!chainParen || chainParen.name !== "LuauParenthetical") break;
+          if (!chainParen || !CALL_ARG_NODE_NAMES.has(chainParen.name)) break;
           expr = lowerChainedMethodCall(after, chainParen, expr, ctx);
           j = k + 1;
         }
@@ -170,7 +170,7 @@ export function lowerExpressionFromNodes(
           let k = j + 1;
           while (k < nodes.length && isSkippableName(nodes[k]!.name)) k++;
           const chainParen = nodes[k];
-          if (!chainParen || chainParen.name !== "LuauParenthetical") break;
+          if (!chainParen || !CALL_ARG_NODE_NAMES.has(chainParen.name)) break;
           const chained = lowerChainedMethodCall(
             nodes[j]!,
             chainParen,
@@ -183,8 +183,8 @@ export function lowerExpressionFromNodes(
           j = k + 1;
           continue;
         }
-        if (nodes[j]!.name !== "LuauParenthetical") break;
-        const args = lowerParentheticalArgList(nodes[j]!, ctx);
+        if (!CALL_ARG_NODE_NAMES.has(nodes[j]!.name)) break;
+        const args = lowerCallArgsNode(nodes[j]!, ctx);
         last.expr = new CallValueExpression(last.expr, args);
         i = j;
         j++;
@@ -202,6 +202,32 @@ type Token =
   | { kind: "operand"; expr: Expression }
   | { kind: "binop"; op: string }
   | { kind: "unop"; op: string };
+
+// Node names that can serve as a call's argument payload. Lua's call
+// syntax sugar allows a single string literal or table constructor in
+// place of a parenthesized arg list: `f"str"`, `f[[str]]`, `f{...}`,
+// `s:rep(3)` vs `string.reverse"abc"`.
+const CALL_ARG_NODE_NAMES = new Set([
+  "LuauParenthetical",
+  "LuauDoubleQuotedString",
+  "LuauSingleQuotedString",
+  "LuauMultilineString",
+  "LuauInterpolatedString",
+  "LuauTable",
+]);
+
+// Lower a call's argument node — a parenthetical's comma-split list,
+// or the single-literal sugar forms above.
+function lowerCallArgsNode(
+  node: SyntaxNode,
+  ctx: LowerContext,
+): Expression[] {
+  if (node.name === "LuauParenthetical") {
+    return lowerParentheticalArgList(node, ctx);
+  }
+  const single = lowerExpressionFromNodes([node], ctx);
+  return single ? [single] : [];
+}
 
 const OPERATION_WRAPPERS = new Set([
   "LuauArithmeticOperation",
@@ -275,7 +301,7 @@ function collectTokens(
       hasTrailingMethodAccessor(child)
     ) {
       const args = findNextNonSkippableSibling(child);
-      if (args?.name === "LuauParenthetical") {
+      if (args && CALL_ARG_NODE_NAMES.has(args.name)) {
         let expr = lowerMethodCall(child, args, ctx);
         // Chained method calls: after the initial `LuauAccessPath +
         // LuauParenthetical` pair, the grammar emits one or more
@@ -297,7 +323,7 @@ function collectTokens(
           }
           if (after.name !== "LuauChainedFunctionCall") break;
           const chainParen = findNextNonSkippableSibling(after);
-          if (!chainParen || chainParen.name !== "LuauParenthetical") break;
+          if (!chainParen || !CALL_ARG_NODE_NAMES.has(chainParen.name)) break;
           expr = lowerChainedMethodCall(after, chainParen, expr, ctx);
           after = chainParen.nextSibling;
         }
@@ -338,7 +364,7 @@ function collectTokens(
         // siblings (same chain-link shape as `a:m(x):n(y)` tails).
         if (after.name === "LuauChainedFunctionCall") {
           const chainParen = findNextNonSkippableSibling(after);
-          if (!chainParen || chainParen.name !== "LuauParenthetical") break;
+          if (!chainParen || !CALL_ARG_NODE_NAMES.has(chainParen.name)) break;
           const chained = lowerChainedMethodCall(
             after,
             chainParen,
@@ -351,8 +377,8 @@ function collectTokens(
           after = chainParen.nextSibling;
           continue;
         }
-        if (after.name !== "LuauParenthetical") break;
-        const args = lowerParentheticalArgList(after, ctx);
+        if (!CALL_ARG_NODE_NAMES.has(after.name)) break;
+        const args = lowerCallArgsNode(after, ctx);
         last.expr = new CallValueExpression(last.expr, args);
         child = after;
         after = after.nextSibling;
@@ -381,7 +407,7 @@ function lowerChainedMethodCall(
   const methodNameNode = getDescendent("LuauFunctionName", accessor);
   if (!methodNameNode) return null;
   const methodNameText = ctx.read(methodNameNode.from, methodNameNode.to);
-  const callArgs = lowerParentheticalArgList(parenthetical, ctx);
+  const callArgs = lowerCallArgsNode(parenthetical, ctx);
   if (isBuiltinMethod(methodNameText)) {
     return new FunctionCall(
       new Identifier(`${METHOD_PREFIX}${methodNameText}`),
@@ -503,8 +529,9 @@ function lowerMethodCall(
   const methodNameText = ctx.read(methodNameNode.from, methodNameNode.to);
   const methodName = new Identifier(methodNameText);
 
-  // Lower the parenthetical's contents as a comma-separated arg list.
-  const callArgs = lowerParentheticalArgList(parenthetical, ctx);
+  // Lower the call's argument node — parenthesized list or the
+  // single-literal sugar forms (`string.reverse"abc"`).
+  const callArgs = lowerCallArgsNode(parenthetical, ctx);
 
   // Luau stdlib mapping: when the receiver is a single stdlib constant
   // (`math` / `string` / `table` / ...) AND the `<receiver>.<method>` pair

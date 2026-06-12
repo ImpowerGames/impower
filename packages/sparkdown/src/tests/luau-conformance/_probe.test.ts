@@ -72,8 +72,8 @@ test(`survey: first blocker per failing fixture`, () => {
 
 test(`bisect-basic`, () => {
   const src = applyUpstreamPatches(
-    "strings.luau",
-    readFileSync(join(UPSTREAM_ROOT, "strings.luau"), "utf8"),
+    "tables.luau",
+    readFileSync(join(UPSTREAM_ROOT, "tables.luau"), "utf8"),
   );
   const lines = src.split("\n");
   const tryRange = (startLine: number, endLine: number) => {
@@ -109,16 +109,13 @@ test(`bisect-basic`, () => {
       console.log(`[${label}] THREW: ${(e as Error).message}`);
     }
   };
-  tryProbe("paren-string-method", `local s = ("ab"):rep(3)
-assert(s == "ababab", "rep is " .. tostring(s))`);
-  tryProbe("paren-string-method-hex", `local s = ("\\xFF"):rep(2)
-assert(#s == 2, "len is " .. tostring(#s))
-assert(string.byte(s, 1) == 255, "byte is " .. tostring(string.byte(s, 1)))`);
-  tryProbe("paren-string-reverse", `local s = ("abc"):reverse()
-assert(s == "cba", "rev is " .. tostring(s))`);
-  tryProbe("local-string-method", `local x = "ab"
-local s = x:rep(3)
-assert(s == "ababab", "rep is " .. tostring(s))`);
+  tryProbe("parenless-string-arg", `assert(string.reverse"abc" == "cba", "r1 is " .. tostring(string.reverse"abc"))`);
+  tryProbe("parenless-empty-arg", `assert(string.reverse"" == "", "r2")`);
+  tryProbe("parenless-statement", `local t = {}
+table.insert(t, 1)
+print "hello"
+assert(#t == 1, "t")`);
+  tryProbe("parens-reverse", `assert(string.reverse("abc") == "cba", "r3")`);
   tryRange(1, lines.length);
 });
 

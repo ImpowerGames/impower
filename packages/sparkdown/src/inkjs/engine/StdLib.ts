@@ -240,12 +240,40 @@ export function parseLuauNumber(s: string): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
-/** Pull a JS string out of a `StringValue`, or accept raw. */
+// 64-bit unsigned reinterpretation for `%o %u %x %X` — Luau casts the
+// double through (long long) when negative, so `%x` of -1 is
+// ffffffffffffffff, not 32-bit ffffffff.
+function toUint64(n: number): bigint {
+  if (!Number.isFinite(n)) return 0n;
+  return BigInt.asUintN(64, BigInt(Math.trunc(n)));
+}
+
+// Stable per-object identity tokens for Lua's opaque `table: 0x...` /
+// `function: 0x...` tostring forms. WeakMap so tables stay collectable.
+const pointerIdRegistry = new WeakMap<object, number>();
+let nextPointerId = 1;
+function luauPointerId(o: object): string {
+  let id = pointerIdRegistry.get(o);
+  if (id == null) {
+    id = nextPointerId++;
+    pointerIdRegistry.set(o, id);
+  }
+  return "0x" + id.toString(16).padStart(8, "0");
+}
+
+/**
+ * Pull a JS string out of a `StringValue`, or accept raw. Numbers
+ * coerce to their Lua string form — `luaL_checklstring` semantics,
+ * so `string.len(123) == 3` and `string.rep(12, 2) == "1212"`.
+ * Booleans / tables / nil do NOT coerce.
+ */
 export function coerceString(v: any): string | null {
   if (typeof v === "string") return v;
+  if (typeof v === "number") return luauNumberToString(v);
   if (v != null && typeof v === "object" && "value" in v) {
     const raw = (v as any).value;
     if (typeof raw === "string") return raw;
+    if (typeof raw === "number") return luauNumberToString(raw);
   }
   return null;
 }
@@ -1486,28 +1514,92 @@ export function patternCapturesToValues(
  * accumulated so far so the caller still gets a string back.
  */
 function formatLuaString(story: any, fmt: string, args: any[]): string {
-  const SPEC =
-    /%([-+ 0#]*)(\d+)?(?:\.(\d+))?([diouxXeEfgGcsq%])/g;
   let out = "";
-  let lastIndex = 0;
+  let i = 0;
   let argIdx = 0;
-  let match: RegExpExecArray | null;
-  SPEC.lastIndex = 0;
-  while ((match = SPEC.exec(fmt)) !== null) {
-    out += fmt.slice(lastIndex, match.index);
-    lastIndex = SPEC.lastIndex;
-    const [, flagsStr, widthStr, precisionStr, type] = match;
-    if (type === "%") {
-      out += "%";
+  const isDigit = (ch: string) => ch >= "0" && ch <= "9";
+  while (i < fmt.length) {
+    const ch = fmt.charAt(i);
+    if (ch !== "%") {
+      out += ch;
+      i++;
       continue;
     }
-    const flags = new Set((flagsStr ?? "").split(""));
-    const width = widthStr ? parseInt(widthStr, 10) : 0;
-    const precision = precisionStr != null ? parseInt(precisionStr, 10) : null;
+    i++;
+    if (fmt.charAt(i) === "%") {
+      out += "%";
+      i++;
+      continue;
+    }
+    if (fmt.charAt(i) === "*") {
+      // Luau `%*` — formats ANY value the way tostring does
+      // (including `__tostring` metamethods). Takes no form.
+      i++;
+      if (argIdx >= args.length) {
+        story.Error(`string.format: missing argument #${argIdx + 2}`);
+        return out;
+      }
+      out += luauAnyToDisplayString(story, args[argIdx++]);
+      continue;
+    }
+    // Format item — missing-arg raises before the form is scanned
+    // (str_format checks `++arg > top` first).
+    if (argIdx >= args.length) {
+      story.Error(`string.format: missing argument #${argIdx + 2}`);
+      return out;
+    }
+    // scanformat (lstrlib.cpp): flags capped at sizeof(FLAGS)-1=5,
+    // width and precision at 2 digits each.
+    const flagsStart = i;
+    while (i < fmt.length && "-+ #0".indexOf(fmt.charAt(i)) >= 0) i++;
+    if (i - flagsStart > 5) {
+      story.Error("string.format: invalid format (repeated flags)");
+      return out;
+    }
+    const flags = new Set(fmt.slice(flagsStart, i).split(""));
+    let widthStr = "";
+    while (widthStr.length < 2 && i < fmt.length && isDigit(fmt.charAt(i))) {
+      widthStr += fmt.charAt(i++);
+    }
+    let precisionStr: string | null = null;
+    if (fmt.charAt(i) === ".") {
+      i++;
+      precisionStr = "";
+      while (
+        precisionStr.length < 2 &&
+        i < fmt.length &&
+        isDigit(fmt.charAt(i))
+      ) {
+        precisionStr += fmt.charAt(i++);
+      }
+    }
+    if (i < fmt.length && isDigit(fmt.charAt(i))) {
+      story.Error(
+        "string.format: invalid format (width or precision too long)",
+      );
+      return out;
+    }
+    const type = fmt.charAt(i);
+    i++;
+    if (type === "*") {
+      story.Error("string.format: '%*' does not take a form");
+      return out;
+    }
+    if (type === "" || !"diouxXeEfgGcsq".includes(type)) {
+      story.Error(`string.format: invalid option '%${type}' to 'format'`);
+      return out;
+    }
     const arg = args[argIdx++];
+    const width = widthStr ? parseInt(widthStr, 10) : 0;
+    const precision =
+      precisionStr == null
+        ? null
+        : precisionStr === ""
+          ? 0
+          : parseInt(precisionStr, 10);
     let formatted: string;
     try {
-      formatted = formatOneSpec(arg, type!, flags, precision);
+      formatted = formatOneSpec(arg, type, flags, precision);
     } catch (e) {
       story.Error(
         `string.format: ${(e as Error).message ?? String(e)} (for "%${type}")`,
@@ -1517,7 +1609,7 @@ function formatLuaString(story: any, fmt: string, args: any[]): string {
     if (width > formatted.length) {
       if (flags.has("-")) {
         formatted = formatted.padEnd(width, " ");
-      } else if (flags.has("0") && /[diouxXeEfgG]/.test(type!)) {
+      } else if (flags.has("0") && /[diouxXeEfgG]/.test(type)) {
         // Zero-pad goes INSIDE the sign for numeric specifiers.
         const signMatch = /^[-+ ]/.exec(formatted);
         if (signMatch) {
@@ -1535,8 +1627,16 @@ function formatLuaString(story: any, fmt: string, args: any[]): string {
     }
     out += formatted;
   }
-  out += fmt.slice(lastIndex);
   return out;
+}
+
+// `%*` / `luaL_addvalueany` — convert any value to its display string
+// exactly like `tostring` (shares the STDLIB entry so `__tostring`
+// metamethods and the opaque table/function forms stay consistent).
+function luauAnyToDisplayString(story: any, v: any): string {
+  const r = STDLIB["tostring"]!.fn(story, [v]);
+  if (typeof r === "string") return r;
+  return coerceString(r) ?? String(r);
 }
 
 function formatOneSpec(
@@ -1568,21 +1668,18 @@ function formatOneSpec(
       return (n < 0 ? "-" : signPrefix(n)) + body;
     }
     case "u": {
-      const n = numericArg();
-      const u = (Math.trunc(n) >>> 0).toString();
+      const u = toUint64(numericArg()).toString();
       return precision !== null ? u.padStart(precision, "0") : u;
     }
     case "o": {
-      const n = numericArg();
-      let body = (Math.trunc(n) >>> 0).toString(8);
+      let body = toUint64(numericArg()).toString(8);
       if (precision !== null) body = body.padStart(precision, "0");
       if (flags.has("#") && !body.startsWith("0")) body = "0" + body;
       return body;
     }
     case "x":
     case "X": {
-      const n = numericArg();
-      let body = (Math.trunc(n) >>> 0).toString(16);
+      let body = toUint64(numericArg()).toString(16);
       if (type === "X") body = body.toUpperCase();
       if (precision !== null) body = body.padStart(precision, "0");
       if (flags.has("#")) body = (type === "X" ? "0X" : "0x") + body;
@@ -1601,7 +1698,19 @@ function formatOneSpec(
     case "f": {
       const n = numericArg();
       const p = precision ?? 6;
-      const body = Math.abs(n).toFixed(p);
+      const abs = Math.abs(n);
+      let body: string;
+      if (!Number.isFinite(abs)) {
+        body = Number.isNaN(abs) ? "nan" : "inf";
+      } else if (abs >= 1e21) {
+        // JS toFixed falls back to exponential notation at 1e21;
+        // C's %f prints every digit. Doubles this large are
+        // integral, so BigInt expands them exactly
+        // (`%99.99f` of -1e308 must be 100+ chars).
+        body = BigInt(abs).toString() + (p > 0 ? "." + "0".repeat(p) : "");
+      } else {
+        body = abs.toFixed(p);
+      }
       return (n < 0 ? "-" : signPrefix(n)) + body;
     }
     case "g":
@@ -1646,16 +1755,17 @@ function formatOneSpec(
       return precision !== null ? s.slice(0, precision) : s;
     }
     case "q": {
+      // addquoted (lstrlib.cpp): `"` `\` and newline get a backslash
+      // (newline stays a LITERAL newline after it), `\r` → "\r",
+      // NUL → "\000", everything else verbatim.
       const s = coerceString(arg) ?? "";
       return (
         '"' +
         s.replace(/[\\"\n\r\0]/g, (c) => {
-          if (c === '"') return '\\"';
-          if (c === "\\") return "\\\\";
-          if (c === "\n") return "\\n";
+          if (c === "\n") return "\\\n";
           if (c === "\r") return "\\r";
-          if (c === "\0") return "\\0";
-          return c;
+          if (c === "\0") return "\\000";
+          return "\\" + c;
         }) +
         '"'
       );
@@ -2417,6 +2527,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
   tostring: {
     arity: 1,
     fn: (story, [v]) => {
+      // Lua's C-function contract: an ABSENT argument raises
+      // (`pcall(tostring) == false`, `tostring(nothing())` likewise);
+      // an explicit nil still stringifies to "nil".
+      requireStdLibArg(story, v, 1, "tostring");
       if (v == null) return "nil";
       // `__tostring` metamethod — fires first for ObjectValue with a
       // metatable carrying the field. The metamethod is invoked via
@@ -2463,6 +2577,18 @@ export const STDLIB: Record<string, StdLibEntry> = {
           const fnTarget = map.get("__closure_fn");
           const path = (fnTarget as any)?.value;
           return `function: ${path?.toString?.() ?? "<closure>"}`;
+        }
+        // First-class stdlib builtins (`tostring(print)`) are
+        // functions, not tables.
+        if (map instanceof Map && map.has("__stdlib_fn")) {
+          return `function: builtin: ${
+            (map.get("__stdlib_fn") as any)?.value ?? "?"
+          }`;
+        }
+        // Plain tables stringify Lua-style as an opaque identity
+        // token — `string.find(tostring{}, 'table:')` must match.
+        if (map instanceof Map) {
+          return `table: ${luauPointerId(map)}`;
         }
         const raw = (v as any).value;
         if (raw == null) return "nil";
@@ -2596,6 +2722,24 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // metatable slot. Returns `t`. Errors if `t` isn't a table, if `mt`
   // is neither nil nor a table, or if `t`'s existing metatable has a
   // `__metatable` field (Luau metatable protection).
+  // `newproxy([withMeta])` — Lua 5.1 builtin Luau kept: an opaque
+  // userdata value, optionally with a fresh (mutable) metatable.
+  // Sparkdown has no userdata; an empty table works for the fixture
+  // surface (tostring/`__tostring` via `%*`, getmetatable access).
+  newproxy: {
+    arity: -1,
+    fn: (_, [withMeta]) => {
+      const proxy = new ObjectValue(new Map());
+      const truthy =
+        withMeta != null &&
+        !(withMeta instanceof NullValue) &&
+        (withMeta as any)?.value !== false;
+      if (truthy) {
+        proxy.metatable = new ObjectValue(new Map());
+      }
+      return proxy;
+    },
+  },
   setmetatable: {
     arity: 2,
     fn: (story, [t, mt]) => {
@@ -3047,7 +3191,21 @@ export const STDLIB: Record<string, StdLibEntry> = {
   "string.char": {
     arity: -1,
     pure: true,
-    fn: (_, args: number[]) => String.fromCharCode(...args),
+    fn: (_, args: number[]) => {
+      let out = "";
+      for (let i = 0; i < args.length; i++) {
+        const n = Math.trunc(args[i]!);
+        if (!(n >= 0 && n <= 255)) {
+          // Trappable — `pcall(function() return string.char(256) end)`
+          // must return false (strings.luau line 83).
+          throw new StoryException(
+            `invalid argument #${i + 1} to 'char' (value out of range)`,
+          );
+        }
+        out += String.fromCharCode(n);
+      }
+      return out;
+    },
   },
   // `string.byte(s [, i [, j]])` — multi-return: the byte codes for
   // each character in `s` from index `i` (default 1) to index `j`
@@ -3102,8 +3260,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const s = coerceString(args[0]) ?? "";
       const n = Math.max(0, Math.floor(coerceNumber(args[1]) ?? 0));
       if (n === 0) return "";
-      if (args.length < 3) return s.repeat(n);
-      const sep = coerceString(args[2]) ?? "";
+      const sep = args.length >= 3 ? (coerceString(args[2]) ?? "") : "";
+      // Luau caps strings at 1GB (MAXSSIZE) — `pcall(string.rep, 'x',
+      // 2e9)` must trap "resulting string too large", not crash JS's
+      // String.repeat with a RangeError.
+      const total = (s.length + sep.length) * n;
+      if (s.length > 0 && total > PACK_MAXSSIZE) {
+        throw new StoryException("resulting string too large");
+      }
       if (sep === "") return s.repeat(n);
       return new Array(n).fill(s).join(sep);
     },

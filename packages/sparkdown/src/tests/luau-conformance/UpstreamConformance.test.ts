@@ -250,6 +250,7 @@ describe("Luau upstream conformance baseline", () => {
     "sort.luau",
     "strconv.luau",
     "stringinterp.luau",
+    "strings.luau",
     "tpack.luau",
     "vararg.luau",
   ];

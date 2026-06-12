@@ -91,6 +91,17 @@ end`,
         "no runtime compiler; main-chunk varargs replaced by a function literal with identical `...` semantics",
     },
   ],
+  "strings.luau": [
+    {
+      // A scanner test (chunk ending in a comment with no trailing
+      // EOL must still compile). No runtime compiler in sparkdown —
+      // keep the value-level contract.
+      find: `assert(loadstring("return 1\\n--comentário sem EOL no final")() == 1)`,
+      replace: `assert((function() return 1 end)() == 1)`,
+      reason:
+        "no runtime compiler; the loadstring scanner test reduces to its value-level contract",
+    },
+  ],
   "pm.luau": [
     {
       // `dostring` compiles gsub-captured chunks at runtime via
