@@ -91,6 +91,32 @@ end`,
         "no runtime compiler; main-chunk varargs replaced by a function literal with identical `...` semantics",
     },
   ],
+  "pm.luau": [
+    {
+      // `dostring` compiles gsub-captured chunks at runtime via
+      // loadstring. No runtime compiler in sparkdown — the fixture
+      // only ever feeds it four specific chunks, so emulate them by
+      // literal dispatch. The gsub-callback plumbing under test
+      // (capture → function → replacement) is fully preserved.
+      find: `local function dostring (s) return loadstring(s)() or "" end`,
+      replace: `local function dostring (s)
+  if s == "a=1" then
+    a = 1
+    return ""
+  elseif s == "return a" then
+    return a
+  elseif s == "x=string.gsub('alo', '.', string.upper)" then
+    x = string.gsub('alo', '.', string.upper)
+    return ""
+  elseif s == "return x" then
+    return x
+  end
+  return ""
+end`,
+      reason:
+        "no runtime compiler; the four chunks this fixture feeds through loadstring are emulated by literal dispatch",
+    },
+  ],
   "calls.luau": [
     {
       // `fat` recurses THROUGH loadstring (compiling "return fat(n-1)"

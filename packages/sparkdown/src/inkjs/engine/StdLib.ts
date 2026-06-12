@@ -1,6 +1,7 @@
 import { getPluralCategory } from "./PluralRules";
 import { StoryException } from "./StoryException";
 import { PRNG } from "./PRNG";
+import { Void } from "./Void";
 import {
   ObjectValue,
   IntValue,
@@ -1324,7 +1325,13 @@ function classifyGsubRepl(
   }
   if (repl instanceof ObjectValue) {
     const map = repl.value;
-    if (map instanceof Map && map.has("__closure_fn")) {
+    if (
+      map instanceof Map &&
+      (map.has("__closure_fn") || map.has("__stdlib_fn"))
+    ) {
+      // Closure-wrapped user fn, or a stdlib builtin referenced
+      // first-class (`gsub(s, p, string.upper)`) — both dispatch
+      // through `story.CallLuauFunction`.
       return "function";
     }
     return "table";
@@ -1344,6 +1351,40 @@ function classifyGsubRepl(
     "string.gsub: replacement must be a string, number, table, or function",
   );
   return "error";
+}
+
+/**
+ * `t[key]` following Lua's `__index` chain, for the gsub table-form
+ * replacement (pm.luau line 225: a lookup table whose values come
+ * from a metatable `__index` function). Lives here rather than
+ * reusing Story.ts's `indexThroughMetatable` because importing from
+ * Story.ts would close a module cycle (Story already imports StdLib).
+ */
+function gsubTableLookup(
+  story: any,
+  tbl: ObjectValue,
+  key: string,
+): AbstractValue | null {
+  let base: any = tbl;
+  for (let depth = 0; depth < 32; depth++) {
+    const direct = (base.value as Map<string, AbstractValue>)?.get(key);
+    if (direct != null) return direct;
+    const mt = base?.metatable;
+    if (!(mt instanceof ObjectValue)) return null;
+    const idx = (mt.value as Map<string, AbstractValue>)?.get("__index");
+    if (idx == null || idx instanceof NullValue) return null;
+    if (
+      idx instanceof ObjectValue &&
+      !(idx.value as Map<string, AbstractValue>)?.has("__closure_fn")
+    ) {
+      base = idx; // table form — continue the chain
+      continue;
+    }
+    // Function form (closure ObjectValue / divert target / marker).
+    const results = story.CallLuauFunction(idx, [base, new StringValue(key)]);
+    return (results?.[0] as AbstractValue) ?? null;
+  }
+  return null;
 }
 
 /**
@@ -1383,6 +1424,10 @@ function expandGsubStringRepl(
     if (next >= "0" && next <= "9") {
       const n = parseInt(next, 10);
       if (n === 0) {
+        out += wholeMatch;
+      } else if (n === 1 && matched.captures.length === 0) {
+        // Lua quirk: with a capture-less pattern, `%1` refers to the
+        // whole match (push_onecapture's level-0 special case).
         out += wholeMatch;
       } else if (n <= matched.captures.length) {
         const cap = matched.captures[n - 1];
@@ -2948,6 +2993,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
         coerceString(k) ??
         (coerceNumber(k) !== null ? String(coerceNumber(k)) : null);
       if (key === null) return null;
+      // `_G` globals-table proxy — route the read to global variable
+      // storage (the proxy's own map only holds the marker tag).
+      if (map.has(GLOBALS_PROXY_TAG)) {
+        return story.state.variablesState.GetGlobalVariableValue(key) ?? null;
+      }
       return map.get(key) ?? null;
     },
   },
@@ -2974,6 +3024,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (key === null) {
         story.Error("rawset: key must be a string or number");
         return null;
+      }
+      // `_G` globals-table proxy — write the global directly
+      // (patch-aware via SetGlobal, same as the StoreIndex path).
+      if (t.value.has(GLOBALS_PROXY_TAG)) {
+        story.state.variablesState.SetGlobal(key, v as AbstractValue);
+        return t;
       }
       t.value.set(key, v as AbstractValue);
       return t;
@@ -3240,10 +3296,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
             );
             return new MultiValue([new StringValue(input), new IntValue(0)]);
           }
-          const top = results[0];
+          let top = results[0];
+          // A callback returning a multi-value expression (e.g. a
+          // nested `gsub` call) contributes only its FIRST value.
+          if (top instanceof MultiValue) top = top.values[0];
           if (
             top == null ||
             top instanceof NullValue ||
+            top instanceof Void || // callback with no `return` at all
             (top as any).value === false
           ) {
             replacement = wholeMatch;
@@ -3271,11 +3331,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
             const cap = matched.captures[0];
             lookupKey = cap == null ? "" : String(cap);
           }
-          const tableMap = (replArg as ObjectValue).value as Map<
-            string,
-            AbstractValue
-          >;
-          const lookup = tableMap.get(lookupKey);
+          const lookup = gsubTableLookup(
+            story,
+            replArg as ObjectValue,
+            lookupKey,
+          );
           if (
             lookup == null ||
             lookup instanceof NullValue ||

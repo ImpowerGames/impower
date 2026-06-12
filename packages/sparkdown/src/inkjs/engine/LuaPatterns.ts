@@ -121,6 +121,13 @@ const CLASS_TO_JS: Record<string, string> = {
   C: "^" + LUA_CTRL,
   x: "0-9A-Fa-f",
   X: "^0-9A-Fa-f",
+  // `%g` — printable except space (C `isgraph`): ASCII 0x21-0x7E.
+  g: "\\x21-\\x7e",
+  G: "^\\x21-\\x7e",
+  // `%z` — the NUL byte (Lua 5.1 class, kept by Luau); `%Z` — its
+  // complement (any byte except `\0`).
+  z: "\\x00",
+  Z: "^\\x00",
 };
 
 // JS regex chars that are special on the JS side but LITERAL in Lua
@@ -180,7 +187,7 @@ export function luaPatternToJs(pattern: string): CompiledLuaPattern {
       const close = body[i + 3];
       if (open === undefined || close === undefined) {
         throw new LuaPatternError(
-          "`%b` must be followed by two delimiter characters (e.g. `%b()`).",
+          "malformed pattern (missing arguments to '%b')",
         );
       }
       segments.push({ kind: "balanced", open, close });
@@ -213,6 +220,12 @@ export function luaPatternToJs(pattern: string): CompiledLuaPattern {
         body.slice(chunkStart),
         captureKinds,
         /*anchorStart*/ segments.length === 0 && anchored,
+        // `$` must live INSIDE the final regex, not just as the
+        // matcher's post-check — a lazy quantifier (`.-$`) only
+        // extends to the end of input when the regex itself demands
+        // it. (When the pattern ends with `%b` there's no trailing
+        // regex segment and the post-check alone handles `$`.)
+        /*anchorEnd*/ endAnchored,
       ),
     );
   }
@@ -238,23 +251,46 @@ function compileRegexSegment(
   body: string,
   captureKinds: CaptureKind[],
   anchorStart: boolean,
+  anchorEnd = false,
 ): PatternSegment {
-  // Anchor strategy: every segment regex starts with `^` so it only
-  // matches at offset 0 of whatever slice the matcher feeds it.
-  // The outer matcher loop is the one that decides where to start.
-  // (`anchorStart` is currently unused since we always prepend `^`,
-  // but keeping the parameter so semantics are explicit.)
+  // Anchor strategy: segment regexes compile with the STICKY flag
+  // and exec against the FULL input with `lastIndex` set to the
+  // candidate position — never against a slice. Slicing would blind
+  // lookbehinds (`%f[set]`'s `(?<!…)` half must see the char before
+  // the match position). The outer matcher loop decides where to
+  // start; `anchorStart` is unused since sticky pins every attempt.
   void anchorStart;
-  let out = "^";
+  let out = "";
   let i = 0;
   let captureCount = 0;
   let parenDepth = 0;
   const localCaptureKinds: CaptureKind[] = [];
+  // Backref bookkeeping (`%1`..`%9`): Lua's check_capture requires
+  // the referenced capture to exist AND be finished at the point of
+  // use — `(%1)` and `(%0)` raise "invalid capture index". Track
+  // which group numbers have closed (open order = group number).
+  const openGroupStack: number[] = [];
+  const closedGroups = new Set<number>();
   const bodyEnd = body.length;
 
   while (i < bodyEnd) {
     const c = body[i]!;
     if (c === "%") {
+      const d = body[i + 1];
+      if (d !== undefined && d >= "0" && d <= "9") {
+        const n = d.charCodeAt(0) - 48;
+        if (n === 0 || !closedGroups.has(n)) {
+          throw new LuaPatternError(`invalid capture index %${n}`);
+        }
+        out += "\\" + n;
+        i += 2;
+        const q = readQuantifier(body, i);
+        if (q) {
+          out += q.emitted;
+          i = q.nextIndex;
+        }
+        continue;
+      }
       i = handleEscape(body, i, /*inSet*/ false, (s) => (out += s));
       continue;
     }
@@ -284,12 +320,16 @@ function compileRegexSegment(
         captureCount++;
         const globalIndex = captureKinds.length + captureCount;
         localCaptureKinds.push("position");
+        // Position captures are born finished — `%N` may reference
+        // them immediately.
+        closedGroups.add(captureCount);
         out += `(?<__pos_${globalIndex}__>)`;
         i += 2;
         continue;
       }
       captureCount++;
       localCaptureKinds.push("string");
+      openGroupStack.push(captureCount);
       parenDepth++;
       out += "(";
       i++;
@@ -297,23 +337,25 @@ function compileRegexSegment(
     }
     if (c === ")") {
       if (parenDepth === 0) {
-        throw new LuaPatternError(
-          "Unmatched `)` in pattern. Captures must be balanced.",
-        );
+        throw new LuaPatternError("invalid pattern capture");
       }
       parenDepth--;
+      const closed = openGroupStack.pop();
+      if (closed !== undefined) closedGroups.add(closed);
       out += ")";
       i++;
       continue;
     }
-    if (c === "^") {
-      out += "\\^";
+    if (c === "^" || c === "$") {
+      // Mid-pattern `^` / `$` are literals — and like any literal
+      // atom they can carry a quantifier (`(^?)` in pm.luau's f1).
+      out += "\\" + c;
       i++;
-      continue;
-    }
-    if (c === "$") {
-      out += "\\$";
-      i++;
+      const q = readQuantifier(body, i);
+      if (q) {
+        out += q.emitted;
+        i = q.nextIndex;
+      }
       continue;
     }
     if (c === "*" || c === "+" || c === "?" || c === "-") {
@@ -355,18 +397,18 @@ function compileRegexSegment(
   }
 
   if (parenDepth !== 0) {
-    throw new LuaPatternError(
-      "Unmatched `(` in pattern. Captures must be balanced.",
-    );
+    throw new LuaPatternError("malformed pattern (unfinished capture)");
   }
 
   // Push this segment's capture kinds onto the global list before
   // returning so the segment-level capture indices flow correctly.
   for (const k of localCaptureKinds) captureKinds.push(k);
 
+  if (anchorEnd) out += "$";
+
   let regex: RegExp;
   try {
-    regex = new RegExp(out, "ds");
+    regex = new RegExp(out, "dsy");
   } catch (e) {
     throw new LuaPatternError(
       `Could not compile pattern: ${(e as Error).message}`,
@@ -424,9 +466,9 @@ export function executeLuaPattern(
   return null;
 }
 
-// Single-regex match. Slices `input` from `startPos` so the regex's
-// leading `^` anchors at the slice boundary. Translates indices back
-// to original-input coordinates.
+// Single-regex match. Sticky exec against the FULL input (lastIndex
+// = candidate position) so lookbehinds see preceding context and
+// `$` means true end-of-input.
 function matchSingleRegex(
   seg: Extract<PatternSegment, { kind: "regex" }>,
   input: string,
@@ -435,14 +477,14 @@ function matchSingleRegex(
   endAnchored: boolean,
 ): PatternMatchResult | null {
   // For unanchored patterns we scan forward from each starting
-  // position until we find a match. The regex itself is `^...` so
-  // it only matches at the slice boundary.
+  // position until we find a match; sticky pins each attempt to
+  // exactly `p`.
   let p = startPos;
   while (p <= input.length) {
     if (anchored && p > startPos) return null;
-    const sub = input.slice(p);
-    const m = seg.regex.exec(sub);
-    if (m && m.index === 0) {
+    seg.regex.lastIndex = p;
+    const m = seg.regex.exec(input);
+    if (m && m.index === p) {
       if (endAnchored && p + m[0].length !== input.length) {
         p++;
         continue;
@@ -451,7 +493,7 @@ function matchSingleRegex(
       for (let g = 1; g <= seg.captureKinds.length; g++) {
         if (seg.captureKinds[g - 1] === "position") {
           const idx = (m as any).indices?.[g];
-          captures.push((idx ? idx[0] : 0) + p + 1);
+          captures.push((idx ? idx[0] : 0) + 1);
         } else {
           captures.push(m[g] ?? null);
         }
@@ -474,13 +516,13 @@ function tryMatchSegmentsAt(
   const captures: (string | number | null)[] = [];
   for (const seg of compiled.segments) {
     if (seg.kind === "regex") {
-      const sub = input.slice(cursor);
-      const m = seg.regex.exec(sub);
-      if (!m || m.index !== 0) return null;
+      seg.regex.lastIndex = cursor;
+      const m = seg.regex.exec(input);
+      if (!m || m.index !== cursor) return null;
       for (let g = 1; g <= seg.captureKinds.length; g++) {
         if (seg.captureKinds[g - 1] === "position") {
           const idx = (m as any).indices?.[g];
-          captures.push((idx ? idx[0] : 0) + cursor + 1);
+          captures.push((idx ? idx[0] : 0) + 1);
         } else {
           captures.push(m[g] ?? null);
         }
@@ -494,8 +536,11 @@ function tryMatchSegmentsAt(
       let j = cursor + 1;
       while (j < input.length && depth > 0) {
         const ch = input[j];
-        if (ch === seg.open) depth++;
-        else if (ch === seg.close) depth--;
+        // Close is checked BEFORE open (matchbalance in lstrlib) —
+        // with identical delimiters (`%b''`) the second char must
+        // close, not nest.
+        if (ch === seg.close) depth--;
+        else if (ch === seg.open) depth++;
         j++;
       }
       if (depth !== 0) return null;
@@ -521,7 +566,7 @@ function handleEscape(
 ): number {
   const next = pattern[i + 1];
   if (next === undefined) {
-    throw new LuaPatternError("Pattern ends with a dangling `%` escape.");
+    throw new LuaPatternError("malformed pattern (ends with '%')");
   }
   // `%b` is handled by the segmenting pass in `luaPatternToJs`
   // before this function ever sees it. If we land here with `%b`,
@@ -535,18 +580,17 @@ function handleEscape(
   }
   // `%f[set]` — frontier pattern. Matches at a position where the
   // next char is in `set` and the previous one is not. Lua treats
-  // the beginning/end of subject as `\0`, so when `\0` ∉ set the
-  // match succeeds at start-of-string and end-of-string — that's
-  // what JS lookbehind/lookahead at boundaries gives us for free.
-  //
-  // Translation: `%f[set]` → `(?<![set])(?=[set])`. Same translated
-  // `[set]` body used in both halves (negation lives inside the
-  // existing translateCharClass output).
-  //
-  // Subtle divergence: if a user explicitly puts `\0` in the set
-  // (rare — would require `%z` or a literal `\0` in the source),
-  // sparkdown matches at boundaries while Lua doesn't. Not worth
-  // a special case today.
+  // the virtual positions just before the subject and just after it
+  // as holding `\0`, so boundary behaviour depends on whether `\0`
+  // belongs to the set:
+  //   - prev half: `\0` ∈ set → start-of-subject FAILS (the virtual
+  //     `\0` is in the set), so a real preceding char ∉ set is
+  //     required: `(?<=[\s\S])(?<![set])`. `\0` ∉ set → plain
+  //     `(?<![set])` (start-of-subject qualifies).
+  //   - next half: `\0` ∈ set → end-of-subject QUALIFIES:
+  //     `(?:(?=[set])|$)`. `\0` ∉ set → plain `(?=[set])`.
+  // Membership is probed directly against the translated class
+  // (pm.luau exercises `%f[%z]`, `%f[%l%z]`, `%f[^\1-\255]`, ...).
   if (next === "f") {
     if (inSet) {
       throw new LuaPatternError(
@@ -554,12 +598,17 @@ function handleEscape(
       );
     }
     if (pattern[i + 2] !== "[") {
-      throw new LuaPatternError(
-        "`%f` must be followed by `[set]` (e.g. `%f[%a]`).",
-      );
+      throw new LuaPatternError("missing '[' after '%f' in pattern");
     }
     const setResult = translateCharClass(pattern, i + 2);
-    emit(`(?<!${setResult.emitted})(?=${setResult.emitted})`);
+    const nulInSet = new RegExp(`^${setResult.emitted}$`).test("\0");
+    const prevHalf = nulInSet
+      ? `(?<=[\\s\\S])(?<!${setResult.emitted})`
+      : `(?<!${setResult.emitted})`;
+    const nextHalf = nulInSet
+      ? `(?:(?=${setResult.emitted})|$)`
+      : `(?=${setResult.emitted})`;
+    emit(prevHalf + nextHalf);
     // Frontier is zero-width; no quantifier handling.
     return setResult.nextIndex;
   }
@@ -613,7 +662,7 @@ function translateCharClass(
     i++;
   }
   if (i >= pattern.length) {
-    throw new LuaPatternError("Unterminated `[` in pattern.");
+    throw new LuaPatternError("malformed pattern (missing ']')");
   }
   // Special case: set body is exactly one negated class shorthand
   // (e.g. `[%W]`, `[^%w]`). Generic embedding of negated shorthands
@@ -659,7 +708,7 @@ function translateCharClass(
     i++;
   }
   if (i >= pattern.length) {
-    throw new LuaPatternError("Unterminated `[` in pattern.");
+    throw new LuaPatternError("malformed pattern (missing ']')");
   }
   // Skip closing `]`.
   i++;
