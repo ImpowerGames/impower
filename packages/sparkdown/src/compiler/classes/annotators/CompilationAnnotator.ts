@@ -88,6 +88,55 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   private _globalCallableNames?: Set<string>;
   private _globalCallableNamesTree?: unknown;
 
+  // Names of `define` blocks that are CLASS defines (have a method
+  // member, or transitively inherit from one). Walked over the whole
+  // document so a chunk lowering `define Penguin as Bird with ... end`
+  // can classify itself even though `define Bird` lowered in a
+  // different chunk with a different context. Cached per-tree like
+  // the global-callable set.
+  private _classDefineNames?: Set<string>;
+  private _classDefineNamesTree?: unknown;
+
+  private computeClassDefineNames(): Set<string> {
+    if (this.tree === this._classDefineNamesTree && this._classDefineNames) {
+      return this._classDefineNames;
+    }
+    const set = new Set<string>();
+    const tree = this.tree;
+    if (tree) {
+      const cursor = tree.cursor();
+      if (cursor.firstChild()) {
+        // Defines appear in document order, so a parent's class-ness
+        // is already in `set` by the time its subclasses are checked.
+        do {
+          if (cursor.node.name !== "LuauDefine") continue;
+          const nameNode = this.findDescendant(cursor.node, "LuauDefineName");
+          if (!nameNode) continue;
+          const name = this.read(nameNode.from, nameNode.to).trim();
+          const hasMethod =
+            this.findDescendant(cursor.node, "LuauMethodDefinition") != null ||
+            this.findDescendant(cursor.node, "LuauFunctionDefinition") != null;
+          let parentIsClass = false;
+          if (!hasMethod) {
+            const parentNode = this.findDescendant(
+              cursor.node,
+              "LuauDefineParentName",
+            );
+            if (parentNode) {
+              parentIsClass = set.has(
+                this.read(parentNode.from, parentNode.to).trim(),
+              );
+            }
+          }
+          if (hasMethod || parentIsClass) set.add(name);
+        } while (cursor.nextSibling());
+      }
+    }
+    this._classDefineNames = set;
+    this._classDefineNamesTree = this.tree;
+    return set;
+  }
+
   private computeGlobalCallableNames(): Set<string> {
     if (this.tree === this._globalCallableNamesTree && this._globalCallableNames) {
       return this._globalCallableNames;
@@ -247,6 +296,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
+        classDefineNames: this.computeClassDefineNames(),
       });
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;

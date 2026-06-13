@@ -176,6 +176,15 @@ export interface LowerContext {
    * pops on exit.
    */
   siblingSubFlowNamesStack?: Map<string, SiblingSubFlowInfo>[];
+  /**
+   * Names of `define` blocks lowered as CLASS defines so far (in
+   * document order). A define with no methods of its own still
+   * lowers as a class when its `as Parent` names one of these —
+   * `define Penguin as Bird with noise = "honk" end` must chain to
+   * the Bird class even though it only overrides data. Lazily
+   * created by `lowerLuauDefine` on the first class define.
+   */
+  classDefineNames?: Set<string>;
 }
 
 /**

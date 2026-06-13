@@ -29,7 +29,14 @@ import { findChildByName } from "./alternatorArms";
 export function getFunctionBodyContent(
   fnDefNode: SyntaxNode,
 ): SyntaxNode | null {
-  const content = findChildByName(fnDefNode, "LuauFunctionDefinition_content");
+  // `LuauMethodDefinition` is the `name(args) ... end` shorthand
+  // inside a `define` block — same body shape as a function
+  // definition but under its own content wrapper (and never with a
+  // `LuauFunctionBody` sub-wrapper, since the rule's patterns include
+  // `LuauBlockBody` directly).
+  const content =
+    findChildByName(fnDefNode, "LuauFunctionDefinition_content") ??
+    findChildByName(fnDefNode, "LuauMethodDefinition_content");
   if (!content) return null;
   const bodyWrapper = findChildByName(content, "LuauFunctionBody");
   if (bodyWrapper) {

@@ -104,6 +104,19 @@ export function lowerExpressionFromNodes(
   // `math / 3`.
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]!;
+    // `new ClassName(args)` in arg context — mirror collectTokens.
+    if (node.name === "LuauNewExpression") {
+      let k = i + 1;
+      while (k < nodes.length && isSkippableName(nodes[k]!.name)) k++;
+      const argsNode = nodes[k];
+      const hasArgs = argsNode?.name === "LuauParenthetical";
+      const expr = lowerNewExpression(node, hasArgs ? argsNode! : null, ctx);
+      if (expr) {
+        tokens.push({ kind: "operand", expr });
+        if (hasArgs) i = k;
+        continue;
+      }
+    }
     if (node.name === "LuauAccessPath" && hasTrailingMethodAccessor(node)) {
       const next = nodes[i + 1];
       if (next && CALL_ARG_NODE_NAMES.has(next.name)) {
@@ -229,6 +242,28 @@ function lowerCallArgsNode(
   return single ? [single] : [];
 }
 
+// `new ClassName(args)` — instance construction for `define`-declared
+// classes. Lowers to the hidden stdlib constructor `__new(ClassTable,
+// ...args)` (see StdLib.ts), which builds a fresh table whose
+// metatable `__index`es the class, copies `store`-marked defaults,
+// and forwards args to an `init` method when the class defines one.
+// The arg parenthetical is the node's next sibling (same pairing as
+// method calls); `argsNode` is null for the bare `new ClassName` form.
+function lowerNewExpression(
+  newNode: SyntaxNode,
+  argsNode: SyntaxNode | null,
+  ctx: LowerContext,
+): Expression | null {
+  const classNameNode = getDescendent("LuauNewClassName", newNode);
+  if (!classNameNode) return null;
+  const className = ctx.read(classNameNode.from, classNameNode.to);
+  const callArgs = argsNode ? lowerCallArgsNode(argsNode, ctx) : [];
+  return new FunctionCall(new Identifier("__new"), [
+    new VariableReference([new Identifier(className)]),
+    ...callArgs,
+  ]);
+}
+
 const OPERATION_WRAPPERS = new Set([
   "LuauArithmeticOperation",
   "LuauCompareOperation",
@@ -296,6 +331,19 @@ function collectTokens(
     // by a sibling `LuauParenthetical` holding the args — they live as
     // adjacent expression-level nodes, not inside the access path. Detect and
     // lower the pair together before falling through to single-node handling.
+    // `new ClassName(args)` — consume the constructor's arg
+    // parenthetical here (otherwise the post-operand fold would
+    // value-call the freshly built INSTANCE with it).
+    if (child.name === "LuauNewExpression") {
+      const argsNode = findNextNonSkippableSibling(child);
+      const hasArgs = argsNode?.name === "LuauParenthetical";
+      const expr = lowerNewExpression(child, hasArgs ? argsNode : null, ctx);
+      if (expr) {
+        tokens.push({ kind: "operand", expr });
+        child = (hasArgs ? argsNode! : child).nextSibling;
+        continue;
+      }
+    }
     if (
       child.name === "LuauAccessPath" &&
       hasTrailingMethodAccessor(child)

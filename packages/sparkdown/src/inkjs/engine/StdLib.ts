@@ -4738,6 +4738,87 @@ export const STDLIB: Record<string, StdLibEntry> = {
   //     `inext({5,6,7}, 2)` returns `(3, 7)` (basic.luau line 230).
   // The marker still carries internal state as a fallback for call
   // sites that pass nil state (see stepBuiltinIterator).
+  // Hidden instance constructor for `define`-declared classes
+  // (emitted by the `new ClassName(args)` expression lowering —
+  // never user-callable, the `__` prefix is reserved). Builds a
+  // fresh table whose metatable `__index`es the class so property
+  // and method reads fall through the inheritance chain (table-form
+  // dispatch — plain map walks, no function-form metamethod
+  // re-entry). Then:
+  //   1. Copies `store`-marked property defaults INTO the instance
+  //      (walking the chain root-most first so child overrides win).
+  //      Store props are instance-owned from birth, so they always
+  //      travel with the instance in save files; non-store
+  //      properties stay on the class until written and reset to
+  //      class defaults on load.
+  //   2. Calls the class's `init` method (own or inherited) with
+  //      the instance + the constructor's arguments, when defined.
+  "__new": {
+    arity: -1,
+    fn: (story, args) => {
+      const cls = args[0];
+      if (!(cls instanceof ObjectValue)) {
+        story.Error(
+          `new: ${luauTypeOf(cls)} value is not a class (expected a \`define\`d class name)`,
+        );
+        return null;
+      }
+      const inst = new ObjectValue(new Map<string, AbstractValue>());
+      const mtMap = new Map<string, AbstractValue>();
+      mtMap.set("__index", cls);
+      inst.metatable = new ObjectValue(mtMap);
+
+      // Collect the inheritance chain (instance class first).
+      const chain: ObjectValue[] = [];
+      let cur: ObjectValue | null = cls;
+      let guard = 0;
+      while (cur instanceof ObjectValue && guard++ < 32) {
+        chain.push(cur);
+        const mt = cur.metatable;
+        const idx =
+          mt instanceof ObjectValue
+            ? ((mt.value as Map<string, AbstractValue>)?.get("__index") ??
+              null)
+            : null;
+        cur = idx instanceof ObjectValue ? idx : null;
+      }
+
+      // Copy store-marked defaults, root-most level first so a
+      // child's redeclared default overwrites its parent's. Note
+      // table-valued defaults copy by REFERENCE (Lua semantics —
+      // shared across instances unless `init` replaces them).
+      for (let i = chain.length - 1; i >= 0; i--) {
+        const level = chain[i]!;
+        const levelMap = level.value as Map<string, AbstractValue>;
+        const storeList = levelMap?.get("__storeProps");
+        if (!(storeList instanceof ObjectValue)) continue;
+        for (const nameVal of (
+          storeList.value as Map<string, AbstractValue>
+        ).values()) {
+          const propName = coerceString(nameVal);
+          if (!propName) continue;
+          const def = levelMap.get(propName);
+          if (def != null) inst.value!.set(propName, def);
+        }
+      }
+
+      // Constructor: nearest `init` up the chain, called with the
+      // instance threaded as `self` plus the `new` call's args.
+      for (const level of chain) {
+        const init = (level.value as Map<string, AbstractValue>)?.get(
+          "init",
+        );
+        if (init != null && !(init instanceof NullValue)) {
+          story.CallLuauFunction(init, [
+            inst,
+            ...(args.slice(1) as AbstractValue[]),
+          ]);
+          break;
+        }
+      }
+      return inst;
+    },
+  },
   // Hidden generic-for ENTRY adjustment (emitted by
   // lowerLuauGenericForLoop right after the (f, s, ctrl) init —
   // never user-callable, the `__` prefix is reserved). Implements

@@ -2712,6 +2712,14 @@ repository:
       # The type-context inclusion (in `LuauTypeName`'s pattern list)
       # handles the `local x: typeof(y) = ...` type-inference form
       # where `typeof(y)` is a type expression.
+      # `new ClassName(...)` instance construction — must come BEFORE
+      # `LuauAccessPath` so `new` isn't lexed as an ordinary
+      # identifier path. The constructor's arg list parses as the
+      # following sibling `LuauParenthetical` (the lowerer pairs them,
+      # mirroring method-call arg pairing). A bare `new` variable
+      # reference still works: the rule requires a following
+      # identifier, so `print(new)` falls through to the access path.
+      - { include: "#LuauNewExpression" }
       - { include: "#LuauAccessPath" }
       - { include: "#LuauTable" }
       # `LuauChainedFunctionCall` must come BEFORE
@@ -2994,6 +3002,37 @@ repository:
       - { include: "#LuauVariableAssignment" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+
+  # ----------------------------------------------------------------------------
+  # New Expression (`new ClassName(...)` — instance construction for
+  # `define`-declared classes)
+  # ----------------------------------------------------------------------------
+
+  LuauNewExpression:
+    tag: meta
+    name: meta.new.luau
+    match: (new)\b({{WS}}*)({{LUAU_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauNewKeyword" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#LuauNewClassName" }
+
+  LuauNewKeyword:
+    tag: controlKeyword
+    name: keyword.control.new.luau
+    match: (new)\b
+
+  LuauNewClassName:
+    tag: typeName
+    name: entity.name.type.new.luau
+    match: ({{LUAU_IDENTIFIER}})
 
   LuauDefineKeyword:
     tag: controlKeyword
