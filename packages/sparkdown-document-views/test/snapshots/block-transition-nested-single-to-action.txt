@@ -48,8 +48,8 @@ html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; 
 text: ""
 html: <div class="cm-line collapse"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
 --- line 9 ---
-text: "He stops and gestures to..."
-html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">He <img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">stops and gestures to...</div>
+text: "    He ((sfx_shoes_stopping)) stops and gestures to..."
+html: <div class="cm-line">    He ((sfx_shoes_stopping)) stops and gestures to...</div>
 --- line 10 ---
 text: ""
 html: <div class="cm-line"><br></div>
