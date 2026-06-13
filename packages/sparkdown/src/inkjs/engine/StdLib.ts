@@ -2952,8 +2952,32 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // emit display text via sparkdown's regular `:` / `..` syntax.
   print: {
     arity: -1, // variadic — actual count comes from compile-site capture
-    fn: (_, _args) => {
-      // intentional no-op; could route to a host hook if needed
+    fn: (story, args) => {
+      // `print(...)` is the way to emit DISPLAY (action) text from a
+      // function body, where the usual bare display-text syntax isn't
+      // available (function bodies are pure logic). Args stringify
+      // like `tostring`, join with a space, and a trailing newline
+      // ends the line. In pure expression contexts with no display
+      // flow (e.g. the Luau conformance harness wrapping logic in
+      // `function run()`), the text simply lands in the output stream
+      // and is captured on Continue — assertions are unaffected.
+      const text = args
+        .map((a) => luauAnyToDisplayString(story, a))
+        .join(" ");
+      story.state.PushToOutputStream(new StringValue(text + "\n"));
+    },
+  },
+  // `log(...)` — DEVELOPER console logging, NOT story display (that's
+  // `print`). Routes to the host console so it flows through ink's
+  // debug-log handling rather than the player-visible output stream.
+  log: {
+    arity: -1,
+    fn: (story, args) => {
+      const text = args
+        .map((a) => luauAnyToDisplayString(story, a))
+        .join(" ");
+      // eslint-disable-next-line no-console
+      console.log(text);
     },
   },
 

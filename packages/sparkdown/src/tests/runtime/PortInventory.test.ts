@@ -197,35 +197,52 @@ end
     expect(r.runtimeError).toBe(null);
   });
 
-  test("GAP: bare format() builtin (not registered)", () => {
+  test("format is string.format (sample typo) — string.format works", () => {
     const r = probe(`external host_record(v)
 & run()
 done
 
 function run()
-host_record(format(2000))
+host_record(string.format("%d at %s", 2000, "night"))
 end
 `);
-    // CURRENT: `format` resolves as an undefined divert target. TO
-    // BUILD: a `format(value [, fmt])` stdlib for narrative value
-    // formatting. When built, flip to expect a real result.
-    expect(r.runtimeError).toContain("could not be found (format)");
+    expect(r.errors).toEqual([]);
+    expect(r.runtimeError).toBe(null);
+    expect(r.recorded).toEqual(["2000 at night"]);
   });
 
-  test("GAP: bare log() builtin (not registered)", () => {
-    const r = probe(`external host_record(v)
-& run()
-done
-
+  test("print() emits display text from a function body", () => {
+    const r = probe(`-> main
+scene main
+  & run()
+  done
+end
 function run()
-log("hello")
-host_record(1)
+print("Footprints... glowing?")
 end
 `);
-    // CURRENT: `log` resolves as an undefined divert target. TO
-    // BUILD: `log(...)` → console output (developer logging, NOT
-    // story display — that's `print`). When built, flip this.
-    expect(r.runtimeError).toContain("could not be found (log)");
+    expect(r.errors).toEqual([]);
+    expect(r.runtimeError).toBe(null);
+    // print is the escape hatch for display output inside functions.
+    expect(r.output).toContain("Footprints... glowing?");
+  });
+
+  test("log() is developer console output, NOT story display", () => {
+    const r = probe(`-> main
+scene main
+  & run()
+  Visible.
+  done
+end
+function run()
+log("debug only")
+end
+`);
+    expect(r.errors).toEqual([]);
+    expect(r.runtimeError).toBe(null);
+    expect(r.output).toContain("Visible");
+    // log goes to console, never the player-visible output.
+    expect(r.output).not.toContain("debug only");
   });
 });
 
