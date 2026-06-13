@@ -33,6 +33,46 @@ import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
 
 export class JsonSerialisation {
+  // ----------------------------------------------------------------
+  // Reference-ID table (de)serialization sessions.
+  //
+  // WRITE side: the memo rides the SimpleJson.Writer instance (one
+  // writer per StoryState.ToJson call), mapping each underlying Map
+  // to its save-session id. READ side: a module-level id →
+  // ObjectValue registry, reset by StoryState.LoadJsonObj at the
+  // start of every load. `objectForLoadSessionId` returns the slot
+  // for an id, creating an empty placeholder when a forward
+  // reference arrives before its definition — the definition then
+  // fills the SAME ObjectValue, so identity holds regardless of
+  // field order in the save.
+  // ----------------------------------------------------------------
+
+  private static writerObjectMemo(writer: SimpleJson.Writer): {
+    nextId: number;
+    ids: Map<object, number>;
+  } {
+    const w = writer as unknown as {
+      __objGraphMemo?: { nextId: number; ids: Map<object, number> };
+    };
+    w.__objGraphMemo ??= { nextId: 1, ids: new Map<object, number>() };
+    return w.__objGraphMemo;
+  }
+
+  private static _loadSessionObjectsById = new Map<number, ObjectValue>();
+
+  public static ResetObjectLoadSession(): void {
+    this._loadSessionObjectsById = new Map();
+  }
+
+  private static objectForLoadSessionId(id: number): ObjectValue {
+    let existing = this._loadSessionObjectsById.get(id);
+    if (!existing) {
+      existing = new ObjectValue(new Map<string, AbstractValue>());
+      this._loadSessionObjectsById.set(id, existing);
+    }
+    return existing;
+  }
+
   public static JArrayToRuntimeObjList(
     jArray: any[],
     skipLast: boolean = false,
@@ -208,13 +248,47 @@ export class JsonSerialisation {
 
     let objVal = asOrNull(obj, ObjectValue);
     if (objVal) {
+      // Reference-ID table serialization (pickle-memo style). Each
+      // DISTINCT table writes its full contents once, tagged with a
+      // save-session-unique id (`"objid"`); every later occurrence of
+      // the same underlying Map writes a compact `{"objref": id}`. This
+      // preserves Lua reference semantics across save/load:
+      //   - aliasing (`local copy = t` — both names load as ONE table)
+      //   - cycles (`t.self = t` — registration happens BEFORE the
+      //     entry recursion, so the inner occurrence refs out)
+      //   - shared class tables (every instance's metatable `__index`
+      //     points at the same class — instances load attached to the
+      //     same table instead of each dragging in a private copy)
+      // The memo rides the WRITER instance, so it spans exactly one
+      // StoryState.ToJson call (one save = one object graph) and
+      // resets naturally on the next save.
+      const map = objVal.value as Map<string, AbstractValue> | null;
+      const memo = JsonSerialisation.writerObjectMemo(writer);
+      if (map !== null) {
+        const existingId = memo.ids.get(map);
+        if (existingId !== undefined) {
+          writer.WriteObjectStart();
+          writer.WriteIntProperty("objref", existingId);
+          writer.WriteObjectEnd();
+          return;
+        }
+        memo.ids.set(map, memo.nextId++);
+      }
       writer.WriteObjectStart();
+      if (map !== null) {
+        // NB: NOT `"#"` — that key is ink's Tag token in this wire
+        // format.
+        writer.WriteIntProperty("objid", memo.ids.get(map)!);
+      }
       writer.WritePropertyStart("obj");
       writer.WriteObjectStart();
-      if (objVal.value !== null) {
-        for (const [k, v] of objVal.value) {
+      if (map !== null) {
+        for (const [k, v] of map) {
+          // Per-iteration scratch on builtin-iterator marker maps is
+          // a raw JS array (not an AbstractValue) — never serialized.
+          if (k === "__iter_key_snapshot") continue;
           writer.WritePropertyStart(k);
-          if (v) {
+          if (v && v instanceof InkObject) {
             this.WriteRuntimeObject(writer, v);
           } else {
             writer.WriteNull();
@@ -228,12 +302,25 @@ export class JsonSerialisation {
       // existing tables without metatables stay compact in the wire
       // format. Recursive write since metatables are themselves
       // ObjectValues (and can in turn carry their own metatables, e.g.
-      // class inheritance chains).
+      // class inheritance chains); the memo above keeps shared
+      // metatables shared.
       if (objVal.metatable) {
         writer.WritePropertyStart("mt");
         this.WriteRuntimeObject(writer, objVal.metatable);
         writer.WritePropertyEnd();
       }
+      // `table.freeze` state.
+      if (objVal.isFrozen) {
+        writer.WriteIntProperty("frz", 1);
+      }
+      // Luau `#` border-search hints (capacity from table.create /
+      // table.clear, cached boundary) ride the underlying Map as JS
+      // properties — without these a loaded table answers `#`
+      // differently than it did before the save.
+      const cap = map !== null ? ((map as any).__luauCapacity ?? 0) : 0;
+      const bnd = map !== null ? ((map as any).__luauBoundary ?? 0) : 0;
+      if (cap > 0) writer.WriteIntProperty("cap", cap);
+      if (bnd > 0) writer.WriteIntProperty("bnd", bnd);
       writer.WriteObjectEnd();
       return;
     }
@@ -684,17 +771,37 @@ export class JsonSerialisation {
         return new ListValue(rawList);
       }
 
+      // Reference to a table materialized elsewhere in this load
+      // session (aliasing / cycles / shared class tables). Returns
+      // the SAME ObjectValue the definition produced — or a
+      // placeholder that the definition fills when it's read (so the
+      // wire format is order-independent).
+      if (obj["objref"] !== undefined) {
+        return JsonSerialisation.objectForLoadSessionId(
+          parseInt(obj["objref"]),
+        );
+      }
+
       // Object value
       if (obj["obj"] !== undefined) {
         const objContent = obj["obj"] as Record<string, any>;
-        const entries = new Map<string, AbstractValue>();
+        // Identity-tagged definition: fill (or create) the session's
+        // slot for this id so every `objref` resolves to the same
+        // ObjectValue. Untagged form (legacy saves) builds a fresh
+        // standalone table exactly as before. The slot is claimed
+        // BEFORE the entry recursion so cyclic refs inside the
+        // entries find it.
+        const result =
+          obj["objid"] !== undefined
+            ? JsonSerialisation.objectForLoadSessionId(parseInt(obj["objid"]))
+            : new ObjectValue(new Map<string, AbstractValue>());
+        const entries = result.value!;
         for (const key in objContent) {
           if (!Object.prototype.hasOwnProperty.call(objContent, key)) continue;
           const child = this.JTokenToRuntimeObject(objContent[key]);
           const childVal = asOrNull(child, AbstractValue);
           if (childVal) entries.set(key, childVal);
         }
-        const result = new ObjectValue(entries);
         // Restore the metatable if the writer emitted one. The slot
         // is itself an ObjectValue, so we recurse through the same
         // entry point — its own `mt` is restored too if present.
@@ -702,6 +809,16 @@ export class JsonSerialisation {
           const mtParsed = this.JTokenToRuntimeObject(obj["mt"]);
           const mt = asOrNull(mtParsed, ObjectValue);
           if (mt) result.metatable = mt;
+        }
+        if (obj["frz"]) {
+          result.Freeze();
+        }
+        // Luau `#` border-search hints (see the writer side).
+        if (obj["cap"] !== undefined) {
+          (entries as any).__luauCapacity = parseInt(obj["cap"]);
+        }
+        if (obj["bnd"] !== undefined) {
+          (entries as any).__luauBoundary = parseInt(obj["bnd"]);
         }
         return result;
       }

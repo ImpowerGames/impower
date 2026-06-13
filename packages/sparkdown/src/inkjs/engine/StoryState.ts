@@ -680,6 +680,11 @@ export class StoryState {
   public LoadJsonObj(value: Record<string, any>) {
     let jObject = value;
 
+    // Fresh identity registry for this load — `{"objref": id}` table
+    // references resolve against the tables this load materializes,
+    // never a previous load's.
+    JsonSerialisation.ResetObjectLoadSession();
+
     let jSaveVersion = jObject["inkSaveVersion"];
     if (jSaveVersion == null) {
       throw new Error("ink save format incorrect, can't load.");

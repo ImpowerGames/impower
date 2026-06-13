@@ -215,6 +215,21 @@ export class VariablesState extends VariablesStateAccessor<
         this._globalVariables.set(varValKey, varValValue);
       }
     }
+
+    // DYNAMIC globals — Lua-style assignments to undeclared names
+    // (`t = {}` inside a function creates a global). They serialize
+    // through WriteJson like any other global, but the defaults-
+    // driven loop above never visits them, so without this pass
+    // they'd silently vanish on load.
+    for (const key of Object.keys(jToken)) {
+      if (this._defaultGlobalVariables.has(key)) continue;
+      const tokenInkObject = JsonSerialisation.JTokenToRuntimeObject(
+        jToken[key],
+      );
+      if (tokenInkObject != null) {
+        this._globalVariables.set(key, tokenInkObject);
+      }
+    }
   }
 
   public static dontSaveDefaultValues: boolean = true;

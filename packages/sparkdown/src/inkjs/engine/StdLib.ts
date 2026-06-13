@@ -2836,24 +2836,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
   // metatable slot. Returns `t`. Errors if `t` isn't a table, if `mt`
   // is neither nil nor a table, or if `t`'s existing metatable has a
   // `__metatable` field (Luau metatable protection).
-  // `newproxy([withMeta])` — Lua 5.1 builtin Luau kept: an opaque
-  // userdata value, optionally with a fresh (mutable) metatable.
-  // Sparkdown has no userdata; an empty table works for the fixture
-  // surface (tostring/`__tostring` via `%*`, getmetatable access).
-  newproxy: {
-    arity: -1,
-    fn: (_, [withMeta]) => {
-      const proxy = new ObjectValue(new Map());
-      const truthy =
-        withMeta != null &&
-        !(withMeta instanceof NullValue) &&
-        (withMeta as any)?.value !== false;
-      if (truthy) {
-        proxy.metatable = new ObjectValue(new Map());
-      }
-      return proxy;
-    },
-  },
   setmetatable: {
     arity: 2,
     fn: (story, [t, mt]) => {
