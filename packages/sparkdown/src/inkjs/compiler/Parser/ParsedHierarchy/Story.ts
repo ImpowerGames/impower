@@ -265,6 +265,43 @@ export class Story extends FlowBase {
     // Get default implementation of runtimeObject, which calls ContainerBase's generation method
     const rootContainer = this.runtimeObject as RuntimeContainer;
 
+    // IMPLICIT parent types — a `define X as T` whose parent `T` is
+    // never itself `define`d (e.g. `as character`, a builtin engine
+    // type). Register the name as a known global so bare `T` references
+    // (`instances(character)`, `character.O`) resolve without a
+    // "Cannot find variable" warning. No runtime init is emitted: the
+    // child define's `__def` lazily mints the parent table during
+    // global-init (and members register into it), so the table always
+    // exists by the time content runs.
+    const definedTypeNames = new Set<string>();
+    for (const [k, v] of this.variableDeclarations) {
+      if (v.isDefineDeclaration) {
+        definedTypeNames.add(k);
+      }
+    }
+    const implicitParentNames = new Set<string>();
+    for (const structDef of this.FindAll(StructDefinition)()) {
+      const parentName = structDef.type?.name;
+      if (
+        parentName &&
+        !definedTypeNames.has(parentName) &&
+        !this.variableDeclarations.has(parentName)
+      ) {
+        implicitParentNames.add(parentName);
+      }
+    }
+    for (const parentName of implicitParentNames) {
+      // Declaration-only marker (no expression → never reaches the
+      // init loop's "must have expression" path; skipped explicitly
+      // below). Exists purely so `ResolveVariableWithName` succeeds.
+      const va = new VariableAssignment({
+        variableIdentifier: new Identifier(parentName),
+        isGlobalDeclaration: true,
+        isDefineDeclaration: true,
+      });
+      this.AddNewVariableDeclaration(va);
+    }
+
     // Export initialisation of global variables
     // TODO: We *could* add this as a declarative block to the story itself...
     const variableInitialization = new RuntimeContainer();
@@ -273,6 +310,11 @@ export class Story extends FlowBase {
     // Global variables are those that are local to the story and marked as global
     const runtimeLists: RuntimeListDefinition[] = [];
     for (const [key, value] of this.variableDeclarations) {
+      // Implicit parents are declaration-only (lazily minted by a
+      // child's `__def` at runtime) — nothing to initialize here.
+      if (implicitParentNames.has(key)) {
+        continue;
+      }
       if (value.isGlobalDeclaration) {
         if (value.listDefinition) {
           this._listDefs.set(key, value.listDefinition);

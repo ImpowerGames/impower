@@ -5129,6 +5129,49 @@ export const STDLIB: Record<string, StdLibEntry> = {
       ];
     },
   },
+  // `props(x)` — iterate `x`'s DATA properties, own AND inherited.
+  // Unlike `pairs` (own keys only, like Lua), this walks the table's
+  // `__index` chain, with a child's key shadowing a parent's. Methods
+  // (function values) and internal `__`-prefixed bookkeeping (define
+  // markers, store lists) are hidden — only data fields are yielded.
+  // Useful for serializing / inspecting an instance's full property
+  // set including type defaults it never overwrote.
+  props: {
+    arity: 1,
+    fn: (story, [x]) => {
+      if (!(x instanceof ObjectValue)) {
+        story.Error("props: argument must be a table");
+        return new NullValue();
+      }
+      const flat = new Map<string, AbstractValue>();
+      const shadowed = new Set<string>();
+      let cur: ObjectValue | null = x;
+      let guard = 0;
+      while (cur instanceof ObjectValue && guard++ < 64) {
+        for (const [k, v] of cur.value as Map<string, AbstractValue>) {
+          if (k.startsWith("__")) continue; // hide bookkeeping keys
+          if (flat.has(k) || shadowed.has(k)) continue; // child wins
+          // A method (function value) at this level shadows a
+          // same-named parent data prop, but is itself omitted —
+          // `props` yields data only.
+          if (luauTypeOf(v) === "function") {
+            shadowed.add(k);
+            continue;
+          }
+          flat.set(k, v);
+        }
+        const idx = metatableMap(cur)?.get("__index") ?? null;
+        cur = idx instanceof ObjectValue ? idx : null;
+      }
+      // Iterate the flattened snapshot with the ordinary pairs step.
+      const flatTable = new ObjectValue(flat);
+      return [
+        makeBuiltinIterator("pairs", flatTable),
+        flatTable,
+        new NullValue(),
+      ];
+    },
+  },
 
   // ============================================================
   // `os.*` — wall-clock helpers. Sparkdown's runtime has no

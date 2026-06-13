@@ -212,6 +212,40 @@ end
     expect(recorded).toEqual([0, 7, 0, 0]);
   });
 
+  test("props(x) enumerates own + inherited DATA properties only", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+
+define Actor as character with
+  store hp = 10
+  greet()
+    host_record(self.hp)
+  end
+end
+
+define Hero as Actor with
+  name = "Knight"
+end
+
+& run()
+done
+
+function run()
+local seen = {}
+for k, v in props(Hero) do
+  seen[k] = v
+end
+-- own prop + inherited store default; the greet() METHOD and the
+-- __storeProps bookkeeping key are BOTH hidden.
+host_record(seen.name)
+host_record(seen.hp)
+host_record(seen.greet == nil)
+host_record(seen.__storeProps == nil)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["Knight", 10, true, true]);
+  });
+
   test("methods + data coexist on a type; instances dispatch them", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
 

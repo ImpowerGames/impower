@@ -25,6 +25,11 @@ export class VariableAssignment extends ParsedObject {
   public readonly isGlobalDeclaration: boolean;
   public readonly isNewTemporaryDeclaration: boolean;
   public readonly isPropertyDeclaration: boolean;
+  // True for a `define`'s VariableAssignment (a runtime type/instance
+  // table). Lets ParsedHierarchy/Story identify the full set of
+  // defined type names when computing IMPLICIT parent types
+  // (`as character` where `character` is never `define`d).
+  public isDefineDeclaration: boolean = false;
 
   override get typeName() {
     if (this.listDefinition !== null) {
@@ -55,6 +60,7 @@ export class VariableAssignment extends ParsedObject {
     isGlobalDeclaration,
     isPropertyDeclaration,
     isTemporaryNewDeclaration,
+    isDefineDeclaration,
     listDef,
     structDef,
     variableIdentifier,
@@ -63,6 +69,7 @@ export class VariableAssignment extends ParsedObject {
     readonly isGlobalDeclaration?: boolean;
     readonly isPropertyDeclaration?: boolean;
     readonly isTemporaryNewDeclaration?: boolean;
+    readonly isDefineDeclaration?: boolean;
     readonly listDef?: ListDefinition;
     readonly structDef?: StructDefinition;
     readonly variableIdentifier: Identifier;
@@ -70,6 +77,7 @@ export class VariableAssignment extends ParsedObject {
     super();
 
     this.identifier = variableIdentifier;
+    this.isDefineDeclaration = Boolean(isDefineDeclaration);
     this.isGlobalDeclaration = Boolean(isGlobalDeclaration);
     this.isPropertyDeclaration = Boolean(isPropertyDeclaration);
     this.isNewTemporaryDeclaration = Boolean(isTemporaryNewDeclaration);

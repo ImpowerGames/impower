@@ -201,6 +201,7 @@ export function lowerLuauDefine(
     assignedExpression: defineExpr,
     ...(structDef ? { structDef } : {}),
     isGlobalDeclaration: true,
+    isDefineDeclaration: true,
   });
 
   return wrapInWeave([declaration]);
