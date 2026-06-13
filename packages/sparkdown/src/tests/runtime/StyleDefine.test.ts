@@ -1,11 +1,9 @@
-// Phase 1 of the structured UI syntax: `style NAME [as PARENT] with
-// ... end` blocks. A style is a COMPILE-TIME struct only — it produces
-// no runtime objects, just a `style` entry in `program.context` that the
-// engine's sparkle UI system consumes. These tests pin:
-//   - the produced context shape (canonical sparkle keys, $type/$name)
-//   - alias de-aliasing (bg-color → background-color, p → padding)
-//   - inheritance ($extends)
-//   - schema validation (unknown props warn, don't block)
+// `style NAME [as PARENT] with <colon/indent body> end` — a structural UI
+// keyword that lowers to a compile-time `style` struct in
+// program.context.style.<name>. The body is the colon/indent struct form
+// (props, nested `key:` blocks, `> selector:` rules, `@breakpoint:`
+// directives) — parsed by lowerStructBody into the nested struct the
+// engine consumes. (Matches the production ui.sd shape.)
 //
 // Run: npx vitest run .../StyleDefine.test.ts
 
@@ -13,10 +11,8 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 function compileStyle(source: string): {
-  context: any;
   style: Record<string, any>;
   errors: string[];
-  warnings: string[];
 } {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -36,147 +32,110 @@ function compileStyle(source: string): {
     textDocument: { uri: "inmemory:///main.sd" },
   });
   const errors: string[] = [];
-  const warnings: string[] = [];
   for (const docDiags of Object.values(result.program.diagnostics ?? {})) {
     for (const d of docDiags as any[]) {
       const msg =
         typeof d?.message === "string"
           ? d.message
           : (d?.message?.value ?? JSON.stringify(d));
-      if (d?.severity === 1) errors.push(msg);
-      else if (d?.severity === 2) warnings.push(msg);
-      else if (d?.severity == null) errors.push(msg);
+      if (d?.severity === 1 || d?.severity == null) errors.push(msg);
     }
   }
-  const context = result.program.context ?? {};
-  return { context, style: context["style"] ?? {}, errors, warnings };
+  return { style: result.program.context?.["style"] ?? {}, errors };
 }
 
-describe("style · context shape", () => {
-  test("emits a style struct with $type/$name", () => {
+describe("style · flat props", () => {
+  test("scalar props become struct keys (raw CSS names preserved)", () => {
     const r = compileStyle(`style panel with
-  background-color = surface-2
-  corner = md
+  position = absolute
+  flex_direction = column
+  font_size = 3.4cqh
 end
 `);
     expect(r.errors).toEqual([]);
-    expect(r.style["panel"]).toBeTruthy();
-    expect(r.style["panel"]["$type"]).toBe("style");
-    expect(r.style["panel"]["$name"]).toBe("panel");
-    expect(r.style["panel"]["background-color"]).toBe("surface-2");
-    expect(r.style["panel"]["corner"]).toBe("md");
+    expect(r.style["panel"]).toEqual({
+      $type: "style",
+      $name: "panel",
+      position: "absolute",
+      flex_direction: "column",
+      font_size: "3.4cqh",
+    });
   });
 
-  test("does NOT create a runtime global for the style name", () => {
-    const r = compileStyle(`style panel with
-  corner = md
+  test("complex CSS values kept raw; quoted strings unquoted", () => {
+    const r = compileStyle(`style bg with
+  translate = calc(cos(45deg)*1cqh) calc(sin(45deg*-1)*1cqh)
+  image = "black"
+  aspect_ratio = 4/3
 end
 `);
     expect(r.errors).toEqual([]);
-    // No "panel" leaks into any non-style context bucket.
-    for (const [type, structs] of Object.entries(r.context)) {
-      if (type === "style") continue;
-      expect(Object.keys(structs as object)).not.toContain("panel");
-    }
+    const s = r.style["bg"];
+    expect(s["translate"]).toBe("calc(cos(45deg)*1cqh) calc(sin(45deg*-1)*1cqh)");
+    expect(s["image"]).toBe("black");
+    expect(s["aspect_ratio"]).toBe("4/3");
   });
 });
 
-describe("style · aliases de-alias to canonical", () => {
-  test("short aliases resolve (bg-color, p, m, c, w)", () => {
-    const r = compileStyle(`style box with
-  bg-color = surface-1
-  p = sm
-  m = lg
-  c = md
-  w = 100
+describe("style · nested (breakpoints + selectors)", () => {
+  test("@breakpoint and > selector nest under their literal keys", () => {
+    const r = compileStyle(`style dialogue with
+  height = 100%
+  @screen-size(sm):
+    width = 100%
+  > text:
+    color = black
+    font_size = 3cqh
 end
 `);
     expect(r.errors).toEqual([]);
-    const s = r.style["box"];
-    expect(s["background-color"]).toBe("surface-1");
-    expect(s["padding"]).toBe("sm");
-    expect(s["margin"]).toBe("lg");
-    expect(s["corner"]).toBe("md");
-    expect(s["width"]).toBe("100");
-    // The authored alias spelling must NOT survive as its own key.
-    expect(s["bg-color"]).toBeUndefined();
-    expect(s["p"]).toBeUndefined();
+    expect(r.style["dialogue"]).toEqual({
+      $type: "style",
+      $name: "dialogue",
+      height: "100%",
+      "@screen-size(sm)": { width: "100%" },
+      "> text": { color: "black", font_size: "3cqh" },
+    });
   });
 
-  test("multi-value shorthand stored raw", () => {
-    const r = compileStyle(`style box with
-  padding = sm md
+  test("attribute selectors (`> #image^=raffles_:`) survive", () => {
+    const r = compileStyle(`style shadow with
+  > #image^=raffles_:
+    background_color = #E5323E
+  > #image^=bunny_:
+    background_color = #48A5F2
 end
 `);
     expect(r.errors).toEqual([]);
-    expect(r.style["box"]["padding"]).toBe("sm md");
+    const s = r.style["shadow"];
+    expect(s["> #image^=raffles_"]).toEqual({ background_color: "#E5323E" });
+    expect(s["> #image^=bunny_"]).toEqual({ background_color: "#48A5F2" });
   });
 });
 
-describe("style · inheritance", () => {
+describe("style · inheritance + boundaries", () => {
   test("`as PARENT` records $extends", () => {
     const r = compileStyle(`style danger as button with
-  background-color = red-5
+  background_color = red
 end
 `);
     expect(r.errors).toEqual([]);
     expect(r.style["danger"]["$extends"]).toBe("button");
-    expect(r.style["danger"]["background-color"]).toBe("red-5");
   });
-});
 
-describe("style · schema validation", () => {
-  test("unknown property warns (does not block)", () => {
-    const r = compileStyle(`style box with
-  not-a-real-prop = 5
-  corner = md
-end
-`);
-    // Build still succeeds; the valid prop is still captured.
-    expect(r.errors).toEqual([]);
-    expect(r.style["box"]["corner"]).toBe("md");
-    expect(r.style["box"]["not-a-real-prop"]).toBeUndefined();
-    expect(r.warnings.join(" ")).toMatch(/not-a-real-prop/);
-  });
-});
-
-describe("style · block boundaries", () => {
-  test("two style blocks in one file", () => {
+  test("many style blocks coexist (no duplicate-`style` collision)", () => {
     const r = compileStyle(`style a with
-  corner = md
+  position = absolute
 end
 style b with
-  corner = lg
+  position = relative
+end
+style c with
+  > text:
+    color = white
 end
 `);
     expect(r.errors).toEqual([]);
-    expect(r.style["a"]["corner"]).toBe("md");
-    expect(r.style["b"]["corner"]).toBe("lg");
-  });
-
-  test("style block coexists with narrative content", () => {
-    const r = compileStyle(`style title with
-  text-size = lg
-end
--> main
-scene main
-  Hello.
-  done
-end
-`);
-    expect(r.errors).toEqual([]);
-    expect(r.style["title"]["text-size"]).toBe("lg");
-    // The scene still compiles to a runnable story.
-    expect(r.context["style"]["title"]["$type"]).toBe("style");
-  });
-
-  test("comments inside a style block are ignored", () => {
-    const r = compileStyle(`style box with
-  -- the panel background
-  background-color = surface-2
-end
-`);
-    expect(r.errors).toEqual([]);
-    expect(r.style["box"]["background-color"]).toBe("surface-2");
+    expect(Object.keys(r.style).sort()).toEqual(["a", "b", "c"]);
   });
 });

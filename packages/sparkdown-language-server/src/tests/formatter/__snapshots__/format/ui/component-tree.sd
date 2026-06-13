@@ -1,4 +1,5 @@
 component card with
-  column #class=body
-    text #class=heading "Title"
+  body:
+    title:
+      text
 end

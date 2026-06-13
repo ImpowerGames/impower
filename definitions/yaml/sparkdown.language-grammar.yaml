@@ -3042,10 +3042,12 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauStyleNameAndInheritance" }
-      - { include: "#LuauStylePropertyDefinition" }
-      # Required so the begin/end block can span multiple lines — without
-      # a newline-consuming rule the parser can't progress past the
-      # header line (mirrors `Newline` inside `LuauBlockBody`).
+      # The body is the colon/indent STRUCT body (props, nested `key:`
+      # blocks, `> selector:` rules, `@breakpoint:` directives, bare
+      # markers). Captured opaquely line-by-line — the lowerer reads the
+      # raw text and parses the indentation structure itself. (See
+      # lowerLuauStyle / lowerLuauUI.)
+      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -3057,6 +3059,31 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+
+  # One body line inside a structural-define block (`style`/`screen`/
+  # `component`). Matched opaquely (indent + content) so the block spans
+  # to its `end`; the lowerer parses the colon/indent struct from the raw
+  # text. The leading indent is its own capture so the formatter can
+  # PRESERVE it (these bodies are indentation-significant).
+  LuauStructBodyLine:
+    match: ^({{WS}}+)([^\n]*?)({{WS}}*)$
+    captures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauStructBodyContent" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauStructBodyContent:
+    tag: content
+    name: meta.struct.body.luau
+    match: ([^\n]*)
 
   # Name + optional `as PARENT`, ending at the `with` block opener.
   # Reuses LuauDefineName / LuauInheritanceOperation (→ LuauDefineParentName)
@@ -3162,7 +3189,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauUINameAndInheritance" }
-      - { include: "#LuauUIElement" }
+      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -3193,7 +3220,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauUINameAndInheritance" }
-      - { include: "#LuauUIElement" }
+      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b

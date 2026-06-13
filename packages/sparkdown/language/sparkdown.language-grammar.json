@@ -4870,7 +4870,7 @@
           "include": "#LuauStyleNameAndInheritance"
         },
         {
-          "include": "#LuauStylePropertyDefinition"
+          "include": "#LuauStructBodyLine"
         },
         {
           "include": "#ExtraWhitespace"
@@ -4897,6 +4897,39 @@
           ]
         }
       }
+    },
+    "LuauStructBodyLine": {
+      "match": "^((?:[^\\S\\n\\r])+)([^\\n]*?)((?:[^\\S\\n\\r])*)$",
+      "captures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauStructBodyContent"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructBodyContent": {
+      "tag": "content",
+      "name": "meta.struct.body.luau",
+      "match": "([^\\n]*)"
     },
     "LuauStyleNameAndInheritance": {
       "begin": "(?<=style\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
@@ -5049,7 +5082,7 @@
           "include": "#LuauUINameAndInheritance"
         },
         {
-          "include": "#LuauUIElement"
+          "include": "#LuauStructBodyLine"
         },
         {
           "include": "#ExtraWhitespace"
@@ -5113,7 +5146,7 @@
           "include": "#LuauUINameAndInheritance"
         },
         {
-          "include": "#LuauUIElement"
+          "include": "#LuauStructBodyLine"
         },
         {
           "include": "#ExtraWhitespace"

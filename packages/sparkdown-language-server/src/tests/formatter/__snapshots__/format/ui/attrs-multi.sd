@@ -1,3 +1,0 @@
-screen s with
-  button #class=primary #disabled=true @click=submit "Save"
-end

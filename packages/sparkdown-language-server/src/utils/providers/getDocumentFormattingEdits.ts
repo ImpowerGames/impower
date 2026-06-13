@@ -74,11 +74,6 @@ const INDENTING_BLOCKS = new Set<SparkdownNodeName>([
   "LuauSequentialAlternatorBlock",
   "LuauConditionalAlternatorBlock",
   "LuauDefine",
-  // `style` blocks: a flat list of `prop = value` lines, all one level
-  // in — the formatter can auto-indent them. (screen/component element
-  // trees are NOT here: their nesting is indentation-significant and not
-  // in the parse tree, so their bodies are PRESERVED in processIndent.)
-  "LuauStyle",
   "LuauMethodDefinition",
   "LuauTable",
   "LuauParenthetical",
@@ -480,7 +475,8 @@ export const getFormatting = (
         stack.some(
           (n) =>
             n &&
-            (n.name === "LuauScreen_content" ||
+            (n.name === "LuauStyle_content" ||
+              n.name === "LuauScreen_content" ||
               n.name === "LuauComponent_content"),
         )
       ) {

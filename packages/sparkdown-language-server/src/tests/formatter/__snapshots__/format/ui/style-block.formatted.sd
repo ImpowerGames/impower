@@ -1,5 +1,8 @@
-style panel as button with
-  bg-color = surface-2
-  corner = md
-  padding = sm
+style dialogue with
+  height = 100%
+  @screen-size(sm):
+    width = 100%
+  > text:
+    color = black
+    font_size = 3cqh
 end
