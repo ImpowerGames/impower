@@ -45,11 +45,11 @@ html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" a
 text: "We'll just pop by for a visit!"
 html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">We'll just pop by for a visit!</div>
 --- line 8 ---
-text: ""
-html: <div class="cm-line collapse"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+text: "      "
+html: <div class="cm-line collapse">      </div>
 --- line 9 ---
-text: "    He ((sfx_shoes_stopping)) stops and gestures to..."
-html: <div class="cm-line">    He ((sfx_shoes_stopping)) stops and gestures to...</div>
+text: "He stops and gestures to..."
+html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">He <img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">stops and gestures to...</div>
 --- line 10 ---
 text: ""
 html: <div class="cm-line"><br></div>

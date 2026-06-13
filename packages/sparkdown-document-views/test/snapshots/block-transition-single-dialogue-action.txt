@@ -18,8 +18,8 @@ html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; 
 text: "Hello, world."
 html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">Hello, world.</div>
 --- line 2 ---
-text: ""
-html: <div class="cm-line collapse"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+text: "  "
+html: <div class="cm-line collapse">  </div>
 --- line 3 ---
 text: "He looks around."
 html: <div class="cm-line" style="opacity: 1;">He looks around.</div>

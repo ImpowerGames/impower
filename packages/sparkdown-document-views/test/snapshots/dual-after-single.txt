@@ -35,8 +35,8 @@ RAFFLES:
 
 <dialogue> I can do crime!!
 
-<character> RAFFLES
-<dialogue> Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.
+<unknown> RAFFLES:
+<unknown>   Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.
 ## rendered
 # 9 lines
 --- line 0 ---

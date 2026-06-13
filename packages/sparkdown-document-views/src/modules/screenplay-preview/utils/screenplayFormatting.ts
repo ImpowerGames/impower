@@ -581,6 +581,22 @@ export const decorate = (
         );
         return false;
       } else if (name === "Indent" && inConditionalBlock.length === 0) {
+        // If the Indent is the entire content of a whitespace-only line
+        // (an indented "blank" line — what the editor leaves when the
+        // user types into an indented block and then deletes back to
+        // nothing), DON'T replace it. Leaving the source whitespace as-is
+        // gives the cm-line a natural 1em line-box because there's real
+        // text content anchoring it. The base `.cm-line { opacity: 0 }`
+        // rule keeps that whitespace invisible. Without this skip, the
+        // Indent gets a Decoration.replace, the cm-line ends up with
+        // only widget buffers as children, CodeMirror skips `<br>`
+        // injection, and the line collapses to zero height — making the
+        // indented blank render differently from a truly-empty blank
+        // (the latter gets `<br>` because CodeMirror sees no children).
+        const indentLine = doc.lineAt(from);
+        if (indentLine.from === from && /^[ \t]*$/.test(indentLine.text)) {
+          return false;
+        }
         hideInlineRange(nodeRef);
         return false;
       } else if (name === "Break") {
