@@ -26,12 +26,7 @@ JACK [>]:
 <parenthetical dual=r> (cutting him off)
 <dialogue dual=r> Ehp, ehp, ehp!
 ## preview
-<unknown> RAFFLES [<]:
-<unknown>   But--
 
-<unknown> JACK [>]:
-<unknown>   (cutting him off)
-<unknown>   Ehp, ehp, ehp!
 ## rendered
 # 2 lines
 --- line 0 ---
