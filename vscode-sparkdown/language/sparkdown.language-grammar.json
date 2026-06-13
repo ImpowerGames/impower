@@ -4467,6 +4467,12 @@
           "include": "#LuauStyle"
         },
         {
+          "include": "#LuauScreen"
+        },
+        {
+          "include": "#LuauComponent"
+        },
+        {
           "include": "#LuauDefine"
         },
         {
@@ -5006,6 +5012,343 @@
       "tag": "string",
       "name": "string.unquoted.style.luau",
       "match": "([^\\n]*)"
+    },
+    "LuauScreen": {
+      "tag": "meta",
+      "name": "meta.screen.luau",
+      "begin": "((?:[^\\S\\n\\r])*)(screen)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauScreenKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauUINameAndInheritance"
+        },
+        {
+          "include": "#LuauUIElement"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauComponent": {
+      "tag": "meta",
+      "name": "meta.component.luau",
+      "begin": "((?:[^\\S\\n\\r])*)(component)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauComponentKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauUINameAndInheritance"
+        },
+        {
+          "include": "#LuauUIElement"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauUINameAndInheritance": {
+      "begin": "(?<=(?:screen|component)\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauDefineName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauInheritanceOperation"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauWithKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauUIElement": {
+      "tag": "meta",
+      "name": "meta.ui.element.luau",
+      "begin": "((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))\\b",
+      "beginCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauUIElementTag"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauUIAttribute"
+        },
+        {
+          "include": "#LuauUIContent"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "LuauUIAttribute": {
+      "match": "((?:[^\\S\\n\\r])*)([#@])((?:[a-zA-Z_][a-zA-Z0-9_-]*))(?:((?:[^\\S\\n\\r])*)(=)((?:[^\\S\\n\\r])*)(\"[^\"\\n]*\"|\\{[^}\\n]*\\}|[^\\s\"]+))?",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauUIAttributeSigil"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauUIAttributeName"
+            }
+          ]
+        },
+        "4": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#LuauUIAttributeEquals"
+            }
+          ]
+        },
+        "6": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#LuauUIAttributeValue"
+            }
+          ]
+        }
+      }
+    },
+    "LuauUIContent": {
+      "match": "((?:[^\\S\\n\\r])*)(\")([^\"\\n]*)(\")",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauUIQuote"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauUIContentText"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#LuauUIQuote"
+            }
+          ]
+        }
+      }
+    },
+    "LuauScreenKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.screen.luau",
+      "match": "(screen)\\b"
+    },
+    "LuauComponentKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.component.luau",
+      "match": "(component)\\b"
+    },
+    "LuauUIElementTag": {
+      "tag": "typeName",
+      "name": "entity.name.tag.ui.luau",
+      "match": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))"
+    },
+    "LuauUIAttributeSigil": {
+      "tag": "separator",
+      "name": "punctuation.definition.attribute.ui.luau",
+      "match": "([#@])"
+    },
+    "LuauUIAttributeName": {
+      "tag": "attributeName",
+      "name": "entity.other.attribute-name.ui.luau",
+      "match": "((?:[a-zA-Z_][a-zA-Z0-9_-]*))"
+    },
+    "LuauUIAttributeEquals": {
+      "tag": "separator",
+      "name": "keyword.operator.assignment.ui.luau",
+      "match": "(=)"
+    },
+    "LuauUIAttributeValue": {
+      "tag": "string",
+      "name": "string.unquoted.ui.luau",
+      "match": "([^\\n]+)"
+    },
+    "LuauUIContentText": {
+      "tag": "string",
+      "name": "string.quoted.ui.luau",
+      "match": "([^\"\\n]*)"
+    },
+    "LuauUIQuote": {
+      "tag": "string",
+      "name": "punctuation.definition.string.ui.luau",
+      "match": "(\")"
     },
     "LuauNewExpression": {
       "tag": "meta",

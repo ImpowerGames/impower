@@ -2755,6 +2755,8 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauShebang" }
       - { include: "#LuauStyle" }
+      - { include: "#LuauScreen" }
+      - { include: "#LuauComponent" }
       - { include: "#LuauDefine" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauVariableDefinition" }
@@ -3128,6 +3130,222 @@ repository:
     tag: string
     name: string.unquoted.style.luau
     match: ([^\n]*)
+
+  # ----------------------------------------------------------------------------
+  # Screen / Component (structured UI element trees, struct-registry only)
+  #
+  # `screen NAME [as PARENT] with <element-tree> end` (and `component`).
+  # Each element line is `<tag> [#attr=val ...] ["content"]`; children nest
+  # by INDENTATION (no per-element `end`). Top-level structural keywords
+  # (parallel to `scene`/`branch`), NOT `define`; `as` = inherits. Lowers to
+  # a compile-time nested-object struct in
+  # program.context.screen|component.<name>. Element lines parse FLAT (one
+  # `LuauUIElement` per line); the lowerer reconstructs the tree from each
+  # element's indentation column. See lowerLuauUI.
+  # ----------------------------------------------------------------------------
+
+  LuauScreen:
+    tag: meta
+    name: meta.screen.luau
+    begin: ({{WS}}*)(screen)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauScreenKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauUINameAndInheritance" }
+      - { include: "#LuauUIElement" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauComponent:
+    tag: meta
+    name: meta.component.luau
+    begin: ({{WS}}*)(component)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauComponentKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauUINameAndInheritance" }
+      - { include: "#LuauUIElement" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # Name + optional `as PARENT`, ending at `with`. Shared by screen and
+  # component (variable-length lookbehind over both keywords). Reuses
+  # LuauDefineName / LuauInheritanceOperation → LuauDefineParentName so the
+  # lowerer reads names through the same node names as `define` / `style`.
+  LuauUINameAndInheritance:
+    begin: (?<=(?:screen|component)\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauDefineName" }
+    patterns:
+      - { include: "#LuauInheritanceOperation" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauWithKeyword" }
+
+  # One element line: `<tag> [#attr=val ...] ["content"]`. Single-line
+  # (ends at EOL); nesting is by indentation and reconstructed in the
+  # lowerer using the tag's column. The leading whitespace is captured so
+  # the indentation is measurable.
+  LuauUIElement:
+    tag: meta
+    name: meta.ui.element.luau
+    begin: ({{WS}}*)({{LUAU_IDENTIFIER}})\b
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauUIElementTag" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauUIAttribute" }
+      - { include: "#LuauUIContent" }
+      - { include: "#ExtraWhitespace" }
+    end: (?=$)
+
+  # `#name=value` (structural/style attr) or `@event=handler` (deferred to
+  # a later phase). Value is a quoted string, a `{closure}`, or a bare
+  # token. The optional value group is captured raw; the lowerer strips
+  # surrounding quotes.
+  LuauUIAttribute:
+    match: ({{WS}}*)([#@])({{STYLE_PROPERTY_NAME}})(?:({{WS}}*)(=)({{WS}}*)("[^"\n]*"|\{[^}\n]*\}|[^\s"]+))?
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauUIAttributeSigil" }
+      3:
+        patterns:
+          - { include: "#LuauUIAttributeName" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauUIAttributeEquals" }
+      6:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      7:
+        patterns:
+          - { include: "#LuauUIAttributeValue" }
+
+  # A bare quoted string on an element line = its text content. Every
+  # character must sit inside a capture group (the parser requires capture
+  # groups to tile the whole match), so the quotes get their own group.
+  LuauUIContent:
+    match: ({{WS}}*)(")([^"\n]*)(")
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauUIQuote" }
+      3:
+        patterns:
+          - { include: "#LuauUIContentText" }
+      4:
+        patterns:
+          - { include: "#LuauUIQuote" }
+
+  LuauScreenKeyword:
+    tag: controlKeyword
+    name: keyword.control.screen.luau
+    match: (screen)\b
+
+  LuauComponentKeyword:
+    tag: controlKeyword
+    name: keyword.control.component.luau
+    match: (component)\b
+
+  LuauUIElementTag:
+    tag: typeName
+    name: entity.name.tag.ui.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  LuauUIAttributeSigil:
+    tag: separator
+    name: punctuation.definition.attribute.ui.luau
+    match: ([#@])
+
+  LuauUIAttributeName:
+    tag: attributeName
+    name: entity.other.attribute-name.ui.luau
+    match: ({{STYLE_PROPERTY_NAME}})
+
+  LuauUIAttributeEquals:
+    tag: separator
+    name: keyword.operator.assignment.ui.luau
+    match: (=)
+
+  LuauUIAttributeValue:
+    tag: string
+    name: string.unquoted.ui.luau
+    match: ([^\n]+)
+
+  LuauUIContentText:
+    tag: string
+    name: string.quoted.ui.luau
+    match: ([^"\n]*)
+
+  LuauUIQuote:
+    tag: string
+    name: punctuation.definition.string.ui.luau
+    match: (")
 
   # ----------------------------------------------------------------------------
   # New Expression (`new ClassName(...)` — instance construction for
