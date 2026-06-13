@@ -1,6 +1,6 @@
 import { CallStack } from "./CallStack";
 import { VariablesState } from "./VariablesState";
-import { ValueType, Value, StringValue, ListValue } from "./Value";
+import { ValueType, Value, StringValue, ListValue, ObjectValue } from "./Value";
 import { PushPopType } from "./PushPop";
 import { Tag } from "./Tag";
 import { Glue } from "./Glue";
@@ -758,6 +758,15 @@ export class StoryState {
 
     this.variablesState.SetJsonToken(jObject["variablesState"]);
     this.variablesState.callStack = this._currentFlow.callStack;
+
+    // `new`-instance tables saved with a `defref` carry only their store
+    // props + their class NAME. Now that globals are loaded, relink each
+    // one's metatable `__index` to the live (init-reconstructed) class
+    // global, so `getmetatable(inst).__index == TheClass` holds again.
+    JsonSerialisation.RelinkPendingDefineRefs((className) => {
+      const v = this.variablesState.GetVariableWithName(className);
+      return v instanceof ObjectValue ? v : null;
+    });
 
     this._evaluationStack = JsonSerialisation.JArrayToRuntimeObjList(
       jObject["evalStack"],

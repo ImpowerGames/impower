@@ -6,6 +6,7 @@ import {
   IntValue,
   FloatValue,
   BoolValue,
+  ObjectValue,
 } from "./Value";
 import { VariableAssignment } from "./VariableAssignment";
 import { InkObject } from "./Object";
@@ -210,7 +211,28 @@ export class VariablesState extends VariablesStateAccessor<
         if (tokenInkObject === null) {
           return throwNullException("tokenInkObject");
         }
-        this._globalVariables.set(varValKey, tokenInkObject);
+        // Named define (store-keyed save): the token holds only the
+        // `store` delta. MERGE it onto the init-reconstructed default —
+        // which already carries the definition's own non-store props,
+        // methods, metatable, and identity (so `companion.O === O` etc.
+        // still hold) — instead of replacing it with a partial table.
+        const defSelf = (tokenInkObject as any).__loadDefSelf;
+        if (
+          defSelf != null &&
+          tokenInkObject instanceof ObjectValue &&
+          varValValue instanceof ObjectValue
+        ) {
+          const target = varValValue.value as Map<string, AbstractValue>;
+          for (const [k, v] of tokenInkObject.value as Map<
+            string,
+            AbstractValue
+          >) {
+            target.set(k, v);
+          }
+          this._globalVariables.set(varValKey, varValValue);
+        } else {
+          this._globalVariables.set(varValKey, tokenInkObject);
+        }
       } else {
         this._globalVariables.set(varValKey, varValValue);
       }
@@ -240,7 +262,19 @@ export class VariablesState extends VariablesStateAccessor<
       let name = keyValKey;
       let val = keyValValue;
 
-      if (VariablesState.dontSaveDefaultValues) {
+      // Store-keyed rule for define tables: persistence follows the
+      // `store` marker, NOT value-equality. A define with no store state
+      // is fully reconstructed by init — never written. One WITH store
+      // props always writes its (compact) store delta, because the
+      // default shares the same table reference and so can't reveal an
+      // in-place store mutation via RuntimeObjectsEqual.
+      const defInfo =
+        val instanceof ObjectValue
+          ? JsonSerialisation.defineSerializationInfo(val)
+          : null;
+      if (defInfo) {
+        if (defInfo.storeNames.size === 0) continue;
+      } else if (VariablesState.dontSaveDefaultValues) {
         if (this._defaultGlobalVariables.has(name)) {
           let defaultVal = this._defaultGlobalVariables.get(name)!;
           if (this.RuntimeObjectsEqual(val, defaultVal)) continue;

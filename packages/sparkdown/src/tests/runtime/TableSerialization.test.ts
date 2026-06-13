@@ -182,11 +182,12 @@ end
 `,
     );
     expect(errors).toEqual([]);
-    // The class's method entry appears once (in the class-table
-    // definition); the instances' metatables reference it.
+    // Store-keyed serialization: the class definition (its method) is
+    // reconstructed at init, so it NEVER rides in the save — each
+    // instance carries only its store props + a `defref` class name.
     const defs = (savedJson.match(/"levelUp"/g) ?? []).length;
-    expect(defs).toBe(1);
-    expect((savedJson.match(/"objref"/g) ?? []).length).toBeGreaterThan(0);
+    expect(defs).toBe(0);
+    expect((savedJson.match(/"defref"/g) ?? []).length).toBe(3);
   });
 
   test("table.freeze state survives save/load", () => {

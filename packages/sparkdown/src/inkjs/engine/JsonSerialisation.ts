@@ -60,8 +60,37 @@ export class JsonSerialisation {
 
   private static _loadSessionObjectsById = new Map<number, ObjectValue>();
 
+  // `new`-instance tables loaded with a `defref` (their class link is a
+  // NAME, not an inline table). The class is reconstructed by init, so we
+  // relink each instance's metatable `__index` to the LIVE class global in
+  // a post-pass once globals exist (RelinkPendingDefineRefs).
+  private static _pendingDefineRefs: { obj: ObjectValue; className: string }[] =
+    [];
+
   public static ResetObjectLoadSession(): void {
     this._loadSessionObjectsById = new Map();
+    this._pendingDefineRefs = [];
+  }
+
+  static registerPendingDefineRef(obj: ObjectValue, className: string): void {
+    this._pendingDefineRefs.push({ obj, className });
+  }
+
+  // Relink every `defref` instance's `__index` to the class table the
+  // resolver returns (the init-reconstructed global). Called after the
+  // variables state is loaded, so the live class globals are available.
+  static RelinkPendingDefineRefs(
+    resolve: (className: string) => ObjectValue | null,
+  ): void {
+    for (const { obj, className } of this._pendingDefineRefs) {
+      const cls = resolve(className);
+      if (cls instanceof ObjectValue) {
+        const mt = new Map<string, AbstractValue>();
+        mt.set("__index", cls);
+        obj.metatable = new ObjectValue(mt);
+      }
+    }
+    this._pendingDefineRefs = [];
   }
 
   private static objectForLoadSessionId(id: number): ObjectValue {
@@ -71,6 +100,83 @@ export class JsonSerialisation {
       this._loadSessionObjectsById.set(id, existing);
     }
     return existing;
+  }
+
+  // ----------------------------------------------------------------
+  // Store-keyed define serialization.
+  //
+  // A define table persists ONLY its `store`-marked props; its class /
+  // definition is reconstructed at init. Class linkage is written by
+  // NAME, never inlined:
+  //   - named define (own `__define` marker — a type table or a
+  //     `define X` instance, both reconstructed by init): the store delta
+  //     is tagged `defself` so load MERGES it onto the init default,
+  //     preserving the definition's own non-store props + identity.
+  //   - `new` instance (metatable `__index` → a define table, no own
+  //     `__define`): written with `defref` = the class name; load creates
+  //     it fresh and relinks `__index` to the live class global.
+  // ----------------------------------------------------------------
+  static readonly DEFINE_MARKER = "__define";
+
+  // Classify a table for store-keyed serialization, or null for a plain
+  // (non-define) table that serializes in full as before.
+  static defineSerializationInfo(
+    objVal: ObjectValue,
+  ): { kind: "named" | "instance"; name: string; storeNames: Set<string> } | null {
+    const mt = objVal.metatable;
+    if (!(mt instanceof ObjectValue)) return null;
+    const mtMap = mt.value as Map<string, AbstractValue>;
+    const ownDefine = mtMap.get(JsonSerialisation.DEFINE_MARKER);
+    if (ownDefine instanceof StringValue) {
+      return {
+        kind: "named",
+        name: ownDefine.value,
+        storeNames: JsonSerialisation.collectDefineStoreNames(objVal),
+      };
+    }
+    const indexTarget = mtMap.get("__index");
+    if (indexTarget instanceof ObjectValue) {
+      const idxMt = indexTarget.metatable;
+      const idxDefine =
+        idxMt instanceof ObjectValue
+          ? (idxMt.value as Map<string, AbstractValue>).get(
+              JsonSerialisation.DEFINE_MARKER,
+            )
+          : null;
+      if (idxDefine instanceof StringValue) {
+        return {
+          kind: "instance",
+          name: idxDefine.value,
+          storeNames: JsonSerialisation.collectDefineStoreNames(objVal),
+        };
+      }
+    }
+    return null;
+  }
+
+  // Collect every `store`-marked prop name reachable from a define table
+  // (its own `__storeProps` list plus every ancestor's, walked through
+  // the metatable `__index` chain).
+  static collectDefineStoreNames(objVal: ObjectValue): Set<string> {
+    const names = new Set<string>();
+    let cur: ObjectValue | null = objVal;
+    let guard = 0;
+    while (cur instanceof ObjectValue && guard++ < 64) {
+      const map = cur.value as Map<string, AbstractValue> | null;
+      const sp = map?.get("__storeProps");
+      if (sp instanceof ObjectValue) {
+        for (const v of (sp.value as Map<string, AbstractValue>).values()) {
+          if (v instanceof StringValue) names.add(v.value);
+        }
+      }
+      const mt = cur.metatable;
+      const idx =
+        mt instanceof ObjectValue
+          ? (mt.value as Map<string, AbstractValue>).get("__index")
+          : null;
+      cur = idx instanceof ObjectValue ? idx : null;
+    }
+    return names;
   }
 
   public static JArrayToRuntimeObjList(
@@ -274,6 +380,10 @@ export class JsonSerialisation {
         }
         memo.ids.set(map, memo.nextId++);
       }
+      // Store-keyed define tables persist ONLY their `store` props (the
+      // rest is reconstructed at init); plain tables serialize in full.
+      const defInfo = JsonSerialisation.defineSerializationInfo(objVal);
+
       writer.WriteObjectStart();
       if (map !== null) {
         // NB: NOT `"#"` — that key is ink's Tag token in this wire
@@ -287,6 +397,10 @@ export class JsonSerialisation {
           // Per-iteration scratch on builtin-iterator marker maps is
           // a raw JS array (not an AbstractValue) — never serialized.
           if (k === "__iter_key_snapshot") continue;
+          // Define tables write ONLY store props — non-store props,
+          // methods, and the hidden bookkeeping lists are all
+          // reconstructed from the definition at init.
+          if (defInfo && !defInfo.storeNames.has(k)) continue;
           writer.WritePropertyStart(k);
           if (v && v instanceof InkObject) {
             this.WriteRuntimeObject(writer, v);
@@ -298,13 +412,22 @@ export class JsonSerialisation {
       }
       writer.WriteObjectEnd();
       writer.WritePropertyEnd();
-      // Metatable round-trip — only emit the slot when one is set, so
-      // existing tables without metatables stay compact in the wire
-      // format. Recursive write since metatables are themselves
-      // ObjectValues (and can in turn carry their own metatables, e.g.
-      // class inheritance chains); the memo above keeps shared
-      // metatables shared.
-      if (objVal.metatable) {
+      if (defInfo) {
+        // Class linkage by NAME (never inline the reconstructable class):
+        // `defself` → a named define; load merges the store delta onto the
+        // init default. `defref` → a `new` instance; load relinks
+        // `__index` to the live class global.
+        writer.WriteProperty(
+          defInfo.kind === "named" ? "defself" : "defref",
+          defInfo.name,
+        );
+      } else if (objVal.metatable) {
+        // Metatable round-trip — only emit the slot when one is set, so
+        // existing tables without metatables stay compact in the wire
+        // format. Recursive write since metatables are themselves
+        // ObjectValues (and can in turn carry their own metatables, e.g.
+        // class inheritance chains); the memo above keeps shared
+        // metatables shared.
         writer.WritePropertyStart("mt");
         this.WriteRuntimeObject(writer, objVal.metatable);
         writer.WritePropertyEnd();
@@ -802,10 +925,23 @@ export class JsonSerialisation {
           const childVal = asOrNull(child, AbstractValue);
           if (childVal) entries.set(key, childVal);
         }
-        // Restore the metatable if the writer emitted one. The slot
-        // is itself an ObjectValue, so we recurse through the same
-        // entry point — its own `mt` is restored too if present.
-        if (obj["mt"] !== undefined) {
+        // Store-keyed define linkage (see the writer side). The class is
+        // reconstructed at init — restored by name, never from the save.
+        if (obj["defref"] !== undefined) {
+          // `new` instance: relink `__index` to the live class global in
+          // a post-pass (RelinkPendingDefineRefs), once globals exist.
+          JsonSerialisation.registerPendingDefineRef(
+            result,
+            String(obj["defref"]),
+          );
+        } else if (obj["defself"] !== undefined) {
+          // Named define: the store delta is merged onto the init default
+          // by VariablesState.SetJsonToken — flagged here for it to find.
+          (result as any).__loadDefSelf = String(obj["defself"]);
+        } else if (obj["mt"] !== undefined) {
+          // Restore the metatable if the writer emitted one. The slot
+          // is itself an ObjectValue, so we recurse through the same
+          // entry point — its own `mt` is restored too if present.
           const mtParsed = this.JTokenToRuntimeObject(obj["mt"]);
           const mt = asOrNull(mtParsed, ObjectValue);
           if (mt) result.metatable = mt;
