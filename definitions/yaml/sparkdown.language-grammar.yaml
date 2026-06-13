@@ -165,6 +165,12 @@ variables:
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
   LUAU_IDENTIFIER: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
+  # Style/UI property names follow CSS/sparkle spelling — hyphens are
+  # allowed (e.g. `bg-color`, `corner-top-left`, `c-tl`). This is
+  # deliberately wider than LUAU_IDENTIFIER (which forbids hyphens) and
+  # is only used inside `style` blocks, where a value is a raw CSS-like
+  # token rather than a Luau expression.
+  STYLE_PROPERTY_NAME: (?:[a-zA-Z_][a-zA-Z0-9_-]*)
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   LUAU_ASSIGNMENT_OPERATORS: (?:\+=|-=|\/=|\/\/=|\*=|%=|\^=|\.\.=|=(?!=))
   LUAU_COMPARE_OPERATORS: (?:==|~=|<=?|>=?)
@@ -2748,6 +2754,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauShebang" }
+      - { include: "#LuauStyle" }
       - { include: "#LuauDefine" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauVariableDefinition" }
@@ -3002,6 +3009,125 @@ repository:
       - { include: "#LuauVariableAssignment" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+
+  # ----------------------------------------------------------------------------
+  # Style (structured UI — sparkle style block, struct-registry only)
+  #
+  # `style NAME [as PARENT] with <prop = value> ... end`. A top-level
+  # structural keyword (parallel to `scene` / `branch`), NOT a `define`.
+  # Lowers purely to a compile-time `style` struct in
+  # `program.context.style.<name>` — no runtime table, no global.
+  # Property names use CSS/sparkle spelling (hyphens allowed); values are
+  # captured raw to end-of-line and interpreted later by the engine's
+  # sparkle-style-transformer. `as PARENT` records style inheritance.
+  # ----------------------------------------------------------------------------
+
+  LuauStyle:
+    tag: meta
+    name: meta.style.luau
+    begin: ({{WS}}*)(style)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauStyleKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauStyleNameAndInheritance" }
+      - { include: "#LuauStylePropertyDefinition" }
+      # Required so the begin/end block can span multiple lines — without
+      # a newline-consuming rule the parser can't progress past the
+      # header line (mirrors `Newline` inside `LuauBlockBody`).
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # Name + optional `as PARENT`, ending at the `with` block opener.
+  # Reuses LuauDefineName / LuauInheritanceOperation (→ LuauDefineParentName)
+  # so the lowerer reads names through the same node names as `define`.
+  LuauStyleNameAndInheritance:
+    begin: (?<=style\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauDefineName" }
+    patterns:
+      - { include: "#LuauInheritanceOperation" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauWithKeyword" }
+
+  # A single `prop = value` line. The value is captured raw (everything
+  # to end-of-line, trailing whitespace trimmed) — it is a CSS-like
+  # token, not a Luau expression.
+  LuauStylePropertyDefinition:
+    match: ({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}*)(=)({{WS}}*)([^\n]*?)({{WS}}*)$
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauStylePropertyName" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauStyleAssignmentMark" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      6:
+        patterns:
+          - { include: "#LuauStylePropertyValue" }
+      7:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauStyleKeyword:
+    tag: controlKeyword
+    name: keyword.control.style.luau
+    match: (style)\b
+
+  LuauStylePropertyName:
+    tag: attributeName
+    name: entity.other.attribute-name.style.luau
+    match: ({{STYLE_PROPERTY_NAME}})
+
+  LuauStyleAssignmentMark:
+    tag: separator
+    name: keyword.operator.assignment.style.luau
+    match: (=)
+
+  LuauStylePropertyValue:
+    tag: string
+    name: string.unquoted.style.luau
+    match: ([^\n]*)
 
   # ----------------------------------------------------------------------------
   # New Expression (`new ClassName(...)` — instance construction for

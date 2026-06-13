@@ -57,6 +57,7 @@ import { lowerReassignment } from "./lowerers/lowerReassignment";
 import { lowerInclude } from "./lowerers/lowerInclude";
 import { lowerRun } from "./lowerers/lowerRun";
 import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
+import { lowerLuauStyle } from "./lowerers/lowerLuauStyle";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
 import { lowerLuauFunctionDefinition } from "./lowerers/lowerLuauFunctionDefinition";
 import {
@@ -236,6 +237,8 @@ function lowerInner(
       return lowerSparkdownSequentialAlternatorBlock(nodeRef, ctx);
     case "LuauDefine":
       return lowerLuauDefine(nodeRef, ctx);
+    case "LuauStyle":
+      return lowerLuauStyle(nodeRef, ctx);
     case "LuauFunctionDefinition":
       return lowerLuauFunctionDefinition(nodeRef, ctx);
     case "LuauIfBlock":
