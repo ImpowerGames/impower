@@ -67,21 +67,29 @@ const contentHTML = (view: EditorView): string => {
 };
 
 describe("dual dialogue incremental construction", () => {
-  it("character-by-character insertion produces the same DOM as a from-scratch render", () => {
-    // Start with nothing, build the fixture one character at a time.
-    const incremental = mount("");
-    for (let i = 0; i < FIXTURE.length; i++) {
-      incremental.dispatch({
-        changes: { from: i, insert: FIXTURE[i]! },
-      });
-    }
-    const incrementalHTML = contentHTML(incremental);
+  it(
+    "character-by-character insertion produces the same DOM as a from-scratch render",
+    { timeout: 30_000 },
+    () => {
+      // Start with nothing, build the fixture one character at a time.
+      // ~600 single-char dispatches; passes in ~2.5s alone but crosses
+      // the default 5s timeout when other test files are running in
+      // parallel workers. Matches the pattern dual-real-incremental
+      // already uses for long-running incremental tests.
+      const incremental = mount("");
+      for (let i = 0; i < FIXTURE.length; i++) {
+        incremental.dispatch({
+          changes: { from: i, insert: FIXTURE[i]! },
+        });
+      }
+      const incrementalHTML = contentHTML(incremental);
 
-    const fullRebuild = mount(FIXTURE);
-    const fullRebuildHTML = contentHTML(fullRebuild);
+      const fullRebuild = mount(FIXTURE);
+      const fullRebuildHTML = contentHTML(fullRebuild);
 
-    expect(incrementalHTML).toBe(fullRebuildHTML);
-  });
+      expect(incrementalHTML).toBe(fullRebuildHTML);
+    },
+  );
 
   it("inserting the dual pair into an already-rendered single dialogue matches from-scratch", () => {
     // The case the user likely actually hit: had the BUNNY single + the

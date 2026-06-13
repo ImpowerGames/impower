@@ -35,8 +35,8 @@ RAFFLES:
 
 <dialogue> I can do crime!!
 
-<unknown> RAFFLES:
-<unknown>   Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.
+<character> RAFFLES
+<dialogue> Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.
 ## rendered
 # 9 lines
 --- line 0 ---
@@ -58,11 +58,11 @@ html: <div class="cm-line collapse"><br></div>
 text: ""
 html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
 --- line 6 ---
-text: "RAFFLES"
-html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px 0px 0px 16%;">RAFFLES<img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+text: "RAFFLES:"
+html: <div class="cm-line">RAFFLES:</div>
 --- line 7 ---
-text: "Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack."
-html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.</div>
+text: "  Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack."
+html: <div class="cm-line">  Bunny, I asked if you wanted to movie hop once and you nearly had a panic attack.</div>
 --- line 8 ---
 text: ""
 html: <div class="cm-line"><br></div>
