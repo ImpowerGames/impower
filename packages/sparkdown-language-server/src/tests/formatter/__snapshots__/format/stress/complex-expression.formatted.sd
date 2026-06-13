@@ -1,6 +1,6 @@
 result = ((a + b) * (c - d)) / ((e + f) * (g - h))
 flag = not (x == y) and (a ~= b or c < d)
-chained = obj.method(a).next(b).final(c,d,e)
+chained = obj.method(a).next(b).final(c, d, e)
 table_call = {one = 1, two = 2, three = fn(a, b)}
 indexed = arr[i + 1][j - 1].field[0]
 mixed_call = foo(bar[i].method(), baz{k = v, l = w})
