@@ -1,0 +1,6 @@
+screen settings with
+  column #class=root
+    text #class=title "Settings"
+    row #class=opts
+      text #class=hint "Volume"
+end

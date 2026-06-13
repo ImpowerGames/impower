@@ -1,0 +1,5 @@
+style panel as button with
+  bg-color = surface-2
+  corner = md
+  padding = sm
+end

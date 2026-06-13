@@ -74,6 +74,11 @@ const INDENTING_BLOCKS = new Set<SparkdownNodeName>([
   "LuauSequentialAlternatorBlock",
   "LuauConditionalAlternatorBlock",
   "LuauDefine",
+  // `style` blocks: a flat list of `prop = value` lines, all one level
+  // in — the formatter can auto-indent them. (screen/component element
+  // trees are NOT here: their nesting is indentation-significant and not
+  // in the parse tree, so their bodies are PRESERVED in processIndent.)
+  "LuauStyle",
   "LuauMethodDefinition",
   "LuauTable",
   "LuauParenthetical",
@@ -462,6 +467,25 @@ export const getFormatting = (
       const firstNonWs = lineText.search(/\S/);
       const stackPos = firstNonWs >= 0 ? lineStart + firstNonWs : from;
       const stack = getStack<SparkdownNodeName>(tree, stackPos, 1);
+
+      // screen / component element trees nest by INDENTATION, which the
+      // parse tree doesn't capture (the grammar emits flat `LuauUIElement`
+      // sibling lines; the lowerer rebuilds depth from the indent column).
+      // The formatter therefore can't compute their indent — it PRESERVES
+      // the author's, exactly, since it's structurally significant. The
+      // `_content` wrapper excludes the header (in `_begin`) and the `end`
+      // (in `_end`), so those still normalize to the block's level.
+      if (
+        firstNonWs >= 0 &&
+        stack.some(
+          (n) =>
+            n &&
+            (n.name === "LuauScreen_content" ||
+              n.name === "LuauComponent_content"),
+        )
+      ) {
+        return;
+      }
 
       newIndentLevel = computeBlockIndent(stack);
       // Continuation lines: a line that LEADS with a binary operator

@@ -92,6 +92,16 @@ function tally(a, b)
   return total
 end
 
+style panel as button with
+  bg-color = surface-2
+  corner = md
+end
+
+screen settings with
+  column #class=root
+    text #class=title "Settings"
+end
+
 scene intro
   HERO: Hello there.
   branch wave
@@ -134,6 +144,8 @@ const CORRUPTIONS: { label: string; lineMatch: RegExp; mutate: (l: string) => st
   { label: "define store prop (spacing)", lineMatch: /store trust/, mutate: (l) => l.replace(/\s*=\s*/, "=") },
   { label: "define method body (extra indent)", lineMatch: /print\("hi"\)/, mutate: (l) => "        " + l.trim() },
   { label: "top-level external (bad spacing)", lineMatch: /external host_record/, mutate: (l) => l.replace("(", " ( ") },
+  { label: "style prop (under-indent)", lineMatch: /bg-color/, mutate: (l) => l.trim() },
+  { label: "screen element (bad attr spacing)", lineMatch: /#class=title/, mutate: (l) => l.replace("=", " = ") },
 ];
 
 describe("delta format ≡ full format", () => {

@@ -142,6 +142,17 @@ function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
   return true;
 }
 
+// True iff `node` sits inside an inline UI element attribute
+// (`#class=root`, `@click=fn`). Used to keep the `=` tight.
+function isInsideUIAttribute(node: SparkdownSyntaxNodeRef): boolean {
+  for (const ancestor of getContextStack(node.node)) {
+    if (ancestor.name === "LuauUIAttribute") {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isInsideAlternatorSet(
   node: SparkdownSyntaxNodeRef,
   read: (from: number, to: number) => string,
@@ -301,7 +312,10 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     // context should stay.
     if (
       nodeRef.name === "LuauFunctionDefinition" ||
-      nodeRef.name === "LuauDefine"
+      nodeRef.name === "LuauDefine" ||
+      nodeRef.name === "LuauStyle" ||
+      nodeRef.name === "LuauScreen" ||
+      nodeRef.name === "LuauComponent"
     ) {
       if (this.isTopLevel(nodeRef)) {
         annotations.push(
@@ -535,9 +549,17 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       // ArithmeticOperation starts with that operator (no LHS),
       // it's unary.
       const tightUnary = isAfterUnaryOperator(nodeRef);
+      // Inline UI attribute `=` stays TIGHT (`#class=root`, HTML/JSX
+      // style), unlike `style`-block props / Luau assignments. ONLY the
+      // whitespace adjacent to the `=` — the leading space before `#`
+      // separates attributes and must stay one space.
+      const tightUIAttr =
+        isInsideUIAttribute(nodeRef) &&
+        (this.read(nodeRef.to, nodeRef.to + 1) === "=" ||
+          this.read(nodeRef.from - 1, nodeRef.from) === "=");
       annotations.push(
         SparkdownAnnotation.mark<FormatType>(
-          tightInline || tightUnary ? "extra" : "separator",
+          tightInline || tightUnary || tightUIAttr ? "extra" : "separator",
         ).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
