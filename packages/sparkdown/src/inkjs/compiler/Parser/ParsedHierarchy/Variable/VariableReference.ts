@@ -91,13 +91,20 @@ export class VariableReference extends Expression {
       return;
     }
 
-    if (
-      context.ResolveVariableWithName(this.name, this).found &&
-      !context.ResolveStruct(this.name)
-    ) {
-      // Allow reference to struct property
-      // (but not struct itself)
-      return;
+    {
+      const struct = context.ResolveStruct(this.name);
+      if (
+        context.ResolveVariableWithName(this.name, this).found &&
+        // Plain variable, OR a `define` that carries a runtime table
+        // (its VariableAssignment has an expression) — those ARE
+        // first-class runtime values (`companion`,
+        // `instances(companion)`, `c: companion`). Only pure data
+        // structs / builtin specs with no runtime table remain
+        // non-referenceable as bare values (legacy behavior).
+        (!struct || struct.variableAssignment?.expression != null)
+      ) {
+        return;
+      }
     }
 
     // Is it a read count?
@@ -157,10 +164,14 @@ export class VariableReference extends Expression {
       const baseName = this.path[0];
       if (baseName) {
         const baseResolve = context.ResolveVariableWithName(baseName, this);
+        const baseStruct = context.ResolveStruct(baseName);
         if (
           baseResolve.found &&
           !context.constants.has(baseName) &&
-          !context.ResolveStruct(baseName)
+          // `companion.O` — the base is a `define` runtime table, so
+          // the dotted access walks it at runtime. Pure data structs
+          // (no runtime table) stay blocked as before.
+          (!baseStruct || baseStruct.variableAssignment?.expression != null)
         ) {
           // Variable-with-property-access — no compile-time error.
           return;

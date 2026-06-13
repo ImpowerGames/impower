@@ -218,7 +218,18 @@ export class Story extends FlowBase {
       if (structDef.identifier?.name) {
         this._structDefs.set(structDef.identifier?.name, structDef);
         runtimeStructs.push(structDef.runtimeStructDefinition);
-        if (!structDef.modifier?.name && structDef.name?.name !== "$default") {
+        // When the define ALSO carries a runtime table expression (the
+        // OOP type/instance path), the live table provides each
+        // property — emitting flat `companion.O.name` globals too would
+        // shadow the table with a stale snapshot after any mutation
+        // (`GetVariableWithName` matches the flat dotted key before
+        // falling back to the table walk). So only emit the flat
+        // property globals for pure data structs with no runtime table.
+        if (
+          !structDef.modifier?.name &&
+          structDef.name?.name !== "$default" &&
+          !structDef.variableAssignment?.expression
+        ) {
           // Each struct property should be saved as its own dot-accessible variable
           for (const prop of structDef.propertyDefinitions) {
             if (
@@ -269,22 +280,29 @@ export class Story extends FlowBase {
           variableInitialization.AddContent(
             value.listDefinition.runtimeObject!,
           );
-        } else if (value.structDefinition) {
-          this._structDefs.set(key, value.structDefinition);
-          runtimeStructs.push(value.structDefinition.runtimeStructDefinition);
         } else {
-          if (!value.expression) {
+          // Struct registration — populates `structDefinitions` for the
+          // engine's character / UI / asset spec system. A `define` can
+          // carry this AND a runtime table expression simultaneously
+          // (see VariableAssignment); the struct half never serializes
+          // and is compile-time only.
+          if (value.structDefinition) {
+            this._structDefs.set(key, value.structDefinition);
+            runtimeStructs.push(value.structDefinition.runtimeStructDefinition);
+          }
+          // Runtime initialization — for ordinary globals AND for
+          // `define` tables (which additionally carry a struct above).
+          // A pure struct VA (no expression) is intentionally NOT
+          // initialized at runtime, matching the legacy behavior.
+          if (value.expression) {
+            value.expression.GenerateIntoContainer(variableInitialization);
+            const runtimeVarAss = new RuntimeVariableAssignment(key, true);
+            runtimeVarAss.isGlobal = true;
+            variableInitialization.AddContent(runtimeVarAss);
+          } else if (!value.structDefinition) {
+            // Non-struct global declaration must have an expression.
             throw new Error();
           }
-          value.expression.GenerateIntoContainer(variableInitialization);
-        }
-
-        // Don't initialize structs at runtime
-        // They should only be initialized at compiletime and never serialized in save state
-        if (!value.structDefinition) {
-          const runtimeVarAss = new RuntimeVariableAssignment(key, true);
-          runtimeVarAss.isGlobal = true;
-          variableInitialization.AddContent(runtimeVarAss);
         }
       }
     }

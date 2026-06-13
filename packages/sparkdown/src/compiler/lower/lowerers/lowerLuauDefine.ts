@@ -15,7 +15,6 @@ import { StructDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy
 import { StructPropertyDefinition } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Struct/StructPropertyDefinition";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
-import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext, SiblingSubFlowInfo } from "../context";
@@ -31,59 +30,41 @@ import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
-// `define` blocks come in two flavors, split on whether the block
-// declares any METHODS:
+// `define` is sparkdown's unified OOP type/instance construct. Every
+// define — whether it has properties, methods, or both — lowers to a
+// live runtime global table (a named singleton) AND, when typed
+// (`as T`), a compile-time `StructDefinition` for the engine's
+// character / UI / asset spec system. Both ride ONE VariableAssignment
+// (see VariableAssignment + ParsedHierarchy/Story's ExportRuntime):
 //
-// 1. DATA define (properties only) — the legacy struct path,
-//    unchanged: lowers to a `StructDefinition` registered in the
-//    story's compile-time struct registry (`structDefinitions` in the
-//    compiled JSON — consumed by the engine for character/UI/asset
-//    specs) plus flat dot-accessible property globals. Never
-//    initialized or serialized at runtime.
+//   define companion as character with     companion = __def({
+//     store trust = 0                         trust = 0,
+//   end                                       __storeProps = { "trust" },
+//                                           }, "companion", "character")
 //
-//      define companion as character with
-//        name = "???"
-//      end
+//   define O as companion with             O = __def({
+//     name = "Orion"                          name = "Orion",
+//     color = "teal"                          color = "teal",
+//   end                                     }, "O", "companion")
 //
-// 2. CLASS define (has `name(args) ... end` methods) — sparkdown's
-//    OOP sugar. Lowers to a GLOBAL DECLARATION whose initializer
-//    builds the class table at story start:
+// The `__def(rawTable, name, parentName)` stdlib (StdLib.ts) does the
+// rest at story start, in document order:
+//   - tags the table (`__define` / `__defineParent` on its metatable)
+//     and chains `__index` to the parent type table, CREATING the
+//     parent implicitly if it was never `define`d (so `as character`
+//     works against the builtin engine type);
+//   - copies the parent chain's `store` defaults into the table
+//     (instance-owned → enumerable + serialized); non-store props
+//     inherit lazily through `__index`;
+//   - registers the table into its parent AND every ancestor, so
+//     `companion.O`, the grandparent `character.O`, and
+//     `instances(companion)` all see it.
 //
-//      define Penguin as Bird with         Penguin = setmetatable({
-//        canFly = false                      canFly = false,
-//        swim()                              swim = <closure(self)>,
-//          self.isSwimming = true          }, { __index = Bird })
-//        end
-//      end
-//
-//    - Data properties become class-table defaults; instances created
-//      with `new Penguin()` read them through the `__index` chain
-//      until written (table-form dispatch — no function-form
-//      metamethod re-entry on the hot path).
-//    - Methods become hoisted anonymous Function knots with an
-//      implicit `self` first parameter, stored as closure values in
-//      the class table. `penguin:fly()` resolves `fly` through the
-//      instance's `__index` chain and threads the receiver via the
-//      existing colon-call dispatch.
-//    - `as Parent` chains the class to another class-define via
-//      `setmetatable(Class, { __index = Parent })`. Initialization
-//      order is document order, so parents must be defined first.
-//    - `store`-modified properties are recorded in a hidden
-//      `__storeProps` list; `__new` copies those defaults INTO each
-//      instance at construction so they always travel with the
-//      instance in save files (unmodified non-store properties stay
-//      on the class and reset to defaults on load).
-//    - `read` / `write` access modifiers are recorded in hidden
-//      `__readProps` / `__writeProps` lists for future enforcement;
-//      they have no runtime effect yet.
-//    - An `init(...)` method, if declared, is invoked by `__new`
-//      with the constructor's arguments after store-prop copying.
-//
-//    Class defines deliberately SKIP struct registration:
-//    `VariableReference.ResolveReferences` blocks bare references to
-//    struct names ("allow reference to struct property, not struct
-//    itself"), which would break `new Bird()` / `setmetatable(Bird,
-//    ...)` resolution.
+// `new T()` (the `LuauNewExpression` path) mints fresh anonymous
+// instances of the same tables via `__new`; method bodies become
+// hoisted closures with an implicit `self`; `init(...)` is the
+// constructor. `read` / `write` access modifiers are recorded in
+// hidden `__readProps` / `__writeProps` lists for future enforcement.
 
 interface DefineProperty {
   name: string;
@@ -93,11 +74,6 @@ interface DefineProperty {
   // "read" | "write" | "" — from LuauAccessModifier.
   access: string;
   node: SyntaxNode;
-}
-
-interface DefineMethod {
-  name: string;
-  closure: Expression;
 }
 
 const METHOD_BODY_SKIP: ReadonlySet<string> = new Set([
@@ -156,93 +132,19 @@ export function lowerLuauDefine(
     }
   }
 
-  // CLASS-define detection. A define is a class when it declares any
-  // method, or when it inherits from a CLASS define (a data-only
-  // subclass like `define Penguin as Bird with noise = "honk" end`
-  // must still chain to Bird's table). Everything else — including
-  // modifier-bearing data defines like the engine-typed
-  // `define companion as character with store trust = 0` — stays on
-  // the legacy struct path. `ctx.classDefineNames` is precomputed
-  // from the whole document by CompilationAnnotator (chunks lower
-  // with fresh contexts, so same-chunk registration can't see across
-  // defines); the lazy `??=` add below keeps single-context tools
-  // (snapshot tests) working for same-document subclassing. Known
-  // gap: a method-less ROOT class can't be detected — give it a
-  // method to opt in.
-  const isClassDefine =
-    methodNodes.length > 0 ||
-    (nameIdentifier.name != null &&
-      (ctx.classDefineNames?.has(nameIdentifier.name) ?? false)) ||
-    (parentIdentifier?.name != null &&
-      (ctx.classDefineNames?.has(parentIdentifier.name) ?? false));
-
-  if (!isClassDefine) {
-    return lowerDataDefine(nameIdentifier, parentIdentifier, properties);
-  }
-  if (nameIdentifier.name) {
-    ctx.classDefineNames ??= new Set();
-    ctx.classDefineNames.add(nameIdentifier.name);
-  }
-  return lowerClassDefine(
-    nameIdentifier,
-    parentIdentifier,
-    properties,
-    methodNodes,
-    ctx,
-  );
-}
-
-// ----------------------------------------------------------------------------
-// Data define — legacy struct path (unchanged behavior).
-// ----------------------------------------------------------------------------
-
-function lowerDataDefine(
-  nameIdentifier: Identifier,
-  parentIdentifier: Identifier | null,
-  properties: DefineProperty[],
-): CompiledBlock {
-  const propertyDefs = properties.map(
-    (p) => new StructPropertyDefinition(0, new Identifier(p.name), p.expr),
-  );
-  const structDef = new StructDefinition(propertyDefs);
-  structDef.name = nameIdentifier;
-  structDef.type = parentIdentifier;
-  structDef.identifier = nameIdentifier;
-
-  const variableAssignment = new VariableAssignment({
-    variableIdentifier: nameIdentifier,
-    structDef,
-  });
-
-  return wrapInWeave([variableAssignment]);
-}
-
-// ----------------------------------------------------------------------------
-// Class define — OOP sugar.
-// ----------------------------------------------------------------------------
-
-function lowerClassDefine(
-  nameIdentifier: Identifier,
-  parentIdentifier: Identifier | null,
-  properties: DefineProperty[],
-  methodNodes: { name: string; node: SyntaxNode }[],
-  ctx: LowerContext,
-): CompiledBlock {
+  // ----- The runtime table: __def({ props, methods, modifier lists }, name, parent)
   const entries: ObjectExpressionEntry[] = [];
-
   for (const prop of properties) {
     entries.push(new ObjectExpressionEntry(prop.name, prop.expr));
   }
-
   for (const method of methodNodes) {
     const closure = lowerDefineMethod(method.name, method.node, ctx);
     if (closure) {
       entries.push(new ObjectExpressionEntry(method.name, closure));
     }
   }
-
-  // Hidden modifier lists. `__storeProps` drives `__new`'s
-  // copy-into-instance behavior; `__readProps` / `__writeProps` are
+  // Hidden modifier lists. `__storeProps` drives the copy-into-instance
+  // behavior in `__def` / `__new`; `__readProps` / `__writeProps` are
   // recorded for future access enforcement.
   const pushNameList = (key: string, names: string[]) => {
     if (names.length === 0) return;
@@ -274,26 +176,30 @@ function lowerClassDefine(
     properties.filter((p) => p.access === "write").map((p) => p.name),
   );
 
-  let classExpr: Expression = new ObjectExpression(entries);
+  const defineExpr = new FunctionCall(new Identifier("__def"), [
+    new ObjectExpression(entries),
+    new StringExpression([new Text(nameIdentifier.name ?? "")]),
+    new StringExpression([new Text(parentIdentifier?.name ?? "")]),
+  ]);
 
+  // ----- The struct registration (engine specs) — only for typed
+  // defines (`as T`); root defines have no engine type. Carries only
+  // DATA properties (the engine never consumes methods).
+  let structDef: StructDefinition | null = null;
   if (parentIdentifier) {
-    // Chain to the parent class: Class = setmetatable({...},
-    // { __index = Parent }). Globals initialize in document order,
-    // so the parent's table already exists when this runs.
-    classExpr = new FunctionCall(new Identifier("setmetatable"), [
-      classExpr,
-      new ObjectExpression([
-        new ObjectExpressionEntry(
-          "__index",
-          new VariableReference([parentIdentifier]),
-        ),
-      ]),
-    ]);
+    const propertyDefs = properties.map(
+      (p) => new StructPropertyDefinition(0, new Identifier(p.name), p.expr),
+    );
+    structDef = new StructDefinition(propertyDefs);
+    structDef.name = nameIdentifier;
+    structDef.type = parentIdentifier;
+    structDef.identifier = nameIdentifier;
   }
 
   const declaration = new VariableAssignment({
     variableIdentifier: nameIdentifier,
-    assignedExpression: classExpr,
+    assignedExpression: defineExpr,
+    ...(structDef ? { structDef } : {}),
     isGlobalDeclaration: true,
   });
 

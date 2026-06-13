@@ -85,6 +85,16 @@ export class VariableAssignment extends ParsedObject {
       this.structDefinition.variableAssignment = this;
       // Struct definitions are always global
       this.isGlobalDeclaration = true;
+      // A `define` that's also an OOP type/instance carries BOTH the
+      // struct registration (consumed by the engine's character / UI /
+      // asset spec system, via `structDefinitions`) AND a runtime
+      // table expression that initializes `D` as a live global table
+      // (props + methods + inheritance) for in-script access. One
+      // declaration, two behaviors — see the init handling in
+      // ParsedHierarchy/Story's ExportRuntime.
+      if (assignedExpression) {
+        this.expression = this.AddContent(assignedExpression) as Expression;
+      }
     } else if (assignedExpression) {
       this.expression = this.AddContent(assignedExpression) as Expression;
     }

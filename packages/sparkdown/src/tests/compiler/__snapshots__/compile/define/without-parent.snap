@@ -5,30 +5,45 @@
       "content": [
         {
           "type": "VariableAssignment",
+          "kind": "global",
           "name": "Settings",
-          "struct": {
-            "type": "StructDefinition",
-            "name": "Settings",
-            "parent": null,
-            "props": [
+          "expression": {
+            "type": "FunctionCall",
+            "name": "__def",
+            "args": [
               {
-                "type": "StructPropertyDefinition",
-                "name": "max_trust",
-                "expression": {
-                  "type": "NumberExpression",
-                  "value": 10,
-                  "subtype": "int"
-                }
+                "type": "ObjectExpression",
+                "entries": [
+                  {
+                    "key": "max_trust",
+                    "value": {
+                      "type": "NumberExpression",
+                      "value": 10,
+                      "subtype": "int"
+                    }
+                  },
+                  {
+                    "key": "language",
+                    "value": {
+                      "type": "StringExpression",
+                      "content": [
+                        "en"
+                      ]
+                    }
+                  }
+                ]
               },
               {
-                "type": "StructPropertyDefinition",
-                "name": "language",
-                "expression": {
-                  "type": "StringExpression",
-                  "content": [
-                    "en"
-                  ]
-                }
+                "type": "StringExpression",
+                "content": [
+                  "Settings"
+                ]
+              },
+              {
+                "type": "StringExpression",
+                "content": [
+                  ""
+                ]
               }
             ]
           }

@@ -2067,6 +2067,82 @@ const BUILTIN_ITERATORS: Record<string, IterStep> = {
     if (v instanceof NullValue) return null;
     return { values: [new IntValue(i), v], nextCursor: new IntValue(i) };
   },
+  // `instances(T)` — visit only T's registered define MEMBERS (the
+  // `define X as T` entries), yielding (name, instance) and skipping
+  // T's own props / methods / bookkeeping keys. A member is any value
+  // tagged `__define` on its metatable. The member-name list is
+  // snapshotted at start (same delete-during-iteration safety as
+  // `pairs`).
+  instances: (state, cursor, scratch) => {
+    if (!(state instanceof ObjectValue)) return null;
+    const map = state.value as Map<string, AbstractValue> | null;
+    if (!map) return null;
+    const atStart =
+      cursor == null ||
+      cursor instanceof NullValue ||
+      (cursor as any).value === null;
+    let keys: string[];
+    const memberKeys = () =>
+      Array.from(map.keys()).filter((k) => isDefineTable(map.get(k)));
+    if (scratch) {
+      if (atStart || !scratch.has(ITER_KEY_SNAPSHOT)) {
+        keys = memberKeys();
+        scratch.set(ITER_KEY_SNAPSHOT, keys as any);
+      } else {
+        keys = scratch.get(ITER_KEY_SNAPSHOT) as any as string[];
+      }
+    } else {
+      keys = memberKeys();
+    }
+    let idx: number;
+    if (atStart) {
+      idx = 0;
+    } else {
+      const cstr = String((cursor as any).value);
+      const i = keys.indexOf(cstr);
+      idx = i < 0 ? keys.length : i + 1;
+    }
+    while (idx < keys.length && !isDefineTable(map.get(keys[idx]!))) idx++;
+    if (idx >= keys.length) return null;
+    const key = keys[idx]!;
+    return {
+      values: [new StringValue(key), map.get(key)! as AbstractValue],
+      nextCursor: new StringValue(key),
+    };
+  },
+  // `iinstances(T)` — array-style member visit, yielding
+  // (1-based ordinal, instance) over the registered members in
+  // registration order. Cursor is the previous ordinal.
+  iinstances: (state, cursor, scratch) => {
+    if (!(state instanceof ObjectValue)) return null;
+    const map = state.value as Map<string, AbstractValue> | null;
+    if (!map) return null;
+    const atStart =
+      cursor == null ||
+      cursor instanceof NullValue ||
+      (cursor as any).value === null;
+    let keys: string[];
+    const memberKeys = () =>
+      Array.from(map.keys()).filter((k) => isDefineTable(map.get(k)));
+    if (scratch) {
+      if (atStart || !scratch.has(ITER_KEY_SNAPSHOT)) {
+        keys = memberKeys();
+        scratch.set(ITER_KEY_SNAPSHOT, keys as any);
+      } else {
+        keys = scratch.get(ITER_KEY_SNAPSHOT) as any as string[];
+      }
+    } else {
+      keys = memberKeys();
+    }
+    const prev = atStart ? 0 : Number((cursor as any).value);
+    let idx = prev; // 0-based index of the next member to yield
+    while (idx < keys.length && !isDefineTable(map.get(keys[idx]!))) idx++;
+    if (idx >= keys.length) return null;
+    return {
+      values: [new IntValue(idx + 1), map.get(keys[idx]!)! as AbstractValue],
+      nextCursor: new IntValue(idx + 1),
+    };
+  },
   // `utf8codes(s)` — iter_aux (lutf8lib.cpp). Each step yields the
   // 1-indexed byte position + codepoint of the next character. The
   // control value is the byte position of the PREVIOUS character (0
@@ -2236,6 +2312,66 @@ export function stepBuiltinIterator(
   if (result.values.length === 0) return new NullValue();
   if (result.values.length === 1) return result.values[0]!;
   return new MultiValue(result.values);
+}
+
+// ============================================================
+// `define` OOP type/instance support (shared by __def / __new /
+// instances). A define is a runtime table tagged on its metatable:
+//   __define       — the define's own name (marks it as a member for
+//                    instances() iteration and identifies class tables)
+//   __defineParent — the parent type's name ("" for a root define)
+//   __index        — the parent type TABLE (prop/method inheritance,
+//                    table-form so dispatch stays a plain map walk)
+// ============================================================
+const DEFINE_MARKER = "__define";
+const DEFINE_PARENT_MARKER = "__defineParent";
+
+function metatableMap(v: AbstractValue | null): Map<
+  string,
+  AbstractValue
+> | null {
+  if (v instanceof ObjectValue && v.metatable instanceof ObjectValue) {
+    return v.metatable.value as Map<string, AbstractValue>;
+  }
+  return null;
+}
+
+function isDefineTable(v: AbstractValue | null | undefined): v is ObjectValue {
+  return metatableMap(v as AbstractValue)?.get(DEFINE_MARKER) != null;
+}
+
+// Walk a type/instance's `__index` chain (self first, then ancestors).
+function defineChain(start: ObjectValue): ObjectValue[] {
+  const chain: ObjectValue[] = [];
+  let cur: ObjectValue | null = start;
+  let guard = 0;
+  while (cur instanceof ObjectValue && guard++ < 64) {
+    chain.push(cur);
+    const idx = metatableMap(cur)?.get("__index") ?? null;
+    cur = idx instanceof ObjectValue ? idx : null;
+  }
+  return chain;
+}
+
+// Copy `store`-marked property defaults from every level of `chain`
+// into `target`, root-most level first so a child's redeclared
+// default wins and `target`'s own keys are never overwritten. Store
+// props become instance-owned (enumerable + serialized); non-store
+// props stay on the type and inherit lazily through `__index`.
+function copyStoreDefaults(chain: ObjectValue[], target: ObjectValue): void {
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const levelMap = chain[i]!.value as Map<string, AbstractValue>;
+    const storeList = levelMap?.get("__storeProps");
+    if (!(storeList instanceof ObjectValue)) continue;
+    for (const nameVal of (
+      storeList.value as Map<string, AbstractValue>
+    ).values()) {
+      const propName = coerceString(nameVal);
+      if (!propName || target.value!.has(propName)) continue;
+      const def = levelMap.get(propName);
+      if (def != null) target.value!.set(propName, def);
+    }
+  }
 }
 
 export const STDLIB: Record<string, StdLibEntry> = {
@@ -4741,7 +4877,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const cls = args[0];
       if (!(cls instanceof ObjectValue)) {
         story.Error(
-          `new: ${luauTypeOf(cls)} value is not a class (expected a \`define\`d class name)`,
+          `new: ${luauTypeOf(cls)} value is not a class (expected a \`define\`d type name)`,
         );
         return null;
       }
@@ -4750,46 +4886,16 @@ export const STDLIB: Record<string, StdLibEntry> = {
       mtMap.set("__index", cls);
       inst.metatable = new ObjectValue(mtMap);
 
-      // Collect the inheritance chain (instance class first).
-      const chain: ObjectValue[] = [];
-      let cur: ObjectValue | null = cls;
-      let guard = 0;
-      while (cur instanceof ObjectValue && guard++ < 32) {
-        chain.push(cur);
-        const mt = cur.metatable;
-        const idx =
-          mt instanceof ObjectValue
-            ? ((mt.value as Map<string, AbstractValue>)?.get("__index") ??
-              null)
-            : null;
-        cur = idx instanceof ObjectValue ? idx : null;
-      }
-
-      // Copy store-marked defaults, root-most level first so a
-      // child's redeclared default overwrites its parent's. Note
-      // table-valued defaults copy by REFERENCE (Lua semantics —
-      // shared across instances unless `init` replaces them).
-      for (let i = chain.length - 1; i >= 0; i--) {
-        const level = chain[i]!;
-        const levelMap = level.value as Map<string, AbstractValue>;
-        const storeList = levelMap?.get("__storeProps");
-        if (!(storeList instanceof ObjectValue)) continue;
-        for (const nameVal of (
-          storeList.value as Map<string, AbstractValue>
-        ).values()) {
-          const propName = coerceString(nameVal);
-          if (!propName) continue;
-          const def = levelMap.get(propName);
-          if (def != null) inst.value!.set(propName, def);
-        }
-      }
+      const chain = defineChain(cls);
+      // Store-marked defaults become instance-owned (enumerable +
+      // serialized); table-valued defaults copy by REFERENCE (Lua
+      // semantics — shared until `init` replaces them).
+      copyStoreDefaults(chain, inst);
 
       // Constructor: nearest `init` up the chain, called with the
       // instance threaded as `self` plus the `new` call's args.
       for (const level of chain) {
-        const init = (level.value as Map<string, AbstractValue>)?.get(
-          "init",
-        );
+        const init = (level.value as Map<string, AbstractValue>)?.get("init");
         if (init != null && !(init instanceof NullValue)) {
           story.CallLuauFunction(init, [
             inst,
@@ -4799,6 +4905,65 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
       }
       return inst;
+    },
+  },
+  // Hidden NAMED-define constructor (emitted by lowerLuauDefine as the
+  // init expression for every `define D as T with …`). Unlike `__new`,
+  // which mints an anonymous instance, `__def` turns the define's raw
+  // table (its own props + method closures + hidden modifier lists)
+  // into a registered singleton:
+  //   1. Tags it (`__define` = D, `__defineParent` = T) and chains its
+  //      metatable `__index` to the parent type table — created
+  //      IMPLICITLY if T was never explicitly defined (so `as character`
+  //      works even though `character` is a builtin engine type with no
+  //      `define`). Self-healing on order: whoever names T first mints
+  //      it.
+  //   2. Copies the parent chain's `store` defaults into D (instance-
+  //      owned), exactly like `__new`.
+  //   3. Registers D into T and EVERY ancestor (`T.D`, `Grandparent.D`),
+  //      so members are reachable through any type up the chain and
+  //      `instances(T)` enumerates them.
+  // Returns D (the global VariableAssignment binds it to the name).
+  "__def": {
+    arity: 3,
+    fn: (story, [tableArg, nameArg, parentArg]) => {
+      if (!(tableArg instanceof ObjectValue)) return tableArg ?? null;
+      const table = tableArg;
+      const name = coerceString(nameArg) ?? "";
+      const parentName = coerceString(parentArg) ?? "";
+
+      const mt = new Map<string, AbstractValue>();
+      mt.set(DEFINE_MARKER, new StringValue(name));
+      if (parentName) mt.set(DEFINE_PARENT_MARKER, new StringValue(parentName));
+
+      let parent: ObjectValue | null = null;
+      if (parentName) {
+        const existing = story.state.variablesState.GetVariableWithName(
+          parentName,
+        ) as AbstractValue | null;
+        if (existing instanceof ObjectValue) {
+          parent = existing;
+        } else {
+          // Implicit parent type — e.g. `as character`.
+          parent = new ObjectValue(new Map<string, AbstractValue>());
+          const pmt = new Map<string, AbstractValue>();
+          pmt.set(DEFINE_MARKER, new StringValue(parentName));
+          parent.metatable = new ObjectValue(pmt);
+          story.state.variablesState.SetGlobal(parentName, parent);
+        }
+        mt.set("__index", parent);
+      }
+      table.metatable = new ObjectValue(mt);
+
+      if (parent) {
+        const chain = defineChain(parent);
+        copyStoreDefaults(chain, table);
+        // Register into the parent and every ancestor.
+        for (const level of chain) {
+          level.value!.set(name, table);
+        }
+      }
+      return table;
     },
   },
   // Hidden generic-for ENTRY adjustment (emitted by
@@ -4918,6 +5083,47 @@ export const STDLIB: Record<string, StdLibEntry> = {
       }
       return [
         makeBuiltinIterator("ipairs", t as ObjectValue),
+        t as ObjectValue,
+        new IntValue(0),
+      ];
+    },
+  },
+  // `instances(T)` / `iinstances(T)` — iterate the `define`-members of
+  // a type table (the `define X as T` entries registered under T),
+  // NOT T's own props/methods. `instances` yields (name, instance);
+  // `iinstances` yields (ordinal, instance). See the BUILTIN_ITERATORS
+  // steps for the member-filtering detail.
+  instances: {
+    arity: 1,
+    fn: (story, [t]) => {
+      const map =
+        t != null && typeof t === "object" && "value" in t
+          ? (t as any).value
+          : null;
+      if (!(map instanceof Map)) {
+        story.Error("instances: argument must be a `define`d type");
+        return new NullValue();
+      }
+      return [
+        makeBuiltinIterator("instances", t as ObjectValue),
+        t as ObjectValue,
+        new NullValue(),
+      ];
+    },
+  },
+  iinstances: {
+    arity: 1,
+    fn: (story, [t]) => {
+      const map =
+        t != null && typeof t === "object" && "value" in t
+          ? (t as any).value
+          : null;
+      if (!(map instanceof Map)) {
+        story.Error("iinstances: argument must be a `define`d type");
+        return new NullValue();
+      }
+      return [
+        makeBuiltinIterator("iinstances", t as ObjectValue),
         t as ObjectValue,
         new IntValue(0),
       ];
