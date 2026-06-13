@@ -352,6 +352,11 @@ export const getFormatting = (
   options: FormattingOptions,
   formattingRange?: Range | Position,
   formattingOnType?: Position,
+  // Incremental (delta) formatting: the byte range that changed since
+  // the last format. The formatter reprocesses only the top-level
+  // construct(s) the change touched — see the region computation below.
+  // Mutually exclusive with an explicit `formattingRange` / `formattingOnType`.
+  incrementalDirtyRange?: { from: number; to: number },
 ) => {
   const edits: (TextEdit & {
     lineNumber: number;
@@ -552,8 +557,66 @@ export const getFormatting = (
     }
   };
 
-  const cur = annotations.formatting.iter();
-  const aheadCur = annotations.formatting.iter();
+  // Incremental (delta) formatting. The only cross-line formatting
+  // state — `sceneActive` / `branchActive` — resets at every
+  // `scene_begin` / `top_level_begin` boundary, and per-line indent is
+  // computed position-locally from the tree. So starting the scan AT the
+  // nearest such boundary ≤ the dirty start (with the same fresh initial
+  // state the function already begins with) yields byte-for-byte the same
+  // output as a full format for that span — while skipping the untouched
+  // rest of the file. We bound the EMIT range to [boundaryBefore,
+  // boundaryAfter) (reusing the existing `formattingRange` machinery) and
+  // start the iterator at the boundary.
+  let iterStart = 0;
+  let reachesDocEnd = true;
+  // When set (incremental path), bound the structural `tree.iterate`
+  // passes to the reprocessed region so they don't walk the whole tree.
+  let treeIterFrom: number | undefined;
+  let treeIterTo: number | undefined;
+  if (
+    incrementalDirtyRange &&
+    document.length > 0 &&
+    !formattingRange &&
+    !formattingOnType
+  ) {
+    const boundaries: number[] = [];
+    const b = annotations.formatting.iter();
+    while (b.value) {
+      if (
+        b.value.type === "scene_begin" ||
+        b.value.type === "top_level_begin"
+      ) {
+        boundaries.push(b.from);
+      }
+      b.next();
+    }
+    let from = 0;
+    for (const off of boundaries) {
+      if (off <= incrementalDirtyRange.from) {
+        from = off;
+      } else {
+        break;
+      }
+    }
+    let to = document.length;
+    for (const off of boundaries) {
+      if (off > incrementalDirtyRange.to) {
+        to = off;
+        break;
+      }
+    }
+    iterStart = from;
+    reachesDocEnd = to >= document.length;
+    treeIterFrom = from;
+    treeIterTo = to;
+    formattingRange = {
+      start: document.positionAt(from),
+      end: document.positionAt(to),
+    };
+  }
+
+  const cur = annotations.formatting.iter(iterStart);
+  const aheadCur = annotations.formatting.iter(iterStart);
   const formattingTo = formattingRange
     ? "end" in formattingRange
       ? document.offsetAt(formattingRange.end)
@@ -765,6 +828,7 @@ export const getFormatting = (
   const lastPosition = document.positionAt(Number.MAX_VALUE);
 
   if (
+    reachesDocEnd &&
     options.insertFinalNewline &&
     formattingOnType?.line !== lastPosition.line
   ) {
@@ -822,6 +886,8 @@ export const getFormatting = (
       "LuauSequentialAlternatorBlock",
     ]);
     tree.iterate({
+      from: treeIterFrom,
+      to: treeIterTo,
       enter: (nodeRef) => {
         if (nodeRef.name !== "LuauTable") return;
         // Walk up the ancestor chain looking for an inline-alternator
@@ -917,6 +983,8 @@ export const getFormatting = (
     // here we make the source text match by joining the keywords
     // and dropping the now-redundant outer `end`.
     tree.iterate({
+      from: treeIterFrom,
+      to: treeIterTo,
       enter: (nodeRef) => {
         if (!MERGEABLE_ELSE_BLOCKS.has(nodeRef.name as SparkdownNodeName))
           return;
@@ -1074,6 +1142,8 @@ export const getFormatting = (
       "LuauMethodDefinition",
     ]);
     tree.iterate({
+      from: treeIterFrom,
+      to: treeIterTo,
       enter: (nodeRef) => {
         if (!EMPTY_COMPACTABLE_BLOCKS.has(nodeRef.name)) return;
         const node = nodeRef.node;
@@ -1191,6 +1261,8 @@ export const getFormatting = (
       "LuauRepeatLoop_content",
     ]);
     tree.iterate({
+      from: treeIterFrom,
+      to: treeIterTo,
       enter: (nodeRef) => {
         if (!BLOCK_OPENER_KEYWORDS.has(nodeRef.name)) return;
         if (nodeRef.name === "LuauThenKeyword") {
@@ -1398,6 +1470,8 @@ export const getFormatting = (
     // NOT as `LuauSingleQuotedString` / `LuauDoubleQuotedString`,
     // so they're untouched too.
     tree.iterate({
+      from: treeIterFrom,
+      to: treeIterTo,
       enter: (nodeRef) => {
         if (nodeRef.name !== "LuauSingleQuotedString") return;
         const node = nodeRef.node;
@@ -1437,6 +1511,8 @@ export const getFormatting = (
     // tables and tables that got rewritten by the alternator pass
     // above (no `{` / `}` left).
     tree.iterate({
+      from: treeIterFrom,
+      to: treeIterTo,
       enter: (nodeRef) => {
         if (nodeRef.name !== "LuauTable") return;
         const tableNode = nodeRef.node;
@@ -1736,6 +1812,7 @@ export const getDocumentFormattingEdits = (
   options: FormattingOptions,
   formattingRange?: Range | Position,
   formattingOnType?: Position,
+  incrementalDirtyRange?: { from: number; to: number },
 ): TextEdit[] | undefined => {
   if (!document || !annotations) {
     return undefined;
@@ -1748,6 +1825,7 @@ export const getDocumentFormattingEdits = (
     options,
     formattingRange,
     formattingOnType,
+    incrementalDirtyRange,
   );
 
   const result = resolveFormattingConflicts(edits, document, formattingOnType);
