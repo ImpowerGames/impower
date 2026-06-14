@@ -268,9 +268,16 @@ repository:
 
   ########## Annotation ##########
 
+  # `Annotation` is the DISPLAY-context line decoration: screenplay
+  # `[[tag]]` markup only. It must NOT include Luau comments. Display/prose
+  # uses `--` for em-dashes and `---` for the front-matter fence, so a
+  # Luau-comment rule here would (a) swallow the opening `---` of the title
+  # page as a `---` doc comment and (b) turn every prose em-dash into a
+  # line comment. Luau comments belong ONLY to actual Luau-code contexts
+  # (`LuauExpression`, `LuauFunctionBody`, `LuauBlockBody`, define bodies,
+  # …), which each include `#LuauComment` directly — never through here.
   Annotation:
     patterns:
-      - { include: "#LuauComment" }
       - { include: "#Tags" }
 
   ########## Tag ##########
