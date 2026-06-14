@@ -2,11 +2,13 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
 import {
   ObjectExpression,
   ObjectExpressionEntry,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
+import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
@@ -104,6 +106,77 @@ function coerceScalarLiteral(raw: string): unknown {
   // A bare identifier / reference / call is not a literal we can store.
   if (/[()]/.test(s)) return undefined;
   return s;
+}
+
+// Convert a parsed property-value Expression into a compile-time context
+// value for the engine struct registry — the NON-scalar counterpart to
+// `coerceScalarLiteral` (which works from the raw source string and handles
+// engine value tokens like `surface-2` that aren't valid Luau expressions).
+// This is what lets a `layered_image`'s `assets = { a, b }` table reach
+// `program.context` so `UIModule.getImageAssets` can iterate it. Mirrors
+// `StructPropertyDefinition.GetValue`'s reference semantics exactly:
+//   - a bare reference `a`      → { $type: "",  $name: "a" }
+//   - a typed reference `t.n`   → { $type: "t", $name: "n" }
+// The engine treats an empty `$type` as "search every type by name", so no
+// compile-time type resolution is needed. A Luau table lowers to an
+// `ObjectExpression`; array-style entries (lowerTable keys them "1".."n")
+// become a JS array, keyed entries a JS object. Returns `undefined` for any
+// value that has no faithful literal form (a call, an operator expression, a
+// computed key, an interpolation) — that whole property is then left to the
+// runtime `__def` table, matching `coerceScalarLiteral`'s contract.
+function expressionToContextValue(expr: Expression | null): unknown {
+  if (!expr) return undefined;
+  if (expr instanceof NumberExpression) {
+    // Covers int / float / bool (`value` is number | boolean).
+    return expr.value;
+  }
+  if (expr instanceof StringExpression) {
+    return expr.isSingleString ? expr.toString() : undefined;
+  }
+  if (expr instanceof VariableReference) {
+    const path = expr.path;
+    if (path.length === 1) {
+      return { $type: "", $name: path[0] ?? "" };
+    }
+    if (path.length === 2) {
+      return { $type: path[0] ?? "", $name: path[1] ?? "" };
+    }
+    return undefined;
+  }
+  if (expr instanceof ObjectExpression) {
+    const entries = expr.entries;
+    if (entries.length === 0) {
+      return {};
+    }
+    // Array-style when every key is the sequential 1-based index string
+    // that `lowerTable` assigns to bare (non-keyed) entries.
+    let isArray = true;
+    for (let i = 0; i < entries.length; i += 1) {
+      if (entries[i]!.key !== String(i + 1)) {
+        isArray = false;
+        break;
+      }
+    }
+    if (isArray) {
+      const arr: unknown[] = [];
+      for (const entry of entries) {
+        const value = expressionToContextValue(entry.value);
+        if (value === undefined) return undefined;
+        arr.push(value);
+      }
+      return arr;
+    }
+    const obj: Record<string, unknown> = {};
+    for (const entry of entries) {
+      // Computed keys (`[expr] =`) can't be resolved at compile time.
+      if (typeof entry.key !== "string") return undefined;
+      const value = expressionToContextValue(entry.value);
+      if (value === undefined) return undefined;
+      obj[entry.key] = value;
+    }
+    return obj;
+  }
+  return undefined;
 }
 
 const METHOD_BODY_SKIP: ReadonlySet<string> = new Set([
@@ -271,10 +344,16 @@ export function lowerLuauDefine(
       const struct: Record<string, unknown> = { $type: type, $name: name };
       const flat: Record<string, unknown> = {};
       for (const prop of properties) {
-        const literal = coerceScalarLiteral(prop.rawValue);
-        if (literal !== undefined) {
-          struct[prop.name] = literal;
-          flat[prop.name] = literal;
+        // Scalars (and engine value tokens like `surface-2`) come from the
+        // raw source; tables/arrays/references fall back to the parsed
+        // expression so a `layered_image`'s `assets = { … }` reaches context.
+        let value = coerceScalarLiteral(prop.rawValue);
+        if (value === undefined) {
+          value = expressionToContextValue(prop.expr);
+        }
+        if (value !== undefined) {
+          struct[prop.name] = value;
+          flat[prop.name] = value;
         }
       }
       block.context = { [type]: { [name]: struct } };
