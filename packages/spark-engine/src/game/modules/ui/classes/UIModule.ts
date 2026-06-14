@@ -321,8 +321,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const layeredImage = this.context?.layered_image?.[name];
       if (layeredImage) {
         const images: Image[] = [];
-        for (const image of Object.values(layeredImage.assets)) {
-          images.push(...this.getImageAssets(image.$type, image.$name));
+        // `assets` can be missing/empty for a malformed or not-yet-populated
+        // layered_image — guard so one bad struct doesn't throw
+        // `Object.values(undefined)` and abort the whole UI restore.
+        for (const image of Object.values(layeredImage.assets ?? {})) {
+          if (image && typeof image === "object") {
+            images.push(...this.getImageAssets(image.$type, image.$name));
+          }
         }
         return images;
       }
