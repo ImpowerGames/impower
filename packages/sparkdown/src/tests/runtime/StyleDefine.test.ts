@@ -75,6 +75,33 @@ end
     expect(s["image"]).toBe("black");
     expect(s["aspect_ratio"]).toBe("4/3");
   });
+
+  test("`<type>.<name>` references resolve to { $type, $name } (not raw strings)", () => {
+    // The style→CSS transformer turns `{ $type, $name }` into
+    // `var(--theme-<type>-<name>)`; a raw `"image.ui_dialogue_box"` string
+    // would become the invalid `var(--theme-image-image.ui_dialogue_box)`,
+    // so the dialogue box / fonts silently fail to render.
+    const r = compileStyle(`style dialogue_background with
+  background_image = image.ui_dialogue_box
+  font_family = font.courier_prime_sans
+  position = absolute
+  aspect_ratio = 1341/381
+end
+`);
+    expect(r.errors).toEqual([]);
+    const s = r.style["dialogue_background"];
+    expect(s["background_image"]).toEqual({
+      $type: "image",
+      $name: "ui_dialogue_box",
+    });
+    expect(s["font_family"]).toEqual({
+      $type: "font",
+      $name: "courier_prime_sans",
+    });
+    // Non-references (keyword, ratio) stay raw strings.
+    expect(s["position"]).toBe("absolute");
+    expect(s["aspect_ratio"]).toBe("1341/381");
+  });
 });
 
 describe("style · nested (breakpoints + selectors)", () => {
