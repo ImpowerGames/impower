@@ -31,6 +31,20 @@ export class VariableAssignment extends ParsedObject {
   // (`as character` where `character` is never `define`d).
   public isDefineDeclaration: boolean = false;
 
+  // Set when this is a same-name different-type define that lost the
+  // global-name slot to an earlier define (e.g. `define raffles as synth`
+  // after `define raffles as character`). Its struct still reaches the
+  // engine type-namespaced via the lowerer's `context` emission, but its
+  // runtime table is suppressed: it's NOT added to `variableDeclarations`,
+  // so its `__def(...)` expression is never generated into a runtime
+  // container — which means its inner `-> __def` divert never gets a
+  // `runtimeDivert`. Skipping its `ResolveReferences` avoids the
+  // `runtimeDivert` getter throwing mid-pass (which would abort reference
+  // resolution for everything after it — e.g. leaving later choices'
+  // return-target paths null and crashing serialization). See
+  // FlowBase.AddNewVariableDeclaration.
+  public isSuppressedDuplicateDefine: boolean = false;
+
   override get typeName() {
     if (this.listDefinition !== null) {
       return "list";
@@ -147,6 +161,16 @@ export class VariableAssignment extends ParsedObject {
   };
 
   public override ResolveReferences(context: Story): void {
+    // A suppressed duplicate define has no generated runtime expression,
+    // so resolving its children (the `__def(...)` call → `-> __def` divert)
+    // would throw on the never-set `runtimeDivert` and abort the entire
+    // resolve pass. It contributes only its type-namespaced struct (already
+    // emitted via the lowerer's `context`), so there's nothing here to
+    // resolve. See isSuppressedDuplicateDefine.
+    if (this.isSuppressedDuplicateDefine) {
+      return;
+    }
+
     super.ResolveReferences(context);
 
     // List and struct definitions are checked for conflicts separately

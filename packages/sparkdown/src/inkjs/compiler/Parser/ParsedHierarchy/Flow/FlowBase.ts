@@ -211,6 +211,13 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         existingType &&
         newType !== existingType
       ) {
+        // The second define keeps its type-namespaced struct (emitted via
+        // the lowerer's `context`), but loses the flat global slot. Mark
+        // it so its `ResolveReferences` is skipped — its `__def` expression
+        // was never generated (not in `variableDeclarations`), so resolving
+        // its `-> __def` divert would throw and abort the whole resolve
+        // pass. See VariableAssignment.isSuppressedDuplicateDefine.
+        varDecl.isSuppressedDuplicateDefine = true;
         return;
       }
 
