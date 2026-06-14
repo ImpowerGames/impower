@@ -27,6 +27,17 @@ import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequent
 // body's content nodes (Text runs interleaved with lowered `{expr}`
 // interpolation expressions), followed by a trailing newline Text.
 
+// Line-type → the routing marker the interpreter's `TARGETED_TEXT_REGEX`
+// expects as a `<marker>:` text prefix. Mirrors the grammar markers
+// (`InlineTitle` `^:`, `InlineHeading` `$:`, `InlineTransitional` `%:`) and
+// the engine's `config.interpreter.directives`. `action` has no marker (it's
+// the default target); `dialogue`/`write` use the character/layer identifier.
+const DIRECTIVE_MARKERS: Record<string, string> = {
+  title: "^",
+  heading: "$",
+  transitional: "%",
+};
+
 function buildDisplayContent(
   parent: SyntaxNode,
   bodyStart: number,
@@ -51,16 +62,28 @@ function buildDisplayContent(
     content.push(new Tag(true));
     content.push(new Text(identifier ? `${lineType}:${identifier}` : lineType));
     content.push(new Tag(false));
-    // Emit the character cue as a `CHARACTER:` prefix in the VISIBLE text.
-    // The engine's interpreter (InterpreterModule.queue) routes display
-    // content to the dialogue vs. action target by parsing this text prefix
-    // (TARGETED_TEXT_REGEX) — it does NOT read the line-type tag above. Without
-    // the prefix every dialogue line falls through to the default `action`
-    // target (rendered as action: wrong element, no dialogue box, wrong
-    // color). The legacy compiler emitted `CHARACTER:\n…` here; mirror it. The
-    // interpreter consumes the prefix, so it isn't shown literally in-game.
-    if (lineType === "dialogue" && identifier) {
-      content.push(new Text(`${identifier}: `));
+    // Emit the line's routing PREFIX in the VISIBLE text. The engine's
+    // interpreter (InterpreterModule.queue) routes display content to a target
+    // (dialogue / title / heading / transitional / layer) by parsing a
+    // `<prefix>:` text prefix (TARGETED_TEXT_REGEX) — it does NOT read the
+    // line-type tag above. Without it, every non-action line falls through to
+    // the default `action` target (wrong element + styling: e.g. dialogue with
+    // no box, wrong color). The legacy compiler emitted these prefixes; mirror
+    // them. The interpreter consumes the prefix, so it isn't shown literally.
+    // A colon+SPACE (not `:\n`) keeps the prefix on the same line as the body,
+    // so the cue + body stay in one Continue() (a newline would split them and
+    // the body would lose the prefix). Directive markers (`^`/`$`/`%`) mirror
+    // the grammar markers and `config.interpreter.directives`.
+    const prefix =
+      lineType === "dialogue" && identifier
+        ? `${identifier}:`
+        : lineType === "write" && identifier
+          ? `@${identifier}:`
+          : DIRECTIVE_MARKERS[lineType]
+            ? `${DIRECTIVE_MARKERS[lineType]}:`
+            : "";
+    if (prefix) {
+      content.push(new Text(`${prefix} `));
     }
   }
   content.push(

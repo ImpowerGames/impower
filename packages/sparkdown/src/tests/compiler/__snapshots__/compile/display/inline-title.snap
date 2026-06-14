@@ -17,6 +17,10 @@
         },
         {
           "type": "Text",
+          "text": "^: "
+        },
+        {
+          "type": "Text",
           "text": "THE TALE OF THE SPARK"
         },
         {

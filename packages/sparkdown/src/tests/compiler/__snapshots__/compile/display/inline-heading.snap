@@ -17,6 +17,10 @@
         },
         {
           "type": "Text",
+          "text": "$: "
+        },
+        {
+          "type": "Text",
           "text": "A MOONLIT ROOFTOP"
         },
         {

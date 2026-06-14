@@ -17,6 +17,10 @@
         },
         {
           "type": "Text",
+          "text": "@target: "
+        },
+        {
+          "type": "Text",
           "text": "some content\n more content"
         },
         {
