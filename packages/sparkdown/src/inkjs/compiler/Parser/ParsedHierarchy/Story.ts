@@ -723,6 +723,15 @@ export class Story extends FlowBase {
         obj !== value &&
         value.variableAssignment !== obj
       ) {
+        // Same-name structs of DIFFERENT types are namespaced
+        // (context[type][name] — e.g. `define raffles as character` +
+        // `define raffles as synth`), so they don't conflict. Two of the
+        // SAME type still do.
+        const objType = (obj as { type?: { name?: string } })?.type?.name;
+        const valType = value.type?.name;
+        if (objType && valType && objType !== valType) {
+          continue;
+        }
         this.NameConflictError(obj, identifier, value.identifier || value);
       }
     }

@@ -196,6 +196,24 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     if (this.variableDeclarations.has(varName)) {
       const varab = this.variableDeclarations.get(varName)!;
 
+      // Same-name defines of DIFFERENT engine types coexist — e.g.
+      // `define raffles as character` + `define raffles as synth`. They
+      // register as type-namespaced structs (context.character.raffles /
+      // context.synth.raffles, picked up via FindAll(StructDefinition)),
+      // not a single flat global, so this isn't a real collision. (Two
+      // defines of the SAME type, or a define vs a plain var, still error.)
+      const newType = varDecl.structDefinition?.type?.name;
+      const existingType = varab.structDefinition?.type?.name;
+      if (
+        varDecl.isDefineDeclaration &&
+        varab.isDefineDeclaration &&
+        newType &&
+        existingType &&
+        newType !== existingType
+      ) {
+        return;
+      }
+
       if (!varDecl.isPropertyDeclaration) {
         this.Error(
           `Duplicate identifier \`${varName}\`. A ${varab.typeName.toLowerCase()} named \`${varName}\` already exists on ${
