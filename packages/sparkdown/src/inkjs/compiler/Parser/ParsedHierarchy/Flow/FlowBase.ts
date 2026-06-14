@@ -211,13 +211,21 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         existingType &&
         newType !== existingType
       ) {
-        // The second define keeps its type-namespaced struct (emitted via
-        // the lowerer's `context`), but loses the flat global slot. Mark
-        // it so its `ResolveReferences` is skipped — its `__def` expression
-        // was never generated (not in `variableDeclarations`), so resolving
-        // its `-> __def` divert would throw and abort the whole resolve
-        // pass. See VariableAssignment.isSuppressedDuplicateDefine.
-        varDecl.isSuppressedDuplicateDefine = true;
+        // The first define keeps the flat global slot (`raffles`); the
+        // second registers as a type-namespaced singleton instead of
+        // fighting for it — matching how `context` namespaces them
+        // (context.character.raffles / context.synth.raffles). Its runtime
+        // table is stored under a synthetic global key, but `__def(table,
+        // "raffles", "synth")` still registers it into the `synth` type
+        // table, so `synth.raffles` resolves. Critically it stays in
+        // `variableDeclarations`, so its `__def` expression IS generated
+        // (its `-> __def` divert gets a runtimeDivert) and ResolveReferences
+        // doesn't throw and abort the pass. The `$type_name` key can't
+        // collide with a script identifier (`$` is not legal in one).
+        const qualifiedKey = `$${newType}_${varName}`;
+        if (!this.variableDeclarations.has(qualifiedKey)) {
+          this.variableDeclarations.set(qualifiedKey, varDecl);
+        }
         return;
       }
 
