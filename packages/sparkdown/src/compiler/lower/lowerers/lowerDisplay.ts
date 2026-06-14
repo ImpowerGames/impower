@@ -48,7 +48,6 @@ function buildDisplayContent(
   identifier: string | null,
   options: { leadingGlue?: boolean } = {},
 ): ParsedObject[] {
-  const content: ParsedObject[] = [];
   if (options.leadingGlue) {
     // `..` glue marker — emitted first so the runtime's output-stream trim
     // walks past the previous line's trailing newline. For glued lines we
@@ -57,42 +56,99 @@ function buildDisplayContent(
     // removing the existing Glue once real body text arrives, leaving the
     // Glue in the stream and causing subsequent newlines to be dropped. The
     // glued content conceptually inherits the previous line's type anyway.
+    // Glued content is never split at breaks (it's a continuation, not a
+    // standalone beat).
+    const content: ParsedObject[] = [];
     content.push(new ParsedGlue(new RuntimeGlue()));
-  } else {
+    content.push(
+      ...processDisplayBody(parent, bodyStart, bodyEnd, ctx, mode, {
+        preserveLeadingWhitespace: true,
+      }),
+    );
+    content.push(new Text("\n"));
+    return content;
+  }
+
+  // A mid-line `>` BREAK marker splits the display content into separate
+  // BEATS. Each beat is a standalone Continue() at the runtime level (a
+  // plain newline between the previous beat's body and the next beat's
+  // routing tag/prefix forms an output-stream boundary the engine stops
+  // on), so the screenplay preview / planRoute can route to each beat by
+  // its own checkpoint. Without this split, a chained dialogue compiles to
+  // ONE Continue: the interpreter's `BREAK_BOX_REGEX` still renders two
+  // textboxes, but they share a single story-path checkpoint, so every box
+  // after the first is unreachable by the preview. Each beat re-emits the
+  // line-type tag + routing prefix so the continuation routes to the same
+  // target (e.g. the same character's dialogue). A TRAILING break (`>` with
+  // no content after — no following newline) is NOT a split point; it's
+  // handled inside `processDisplayBody` (`detectTrailingBreak`) as an extra
+  // newline, matching the legacy compiler.
+  const prefix = computeRoutingPrefix(lineType, identifier);
+  const ranges = splitBodyRangeAtBreaks(bodyStart, bodyEnd, ctx);
+  const content: ParsedObject[] = [];
+  for (const range of ranges) {
     content.push(new Tag(true));
     content.push(new Text(identifier ? `${lineType}:${identifier}` : lineType));
     content.push(new Tag(false));
     // Emit the line's routing PREFIX in the VISIBLE text. The engine's
-    // interpreter (InterpreterModule.queue) routes display content to a target
-    // (dialogue / title / heading / transitional / layer) by parsing a
-    // `<prefix>:` text prefix (TARGETED_TEXT_REGEX) — it does NOT read the
-    // line-type tag above. Without it, every non-action line falls through to
-    // the default `action` target (wrong element + styling: e.g. dialogue with
-    // no box, wrong color). The legacy compiler emitted these prefixes; mirror
-    // them. The interpreter consumes the prefix, so it isn't shown literally.
-    // A colon+SPACE (not `:\n`) keeps the prefix on the same line as the body,
-    // so the cue + body stay in one Continue() (a newline would split them and
-    // the body would lose the prefix). Directive markers (`^`/`$`/`%`) mirror
-    // the grammar markers and `config.interpreter.directives`.
-    const prefix =
-      lineType === "dialogue" && identifier
-        ? `${identifier}:`
-        : lineType === "write" && identifier
-          ? `@${identifier}:`
-          : DIRECTIVE_MARKERS[lineType]
-            ? `${DIRECTIVE_MARKERS[lineType]}:`
-            : "";
+    // interpreter (InterpreterModule.queue) routes display content to a
+    // target (dialogue / title / heading / transitional / layer) by parsing
+    // a `<prefix>:` text prefix (TARGETED_TEXT_REGEX) — it does NOT read the
+    // line-type tag above. Without it, every non-action line falls through
+    // to the default `action` target (wrong element + styling: e.g. dialogue
+    // with no box, wrong color). A colon+SPACE keeps the prefix on the same
+    // line as the body so the cue + body stay in one Continue().
     if (prefix) {
       content.push(new Text(`${prefix} `));
     }
+    content.push(...processDisplayBody(parent, range.from, range.to, ctx, mode));
+    content.push(new Text("\n"));
   }
-  content.push(
-    ...processDisplayBody(parent, bodyStart, bodyEnd, ctx, mode, {
-      preserveLeadingWhitespace: options.leadingGlue,
-    }),
-  );
-  content.push(new Text("\n"));
   return content;
+}
+
+// The routing prefix the interpreter expects as a `<prefix>:` text prefix.
+// Directive markers (`^`/`$`/`%`) mirror the grammar markers and the
+// engine's `config.interpreter.directives`; dialogue/write use the
+// character/layer identifier; action has no prefix (default target).
+function computeRoutingPrefix(
+  lineType: string,
+  identifier: string | null,
+): string {
+  return lineType === "dialogue" && identifier
+    ? `${identifier}:`
+    : lineType === "write" && identifier
+      ? `@${identifier}:`
+      : DIRECTIVE_MARKERS[lineType]
+        ? `${DIRECTIVE_MARKERS[lineType]}:`
+        : "";
+}
+
+// Split a display body's source range into beat sub-ranges at each mid-line
+// `>` BREAK marker (` >` at end of a line that is FOLLOWED by a newline —
+// i.e. there is more content after it). The marker itself and the trailing
+// whitespace before it are dropped (per-segment trimming in
+// `processDisplayBody` would otherwise leave a stray space). A break with no
+// following newline (trailing `>` at end of body) is left in-range and
+// handled by `detectTrailingBreak`. When there are no mid-line breaks this
+// returns a single range identical to the input, so non-chained display
+// content is unaffected.
+function splitBodyRangeAtBreaks(
+  bodyStart: number,
+  bodyEnd: number,
+  ctx: LowerContext,
+): { from: number; to: number }[] {
+  const text = ctx.read(bodyStart, bodyEnd);
+  const ranges: { from: number; to: number }[] = [];
+  const re = /[ \t]+>[ \t]*\n/g;
+  let segStart = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    ranges.push({ from: bodyStart + segStart, to: bodyStart + m.index });
+    segStart = re.lastIndex;
+  }
+  ranges.push({ from: bodyStart + segStart, to: bodyEnd });
+  return ranges;
 }
 
 // ----- Body walking with interpolation splicing -----
