@@ -559,10 +559,15 @@ const zipFiles = async (files: { uri: string }[]) => {
 
 const unzipFiles = async (data: ArrayBuffer) => {
   const unzipped = unzipSync(new Uint8Array(data));
-  const files = Object.entries(unzipped).map(([filename, data]) => ({
-    filename: getFileName(filename),
-    data: data.buffer as ArrayBuffer,
-  }));
+  const files = Object.entries(unzipped)
+    // Drop directory entries (`somedir/`) — `getFileName` returns "" for
+    // them, and an empty filename downstream makes `getFileHandle("")`
+    // throw "Name is not allowed" when the entry is written.
+    .filter(([filename]) => Boolean(getFileName(filename)))
+    .map(([filename, data]) => ({
+      filename: getFileName(filename),
+      data: data.buffer as ArrayBuffer,
+    }));
   console.log(MAGENTA, "UNZIPPED", `${files.length} files`);
   return files;
 };

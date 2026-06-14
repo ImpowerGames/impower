@@ -345,10 +345,15 @@ export default class WorkspaceFileSystem {
   async writeProjectZip(projectId: string, content: ArrayBuffer) {
     const existingFiles = await this.getFiles(projectId);
     const unzipped = await this.unzipFiles({ data: content });
-    const zipFilesToWrite = unzipped.map(({ filename, data }) => ({
-      uri: this.getFileUri(projectId, filename),
-      data,
-    }));
+    const zipFilesToWrite = unzipped
+      // Skip directory entries / empty names — `getFileUri(projectId, "")`
+      // yields the project-root URI (no filename), which makes the OPFS
+      // worker call `getFileHandle("")` and throw "Name is not allowed".
+      .filter(({ filename }) => filename && !filename.endsWith("/"))
+      .map(({ filename, data }) => ({
+        uri: this.getFileUri(projectId, filename),
+        data,
+      }));
     const zipFilesToDelete = Object.entries(existingFiles)
       .filter(
         ([uri, fileData]) =>
@@ -434,10 +439,13 @@ export default class WorkspaceFileSystem {
   async writeProjectAssetBundle(projectId: string, content: ArrayBuffer) {
     const existingFiles = await this.getFiles(projectId);
     const unzipped = await this.unzipFiles({ data: content });
-    const zipFilesToWrite = unzipped.map(({ filename, data }) => ({
-      uri: this.getFileUri(projectId, filename),
-      data,
-    }));
+    const zipFilesToWrite = unzipped
+      // Skip directory entries / empty names (see writeProjectZip).
+      .filter(({ filename }) => filename && !filename.endsWith("/"))
+      .map(({ filename, data }) => ({
+        uri: this.getFileUri(projectId, filename),
+        data,
+      }));
     const zipFilesToDelete = Object.entries(existingFiles)
       .filter(
         ([uri, fileData]) =>
