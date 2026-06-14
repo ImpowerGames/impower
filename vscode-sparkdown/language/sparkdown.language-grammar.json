@@ -330,6 +330,9 @@
     "DisplayStatements": {
       "patterns": [
         {
+          "include": "#SparkdownLineComment"
+        },
+        {
           "include": "#Title"
         },
         {
@@ -351,6 +354,46 @@
           "include": "#Action"
         }
       ]
+    },
+    "SparkdownLineComment": {
+      "tag": "lineComment",
+      "name": "comment.line.double-slash.sd",
+      "match": "^((?:[^\\S\\n\\r])*)([/]{2})(?=$|(?:[^\\S\\n\\r]))([^\\n]*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "name": "punctuation.definition.comment.sd"
+        },
+        "3": {
+          "name": "comment.line.double-slash.content.sd"
+        }
+      }
+    },
+    "SparkdownInlineComment": {
+      "tag": "lineComment",
+      "name": "comment.line.double-slash.sd",
+      "match": "((?:[^\\S\\n\\r])*)([/]{2})(?=$|(?:[^\\S\\n\\r]))([^\\r\\n]*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "name": "punctuation.definition.comment.sd"
+        },
+        "3": {
+          "name": "comment.line.double-slash.content.sd"
+        }
+      }
     },
     "Annotation": {
       "patterns": [
@@ -2000,6 +2043,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownLineComment"
+        },
+        {
           "include": "#Annotation"
         },
         {
@@ -2129,6 +2175,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#SparkdownLineComment"
+        },
         {
           "include": "#Annotation"
         },
@@ -2262,6 +2311,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#SparkdownLineComment"
+        },
         {
           "include": "#Annotation"
         },
@@ -2407,6 +2459,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#SparkdownLineComment"
+        },
         {
           "include": "#Annotation"
         },
@@ -2557,6 +2612,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#SparkdownLineComment"
+        },
         {
           "include": "#Annotation"
         },
@@ -2845,6 +2903,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#SparkdownLineComment"
+        },
         {
           "include": "#Annotation"
         },
@@ -3274,6 +3335,9 @@
           "include": "#LuauSparkdownInlineGluedConditionalAlternatorBlock"
         },
         {
+          "include": "#SparkdownInlineComment"
+        },
+        {
           "include": "#Glue"
         },
         {
@@ -3290,7 +3354,7 @@
           "include": "#DisplayText"
         }
       ],
-      "end": "(?=$|(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r]))|(?<=^|(?:[^\\S\\n\\r]))(?:[.][.])(?=$|(?:[^\\S\\n\\r]))|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$))"
+      "end": "(?=$|(?:[^\\S\\n\\r])*(?:[\\\\])(?:$|(?:[^\\S\\n\\r]))|(?<=^|(?:[^\\S\\n\\r]))(?:[.][.])(?=$|(?:[^\\S\\n\\r]))|(?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*(?:[#]+(?=$|(?:[^\\S\\n\\r]))).*$)|(?:[^\\S\\n\\r])*[/]{2}(?=$|(?:[^\\S\\n\\r])))"
     },
     "DisplayText": {
       "patterns": [

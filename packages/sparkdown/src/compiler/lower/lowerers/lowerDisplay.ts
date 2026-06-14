@@ -230,6 +230,20 @@ function collectBodySegments(
         out.push({ kind: "divert", node: next.node });
       } else if (next.kind === "tag") {
         out.push({ kind: "tag", node: next.node });
+      } else if (next.kind === "comment") {
+        // Emit nothing — the comment is removed. Swallow the trailing
+        // newline ONLY for a whole-line comment (nothing but indent before
+        // the `//`), so the line vanishes cleanly. For a hypothetical
+        // end-of-line comment with text before it (`say hi // note`), keep
+        // the newline — otherwise the next line would merge onto this one.
+        const wholeLine =
+          next.from <= bodyStart || ctx.read(next.from - 1, next.from) === "\n";
+        i = next.to;
+        if (wholeLine && i < bodyEnd && ctx.read(i, i + 1) === "\n") {
+          i++;
+        }
+        idx++;
+        continue;
       } else {
         out.push({ kind: "inlineGluedAlt", node: next.node });
       }
@@ -250,7 +264,7 @@ function collectBodySegments(
 }
 
 interface BodyInjection {
-  kind: "expr" | "divert" | "inlineGluedAlt" | "tag";
+  kind: "expr" | "divert" | "inlineGluedAlt" | "tag" | "comment";
   node: SyntaxNode;
   from: number;
   to: number;
@@ -324,6 +338,19 @@ function collectTopLevelInjections(
       if (node.name === "Tags") {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "tag", node, from: node.from, to: node.to });
+        }
+        return;
+      }
+      // A `//` display comment inside a display body (e.g. a `// note`
+      // line under a dialogue cue). Splice it out entirely — it contributes
+      // no text. The trailing newline is consumed in collectBodySegments so
+      // the line vanishes rather than leaving a blank.
+      if (
+        node.name === "SparkdownLineComment" ||
+        node.name === "SparkdownInlineComment"
+      ) {
+        if (node.from >= bodyStart && node.to <= bodyEnd) {
+          out.push({ kind: "comment", node, from: node.from, to: node.to });
         }
         return;
       }

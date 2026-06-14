@@ -258,6 +258,12 @@ repository:
 
   DisplayStatements:
     patterns:
+      # `//` line comment for DISPLAY/prose contexts only. Luau scope uses
+      # `--` for comments (and `//` for floor division); display uses `--`
+      # for em-dashes, so `//` is the prose comment. DisplayStatements is
+      # NOT included in Luau-code contexts, so this never shadows `//`
+      # floor division there. First, so a `//` line isn't eaten as Action.
+      - { include: "#SparkdownLineComment" }
       - { include: "#Title" }
       - { include: "#Heading" }
       - { include: "#Transitional" }
@@ -265,6 +271,45 @@ repository:
       - { include: "#Dialogue" }
       - { include: "#AssetLine" }
       - { include: "#Action" }
+
+  # A whole-line `//` comment (after optional indent). Display-only — see
+  # DisplayStatements. The captures tile the line so the parser advances.
+  # `//` must be followed by whitespace or end-of-line (mirroring the `#`
+  # tag convention `[#]+(?=$|{{WS}})`); this also keeps a protocol URL like
+  # `//cdn…` — where a non-space follows `//` — from reading as a comment.
+  SparkdownLineComment:
+    tag: lineComment
+    name: comment.line.double-slash.sd
+    match: ^({{WS}}*)([/]{2})(?=$|{{WS}})([^\n]*)$
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        name: punctuation.definition.comment.sd
+      3:
+        name: comment.line.double-slash.content.sd
+
+  # An end-of-line `//` comment that follows display text on the same line
+  # (e.g. `Some dialogue. // a note`). `//` must be followed by whitespace or
+  # end-of-line (the marker convention), so a URL (`https://…`) — where `//`
+  # is followed by a host char — is never mistaken for a comment. Any
+  # whitespace BEFORE `//` is consumed into the comment so no trailing space
+  # is left on the visible text. Whole-line comments are handled earlier by
+  # SparkdownLineComment; this only fires mid-line, reached from DisplayLine
+  # after TextChunk yields at the `//` boundary.
+  SparkdownInlineComment:
+    tag: lineComment
+    name: comment.line.double-slash.sd
+    match: ({{WS}}*)([/]{2})(?=$|{{WS}})([^\r\n]*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        name: punctuation.definition.comment.sd
+      3:
+        name: comment.line.double-slash.content.sd
 
   ########## Annotation ##########
 
@@ -1407,6 +1452,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
@@ -1469,6 +1515,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
@@ -1534,6 +1581,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
@@ -1603,6 +1651,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
@@ -1676,6 +1725,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
@@ -1834,6 +1884,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
@@ -2039,6 +2090,9 @@ repository:
       # begin pattern fails to match and the Glue rule takes over.
       - { include: "#LuauSparkdownInlineGluedSequentialAlternatorBlock" }
       - { include: "#LuauSparkdownInlineGluedConditionalAlternatorBlock" }
+      # End-of-line `//` comment after text — must come before Glue/TextChunk
+      # so the ` //…` tail is consumed as a comment rather than display text.
+      - { include: "#SparkdownInlineComment" }
       - { include: "#Glue" }
       - { include: "#TextChunk" }
 
@@ -2048,7 +2102,7 @@ repository:
     begin: (?=.+)
     patterns:
       - { include: "#DisplayText" }
-    end: (?=$|{{WS}}*{{CHAIN}}(?:$|{{WS}})|{{GLUE}}|{{EOL}})
+    end: (?=$|{{WS}}*{{CHAIN}}(?:$|{{WS}})|{{GLUE}}|{{EOL}}|{{WS}}*[/]{2}(?=$|{{WS}}))
 
   DisplayText:
     patterns:
