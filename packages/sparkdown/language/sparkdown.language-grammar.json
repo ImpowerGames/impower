@@ -6601,6 +6601,9 @@
           "include": "#FlowStatements"
         },
         {
+          "include": "#Annotation"
+        },
+        {
           "include": "#DisplayStatements"
         },
         {
@@ -6677,6 +6680,9 @@
         },
         {
           "include": "#FlowStatements"
+        },
+        {
+          "include": "#Annotation"
         },
         {
           "include": "#DisplayStatements"

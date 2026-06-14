@@ -4222,6 +4222,12 @@ repository:
       - { include: "#LuauExplicitStatement" }
       - { include: "#LuauDeclarations" }
       - { include: "#FlowStatements" }
+      # `#`/`##` section tags and `[[...]]` annotations are scene content
+      # the body can contain. Without #Annotation the parser can't advance
+      # through a standalone tag line (e.g. `## FinalImage`) and spins on
+      # empty matches ("possible infinite loop"). Before DisplayStatements
+      # so a tag line isn't swallowed as Action text.
+      - { include: "#Annotation" }
       - { include: "#DisplayStatements" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -4263,6 +4269,10 @@ repository:
       - { include: "#LuauDeclarations" }
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#FlowStatements" }
+      # See LuauSparkdownChooseBlock: `#`/`##` section tags must be
+      # matched here too, or a standalone tag line in the then-body spins
+      # on empty matches.
+      - { include: "#Annotation" }
       - { include: "#DisplayStatements" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
