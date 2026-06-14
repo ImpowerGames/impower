@@ -12,6 +12,7 @@
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 const compile = (text: string) => {
   const compiler = new SparkdownCompiler();
@@ -78,5 +79,41 @@ end
       base: { $type: "", $name: "bg_base" },
       overlay: { $type: "", $name: "bg_overlay" },
     });
+  });
+
+  test("a define whose table holds DOTTED struct refs still compiles to a runnable story", () => {
+    // `audio.mus_a_bass` is a struct reference, not a runtime global lookup.
+    // Evaluating it live at init would index the `audio` type global (nil,
+    // since nothing inherits from `audio`) and throw — unsetting
+    // `program.compiled`. The runtime `__def` table must instead hold inert
+    // `{ $type, $name }` literals. Guards that the story is runnable.
+    const result = compile(`-> main
+
+define mus_a_group as layered_audio with
+  assets = {
+    audio.mus_a_bass,
+    audio.mus_a_flute,
+  }
+end
+
+scene main
+  Hello.
+  done
+end
+`);
+    // Context carries the typed refs.
+    const la = result.program.context?.["layered_audio"]?.["mus_a_group"];
+    expect(la!["assets"]).toEqual([
+      { $type: "audio", $name: "mus_a_bass" },
+      { $type: "audio", $name: "mus_a_flute" },
+    ]);
+    // And the story actually compiled + runs (no init throw).
+    expect((result.program as any).compiled).toBeDefined();
+    const story = new RuntimeStory((result.program as any).compiled);
+    const errors: string[] = [];
+    story.onError = (m: string) => errors.push(m);
+    const out = story.ContinueMaximally();
+    expect(errors).toEqual([]);
+    expect(out).toContain("Hello.");
   });
 });

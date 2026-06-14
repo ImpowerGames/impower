@@ -179,6 +179,59 @@ function expressionToContextValue(expr: Expression | null): unknown {
   return undefined;
 }
 
+// True if a computed context value contains a struct reference anywhere
+// (a `{ $type, $name }` marker). Only such values need the runtime-table
+// substitution below — a reference is the thing that would be evaluated as
+// a global lookup at init.
+function containsStructRef(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some(containsStructRef);
+  }
+  if (value && typeof value === "object") {
+    const v = value as Record<string, unknown>;
+    if ("$type" in v && "$name" in v) return true;
+    return Object.values(v).some(containsStructRef);
+  }
+  return false;
+}
+
+// Rebuild a static literal Expression from a computed context value — the
+// inverse of `expressionToContextValue`. Used to replace a define
+// property's RUNTIME table expression when it holds struct references, so
+// the `__def` table is built from inert `{ $type, $name }` literals instead
+// of evaluating `audio.mus_a_bass` (which would index the `audio` type
+// global — nil unless some define inherits from it — and throw at init).
+// This matches the legacy colon-form, where a struct property's references
+// were always compile-time `{ $type, $name }` data, never runtime lookups.
+function contextValueToExpression(value: unknown): Expression {
+  if (typeof value === "boolean") {
+    return new NumberExpression(value, "bool");
+  }
+  if (typeof value === "number") {
+    return new NumberExpression(value, Number.isInteger(value) ? "int" : "float");
+  }
+  if (typeof value === "string") {
+    return new StringExpression([new Text(value)]);
+  }
+  if (Array.isArray(value)) {
+    return new ObjectExpression(
+      value.map(
+        (v, i) =>
+          new ObjectExpressionEntry(String(i + 1), contextValueToExpression(v)),
+      ),
+    );
+  }
+  if (value && typeof value === "object") {
+    return new ObjectExpression(
+      Object.entries(value as Record<string, unknown>).map(
+        ([k, v]) => new ObjectExpressionEntry(k, contextValueToExpression(v)),
+      ),
+    );
+  }
+  // null / undefined shouldn't reach here (only substituted values do).
+  return new ObjectExpression([]);
+}
+
 const METHOD_BODY_SKIP: ReadonlySet<string> = new Set([
   "LuauFunctionDeclarationName",
   "LuauFunctionName",
@@ -238,7 +291,21 @@ export function lowerLuauDefine(
   // ----- The runtime table: __def({ props, methods, modifier lists }, name, parent)
   const entries: ObjectExpressionEntry[] = [];
   for (const prop of properties) {
-    entries.push(new ObjectExpressionEntry(prop.name, prop.expr));
+    // A table-valued property that holds struct references (e.g. a
+    // `layered_image`'s `assets = { audio.x, bg_y }`) must NOT be evaluated
+    // as live Luau at init — `audio.x` indexes the `audio` type global,
+    // which is nil unless a define inherits from it, and throws. Substitute
+    // an inert `{ $type, $name }` literal (matching context + the legacy
+    // colon-form). Bare single-identifier refs (`leader = hero`) are caught
+    // by `coerceScalarLiteral` and keep their runtime-object behavior.
+    let entryExpr: Expression = prop.expr;
+    if (coerceScalarLiteral(prop.rawValue) === undefined) {
+      const ctxValue = expressionToContextValue(prop.expr);
+      if (ctxValue !== undefined && containsStructRef(ctxValue)) {
+        entryExpr = contextValueToExpression(ctxValue);
+      }
+    }
+    entries.push(new ObjectExpressionEntry(prop.name, entryExpr));
   }
   for (const method of methodNodes) {
     const closure = lowerDefineMethod(method.name, method.node, ctx);
