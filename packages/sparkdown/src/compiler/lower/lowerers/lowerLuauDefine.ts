@@ -74,6 +74,36 @@ interface DefineProperty {
   // "read" | "write" | "" — from LuauAccessModifier.
   access: string;
   node: SyntaxNode;
+  // Raw source text of the assigned value (after the `=`), used to emit
+  // a compile-time literal into the engine struct registry. See the
+  // context-emission note in `lowerLuauDefine`.
+  rawValue: string;
+}
+
+// Coerce a raw property-value source string to a compile-time literal for
+// the engine struct registry: strip surrounding quotes (string), parse
+// numbers / booleans, otherwise keep the raw string (the engine's value
+// system interprets things like `surface-2` / `md`). Returns `undefined`
+// for values that aren't simple scalars (objects, arrays, multi-line or
+// logic expressions) — those have no faithful literal form and are left
+// out of the registry (the runtime `__def` table remains their source of
+// truth).
+function coerceScalarLiteral(raw: string): unknown {
+  const s = raw.trim();
+  if (!s || s.includes("\n")) return undefined;
+  if (s.startsWith("{") || s.startsWith("[")) return undefined;
+  if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
+    return s.slice(1, -1);
+  }
+  if (s.length >= 2 && s.startsWith("'") && s.endsWith("'")) {
+    return s.slice(1, -1);
+  }
+  if (s === "true") return true;
+  if (s === "false") return false;
+  if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+  // A bare identifier / reference / call is not a literal we can store.
+  if (/[()]/.test(s)) return undefined;
+  return s;
 }
 
 const METHOD_BODY_SKIP: ReadonlySet<string> = new Set([
@@ -187,8 +217,20 @@ export function lowerLuauDefine(
   // DATA properties (the engine never consumes methods).
   let structDef: StructDefinition | null = null;
   if (parentIdentifier) {
+    // Property level must be > 0. `StructDefinition.BuildValue` walks the
+    // property list as an indentation tree seeded with a level-0 root
+    // sentinel; a property at level 0 pops that sentinel (the
+    // `prop.level <= parentLevel` test), leaving no parent to attach to,
+    // so EVERY property is silently dropped and the struct serializes as
+    // an empty `{$type,$name}`. The colon form's props are indented under
+    // the header (level ≥ 1), which is why they survive. These OOP-define
+    // props are a flat sibling list, so they all sit at a single level 1
+    // (nesting is carried inside each prop's ObjectExpression, not via the
+    // level). Without this, `define X as character` registers the struct
+    // KEY but with no `name` prop, so the engine can't match a dialogue
+    // cue (`RAFFLES:`) to its character and every cue warns + no portrait.
     const propertyDefs = properties.map(
-      (p) => new StructPropertyDefinition(0, new Identifier(p.name), p.expr),
+      (p) => new StructPropertyDefinition(1, new Identifier(p.name), p.expr),
     );
     structDef = new StructDefinition(propertyDefs);
     structDef.name = nameIdentifier;
@@ -204,7 +246,43 @@ export function lowerLuauDefine(
     isDefineDeclaration: true,
   });
 
-  return wrapInWeave([declaration]);
+  const block = wrapInWeave([declaration]);
+
+  // ----- Compile-time struct registry (engine specs) for typed defines.
+  //
+  // A typed OOP define (`define raffles as character with name = "RAFFLES"`)
+  // carries a StructDefinition above, but that parsed-hierarchy → engine
+  // serialization path emits an EMPTY struct for OOP defines (the runtime
+  // `__def` table is treated as their source of truth), so the struct
+  // never lands in `program.context` / `contextPropertyRegistry`. The
+  // engine's reference resolver (`resolveSelector`) only consults those,
+  // so e.g. a dialogue cue `RAFFLES:` can't find its character — every cue
+  // warns and no portrait renders. The structural UI lowerers
+  // (style/screen/component) hit the same wall and solve it by emitting
+  // directly through the chunk's `context` field; do the same here for the
+  // scalar (engine-relevant) properties. `resolveSelector` prefers
+  // `contextPropertyRegistry` when present, and its property/value match
+  // (cue → character by `name`) reads BOTH, so populate both. Non-scalar
+  // props are left to the runtime table (see `coerceScalarLiteral`).
+  if (parentIdentifier) {
+    const type = parentIdentifier.name ?? "";
+    const name = nameIdentifier.name ?? "";
+    if (type && name) {
+      const struct: Record<string, unknown> = { $type: type, $name: name };
+      const flat: Record<string, unknown> = {};
+      for (const prop of properties) {
+        const literal = coerceScalarLiteral(prop.rawValue);
+        if (literal !== undefined) {
+          struct[prop.name] = literal;
+          flat[prop.name] = literal;
+        }
+      }
+      block.context = { [type]: { [name]: struct } };
+      block.contextPropertyRegistry = { [type]: { [name]: flat } };
+    }
+  }
+
+  return block;
 }
 
 // Lower one method member into a hoisted anonymous Function knot with
@@ -286,6 +364,12 @@ function readPropertyDefinition(
   const expr = opNode ? lowerExpressionFromContainer(opNode, ctx) : null;
   if (!expr) return null;
 
+  // Raw value source (everything after the assignment operator), for the
+  // compile-time struct registry. Strip the leading `... =` token.
+  const rawValue = opNode
+    ? ctx.read(opNode.from, opNode.to).replace(/^[^=]*=\s*/, "")
+    : "";
+
   // Modifiers live in the property's begin captures, OUTSIDE the
   // variable assignment.
   const scopeNode = getDescendent("LuauScopeModifier", propNode);
@@ -297,5 +381,5 @@ function readPropertyDefinition(
     ? ctx.read(accessNode.from, accessNode.to).trim()
     : "";
 
-  return { name, expr, scope, access, node: propNode };
+  return { name, expr, scope, access, node: propNode, rawValue };
 }
