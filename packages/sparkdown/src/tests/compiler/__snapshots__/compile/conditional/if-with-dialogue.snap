@@ -41,6 +41,10 @@
                     },
                     {
                       "type": "Text",
+                      "text": "N: "
+                    },
+                    {
+                      "type": "Text",
                       "text": "I trust you."
                     },
                     {
@@ -76,6 +80,10 @@
                     {
                       "type": "Tag",
                       "start": false
+                    },
+                    {
+                      "type": "Text",
+                      "text": "N: "
                     },
                     {
                       "type": "Text",

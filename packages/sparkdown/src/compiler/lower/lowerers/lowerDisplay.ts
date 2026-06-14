@@ -51,6 +51,17 @@ function buildDisplayContent(
     content.push(new Tag(true));
     content.push(new Text(identifier ? `${lineType}:${identifier}` : lineType));
     content.push(new Tag(false));
+    // Emit the character cue as a `CHARACTER:` prefix in the VISIBLE text.
+    // The engine's interpreter (InterpreterModule.queue) routes display
+    // content to the dialogue vs. action target by parsing this text prefix
+    // (TARGETED_TEXT_REGEX) — it does NOT read the line-type tag above. Without
+    // the prefix every dialogue line falls through to the default `action`
+    // target (rendered as action: wrong element, no dialogue box, wrong
+    // color). The legacy compiler emitted `CHARACTER:\n…` here; mirror it. The
+    // interpreter consumes the prefix, so it isn't shown literally in-game.
+    if (lineType === "dialogue" && identifier) {
+      content.push(new Text(`${identifier}: `));
+    }
   }
   content.push(
     ...processDisplayBody(parent, bodyStart, bodyEnd, ctx, mode, {

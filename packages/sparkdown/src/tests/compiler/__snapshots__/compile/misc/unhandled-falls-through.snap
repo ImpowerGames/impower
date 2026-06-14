@@ -17,6 +17,10 @@
         },
         {
           "type": "Text",
+          "text": "N: "
+        },
+        {
+          "type": "Text",
           "text": "Do you see it?"
         },
         {

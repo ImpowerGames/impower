@@ -17,6 +17,10 @@
         },
         {
           "type": "Text",
+          "text": "O: "
+        },
+        {
+          "type": "Text",
           "text": "A meteor.\n Make a wish."
         },
         {
