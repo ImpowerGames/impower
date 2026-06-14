@@ -62,6 +62,27 @@ end
     });
   });
 
+  test("whole-line `--` Luau comments are skipped (not bogus props)", () => {
+    // style bodies are Luau contexts: `--` is the comment (`//` is floor
+    // division). A commented-out line must NOT leak as a property/CSS decl.
+    const r = compileStyle(`style panel with
+  position = absolute
+  -- background_color = rgba(0,0,0,0.8)
+  font_size = 3.4cqh
+end
+`);
+    expect(r.errors).toEqual([]);
+    // The `--` line is gone; a mid-line `--` (theme var) is untouched.
+    expect(r.style["panel"]).toEqual({
+      $type: "style",
+      $name: "panel",
+      position: "absolute",
+      font_size: "3.4cqh",
+    });
+    expect(JSON.stringify(r.style["panel"])).not.toContain("--");
+    expect(JSON.stringify(r.style["panel"])).not.toContain("background_color");
+  });
+
   test("complex CSS values kept raw; quoted strings unquoted", () => {
     const r = compileStyle(`style bg with
   translate = calc(cos(45deg)*1cqh) calc(sin(45deg*-1)*1cqh)

@@ -35,7 +35,16 @@ export function collectStructBodyLines(
     while (child) {
       if (child.name === "LuauStructBodyContent") {
         const text = ctx.read(child.from, child.to).trim();
-        if (text) {
+        // Skip whole-line `--` Luau comments. `style`/`screen`/`component`
+        // bodies are Luau contexts (where `//` is floor division, NOT a
+        // comment — so `//` is intentionally not treated as a comment here);
+        // `--` is the comment marker. The grammar captures each body line
+        // opaquely, so a comment line like `-- background_color = rgba(...)`
+        // would otherwise parse as a bogus `"-- background_color"` property and
+        // leak an invalid declaration into the generated CSS. Only WHOLE-LINE
+        // comments are skipped — a mid-line `--` can be part of a value
+        // (`var(--theme-…)`), so it is left intact.
+        if (text && !text.startsWith("--")) {
           lines.push({ indent: ctx.characterNumber(child.from), text });
         }
       } else {
