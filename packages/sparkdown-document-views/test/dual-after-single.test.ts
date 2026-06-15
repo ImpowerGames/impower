@@ -27,12 +27,9 @@
 //   2. Multi-content-line RIGHT half with directive lines between
 //      content lines causes findBlockContentEnd / reveal to miss content.
 
-import { writeFileSync, mkdirSync } from "fs";
-import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 import { extractPdfText } from "./helpers/pdfText";
-import { extractPreviewText } from "./helpers/previewText";
-import { formatRender, renderPreview } from "./helpers/renderPreview";
+import { renderPreview } from "./helpers/renderPreview";
 
 const FIXTURE =
   `BUNNY:\n` +
@@ -57,14 +54,7 @@ const FIXTURE =
 describe("dual dialogue after single dialogue (user fixture)", () => {
   it("renders the dual pair (B--  ||  Would'ya QUIT...)", () => {
     const pdf = extractPdfText(FIXTURE);
-    const preview = extractPreviewText(FIXTURE);
     const r = renderPreview(FIXTURE);
-    const dir = resolve(__dirname, "snapshots");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      resolve(dir, "dual-after-single.txt"),
-      `## fixture\n${FIXTURE}\n## pdf\n${pdf}\n## preview\n${preview}\n## rendered\n${formatRender(r)}\n`,
-    );
 
     // Sanity: PDF must contain all the visible cues and content.
     expect(pdf).toContain("BUNNY");

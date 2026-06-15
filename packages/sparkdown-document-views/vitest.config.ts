@@ -34,5 +34,13 @@ export default defineConfig({
     include: ["test/**/*.test.ts"],
     environment: "jsdom",
     pool: "threads",
+    // Run test files sequentially. These are heavy jsdom + CodeMirror tests
+    // whose rendered output depends on lezer incremental-parser warm-up state;
+    // under file parallelism the warm-up order across files is
+    // non-deterministic, which made a few separator/blank-line assertions flake
+    // intermittently. Sequential execution makes the suite deterministic. (The
+    // underlying parser warm-up sensitivity is tracked separately; this is the
+    // reliable test-harness workaround, not a timeout band-aid.)
+    fileParallelism: false,
   },
 });

@@ -7,14 +7,9 @@
 // it's inside a parent block and whether the trailing BlockLineBlank
 // is now consumed by something other than the dialogue widget itself.
 
-import { writeFileSync, mkdirSync } from "fs";
-import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 import { extractPdfText } from "./helpers/pdfText";
-import { renderPreview, formatRender } from "./helpers/renderPreview";
-
-const dir = resolve(__dirname, "snapshots");
-mkdirSync(dir, { recursive: true });
+import { renderPreview } from "./helpers/renderPreview";
 
 describe("nested-indent single-dialogue → action squish", () => {
   it("dialogue inside a 4-space-indented parent, body at 6-space indent, blank line at 6-space indent, action at 4-space indent", () => {
@@ -31,10 +26,6 @@ describe("nested-indent single-dialogue → action squish", () => {
       `    He ((sfx_shoes_stopping)) stops and gestures to...\n`;
     const pdf = extractPdfText(source);
     const r = renderPreview(source);
-    writeFileSync(
-      resolve(dir, "block-transition-nested-single-to-action.txt"),
-      `## fixture\n${source}\n## pdf\n${pdf}\n## rendered\n${formatRender(r)}\n`,
-    );
 
     // PDF parity: separator between last dialogue line and the action.
     const pdfLines = pdf.split("\n");
