@@ -20,8 +20,17 @@ export function buildDebugMetadata(
   ctx: LowerContext,
 ): DebugMetadata {
   const dm = new DebugMetadata();
-  dm.startLineNumber = ctx.lineNumber(from);
-  dm.endLineNumber = ctx.lineNumber(to);
+  // `DebugMetadata.startLineNumber` is **1-based** by the compiler's
+  // convention: the diagnostics path builds it as `lineNumberOffset + 1`,
+  // the `offsetSource` rebase treats `diagnostic.source.startLineNumber` as
+  // 1-based, and `program.pathLocations` converts back to 0-based with
+  // `startLineNumber - 1`. `ctx.lineNumber` is 0-based (chunk-relative in the
+  // annotator, absolute in the snapshot context), so `+ 1` lifts it into that
+  // 1-based convention. Without it, every lowerer-stamped entry lands one line
+  // earlier than its true source line (e.g. pathLocations / runtime error
+  // positions were systematically off by one vs the legacy compiler).
+  dm.startLineNumber = ctx.lineNumber(from) + 1;
+  dm.endLineNumber = ctx.lineNumber(to) + 1;
   dm.startCharacterNumber = ctx.characterNumber(from);
   dm.endCharacterNumber = ctx.characterNumber(to);
   if (ctx.filePath) {

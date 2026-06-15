@@ -38,12 +38,11 @@ import { runConformanceSource } from "./conformanceTestHarness";
 
 describe("per-statement debug metadata at runtime", () => {
   // Each test verifies the formatter reports the EXACT user-fixture
-  // line that `error()` was called from. The off-by-one (`best + 2`
-  // vs `best + 1`) is corrected — pathLocations stores
-  // `metadata.startLineNumber - 1` (legacy inkjs 1-based assumption)
-  // AND sparkdown's `metadata.startLineNumber` is itself 0-based
-  // (`ctx.lineNumber` returns 0-based), so the lookup needs a +2 to
-  // get back to 1-based user lines.
+  // line that `error()` was called from. `pathLocations` stores
+  // `metadata.startLineNumber - 1`, and `metadata.startLineNumber` is
+  // now correctly 1-based (`buildDebugMetadata` adds 1 to the 0-based
+  // `ctx.lineNumber`), so the stored value is the true 0-based line and
+  // the harness lookup uses `best + 1 - PREAMBLE_LINE_COUNT`.
 
   test("error() at user line 1 reports line 1", () => {
     const r = runConformanceSource(`error("oops")`, undefined, "smoke");

@@ -110,30 +110,21 @@ function buildDisplayContent(
     // source range so the screenplay preview's `findClosestPath` resolves each
     // beat to its own checkpoint (without per-beat metadata the split beats
     // carry NO pathLocations of their own, so clicking the continuation
-    // "...I think." lands on the first beat). The target is to match the legacy
-    // editor's pathLocations EXACTLY: the FIRST beat owns [cue line .. its
-    // content line], and every later beat owns only its OWN content line, so
+    // "...I think." lands on the first beat). Match the legacy editor's
+    // pathLocations EXACTLY: the FIRST beat owns [cue line .. its content
+    // line(s)], and every later beat owns only its own content line — so
     // clicking the cue or "Different rope!" routes to beat 1 and "...I think."
-    // to beat 2.
-    //
-    // Wrinkle: this port's `program.pathLocations` is built one line EARLIER
-    // than the legacy compiler's (it does `startLineNumber - 1` over the
-    // 0-based `document.lineAt`, so every entry sits at `sourceLine - 1`). To
-    // land each beat on the right line after that shift, the stamp ranges are
-    // pushed one line forward:
-    //   - first beat:  [its content line .. next beat's content line]
-    //                  → shifts to [cue line .. its content line]   ✓
-    //   - later beats: a zero-width point at the NEXT beat's content line
-    //                  (last beat uses bodyEnd, which sits on the line after
-    //                  the final content line) → shifts to [own content line] ✓
-    // Only when split (ranges.length > 1) so single-beat emission — and its
-    // dispatcher-stamped metadata — stays byte-identical.
+    // to beat 2. `parent.from` is the display construct's start (the cue line);
+    // `range.from` for a later beat is a point on its own content line (a point
+    // avoids the last beat's range extending to bodyEnd, which can sit on the
+    // line after the final content). Only when split (ranges.length > 1) so
+    // single-beat emission — and its dispatcher-stamped metadata — stays
+    // byte-identical.
     if (ranges.length > 1) {
-      const nextFrom = ranges[i + 1]?.from ?? bodyEnd;
       if (i === 0) {
-        stampDebugMetadata(beat, range.from, nextFrom, ctx);
+        stampDebugMetadata(beat, parent.from, range.to, ctx);
       } else {
-        stampDebugMetadata(beat, nextFrom, nextFrom, ctx);
+        stampDebugMetadata(beat, range.from, range.from, ctx);
       }
     }
     content.push(...beat);
