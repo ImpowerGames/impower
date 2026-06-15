@@ -110,21 +110,24 @@ function buildDisplayContent(
     // source range so the screenplay preview's `findClosestPath` resolves each
     // beat to its own checkpoint (without per-beat metadata the split beats
     // carry NO pathLocations of their own, so clicking the continuation
-    // "...I think." lands on the first beat). Match the legacy editor's
-    // pathLocations EXACTLY: the FIRST beat owns [cue line .. its content
-    // line(s)], and every later beat owns only its own content line — so
-    // clicking the cue or "Different rope!" routes to beat 1 and "...I think."
-    // to beat 2. `parent.from` is the display construct's start (the cue line);
-    // `range.from` for a later beat is a point on its own content line (a point
-    // avoids the last beat's range extending to bodyEnd, which can sit on the
-    // line after the final content). Only when split (ranges.length > 1) so
+    // "...I think." lands on the first beat). The FIRST beat owns [cue line ..
+    // its content], and every later beat owns its own content SPAN — from its
+    // first body line (which may be a leading `[[...]]`/`((...))` directive)
+    // THROUGH its dialogue text. Trailing whitespace/newline is clamped off so
+    // the range never spills onto the blank line after the beat; for a beat
+    // whose body is a single bare text line (e.g. "...I think.") the clamped
+    // span collapses to that one line, matching the legacy editor exactly. A
+    // zero-width point at `range.from` previously FAILED to cover the text when
+    // a directive preceded it on an earlier line, so clicking the dialogue line
+    // resolved to the NEXT beat. Only when split (ranges.length > 1) so
     // single-beat emission — and its dispatcher-stamped metadata — stays
     // byte-identical.
     if (ranges.length > 1) {
       if (i === 0) {
         stampDebugMetadata(beat, parent.from, range.to, ctx);
       } else {
-        stampDebugMetadata(beat, range.from, range.from, ctx);
+        const to = clampTrailingWhitespace(range.from, range.to, ctx);
+        stampDebugMetadata(beat, range.from, to, ctx);
       }
     }
     content.push(...beat);
@@ -147,6 +150,20 @@ function computeRoutingPrefix(
       : DIRECTIVE_MARKERS[lineType]
         ? `${DIRECTIVE_MARKERS[lineType]}:`
         : "";
+}
+
+// Trim trailing whitespace/newlines off a source range so a stamped beat
+// range ends at its last visible content char instead of spilling onto the
+// blank line after the beat (which would make a click on that blank line
+// resolve to this beat). Returns a position at/after `from`.
+function clampTrailingWhitespace(
+  from: number,
+  to: number,
+  ctx: LowerContext,
+): number {
+  const text = ctx.read(from, to);
+  const trimmed = text.replace(/\s+$/, "");
+  return from + trimmed.length;
 }
 
 // Split a display body's source range into beat sub-ranges at each mid-line
