@@ -4,16 +4,8 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Tag",
-          "start": true
-        },
-        {
           "type": "Text",
-          "text": "audio:play music stars"
-        },
-        {
-          "type": "Tag",
-          "start": false
+          "text": "((play music stars))"
         },
         {
           "type": "Text",

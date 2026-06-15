@@ -4,16 +4,8 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Tag",
-          "start": true
-        },
-        {
           "type": "Text",
-          "text": "image:show backdrop rooftop_night"
-        },
-        {
-          "type": "Tag",
-          "start": false
+          "text": "[[show backdrop rooftop_night]]"
         },
         {
           "type": "Text",

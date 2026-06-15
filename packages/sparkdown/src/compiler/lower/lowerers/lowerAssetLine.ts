@@ -1,22 +1,25 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendents } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendents";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
-// Asset lines lower to a sequence of Tag pairs, one per asset command:
+// Asset lines lower to their raw bracketed directive text, emitted inline:
 //
-//   [[show backdrop rooftop_night]]   → Tag(start), Text "image:show backdrop rooftop_night", Tag(end)
-//   ((play music stars))              → Tag(start), Text "audio:play music stars", Tag(end)
-//   [[show X]] ((play Y))             → emits both tags in order, then a trailing Text "\n"
+//   [[show backdrop rooftop_night]]   → Text "[[show backdrop rooftop_night]]"
+//   ((play music stars))              → Text "((play music stars))"
+//   [[show X]] ((play Y))             → Text "[[show X]]", Text "((play Y))", then Text "\n"
 //
-// V1 captures the raw command text inside the brackets. Structured parsing of
-// the instruction (control keyword, target, clauses, time values) is deferred
-// to the runtime / renderer; downstream code can re-parse the tag text.
+// The directive text survives into the runtime as display text, where the
+// InterpreterModule's `[[...]]` / `((...))` parser re-parses it into image /
+// audio instructions — the SAME path used for directives written inline at the
+// end of an action/dialogue line. (Previously these lowered to ink tags
+// `image:...` / `audio:...`, but nothing in the runtime consumed those tags, so
+// directives on their own line were silently dropped — e.g. a standalone
+// `[[show backdrop ...]]` never changed the backdrop.)
 
 export function lowerImageLine(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -43,11 +46,9 @@ function buildAssetContent(node: SyntaxNode, ctx: LowerContext): CompiledBlock {
   const content: ParsedObject[] = [];
   const commands = getDescendents(["ImageCommand", "AudioCommand"], node);
   for (const cmd of commands) {
-    const type = cmd.name === "ImageCommand" ? "image" : "audio";
-    const innerText = extractCommandContent(cmd, ctx);
-    content.push(new Tag(true));
-    content.push(new Text(`${type}:${innerText}`));
-    content.push(new Tag(false));
+    // Emit the raw bracketed directive (e.g. `[[show backdrop X]]`) so the
+    // runtime interpreter parses it exactly like an inline directive.
+    content.push(new Text(extractCommandText(cmd, ctx)));
   }
   if (content.length > 0) {
     content.push(new Text("\n"));
@@ -55,15 +56,9 @@ function buildAssetContent(node: SyntaxNode, ctx: LowerContext): CompiledBlock {
   return wrapInWeave(content);
 }
 
-// Strips the surrounding `[[` `]]` (or `((` `))`) and trims whitespace. The
-// grammar's ImageCommand/AudioCommand node may span a trailing space when
-// followed by another command on the same line, so we trim first to anchor
-// the closing-bracket match correctly.
-function extractCommandContent(cmd: SyntaxNode, ctx: LowerContext): string {
-  return ctx
-    .read(cmd.from, cmd.to)
-    .trim()
-    .replace(/^\[\[|^\(\(/, "")
-    .replace(/\]\]$|\)\)$/, "")
-    .trim();
+// Reads the raw `[[...]]` / `((...))` directive text. The grammar's
+// ImageCommand/AudioCommand node may span a trailing space when followed by
+// another command on the same line, so trim to anchor the closing bracket.
+function extractCommandText(cmd: SyntaxNode, ctx: LowerContext): string {
+  return ctx.read(cmd.from, cmd.to).trim();
 }
