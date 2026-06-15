@@ -814,7 +814,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return {
         $type: animation.$type,
         $name: animation.$name,
-        target: animation.target,
+        // `target` is optional when authoring (e.g. `define pan_left as
+        // animation with keyframes = {...}`), so default it to the animated
+        // element itself — matching `default_animation`.
+        target: animation.target ?? { $type: "layer", $name: "self" },
         keyframes,
         timing,
       };
@@ -827,7 +830,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     animation: Animation,
     animationMap: Map<Element, Animation[]>,
   ) {
-    const selector = animation.target.$name;
+    const selector = animation.target?.$name ?? "self";
     const animateEls =
       selector === "self" || element.isMatch(selector)
         ? [element]
