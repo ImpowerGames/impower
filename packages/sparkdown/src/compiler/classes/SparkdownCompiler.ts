@@ -1,11 +1,14 @@
+// Side-effect import to stabilize the inkjs engine module load order.
+// `engine/Container.ts` ↔ `engine/Value.ts` ↔ `engine/Object.ts` form a
+// dependency cycle; if `Object.ts` loads first, `Value.ts` resolves
+// `InkObject` as undefined when extending it. Forcing `Container.ts` to be the
+// entry point evaluates the cycle in a working order. This used to happen
+// implicitly via the (now-removed) `inkjs/compiler/Compiler` import; keep it
+// explicit so consumers of SparkdownCompiler don't hit a TDZ crash.
+import "../../inkjs/engine/Container";
 import { parseSparkle } from "@impower/sparkle-screen-renderer/src/parser/parser";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
-import {
-  Compiler as InkCompiler,
-  CompilerOptions as InkCompilerOptions,
-  InkList,
-} from "../../inkjs/compiler/Compiler";
 import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
@@ -28,7 +31,6 @@ import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
 import { DebugMetadata } from "../../inkjs/engine/DebugMetadata";
 import { SourceMetadata } from "../../inkjs/engine/Error";
-import { InkListItem } from "../../inkjs/engine/InkList";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
@@ -1032,104 +1034,6 @@ export class SparkdownCompiler {
     );
 
     return combinedParsedStory;
-  }
-
-  evaluate(expression: string, evaluationContext: any) {
-    const options = new InkCompilerOptions(
-      "",
-      [],
-      false,
-      (message) => {
-        console.error(message);
-      },
-      undefined,
-      undefined,
-    );
-    let script = "";
-    for (const [name, value] of Object.entries(evaluationContext)) {
-      if (typeof value === "object" && value) {
-        if ("$type" in value && value.$type === "list.def") {
-          // is list
-          const itemInitialization: string[] = [];
-          for (const [k, v] of Object.entries(value)) {
-            if (!k.startsWith("$")) {
-              itemInitialization.push(`${k}=${v}`);
-            }
-          }
-          const listInitialization =
-            itemInitialization.length === 0
-              ? `list ${name} = ()`
-              : `list ${name} = ${itemInitialization.join(", ")}`;
-          script += "\n" + listInitialization;
-        } else if ("$type" in value && value.$type === "list.var") {
-          // is list
-          const list = new InkList();
-          const itemInitialization: string[] = [];
-          for (const [k, v] of Object.entries(value)) {
-            if (!k.startsWith("$")) {
-              if (k.includes(".")) {
-                const [originName, itemName] = k.split(".");
-                list.Add(
-                  new InkListItem(originName ?? null, itemName ?? null),
-                  v as number,
-                );
-                itemInitialization.push(`${originName}.${itemName}`);
-              }
-            }
-          }
-          const listInitialization = `(${itemInitialization.join(", ")})`;
-          script += "\n" + `var ${name} = ${listInitialization}`;
-        } else {
-          // is define (not usable in expressions)
-        }
-      } else {
-        // is primitive
-        script += "\n" + `var ${name} = ${JSON.stringify(value)}`;
-      }
-    }
-    script +=
-      "\n" +
-      `
-== function » ==
-~ return ${expression}
-`.trim();
-    const inkCompiler = new InkCompiler(script, options);
-    try {
-      const story = inkCompiler.Compile();
-      if (story) {
-        const result = story.EvaluateFunction("»");
-        if (result instanceof InkList) {
-          const listDefinition = story.listDefinitions?.TryListGetDefinition(
-            expression,
-            null,
-          )?.result;
-          if (listDefinition) {
-            const listValue: Record<string, unknown> = { $type: "list.def" };
-            for (const [key, itemValue] of listDefinition.items) {
-              const keyObj = JSON.parse(key) as {
-                originName: string;
-                itemName: string;
-              };
-              listValue[keyObj.itemName] = itemValue;
-            }
-            return listValue;
-          }
-          const listValue: Record<string, unknown> = { $type: "list.var" };
-          for (const [key, value] of result.entries()) {
-            const keyObj = JSON.parse(key) as {
-              originName: string;
-              itemName: string;
-            };
-            listValue[keyObj.originName + "." + keyObj.itemName] = value;
-          }
-          return listValue;
-        }
-        return result;
-      }
-      return "<invalid expression>";
-    } catch {
-      return "<invalid expression>";
-    }
   }
 
   populateLocations(program: SparkProgram, obj: InkObject) {

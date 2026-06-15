@@ -24,7 +24,7 @@
 // We then continue the story and assert the printed output is "10" when
 // called with 5.
 
-import "../../inkjs/compiler/Compiler"; // primes class load order (see compileSnapshot)
+import "../../inkjs/engine/Container"; // primes class load order (see compileSnapshot)
 import { describe, expect, test } from "vitest";
 import { Container } from "../../inkjs/engine/Container";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
