@@ -87,7 +87,8 @@ function buildDisplayContent(
   const prefix = computeRoutingPrefix(lineType, identifier);
   const ranges = splitBodyRangeAtBreaks(bodyStart, bodyEnd, ctx);
   const content: ParsedObject[] = [];
-  for (const range of ranges) {
+  for (let i = 0; i < ranges.length; i++) {
+    const range = ranges[i]!;
     const beat: ParsedObject[] = [];
     beat.push(new Tag(true));
     beat.push(new Text(identifier ? `${lineType}:${identifier}` : lineType));
@@ -105,16 +106,26 @@ function buildDisplayContent(
     }
     beat.push(...processDisplayBody(parent, range.from, range.to, ctx, mode));
     beat.push(new Text("\n"));
-    // For a chained (break-split) dialogue, stamp EACH beat's objects with
-    // its OWN source range. Without per-beat metadata the split beats carry
-    // NO pathLocations entries of their own, so the screenplay preview's
-    // `findClosestPath` can't resolve the continuation beat ("...I think."
-    // after `Different rope! >`) to its own checkpoint — clicking it lands on
-    // the first beat. Per-beat metadata gives each beat a pathLocation
-    // covering its source line. Only when split (ranges.length > 1) so
+    // For a chained (break-split) dialogue, stamp EACH beat's objects with a
+    // source range so the screenplay preview's `findClosestPath` can resolve
+    // each beat to its own checkpoint (without per-beat metadata the split
+    // beats carry NO pathLocations of their own, so clicking the continuation
+    // "...I think." lands on the first beat).
+    //
+    // The stamp range runs from this beat's start to the NEXT beat's start
+    // (the last beat extends to bodyEnd). This deliberately spans one extra
+    // line: `program.pathLocations` builds line numbers as `startLineNumber-1`
+    // (offset via the 0-based `document.lineAt`), so every entry sits one line
+    // earlier than its true source line. Stamping `[from, nextFrom]` makes the
+    // shifted entry cover from the cue line through this beat's own content
+    // line; `findClosestPathLocation` returns the FIRST entry containing the
+    // clicked line, and beats are emitted in order, so clicking the cue or the
+    // "Different rope!" line resolves to beat 1 and "...I think." to beat 2 —
+    // matching the legacy editor. Only when split (ranges.length > 1) so
     // single-beat emission stays byte-identical.
     if (ranges.length > 1) {
-      stampDebugMetadata(beat, range.from, range.to, ctx);
+      const stampTo = ranges[i + 1]?.from ?? bodyEnd;
+      stampDebugMetadata(beat, range.from, stampTo, ctx);
     }
     content.push(...beat);
   }
