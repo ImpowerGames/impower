@@ -99,7 +99,17 @@ export function lower(
   // sub-objects (e.g. on an Identifier within the assignment) — the helper
   // skips objects that already have metadata attached.
   if (block?.content) {
-    stampDebugMetadata(block.content, nodeRef.from, nodeRef.to, ctx);
+    // Clamp trailing whitespace/newlines off the node's range before stamping
+    // so a beat's `endLineNumber` is its last VISIBLE content line, not a
+    // blank or the start of the following construct. Several grammar nodes
+    // (notably `BlockDialogue`) consume a trailing blank line and end at the
+    // start of the next line, which over-extends the stamped range one line
+    // PAST the content. That made a dialogue beat's pathLocation claim the
+    // action line right after it (e.g. `RAFFLES:` beat ending on the `Danby
+    // picks…` action line), so clicking that action previewed the dialogue.
+    const text = ctx.read(nodeRef.from, nodeRef.to);
+    const to = nodeRef.from + text.replace(/\s+$/, "").length;
+    stampDebugMetadata(block.content, nodeRef.from, to, ctx);
   }
   return block;
 }
