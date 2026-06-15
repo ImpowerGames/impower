@@ -144,8 +144,11 @@ describe("indented-blank separator after dialogue (user bug 2026-06-12)", () => 
   // Nested case: everything inside a scene means cues are at column 2,
   // dialogue body at column 4, and the trailing indented blank is at
   // column 4 (matching the body indent, NOT the cue indent).
+  // NOTE: the scene declaration is `scene NAME` (no trailing colon) — that
+  // is the keyword's syntax. A trailing `:` would start a block-action whose
+  // indented body is parsed as action text, not nested dialogue.
   const NESTED_DIALOGUE_THEN_ACTION =
-    `scene ACT_ONE:\n` +
+    `scene ACT_ONE\n` +
     `  BUNNY:\n` +
     `    Hello, world.\n` +
     `    \n` +
