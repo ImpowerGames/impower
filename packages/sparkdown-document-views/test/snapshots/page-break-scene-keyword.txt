@@ -1,0 +1,31 @@
+## source
+Action before.
+
+scene CasinoNight
+  Bunny enters.
+
+Action after.
+
+## render
+# 7 lines
+--- line 0 ---
+text: "Action before."
+html: <div class="cm-line" style="opacity: 1;">Action before.</div>
+--- line 1 ---
+text: ""
+html: <div class="cm-line collapse"><br></div>
+--- line 2 ---
+text: ""
+html: <div class="cm-line" style="opacity: 1;"><hr></div>
+--- line 3 ---
+text: "Bunny enters."
+html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">Bunny enters.</div>
+--- line 4 ---
+text: ""
+html: <div class="cm-line collapse"><br></div>
+--- line 5 ---
+text: "Action after."
+html: <div class="cm-line" style="opacity: 1;">Action after.</div>
+--- line 6 ---
+text: ""
+html: <div class="cm-line"><br></div>

@@ -1,0 +1,114 @@
+## fixture
+RAFFLES:
+  [[raffles_concerned~coat]]
+  ((sfx_emotional_modest_embarrassed_rev_0))
+  ((play music mus_m_group unmute over 5))
+  Really...?   
+  ...Nothing?? >
+  [[raffles_unsure~coat]]
+  <!>(beat)
+  ... >
+  [[raffles_unsure~coat]]
+  (gestures with ball)
+  ..."A Sticky Wicket"?
+      
+BUNNY:
+  [[bunny_realization~jacket]]
+  <!>(realizing)
+  Oh! >
+  [[bunny_point~jacket]]
+  That weird baseball show.
+
+## pdf
+<character> RAFFLES
+<dialogue> Really...?
+<dialogue> ...Nothing??
+<parenthetical> (beat)
+<dialogue> ...
+<parenthetical> (gestures with ball)
+<dialogue> ..."A Sticky Wicket"?
+
+<character> BUNNY
+<parenthetical> (realizing)
+<dialogue> Oh!
+<dialogue> That weird baseball show.
+## preview
+<character> RAFFLES
+
+<dialogue> Really...?
+<dialogue> ...Nothing??
+
+<dialogue> (beat)
+<dialogue> ...
+
+<dialogue> (gestures with ball)
+<dialogue> ..."A Sticky Wicket"?
+
+<character> BUNNY
+
+<dialogue> (realizing)
+<dialogue> Oh!
+
+<dialogue> That weird baseball show.
+## rendered
+# 20 lines
+--- line 0 ---
+text: "RAFFLES"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px 0px 0px 16%;">RAFFLES<img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 1 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 2 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 3 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 4 ---
+text: "Really...?   "
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">Really...?   </div>
+--- line 5 ---
+text: "...Nothing??"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">...Nothing??<img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 6 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 7 ---
+text: "(beat)"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px 8%;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">(beat)</div>
+--- line 8 ---
+text: "..."
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">...<img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 9 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 10 ---
+text: "(gestures with ball)"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px 8%;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">(gestures with ball)</div>
+--- line 11 ---
+text: "...\"A Sticky Wicket\"?"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">..."A Sticky Wicket"?</div>
+--- line 12 ---
+text: "      "
+html: <div class="cm-line collapse">      </div>
+--- line 13 ---
+text: "BUNNY"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px 0px 0px 16%;">BUNNY<img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 14 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 15 ---
+text: "(realizing)"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px 8%;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">(realizing)</div>
+--- line 16 ---
+text: "Oh!"
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">Oh!<img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 17 ---
+text: ""
+html: <div class="cm-line" style="display: none;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>
+--- line 18 ---
+text: "That weird baseball show."
+html: <div class="cm-line" style="display: block; opacity: 1; margin: 0px auto; width: 60%; padding: 0px;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">That weird baseball show.</div>
+--- line 19 ---
+text: ""
+html: <div class="cm-line"><br></div>

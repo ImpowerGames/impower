@@ -1,0 +1,43 @@
+## fixture
+RAFFLES [<]:
+  You mean--
+  
+JACK [>]:
+  YUP.  We got reshoots all weekend.
+  So it happens today!
+  
+RAFFLES [<]:
+  But--
+  
+JACK [>]:
+  (cutting him off)
+  Ehp, ehp, ehp!
+
+## pdf
+<character dual=l> RAFFLES
+<dialogue dual=l> You mean--
+<character dual=r> JACK
+<dialogue dual=r> YUP.  We got reshoots all weekend.
+<dialogue dual=r> So it happens today!
+
+<character dual=l> RAFFLES
+<dialogue dual=l> But--
+<character dual=r> JACK
+<parenthetical dual=r> (cutting him off)
+<dialogue dual=r> Ehp, ehp, ehp!
+## preview
+
+## rendered
+# 4 lines
+--- line 0 ---
+text: "  "
+html: <div class="cm-line">  </div>
+--- line 1 ---
+text: "  "
+html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true">  </div>
+--- line 2 ---
+text: "  "
+html: <div class="cm-line">  </div>
+--- line 3 ---
+text: ""
+html: <div class="cm-line" style="opacity: 1;"><img class="cm-widgetBuffer" aria-hidden="true"><span></span><img class="cm-widgetBuffer" aria-hidden="true"></div>

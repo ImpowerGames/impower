@@ -4,7 +4,6 @@ import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { VSCodeLanguageSupport } from "@impower/codemirror-vscode-language/src";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
-import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { SyntaxNodeRef } from "@lezer/common";
 import { getStyleTags, highlightTree, tags } from "@lezer/highlight";
 import { PAGE_POSITIONS } from "../../../../../sparkdown-screenplay/src/constants/PAGE_POSITIONS";
@@ -119,11 +118,13 @@ const createHighlightStyle = (inlineHiddenStyle: Record<string, string>) =>
     },
   ]);
 
+// display:none rather than visibility:hidden so a line whose ONLY content is
+// inline-hidden (e.g. a directive-only line `[[show backdrop]]` inside a
+// dialogue block, or a stray `// comment` line) does not generate a line-box
+// and therefore does not occupy line-height of vertical space. The dual
+// dialogue highlight style below already uses display:none for this reason.
 const LANGUAGE_HIGHLIGHTS = createHighlightStyle({
-  display: "inline-block",
-  visibility: "hidden",
-  width: "0",
-  height: "0",
+  display: "none",
 });
 
 const DUAL_LANGUAGE_HIGHLIGHTS = createHighlightStyle({
@@ -210,6 +211,7 @@ const createDecorations = (
         ...createRevealDecorations(doc, spec.from, spec.to),
         Decoration.replace({
           widget: new DialogueWidget(spec),
+          block: true,
         }).range(spec.from, spec.to),
       ];
     } else {
@@ -229,10 +231,59 @@ const createDecorations = (
   return [];
 };
 
-const decorate = (state: EditorState, from: number = 0, to?: number) => {
+export const SCREENPLAY_LANGUAGE_SUPPORT = LANGUAGE_SUPPORT;
+
+export const decorate = (
+  state: EditorState,
+  from: number = 0,
+  to?: number,
+  treeOverride?: import("@lezer/common").Tree,
+) => {
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
   const decorations: Range<Decoration>[] = [];
   const doc = state.doc;
+
+  // Returns true if the text is composed only of inline-hidden directive
+  // markers — `[[image]]`, `((audio))`, `<directive>` — and whitespace.
+  // Used to detect dialogue lines whose source is metadata-only so we
+  // can collapse the wrapping cm-line and not have it occupy a row of
+  // vertical space that visually competes with the inter-block blank
+  // line separator.
+  const isOnlyHiddenDirectives = (text: string): boolean => {
+    const stripped = text
+      .replace(/\[\[[^\]]*\]\]/g, "")
+      .replace(/\(\([^)]*\)\)/g, "")
+      .replace(/<[^>]*>/g, "")
+      .trim();
+    return stripped.length === 0 && text.trim().length > 0;
+  };
+
+  // Block nodes (BlockDialogue, ...) include any trailing
+  // whitespace-only "blank" lines inside their range. When a block is
+  // rendered via a widget-replace (dual dialogue), consuming the whole
+  // range absorbs the blank line that would have visually separated
+  // this block from the next one. Walk backward from `to` to find the
+  // position right after the last content line's terminating newline,
+  // so the widget stops there and the trailing blank line(s) remain as
+  // their own cm-lines (default theme opacity:0 still gives them a
+  // line-height of vertical space — the visible separator).
+  const findBlockContentEnd = (from: number, to: number): number => {
+    let lastContentChar = -1;
+    for (let i = to - 1; i >= from; i--) {
+      const c = doc.sliceString(i, i + 1);
+      if (c !== " " && c !== "\t" && c !== "\n" && c !== "\r") {
+        lastContentChar = i;
+        break;
+      }
+    }
+    if (lastContentChar < 0) return from;
+    for (let i = lastContentChar + 1; i < to; i++) {
+      if (doc.sliceString(i, i + 1) === "\n") {
+        return i + 1;
+      }
+    }
+    return to;
+  };
 
   const isCentered = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
@@ -312,10 +363,18 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         to: hideTo,
       }),
     );
-    isBlankLineFrom = undefined;
-    if (hiddenNodeEndsWithNewline) {
-      processNewline(nodeRef.to);
-    }
+    // After hiding a block (which collapses a range of source positions to
+    // a single zero-height widget), advance the line cursor past the
+    // consumed range so the next Newline visit doesn't see a "blank"
+    // line that's actually inside the just-hidden block. DON'T also
+    // call processNewline here — that synthesized call would invoke
+    // isWhitespaceOnly(lineStart, lineStart - 1) which returns true
+    // for the empty range (`end <= start`) and emits a spurious
+    // separator collapse at the trailing line position. Across many
+    // edits and incremental reparses the spurious collapses pile up,
+    // producing the "many collapse classes on the trailing cm-line"
+    // drift symptom.
+    lineStart = nodeRef.to;
   };
 
   const hideInlineRange = (nodeRef: SyntaxNodeRef) => {
@@ -332,23 +391,53 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     }
   };
 
-  const processNewline = (to: number) => {
-    if (isBlankLineFrom != null) {
+  // Source-based blank-line detection. Read the line text directly rather
+  // than tracking a flag across node visits — the grammar wraps a
+  // whitespace-only "blank" line as `BlockLineBlank > BlockLineBlank_c1 >
+  // Indent`, and a flag-based approach would mis-classify those wrapper
+  // nodes as "content" and drop the separator (visible as missing blank
+  // line between consecutive dialogue blocks once the editor leaves indent
+  // on the otherwise-empty line).
+  const isWhitespaceOnly = (start: number, end: number): boolean => {
+    if (end <= start) return true;
+    const slice = doc.sliceString(start, end);
+    for (let i = 0; i < slice.length; i++) {
+      const c = slice.charCodeAt(i);
+      if (c !== 0x20 && c !== 0x09) return false;
+    }
+    return true;
+  };
+
+  let lineStart = from;
+  // Workaround for a textmate-grammar-tree incremental parser bug:
+  // after each reparse, duplicate `Newline` nodes accumulate at the
+  // trailing edge of the document (one extra per reparse). Each
+  // duplicate triggered processNewline with lineStart already past
+  // the newline, hit isWhitespaceOnly's `end <= start` short-circuit,
+  // and emitted a spurious `Decoration.line({class:"collapse"})` at
+  // the trailing line — the user-visible "preview deletes the old
+  // line and replaces it with the new one" sync drift.
+  //
+  // A proper fix exists on another branch of textmate-grammar-tree but
+  // hasn't been merged upstream as of 2026-05-29. When that lands and
+  // the parser stops emitting duplicates, this Set guard becomes a
+  // no-op and can be removed.
+  const seenNewlineFrom = new Set<number>();
+  const processNewline = (newlineFrom: number, newlineTo: number) => {
+    if (seenNewlineFrom.has(newlineFrom)) return;
+    seenNewlineFrom.add(newlineFrom);
+    if (isWhitespaceOnly(lineStart, newlineFrom)) {
       decorations.push(
         ...createDecorations(doc, {
           type: "collapse",
-          from: isBlankLineFrom,
-          to: to - 1,
+          from: lineStart,
+          to: newlineFrom,
           separator: true,
         }),
       );
     }
-    isBlankLineFrom = to;
+    lineStart = newlineTo;
   };
-
-  const prevChar = doc.sliceString(from - 1, from);
-
-  let isBlankLineFrom = prevChar === "" ? 0 : undefined;
   let inDialogue = false;
   let inDualDialogue = false;
   let dialoguePosition = 0;
@@ -358,7 +447,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
   let frontMatterKeyword = "";
   const inConditionalBlock: boolean[] = [];
 
-  const tree = syntaxTree(state);
+  const tree = treeOverride ?? syntaxTree(state);
 
   tree.iterate({
     from,
@@ -368,9 +457,7 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       const from = nodeRef.from;
       const to = nodeRef.to;
       if (name === "Newline") {
-        processNewline(nodeRef.to);
-      } else if (to > from && name !== "sparkdown" && name !== "Whitespace") {
-        isBlankLineFrom = undefined;
+        processNewline(nodeRef.from, nodeRef.to);
       }
       if (name === "FrontMatter") {
         frontMatterPositionContent = {};
@@ -429,6 +516,16 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
       } else if (name === "TextChunk") {
         if (inDialogue) {
           const value = doc.sliceString(from, to).trimEnd();
+          // A dialogue line whose source is only inline-hidden
+          // directives (`[[image]]`, `((audio))`, `<directive>`) still
+          // gets a dialogue line decoration with display:block — which
+          // contributes a full line-height of vertical space, making
+          // it visually indistinguishable from the real blank-line
+          // separator that ends the block. Push the line with
+          // display:none so it doesn't take a row, while still keeping
+          // the source character offsets intact for selection and
+          // tree mapping.
+          const directiveOnly = isOnlyHiddenDirectives(value);
           dialogueContent.push({
             type: "dialogue",
             from,
@@ -436,7 +533,9 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             value,
             markdown: true,
             attributes: {
-              style: getDialogueLineStyle("dialogue"),
+              style: directiveOnly
+                ? "display: none;"
+                : getDialogueLineStyle("dialogue"),
             },
           });
         }
@@ -482,6 +581,35 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
         );
         return false;
       } else if (name === "Indent" && inConditionalBlock.length === 0) {
+        // If the Indent is the entire content of a whitespace-only line
+        // (an indented "blank" line — what the editor leaves when the
+        // user types into an indented block and then deletes back to
+        // nothing), DON'T replace it. Leaving the source whitespace as-is
+        // gives the cm-line a natural 1em line-box because there's real
+        // text content anchoring it. The base `.cm-line { opacity: 0 }`
+        // rule keeps that whitespace invisible. Without this skip, the
+        // Indent gets a Decoration.replace, the cm-line ends up with
+        // only widget buffers as children, CodeMirror skips `<br>`
+        // injection, and the line collapses to zero height — making the
+        // indented blank render differently from a truly-empty blank
+        // (the latter gets `<br>` because CodeMirror sees no children).
+        const indentLine = doc.lineAt(from);
+        if (indentLine.from === from && /^[ \t]*$/.test(indentLine.text)) {
+          return false;
+        }
+        hideInlineRange(nodeRef);
+        return false;
+      } else if (name === "Break") {
+        // BREAK marker (`>` at end of a dialogue/action line) is a logical
+        // continuation marker, never displayed. The PDF parser drops it
+        // before token text is emitted; the preview must too.
+        hideInlineRange(nodeRef);
+        return false;
+      } else if (name === "ColonSeparator") {
+        // The `:` after a character cue (BUNNY:) is grammar — the PDF
+        // parser emits the cue name without it, and the dialogue widget
+        // re-adds it visually when rendering. Hide the source `:` so the
+        // raw character cue doesn't show double-colon.
         hideInlineRange(nodeRef);
         return false;
       } else if (isCentered(nodeRef)) {
@@ -600,10 +728,11 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
           const isOdd = dialoguePosition % 2 !== 0;
           if (isOdd) {
             // left (odd position)
+            const contentEnd = findBlockContentEnd(from, to);
             const spec: DialogueSpec = {
               type: "dialogue",
               from,
-              to: to - 1,
+              to: contentEnd,
               language: LANGUAGE_SUPPORT.language,
               highlighter: DUAL_LANGUAGE_HIGHLIGHTS,
               blocks: [
@@ -620,8 +749,9 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
             prevDialogueSpec = spec;
           } else if (prevDialogueSpec && prevDialogueSpec.blocks) {
             // right (even position)
+            const contentEnd = findBlockContentEnd(from, to);
             prevDialogueSpec.grid = true;
-            prevDialogueSpec.to = to - 1;
+            prevDialogueSpec.to = contentEnd;
             prevDialogueSpec.blocks.push(dialogueContent);
             prevDialogueSpec.blocks.forEach((blocks) => {
               blocks.forEach((block) => {
@@ -630,8 +760,30 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
                 };
               });
             });
+            // Reveal the right side's lines too — PREVIEW_THEME sets
+            // `.cm-line { opacity: 0 }` as the default, and the only way
+            // a cm-line becomes visible is via a reveal line decoration.
+            // The left side's reveal happens to make the FIRST pair
+            // visible because CodeMirror collapses adjacent replace
+            // ranges onto the left's cm-line, but consecutive pairs in
+            // a back-to-back dual block don't share that cm-line, so
+            // the second pair stays at opacity:0 if we only reveal the
+            // left. createDecorations for "reveal" emits one line
+            // decoration per source line in the range. Use contentEnd
+            // (not `to`) so the trailing blank line stays as its own
+            // cm-line and provides visible separation from the next
+            // block.
             decorations.push(
-              ...createDecorations(doc, { type: "replace", from, to }),
+              ...createDecorations(doc, {
+                type: "reveal",
+                from,
+                to: contentEnd,
+              }),
+              ...createDecorations(doc, {
+                type: "replace",
+                from,
+                to: contentEnd,
+              }),
             );
           }
         } else {
@@ -666,11 +818,13 @@ const decorate = (state: EditorState, from: number = 0, to?: number) => {
     to,
   );
 
+
   // console.log("REPARSED TREE");
   // console.log(printTree(tree, doc.toString(), { from, to }));
 
   return decorations;
 };
+
 
 const replaceDecorations = StateField.define<DecorationSet>({
   create(state) {
@@ -680,47 +834,13 @@ const replaceDecorations = StateField.define<DecorationSet>({
     return decorations;
   },
   update(decorations, transaction) {
-    const oldTree = syntaxTree(transaction.startState);
-    const newTree = syntaxTree(transaction.state);
-    // console.log("FULL TREE");
-    // console.log(printTree(newTree, transaction.state.doc.toString()));
-    if (oldTree != newTree) {
-      const cachedCompiler = newTree.prop(cachedCompilerProp);
-      const reparsedFrom = cachedCompiler?.reparsedFrom;
-      const reparsedTo = cachedCompiler?.reparsedTo
-        ? cachedCompiler.reparsedTo - 1
-        : undefined;
-      if (
-        reparsedFrom == null ||
-        (newTree.length !== oldTree.length && !transaction.docChanged)
-      ) {
-        // Remake all decorations from scratch
-        const ranges = decorate(transaction.state);
-        decorations =
-          ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
-        return decorations;
-      }
-      if (reparsedTo == null) {
-        // Only rebuild decorations after reparsedFrom
-        const add = decorate(transaction.state, reparsedFrom);
-        decorations = decorations.map(transaction.changes);
-        decorations = decorations.update({
-          filter: (_from, to) => to < reparsedFrom,
-          add,
-          sort: true,
-        });
-        return decorations;
-      }
-      // Only rebuild decorations between reparsedFrom and reparsedTo
-      const add = decorate(transaction.state, reparsedFrom, reparsedTo);
-      decorations = decorations.map(transaction.changes);
-      decorations = decorations.update({
-        filter: (from, to) => to < reparsedFrom || from > reparsedTo,
-        add,
-        sort: true,
-      });
+    if (!transaction.docChanged) {
+      const oldTree = syntaxTree(transaction.startState);
+      const newTree = syntaxTree(transaction.state);
+      if (oldTree === newTree) return decorations;
     }
-    return decorations;
+    const ranges = decorate(transaction.state);
+    return ranges.length > 0 ? RangeSet.of(ranges, true) : Decoration.none;
   },
   provide(field) {
     return EditorView.decorations.from(field);

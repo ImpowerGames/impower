@@ -21,6 +21,7 @@ const PREVIEW_THEME: {
   "& .cm-content": {
     padding: "68px 24px 68px 24px", // 24px ≈ 0.25 inch
     margin: "auto",
+    width: "100%", // grow to fill the scroller so short scripts still render at page width
     maxWidth: "640px",
     position: "relative",
     cursor: "default",

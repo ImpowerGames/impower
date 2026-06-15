@@ -1,0 +1,35 @@
+## source
+She folds it away.
+
+DETECTIVE MACKENZIE:
+  [[mackenzie_apathetic]] // [[todo_mackenzie_sigh]]
+  Stay out of trouble.
+
+Raffles blinks.
+
+## render
+# 8 lines
+--- line 0 ---
+text: "She folds it away."
+html: <div class="cm-line" style="opacity: 1;">She folds it away.</div>
+--- line 1 ---
+text: ""
+html: <div class="cm-line"><br></div>
+--- line 2 ---
+text: "DETECTIVE MACKENZIE:"
+html: <div class="cm-line">DETECTIVE MACKENZIE:</div>
+--- line 3 ---
+text: "  [[mackenzie_apathetic]] // [[todo_mackenzie_sigh]]"
+html: <div class="cm-line">  [[mackenzie_apathetic]] // [[todo_mackenzie_sigh]]</div>
+--- line 4 ---
+text: "  Stay out of trouble."
+html: <div class="cm-line">  Stay out of trouble.</div>
+--- line 5 ---
+text: ""
+html: <div class="cm-line"><br></div>
+--- line 6 ---
+text: "Raffles blinks."
+html: <div class="cm-line">Raffles blinks.</div>
+--- line 7 ---
+text: ""
+html: <div class="cm-line"><br></div>

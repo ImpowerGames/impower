@@ -3,6 +3,10 @@
   "displayName": "Sparkdown Document Views",
   "description": "Web components for viewing and editing sparkdown documents. Includes a text editor and screenplay previewer.",
   "version": "0.0.1",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "dependencies": {
     "@codemirror/autocomplete": "^6.19.0",
     "@codemirror/collab": "^6.1.1",
@@ -18,11 +22,20 @@
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
     "@impower/spark-engine": "file:../spark-engine",
     "@impower/sparkdown": "file:../sparkdown",
+    "@impower/sparkdown-screenplay": "file:../sparkdown-screenplay",
     "@impower/textmate-grammar-tree": "file:../textmate-grammar-tree",
     "@lezer/common": "^1.2.3",
     "@lezer/highlight": "^1.2.3",
     "marked": "^17.0.4",
     "style-mod": "^4.1.3",
     "vscode-languageserver-protocol": "^3.17.5"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.3",
+    "@types/node": "^25.9.1",
+    "crelt": "^1.0.6",
+    "jsdom": "^27.0.1",
+    "vitest": "^3.2.4",
+    "w3c-keyname": "^2.2.8"
   }
 }

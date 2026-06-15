@@ -3,6 +3,16 @@
   "displayName": "Sparkdown Screenplay",
   "description": "Exports a Sparkdown script as a formatted screenplay.",
   "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "sparkdown-reading-copy": "./dist/cli/readingCopy.cjs"
+  },
+  "scripts": {
+    "build:cli": "node ./esbuild.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.1"
+  },
   "peerDependencies": {
     "@lezer/common": "^1.2.3"
   }
