@@ -500,7 +500,7 @@ function collectTopLevelInjections(
 
 // ----- Escape / break / newline parity with `ContentTextAllowingEscapeChar` -----
 
-// Mirrors `InkParser.ContentTextAllowingEscapeChar`:
+// Mirrors upstream inkjs's `ContentTextAllowingEscapeChar` ink-parsing behavior:
 //   - `\<space|tab|newline>` → paragraph break, inserts `\n ` (trailing space
 //     prevents the next chunk's `{...}` logic from being read as escaped)
 //   - `\<other>`             → kept as literal `\<char>` (so `\*` stays `\*`)
@@ -716,13 +716,12 @@ export function lowerImplicitAction(
 // wrapped in `ImplicitAction` / `TextChunk` the way a line with
 // surrounding text does. Without a dedicated lowerer here, the
 // CompilationAnnotator's `lower()` returns `undefined` for these
-// nodes and they fall through to the legacy InkParser fallback —
-// which doesn't know Luau operators (`^`, `//`, `..`). This handler
-// lowers the inner expression directly, marks it `outputWhenComplete`
-// so the runtime emits its value into the output stream, and appends
-// a trailing newline so consecutive bare-`{expr}` lines stay on
-// separate lines (matching the implicit-line-break behavior the
-// InkParser fallback used to provide).
+// nodes and they'd be dropped (there is no parser fallback — the
+// grammar+lowerers are the only path — and nothing else knows Luau
+// operators `^`, `//`, `..`). This handler lowers the inner expression
+// directly, marks it `outputWhenComplete` so the runtime emits its
+// value into the output stream, and appends a trailing newline so
+// consecutive bare-`{expr}` lines stay on separate lines.
 export function lowerLuauInterpolatedStringExpression(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,

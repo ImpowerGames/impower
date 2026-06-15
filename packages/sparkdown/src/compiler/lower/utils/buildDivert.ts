@@ -73,8 +73,7 @@ export type DivertLike = Divert | TunnelOnwards;
 // either a tunnel (if there's a trailing `->`) or a plain divert. The
 // runtime executes the diverts sequentially: each tunnel pushes a
 // frame, the callee's `->->` pops it and continues with the next
-// sibling, and so on. Matches inkjs's `InkParser` behavior at lines
-// 1380-1390 of `InkParser.ts`.
+// sibling, and so on. Mirrors upstream inkjs ink-parsing behavior.
 //
 // Returns an empty array if no valid form was found.
 export function buildDivert(

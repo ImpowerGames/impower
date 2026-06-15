@@ -153,9 +153,10 @@ function lowerInner(
       // Bare `{ expr }` lines at top level — the grammar matches these
       // as `LuauInterpolatedStringExpression` directly (not wrapped in
       // ImplicitAction the way `text {expr} text` lines are). Sparkdown
-      // handles them via `lowerExpressionFromContainer`; without this
-      // case they fall through to the legacy InkParser fallback, which
-      // doesn't know Luau-specific operators (`^`, `//`, `..`).
+      // handles them via `lowerExpressionFromContainer`; this case is
+      // required so they're handled here directly (there is no parser
+      // fallback — the grammar+lowerers are the only path — and nothing
+      // else would know Luau-specific operators `^`, `//`, `..`).
       return lowerLuauInterpolatedStringExpression(nodeRef, ctx);
     case "InlineAction":
       return lowerInlineAction(nodeRef, ctx);
@@ -273,9 +274,9 @@ function lowerInner(
     case "LuauUntilStatement":
       // No-op — the until-statement is consumed by the sibling
       // `LuauRepeatLoop` lowerer above (it peeks forward to grab the
-      // condition). This case keeps the dispatcher from falling
-      // through to the InkParser fallback, which would treat `until
-      // X` as narrative text.
+      // condition). This case handles it here directly (there is no
+      // parser fallback — the grammar+lowerers are the only path — that
+      // would otherwise treat `until X` as narrative text).
       return lowerLuauUntilStatement(nodeRef, ctx);
     case "LuauBreakStatement":
       return lowerLuauBreakStatement(nodeRef, ctx);
@@ -284,7 +285,8 @@ function lowerInner(
     case "LuauEndKeyword":
       // Stand-alone `end` keyword (the scene/branch/function terminator).
       // It's purely a structural marker — no runtime content. Swallow it
-      // so the InkParser fallback isn't invoked.
+      // so it isn't emitted as content (there is no parser fallback — the
+      // grammar+lowerers are the only path).
       return {};
     case "Tags":
       // Top-level `# tag` (or `# a # b`) line. The grammar produces a

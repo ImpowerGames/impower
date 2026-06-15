@@ -4,9 +4,8 @@
 // resolves `InkObject` as undefined when extending it. Forcing
 // `Container.ts` to be the entry point evaluates `Value.ts` (and
 // therefore `Object.ts`) in an order that breaks the cycle cleanly.
-// `InkParser.ts` used to do this implicitly until we removed it; this
-// explicit import preserves the load order without re-introducing the
-// legacy parser.
+// The now-removed `Compiler` import used to do this implicitly; this
+// explicit import preserves the load order in its place.
 import "../../../inkjs/engine/Container";
 import { Range } from "@codemirror/state";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
@@ -275,12 +274,12 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         );
       }
       // Chunks the lowerer doesn't recognize are silently dropped.
-      // Previously this branch fell through to a raw `InkParser` over
-      // the chunk text — which is a foot-gun: legacy ink syntax
-      // re-interprets Luau-tagged source (e.g. `{ a = 1 }` table
-      // literals look like ink `{interpolation}` blocks) and produces
-      // misleading diagnostics. If a chunk shape needs handling, add a
-      // lowerer for it in `src/compiler/lower/lower.ts`.
+      // There is no parser fallback for unrecognized chunks (the
+      // grammar+lowerers are the only path); dropping them avoids
+      // re-interpreting Luau-tagged source as legacy ink (e.g. `{ a = 1 }`
+      // table literals look like ink `{interpolation}` blocks) and the
+      // misleading diagnostics that would follow. If a chunk shape needs
+      // handling, add a lowerer for it in `src/compiler/lower/lower.ts`.
     }
     return annotations;
   }

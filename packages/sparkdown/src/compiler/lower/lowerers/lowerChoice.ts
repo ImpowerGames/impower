@@ -194,9 +194,9 @@ export function lowerChoice(
     choice.isInvisibleDefault = true;
   }
 
-  // Compile-time warnings — mirror inkjs's `InkParser`-side checks for
-  // empty / blank choices. inkjs's checks live in `InkParser` itself
-  // (not in `ExportRuntime`), so they don't fire automatically through
+  // Compile-time warnings — mirror upstream inkjs's parse-side checks
+  // for empty / blank choices. Those checks live in the parser (not in
+  // `ExportRuntime`), so they don't fire automatically through
   // sparkdown's grammar-tree pipeline. Surface them here in the lowerer
   // instead.
   const diagnostics: InkDiagnostic[] = [];

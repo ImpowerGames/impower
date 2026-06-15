@@ -145,8 +145,9 @@ function findNextUntilSibling(repeatNode: SyntaxNode): SyntaxNode | null {
 }
 
 // Sibling consumed by `lowerLuauRepeatLoop`. The dispatch case for
-// `LuauUntilStatement` calls this so the standalone-until node
-// doesn't fall through to the InkParser fallback.
+// `LuauUntilStatement` calls this so the standalone-until node is
+// handled here (there is no parser fallback — the grammar+lowerers are
+// the only path).
 export function lowerLuauUntilStatement(
   _nodeRef: SparkdownSyntaxNodeRef,
   _ctx: LowerContext,

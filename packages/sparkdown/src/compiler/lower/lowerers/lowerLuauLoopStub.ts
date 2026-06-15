@@ -4,7 +4,7 @@ import { LowerContext } from "../context";
 
 // Stub lowerer for pure-luau loop constructs: `LuauForLoop`, `LuauWhileLoop`,
 // `LuauRepeatLoop`, `LuauDoBlock`. Returns `{}` so the dispatcher swallows the
-// chunk without falling through to InkParser.
+// chunk (there is no parser fallback — the grammar+lowerers are the only path).
 //
 // Ink's runtime has no native loop construct; supporting these requires
 // desugaring to conditional + divert patterns (or extending the runtime).
