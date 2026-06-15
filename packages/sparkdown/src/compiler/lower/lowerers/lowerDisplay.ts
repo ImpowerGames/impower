@@ -107,25 +107,34 @@ function buildDisplayContent(
     beat.push(...processDisplayBody(parent, range.from, range.to, ctx, mode));
     beat.push(new Text("\n"));
     // For a chained (break-split) dialogue, stamp EACH beat's objects with a
-    // source range so the screenplay preview's `findClosestPath` can resolve
-    // each beat to its own checkpoint (without per-beat metadata the split
-    // beats carry NO pathLocations of their own, so clicking the continuation
-    // "...I think." lands on the first beat).
+    // source range so the screenplay preview's `findClosestPath` resolves each
+    // beat to its own checkpoint (without per-beat metadata the split beats
+    // carry NO pathLocations of their own, so clicking the continuation
+    // "...I think." lands on the first beat). The target is to match the legacy
+    // editor's pathLocations EXACTLY: the FIRST beat owns [cue line .. its
+    // content line], and every later beat owns only its OWN content line, so
+    // clicking the cue or "Different rope!" routes to beat 1 and "...I think."
+    // to beat 2.
     //
-    // The stamp range runs from this beat's start to the NEXT beat's start
-    // (the last beat extends to bodyEnd). This deliberately spans one extra
-    // line: `program.pathLocations` builds line numbers as `startLineNumber-1`
-    // (offset via the 0-based `document.lineAt`), so every entry sits one line
-    // earlier than its true source line. Stamping `[from, nextFrom]` makes the
-    // shifted entry cover from the cue line through this beat's own content
-    // line; `findClosestPathLocation` returns the FIRST entry containing the
-    // clicked line, and beats are emitted in order, so clicking the cue or the
-    // "Different rope!" line resolves to beat 1 and "...I think." to beat 2 —
-    // matching the legacy editor. Only when split (ranges.length > 1) so
-    // single-beat emission stays byte-identical.
+    // Wrinkle: this port's `program.pathLocations` is built one line EARLIER
+    // than the legacy compiler's (it does `startLineNumber - 1` over the
+    // 0-based `document.lineAt`, so every entry sits at `sourceLine - 1`). To
+    // land each beat on the right line after that shift, the stamp ranges are
+    // pushed one line forward:
+    //   - first beat:  [its content line .. next beat's content line]
+    //                  → shifts to [cue line .. its content line]   ✓
+    //   - later beats: a zero-width point at the NEXT beat's content line
+    //                  (last beat uses bodyEnd, which sits on the line after
+    //                  the final content line) → shifts to [own content line] ✓
+    // Only when split (ranges.length > 1) so single-beat emission — and its
+    // dispatcher-stamped metadata — stays byte-identical.
     if (ranges.length > 1) {
-      const stampTo = ranges[i + 1]?.from ?? bodyEnd;
-      stampDebugMetadata(beat, range.from, stampTo, ctx);
+      const nextFrom = ranges[i + 1]?.from ?? bodyEnd;
+      if (i === 0) {
+        stampDebugMetadata(beat, range.from, nextFrom, ctx);
+      } else {
+        stampDebugMetadata(beat, nextFrom, nextFrom, ctx);
+      }
     }
     content.push(...beat);
   }
