@@ -18,6 +18,7 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import { buildDivert } from "../utils/buildDivert";
+import { stampDebugMetadata } from "../utils/debugMetadata";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
@@ -87,9 +88,10 @@ function buildDisplayContent(
   const ranges = splitBodyRangeAtBreaks(bodyStart, bodyEnd, ctx);
   const content: ParsedObject[] = [];
   for (const range of ranges) {
-    content.push(new Tag(true));
-    content.push(new Text(identifier ? `${lineType}:${identifier}` : lineType));
-    content.push(new Tag(false));
+    const beat: ParsedObject[] = [];
+    beat.push(new Tag(true));
+    beat.push(new Text(identifier ? `${lineType}:${identifier}` : lineType));
+    beat.push(new Tag(false));
     // Emit the line's routing PREFIX in the VISIBLE text. The engine's
     // interpreter (InterpreterModule.queue) routes display content to a
     // target (dialogue / title / heading / transitional / layer) by parsing
@@ -99,10 +101,22 @@ function buildDisplayContent(
     // with no box, wrong color). A colon+SPACE keeps the prefix on the same
     // line as the body so the cue + body stay in one Continue().
     if (prefix) {
-      content.push(new Text(`${prefix} `));
+      beat.push(new Text(`${prefix} `));
     }
-    content.push(...processDisplayBody(parent, range.from, range.to, ctx, mode));
-    content.push(new Text("\n"));
+    beat.push(...processDisplayBody(parent, range.from, range.to, ctx, mode));
+    beat.push(new Text("\n"));
+    // For a chained (break-split) dialogue, stamp EACH beat's objects with
+    // its OWN source range. Without per-beat metadata the split beats carry
+    // NO pathLocations entries of their own, so the screenplay preview's
+    // `findClosestPath` can't resolve the continuation beat ("...I think."
+    // after `Different rope! >`) to its own checkpoint — clicking it lands on
+    // the first beat. Per-beat metadata gives each beat a pathLocation
+    // covering its source line. Only when split (ranges.length > 1) so
+    // single-beat emission stays byte-identical.
+    if (ranges.length > 1) {
+      stampDebugMetadata(beat, range.from, range.to, ctx);
+    }
+    content.push(...beat);
   }
   return content;
 }
