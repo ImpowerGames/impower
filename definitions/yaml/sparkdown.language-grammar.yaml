@@ -1743,7 +1743,14 @@ repository:
     # Without the explicit structural terminators, perturbing a
     # sibling choice's leading whitespace (e.g. `  + foo` →
     # `   + foo`) would absorb it into the prior dialogue's body.
-    end: (?=^(?!$|//|\1{{WS}}))|(?=^{{WS}}*(?:[*+]|->|[&%$^]|scene\b|branch\b|function\b|define\b|const\b|store\b|local\b))
+    # The choice-marker terminator is `[*+]{{EOK}}` (NOT a bare `[*+]`):
+    # a choice bullet requires an end-of-keyword boundary after it (EOL,
+    # whitespace, or `:`/tag/comment — same `{{EOK}}` the `Choice` mark uses).
+    # A bare `[*+]` also matched leading `*`/`+` of body markup (e.g. an
+    # italic line `*Ay*, thank the Lord`), kicking the dialogue text out as a
+    # top-level ImplicitAction — leaving the box empty AND dropping the
+    # block's pathLocations (so it was unpreviewable).
+    end: (?=^(?!$|//|\1{{WS}}))|(?=^{{WS}}*(?:[*+]{{EOK}}|->|[&%$^]|scene\b|branch\b|function\b|define\b|const\b|store\b|local\b))
   InlineDialogue:
     tag: definition(string)
     name: string.display.dialogue.inline.sd
