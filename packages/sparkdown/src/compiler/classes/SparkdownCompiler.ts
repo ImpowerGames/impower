@@ -21,6 +21,8 @@ import { ReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnTy
 import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
 import { Story } from "../../inkjs/compiler/Parser/ParsedHierarchy/Story";
+import { Tag } from "../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
+import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
@@ -866,6 +868,37 @@ export class SparkdownCompiler {
             topLevelWeaveObjs.push(weave);
             topLevelContent.push(weave);
           } else if (flow instanceof Weave) {
+            // This chunk's body weave is about to be UNWRAPPED — its children
+            // are re-parented directly under the closest existing weave (e.g.
+            // a scene's rootWeave) below. Children that carry no OWN debug
+            // metadata only have a source line by INHERITING this weave's; once
+            // re-parented they'd instead inherit the destination weave's line
+            // (the scene-header line), collapsing every body line of the scene
+            // onto that header — so the whole scene's pathLocations resolve to
+            // one line and its content becomes unpreviewable (action/montage
+            // scenes like TEASER lost ALL per-line locations; action lines in
+            // dialogue scenes routed to a later beat). Carry this weave's
+            // (already chunk-offset) metadata down onto its OWN-metadata-less
+            // children first, mirroring `appendBlockContent`. Must guard on
+            // `ownDebugMetadata` (NOT the inheriting `debugMetadata` getter,
+            // which returns this weave's value and would skip everything).
+            // Restrict the carry-down to DISPLAY leaves (Text / Tag) — the
+            // content that needs per-line `pathLocations`. Stamping other
+            // child types (e.g. VariableAssignment, scope/flow ControlCommands)
+            // would give them an own source line they didn't have, which
+            // perturbs declaration-collection and scope/collision analysis
+            // (block-scoped `local` shadowing, scene/function call
+            // restrictions) — a whitelist keeps the fix to its purpose.
+            if (flow.ownDebugMetadata) {
+              for (const child of flow.content) {
+                if (
+                  !child.ownDebugMetadata &&
+                  (child instanceof Text || child instanceof Tag)
+                ) {
+                  child.debugMetadata = flow.ownDebugMetadata;
+                }
+              }
+            }
             // Statements with uuids are wrapped in a Statement container so they can be given a stable runtime path
             const firstStatement = flow?.content[0];
             const isWeavePoint =
