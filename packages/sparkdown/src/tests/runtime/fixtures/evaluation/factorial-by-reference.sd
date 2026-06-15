@@ -1,0 +1,14 @@
+store result = { value = 0 }
+& factorialByRef(result, 5)
+{result.value}
+done
+
+function factorialByRef(r, n)
+  if r.value == 0 then
+    & r.value = 1
+  end
+  if n > 1 then
+    & r.value = r.value * n
+    & factorialByRef(r, n - 1)
+  end
+end

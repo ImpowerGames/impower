@@ -1,0 +1,21 @@
+-> main
+scene main
+  -> first -> second -> third ->
+  Back at start.
+  done
+
+end
+scene first
+  In first.
+  ->->
+
+end
+scene second
+  In second.
+  ->->
+
+end
+scene third
+  In third.
+  ->->
+end

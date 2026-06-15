@@ -1,0 +1,16 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "noop",
+      "args": [],
+      "isFunction": true,
+      "body": [
+        {
+          "type": "ReturnType",
+          "expression": null
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "tally",
+      "args": [
+        "items"
+      ],
+      "isFunction": true,
+      "body": [
+        {
+          "type": "VariableAssignment",
+          "kind": "reassign",
+          "name": "total",
+          "expression": {
+            "type": "NumberExpression",
+            "value": 0,
+            "subtype": "int"
+          }
+        },
+        {
+          "type": "ReturnType",
+          "expression": {
+            "type": "VariableReference",
+            "path": [
+              "total"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -16,15 +16,24 @@ export abstract class SparkdownAnnotator<
 
   tree?: Tree;
 
+  /**
+   * URI of the document currently being annotated. Wired in so the
+   * `CompilationAnnotator` can stamp `filePath` onto `DebugMetadata`,
+   * which lets inkjs's `ExportRuntime` diagnostics route back to the
+   * right URI in `program.diagnostics`.
+   */
+  uri?: string;
+
   _annotationType!: AnnotationType;
 
   constructor(config?: ConfigType) {
     this.config = config;
   }
 
-  update(tree: Tree, text: Text) {
+  update(tree: Tree, text: Text, uri?: string) {
     this.tree = tree;
     this.text = text;
+    if (uri !== undefined) this.uri = uri;
   }
 
   begin(iterateFrom: number, iterateTo: number) {}

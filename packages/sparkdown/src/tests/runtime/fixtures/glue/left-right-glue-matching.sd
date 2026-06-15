@@ -1,0 +1,12 @@
+-> main
+scene main
+  A line.
+  if f() then
+    Another line.
+  end
+  done
+
+end
+function f()
+  return true
+end

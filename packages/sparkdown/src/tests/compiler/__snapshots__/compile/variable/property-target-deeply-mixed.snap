@@ -1,0 +1,57 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "StorePropertyAssignment",
+          "base": {
+            "type": "IndexExpression",
+            "base": {
+              "type": "IndexExpression",
+              "base": {
+                "type": "IndexExpression",
+                "base": {
+                  "type": "VariableReference",
+                  "path": [
+                    "this"
+                  ]
+                },
+                "key": {
+                  "type": "StringExpression",
+                  "content": [
+                    "is"
+                  ]
+                }
+              },
+              "key": {
+                "type": "StringExpression",
+                "content": [
+                  "a"
+                ]
+              }
+            },
+            "key": {
+              "type": "StringExpression",
+              "content": [
+                "access"
+              ]
+            }
+          },
+          "key": {
+            "type": "StringExpression",
+            "content": [
+              "path"
+            ]
+          },
+          "value": {
+            "type": "StringExpression",
+            "content": [
+              "ok"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

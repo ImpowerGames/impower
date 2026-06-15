@@ -36,6 +36,16 @@ export abstract class ParsedObject {
     return Boolean(this.debugMetadata);
   }
 
+  // Returns the object's OWN debug metadata only, without walking
+  // the parent chain. Used by `appendBlockContent` to detect when a
+  // statement-level Weave wrapper's metadata should be carried down
+  // to its unwrapped children — they typically have no own metadata
+  // and would otherwise inherit the function-level metadata via the
+  // parent-chain walk after re-parenting.
+  get ownDebugMetadata(): DebugMetadata | null {
+    return this._debugMetadata;
+  }
+
   get typeName(): string {
     return "ParsedObject";
   }

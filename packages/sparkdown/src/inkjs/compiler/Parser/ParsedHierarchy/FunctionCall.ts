@@ -1,5 +1,6 @@
 ﻿import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
+import { lookupStateAwareStdLib } from "../../../engine/StdLib";
 import { Divert } from "./Divert/Divert";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
@@ -11,6 +12,7 @@ import { NumberExpression } from "./Expression/NumberExpression";
 import { Path } from "./Path";
 import { Story } from "./Story";
 import { StringValue } from "../../../engine/Value";
+import { Void as RuntimeVoid } from "../../../engine/Void";
 import { VariableReference } from "./Variable/VariableReference";
 import { Identifier } from "./Identifier";
 import { asOrNull } from "../../../engine/TypeAssertion";
@@ -23,14 +25,21 @@ export class FunctionCall extends Expression {
     }
 
     return (
-      name === "CHOICE_COUNT" ||
+      // Legacy per-function ControlCommand builtins that still have
+      // compile-time setup not yet migrated to the STDLIB
+      // dispatcher: TURNS_SINCE / READ_COUNT need DivertTarget
+      // container-counting setup in `ResolveReferences`; LIST_*
+      // builtins are list-runtime-native.
       name === "TURNS_SINCE" ||
-      name === "TURNS" ||
-      name === "RANDOM" ||
-      name === "SEED_RANDOM" ||
+      name === "READ_COUNT" ||
       name === "LIST_VALUE" ||
       name === "LIST_RANDOM" ||
-      name === "READ_COUNT"
+      // State-aware Luau globals + namespaced state-aware functions
+      // (e.g. `plural.category`, `math.random`, `assert`, ...)
+      // registered in `STDLIB` in StdLib.ts. Adding a new
+      // entry there immediately makes it a recognized builtin here
+      // — no list to update.
+      lookupStateAwareStdLib(name) !== null
     );
   };
 
@@ -53,24 +62,8 @@ export class FunctionCall extends Expression {
     return this._proxyDivert.runtimeDivert;
   }
 
-  get isChoiceCount(): boolean {
-    return this.name === "CHOICE_COUNT";
-  }
-
-  get isTurns(): boolean {
-    return this.name === "TURNS";
-  }
-
   get isTurnsSince(): boolean {
     return this.name === "TURNS_SINCE";
-  }
-
-  get isRandom(): boolean {
-    return this.name === "RANDOM";
-  }
-
-  get isSeedRandom(): boolean {
-    return this.name === "SEED_RANDOM";
   }
 
   get isListRange(): boolean {
@@ -83,6 +76,14 @@ export class FunctionCall extends Expression {
 
   get isReadCount(): boolean {
     return this.name === "READ_COUNT";
+  }
+
+  // True when `this.name` is registered as a state-aware global in
+  // `STDLIB` (StdLib.ts). Used by `GenerateIntoContainer` to
+  // route the call through the generic `RunStdLibFunction` dispatch
+  // instead of treating it as a user-defined knot reference.
+  get isStateAwareStdLib(): boolean {
+    return lookupStateAwareStdLib(this.name) !== null;
   }
 
   public shouldPopReturnedValue: boolean = false;
@@ -107,19 +108,7 @@ export class FunctionCall extends Expression {
 
     let usingProxyDivert: boolean = false;
 
-    if (this.isChoiceCount) {
-      if (this.args.length > 0) {
-        this.Error("The CHOICE_COUNT() function shouldn't take any arguments");
-      }
-
-      container.AddContent(RuntimeControlCommand.ChoiceCount());
-    } else if (this.isTurns) {
-      if (this.args.length > 0) {
-        this.Error("The TURNS() function shouldn't take any arguments");
-      }
-
-      container.AddContent(RuntimeControlCommand.Turns());
-    } else if (this.isTurnsSince || this.isReadCount) {
+    if (this.isTurnsSince || this.isReadCount) {
       const divertTarget = asOrNull(this.args[0], DivertTarget);
       const variableDivertTarget = asOrNull(this.args[0], VariableReference);
 
@@ -150,38 +139,6 @@ export class FunctionCall extends Expression {
       } else {
         container.AddContent(RuntimeControlCommand.ReadCount());
       }
-    } else if (this.isRandom) {
-      if (this.args.length !== 2) {
-        this.Error(
-          "RANDOM should take 2 parameters: a minimum and a maximum integer",
-        );
-      }
-
-      // We can type check single values, but not complex expressions
-      for (let ii = 0; ii < this.args.length; ii += 1) {
-        const num = asOrNull(this.args[ii], NumberExpression);
-        if (num && !num.isInt()) {
-          const paramName: string = ii === 0 ? "minimum" : "maximum";
-          this.Error(`RANDOM's ${paramName} parameter should be an integer`);
-        }
-
-        this.args[ii].GenerateIntoContainer(container);
-      }
-
-      container.AddContent(RuntimeControlCommand.Random());
-    } else if (this.isSeedRandom) {
-      if (this.args.length !== 1) {
-        this.Error("SEED_RANDOM should take 1 parameter - an integer seed");
-      }
-
-      const num = asOrNull(this.args[0], NumberExpression);
-      if (num && !num.isInt()) {
-        this.Error("SEED_RANDOM's parameter should be an integer seed");
-      }
-
-      this.args[0].GenerateIntoContainer(container);
-
-      container.AddContent(RuntimeControlCommand.SeedRandom());
     } else if (this.isListRange) {
       if (this.args.length !== 3) {
         this.Error(
@@ -202,22 +159,83 @@ export class FunctionCall extends Expression {
       this.args[0].GenerateIntoContainer(container);
 
       container.AddContent(RuntimeControlCommand.ListRandom());
+    } else if (this.isStateAwareStdLib) {
+      // Generic state-aware stdlib dispatch. Push args in source
+      // order, then emit a `RunStdLibFunction` ControlCommand
+      // carrying the function name + arity. Runtime pops the args,
+      // looks up `STDLIB[name]`, and calls
+      // `fn(story, args)`. Optional return value is pushed back.
+      //
+      // The `RunStdLibFunction` command carries the ACTUAL arg
+      // count from the call site, so variadic entries (`assert`,
+      // `print`, `select`) and fixed-arity entries alike validate
+      // inside the registered `fn` — no compile-time arity check
+      // needed here.
+      for (const arg of this.args) {
+        arg.GenerateIntoContainer(container);
+      }
+      container.AddContent(
+        RuntimeControlCommand.RunStdLib(this.name, this.args.length),
+      );
     } else if (NativeFunctionCall.CallExistsWithName(this.name)) {
       const nativeCall = NativeFunctionCall.CallWithName(this.name);
-      if (nativeCall.numberOfParameters !== this.args.length) {
-        let msg = `${FunctionCall.name} should take ${nativeCall.numberOfParameters} parameter`;
+      // Variadic natives (currently the `__method_*` builtin-method
+      // family) validate arity at runtime inside the method impl, so
+      // skip the compile-time assertion for those.
+      if (
+        !nativeCall.isVariadic &&
+        nativeCall.numberOfParameters !== this.args.length
+      ) {
+        let msg = `${this.name} should take ${nativeCall.numberOfParameters} parameter`;
         if (nativeCall.numberOfParameters > 1) {
           msg += "s";
         }
-
-        this.Error(msg);
+        msg += `, got ${this.args.length}`;
+        // Demoted from error → warning so Luau patterns that
+        // deliberately call a native with the wrong arity to trigger
+        // a trappable runtime error (e.g. `pcall(function() return
+        // math.abs() end)` to verify the runtime "missing argument"
+        // path) compile cleanly. The runtime still validates arity
+        // and throws "Unexpected number of parameters" — which pcall
+        // catches as a regular Luau error. Calls outside pcall fail
+        // at runtime with the same error message, matching what Luau
+        // does.
+        this.Error(msg, this, true);
       }
 
       for (let ii = 0; ii < this.args.length; ii += 1) {
         this.args[ii].GenerateIntoContainer(container);
       }
 
-      container.AddContent(NativeFunctionCall.CallWithName(this.name));
+      // Under-application of a fixed-arity native (`math.abs()`): the
+      // runtime pops the REGISTERED arity, so an unpadded call site
+      // underflows the eval stack with an untrappable JS "trying to
+      // pop too many objects". Pad the missing slots with `Void`
+      // sentinels — `NativeFunctionCall.Call`'s pure-number-op
+      // validation reports them as Lua's trappable "missing argument
+      // #N to 'abs'" (and any other op fails its own type validation
+      // on the Void rather than corrupting the stack).
+      //
+      // OVER-application discards the extras Lua-style: all args
+      // still EVALUATE (side effects run), then the surplus pops off
+      // the top so the native sees the FIRST N — `math.sin(1,2) ==
+      // math.sin(1)` (calls.luau line 220); without the pops the
+      // native would consume the LAST args and strand the first.
+      if (!nativeCall.isVariadic) {
+        for (let ii = this.args.length; ii < nativeCall.numberOfParameters; ii += 1) {
+          container.AddContent(new RuntimeVoid());
+        }
+        for (let ii = nativeCall.numberOfParameters; ii < this.args.length; ii += 1) {
+          container.AddContent(RuntimeControlCommand.PopEvaluatedValue());
+        }
+      }
+
+      // Pass the call-site arg count so variadic natives (`__method_*`)
+      // know how many parameters to pop off the eval stack. Ignored for
+      // fixed-arity natives — their prototype's arity wins.
+      container.AddContent(
+        NativeFunctionCall.CallWithName(this.name, this.args.length),
+      );
     } else if (foundList !== null) {
       if (this.args.length > 1) {
         this.Error(

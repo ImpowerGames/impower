@@ -1,0 +1,25 @@
+-> main
+scene main
+  {count.visited(-> aside)}
+  <- aside
+  {count.visited(-> aside)}
+  if count.visited(-> aside) then
+    Seen it.
+  end
+  if not count.visited(-> elsewhere) then
+    Never been there.
+  end
+  choose
+    * "Continue"
+      fin
+
+  end
+end
+scene aside
+  Inside aside.
+  done
+end
+scene elsewhere
+  Unreached.
+  done
+end

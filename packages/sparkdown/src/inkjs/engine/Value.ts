@@ -35,6 +35,22 @@ export abstract class AbstractValue extends InkObject {
       }
     }
 
+    // Lua/Luau `nil`. Has to be checked BEFORE the integer branch
+    // below because `Number(null) === 0` and `Number.isInteger(0)`
+    // is true — without this guard a stdlib fn that returns JS `null`
+    // would silently become `IntValue(0)`.
+    if (val === null) {
+      return new NullValue();
+    }
+
+    // NaN is a first-class float in Lua (`0/0`, `inf - inf`). Without
+    // this branch it fell through every check below and `Create`
+    // returned null — which the native-op dispatch then pushed onto
+    // the eval stack as a raw null, crashing the next pop.
+    if (typeof val === "number" && Number.isNaN(val)) {
+      return new FloatValue(NaN);
+    }
+
     if (typeof val === "boolean") {
       return new BoolValue(Boolean(val));
     }
@@ -128,9 +144,97 @@ export class BoolValue extends Value<boolean> {
   }
 }
 
+// Lua/Luau multi-return values. Sparkdown's eval stack normally
+// holds one value per slot; multi-return packs an ordered list of
+// values into a single `MultiValue` slot so existing
+// single-value consumers continue to work unchanged. Transparency is
+// the design goal: `valueObject` / `isTruthy` / `valueType` / `Cast`
+// all forward to the FIRST inner value, matching Lua's "truncate to 1"
+// rule for callers that don't ask for the rest.
+//
+// Three call sites participate:
+//   - Stdlib fns returning a JS array (e.g. `math.modf` → `[i, f]`)
+//     — wrapped here by the dispatcher and pushed as a single slot.
+//   - `PackTuple(N)` ControlCommand — pops N values, pushes one
+//     MultiValue. Emitted by `return a, b, c`.
+//   - `UnpackTuple(N)` ControlCommand — pops one (MultiValue or
+//     plain), pushes N values padded with nil. Emitted by
+//     `local a, b = expr`.
+//
+// `MultiValue` does not currently round-trip through JSON: it's a
+// transient stack value, not something that gets stored in
+// variables (single-target `VariableAssignment` auto-unwraps it
+// before storage). If/when sparkdown gains first-class function
+// values that can return-and-store tuples, serialization will need
+// a literal token like `"^tuple"`.
+export class MultiValue extends Value<any> {
+  public values: AbstractValue[];
+  constructor(values: AbstractValue[]) {
+    super(null);
+    this.values = values;
+  }
+  public get valueType(): ValueType {
+    return this.values[0]?.valueType ?? ValueType.Null;
+  }
+  public get valueObject(): any {
+    return this.values[0]?.valueObject ?? null;
+  }
+  public get isTruthy(): boolean {
+    const first = this.values[0];
+    return first != null && first.isTruthy;
+  }
+  public Cast(newType: ValueType): Value<any> {
+    if (newType === ValueType.Multi) return this;
+    const first = this.values[0];
+    if (!first) return new NullValue();
+    return first.Cast(newType);
+  }
+  public toString(): string {
+    return this.values[0]?.toString() ?? "nil";
+  }
+  public Copy(): InkObject {
+    return new MultiValue(
+      this.values.map((v) => v.Copy() as AbstractValue),
+    );
+  }
+}
+
+// Lua/Luau `nil` — the explicit "no value" value. Distinct from JS
+// `undefined` (which means "no return"), distinct from `Void` (which
+// is an inkjs control marker for "function returned nothing"). Sparkdown
+// stdlib fns that fail (`tonumber("xyz")`, `rawget(t, missing)`,
+// `table.find(t, missing)`, `utf8.offset` out of range) return `null`
+// from JS; the dispatcher wraps that via `Value.Create`, which routes
+// here. `valueObject` is `null` so external function calls see `null`.
+export class NullValue extends Value<any> {
+  constructor() {
+    super(null);
+  }
+  public get isTruthy(): boolean {
+    return false;
+  }
+  public get valueType(): ValueType {
+    return ValueType.Null;
+  }
+  public Cast(newType: ValueType): Value<any> {
+    if (newType === this.valueType) return this;
+    if (newType === ValueType.String) return new StringValue("nil");
+    if (newType === ValueType.Bool) return new BoolValue(false);
+    throw this.BadCastException(newType);
+  }
+  public toString(): string {
+    return "nil";
+  }
+  public Copy(): InkObject {
+    return new NullValue();
+  }
+}
+
 export class IntValue extends Value<number> {
   constructor(val: number) {
-    super(val || 0);
+    // `?? 0` (not `|| 0`): negative zero is falsy in JS, so `|| 0`
+    // silently dropped the sign — Lua requires tostring(-0) == "-0".
+    super(val ?? 0);
   }
   public get isTruthy() {
     return this.value != 0;
@@ -164,7 +268,10 @@ export class IntValue extends Value<number> {
 
 export class FloatValue extends Value<number> {
   constructor(val: number) {
-    super(val || 0.0);
+    // `?? 0.0` (not `|| 0.0`): NaN and -0 are falsy in JS, so `|| 0.0`
+    // silently normalized BOTH to +0 — `inf - inf` came out as 0
+    // instead of nan, and negative zero lost its sign.
+    super(val ?? 0.0);
   }
   public get isTruthy() {
     return this.value != 0.0;
@@ -294,6 +401,45 @@ export class DivertTargetValue extends Value<Path> {
 export class VariablePointerValue extends Value<string> {
   public _contextIndex: number;
 
+  // Lua-style open/close upvalues. While the parent frame (or block
+  // scope) the pointer references is still alive, the pointer is
+  // "open" — reads/writes resolve through the frame's slot via
+  // `contextIndex`. When that frame pops (`CallStack.Pop`) or the
+  // declaring block scope exits (`Element.PopScope`), the current
+  // value is snapshotted into `closedValue`; the pointer is then
+  // "closed" and behaves like a heap cell — reads return
+  // `closedValue`, writes update it in place.
+  //
+  // Closed-ness is an EXPLICIT flag, not `closedValue !== null` — a
+  // captured variable legitimately holding nil must still close
+  // (closed-with-null reads as nil). Conflating the two left such
+  // pointers dangling "open" at a stale contextIndex; when a later
+  // call re-occupied that stack depth and bound the pointer into its
+  // own target slot, reads chased the self-referential pointer into
+  // infinite `GetVariableWithName` ⇄ `ValueAtVariablePointer`
+  // recursion. Any assignment to `closedValue` closes the pointer.
+  //
+  // Lua semantics: multiple closures that capture the same outer
+  // variable share ONE upvalue, so when one closure writes, the others
+  // see it. Dedup happens at pointer-creation time (the auto-resolve
+  // path in `Story.ts` looks up an existing open pointer for the
+  // target frame+name before creating a new one).
+  private _closedValue: InkObject | null = null;
+  private _isClosed: boolean = false;
+
+  public get closedValue(): InkObject | null {
+    return this._closedValue;
+  }
+
+  public set closedValue(value: InkObject | null) {
+    this._closedValue = value;
+    this._isClosed = true;
+  }
+
+  public get isClosed(): boolean {
+    return this._isClosed;
+  }
+
   constructor(variableName: string, contextIndex: number = -1) {
     super(variableName);
 
@@ -333,6 +479,79 @@ export class VariablePointerValue extends Value<string> {
   }
   public Copy() {
     return new VariablePointerValue(this.variableName, this.contextIndex);
+  }
+}
+
+// ObjectValue: an inkjs-runtime record holding string-keyed entries (the
+// inkjs equivalent of a Luau table literal). Values are AbstractValues so
+// nested objects, strings, numbers, etc. all participate in the type system.
+//
+// Constructed at runtime by the BeginObject/EndObject control commands:
+// BeginObject pushes a marker onto the eval stack; each entry pushes a
+// StringValue(key) followed by the evaluated value; EndObject walks back to
+// the marker collecting pairs, builds the ObjectValue, and pushes it.
+export class ObjectValue extends Value<Map<string, AbstractValue>> {
+  // Luau `table.freeze(t)` marks a table read-only. Stdlib mutation
+  // fns (`table.insert`, `table.remove`, `rawset`, ...) check this
+  // flag and refuse to mutate. `table.clone` on a frozen table
+  // returns an *unfrozen* shallow copy — matching Luau.
+  private _frozen: boolean = false;
+  // Luau metatable. `setmetatable(t, mt)` writes here; `getmetatable(t)`
+  // reads it (or the `__metatable` field if set — Luau's metatable
+  // protection). All metamethod dispatch (`__index`, `__add`, `__eq`,
+  // etc.) walks this slot. `null` means "no metatable" — falls back
+  // to the raw rawget/rawset / built-in operator path.
+  private _metatable: ObjectValue | null = null;
+
+  constructor(entries?: Map<string, AbstractValue> | null) {
+    super(entries ?? new Map<string, AbstractValue>());
+  }
+  public get valueType() {
+    return ValueType.Object;
+  }
+  public get isTruthy() {
+    return this.value !== null && this.value.size > 0;
+  }
+  public get isFrozen(): boolean {
+    return this._frozen;
+  }
+  public Freeze(): void {
+    this._frozen = true;
+  }
+  public get metatable(): ObjectValue | null {
+    return this._metatable;
+  }
+  public set metatable(mt: ObjectValue | null) {
+    this._metatable = mt;
+  }
+  public Cast(newType: ValueType): Value<any> {
+    if (newType == this.valueType) return this;
+    if (newType == ValueType.String) {
+      return new StringValue(this.toString());
+    }
+    throw this.BadCastException(newType);
+  }
+  public toString(): string {
+    if (this.value === null) return "{}";
+    const parts: string[] = [];
+    for (const [k, v] of this.value) {
+      parts.push(`${k} = ${v?.toString() ?? "null"}`);
+    }
+    return `{${parts.join(", ")}}`;
+  }
+  public Copy() {
+    if (this.value === null) return new ObjectValue();
+    const next = new Map<string, AbstractValue>();
+    for (const [k, v] of this.value) {
+      const copy = v?.Copy() as AbstractValue | null;
+      if (copy) next.set(k, copy);
+    }
+    const out = new ObjectValue(next);
+    // Metatables are shared by reference across Copy (matching Lua —
+    // `t2 = table.clone(t1)` produces an unfrozen copy with the same
+    // metatable pointer; mutations to the original's mt are visible).
+    out._metatable = this._metatable;
+    return out;
   }
 }
 
@@ -415,4 +634,9 @@ export enum ValueType {
   String = 3,
   DivertTarget = 4,
   VariablePointer = 5,
+  Object = 6,
+  // Appended (rather than renumbered) so existing serialized save
+  // states keep their numeric ValueType indices.
+  Null = 7,
+  Multi = 8,
 }

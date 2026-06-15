@@ -1,0 +1,5 @@
+external gameInc(x)
+
+function topExternal(x) return gameInc(x) end
+
+function inkInc(x) return x + 1 end

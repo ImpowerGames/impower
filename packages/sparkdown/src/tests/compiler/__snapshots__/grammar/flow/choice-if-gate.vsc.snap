@@ -1,0 +1,23 @@
+text.source.sparkdown [0..42]
+ ├─ entity.choice.sd [0..41]
+ │   ├─ keyword.operator.expression.list.sd [0..2]: "* "
+ │   ├─ keyword.control.if.luau [2..4]: "if"
+ │   ├─ punctuation.whitespace.separator.optional.sd [4..5]: " "
+ │   ├─ variable.other.readwrite.luau [5..12]: "has_key"
+ │   ├─ string.choice.sd [12..31]
+ │   │   ├─ markup.raw.space.sd [12..13]: " "
+ │   │   ├─ markup.raw.punctuation.sd [13..14]: "\""
+ │   │   ├─ markup.raw.text.sd [14..20]: "Unlock"
+ │   │   ├─ markup.raw.space.sd [20..21]: " "
+ │   │   ├─ markup.raw.text.sd [21..24]: "the"
+ │   │   ├─ markup.raw.space.sd [24..25]: " "
+ │   │   ├─ markup.raw.text.sd [25..29]: "door"
+ │   │   ├─ markup.raw.punctuation.sd [29..30]: "."
+ │   │   └─ markup.raw.punctuation.sd [30..31]: "\""
+ │   ├─ punctuation.whitespace.separator.sd [31..32]: " "
+ │   ├─ keyword.control.divert.mark.sd [32..34]: "->"
+ │   └─ keyword.control.divert.path.sd [34..41]
+ │       ├─ punctuation.whitespace.separator.optional.sd [34..35]: " "
+ │       └─ keyword.control.divert.path.sd [35..41]
+ │           └─ keyword.control.divert.path.sd [35..41]: "inside"
+ └─ Newline [41..42]: "\n"

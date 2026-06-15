@@ -1,0 +1,5 @@
+a = x and y
+b = x or y
+c = not x
+d = x and y or z
+e = not x and y

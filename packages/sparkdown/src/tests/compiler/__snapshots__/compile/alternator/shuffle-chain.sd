@@ -1,0 +1,5 @@
+shuffle chain
+  | -> A
+  | -> B
+  | -> C
+end

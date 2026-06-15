@@ -1,0 +1,12 @@
+-> main
+scene main
+  label start
+  {chain|"A"|"B"|"C"}
+  & i = i + 1
+  if i < 5 then
+    -> start
+  end
+  fin
+
+end
+store i = 0

@@ -1,0 +1,21 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "global",
+          "name": "currentTimeOfDay",
+          "expression": {
+            "type": "VariableReference",
+            "path": [
+              "TIME_OF_DAY",
+              "NIGHT"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

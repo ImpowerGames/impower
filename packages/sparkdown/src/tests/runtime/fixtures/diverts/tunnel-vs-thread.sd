@@ -1,0 +1,22 @@
+-> main
+scene main
+  Start.
+  -> tunneled ->
+  After tunnel.
+  <- threaded
+  After thread.
+  choose
+    * "End"
+      fin
+
+  end
+end
+scene tunneled
+  In tunnel.
+  ->->
+
+end
+scene threaded
+  In thread.
+  done
+end

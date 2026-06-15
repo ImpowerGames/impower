@@ -1,0 +1,11 @@
+scene TestKnot
+  this is a test
+  choose
+    + [Next] -> TestKnot2
+  end
+
+end
+scene TestKnot2
+  this is the end
+  fin
+end

@@ -1,0 +1,32 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "double",
+      "args": [
+        "n"
+      ],
+      "isFunction": true,
+      "body": [
+        {
+          "type": "ReturnType",
+          "expression": {
+            "type": "BinaryExpression",
+            "op": "*",
+            "left": {
+              "type": "VariableReference",
+              "path": [
+                "n"
+              ]
+            },
+            "right": {
+              "type": "NumberExpression",
+              "value": 2,
+              "subtype": "int"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

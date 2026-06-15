@@ -1,0 +1,26 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "result",
+          "expression": {
+            "type": "FunctionCall",
+            "name": "compute",
+            "args": [
+              {
+                "type": "VariableReference",
+                "path": [
+                  "input"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

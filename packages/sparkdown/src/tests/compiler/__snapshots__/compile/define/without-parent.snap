@@ -1,0 +1,54 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "global",
+          "name": "Settings",
+          "expression": {
+            "type": "FunctionCall",
+            "name": "__def",
+            "args": [
+              {
+                "type": "ObjectExpression",
+                "entries": [
+                  {
+                    "key": "max_trust",
+                    "value": {
+                      "type": "NumberExpression",
+                      "value": 10,
+                      "subtype": "int"
+                    }
+                  },
+                  {
+                    "key": "language",
+                    "value": {
+                      "type": "StringExpression",
+                      "content": [
+                        "en"
+                      ]
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "StringExpression",
+                "content": [
+                  "Settings"
+                ]
+              },
+              {
+                "type": "StringExpression",
+                "content": [
+                  ""
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+text.source.sparkdown [0..26]
+ ├─ keyword.control.if.luau [0..2]: "if"
+ ├─ punctuation.whitespace.separator.optional.sd [2..3]: " "
+ ├─ variable.other.readwrite.luau [3..4]: "a"
+ ├─ punctuation.whitespace.separator.optional.sd [4..5]: " "
+ ├─ keyword.operator.comparison.luau [5..7]: "=="
+ ├─ punctuation.whitespace.separator.optional.sd [7..8]: " "
+ ├─ variable.other.readwrite.luau [8..9]: "b"
+ ├─ punctuation.whitespace.separator.optional.sd [9..10]: " "
+ ├─ keyword.control.then.luau [10..14]: "then"
+ ├─ Newline [14..15]: "\n"
+ ├─ punctuation.whitespace.indent.sd [15..17]: "  "
+ ├─ string.display.text.chunk.sd [17..21]
+ │   └─ markup.raw.text.sd [17..21]: "body"
+ ├─ Newline [21..22]: "\n"
+ ├─ keyword.control.end.luau [22..25]: "end"
+ └─ Newline [25..26]: "\n"

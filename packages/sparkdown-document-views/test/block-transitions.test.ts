@@ -20,14 +20,9 @@
 //
 // This test sweeps the transitions the user described.
 
-import { writeFileSync, mkdirSync } from "fs";
-import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 import { extractPdfText } from "./helpers/pdfText";
-import { renderPreview, formatRender } from "./helpers/renderPreview";
-
-const dir = resolve(__dirname, "snapshots");
-mkdirSync(dir, { recursive: true });
+import { renderPreview } from "./helpers/renderPreview";
 
 // The "blank" lines below carry indent (`  \n` instead of `\n`) — that's
 // what the editor leaves behind whenever a user types indented content
@@ -100,13 +95,6 @@ describe("block-transition squish — blank line between blocks must remain visi
     it(c.name, () => {
       const pdf = extractPdfText(c.source);
       const r = renderPreview(c.source);
-      writeFileSync(
-        resolve(
-          dir,
-          `block-transition-${c.name.replace(/[^a-z0-9]+/gi, "-")}.txt`,
-        ),
-        `## fixture\n${c.source}\n## pdf\n${pdf}\n## rendered\n${formatRender(r)}\n`,
-      );
 
       // (1) PDF must show a blank line between the two anchors.
       const pdfLines = pdf.split("\n");

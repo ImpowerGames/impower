@@ -1,0 +1,25 @@
+if (cond) then
+  N: Hi.
+end
+
+for (i) in pairs(t) do
+  N: Hello.
+end
+
+while (true) do
+  break
+end
+
+match (x)
+  | one = It is one.
+  | two = It is two.
+end
+
+plural (n)
+  | zero = none
+  | one = a single
+end
+
+function f()
+  return `inline: {plural(n)|one="is"|other="are"}`
+end

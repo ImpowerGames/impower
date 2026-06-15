@@ -1,0 +1,21 @@
+store has_companion = true
+
+-> hub
+scene hub
+  At the gates.
+  if has_companion then
+    <- companion
+  end
+  choose
+    * "Enter alone"
+      fin
+
+  end
+end
+scene companion
+  choose
+    * "Talk to companion"
+      fin
+  end
+  done
+end

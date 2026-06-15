@@ -1,0 +1,9 @@
+first gather
+choose
+  + [option 1]
+  + [option 2]
+then
+  the main gather
+  bottom gather
+  done
+end

@@ -10,6 +10,7 @@ import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkPr
 import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/compiler/utils/resolveFileUsingImpliedExtension";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
+import { diffDirtyRange } from "../utils/providers/getFormatDirtyRange";
 import {
   type Connection,
   Disposable,
@@ -110,6 +111,34 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
 
   annotations(uri: string) {
     return this._documents.annotations(uri);
+  }
+
+  // Last formatted output per document — the diff baseline for
+  // incremental (delta) formatting. Always a genuine format output (see
+  // diffDirtyRange's safety note), so the span between it and the current
+  // text bounds everything that might need reformatting.
+  protected _lastFormattedText = new Map<string, string>();
+
+  // The byte range that may need reformatting since the last format, or
+  // undefined for a full format (no baseline yet). `currentText` is the
+  // document's current text.
+  formatDirtyRange(
+    uri: string,
+    currentText: string,
+  ): { from: number; to: number } | undefined {
+    const baseline = this._lastFormattedText.get(uri);
+    if (baseline == null) {
+      return undefined;
+    }
+    return diffDirtyRange(baseline, currentText) ?? { from: 0, to: 0 };
+  }
+
+  markFormatted(uri: string, formattedText: string) {
+    this._lastFormattedText.set(uri, formattedText);
+  }
+
+  clearFormatCache(uri: string) {
+    this._lastFormattedText.delete(uri);
   }
 
   override async sendNotification<P, M extends string>(
@@ -258,6 +287,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     languageId?: string | null;
   }) {
     this._documents.remove({ textDocument: { uri: file.uri } });
+    this._lastFormattedText.delete(file.uri);
   }
 
   public listen(): Disposable {

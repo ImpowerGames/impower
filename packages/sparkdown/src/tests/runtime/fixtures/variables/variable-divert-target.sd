@@ -1,0 +1,11 @@
+store x = -> here
+-> there
+
+scene there
+  -> x
+
+end
+scene here
+  Here.
+  done
+end

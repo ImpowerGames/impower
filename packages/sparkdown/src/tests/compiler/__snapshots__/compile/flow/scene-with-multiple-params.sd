@@ -1,0 +1,2 @@
+scene Pair(a: number, b: number)
+end

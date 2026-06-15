@@ -1,0 +1,195 @@
+sparkdown [0..194]
+ ├─ Scene [0..10]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..10]
+ │   │   └─ SceneWithoutParametersDeclaration [6..10]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..10]
+ │   │       │   └─ SceneDeclarationName [6..10]: "main"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 10
+ │   └─ Scene_end 10
+ ├─ Newline [10..12]: "\r\n"
+ ├─ LuauSparkdownSequentialAlternatorBlock [12..188]
+ │   ├─ LuauSparkdownSequentialAlternatorBlock_begin [12..21]
+ │   │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c2 [14..21]
+ │   │   │   └─ LuauControlKeyword [14..21]: "shuffle"
+ │   │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c3 21
+ │   │   │   └─ LuauSparkdownSequentialAlternatorBlock_begin_c3 21
+ │   │   │       └─ OptionalWhitespace 21
+ │   │   ├─ LuauSparkdownSequentialAlternatorBlock_begin_c4 21
+ │   │   └─ LuauSparkdownSequentialAlternatorBlock_begin_c5 21
+ │   │       └─ LuauSparkdownSequentialAlternatorBlock_begin_c5 21
+ │   │           └─ OptionalWhitespace 21
+ │   ├─ LuauSparkdownSequentialAlternatorBlock_content [21..183]
+ │   │   ├─ Newline [21..23]: "\r\n"
+ │   │   ├─ LuauAlternatorSeparator [23..29]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 [23..27]
+ │   │   │   │   └─ ExtraWhitespace [23..27]: "    "
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [27..28]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [28..29]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [28..29]
+ │   │   │   │       └─ OptionalWhitespace [28..29]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 29
+ │   │   │   ├─ LuauAlternatorSeparator_c5 29
+ │   │   │   ├─ LuauAlternatorSeparator_c6 29
+ │   │   │   └─ LuauAlternatorSeparator_c7 29
+ │   │   ├─ ImplicitAction [29..60]
+ │   │   │   ├─ ImplicitAction_begin 29
+ │   │   │   │   └─ ImplicitAction_begin_c1 29
+ │   │   │   │       └─ OptionalWhitespace 29
+ │   │   │   ├─ ImplicitAction_content [29..60]
+ │   │   │   │   └─ LineEnd [29..60]
+ │   │   │   │       ├─ LineEnd_begin 29
+ │   │   │   │       │   └─ LineEnd_begin_c1 29
+ │   │   │   │       │       └─ OptionalWhitespace 29
+ │   │   │   │       ├─ LineEnd_content [29..60]
+ │   │   │   │       │   └─ TextChunk [29..60]
+ │   │   │   │       │       ├─ TextChunk_begin 29
+ │   │   │   │       │       ├─ TextChunk_content [29..60]
+ │   │   │   │       │       │   ├─ Word [29..30]: "a"
+ │   │   │   │       │       │   ├─ Space [30..31]: " "
+ │   │   │   │       │       │   ├─ Word [31..34]: "few"
+ │   │   │   │       │       │   ├─ Space [34..35]: " "
+ │   │   │   │       │       │   ├─ Word [35..39]: "bars"
+ │   │   │   │       │       │   ├─ Space [39..40]: " "
+ │   │   │   │       │       │   ├─ Word [40..42]: "of"
+ │   │   │   │       │       │   ├─ Space [42..43]: " "
+ │   │   │   │       │       │   ├─ Word [43..45]: "an"
+ │   │   │   │       │       │   ├─ Space [45..46]: " "
+ │   │   │   │       │       │   ├─ Word [46..49]: "old"
+ │   │   │   │       │       │   ├─ Space [49..50]: " "
+ │   │   │   │       │       │   ├─ Word [50..54]: "jazz"
+ │   │   │   │       │       │   ├─ Space [54..55]: " "
+ │   │   │   │       │       │   ├─ Word [55..59]: "song"
+ │   │   │   │       │       │   └─ Punctuation [59..60]: "."
+ │   │   │   │       │       └─ TextChunk_end 60
+ │   │   │   │       └─ LineEnd_end 60
+ │   │   │   └─ ImplicitAction_end 60
+ │   │   ├─ Newline [60..62]: "\r\n"
+ │   │   ├─ LuauAlternatorSeparator [62..68]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 [62..66]
+ │   │   │   │   └─ ExtraWhitespace [62..66]: "    "
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [66..67]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [67..68]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [67..68]
+ │   │   │   │       └─ OptionalWhitespace [67..68]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 68
+ │   │   │   ├─ LuauAlternatorSeparator_c5 68
+ │   │   │   ├─ LuauAlternatorSeparator_c6 68
+ │   │   │   └─ LuauAlternatorSeparator_c7 68
+ │   │   ├─ ImplicitAction [68..107]
+ │   │   │   ├─ ImplicitAction_begin 68
+ │   │   │   │   └─ ImplicitAction_begin_c1 68
+ │   │   │   │       └─ OptionalWhitespace 68
+ │   │   │   ├─ ImplicitAction_content [68..107]
+ │   │   │   │   └─ LineEnd [68..107]
+ │   │   │   │       ├─ LineEnd_begin 68
+ │   │   │   │       │   └─ LineEnd_begin_c1 68
+ │   │   │   │       │       └─ OptionalWhitespace 68
+ │   │   │   │       ├─ LineEnd_content [68..107]
+ │   │   │   │       │   └─ TextChunk [68..107]
+ │   │   │   │       │       ├─ TextChunk_begin 68
+ │   │   │   │       │       ├─ TextChunk_content [68..107]
+ │   │   │   │       │       │   ├─ Word [68..69]: "a"
+ │   │   │   │       │       │   ├─ Space [69..70]: " "
+ │   │   │   │       │       │   ├─ Word [70..77]: "frantic"
+ │   │   │   │       │       │   ├─ Space [77..78]: " "
+ │   │   │   │       │       │   ├─ Word [78..83]: "voice"
+ │   │   │   │       │       │   ├─ Space [83..84]: " "
+ │   │   │   │       │       │   ├─ Word [84..90]: "asking"
+ │   │   │   │       │       │   ├─ Space [90..91]: " "
+ │   │   │   │       │       │   ├─ Word [91..94]: "for"
+ │   │   │   │       │       │   ├─ Space [94..95]: " "
+ │   │   │   │       │       │   ├─ Word [95..106]: "coordinates"
+ │   │   │   │       │       │   └─ Punctuation [106..107]: "."
+ │   │   │   │       │       └─ TextChunk_end 107
+ │   │   │   │       └─ LineEnd_end 107
+ │   │   │   └─ ImplicitAction_end 107
+ │   │   ├─ Newline [107..109]: "\r\n"
+ │   │   ├─ LuauAlternatorSeparator [109..115]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 [109..113]
+ │   │   │   │   └─ ExtraWhitespace [109..113]: "    "
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [113..114]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [114..115]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [114..115]
+ │   │   │   │       └─ OptionalWhitespace [114..115]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 115
+ │   │   │   ├─ LuauAlternatorSeparator_c5 115
+ │   │   │   ├─ LuauAlternatorSeparator_c6 115
+ │   │   │   └─ LuauAlternatorSeparator_c7 115
+ │   │   ├─ ImplicitAction [115..146]
+ │   │   │   ├─ ImplicitAction_begin 115
+ │   │   │   │   └─ ImplicitAction_begin_c1 115
+ │   │   │   │       └─ OptionalWhitespace 115
+ │   │   │   ├─ ImplicitAction_content [115..146]
+ │   │   │   │   └─ LineEnd [115..146]
+ │   │   │   │       ├─ LineEnd_begin 115
+ │   │   │   │       │   └─ LineEnd_begin_c1 115
+ │   │   │   │       │       └─ OptionalWhitespace 115
+ │   │   │   │       ├─ LineEnd_content [115..146]
+ │   │   │   │       │   └─ TextChunk [115..146]
+ │   │   │   │       │       ├─ TextChunk_begin 115
+ │   │   │   │       │       ├─ TextChunk_content [115..146]
+ │   │   │   │       │       │   ├─ Word [115..117]: "an"
+ │   │   │   │       │       │   ├─ Space [117..118]: " "
+ │   │   │   │       │       │   ├─ Word [118..127]: "automated"
+ │   │   │   │       │       │   ├─ Space [127..128]: " "
+ │   │   │   │       │       │   ├─ Word [128..135]: "weather"
+ │   │   │   │       │       │   ├─ Space [135..136]: " "
+ │   │   │   │       │       │   ├─ Word [136..145]: "broadcast"
+ │   │   │   │       │       │   └─ Punctuation [145..146]: "."
+ │   │   │   │       │       └─ TextChunk_end 146
+ │   │   │   │       └─ LineEnd_end 146
+ │   │   │   └─ ImplicitAction_end 146
+ │   │   ├─ Newline [146..148]: "\r\n"
+ │   │   ├─ LuauAlternatorSeparator [148..154]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 [148..152]
+ │   │   │   │   └─ ExtraWhitespace [148..152]: "    "
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [152..153]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [153..154]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [153..154]
+ │   │   │   │       └─ OptionalWhitespace [153..154]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 154
+ │   │   │   ├─ LuauAlternatorSeparator_c5 154
+ │   │   │   ├─ LuauAlternatorSeparator_c6 154
+ │   │   │   └─ LuauAlternatorSeparator_c7 154
+ │   │   ├─ ImplicitAction [154..181]
+ │   │   │   ├─ ImplicitAction_begin 154
+ │   │   │   │   └─ ImplicitAction_begin_c1 154
+ │   │   │   │       └─ OptionalWhitespace 154
+ │   │   │   ├─ ImplicitAction_content [154..181]
+ │   │   │   │   └─ LineEnd [154..181]
+ │   │   │   │       ├─ LineEnd_begin 154
+ │   │   │   │       │   └─ LineEnd_begin_c1 154
+ │   │   │   │       │       └─ OptionalWhitespace 154
+ │   │   │   │       ├─ LineEnd_content [154..181]
+ │   │   │   │       │   └─ TextChunk [154..181]
+ │   │   │   │       │       ├─ TextChunk_begin 154
+ │   │   │   │       │       ├─ TextChunk_content [154..181]
+ │   │   │   │       │       │   ├─ Word [154..159]: "heavy"
+ │   │   │   │       │       │   ├─ Punctuation [159..160]: ","
+ │   │   │   │       │       │   ├─ Space [160..161]: " "
+ │   │   │   │       │       │   ├─ Word [161..170]: "distorted"
+ │   │   │   │       │       │   ├─ Space [170..171]: " "
+ │   │   │   │       │       │   ├─ Word [171..180]: "breathing"
+ │   │   │   │       │       │   └─ Punctuation [180..181]: "."
+ │   │   │   │       │       └─ TextChunk_end 181
+ │   │   │   │       └─ LineEnd_end 181
+ │   │   │   └─ ImplicitAction_end 181
+ │   │   └─ Newline [181..183]: "\r\n"
+ │   └─ LuauSparkdownSequentialAlternatorBlock_end [183..188]
+ │       ├─ LuauSparkdownSequentialAlternatorBlock_end_c1 [183..185]
+ │       │   └─ LuauSparkdownSequentialAlternatorBlock_end_c1 [183..185]
+ │       │       └─ OptionalWhitespace [183..185]: "  "
+ │       └─ LuauSparkdownSequentialAlternatorBlock_end_c2 [185..188]
+ │           └─ LuauEndKeyword [185..188]: "end"
+ ├─ Newline [188..190]: "\r\n"
+ ├─ LuauEndKeyword [190..193]: "end"
+ └─ Newline [193..194]: "\n"

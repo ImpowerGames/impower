@@ -1,0 +1,35 @@
+scene main
+  if
+    trust >= 1 or
+    trust >= 2
+  then
+    body
+  end
+
+  if a == 1 and
+    b == 2
+  then
+    body
+  end
+
+  while
+    cond
+  do
+    body
+  end
+
+  for
+    k, v in pairs(t)
+  do
+    body
+  end
+
+  if cond
+    then
+    body
+  elseif other
+    then
+    body
+  end
+
+  -> DONE

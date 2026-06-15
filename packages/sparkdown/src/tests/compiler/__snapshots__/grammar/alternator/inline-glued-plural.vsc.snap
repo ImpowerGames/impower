@@ -1,0 +1,23 @@
+text.source.sparkdown [0..41]
+ ├─ string.display.text.chunk.sd [0..38]
+ │   ├─ markup.raw.text.sd [0..1]: "x"
+ │   ├─ punctuation.whitespace.sd [1..2]: " "
+ │   ├─ meta.glue.sd [2..4]
+ │   │   └─ keyword.other.glue.sd [2..4]: ".."
+ │   ├─ punctuation.whitespace.extra.sd [4..5]: " "
+ │   ├─ keyword.control.luau [5..11]: "plural"
+ │   ├─ punctuation.definition.template-expression.begin.sd [11..12]: "("
+ │   ├─ variable.other.readwrite.luau [12..13]: "n"
+ │   ├─ punctuation.definition.template-expression.end.sd [13..14]: ")"
+ │   ├─ keyword.operator.alternator.luau [14..15]: "|"
+ │   ├─ variable.other.readwrite.luau [15..18]: "one"
+ │   ├─ keyword.operator.equal.luau [18..19]: "="
+ │   ├─ markup.raw.text.sd [19..24]: "apple"
+ │   ├─ keyword.operator.alternator.luau [24..25]: "|"
+ │   ├─ variable.other.readwrite.luau [25..30]: "other"
+ │   ├─ keyword.operator.equal.luau [30..31]: "="
+ │   ├─ markup.raw.text.sd [31..37]: "apples"
+ │   └─ punctuation.whitespace.extra.sd [37..38]: " "
+ ├─ meta.glue.sd [38..40]
+ │   └─ keyword.other.glue.sd [38..40]: ".."
+ └─ Newline [40..41]: "\n"

@@ -1,0 +1,13 @@
+-> main
+scene main
+  label start
+  & n = n + 1
+  You have {n} .. plural(n)|item ..
+  if n < 3 then
+    -> start
+  end
+  fin
+
+end
+store n = 0
+store lang = { current = "en" }

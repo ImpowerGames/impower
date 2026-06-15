@@ -3,12 +3,10 @@
 // fixture mirroring the user's report so the bug is visible. This is a
 // scratch file — we'll convert it into pass/fail assertions once the
 // expected behavior is locked down.
-import { writeFileSync, mkdirSync } from "fs";
-import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 import { extractPdfText } from "./helpers/pdfText";
 import { extractPreviewText } from "./helpers/previewText";
-import { renderPreview, formatRender } from "./helpers/renderPreview";
+import { renderPreview } from "./helpers/renderPreview";
 
 // The "blank" lines below have trailing whitespace ("      ") rather than
 // being clean `\n`. This mirrors what the editor produces when the user
@@ -44,12 +42,6 @@ describe("dialogue squish", () => {
     const pdf = extractPdfText(FIXTURE);
     const preview = extractPreviewText(FIXTURE);
     const render = renderPreview(FIXTURE);
-    const dir = resolve(__dirname, "snapshots");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      resolve(dir, "dialogue-squish.txt"),
-      `## fixture\n${FIXTURE}\n## pdf\n${pdf}\n## preview\n${preview}\n## rendered\n${formatRender(render)}\n`,
-    );
 
     // The bug: separators between consecutive dialogue blocks were dropped
     // when the "blank" line between them was actually whitespace-only

@@ -1,0 +1,181 @@
+sparkdown [0..87]
+ ├─ LuauVariableDefinition [0..27]
+ │   ├─ LuauVariableDefinition_begin [0..6]
+ │   │   ├─ LuauVariableDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauVariableDefinition_begin_c2 [0..5]
+ │   │   │   └─ LuauScopeModifier [0..5]: "store"
+ │   │   └─ LuauVariableDefinition_begin_c3 [5..6]
+ │   │       └─ LuauVariableDefinition_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauVariableDefinition_content [6..27]
+ │   │   └─ LuauVariableAssignment [6..27]
+ │   │       ├─ LuauVariableAssignment_begin [6..16]
+ │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..15]
+ │   │       │   │   └─ LuauVariableName [6..15]: "inventory"
+ │   │       │   └─ LuauVariableAssignment_begin_c2 [15..16]
+ │   │       │       └─ OptionalWhitespace [15..16]: " "
+ │   │       ├─ LuauVariableAssignment_content [16..27]
+ │   │       │   └─ LuauAssignmentOperation [16..27]
+ │   │       │       ├─ LuauAssignmentOperation_begin 16
+ │   │       │       │   └─ LuauAssignmentOperation_begin_c1 16
+ │   │       │       ├─ LuauAssignmentOperation_content [16..27]
+ │   │       │       │   ├─ LuauAssignmentOperator [16..18]
+ │   │       │       │   │   ├─ LuauAssignmentOperator_begin [16..18]
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 16
+ │   │       │       │   │   │   │   └─ OptionalWhitespace 16
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [16..17]: "="
+ │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [17..18]
+ │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [17..18]
+ │   │       │       │   │   │           └─ OptionalWhitespace [17..18]: " "
+ │   │       │       │   │   └─ LuauAssignmentOperator_end 18
+ │   │       │       │   └─ LuauTable [18..27]
+ │   │       │       │       ├─ LuauTable_begin [18..19]
+ │   │       │       │       │   └─ LuauTable_begin_c1 [18..19]
+ │   │       │       │       │       └─ PunctuationBraceOpen [18..19]: "{"
+ │   │       │       │       ├─ LuauTable_content [19..26]
+ │   │       │       │       │   ├─ LuauAccessPath [19..24]
+ │   │       │       │       │   │   ├─ LuauAccessPath_begin 19
+ │   │       │       │       │   │   ├─ LuauAccessPath_content [19..24]
+ │   │       │       │       │   │   │   └─ LuauAccessPart [19..24]
+ │   │       │       │       │   │   │       └─ LuauVariable [19..24]
+ │   │       │       │       │   │   │           └─ LuauVariable_c1 [19..24]
+ │   │       │       │       │   │   │               └─ LuauVariableName [19..24]: "coins"
+ │   │       │       │       │   │   └─ LuauAccessPath_end 24
+ │   │       │       │       │   │       └─ LuauAccessPath_end_c1 24
+ │   │       │       │       │   │           └─ LuauAccessPath_end_c1 24
+ │   │       │       │       │   │               └─ OptionalWhitespace 24
+ │   │       │       │       │   └─ LuauAssignmentOperation [24..26]
+ │   │       │       │       │       ├─ LuauAssignmentOperation_begin 24
+ │   │       │       │       │       │   └─ LuauAssignmentOperation_begin_c1 24
+ │   │       │       │       │       ├─ LuauAssignmentOperation_content [24..26]
+ │   │       │       │       │       │   ├─ LuauAssignmentOperator [24..25]
+ │   │       │       │       │       │   │   ├─ LuauAssignmentOperator_begin [24..25]
+ │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 24
+ │   │       │       │       │       │   │   │   │   └─ OptionalWhitespace 24
+ │   │       │       │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [24..25]: "="
+ │   │       │       │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 25
+ │   │       │       │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 25
+ │   │       │       │       │       │   │   │           └─ OptionalWhitespace 25
+ │   │       │       │       │       │   │   └─ LuauAssignmentOperator_end 25
+ │   │       │       │       │       │   └─ LuauNumericDecimal [25..26]
+ │   │       │       │       │       │       ├─ LuauNumericDecimal_c1 [25..26]: "1"
+ │   │       │       │       │       │       └─ LuauNumericDecimal_c2 26
+ │   │       │       │       │       └─ LuauAssignmentOperation_end 26
+ │   │       │       │       └─ LuauTable_end [26..27]
+ │   │       │       │           ├─ LuauTable_end_c1 [26..27]
+ │   │       │       │           │   └─ PunctuationBraceClose [26..27]: "}"
+ │   │       │       │           └─ LuauTable_end_c2 27
+ │   │       │       └─ LuauAssignmentOperation_end 27
+ │   │       └─ LuauVariableAssignment_end 27
+ │   └─ LuauVariableDefinition_end 27
+ ├─ Newline [27..28]: "\n"
+ ├─ LuauInterpolatedStringExpression [28..86]
+ │   ├─ LuauInterpolatedStringExpression_begin [28..29]
+ │   │   └─ LuauInterpolatedStringExpression_begin_c1 [28..29]
+ │   │       └─ PunctuationBraceOpen [28..29]: "{"
+ │   ├─ LuauInterpolatedStringExpression_content [29..85]
+ │   │   └─ LuauConditionalAlternatorBlock [29..85]
+ │   │       ├─ LuauConditionalAlternatorBlock_begin [29..35]
+ │   │       │   ├─ LuauConditionalAlternatorBlock_begin_c1 29
+ │   │       │   │   └─ OptionalWhitespace 29
+ │   │       │   ├─ LuauConditionalAlternatorBlock_begin_c2 [29..35]
+ │   │       │   │   └─ LuauControlKeyword [29..35]: "plural"
+ │   │       │   └─ LuauConditionalAlternatorBlock_begin_c3 35
+ │   │       │       └─ LuauConditionalAlternatorBlock_begin_c3 35
+ │   │       │           └─ OptionalWhitespace 35
+ │   │       ├─ LuauConditionalAlternatorBlock_content [35..81]
+ │   │       │   ├─ LuauConditionalAlternatorCondition [35..52]
+ │   │       │   │   ├─ LuauConditionalAlternatorCondition_begin 35
+ │   │       │   │   ├─ LuauConditionalAlternatorCondition_content [35..52]
+ │   │       │   │   │   └─ LuauParenthetical [35..52]
+ │   │       │   │   │       ├─ LuauParenthetical_begin [35..36]
+ │   │       │   │   │       │   └─ LuauParenthetical_begin_c1 [35..36]
+ │   │       │   │   │       │       └─ PunctuationParenOpen [35..36]: "("
+ │   │       │   │   │       ├─ LuauParenthetical_content [36..51]
+ │   │       │   │   │       │   └─ LuauAccessPath [36..51]
+ │   │       │   │   │       │       ├─ LuauAccessPath_begin 36
+ │   │       │   │   │       │       ├─ LuauAccessPath_content [36..51]
+ │   │       │   │   │       │       │   ├─ LuauAccessPart [36..45]
+ │   │       │   │   │       │       │   │   └─ LuauVariable [36..45]
+ │   │       │   │   │       │       │   │       └─ LuauVariable_c1 [36..45]
+ │   │       │   │   │       │       │   │           └─ LuauVariableName [36..45]: "inventory"
+ │   │       │   │   │       │       │   └─ LuauAccessPart [45..51]
+ │   │       │   │   │       │       │       └─ LuauPropertyAccessor [45..51]
+ │   │       │   │   │       │       │           ├─ LuauPropertyAccessor_c1 45
+ │   │       │   │   │       │       │           ├─ LuauPropertyAccessor_c2 [45..46]
+ │   │       │   │   │       │       │           │   └─ LuauAccessorOperator [45..46]: "."
+ │   │       │   │   │       │       │           ├─ LuauPropertyAccessor_c3 46
+ │   │       │   │   │       │       │           └─ LuauPropertyAccessor_c4 [46..51]
+ │   │       │   │   │       │       │               └─ LuauPropertyName [46..51]: "coins"
+ │   │       │   │   │       │       └─ LuauAccessPath_end 51
+ │   │       │   │   │       │           └─ LuauAccessPath_end_c1 51
+ │   │       │   │   │       └─ LuauParenthetical_end [51..52]
+ │   │       │   │   │           ├─ LuauParenthetical_end_c1 [51..52]
+ │   │       │   │   │           │   └─ PunctuationParenClose [51..52]: ")"
+ │   │       │   │   │           └─ LuauParenthetical_end_c2 52
+ │   │       │   │   └─ LuauConditionalAlternatorCondition_end 52
+ │   │       │   ├─ LuauAlternatorSeparator [52..59]
+ │   │       │   │   ├─ LuauAlternatorSeparator_c1 [52..53]
+ │   │       │   │   │   └─ ExtraWhitespace [52..53]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c2 [53..54]: "|"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c3 [54..55]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [54..55]
+ │   │       │   │   │       └─ OptionalWhitespace [54..55]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c4 [55..58]
+ │   │       │   │   │   └─ LuauAlternatorAssignmentName [55..58]: "one"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c5 58
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c5 58
+ │   │       │   │   │       └─ OptionalWhitespace 58
+ │   │       │   │   ├─ LuauAlternatorSeparator_c6 [58..59]
+ │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [58..59]: "="
+ │   │       │   │   └─ LuauAlternatorSeparator_c7 59
+ │   │       │   │       └─ LuauAlternatorSeparator_c7 59
+ │   │       │   │           └─ OptionalWhitespace 59
+ │   │       │   ├─ LuauDoubleQuotedString [59..65]
+ │   │       │   │   ├─ LuauDoubleQuotedString_begin [59..60]
+ │   │       │   │   │   └─ LuauDoubleQuotedString_begin_c1 [59..60]
+ │   │       │   │   │       └─ PunctuationStringDoubleQuoteOpen [59..60]: "\""
+ │   │       │   │   ├─ LuauDoubleQuotedString_content [60..64]
+ │   │       │   │   │   └─ Word [60..64]: "coin"
+ │   │       │   │   └─ LuauDoubleQuotedString_end [64..65]
+ │   │       │   │       ├─ LuauDoubleQuotedString_end_c1 [64..65]
+ │   │       │   │       │   └─ PunctuationStringDoubleQuoteClose [64..65]: "\""
+ │   │       │   │       └─ LuauDoubleQuotedString_end_c2 65
+ │   │       │   ├─ LuauAlternatorSeparator [65..74]
+ │   │       │   │   ├─ LuauAlternatorSeparator_c1 [65..66]
+ │   │       │   │   │   └─ ExtraWhitespace [65..66]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c2 [66..67]: "|"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c3 [67..68]
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c3 [67..68]
+ │   │       │   │   │       └─ OptionalWhitespace [67..68]: " "
+ │   │       │   │   ├─ LuauAlternatorSeparator_c4 [68..73]
+ │   │       │   │   │   └─ LuauAlternatorAssignmentName [68..73]: "other"
+ │   │       │   │   ├─ LuauAlternatorSeparator_c5 73
+ │   │       │   │   │   └─ LuauAlternatorSeparator_c5 73
+ │   │       │   │   │       └─ OptionalWhitespace 73
+ │   │       │   │   ├─ LuauAlternatorSeparator_c6 [73..74]
+ │   │       │   │   │   └─ LuauAlternatorAssignmentOperator [73..74]: "="
+ │   │       │   │   └─ LuauAlternatorSeparator_c7 74
+ │   │       │   │       └─ LuauAlternatorSeparator_c7 74
+ │   │       │   │           └─ OptionalWhitespace 74
+ │   │       │   └─ LuauDoubleQuotedString [74..81]
+ │   │       │       ├─ LuauDoubleQuotedString_begin [74..75]
+ │   │       │       │   └─ LuauDoubleQuotedString_begin_c1 [74..75]
+ │   │       │       │       └─ PunctuationStringDoubleQuoteOpen [74..75]: "\""
+ │   │       │       ├─ LuauDoubleQuotedString_content [75..80]
+ │   │       │       │   └─ Word [75..80]: "coins"
+ │   │       │       └─ LuauDoubleQuotedString_end [80..81]
+ │   │       │           ├─ LuauDoubleQuotedString_end_c1 [80..81]
+ │   │       │           │   └─ PunctuationStringDoubleQuoteClose [80..81]: "\""
+ │   │       │           └─ LuauDoubleQuotedString_end_c2 81
+ │   │       └─ LuauConditionalAlternatorBlock_end [81..85]
+ │   │           ├─ LuauConditionalAlternatorBlock_end_c1 [81..82]
+ │   │           │   └─ LuauConditionalAlternatorBlock_end_c1 [81..82]
+ │   │           │       └─ OptionalWhitespace [81..82]: " "
+ │   │           └─ LuauConditionalAlternatorBlock_end_c2 [82..85]
+ │   │               └─ LuauEndKeyword [82..85]: "end"
+ │   └─ LuauInterpolatedStringExpression_end [85..86]
+ │       └─ LuauInterpolatedStringExpression_end_c1 [85..86]
+ │           └─ PunctuationBraceClose [85..86]: "}"
+ └─ Newline [86..87]: "\n"

@@ -1,0 +1,4 @@
+function get_plural_category(n: number)
+  local check_plural = n
+  return check_plural
+end

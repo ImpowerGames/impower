@@ -408,6 +408,23 @@ export const decorate = (
     return true;
   };
 
+  // A node is "leading indentation" when it's a non-empty whitespace run at
+  // the very start of its line. The grammar exposes leading whitespace as a
+  // line-start `OptionalWhitespace` capture (there's no dedicated `Indent`
+  // node — indent is detected by position, not name). `Indent` is kept as a
+  // legacy alias so older grammars still work. Zero-width runs (the `*`
+  // capture matched nothing) and mid-line whitespace are excluded.
+  const isLeadingIndent = (
+    nodeName: string,
+    nodeFrom: number,
+    nodeTo: number,
+  ): boolean => {
+    if (nodeName === "Indent") return true;
+    if (nodeName !== "OptionalWhitespace") return false;
+    if (nodeTo <= nodeFrom) return false;
+    return doc.lineAt(nodeFrom).from === nodeFrom;
+  };
+
   let lineStart = from;
   // Workaround for a textmate-grammar-tree incremental parser bug:
   // after each reparse, duplicate `Newline` nodes accumulate at the
@@ -580,19 +597,31 @@ export const decorate = (
           }),
         );
         return false;
-      } else if (name === "Indent" && inConditionalBlock.length === 0) {
-        // If the Indent is the entire content of a whitespace-only line
-        // (an indented "blank" line — what the editor leaves when the
-        // user types into an indented block and then deletes back to
-        // nothing), DON'T replace it. Leaving the source whitespace as-is
-        // gives the cm-line a natural 1em line-box because there's real
-        // text content anchoring it. The base `.cm-line { opacity: 0 }`
-        // rule keeps that whitespace invisible. Without this skip, the
-        // Indent gets a Decoration.replace, the cm-line ends up with
-        // only widget buffers as children, CodeMirror skips `<br>`
-        // injection, and the line collapses to zero height — making the
-        // indented blank render differently from a truly-empty blank
-        // (the latter gets `<br>` because CodeMirror sees no children).
+      } else if (
+        isLeadingIndent(name, from, to) &&
+        inConditionalBlock.length === 0
+      ) {
+        // Leading indentation of a block line — hide it so the rendered
+        // body doesn't show its source indent. The grammar has no dedicated
+        // `Indent` node; leading whitespace surfaces as a line-start
+        // `OptionalWhitespace` run (the formatter detects indent by
+        // position, not node name — see the grammar's whitespace section),
+        // so `isLeadingIndent` keys off position, treating Indent as a
+        // legacy alias.
+        //
+        // EXCEPTION: if the indent is the entire content of a
+        // whitespace-only line (an indented "blank" line — what the editor
+        // leaves when the user types into an indented block and then
+        // deletes back to nothing), DON'T replace it. Leaving the source
+        // whitespace as-is gives the cm-line a natural 1em line-box because
+        // there's real text content anchoring it. The base
+        // `.cm-line { opacity: 0 }` rule keeps that whitespace invisible.
+        // Without this skip, the indent gets a Decoration.replace, the
+        // cm-line ends up with only widget buffers as children, CodeMirror
+        // skips `<br>` injection, and the line collapses to zero height —
+        // making the indented blank render differently from a truly-empty
+        // blank (the latter gets `<br>` because CodeMirror sees no
+        // children).
         const indentLine = doc.lineAt(from);
         if (indentLine.from === from && /^[ \t]*$/.test(indentLine.text)) {
           return false;
@@ -812,6 +841,19 @@ export const decorate = (
     tree,
     [LANGUAGE_HIGHLIGHTS],
     (from, to, style) => {
+      // Leading whitespace is tagged `definition(content)`, which the
+      // highlight style hides with `display: none`. On a normal block line
+      // that's fine (the indent is hidden and the decorator replaces it
+      // anyway), but on an otherwise-blank line the whitespace is the ONLY
+      // thing anchoring the line-box. Hiding it would collapse the line to
+      // zero height and erase the inter-block separator. Skip highlighting
+      // the leading whitespace of a whitespace-only line so it renders as
+      // bare, visible text (matching how the now-removed dedicated `Indent`
+      // node used to render).
+      const line = doc.lineAt(from);
+      if (line.from === from && isWhitespaceOnly(line.from, line.to)) {
+        return;
+      }
       decorations.push(Decoration.mark({ class: style }).range(from, to));
     },
     from,

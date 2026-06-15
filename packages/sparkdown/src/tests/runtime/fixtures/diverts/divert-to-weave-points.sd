@@ -1,0 +1,15 @@
+-> knot.stitch.gather
+
+scene knot
+  branch stitch
+    - hello
+    choose
+      + (choice) test
+        choice content
+    end
+    label gather
+    gather
+    chain | -> knot.stitch.choice | second time round end
+    fin
+  end
+end

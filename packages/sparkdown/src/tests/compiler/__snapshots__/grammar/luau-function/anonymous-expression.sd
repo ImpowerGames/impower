@@ -1,0 +1,5 @@
+function plural(n: number)
+  return function (pluralizations: {[string]: string})
+    return pluralizations["one"]
+  end
+end

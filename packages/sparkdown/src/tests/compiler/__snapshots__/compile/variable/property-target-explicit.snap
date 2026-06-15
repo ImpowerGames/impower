@@ -1,0 +1,30 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "StorePropertyAssignment",
+          "base": {
+            "type": "VariableReference",
+            "path": [
+              "opts"
+            ]
+          },
+          "key": {
+            "type": "StringExpression",
+            "content": [
+              "color"
+            ]
+          },
+          "value": {
+            "type": "StringExpression",
+            "content": [
+              "red"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+scene LoseTrust(c: companion)
+  N: Done.
+end
+
+function format(value: number)
+  return value
+end

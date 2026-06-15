@@ -1,0 +1,12 @@
+-> main
+scene main
+  choose
+    * if (test == 0) visible choice
+    * if test visible choice
+  end
+  done
+
+end
+scene test
+  done
+end

@@ -7,11 +7,7 @@
 // no auto-pagination is implemented yet).
 
 import { describe, expect, it } from "vitest";
-import { renderPreview, formatRender } from "./helpers/renderPreview";
-import { extractPdfText } from "./helpers/pdfText";
-import { extractPreviewText } from "./helpers/previewText";
-import { writeFileSync, mkdirSync } from "fs";
-import { resolve } from "path";
+import { renderPreview } from "./helpers/renderPreview";
 
 describe("page break — explicit (Scene / Function / Knot) decoration", () => {
   // BlockHeading (`$:` prefix) does NOT create a Scene node and therefore
@@ -27,14 +23,6 @@ describe("page break — explicit (Scene / Function / Knot) decoration", () => {
       `\n` +
       `Action after.\n`;
     const r = renderPreview(source);
-    const dir = resolve(__dirname, "snapshots");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      resolve(dir, "page-break-block-heading.txt"),
-      `## source\n${source}\n## render\n${formatRender(r)}\n` +
-        `## pdf\n${extractPdfText(source)}\n` +
-        `## preview\n${extractPreviewText(source)}\n`,
-    );
     expect(r.contentHTML.includes("Action before.")).toBe(true);
     expect(r.contentHTML.includes("INT. CASINO - NIGHT")).toBe(true);
     expect(r.contentHTML.includes("Action after.")).toBe(true);
@@ -54,12 +42,6 @@ describe("page break — explicit (Scene / Function / Knot) decoration", () => {
       `\n` +
       `Action after.\n`;
     const r = renderPreview(source);
-    const dir = resolve(__dirname, "snapshots");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      resolve(dir, "page-break-scene-keyword.txt"),
-      `## source\n${source}\n## render\n${formatRender(r)}\n`,
-    );
     expect(r.contentHTML.includes("Action before.")).toBe(true);
     expect(r.contentHTML.includes("Action after.")).toBe(true);
     expect(r.contentHTML.includes("<hr>")).toBe(true);

@@ -1,0 +1,64 @@
+sparkdown [0..30]
+ └─ LuauExplicitStatement [0..30]
+     ├─ LuauExplicitStatement_begin [0..2]
+     │   ├─ LuauExplicitStatement_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
+     │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+     │   │   └─ LuauExplicitStatementMark [0..1]: "&"
+     │   └─ LuauExplicitStatement_begin_c3 [1..2]
+     │       └─ RequiredWhitespace [1..2]: " "
+     ├─ LuauExplicitStatement_content [2..30]
+     │   ├─ LuauAccessPath [2..4]
+     │   │   ├─ LuauAccessPath_begin 2
+     │   │   ├─ LuauAccessPath_content [2..3]
+     │   │   │   └─ LuauAccessPart [2..3]
+     │   │   │       └─ LuauVariable [2..3]
+     │   │   │           └─ LuauVariable_c1 [2..3]
+     │   │   │               └─ LuauVariableName [2..3]: "x"
+     │   │   └─ LuauAccessPath_end [3..4]
+     │   │       └─ LuauAccessPath_end_c1 [3..4]
+     │   │           └─ LuauAccessPath_end_c1 [3..4]
+     │   │               └─ OptionalWhitespace [3..4]: " "
+     │   └─ LuauAssignmentOperation [4..30]
+     │       ├─ LuauAssignmentOperation_begin 4
+     │       │   └─ LuauAssignmentOperation_begin_c1 4
+     │       ├─ LuauAssignmentOperation_content [4..30]
+     │       │   ├─ LuauAssignmentOperator [4..6]
+     │       │   │   ├─ LuauAssignmentOperator_begin [4..6]
+     │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 4
+     │       │   │   │   │   └─ OptionalWhitespace 4
+     │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [4..5]: "="
+     │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [5..6]
+     │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
+     │       │   │   │           └─ OptionalWhitespace [5..6]: " "
+     │       │   │   └─ LuauAssignmentOperator_end 6
+     │       │   └─ LuauAccessPath [6..30]
+     │       │       ├─ LuauAccessPath_begin 6
+     │       │       ├─ LuauAccessPath_content [6..30]
+     │       │       │   ├─ LuauAccessPart [6..20]
+     │       │       │   │   └─ LuauVariable [6..20]
+     │       │       │   │       └─ LuauVariable_c1 [6..20]
+     │       │       │   │           └─ LuauVariableName [6..20]: "pluralizations"
+     │       │       │   └─ LuauAccessPart [20..30]
+     │       │       │       └─ LuauPropertyIndexer [20..30]
+     │       │       │           ├─ LuauPropertyIndexer_begin [20..21]
+     │       │       │           │   ├─ LuauPropertyIndexer_begin_c1 20
+     │       │       │           │   └─ LuauPropertyIndexer_begin_c2 [20..21]
+     │       │       │           │       └─ PunctuationBracketOpen [20..21]: "["
+     │       │       │           ├─ LuauPropertyIndexer_content [21..29]
+     │       │       │           │   └─ LuauAccessPath [21..29]
+     │       │       │           │       ├─ LuauAccessPath_begin 21
+     │       │       │           │       ├─ LuauAccessPath_content [21..29]
+     │       │       │           │       │   └─ LuauAccessPart [21..29]
+     │       │       │           │       │       └─ LuauVariable [21..29]
+     │       │       │           │       │           └─ LuauVariable_c1 [21..29]
+     │       │       │           │       │               └─ LuauVariableName [21..29]: "category"
+     │       │       │           │       └─ LuauAccessPath_end 29
+     │       │       │           │           └─ LuauAccessPath_end_c1 29
+     │       │       │           └─ LuauPropertyIndexer_end [29..30]
+     │       │       │               └─ LuauPropertyIndexer_end_c1 [29..30]
+     │       │       │                   └─ PunctuationBracketClose [29..30]: "]"
+     │       │       └─ LuauAccessPath_end 30
+     │       │           └─ LuauAccessPath_end_c1 30
+     │       └─ LuauAssignmentOperation_end 30
+     └─ LuauExplicitStatement_end 30

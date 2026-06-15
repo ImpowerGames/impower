@@ -1,0 +1,5 @@
+store x = 5
+& x += one()
+done
+
+function one() return 1 end

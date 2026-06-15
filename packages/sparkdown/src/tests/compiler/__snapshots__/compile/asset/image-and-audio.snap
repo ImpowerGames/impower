@@ -1,0 +1,21 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Text",
+          "text": "[[show backdrop rooftop_night]]"
+        },
+        {
+          "type": "Text",
+          "text": "((play music stars))"
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        }
+      ]
+    }
+  ]
+}

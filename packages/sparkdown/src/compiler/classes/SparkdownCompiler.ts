@@ -1,28 +1,36 @@
+// Side-effect import to stabilize the inkjs engine module load order.
+// `engine/Container.ts` ↔ `engine/Value.ts` ↔ `engine/Object.ts` form a
+// dependency cycle; if `Object.ts` loads first, `Value.ts` resolves
+// `InkObject` as undefined when extending it. Forcing `Container.ts` to be the
+// entry point evaluates the cycle in a working order. This used to happen
+// implicitly via the (now-removed) `inkjs/compiler/Compiler` import; keep it
+// explicit so consumers of SparkdownCompiler don't hit a TDZ crash.
+import "../../inkjs/engine/Container";
 import { parseSparkle } from "@impower/sparkle-screen-renderer/src/parser/parser";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
-import {
-  Compiler as InkCompiler,
-  CompilerOptions as InkCompilerOptions,
-  InkList,
-} from "../../inkjs/compiler/Compiler";
 import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
+import { ExternalDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ExternalDeclaration";
+import { Divert } from "../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { FlowBase } from "../../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { Gather } from "../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
 import { Knot } from "../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { ReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
 import { Story } from "../../inkjs/compiler/Parser/ParsedHierarchy/Story";
+import { Tag } from "../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
+import { Text } from "../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import { TunnelOnwards } from "../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
 import { DebugMetadata } from "../../inkjs/engine/DebugMetadata";
 import { SourceMetadata } from "../../inkjs/engine/Error";
-import { InkListItem } from "../../inkjs/engine/InkList";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
@@ -68,8 +76,9 @@ import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
-const VIEW_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.VIEW_DEFINE_TYPES;
-const STYLING_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES;
+const VIEW_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.VIEW_DEFINE_TYPES || [];
+const STYLING_DEFINE_TYPES =
+  GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES || [];
 
 export type SparkdownCompilerEvents = {
   "compiler/didCompile": (
@@ -353,46 +362,89 @@ export class SparkdownCompiler {
       message: string,
       type: ErrorType,
       source: SourceMetadata | null,
+      tags?: number[],
     ) => {
-      if (source && source.filePath) {
-        const severity =
-          type === ErrorType.Error
-            ? DiagnosticSeverity.Error
-            : type === ErrorType.Warning
-              ? DiagnosticSeverity.Warning
+      const severity =
+        type === ErrorType.Error
+          ? DiagnosticSeverity.Error
+          : type === ErrorType.Warning
+            ? DiagnosticSeverity.Warning
+            : type === ErrorType.Hint
+              ? DiagnosticSeverity.Hint
               : DiagnosticSeverity.Information;
-        const uri = source.filePath;
-        const startLine = source.startLineNumber - 1;
-        const startCharacter = source.startCharacterNumber - 1;
-        const endLine = source.endLineNumber - 1;
-        const endCharacter = source.endCharacterNumber - 1;
-        const docDiagnostic = this.getDiagnostic(
-          message,
-          severity,
-          uri,
-          startLine,
-          startCharacter,
-          endLine,
-          endCharacter,
-        );
-        if (docDiagnostic) {
-          if (docDiagnostic.relatedInformation) {
-            for (const info of docDiagnostic.relatedInformation) {
-              const uri = info.location.uri;
-              if (uri) {
-                program.diagnostics ??= {};
-                program.diagnostics[uri] ??= [];
-                program.diagnostics[uri].push(docDiagnostic);
-              }
+      // Surface inkjs's `ExportRuntime` diagnostics that have proper
+      // source metadata from the parsed object's DebugMetadata.
+      // Diagnostics without `filePath` are silently dropped: they're
+      // almost always emitted for synthesized parsed objects (e.g.
+      // sparkdown's `const`-as-`store` faux constants, locally-scoped
+      // `local x` temps in nested blocks) that have no real source
+      // Filter the one remaining known-spurious diagnostic class:
+      // sparkdown's `local x` block-scope creates a new temp in each
+      // nested scope, but inkjs's `CheckForNamingCollisions` walks a
+      // single flat scope and sees them as duplicates ("A temp named
+      // `x` already exists on null"). Emitting that as a user-facing
+      // error would be noise — sparkdown's `local` IS supposed to
+      // shadow. See docs/runtime/DIVERGENCES.md.
+      //
+      // (The previous "A variable must be initialized to a number,
+      // string, boolean, constant" filter was needed when `const`
+      // lowered to a global `store`; now that `const` lowers to a
+      // real `ConstantDeclaration`, that diagnostic no longer fires
+      // spuriously.)
+      if (/A temp named `\w+` already exists on null/.test(message)) {
+        return;
+      }
+      // Fall back to the document URI when the diagnostic source
+      // lacks `filePath`. Many inkjs errors (e.g. "target not found")
+      // pass a freshly-constructed Identifier rather than the parsed
+      // node with stamped DebugMetadata, so source-side filePath is
+      // null and the diagnostic would otherwise be silently dropped.
+      const diagUri = source?.filePath || uri;
+      const startLine = source ? source.startLineNumber - 1 : 0;
+      const startCharacter = source ? source.startCharacterNumber - 1 : 0;
+      const endLine = source ? source.endLineNumber - 1 : 0;
+      const endCharacter = source ? source.endCharacterNumber - 1 : 0;
+      const docDiagnostic = this.getDiagnostic(
+        message,
+        severity,
+        diagUri,
+        startLine,
+        startCharacter,
+        endLine,
+        endCharacter,
+        tags,
+      );
+      if (docDiagnostic) {
+        program.diagnostics ??= {};
+        program.diagnostics[diagUri] ??= [];
+        program.diagnostics[diagUri].push(docDiagnostic);
+        if (docDiagnostic.relatedInformation) {
+          for (const info of docDiagnostic.relatedInformation) {
+            const relatedUri = info.location.uri;
+            if (relatedUri && relatedUri !== diagUri) {
+              program.diagnostics[relatedUri] ??= [];
+              program.diagnostics[relatedUri].push(docDiagnostic);
             }
           }
         }
       }
     };
 
+    // `currentParentUri` is the URI of the file whose `include` chunks
+    // are currently being resolved. Mutated by `parseIncrementally`
+    // before each recursive descent and restored after. Without this,
+    // the closure captures the outermost `uri` (main file from
+    // `compile()`) and resolves every `include` against THAT — breaking
+    // any nested include path. E.g. `main.sd` → `includes/a.sd` →
+    // `b.sd` would try to find `b.sd` next to `main.sd` instead of
+    // next to `a.sd` where the import was actually written.
+    const fileResolutionState = { currentParentUri: uri };
     const fileHandler: IFileHandler = {
       ResolveInkFilename: (filename: string): string => {
-        const filePath = this.resolveFile(uri, filename);
+        const filePath = this.resolveFile(
+          fileResolutionState.currentParentUri,
+          filename,
+        );
         const doc = this.documents.get(filePath);
         if (doc) {
           program.scripts[filePath] = doc.version;
@@ -407,6 +459,9 @@ export class SparkdownCompiler {
         return "";
       },
     };
+    // Stash on `state` so the recursive `parseIncrementally` can update
+    // `currentParentUri` before each include descent.
+    state.fileResolutionState = fileResolutionState;
 
     this.populateBuiltins(state, program);
 
@@ -421,6 +476,14 @@ export class SparkdownCompiler {
         onDiagnostic,
       );
       profile("end", this._profilerId, "ink/parse", uri);
+      // Plumb `countAllVisits` through to the parsed Story before
+      // `ExportRuntime` runs — `FlowBase.GenerateRuntimeObject` reads
+      // `this.story.countAllVisits` to decide whether to set
+      // `Container.visitsShouldBeCounted = true` on every flow container.
+      // See `CompileProgramParams.countAllVisits` for rationale.
+      if (params.countAllVisits) {
+        parsedStory.countAllVisits = true;
+      }
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
       profile("end", this._profilerId, "ink/compile", uri);
@@ -483,6 +546,7 @@ export class SparkdownCompiler {
       message: string,
       type: ErrorType,
       source: SourceMetadata | null,
+      tags?: number[],
     ) => void,
   ) {
     const version = this.documents.get(uri)?.version ?? 0;
@@ -561,16 +625,42 @@ export class SparkdownCompiler {
     while (cur.value) {
       const {
         include,
+        run,
         diagnostics,
         content,
         context,
         contextPropertyRegistry,
         defaultDefinitions,
         uuid,
+        hoistedKnots,
       } = cur.value.type;
       const lineNumberOffset = document?.lineAt(cur.from) ?? 0;
+      // Anonymous function literals lowered at chunk-top-level (i.e.
+      // outside any enclosing function definition) produce synthetic
+      // FlowBase objects that need to land at the story's top level.
+      // Anonymous fns lowered INSIDE another function body attach to
+      // that function as subFlows instead — they never reach this
+      // list. Both Knots (legacy path) and Functions (new path) are
+      // accepted.
+      if (hoistedKnots) {
+        remapContent(hoistedKnots, lineNumberOffset);
+        for (const k of hoistedKnots) {
+          if (k instanceof FlowBase) {
+            topLevelFlowBaseObjs.push(k);
+          }
+        }
+      }
       if (include) {
         if (include) {
+          // Resolve the include relative to THIS file's URI, not the
+          // outermost compile-entry URI. Stash + restore around the
+          // recursive descent so child includes see this file's URI as
+          // their resolution base.
+          const previousParentUri =
+            state.fileResolutionState?.currentParentUri ?? uri;
+          if (state.fileResolutionState) {
+            state.fileResolutionState.currentParentUri = uri;
+          }
           let resolvedFilePath: string | null = null;
           try {
             resolvedFilePath = fileHandler.ResolveInkFilename(include);
@@ -585,7 +675,115 @@ export class SparkdownCompiler {
                 onDiagnostic,
               )
             : null;
+          if (state.fileResolutionState) {
+            state.fileResolutionState.currentParentUri = previousParentUri;
+          }
           topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
+        }
+      }
+      if (run) {
+        // `run "path"` — load `${path}.luau`, wrap its body in a
+        // function, splice a call to the function at this position,
+        // and hoist the function declaration to the end of the
+        // parent program. Uses the same `IncludedFile` plumbing as
+        // `include`, which already separates flow declarations
+        // (knots/functions — appended at end) from non-flow content
+        // (top-level statements — spliced inline). See
+        // `Story.PreProcessTopLevelObjects` for the split logic.
+        const previousParentUri =
+          state.fileResolutionState?.currentParentUri ?? uri;
+        if (state.fileResolutionState) {
+          state.fileResolutionState.currentParentUri = uri;
+        }
+        const luauFilename = `${run}.luau`;
+        let resolvedFilePath: string | null = null;
+        try {
+          resolvedFilePath = fileHandler.ResolveInkFilename(luauFilename);
+        } catch {}
+        // 1-based line/character — `onDiagnostic` subtracts 1 to
+        // produce 0-based values that pass `getDiagnostic`'s
+        // `startCharacter < 0` filter.
+        const sourceMetadata: SourceMetadata = {
+          fileName,
+          filePath: uri,
+          startLineNumber: lineNumberOffset + 1,
+          endLineNumber: lineNumberOffset + 1,
+          startCharacterNumber: 1,
+          endCharacterNumber: 1,
+        };
+        if (!resolvedFilePath) {
+          onDiagnostic(
+            `Could not find '${luauFilename}' for 'run' statement.`,
+            ErrorType.Error,
+            sourceMetadata,
+          );
+        } else if (
+          state.fileResolutionState?.runStack?.includes(resolvedFilePath)
+        ) {
+          onDiagnostic(
+            `'run' cycle detected: ${[
+              ...(state.fileResolutionState.runStack ?? []),
+              resolvedFilePath,
+            ].join(" -> ")}`,
+            ErrorType.Error,
+            sourceMetadata,
+          );
+        } else {
+          const rawContent = fileHandler.LoadInkFileContents(resolvedFilePath);
+          // Sanitize: identifier-safe name derived from the path so
+          // two `run` statements pointing at the same file collide
+          // into the same wrapper knot (cheap deduping). Sparkdown
+          // identifiers are `[A-Za-z_][A-Za-z0-9_]*`.
+          const sanitized = run.replace(/[^A-Za-z0-9_]/g, "_");
+          const wrapperName = `__run_${sanitized}`;
+          // The wrapper has TWO parts:
+          //   `& <wrapperName>()`  → top-level statement, gets
+          //                          spliced inline by IncludedFile
+          //                          processing.
+          //   `function <wrapperName>() <content> end`
+          //                       → flow declaration, hoisted to
+          //                          end of parent program.
+          // Together: the parent calls the wrapper at the run-site,
+          // and the wrapper definition lives at the end where it
+          // doesn't terminate the parent's main flow.
+          const wrapped = `& ${wrapperName}()\nfunction ${wrapperName}()\n${rawContent}\nend\n`;
+          // Stash the wrapped content under a virtual URI derived
+          // from the .luau file's URI. The `?run` query suffix
+          // keeps it distinct from any raw .luau document registered
+          // separately. The compiler treats it as a normal `.sd`
+          // source from this point on.
+          const virtualUri = `${resolvedFilePath}?run=${wrapperName}`;
+          this.documents.add({
+            textDocument: {
+              uri: virtualUri,
+              languageId: "sparkdown",
+              version: 1,
+              text: wrapped,
+            },
+          });
+          if (state.fileResolutionState) {
+            state.fileResolutionState.runStack ??= [];
+            state.fileResolutionState.runStack.push(resolvedFilePath);
+          }
+          let runStory: ReturnType<typeof this.parseIncrementally> | null = null;
+          try {
+            runStory = this.parseIncrementally(
+              virtualUri,
+              fileHandler,
+              true,
+              state,
+              program,
+              onDiagnostic,
+            );
+          } finally {
+            if (state.fileResolutionState?.runStack) {
+              state.fileResolutionState.runStack.pop();
+            }
+          }
+          topLevelIncludedFileObjs.push(new IncludedFile(runStory));
+        }
+        if (state.fileResolutionState) {
+          state.fileResolutionState.currentParentUri = previousParentUri;
         }
       }
       if (diagnostics) {
@@ -596,7 +794,12 @@ export class SparkdownCompiler {
             offsetSource.endLineNumber += lineNumberOffset;
             offsetSource.fileName ??= fileName;
             offsetSource.filePath ??= uri;
-            onDiagnostic(diagnostic.message, diagnostic.severity, offsetSource);
+            onDiagnostic(
+              diagnostic.message,
+              diagnostic.severity,
+              offsetSource,
+              diagnostic.tags,
+            );
           }
         }
       }
@@ -605,7 +808,12 @@ export class SparkdownCompiler {
         const flow = content[0];
         if (flow) {
           if (flow instanceof Knot) {
-            const rootWeave = new Weave([]);
+            // If the lowerer already populated a rootWeave with body content
+            // (e.g. function definitions whose body lives inside the same
+            // chunk), preserve it. Scene/Branch declarations leave _rootWeave
+            // unset so the staged-chunk pattern still creates an empty weave
+            // for subsequent body chunks to attach to.
+            const rootWeave = flow._rootWeave ?? new Weave([]);
             rootWeave.debugMetadata = flow.debugMetadata;
             const knot = new Knot(
               flow.identifier!,
@@ -616,6 +824,15 @@ export class SparkdownCompiler {
             knot.debugMetadata = flow.debugMetadata;
             knot._rootWeave = rootWeave;
             knot.AddContent(rootWeave);
+            // Preserve nested subFlows that the lowerer attached (e.g.
+            // anonymous-function literals and nested named function
+            // definitions lower to `Function` subFlows so they live at
+            // their lexical position instead of hoisting to top-level).
+            // Re-add them as content so the runtime traversal sees them.
+            for (const [subName, subFlow] of flow._subFlowsByName) {
+              knot._subFlowsByName.set(subName, subFlow);
+              knot.AddContent(subFlow);
+            }
             topLevelFlowBaseObjs.push(knot);
             topLevelContent.push(knot);
           } else if (flow instanceof Stitch) {
@@ -648,7 +865,42 @@ export class SparkdownCompiler {
               topLevelFlowBaseObjs.push(stitch);
               topLevelContent.push(stitch);
             }
+          } else if (flow instanceof ExternalDeclaration) {
+            const weave = new Weave([flow]);
+            topLevelWeaveObjs.push(weave);
+            topLevelContent.push(weave);
           } else if (flow instanceof Weave) {
+            // This chunk's body weave is about to be UNWRAPPED — its children
+            // are re-parented directly under the closest existing weave (e.g.
+            // a scene's rootWeave) below. Children that carry no OWN debug
+            // metadata only have a source line by INHERITING this weave's; once
+            // re-parented they'd instead inherit the destination weave's line
+            // (the scene-header line), collapsing every body line of the scene
+            // onto that header — so the whole scene's pathLocations resolve to
+            // one line and its content becomes unpreviewable (action/montage
+            // scenes like TEASER lost ALL per-line locations; action lines in
+            // dialogue scenes routed to a later beat). Carry this weave's
+            // (already chunk-offset) metadata down onto its OWN-metadata-less
+            // children first, mirroring `appendBlockContent`. Must guard on
+            // `ownDebugMetadata` (NOT the inheriting `debugMetadata` getter,
+            // which returns this weave's value and would skip everything).
+            // Restrict the carry-down to DISPLAY leaves (Text / Tag) — the
+            // content that needs per-line `pathLocations`. Stamping other
+            // child types (e.g. VariableAssignment, scope/flow ControlCommands)
+            // would give them an own source line they didn't have, which
+            // perturbs declaration-collection and scope/collision analysis
+            // (block-scoped `local` shadowing, scene/function call
+            // restrictions) — a whitelist keeps the fix to its purpose.
+            if (flow.ownDebugMetadata) {
+              for (const child of flow.content) {
+                if (
+                  !child.ownDebugMetadata &&
+                  (child instanceof Text || child instanceof Tag)
+                ) {
+                  child.debugMetadata = flow.ownDebugMetadata;
+                }
+              }
+            }
             // Statements with uuids are wrapped in a Statement container so they can be given a stable runtime path
             const firstStatement = flow?.content[0];
             const isWeavePoint =
@@ -724,6 +976,54 @@ export class SparkdownCompiler {
       cur.next();
     }
 
+    // Auto-terminate non-function scenes / branches whose body doesn't end
+    // with an explicit terminator. Sparkdown narrative flows (`scene` /
+    // `branch`) are story content — running off the end without a
+    // `-> DONE` / `-> END` / `->->` causes the runtime to halt with a
+    // diagnostic. Authors almost always WANT `-> DONE` at the natural
+    // end of a scene, so we synthesize it when missing. This mirrors
+    // the existing `isRootStory` branch in `FlowBase.
+    // SplitWeaveAndSubFlowContent` which appends `Gather + Divert(Done)`
+    // to the top-level story for the same reason.
+    //
+    // Skipped for:
+    //   - Functions (`isFunction === true`) — they have explicit `return`
+    //     semantics; falling off the end is handled by the runtime as an
+    //     implicit `return Void`.
+    //   - Flows whose `_rootWeave` already ends with a `Divert` /
+    //     `TunnelOnwards` / `ReturnType` — author already terminated.
+    //
+    // Recurses into `subFlowsByName` so nested branches (sparkdown's
+    // `branch X` declared inside a `scene Y`) get the same treatment;
+    // those don't appear in `topLevelFlowBaseObjs` because the chunk
+    // dispatcher folds them under their parent knot.
+    const autoTerminate = (flow: FlowBase): void => {
+      if (!flow.isFunction) {
+        const rootWeave = flow._rootWeave;
+        if (rootWeave) {
+          const last = rootWeave.content[rootWeave.content.length - 1];
+          const alreadyTerminates =
+            last instanceof Divert ||
+            last instanceof TunnelOnwards ||
+            last instanceof ReturnType;
+          if (!alreadyTerminates) {
+            const doneDivert = new Divert([Identifier.Done()]);
+            // Inherit debug metadata from the enclosing flow so any
+            // diagnostic pointing at the synthesized divert lands on
+            // the scene/branch declaration line rather than at offset 0.
+            doneDivert.debugMetadata = flow.debugMetadata;
+            rootWeave.AddContent(doneDivert);
+          }
+        }
+      }
+      for (const sub of flow.subFlowsByName.values()) {
+        autoTerminate(sub);
+      }
+    };
+    for (const flow of topLevelFlowBaseObjs) {
+      autoTerminate(flow);
+    }
+
     const combinedParsedStory = new Story(
       [
         ...topLevelIncludedFileObjs,
@@ -736,106 +1036,30 @@ export class SparkdownCompiler {
     return combinedParsedStory;
   }
 
-  evaluate(expression: string, evaluationContext: any) {
-    const options = new InkCompilerOptions(
-      "",
-      [],
-      false,
-      (message) => {
-        console.error(message);
-      },
-      undefined,
-      undefined,
-    );
-    let script = "";
-    for (const [name, value] of Object.entries(evaluationContext)) {
-      if (typeof value === "object" && value) {
-        if ("$type" in value && value.$type === "list.def") {
-          // is list
-          const itemInitialization: string[] = [];
-          for (const [k, v] of Object.entries(value)) {
-            if (!k.startsWith("$")) {
-              itemInitialization.push(`${k}=${v}`);
-            }
-          }
-          const listInitialization =
-            itemInitialization.length === 0
-              ? `list ${name} = ()`
-              : `list ${name} = ${itemInitialization.join(", ")}`;
-          script += "\n" + listInitialization;
-        } else if ("$type" in value && value.$type === "list.var") {
-          // is list
-          const list = new InkList();
-          const itemInitialization: string[] = [];
-          for (const [k, v] of Object.entries(value)) {
-            if (!k.startsWith("$")) {
-              if (k.includes(".")) {
-                const [originName, itemName] = k.split(".");
-                list.Add(
-                  new InkListItem(originName ?? null, itemName ?? null),
-                  v as number,
-                );
-                itemInitialization.push(`${originName}.${itemName}`);
-              }
-            }
-          }
-          const listInitialization = `(${itemInitialization.join(", ")})`;
-          script += "\n" + `var ${name} = ${listInitialization}`;
-        } else {
-          // is define (not usable in expressions)
-        }
-      } else {
-        // is primitive
-        script += "\n" + `var ${name} = ${JSON.stringify(value)}`;
-      }
-    }
-    script +=
-      "\n" +
-      `
-== function » ==
-~ return ${expression}
-`.trim();
-    const inkCompiler = new InkCompiler(script, options);
-    try {
-      const story = inkCompiler.Compile();
-      if (story) {
-        const result = story.EvaluateFunction("»");
-        if (result instanceof InkList) {
-          const listDefinition = story.listDefinitions?.TryListGetDefinition(
-            expression,
-            null,
-          )?.result;
-          if (listDefinition) {
-            const listValue: Record<string, unknown> = { $type: "list.def" };
-            for (const [key, itemValue] of listDefinition.items) {
-              const keyObj = JSON.parse(key) as {
-                originName: string;
-                itemName: string;
-              };
-              listValue[keyObj.itemName] = itemValue;
-            }
-            return listValue;
-          }
-          const listValue: Record<string, unknown> = { $type: "list.var" };
-          for (const [key, value] of result.entries()) {
-            const keyObj = JSON.parse(key) as {
-              originName: string;
-              itemName: string;
-            };
-            listValue[keyObj.originName + "." + keyObj.itemName] = value;
-          }
-          return listValue;
-        }
-        return result;
-      }
-      return "<invalid expression>";
-    } catch {
-      return "<invalid expression>";
-    }
-  }
-
   populateLocations(program: SparkProgram, obj: InkObject) {
-    const metadata = obj?.ownDebugMetadata;
+    // Prefer the object's OWN metadata when set — it's the most
+    // specific source range. Fall back to inherited metadata (walks
+    // parent chain) so every path in the bytecode gets a location
+    // entry, even when individual ControlCommands inside a parent
+    // Container weren't stamped by the lowerer. Inherited entries
+    // are coarser (point at the enclosing statement or function),
+    // but they let runtime consumers (like the conformance harness's
+    // `error()` formatter) recover at least the enclosing-scope
+    // line from a deeply nested ControlCommand's path.
+    //
+    // KNOWN LIMITATION (worth a focused investigation): for Luau-
+    // lowered function bodies, every ControlCommand inside the
+    // function's runtime container ends up with the SAME stamped
+    // metadata — the function-definition node's range, not the
+    // individual statement's. The lowerer's per-statement
+    // `stampDebugMetadata` call sets it on the top-level
+    // ParsedObjects, but the metadata-propagation pass at runtime
+    // generation (`ParsedObject.runtimeObject` getter) appears to
+    // overwrite or collapse to the enclosing function's metadata
+    // for inner items. Until that's untangled, the `error()`
+    // formatter reports the enclosing function's start line rather
+    // than the actual call site.
+    const metadata = obj?.ownDebugMetadata ?? obj?.debugMetadata;
     if (metadata) {
       const uri = metadata.filePath ?? program.uri;
       const scriptIndex = Object.keys(program.scripts).indexOf(uri || "");
@@ -1780,6 +2004,7 @@ export class SparkdownCompiler {
     startCharacter: number,
     endLine: number,
     endCharacter: number,
+    tags?: number[],
   ): SparkDiagnostic | null {
     if (startCharacter < 0) {
       // This error is occurring in a part of the script that was automatically added during transpilation
@@ -1842,6 +2067,9 @@ export class SparkdownCompiler {
       relatedInformation,
       source,
     };
+    if (tags && tags.length > 0) {
+      diagnostic.tags = tags;
+    }
     return diagnostic;
   }
 }

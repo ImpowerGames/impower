@@ -1,0 +1,8 @@
+function tally(items)
+  total = 0
+  for i in items do
+    total = total + i
+    n += 1
+  end
+  return total
+end

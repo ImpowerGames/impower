@@ -1,0 +1,2 @@
+N: {plural(n)|one="apple"|other="apples"}
+N: {match(x) | a = "first" | b = "second" }

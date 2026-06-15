@@ -1,0 +1,136 @@
+sparkdown [0..96]
+ ├─ Scene [0..10]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..10]
+ │   │   └─ SceneWithoutParametersDeclaration [6..10]
+ │   │       ├─ SceneWithoutParametersDeclaration_c1 [6..10]
+ │   │       │   └─ SceneDeclarationName [6..10]: "main"
+ │   │       └─ SceneWithoutParametersDeclaration_c2 10
+ │   └─ Scene_end 10
+ ├─ Newline [10..12]: "\r\n"
+ ├─ LuauSparkdownChooseBlock [12..82]
+ │   ├─ LuauSparkdownChooseBlock_begin [12..20]
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c1 [12..14]
+ │   │   │   └─ OptionalWhitespace [12..14]: "  "
+ │   │   ├─ LuauSparkdownChooseBlock_begin_c2 [14..20]
+ │   │   │   └─ LuauChooseKeyword [14..20]: "choose"
+ │   │   └─ LuauSparkdownChooseBlock_begin_c3 20
+ │   │       └─ LuauSparkdownChooseBlock_begin_c3 20
+ │   │           └─ OptionalWhitespace 20
+ │   ├─ LuauSparkdownChooseBlock_content [20..77]
+ │   │   ├─ Newline [20..22]: "\r\n"
+ │   │   ├─ Choice [22..30]
+ │   │   │   ├─ Choice_begin [22..28]
+ │   │   │   │   ├─ Choice_begin_c1 [22..26]
+ │   │   │   │   │   └─ OptionalWhitespace [22..26]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [26..28]
+ │   │   │   │   │   └─ ChoiceMark [26..28]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 28
+ │   │   │   │   ├─ Choice_begin_c4 28
+ │   │   │   │   ├─ Choice_begin_c5 28
+ │   │   │   │   ├─ Choice_begin_c6 28
+ │   │   │   │   └─ Choice_begin_c7 28
+ │   │   │   ├─ Choice_content [28..30]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [28..30]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [28..30]
+ │   │   │   │       │   └─ ChoicePlainText [28..30]
+ │   │   │   │       │       └─ ChoiceTextContent [28..30]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [28..30]
+ │   │   │   │       │               └─ Word [28..30]: "Hi"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 30
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 30
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 30
+ │   │   │   └─ Choice_end 30
+ │   │   ├─ Newline [30..32]: "\r\n"
+ │   │   ├─ Choice [32..41]
+ │   │   │   ├─ Choice_begin [32..38]
+ │   │   │   │   ├─ Choice_begin_c1 [32..36]
+ │   │   │   │   │   └─ OptionalWhitespace [32..36]: "    "
+ │   │   │   │   ├─ Choice_begin_c2 [36..38]
+ │   │   │   │   │   └─ ChoiceMark [36..38]: "* "
+ │   │   │   │   ├─ Choice_begin_c3 38
+ │   │   │   │   ├─ Choice_begin_c4 38
+ │   │   │   │   ├─ Choice_begin_c5 38
+ │   │   │   │   ├─ Choice_begin_c6 38
+ │   │   │   │   └─ Choice_begin_c7 38
+ │   │   │   ├─ Choice_content [38..41]
+ │   │   │   │   └─ ChoiceWithNoSuppressedText [38..41]
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c1 [38..41]
+ │   │   │   │       │   └─ ChoicePlainText [38..41]
+ │   │   │   │       │       └─ ChoiceTextContent [38..41]
+ │   │   │   │       │           └─ ChoiceTextContent_c1 [38..41]
+ │   │   │   │       │               └─ Word [38..41]: "Hey"
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c2 41
+ │   │   │   │       ├─ ChoiceWithNoSuppressedText_c3 41
+ │   │   │   │       └─ ChoiceWithNoSuppressedText_c4 41
+ │   │   │   └─ Choice_end 41
+ │   │   ├─ Newline [41..43]: "\r\n"
+ │   │   └─ LuauSparkdownChooseThenClause [43..77]
+ │   │       ├─ LuauSparkdownChooseThenClause_begin [43..60]
+ │   │       │   ├─ LuauSparkdownChooseThenClause_begin_c1 [43..45]
+ │   │       │   │   └─ OptionalWhitespace [43..45]: "  "
+ │   │       │   ├─ LuauSparkdownChooseThenClause_begin_c2 [45..49]
+ │   │       │   │   └─ LuauThenKeyword [45..49]: "then"
+ │   │       │   ├─ LuauSparkdownChooseThenClause_begin_c3 [49..50]
+ │   │       │   │   └─ LuauSparkdownChooseThenClause_begin_c3 [49..50]
+ │   │       │   │       └─ OptionalWhitespace [49..50]: " "
+ │   │       │   └─ LuauSparkdownChooseThenClause_begin_c4 [50..60]
+ │   │       │       └─ Label [50..60]
+ │   │       │           ├─ Label_c1 [50..51]
+ │   │       │           │   └─ LabelBeginMark [50..51]: "("
+ │   │       │           ├─ Label_c2 51
+ │   │       │           ├─ Label_c3 [51..59]
+ │   │       │           │   └─ LabelDeclarationName [51..59]: "greeting"
+ │   │       │           ├─ Label_c4 59
+ │   │       │           ├─ Label_c5 [59..60]
+ │   │       │           │   └─ LabelEndMark [59..60]: ")"
+ │   │       │           └─ Label_c6 60
+ │   │       │               └─ Label_c6 60
+ │   │       │                   └─ OptionalWhitespace 60
+ │   │       ├─ LuauSparkdownChooseThenClause_content [60..77]
+ │   │       │   ├─ Newline [60..62]: "\r\n"
+ │   │       │   ├─ ImplicitAction [62..75]
+ │   │       │   │   ├─ ImplicitAction_begin [62..66]
+ │   │       │   │   │   └─ ImplicitAction_begin_c1 [62..66]
+ │   │       │   │   │       └─ OptionalWhitespace [62..66]: "    "
+ │   │       │   │   ├─ ImplicitAction_content [66..75]
+ │   │       │   │   │   └─ LineEnd [66..75]
+ │   │       │   │   │       ├─ LineEnd_begin 66
+ │   │       │   │   │       │   └─ LineEnd_begin_c1 66
+ │   │       │   │   │       │       └─ OptionalWhitespace 66
+ │   │       │   │   │       ├─ LineEnd_content [66..75]
+ │   │       │   │   │       │   └─ TextChunk [66..75]
+ │   │       │   │   │       │       ├─ TextChunk_begin 66
+ │   │       │   │   │       │       ├─ TextChunk_content [66..75]
+ │   │       │   │   │       │       │   ├─ Word [66..69]: "She"
+ │   │       │   │   │       │       │   ├─ Space [69..70]: " "
+ │   │       │   │   │       │       │   ├─ Word [70..74]: "nods"
+ │   │       │   │   │       │       │   └─ Punctuation [74..75]: "."
+ │   │       │   │   │       │       └─ TextChunk_end 75
+ │   │       │   │   │       └─ LineEnd_end 75
+ │   │       │   │   └─ ImplicitAction_end 75
+ │   │       │   └─ Newline [75..77]: "\r\n"
+ │   │       └─ LuauSparkdownChooseThenClause_end 77
+ │   └─ LuauSparkdownChooseBlock_end [77..82]
+ │       ├─ LuauSparkdownChooseBlock_end_c1 [77..79]
+ │       │   └─ LuauSparkdownChooseBlock_end_c1 [77..79]
+ │       │       └─ OptionalWhitespace [77..79]: "  "
+ │       └─ LuauSparkdownChooseBlock_end_c2 [79..82]
+ │           └─ LuauEndKeyword [79..82]: "end"
+ ├─ Newline [82..84]: "\r\n"
+ ├─ DoneStatement [84..90]
+ │   ├─ DoneStatement_c1 [84..86]
+ │   │   └─ OptionalWhitespace [84..86]: "  "
+ │   ├─ DoneStatement_c2 [86..90]
+ │   │   └─ DoneKeyword [86..90]: "done"
+ │   └─ DoneStatement_c3 90
+ │       └─ OptionalWhitespace 90
+ ├─ Newline [90..92]: "\r\n"
+ ├─ LuauEndKeyword [92..95]: "end"
+ └─ Newline [95..96]: "\n"

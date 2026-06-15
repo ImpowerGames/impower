@@ -1,0 +1,13 @@
+-> main
+scene main
+  label dododo
+  -> tunnel ->
+  -> dododo
+
+end
+scene tunnel
+  choose
+    + A
+  end
+  ->->
+end

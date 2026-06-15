@@ -1,0 +1,3 @@
+external message(x)
+external multiply(x, y)
+external times(i, str)

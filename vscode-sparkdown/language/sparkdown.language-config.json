@@ -1,9 +1,14 @@
 {
+  "_generated_": [
+    "Generated from ../../definitions/yaml/sparkdown.language-config.yaml by @impower/definitions.",
+    "Do NOT edit this JSON file directly — your changes will be lost on the next build.",
+    "Edit the YAML source instead, then run `npm run language` from definitions/."
+  ],
   "comments": {
-    "lineComment": "//",
+    "lineComment": "--",
     "blockComment": [
-      "/*",
-      "*/"
+      "--[[",
+      "]]"
     ]
   },
   "brackets": [
@@ -51,15 +56,19 @@
       "close": "::"
     },
     {
-      "open": "/*",
-      "close": "*/",
-      "notIn": [
-        "string",
-        "StringLiteral"
-      ]
+      "open": "--[[",
+      "close": "]]"
+    },
+    {
+      "open": "--[=[",
+      "close": "]=]"
+    },
+    {
+      "open": "--[==[",
+      "close": "]==]"
     }
   ],
-  "autoCloseBefore": ";:.,=}])>` \n\t",
+  "autoCloseBefore": ";:.,=}])>` \t\n\r",
   "surroundingPairs": [
     [
       "{",
@@ -104,6 +113,10 @@
     [
       "^",
       "^"
+    ],
+    [
+      "--[[",
+      "]]"
     ]
   ],
   "wordChars": "_'",
@@ -113,15 +126,65 @@
   },
   "onEnterRules": [
     {
-      "beforeText": "^\\s*[=]{2,}($|\\s+)",
+      "beforeText": "^\\s*--\\[(=*)\\[(?!.*\\]\\1\\]).*$",
+      "afterText": "\\]=*\\]",
+      "action": {
+        "indent": "indentOutdent"
+      }
+    },
+    {
+      "beforeText": "^\\s*--\\[=*\\[(?!.*\\]=*\\]).*$",
       "action": {
         "indent": "indent"
       }
     },
     {
-      "beforeText": "^\\s*[=]($|\\s+)",
+      "beforeText": "\\bdefine\\s*$",
+      "afterText": "^\\s*end\\b",
       "action": {
-        "indent": "indent"
+        "indent": "indentOutdent"
+      }
+    },
+    {
+      "beforeText": "\\bfunction\\b[^()]*\\([^()]*\\)[^()]*$",
+      "afterText": "^\\s*end\\b",
+      "action": {
+        "indent": "indentOutdent"
+      }
+    },
+    {
+      "beforeText": "\\bthen\\s*$",
+      "afterText": "^\\s*(end|elseif|else)\\b",
+      "action": {
+        "indent": "indentOutdent"
+      }
+    },
+    {
+      "beforeText": "\\bdo\\s*$",
+      "afterText": "^\\s*end\\b",
+      "action": {
+        "indent": "indentOutdent"
+      }
+    },
+    {
+      "beforeText": "\\belse\\s*$",
+      "afterText": "^\\s*end\\b",
+      "action": {
+        "indent": "indentOutdent"
+      }
+    },
+    {
+      "beforeText": "\\brepeat\\s*$",
+      "afterText": "^\\s*until\\b",
+      "action": {
+        "indent": "indentOutdent"
+      }
+    },
+    {
+      "beforeText": "^\\s*---(?!-)\\s*\\S.*$",
+      "action": {
+        "indent": "none",
+        "appendText": "--- "
       }
     },
     {
@@ -230,24 +293,19 @@
       "action": {
         "indent": "indent"
       }
-    },
-    {
-      "beforeText": "^\\s*",
-      "action": {
-        "indent": "none"
-      }
     }
   ],
   "indentationRules": {
-    "decreaseIndentPattern": "^\\s*[-]($|[ ]).*?[:]|[=]{2,}($|[ ]).*?|^\\s*[\\}\\]\\)].*$",
-    "increaseIndentPattern": "^.*(\\{[^}]*|\\([^)]*|\\[[^\\]]*)$",
-    "unIndentedLinePattern": "^(\\t|[ ])*[ ]\\*[^/]*\\*\\/\\s*$|^(\\t|[ ])*[ ]\\*\\/\\s*$|^(\\t|[ ])*[ ]\\*([ ]([^\\*]|\\*(?!\\/))*)?$",
-    "indentNextLinePattern": "^((.*=>\\s*)|((.*[^\\w]+|\\s*)(if|while|for)\\s*\\(.*\\)\\s*))$"
+    "increaseIndentPattern": "^((?!--).)*((\\b(else|then|do|repeat|define|scene|branch)\\b\\s*(--.*)?$)|(\\bfunction\\b(?:(?!\\bend\\b).)*$)|([\\{\\(\\[]\\s*(--.*)?$))",
+    "decreaseIndentPattern": "^\\s*((\\b(elseif|else|end|until)\\b)|\\}|\\)|\\])",
+    "indentNextLinePattern": "^((?!--).)*(?<![=<>!~])=\\s*(--.*)?$",
+    "unIndentedLinePattern": "^#\\!"
   },
   "folding": {
+    "offSide": false,
     "markers": {
-      "start": "^\\s*==.*?$",
-      "end": "^\\s*==.*?$"
+      "start": "^\\s*--\\s*#?region\\b",
+      "end": "^\\s*--\\s*#?endregion\\b"
     }
   }
 }

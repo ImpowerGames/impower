@@ -25,6 +25,11 @@ export class VariableAssignment extends ParsedObject {
   public readonly isGlobalDeclaration: boolean;
   public readonly isNewTemporaryDeclaration: boolean;
   public readonly isPropertyDeclaration: boolean;
+  // True for a `define`'s VariableAssignment (a runtime type/instance
+  // table). Lets ParsedHierarchy/Story identify the full set of
+  // defined type names when computing IMPLICIT parent types
+  // (`as character` where `character` is never `define`d).
+  public isDefineDeclaration: boolean = false;
 
   override get typeName() {
     if (this.listDefinition !== null) {
@@ -55,6 +60,7 @@ export class VariableAssignment extends ParsedObject {
     isGlobalDeclaration,
     isPropertyDeclaration,
     isTemporaryNewDeclaration,
+    isDefineDeclaration,
     listDef,
     structDef,
     variableIdentifier,
@@ -63,6 +69,7 @@ export class VariableAssignment extends ParsedObject {
     readonly isGlobalDeclaration?: boolean;
     readonly isPropertyDeclaration?: boolean;
     readonly isTemporaryNewDeclaration?: boolean;
+    readonly isDefineDeclaration?: boolean;
     readonly listDef?: ListDefinition;
     readonly structDef?: StructDefinition;
     readonly variableIdentifier: Identifier;
@@ -70,6 +77,7 @@ export class VariableAssignment extends ParsedObject {
     super();
 
     this.identifier = variableIdentifier;
+    this.isDefineDeclaration = Boolean(isDefineDeclaration);
     this.isGlobalDeclaration = Boolean(isGlobalDeclaration);
     this.isPropertyDeclaration = Boolean(isPropertyDeclaration);
     this.isNewTemporaryDeclaration = Boolean(isTemporaryNewDeclaration);
@@ -85,6 +93,16 @@ export class VariableAssignment extends ParsedObject {
       this.structDefinition.variableAssignment = this;
       // Struct definitions are always global
       this.isGlobalDeclaration = true;
+      // A `define` that's also an OOP type/instance carries BOTH the
+      // struct registration (consumed by the engine's character / UI /
+      // asset spec system, via `structDefinitions`) AND a runtime
+      // table expression that initializes `D` as a live global table
+      // (props + methods + inheritance) for in-script access. One
+      // declaration, two behaviors — see the init handling in
+      // ParsedHierarchy/Story's ExportRuntime.
+      if (assignedExpression) {
+        this.expression = this.AddContent(assignedExpression) as Expression;
+      }
     } else if (assignedExpression) {
       this.expression = this.AddContent(assignedExpression) as Expression;
     }
@@ -168,17 +186,32 @@ export class VariableAssignment extends ParsedObject {
       if (!resolvedVarAssignment.found) {
         if (this.variableName in this.story.constants) {
           this.Error(`Cannot re-assign a const variable`, this);
-        } else {
-          this.Error(
-            `Cannot find variable named \`${this.variableName}\``,
-            this.identifier,
-          );
         }
-      }
-
-      // A runtime assignment may not have been generated if it's the initial global declaration,
-      // since these are hoisted out and handled specially in Story.ExportRuntime.
-      if (this._runtimeAssignment) {
+        // Luau auto-global semantics: a bare `x = expr` that doesn't
+        // resolve to any local-in-scope or existing global becomes a
+        // global creation at execution time. The runtime side handles
+        // this in `VariablesState.Assign` (falls back to SetGlobal
+        // when neither a local nor a global with this name exists),
+        // so we just suppress the compile-time error here and let the
+        // runtime auto-create the global. Mark the runtime assignment
+        // as global so the dispatcher routes correctly.
+        else if (this._runtimeAssignment) {
+          this._runtimeAssignment.isGlobal = true;
+          // ALSO register the auto-global in the story's variable
+          // declarations so downstream `Divert.ResolveTargetContent`
+          // recognizes a later `x(args)` site as a variable-target
+          // (closure-call) rather than a missing flow. Without this,
+          // `Y = function...; Y(F)` errors with "target not found
+          // -> Y" even though the runtime can dispatch on Y's value.
+          // Subsequent `x = ...` re-assignments take the resolved
+          // branch above (since `x` is now declared) — no risk of
+          // duplicate-identifier diagnostics from this registration.
+          this.story.variableDeclarations.set(this.variableName, this);
+        }
+      } else if (this._runtimeAssignment) {
+        // A runtime assignment may not have been generated if it's the
+        // initial global declaration, since these are hoisted out and
+        // handled specially in Story.ExportRuntime.
         this._runtimeAssignment.isGlobal = resolvedVarAssignment.isGlobal;
       }
     }

@@ -1,0 +1,9 @@
+-> firstKnot
+scene firstKnot
+  Hello!
+  -> secondKnot
+end
+scene secondKnot
+  World.
+  fin
+end

@@ -1,0 +1,3 @@
+const kX = "hi"
+store x = kX
+{x}

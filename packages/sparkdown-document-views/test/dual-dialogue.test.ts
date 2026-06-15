@@ -3,12 +3,9 @@
 // from the preview. We dump pdf + preview text + rendered DOM so the
 // failure mode is visible.
 
-import { writeFileSync, mkdirSync } from "fs";
-import { resolve } from "path";
 import { describe, expect, it } from "vitest";
 import { extractPdfText } from "./helpers/pdfText";
-import { extractPreviewText } from "./helpers/previewText";
-import { formatRender, renderPreview } from "./helpers/renderPreview";
+import { renderPreview } from "./helpers/renderPreview";
 
 const FIXTURE =
   `RAFFLES [<]:\n` +
@@ -48,14 +45,7 @@ const FIXTURE_WS =
 describe("back-to-back dual dialogue", () => {
   it("renders BOTH pairs (text and content)", () => {
     const pdf = extractPdfText(FIXTURE);
-    const preview = extractPreviewText(FIXTURE);
     const r = renderPreview(FIXTURE);
-    const dir = resolve(__dirname, "snapshots");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      resolve(dir, "dual-dialogue.txt"),
-      `## fixture\n${FIXTURE}\n## pdf\n${pdf}\n## preview\n${preview}\n## rendered\n${formatRender(r)}\n`,
-    );
 
     // Sanity: PDF must contain all four character cues and their content.
     expect(pdf).toContain("RAFFLES");
@@ -86,14 +76,7 @@ describe("back-to-back dual dialogue", () => {
       `  \n` +
       `The crew scatters.\n`;
     const pdf = extractPdfText(source);
-    const preview = extractPreviewText(source);
     const r = renderPreview(source);
-    const dir = resolve(__dirname, "snapshots");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      resolve(dir, "dual-dialogue-to-action.txt"),
-      `## fixture\n${source}\n## pdf\n${pdf}\n## preview\n${preview}\n## rendered\n${formatRender(r)}\n`,
-    );
 
     // The action line must be separated from the dual-dialogue pair by
     // a blank line in both the PDF token stream and the preview text.
@@ -133,14 +116,7 @@ describe("back-to-back dual dialogue", () => {
 
   it("emits a blank-line separator between pairs even when the source blank line carries indent", () => {
     const pdf = extractPdfText(FIXTURE_WS);
-    const preview = extractPreviewText(FIXTURE_WS);
     const r = renderPreview(FIXTURE_WS);
-    const dir = resolve(__dirname, "snapshots");
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(
-      resolve(dir, "dual-dialogue-ws.txt"),
-      `## fixture\n${FIXTURE_WS}\n## pdf\n${pdf}\n## preview\n${preview}\n## rendered\n${formatRender(r)}\n`,
-    );
 
     // PDF: separators must appear between consecutive dual-dialogue
     // pairs. Each pair is "<character dual=l>...<character dual=r>...".

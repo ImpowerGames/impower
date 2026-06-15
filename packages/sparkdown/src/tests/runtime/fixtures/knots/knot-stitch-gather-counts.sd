@@ -1,0 +1,52 @@
+store knotCount = 0
+store stitchCount = 0
+store gatherCount = 0
+
+-> main
+
+scene main
+  -> gather_count_test ->
+  & knotCount = 0
+  -> knot_count_test ->
+  & knotCount = 0
+  -> knot_count_test ->
+  -> stitch_count_test ->
+  done
+
+end
+scene gather_count_test
+  & gatherCount = 0
+  label loop
+  & gatherCount = gatherCount + 1
+  {gatherCount} {loop}
+  if gatherCount < 3 then
+    -> loop
+  end
+  ->->
+
+end
+scene knot_count_test
+  & knotCount = knotCount + 1
+  {knotCount} {knot_count_test}
+  if knotCount < 3 then
+    -> knot_count_test
+  end
+  ->->
+
+end
+scene stitch_count_test
+  & stitchCount = 0
+  -> stitch_count_test.stitch ->
+  & stitchCount = 0
+  -> stitch_count_test.stitch ->
+  ->->
+
+  branch stitch
+    & stitchCount = stitchCount + 1
+    {stitchCount} {stitch}
+    if stitchCount < 3 then
+      -> stitch_count_test.stitch
+    end
+    ->->
+  end
+end

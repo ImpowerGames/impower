@@ -5,7 +5,7 @@ import { Divert as RuntimeDivert } from "../../../../engine/Divert";
 import { Path as RuntimePath } from "../../../../engine/Path";
 import { PushPopType } from "../../../../engine/PushPop";
 import { asOrNull } from "../../../../engine/TypeAssertion";
-import { VariablePointerValue } from "../../../../engine/Value";
+import { NullValue, VariablePointerValue } from "../../../../engine/Value";
 import { Argument } from "../Argument";
 import { Expression } from "../Expression/Expression";
 import { ClosestFlowBase } from "../Flow/ClosestFlowBase";
@@ -97,8 +97,20 @@ export class Divert extends ParsedObject {
 
     this.CheckArgumentValidity();
 
-    // Passing arguments to the knot
-    const requiresArgCodeGen = this.args !== null && this.args.length > 0;
+    // Passing arguments to the knot. Even with zero call-site args,
+    // a variadic target needs a `PackTuple(0)` emitted so the
+    // function-entry binding still pops a (empty) `MultiValue` into
+    // the `__varargs__` slot.
+    let targetArgumentsPreview: Argument[] | null = null;
+    if (this.targetContent) {
+      targetArgumentsPreview = (this.targetContent as FlowBase).args;
+    }
+    const targetIsVariadicPreview =
+      !!targetArgumentsPreview &&
+      targetArgumentsPreview.length > 0 &&
+      !!targetArgumentsPreview[targetArgumentsPreview.length - 1]!.isVararg;
+    const requiresArgCodeGen =
+      (this.args !== null && this.args.length > 0) || targetIsVariadicPreview;
     if (
       requiresArgCodeGen ||
       this.isFunctionCall ||
@@ -120,16 +132,42 @@ export class Divert extends ParsedObject {
           container.AddContent(RuntimeControlCommand.EvalStart());
         }
 
-        let targetArguments: Argument[] | null = null;
-        if (this.targetContent) {
-          targetArguments = (this.targetContent as FlowBase).args;
-        }
+        const targetArguments: Argument[] | null = targetArgumentsPreview;
 
-        for (let ii = 0; ii < this.args.length; ++ii) {
-          const argToPass: Expression = this.args[ii];
+        // Variadic target detection: if the target's last formal arg
+        // is marked `isVararg`, we pack the surplus call-site args
+        // into a single `MultiValue` via `PackTuple(extra)` after
+        // they've all been pushed. The function entry then binds N+1
+        // params normally — regular args plus one `__varargs__` slot
+        // receiving the packed MultiValue. Surplus is computed as
+        // `args.length - regular_arity` (clamped to 0+). Caller may
+        // supply fewer args than the regular arity, in which case the
+        // vararg slot gets `PackTuple(0)` → empty `MultiValue`.
+        const targetIsVariadic =
+          !!targetArguments &&
+          targetArguments.length > 0 &&
+          !!targetArguments[targetArguments.length - 1]!.isVararg;
+        const regularArity = targetIsVariadic
+          ? targetArguments!.length - 1
+          : targetArguments?.length ?? this.args.length;
+
+        const argsToPush = this.args.slice();
+        // For variadic targets, missing regular params become nil
+        // (Lua semantics). Mark each missing slot with a NullExpression
+        // sentinel that pushes `NullValue` at runtime. Non-variadic
+        // targets still hit `CheckArgumentValidity`'s strict check.
+        const nullPadding = Math.max(0, regularArity - argsToPush.length);
+
+        for (let ii = 0; ii < argsToPush.length; ++ii) {
+          const argToPass: Expression = argsToPush[ii]!;
           let argExpected: Argument | null = null;
           if (targetArguments && ii < targetArguments.length) {
-            argExpected = targetArguments[ii];
+            argExpected = targetArguments[ii]!;
+          } else if (targetIsVariadic) {
+            // Surplus arg lands in the vararg slot — same Argument
+            // shape as the formal `...`. Doesn't change codegen, just
+            // suppresses by-reference/divert-target checks.
+            argExpected = null;
           }
 
           // Pass by reference: argument needs to be a variable reference
@@ -165,6 +203,20 @@ export class Divert extends ParsedObject {
             // Normal value being passed: evaluate it as normal
             argToPass.GenerateIntoContainer(container);
           }
+        }
+
+        if (targetIsVariadic) {
+          // Push `NullValue` for any regular params the caller
+          // under-supplied. They land BETWEEN the regular pushed
+          // args and the soon-to-be-packed vararg slot; the
+          // function-entry binding pops them in reverse order.
+          for (let p = 0; p < nullPadding; p++) {
+            container.AddContent(new NullValue());
+          }
+          const extraCount = Math.max(0, argsToPush.length - regularArity);
+          container.AddContent(
+            RuntimeControlCommand.PackTuple(extraCount),
+          );
         }
 
         // Function calls were already in an evaluation context
@@ -261,6 +313,22 @@ export class Divert extends ParsedObject {
       throw new Error();
     }
 
+    // Retry variable-target resolution. `ResolveTargetContent` ran
+    // early during `GenerateRuntimeObject` so the runtime tree could
+    // be built; at that point Luau auto-globals (`Y = function...`)
+    // hadn't yet been registered in `story.variableDeclarations`
+    // (registration happens during `VariableAssignment.ResolveReferences`,
+    // a later phase). Re-running here lets the divert pick up
+    // auto-globals registered between the two phases. Cheap idempotent
+    // re-run — already-resolved targets short-circuit inside
+    // `ResolveTargetContent`.
+    if (
+      this.targetContent === null &&
+      this.runtimeDivert.variableDivertName == null
+    ) {
+      this.ResolveTargetContent();
+    }
+
     if (this.targetContent) {
       this.runtimeDivert.targetPath = this.targetContent.runtimePath;
     }
@@ -339,6 +407,32 @@ export class Divert extends ParsedObject {
     }
 
     if (!targetWasFound && !isBuiltIn && !isExternal) {
+      // Luau-superset semantics: a bare `NAME(args)` call lowers to a
+      // Divert(-> NAME) with `isFunctionCall = true`. If NAME doesn't
+      // resolve to a knot at compile time, Luau allows the call to
+      // proceed — the runtime resolves the global, and a missing one
+      // fails at call time rather than compile time. Promote
+      // single-component unresolved CALL targets to variable-target
+      // diverts so the runtime variable-divert path takes over (it
+      // handles closures, `__stdlib_fn` markers, `__call` metatables,
+      // etc.).
+      //
+      // Ink-style standalone diverts (`-> nowhere`) keep the compile-
+      // time error — those are explicit divert-to-knot syntax with no
+      // Luau equivalent, and silently routing them to the runtime
+      // would hide genuine typos in ink stories. The `isFunctionCall`
+      // flag distinguishes the two: it's set when the call site was
+      // `foo()` (or `func foo()` etc.), false when it was `-> foo`.
+      // Multi-component paths also stay as errors — they look like
+      // knot navigation that genuinely failed (`-> a.b.c`).
+      if (
+        this.isFunctionCall &&
+        this.target.numberOfComponents === 1 &&
+        this.target.firstComponent
+      ) {
+        this.runtimeDivert.variableDivertName = this.target.firstComponent;
+        return;
+      }
       this.Error(
         `target not found: \`${this.target}\``,
         this.pathIdentifiers ? new Identifier(...this.pathIdentifiers) : this,
@@ -393,27 +487,45 @@ export class Divert extends ParsedObject {
     }
 
     const paramCount = targetFlow!.args!.length;
-    if (paramCount !== numArgs) {
+    // Variadic target: `function f(a, b, ...)` — the trailing
+    // `...` consumes any surplus positional args (zero or more).
+    // Lua semantics: under-supplied args become nil, so even
+    // regular params on a variadic function are effectively
+    // optional (`function f(a, ...) ... end; f()` is valid;
+    // `a` binds to nil). Non-variadic targets keep the strict
+    // exact-arity check sparkdown has had since legacy ink.
+    const targetIsVariadicTarget =
+      paramCount > 0 && !!targetFlow!.args![paramCount - 1]!.isVararg;
+    const minRequired = targetIsVariadicTarget ? 0 : paramCount;
+    const exceedsMax = !targetIsVariadicTarget && numArgs > paramCount;
+    if (numArgs < minRequired || exceedsMax) {
       let butClause: string;
       if (numArgs === 0) {
         butClause = "but there weren't any passed to it";
-      } else if (numArgs < paramCount) {
+      } else if (numArgs < minRequired) {
         butClause = `but only got ${numArgs}`;
       } else {
         butClause = `but got ${numArgs}`;
       }
 
+      const requiresClause = targetIsVariadicTarget
+        ? `at least ${minRequired} argument${minRequired === 1 ? "" : "s"}`
+        : `${paramCount} argument${paramCount === 1 ? "" : "s"}`;
+
       this.Error(
         `to \`${
           targetFlow!.identifier
-        }\` requires ${paramCount} arguments, ${butClause}`,
+        }\` requires ${requiresClause}, ${butClause}`,
       );
 
       return;
     }
 
-    // Light type-checking for divert target arguments
-    for (let ii = 0; ii < paramCount; ++ii) {
+    // Light type-checking for divert target arguments. Iterate only
+    // up to `numArgs` so a variadic target with fewer-than-formal
+    // call-site args doesn't crash on `this.args[ii]` being undefined.
+    const checkCount = Math.min(paramCount, numArgs);
+    for (let ii = 0; ii < checkCount; ++ii) {
       const flowArg: Argument = targetFlow!.args![ii];
       const divArgExpr: Expression = this.args[ii];
 
@@ -490,7 +602,12 @@ export class Divert extends ParsedObject {
   ): void {
     // Could be getting an error from a nested Divert
     if (source !== this && source) {
-      super.Error(message, source);
+      // Forward the warning flag — without it, a warning emitted on
+      // a child object (e.g. a DivertTarget's "Can't use a divert
+      // target like that" Luau-superset hint) gets re-routed as a
+      // severity-1 error when the propagation path crosses a Divert
+      // ancestor.
+      super.Error(message, source, isWarning);
       return;
     }
 

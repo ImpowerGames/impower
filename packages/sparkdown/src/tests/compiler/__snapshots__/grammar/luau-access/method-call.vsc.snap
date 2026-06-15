@@ -1,0 +1,16 @@
+text.source.sparkdown [0..24]
+ ├─ keyword.other.statement.explicit.luau.mark.sd [0..1]: "&"
+ ├─ punctuation.whitespace.required.sd [1..2]: " "
+ ├─ variable.other.readwrite.luau [2..3]: "v"
+ ├─ punctuation.whitespace.optional.sd [3..4]: " "
+ ├─ keyword.operator.assignment.luau [4..5]: "="
+ ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ ├─ variable.other.readwrite.luau [6..9]: "obj"
+ ├─ meta.template.expression.accessor.sd [9..10]: ":"
+ ├─ entity.name.function.luau [10..15]: "greet"
+ ├─ punctuation.definition.template-expression.begin.sd [15..16]: "("
+ ├─ string.quoted.double.luau [16..23]
+ │   ├─ punctuation.definition.string.double.begin.sd [16..17]: "\""
+ │   ├─ markup.raw.text.sd [17..22]: "hello"
+ │   └─ punctuation.definition.string.double.end.sd [22..23]: "\""
+ └─ punctuation.definition.template-expression.end.sd [23..24]: ")"

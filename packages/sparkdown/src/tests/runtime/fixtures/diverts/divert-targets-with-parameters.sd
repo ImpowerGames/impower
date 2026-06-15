@@ -1,0 +1,9 @@
+-> main
+scene main
+  -> place(5)
+
+end
+scene place(value)
+  {value}
+  done
+end

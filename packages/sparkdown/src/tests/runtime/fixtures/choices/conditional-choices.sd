@@ -1,0 +1,12 @@
+-> main
+scene main
+  choose
+    * if true one
+    * if false not displayed
+    * (name) if true two
+    * if false also not displayed
+    * if true three
+    * if true four
+  end
+  done
+end

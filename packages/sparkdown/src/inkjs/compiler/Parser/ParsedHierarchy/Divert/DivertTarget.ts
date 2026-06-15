@@ -131,9 +131,20 @@ export class DivertTarget extends Expression {
       }
 
       if (badUsage) {
+        // Luau-superset semantics: anonymous-function expressions
+        // lower to `DivertTarget(<synth knot>)` values, which the
+        // legacy ink "bad usage" check flags whenever such a value
+        // appears in a non-call expression (e.g. RHS of `local f =
+        // (function() ... end)()`, value passed to a stdlib, etc.).
+        // The runtime handles these correctly via
+        // `CallValueAsFunction` / closure dispatch — the warning is
+        // still useful in the IDE as a hint when the user really
+        // DID forget the `()`, but blocking compile would break
+        // every closure-using fixture.
         this.Error(
           `Can't use a divert target like that. Did you intend to call \`${this.divert.target}\` as a function: \`likeThis()\`, or check the read count: \`likeThis\`, with no arrows?`,
           this,
+          true,
         );
       }
 

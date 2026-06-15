@@ -6,6 +6,7 @@ import {
   IntValue,
   FloatValue,
   BoolValue,
+  ObjectValue,
 } from "./Value";
 import { VariableAssignment } from "./VariableAssignment";
 import { InkObject } from "./Object";
@@ -210,9 +211,45 @@ export class VariablesState extends VariablesStateAccessor<
         if (tokenInkObject === null) {
           return throwNullException("tokenInkObject");
         }
-        this._globalVariables.set(varValKey, tokenInkObject);
+        // Named define (store-keyed save): the token holds only the
+        // `store` delta. MERGE it onto the init-reconstructed default —
+        // which already carries the definition's own non-store props,
+        // methods, metatable, and identity (so `companion.O === O` etc.
+        // still hold) — instead of replacing it with a partial table.
+        const defSelf = (tokenInkObject as any).__loadDefSelf;
+        if (
+          defSelf != null &&
+          tokenInkObject instanceof ObjectValue &&
+          varValValue instanceof ObjectValue
+        ) {
+          const target = varValValue.value as Map<string, AbstractValue>;
+          for (const [k, v] of tokenInkObject.value as Map<
+            string,
+            AbstractValue
+          >) {
+            target.set(k, v);
+          }
+          this._globalVariables.set(varValKey, varValValue);
+        } else {
+          this._globalVariables.set(varValKey, tokenInkObject);
+        }
       } else {
         this._globalVariables.set(varValKey, varValValue);
+      }
+    }
+
+    // DYNAMIC globals — Lua-style assignments to undeclared names
+    // (`t = {}` inside a function creates a global). They serialize
+    // through WriteJson like any other global, but the defaults-
+    // driven loop above never visits them, so without this pass
+    // they'd silently vanish on load.
+    for (const key of Object.keys(jToken)) {
+      if (this._defaultGlobalVariables.has(key)) continue;
+      const tokenInkObject = JsonSerialisation.JTokenToRuntimeObject(
+        jToken[key],
+      );
+      if (tokenInkObject != null) {
+        this._globalVariables.set(key, tokenInkObject);
       }
     }
   }
@@ -225,7 +262,19 @@ export class VariablesState extends VariablesStateAccessor<
       let name = keyValKey;
       let val = keyValValue;
 
-      if (VariablesState.dontSaveDefaultValues) {
+      // Store-keyed rule for define tables: persistence follows the
+      // `store` marker, NOT value-equality. A define with no store state
+      // is fully reconstructed by init — never written. One WITH store
+      // props always writes its (compact) store delta, because the
+      // default shares the same table reference and so can't reveal an
+      // in-place store mutation via RuntimeObjectsEqual.
+      const defInfo =
+        val instanceof ObjectValue
+          ? JsonSerialisation.defineSerializationInfo(val)
+          : null;
+      if (defInfo) {
+        if (defInfo.storeNames.size === 0) continue;
+      } else if (VariablesState.dontSaveDefaultValues) {
         if (this._defaultGlobalVariables.has(name)) {
           let defaultVal = this._defaultGlobalVariables.get(name)!;
           if (this.RuntimeObjectsEqual(val, defaultVal)) continue;
@@ -303,6 +352,25 @@ export class VariablesState extends VariablesStateAccessor<
     return val.exists ? val.result : null;
   }
 
+  // Global-only lookup, used by the `_G` globals-table proxy. Unlike
+  // `GetVariableWithName` (which checks call-stack temporaries first
+  // because locals shadow globals), reads through `_G` must see THE
+  // GLOBAL binding even when a same-named local is in scope —
+  // `local x = 1  _G.x` reads the global x (or nil), never the local.
+  public GetGlobalVariableValue(name: string): InkObject | null {
+    if (this.patch !== null) {
+      const patched = this.patch.TryGetGlobal(name, null);
+      if (patched.exists) return patched.result!;
+    }
+    const current = tryGetValueFromMap(this._globalVariables, name, null);
+    if (current.exists) return current.result;
+    if (this._defaultGlobalVariables !== null) {
+      const dflt = tryGetValueFromMap(this._defaultGlobalVariables, name, null);
+      if (dflt.exists) return dflt.result;
+    }
+    return null;
+  }
+
   public GlobalVariableExistsWithName(name: string) {
     return (
       this._globalVariables.has(name) ||
@@ -313,6 +381,18 @@ export class VariablesState extends VariablesStateAccessor<
 
   public GetRawVariableWithName(name: string | null, contextIndex: number) {
     let varValue: InkObject | null = null;
+
+    // Luau-superset semantics: locals shadow globals. Check the
+    // call-stack temporaries FIRST, then fall back to globals / list
+    // items if nothing's in scope. Ink's original order was
+    // globals-first (because ink temps were rare `~temp` declarations
+    // scoped to knots, never overlapping with global names), but
+    // sparkdown's `local x = …` is the common case and must shadow
+    // any same-named global. See `do local g = … end` patterns in
+    // calls.luau (line 22–31) which previously read the OUTER global
+    // `g = false` from inside the do-block.
+    varValue = this._callStack.GetTemporaryVariableWithName(name, contextIndex);
+    if (varValue != null) return varValue;
 
     if (contextIndex == 0 || contextIndex == -1) {
       let variableValue = null;
@@ -340,12 +420,16 @@ export class VariablesState extends VariablesStateAccessor<
       if (listItemValue) return listItemValue;
     }
 
-    varValue = this._callStack.GetTemporaryVariableWithName(name, contextIndex);
-
-    return varValue;
+    return null;
   }
 
   public ValueAtVariablePointer(pointer: VariablePointerValue) {
+    // Closed upvalue: the parent frame has been popped and the value
+    // was snapshotted into the pointer at pop time. Read directly from
+    // the closed cell, no call-stack lookup needed.
+    if (pointer.isClosed) {
+      return pointer.closedValue;
+    }
     return this.GetVariableWithName(pointer.variableName, pointer.contextIndex);
   }
 
@@ -360,7 +444,19 @@ export class VariablesState extends VariablesStateAccessor<
     if (varAss.isNewDeclaration) {
       setGlobal = varAss.isGlobal;
     } else {
-      setGlobal = this.GlobalVariableExistsWithName(name);
+      // Luau-superset semantics: a temp variable shadows any
+      // same-named global for both READ and WRITE. Without this
+      // check, `g = false; do local g = nil; g = closure end` writes
+      // the closure to the GLOBAL `g` (because the global exists)
+      // instead of updating the local TEMP — breaking `local
+      // function g(...)` self-recursive declarations whose two-step
+      // (declareNil + assignClosure) lowering relies on the closure
+      // landing in the temp slot. Only fall back to the global path
+      // when no temp with this name is in scope.
+      const tempExists =
+        this._callStack.GetTemporaryVariableWithName(name, contextIndex) !==
+        null;
+      setGlobal = !tempExists && this.GlobalVariableExistsWithName(name);
     }
 
     if (varAss.isNewDeclaration) {
@@ -380,6 +476,14 @@ export class VariablesState extends VariablesStateAccessor<
           VariablePointerValue,
         );
         if (existingPointer != null) {
+          // Closed upvalue: write directly to the snapshotted cell.
+          // The parent frame is gone; there's no slot to redirect to.
+          // Mutating the pointer's `closedValue` lets all closures
+          // sharing this pointer see the updated value.
+          if (existingPointer.isClosed) {
+            existingPointer.closedValue = value;
+            return;
+          }
           name = existingPointer.variableName;
           contextIndex = existingPointer.contextIndex;
           setGlobal = contextIndex == 0;
@@ -389,14 +493,28 @@ export class VariablesState extends VariablesStateAccessor<
 
     if (setGlobal) {
       this.SetGlobal(name, value);
-    } else {
-      this._callStack.SetTemporaryVariable(
-        name,
-        value,
-        varAss.isNewDeclaration,
-        contextIndex,
-      );
+      return;
     }
+    // Luau's auto-global semantics: `x = 1` (without `local` /
+    // `store`) writes to a global if `x` isn't a known local in
+    // scope. We honour this only for *reassignment* shapes
+    // (isNewDeclaration=false) — explicit `local x = 1` declarations
+    // still create temps as before. If no local with this name
+    // exists in any scope of the current call-stack element, treat
+    // the bare assignment as a new-global creation.
+    if (
+      !varAss.isNewDeclaration &&
+      this._callStack.GetTemporaryVariableWithName(name, contextIndex) === null
+    ) {
+      this.SetGlobal(name, value);
+      return;
+    }
+    this._callStack.SetTemporaryVariable(
+      name,
+      value,
+      varAss.isNewDeclaration,
+      contextIndex,
+    );
   }
 
   public SnapshotDefaultGlobals() {
@@ -468,6 +586,12 @@ export class VariablesState extends VariablesStateAccessor<
   }
 
   public ResolveVariablePointer(varPointer: VariablePointerValue) {
+    // Already-closed pointer: it's heap-resident, no frame lookup
+    // needed and no further canonicalization possible. Return as-is
+    // so all references continue to share the same closed cell.
+    if (varPointer.isClosed) {
+      return varPointer;
+    }
     let contextIndex = varPointer.contextIndex;
 
     if (contextIndex == -1)
@@ -487,9 +611,19 @@ export class VariablesState extends VariablesStateAccessor<
     );
     if (doubleRedirectionPointer != null) {
       return doubleRedirectionPointer;
-    } else {
-      return new VariablePointerValue(varPointer.variableName, contextIndex);
     }
+    // If the pointer already has a canonical contextIndex (the
+    // auto-resolve path at content-push time has run), return the
+    // SAME object rather than a fresh copy. Sharing identity matters
+    // for Lua-style upvalue closing — the open-upvalue list in the
+    // target frame holds this object reference, and we need every
+    // place that holds the pointer (closure's __closure_upvals, the
+    // callee's param slot, etc.) to point at the same instance so
+    // close-on-pop is observable everywhere.
+    if (varPointer.contextIndex > 0) {
+      return varPointer;
+    }
+    return new VariablePointerValue(varPointer.variableName, contextIndex);
   }
 
   public GetContextIndexOfVariableNamed(varName: string) {

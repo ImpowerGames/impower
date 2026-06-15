@@ -1,0 +1,13 @@
+-> knot
+
+scene knot
+  choose
+    * option text[]. {true and "Conditional bit." or ""} -> next
+  end
+  done
+
+end
+scene next
+  Next.
+  done
+end

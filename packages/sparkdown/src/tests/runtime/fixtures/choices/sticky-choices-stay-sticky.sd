@@ -1,0 +1,7 @@
+-> test
+scene test
+  choose
+    + Choice 1 -> test
+    + Choice 2 -> test
+  end
+end

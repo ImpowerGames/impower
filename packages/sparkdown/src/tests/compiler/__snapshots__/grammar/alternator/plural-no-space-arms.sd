@@ -1,0 +1,3 @@
+function count_geese(n: number)
+  return `There {plural(n)|one="is"| other = "are"} {n} `
+end

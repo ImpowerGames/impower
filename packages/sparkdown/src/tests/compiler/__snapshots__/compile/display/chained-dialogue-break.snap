@@ -1,0 +1,57 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Tag",
+          "start": true
+        },
+        {
+          "type": "Text",
+          "text": "dialogue:RAFFLES"
+        },
+        {
+          "type": "Tag",
+          "start": false
+        },
+        {
+          "type": "Text",
+          "text": "RAFFLES: "
+        },
+        {
+          "type": "Text",
+          "text": "Different rope!"
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        },
+        {
+          "type": "Tag",
+          "start": true
+        },
+        {
+          "type": "Text",
+          "text": "dialogue:RAFFLES"
+        },
+        {
+          "type": "Tag",
+          "start": false
+        },
+        {
+          "type": "Text",
+          "text": "RAFFLES: "
+        },
+        {
+          "type": "Text",
+          "text": "...I think."
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        }
+      ]
+    }
+  ]
+}

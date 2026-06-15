@@ -1,0 +1,4 @@
+function   greet(name)
+total = 0
+return   total
+end

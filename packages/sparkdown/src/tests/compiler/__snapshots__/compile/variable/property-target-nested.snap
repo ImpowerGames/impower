@@ -1,0 +1,39 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "StorePropertyAssignment",
+          "base": {
+            "type": "IndexExpression",
+            "base": {
+              "type": "VariableReference",
+              "path": [
+                "opts"
+              ]
+            },
+            "key": {
+              "type": "StringExpression",
+              "content": [
+                "theme"
+              ]
+            }
+          },
+          "key": {
+            "type": "StringExpression",
+            "content": [
+              "bg"
+            ]
+          },
+          "value": {
+            "type": "StringExpression",
+            "content": [
+              "dark"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

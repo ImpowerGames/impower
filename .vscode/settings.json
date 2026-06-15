@@ -98,5 +98,8 @@
   },
   "files.associations": {
     "*.css": "tailwindcss"
-  }
+  },
+  "eslint.validate": ["javascript", "typescript", "yaml"],
+  "eslint.experimental.useFlatConfig": true,
+  "eslint.workingDirectories": [{ "pattern": "." }]
 }

@@ -1,0 +1,4 @@
+function tally(items)
+  total = 0
+  return total
+end

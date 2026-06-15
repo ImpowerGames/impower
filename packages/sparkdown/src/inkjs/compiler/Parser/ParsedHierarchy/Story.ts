@@ -48,8 +48,10 @@ export class Story extends FlowBase {
       case "store":
       case "CONST":
       case "const":
-      case "LIST":
-      case "list":
+      // `LIST` / `list` are intentionally NOT reserved — sparkdown
+      // replaced ink's LIST type with Luau tables (see
+      // docs/runtime/DIVERGENCES.md), so the words are free for user identifiers
+      // (`store list = {…}`, `function list_all() end`, etc.).
       case "DEFINE":
       case "define":
       case "function":
@@ -123,14 +125,22 @@ export class Story extends FlowBase {
 
     const flowsFromOtherFiles: ParsedObject[] = [];
 
-    // Inject included files
-    for (let obj of topLevelContent) {
+    // Inject included files. Use an index-based loop instead of `for ... of`
+    // so we can re-process the position after splicing in the included
+    // file's content. If the included file's content starts with another
+    // `IncludedFile` (the nested-include case — `main.ink` → `a.ink` →
+    // `b.ink`), a naive `for ... of` would skip over it because the
+    // iterator already advanced past the original position before the
+    // splice inserted new items there. Restarting the index at `i` after
+    // splicing means we re-visit the now-inserted child IncludedFile and
+    // recursively process it.
+    for (let i = 0; i < topLevelContent.length; i++) {
+      const obj = topLevelContent[i]!;
       if (obj instanceof IncludedFile) {
         const file: IncludedFile = obj;
 
         // Remove the IncludedFile itself
-        const posOfObj = topLevelContent.indexOf(obj);
-        topLevelContent.splice(posOfObj, 1);
+        topLevelContent.splice(i, 1);
 
         // When an included story fails to load, the include
         // line itself is still valid, so we have to handle it here
@@ -151,16 +161,15 @@ export class Story extends FlowBase {
             nonFlowContent.push(new Text("\n"));
 
             // Add contents of the file in its place
-            topLevelContent.splice(posOfObj, 0, ...nonFlowContent);
-
-            // Skip past the content of this sub story
-            // (since it will already have recursively included
-            //  any lines from other files)
+            topLevelContent.splice(i, 0, ...nonFlowContent);
           }
         }
 
-        // Include object has been removed, with possible content inserted,
-        // and position of 'i' will have been determined already.
+        // Re-visit position `i`: if the first spliced-in item is itself
+        // an `IncludedFile` (nested include), the next loop iteration
+        // will process it. The `i--` cancels out the loop's `i++` so we
+        // examine the same index again.
+        i--;
         continue;
       }
     }
@@ -209,7 +218,18 @@ export class Story extends FlowBase {
       if (structDef.identifier?.name) {
         this._structDefs.set(structDef.identifier?.name, structDef);
         runtimeStructs.push(structDef.runtimeStructDefinition);
-        if (!structDef.modifier?.name && structDef.name?.name !== "$default") {
+        // When the define ALSO carries a runtime table expression (the
+        // OOP type/instance path), the live table provides each
+        // property — emitting flat `companion.O.name` globals too would
+        // shadow the table with a stale snapshot after any mutation
+        // (`GetVariableWithName` matches the flat dotted key before
+        // falling back to the table walk). So only emit the flat
+        // property globals for pure data structs with no runtime table.
+        if (
+          !structDef.modifier?.name &&
+          structDef.name?.name !== "$default" &&
+          !structDef.variableAssignment?.expression
+        ) {
           // Each struct property should be saved as its own dot-accessible variable
           for (const prop of structDef.propertyDefinitions) {
             if (
@@ -245,6 +265,43 @@ export class Story extends FlowBase {
     // Get default implementation of runtimeObject, which calls ContainerBase's generation method
     const rootContainer = this.runtimeObject as RuntimeContainer;
 
+    // IMPLICIT parent types — a `define X as T` whose parent `T` is
+    // never itself `define`d (e.g. `as character`, a builtin engine
+    // type). Register the name as a known global so bare `T` references
+    // (`instances(character)`, `character.O`) resolve without a
+    // "Cannot find variable" warning. No runtime init is emitted: the
+    // child define's `__def` lazily mints the parent table during
+    // global-init (and members register into it), so the table always
+    // exists by the time content runs.
+    const definedTypeNames = new Set<string>();
+    for (const [k, v] of this.variableDeclarations) {
+      if (v.isDefineDeclaration) {
+        definedTypeNames.add(k);
+      }
+    }
+    const implicitParentNames = new Set<string>();
+    for (const structDef of this.FindAll(StructDefinition)()) {
+      const parentName = structDef.type?.name;
+      if (
+        parentName &&
+        !definedTypeNames.has(parentName) &&
+        !this.variableDeclarations.has(parentName)
+      ) {
+        implicitParentNames.add(parentName);
+      }
+    }
+    for (const parentName of implicitParentNames) {
+      // Declaration-only marker (no expression → never reaches the
+      // init loop's "must have expression" path; skipped explicitly
+      // below). Exists purely so `ResolveVariableWithName` succeeds.
+      const va = new VariableAssignment({
+        variableIdentifier: new Identifier(parentName),
+        isGlobalDeclaration: true,
+        isDefineDeclaration: true,
+      });
+      this.AddNewVariableDeclaration(va);
+    }
+
     // Export initialisation of global variables
     // TODO: We *could* add this as a declarative block to the story itself...
     const variableInitialization = new RuntimeContainer();
@@ -253,6 +310,11 @@ export class Story extends FlowBase {
     // Global variables are those that are local to the story and marked as global
     const runtimeLists: RuntimeListDefinition[] = [];
     for (const [key, value] of this.variableDeclarations) {
+      // Implicit parents are declaration-only (lazily minted by a
+      // child's `__def` at runtime) — nothing to initialize here.
+      if (implicitParentNames.has(key)) {
+        continue;
+      }
       if (value.isGlobalDeclaration) {
         if (value.listDefinition) {
           this._listDefs.set(key, value.listDefinition);
@@ -260,22 +322,29 @@ export class Story extends FlowBase {
           variableInitialization.AddContent(
             value.listDefinition.runtimeObject!,
           );
-        } else if (value.structDefinition) {
-          this._structDefs.set(key, value.structDefinition);
-          runtimeStructs.push(value.structDefinition.runtimeStructDefinition);
         } else {
-          if (!value.expression) {
+          // Struct registration — populates `structDefinitions` for the
+          // engine's character / UI / asset spec system. A `define` can
+          // carry this AND a runtime table expression simultaneously
+          // (see VariableAssignment); the struct half never serializes
+          // and is compile-time only.
+          if (value.structDefinition) {
+            this._structDefs.set(key, value.structDefinition);
+            runtimeStructs.push(value.structDefinition.runtimeStructDefinition);
+          }
+          // Runtime initialization — for ordinary globals AND for
+          // `define` tables (which additionally carry a struct above).
+          // A pure struct VA (no expression) is intentionally NOT
+          // initialized at runtime, matching the legacy behavior.
+          if (value.expression) {
+            value.expression.GenerateIntoContainer(variableInitialization);
+            const runtimeVarAss = new RuntimeVariableAssignment(key, true);
+            runtimeVarAss.isGlobal = true;
+            variableInitialization.AddContent(runtimeVarAss);
+          } else if (!value.structDefinition) {
+            // Non-struct global declaration must have an expression.
             throw new Error();
           }
-          value.expression.GenerateIntoContainer(variableInitialization);
-        }
-
-        // Don't initialize structs at runtime
-        // They should only be initialized at compiletime and never serialized in save state
-        if (!value.structDefinition) {
-          const runtimeVarAss = new RuntimeVariableAssignment(key, true);
-          runtimeVarAss.isGlobal = true;
-          variableInitialization.AddContent(runtimeVarAss);
         }
       }
     }
@@ -559,6 +628,16 @@ export class Story extends FlowBase {
           );
           return;
         } else if (FunctionCall.IsBuiltIn(part)) {
+          // Lua-fidelity stdlib shadowing: locals (SymbolType.Temp)
+          // may bind a built-in name; references inside the local's
+          // scope read the binding. Globals (Var) still error to
+          // preserve top-level safety — `var print = 1` would silently
+          // break every `print(...)` call in the story. Function
+          // parameters (Arg) also permit shadowing since they're
+          // scoped to the function body.
+          if (symbolType === SymbolType.Temp || symbolType === SymbolType.Arg) {
+            continue;
+          }
           obj.Error(
             `\`${part}\` cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`,
             identifier?.debugMetadata,
@@ -577,9 +656,19 @@ export class Story extends FlowBase {
 
     const knotOrFunction = asOrNull(maybeKnotOrFunction, FlowBase);
 
+    // Luau-superset semantics: function parameters (Arg) and local
+    // variables (Temp) may shadow top-level knot/function names. This
+    // matters for closure upvalues — `scanFreeVariables` captures any
+    // referenced top-level callable as an upval, which is then
+    // prepended to the synthetic closure's parameter list. Original
+    // ink errored on parameter/local names colliding with knots; that
+    // breaks `local function f() ... concat(...) end` whenever `concat`
+    // is itself a top-level function (basic.luau line 4).
     if (
       knotOrFunction &&
-      (knotOrFunction !== obj || symbolType === SymbolType.Arg)
+      knotOrFunction !== obj &&
+      symbolType !== SymbolType.Arg &&
+      symbolType !== SymbolType.Temp
     ) {
       if (obj instanceof Stitch && knotOrFunction.identifier) {
         this.NameConflictError(
@@ -634,6 +723,15 @@ export class Story extends FlowBase {
         obj !== value &&
         value.variableAssignment !== obj
       ) {
+        // Same-name structs of DIFFERENT types are namespaced
+        // (context[type][name] — e.g. `define raffles as character` +
+        // `define raffles as synth`), so they don't conflict. Two of the
+        // SAME type still do.
+        const objType = (obj as { type?: { name?: string } })?.type?.name;
+        const valType = value.type?.name;
+        if (objType && valType && objType !== valType) {
+          continue;
+        }
         this.NameConflictError(obj, identifier, value.identifier || value);
       }
     }
@@ -670,15 +768,24 @@ export class Story extends FlowBase {
     }
 
     // Stitches, Choices and Gathers
-    const path = new Path(identifier);
-    const targetContent = path.ResolveFromContext(obj);
-    if (targetContent && targetContent !== obj) {
-      this.NameConflictError(
-        obj,
-        identifier,
-        targetContent?.identifier || targetContent,
-      );
-      return;
+    // Skip path-resolution shadowing for Arg/Temp: Luau-superset
+    // semantics allow function parameters and local variables to
+    // shadow any callable, including stitches and gather labels.
+    // Closure upvalues are added as synthetic parameters, so without
+    // this exception any upval named after a top-level knot or stitch
+    // (e.g. a body that references `concat` when there's a
+    // `function concat(...)` at file scope) would error here.
+    if (symbolType !== SymbolType.Arg && symbolType !== SymbolType.Temp) {
+      const path = new Path(identifier);
+      const targetContent = path.ResolveFromContext(obj);
+      if (targetContent && targetContent !== obj) {
+        this.NameConflictError(
+          obj,
+          identifier,
+          targetContent?.identifier || targetContent,
+        );
+        return;
+      }
     }
 
     if (symbolType < SymbolType.Arg) {
@@ -686,7 +793,16 @@ export class Story extends FlowBase {
     }
 
     // Arguments to the current flow
-    if (symbolType !== SymbolType.Arg) {
+    //
+    // Luau-superset semantics: function parameters and local
+    // variables (`SymbolType.Temp`) may freely shadow each other.
+    // `function f(b) local b = 1 end` is valid Luau — the inner
+    // `local b` shadows the parameter `b` within its block scope.
+    // Same for synthesized upval-as-params on closures (which is
+    // how nested `function NAME(b)` declarations lower): an inner
+    // `local b` SHOULD shadow the captured-upval parameter, not
+    // error. So skip the duplicate-param check entirely for Temp.
+    if (symbolType !== SymbolType.Arg && symbolType !== SymbolType.Temp) {
       let flow: FlowBase | null = asOrNull(obj, FlowBase);
       if (!flow) {
         flow = ClosestFlowBase(obj);

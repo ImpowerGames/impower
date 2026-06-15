@@ -1,0 +1,6 @@
+store negativeLiteral = -1
+store negativeLiteral2 = not not false
+store negativeLiteral3 = not 0
+{negativeLiteral}
+{negativeLiteral2}
+{negativeLiteral3}

@@ -8,6 +8,9 @@ import {
   VariablePointerValue,
   ListValue,
   BoolValue,
+  NullValue,
+  ObjectValue,
+  AbstractValue,
 } from "./Value";
 import { Glue } from "./Glue";
 import { ControlCommand } from "./ControlCommand";
@@ -30,6 +33,152 @@ import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
 
 export class JsonSerialisation {
+  // ----------------------------------------------------------------
+  // Reference-ID table (de)serialization sessions.
+  //
+  // WRITE side: the memo rides the SimpleJson.Writer instance (one
+  // writer per StoryState.ToJson call), mapping each underlying Map
+  // to its save-session id. READ side: a module-level id →
+  // ObjectValue registry, reset by StoryState.LoadJsonObj at the
+  // start of every load. `objectForLoadSessionId` returns the slot
+  // for an id, creating an empty placeholder when a forward
+  // reference arrives before its definition — the definition then
+  // fills the SAME ObjectValue, so identity holds regardless of
+  // field order in the save.
+  // ----------------------------------------------------------------
+
+  private static writerObjectMemo(writer: SimpleJson.Writer): {
+    nextId: number;
+    ids: Map<object, number>;
+  } {
+    const w = writer as unknown as {
+      __objGraphMemo?: { nextId: number; ids: Map<object, number> };
+    };
+    w.__objGraphMemo ??= { nextId: 1, ids: new Map<object, number>() };
+    return w.__objGraphMemo;
+  }
+
+  private static _loadSessionObjectsById = new Map<number, ObjectValue>();
+
+  // `new`-instance tables loaded with a `defref` (their class link is a
+  // NAME, not an inline table). The class is reconstructed by init, so we
+  // relink each instance's metatable `__index` to the LIVE class global in
+  // a post-pass once globals exist (RelinkPendingDefineRefs).
+  private static _pendingDefineRefs: { obj: ObjectValue; className: string }[] =
+    [];
+
+  public static ResetObjectLoadSession(): void {
+    this._loadSessionObjectsById = new Map();
+    this._pendingDefineRefs = [];
+  }
+
+  static registerPendingDefineRef(obj: ObjectValue, className: string): void {
+    this._pendingDefineRefs.push({ obj, className });
+  }
+
+  // Relink every `defref` instance's `__index` to the class table the
+  // resolver returns (the init-reconstructed global). Called after the
+  // variables state is loaded, so the live class globals are available.
+  static RelinkPendingDefineRefs(
+    resolve: (className: string) => ObjectValue | null,
+  ): void {
+    for (const { obj, className } of this._pendingDefineRefs) {
+      const cls = resolve(className);
+      if (cls instanceof ObjectValue) {
+        const mt = new Map<string, AbstractValue>();
+        mt.set("__index", cls);
+        obj.metatable = new ObjectValue(mt);
+      }
+    }
+    this._pendingDefineRefs = [];
+  }
+
+  private static objectForLoadSessionId(id: number): ObjectValue {
+    let existing = this._loadSessionObjectsById.get(id);
+    if (!existing) {
+      existing = new ObjectValue(new Map<string, AbstractValue>());
+      this._loadSessionObjectsById.set(id, existing);
+    }
+    return existing;
+  }
+
+  // ----------------------------------------------------------------
+  // Store-keyed define serialization.
+  //
+  // A define table persists ONLY its `store`-marked props; its class /
+  // definition is reconstructed at init. Class linkage is written by
+  // NAME, never inlined:
+  //   - named define (own `__define` marker — a type table or a
+  //     `define X` instance, both reconstructed by init): the store delta
+  //     is tagged `defself` so load MERGES it onto the init default,
+  //     preserving the definition's own non-store props + identity.
+  //   - `new` instance (metatable `__index` → a define table, no own
+  //     `__define`): written with `defref` = the class name; load creates
+  //     it fresh and relinks `__index` to the live class global.
+  // ----------------------------------------------------------------
+  static readonly DEFINE_MARKER = "__define";
+
+  // Classify a table for store-keyed serialization, or null for a plain
+  // (non-define) table that serializes in full as before.
+  static defineSerializationInfo(
+    objVal: ObjectValue,
+  ): { kind: "named" | "instance"; name: string; storeNames: Set<string> } | null {
+    const mt = objVal.metatable;
+    if (!(mt instanceof ObjectValue)) return null;
+    const mtMap = mt.value as Map<string, AbstractValue>;
+    const ownDefine = mtMap.get(JsonSerialisation.DEFINE_MARKER);
+    if (ownDefine instanceof StringValue) {
+      return {
+        kind: "named",
+        name: ownDefine.value,
+        storeNames: JsonSerialisation.collectDefineStoreNames(objVal),
+      };
+    }
+    const indexTarget = mtMap.get("__index");
+    if (indexTarget instanceof ObjectValue) {
+      const idxMt = indexTarget.metatable;
+      const idxDefine =
+        idxMt instanceof ObjectValue
+          ? (idxMt.value as Map<string, AbstractValue>).get(
+              JsonSerialisation.DEFINE_MARKER,
+            )
+          : null;
+      if (idxDefine instanceof StringValue) {
+        return {
+          kind: "instance",
+          name: idxDefine.value,
+          storeNames: JsonSerialisation.collectDefineStoreNames(objVal),
+        };
+      }
+    }
+    return null;
+  }
+
+  // Collect every `store`-marked prop name reachable from a define table
+  // (its own `__storeProps` list plus every ancestor's, walked through
+  // the metatable `__index` chain).
+  static collectDefineStoreNames(objVal: ObjectValue): Set<string> {
+    const names = new Set<string>();
+    let cur: ObjectValue | null = objVal;
+    let guard = 0;
+    while (cur instanceof ObjectValue && guard++ < 64) {
+      const map = cur.value as Map<string, AbstractValue> | null;
+      const sp = map?.get("__storeProps");
+      if (sp instanceof ObjectValue) {
+        for (const v of (sp.value as Map<string, AbstractValue>).values()) {
+          if (v instanceof StringValue) names.add(v.value);
+        }
+      }
+      const mt = cur.metatable;
+      const idx =
+        mt instanceof ObjectValue
+          ? (mt.value as Map<string, AbstractValue>).get("__index")
+          : null;
+      cur = idx instanceof ObjectValue ? idx : null;
+    }
+    return names;
+  }
+
   public static JArrayToRuntimeObjList(
     jArray: any[],
     skipLast: boolean = false,
@@ -157,6 +306,15 @@ export class JsonSerialisation {
       return;
     }
 
+    let nullVal = asOrNull(obj, NullValue);
+    if (nullVal) {
+      // Serialize Lua `nil` as the literal token `"nil"` — mirrors
+      // the way `Void` writes itself as `"void"`. Reader picks this
+      // up in the string-token branch below.
+      writer.Write("nil");
+      return;
+    }
+
     let boolVal = asOrNull(obj, BoolValue);
     if (boolVal) {
       writer.WriteBool(boolVal.value);
@@ -194,6 +352,102 @@ export class JsonSerialisation {
       return;
     }
 
+    let objVal = asOrNull(obj, ObjectValue);
+    if (objVal) {
+      // Reference-ID table serialization (pickle-memo style). Each
+      // DISTINCT table writes its full contents once, tagged with a
+      // save-session-unique id (`"objid"`); every later occurrence of
+      // the same underlying Map writes a compact `{"objref": id}`. This
+      // preserves Lua reference semantics across save/load:
+      //   - aliasing (`local copy = t` — both names load as ONE table)
+      //   - cycles (`t.self = t` — registration happens BEFORE the
+      //     entry recursion, so the inner occurrence refs out)
+      //   - shared class tables (every instance's metatable `__index`
+      //     points at the same class — instances load attached to the
+      //     same table instead of each dragging in a private copy)
+      // The memo rides the WRITER instance, so it spans exactly one
+      // StoryState.ToJson call (one save = one object graph) and
+      // resets naturally on the next save.
+      const map = objVal.value as Map<string, AbstractValue> | null;
+      const memo = JsonSerialisation.writerObjectMemo(writer);
+      if (map !== null) {
+        const existingId = memo.ids.get(map);
+        if (existingId !== undefined) {
+          writer.WriteObjectStart();
+          writer.WriteIntProperty("objref", existingId);
+          writer.WriteObjectEnd();
+          return;
+        }
+        memo.ids.set(map, memo.nextId++);
+      }
+      // Store-keyed define tables persist ONLY their `store` props (the
+      // rest is reconstructed at init); plain tables serialize in full.
+      const defInfo = JsonSerialisation.defineSerializationInfo(objVal);
+
+      writer.WriteObjectStart();
+      if (map !== null) {
+        // NB: NOT `"#"` — that key is ink's Tag token in this wire
+        // format.
+        writer.WriteIntProperty("objid", memo.ids.get(map)!);
+      }
+      writer.WritePropertyStart("obj");
+      writer.WriteObjectStart();
+      if (map !== null) {
+        for (const [k, v] of map) {
+          // Per-iteration scratch on builtin-iterator marker maps is
+          // a raw JS array (not an AbstractValue) — never serialized.
+          if (k === "__iter_key_snapshot") continue;
+          // Define tables write ONLY store props — non-store props,
+          // methods, and the hidden bookkeeping lists are all
+          // reconstructed from the definition at init.
+          if (defInfo && !defInfo.storeNames.has(k)) continue;
+          writer.WritePropertyStart(k);
+          if (v && v instanceof InkObject) {
+            this.WriteRuntimeObject(writer, v);
+          } else {
+            writer.WriteNull();
+          }
+          writer.WritePropertyEnd();
+        }
+      }
+      writer.WriteObjectEnd();
+      writer.WritePropertyEnd();
+      if (defInfo) {
+        // Class linkage by NAME (never inline the reconstructable class):
+        // `defself` → a named define; load merges the store delta onto the
+        // init default. `defref` → a `new` instance; load relinks
+        // `__index` to the live class global.
+        writer.WriteProperty(
+          defInfo.kind === "named" ? "defself" : "defref",
+          defInfo.name,
+        );
+      } else if (objVal.metatable) {
+        // Metatable round-trip — only emit the slot when one is set, so
+        // existing tables without metatables stay compact in the wire
+        // format. Recursive write since metatables are themselves
+        // ObjectValues (and can in turn carry their own metatables, e.g.
+        // class inheritance chains); the memo above keeps shared
+        // metatables shared.
+        writer.WritePropertyStart("mt");
+        this.WriteRuntimeObject(writer, objVal.metatable);
+        writer.WritePropertyEnd();
+      }
+      // `table.freeze` state.
+      if (objVal.isFrozen) {
+        writer.WriteIntProperty("frz", 1);
+      }
+      // Luau `#` border-search hints (capacity from table.create /
+      // table.clear, cached boundary) ride the underlying Map as JS
+      // properties — without these a loaded table answers `#`
+      // differently than it did before the save.
+      const cap = map !== null ? ((map as any).__luauCapacity ?? 0) : 0;
+      const bnd = map !== null ? ((map as any).__luauBoundary ?? 0) : 0;
+      if (cap > 0) writer.WriteIntProperty("cap", cap);
+      if (bnd > 0) writer.WriteIntProperty("bnd", bnd);
+      writer.WriteObjectEnd();
+      return;
+    }
+
     let divTargetVal = asOrNull(obj, DivertTargetValue);
     if (divTargetVal) {
       writer.WriteObjectStart();
@@ -223,6 +477,55 @@ export class JsonSerialisation {
 
     let controlCmd = asOrNull(obj, ControlCommand);
     if (controlCmd) {
+      // Data-carrying generic dispatcher: encode the function name
+      // and arity into the token so the deserializer can reconstruct
+      // the call site. Format: `stdlib:<name>:<arity>`. Function
+      // names are alphanumeric + dot (e.g. `assert`, `plural.category`)
+      // so a colon separator is unambiguous.
+      if (
+        controlCmd.commandType ===
+        ControlCommand.CommandType.RunStdLibFunction
+      ) {
+        writer.Write(
+          `stdlib:${controlCmd._stdLibName}:${controlCmd._stdLibArity}`,
+        );
+        return;
+      }
+      // Multi-return tuple pack/unpack. Encode the arity into the
+      // token so the deserializer can reconstruct it.
+      if (
+        controlCmd.commandType === ControlCommand.CommandType.PackTuple
+      ) {
+        writer.Write(`pack:${controlCmd._tupleArity}`);
+        return;
+      }
+      if (
+        controlCmd.commandType === ControlCommand.CommandType.UnpackTuple
+      ) {
+        writer.Write(`unpack:${controlCmd._tupleArity}`);
+        return;
+      }
+      // Lua `and`/`or` short-circuit jump: `sc:<op>:<skipCount>`.
+      if (
+        controlCmd.commandType === ControlCommand.CommandType.ShortCircuit
+      ) {
+        writer.Write(
+          `sc:${controlCmd._shortCircuitOp}:${controlCmd._shortCircuitSkipCount}`,
+        );
+        return;
+      }
+      // `CallValueAsFunction(n)` — encode the call-site arg count so
+      // the runtime closure dispatch can pad missing args with nil.
+      // Untracked sites encode plainly as `func()` (preserves legacy
+      // serialization) and the runtime falls back to its old behaviour.
+      if (
+        controlCmd.commandType ===
+          ControlCommand.CommandType.CallValueAsFunction &&
+        controlCmd._callValueArgCount >= 0
+      ) {
+        writer.Write(`func(${controlCmd._callValueArgCount})`);
+        return;
+      }
       writer.Write(
         JsonSerialisation._controlCommandNames[controlCmd.commandType]!,
       );
@@ -234,6 +537,16 @@ export class JsonSerialisation {
       let name = nativeFunc.name;
 
       if (name == "^") name = "L^";
+
+      // Variadic natives (the `__method_*` builtin-method family) need
+      // the call-site arg count preserved through serialization — their
+      // prototype's `numberOfParameters` is -1, so the deserialized
+      // call would otherwise pop zero args off the eval stack. Encode
+      // the actual arity as a `@<n>` suffix; the deserializer parses
+      // it back and restores it on the instance.
+      if (nativeFunc.isVariadic) {
+        name = `${name}@${nativeFunc.numberOfParameters}`;
+      }
 
       writer.Write(name);
       return;
@@ -262,6 +575,11 @@ export class JsonSerialisation {
 
       // Reassignment?
       if (!varAss.isNewDeclaration) writer.WriteProperty("re", true);
+      // Varargs slot — runtime skips MultiValue → first-value
+      // unwrapping for this binding so `__varargs__` keeps the
+      // packed tuple intact. Serialized as `va: true` to survive
+      // JSON round-trip when running pre-compiled stories.
+      if (varAss.isVarargsSlot) writer.WriteProperty("va", true);
 
       writer.WriteObjectEnd();
 
@@ -328,11 +646,25 @@ export class JsonSerialisation {
     if (typeof token === "string") {
       let str = token.toString();
 
-      //Explicit float value of the form "123.00f"
-      const floatRepresentation = /^([0-9]+.[0-9]+f)$/.exec(str);
+      // Explicit float value: "123.00f", plus exponent forms like
+      // "3.4e+38f" (large integral floats stringify with an exponent,
+      // so the writer appends a bare `f` there — see
+      // SimpleJson.WriteFloat).
+      const floatRepresentation =
+        /^(-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?f)$/.exec(str);
       if (floatRepresentation) {
         return new FloatValue(parseFloat(floatRepresentation[0]));
       }
+
+      // Non-finite floats — JSON can't carry Infinity/NaN, so the
+      // writer (SimpleJson.WriteFloat) emits these string markers.
+      // Required for Lua semantics: `math.huge` compiles to a real
+      // Infinity constant and `0/0` results must stay NaN through
+      // the story-JSON round trip (clamping them to 3.4e38 / 0 broke
+      // basic.luau's fp-special fixtures).
+      if (str === "inff") return new FloatValue(Infinity);
+      if (str === "-inff") return new FloatValue(-Infinity);
+      if (str === "nanf") return new FloatValue(NaN);
 
       // String value
       let firstChar = str[0];
@@ -342,6 +674,60 @@ export class JsonSerialisation {
 
       // Glue
       if (str == "<>") return new Glue();
+
+      // Generic stdlib dispatcher: encoded as `stdlib:<name>:<arity>`.
+      // Mirror of the writer above. Function names may contain dots
+      // (e.g. `plural.category`), so split on the LAST colon to pull
+      // arity off the end and treat everything before as the name.
+      if (str.startsWith("stdlib:")) {
+        const lastColon = str.lastIndexOf(":");
+        if (lastColon > "stdlib:".length - 1) {
+          const arityRaw = str.slice(lastColon + 1);
+          const arity = parseInt(arityRaw, 10);
+          if (Number.isFinite(arity)) {
+            const name = str.slice("stdlib:".length, lastColon);
+            return ControlCommand.RunStdLib(name, arity);
+          }
+        }
+      }
+
+      // Multi-return tuple pack/unpack: `pack:<n>` / `unpack:<n>`.
+      if (str.startsWith("pack:")) {
+        const arity = parseInt(str.slice("pack:".length), 10);
+        if (Number.isFinite(arity)) return ControlCommand.PackTuple(arity);
+      }
+      if (str.startsWith("unpack:")) {
+        const arity = parseInt(str.slice("unpack:".length), 10);
+        if (Number.isFinite(arity)) return ControlCommand.UnpackTuple(arity);
+      }
+
+      // Conditional content-pointer jump: `sc:<op>:<skipCount>`.
+      // Ops: `and`/`or` (Lua short-circuit), `if`/`jump` (ternary
+      // if-then-else expression arms).
+      if (str.startsWith("sc:")) {
+        const lastColon = str.lastIndexOf(":");
+        if (lastColon > "sc:".length - 1) {
+          const skip = parseInt(str.slice(lastColon + 1), 10);
+          const op = str.slice("sc:".length, lastColon);
+          if (
+            Number.isFinite(skip) &&
+            (op === "and" || op === "or" || op === "if" || op === "jump")
+          ) {
+            return ControlCommand.ShortCircuit(op, skip);
+          }
+        }
+      }
+
+      // `func(N)` — CallValueAsFunction with explicit call-site arg
+      // count. Round-trip of `CallValueAsFunction(N)` (see serializer).
+      // Bare `CallValueAsFunction` (no count) falls through to the
+      // generic control-command-names match below.
+      if (str.startsWith("func(") && str.endsWith(")")) {
+        const arity = parseInt(str.slice("func(".length, str.length - 1), 10);
+        if (Number.isFinite(arity)) {
+          return ControlCommand.CallValueAsFunction(arity);
+        }
+      }
 
       // Control commands (would looking up in a hash set be faster?)
       for (let i = 0; i < JsonSerialisation._controlCommandNames.length; ++i) {
@@ -353,6 +739,17 @@ export class JsonSerialisation {
 
       // Native functions
       if (str == "L^") str = "^";
+      // Variadic natives are serialized as `name@arity` (see serializer
+      // above for the rationale). Parse the suffix back into the
+      // call-site arity so the runtime knows how many params to pop.
+      const at = str.lastIndexOf("@");
+      if (at > 0) {
+        const bareName = str.slice(0, at);
+        const arityRaw = str.slice(at + 1);
+        if (/^\d+$/.test(arityRaw) && NativeFunctionCall.CallExistsWithName(bareName)) {
+          return NativeFunctionCall.CallWithName(bareName, parseInt(arityRaw, 10));
+        }
+      }
       if (NativeFunctionCall.CallExistsWithName(str))
         return NativeFunctionCall.CallWithName(str);
 
@@ -362,6 +759,9 @@ export class JsonSerialisation {
 
       // Void
       if (str == "void") return new Void();
+
+      // Lua `nil` — see write path for the matching literal token.
+      if (str == "nil") return new NullValue();
     }
 
     if (typeof token === "object" && !Array.isArray(token)) {
@@ -460,7 +860,8 @@ export class JsonSerialisation {
       if (isVarAss) {
         let varName = propValue.toString();
         let isNewDecl = !obj["re"];
-        let varAss = new VariableAssignment(varName, isNewDecl);
+        let isVarargsSlot = !!obj["va"];
+        let varAss = new VariableAssignment(varName, isNewDecl, isVarargsSlot);
         varAss.isGlobal = isGlobalVar;
         return varAss;
       }
@@ -491,6 +892,71 @@ export class JsonSerialisation {
         }
 
         return new ListValue(rawList);
+      }
+
+      // Reference to a table materialized elsewhere in this load
+      // session (aliasing / cycles / shared class tables). Returns
+      // the SAME ObjectValue the definition produced — or a
+      // placeholder that the definition fills when it's read (so the
+      // wire format is order-independent).
+      if (obj["objref"] !== undefined) {
+        return JsonSerialisation.objectForLoadSessionId(
+          parseInt(obj["objref"]),
+        );
+      }
+
+      // Object value
+      if (obj["obj"] !== undefined) {
+        const objContent = obj["obj"] as Record<string, any>;
+        // Identity-tagged definition: fill (or create) the session's
+        // slot for this id so every `objref` resolves to the same
+        // ObjectValue. Untagged form (legacy saves) builds a fresh
+        // standalone table exactly as before. The slot is claimed
+        // BEFORE the entry recursion so cyclic refs inside the
+        // entries find it.
+        const result =
+          obj["objid"] !== undefined
+            ? JsonSerialisation.objectForLoadSessionId(parseInt(obj["objid"]))
+            : new ObjectValue(new Map<string, AbstractValue>());
+        const entries = result.value!;
+        for (const key in objContent) {
+          if (!Object.prototype.hasOwnProperty.call(objContent, key)) continue;
+          const child = this.JTokenToRuntimeObject(objContent[key]);
+          const childVal = asOrNull(child, AbstractValue);
+          if (childVal) entries.set(key, childVal);
+        }
+        // Store-keyed define linkage (see the writer side). The class is
+        // reconstructed at init — restored by name, never from the save.
+        if (obj["defref"] !== undefined) {
+          // `new` instance: relink `__index` to the live class global in
+          // a post-pass (RelinkPendingDefineRefs), once globals exist.
+          JsonSerialisation.registerPendingDefineRef(
+            result,
+            String(obj["defref"]),
+          );
+        } else if (obj["defself"] !== undefined) {
+          // Named define: the store delta is merged onto the init default
+          // by VariablesState.SetJsonToken — flagged here for it to find.
+          (result as any).__loadDefSelf = String(obj["defself"]);
+        } else if (obj["mt"] !== undefined) {
+          // Restore the metatable if the writer emitted one. The slot
+          // is itself an ObjectValue, so we recurse through the same
+          // entry point — its own `mt` is restored too if present.
+          const mtParsed = this.JTokenToRuntimeObject(obj["mt"]);
+          const mt = asOrNull(mtParsed, ObjectValue);
+          if (mt) result.metatable = mt;
+        }
+        if (obj["frz"]) {
+          result.Freeze();
+        }
+        // Luau `#` border-search hints (see the writer side).
+        if (obj["cap"] !== undefined) {
+          (entries as any).__luauCapacity = parseInt(obj["cap"]);
+        }
+        if (obj["bnd"] !== undefined) {
+          (entries as any).__luauBoundary = parseInt(obj["bnd"]);
+        }
+        return result;
       }
 
       if (obj["originalChoicePath"] != null) return this.JObjectToChoice(obj);
@@ -611,6 +1077,13 @@ export class JsonSerialisation {
     choice.originalThreadIndex = parseInt(jObj["originalThreadIndex"]);
     choice.pathStringOnChoice = jObj["targetPath"].toString();
     choice.tags = this.JArrayToTags(jObj);
+    // `isInvisibleDefault` is the runtime flag that marks a fallback
+    // choice (`* -> target` with no choice text — picked automatically
+    // when no other choices match). Without round-tripping it, loaded
+    // states see the fallback in `currentChoices` instead of having it
+    // auto-followed by `TryFollowDefaultInvisibleChoice`. Default to
+    // `false` for backward-compat with saves that predate this field.
+    choice.isInvisibleDefault = jObj["isInvisibleDefault"] === true;
     return choice;
   }
 
@@ -629,6 +1102,13 @@ export class JsonSerialisation {
     writer.WriteProperty("originalChoicePath", choice.sourcePath);
     writer.WriteIntProperty("originalThreadIndex", choice.originalThreadIndex);
     writer.WriteProperty("targetPath", choice.pathStringOnChoice);
+    // Only emit the flag when it's `true` — keeps the wire format
+    // unchanged for the common case (regular choices) so saves stay
+    // compact and existing readers don't see an unexpected new field.
+    // `JObjectToChoice` defaults the field to `false` when absent.
+    if (choice.isInvisibleDefault) {
+      writer.WriteProperty("isInvisibleDefault", choice.isInvisibleDefault);
+    }
     this.WriteChoiceTags(writer, choice);
     writer.WriteObjectEnd();
   }
@@ -756,12 +1236,8 @@ export class JsonSerialisation {
     _controlCommandNames[ControlCommand.CommandType.BeginString] = "str";
     _controlCommandNames[ControlCommand.CommandType.EndString] = "/str";
     _controlCommandNames[ControlCommand.CommandType.NoOp] = "nop";
-    _controlCommandNames[ControlCommand.CommandType.ChoiceCount] = "choiceCnt";
-    _controlCommandNames[ControlCommand.CommandType.Turns] = "turn";
     _controlCommandNames[ControlCommand.CommandType.TurnsSince] = "turns";
     _controlCommandNames[ControlCommand.CommandType.ReadCount] = "readc";
-    _controlCommandNames[ControlCommand.CommandType.Random] = "rnd";
-    _controlCommandNames[ControlCommand.CommandType.SeedRandom] = "srnd";
     _controlCommandNames[ControlCommand.CommandType.VisitIndex] = "visit";
     _controlCommandNames[ControlCommand.CommandType.SequenceShuffleIndex] =
       "seq";
@@ -773,6 +1249,31 @@ export class JsonSerialisation {
     _controlCommandNames[ControlCommand.CommandType.ListRandom] = "lrnd";
     _controlCommandNames[ControlCommand.CommandType.BeginTag] = "#";
     _controlCommandNames[ControlCommand.CommandType.EndTag] = "/#";
+    _controlCommandNames[ControlCommand.CommandType.BeginObject] = "obj{";
+    _controlCommandNames[ControlCommand.CommandType.EndObject] = "}obj";
+    _controlCommandNames[ControlCommand.CommandType.IndexValue] = "idx";
+    _controlCommandNames[ControlCommand.CommandType.StoreIndex] = "idx=";
+    _controlCommandNames[ControlCommand.CommandType.CallValueAsFunction] =
+      "call";
+    _controlCommandNames[ControlCommand.CommandType.BeginScope] = "scope{";
+    _controlCommandNames[ControlCommand.CommandType.EndScope] = "}scope";
+    // Placeholder — actual serialization uses the dynamic
+    // `stdlib:<name>:<arity>` form (see WriteRuntimeObject's special
+    // case for RunStdLibFunction). The placeholder satisfies the
+    // validation loop at the bottom of this builder that every enum
+    // value has a name.
+    _controlCommandNames[ControlCommand.CommandType.RunStdLibFunction] =
+      "stdlib:?";
+    // Placeholders — actual serialization uses the dynamic
+    // `pack:<n>` / `unpack:<n>` forms (see WriteRuntimeObject's
+    // special cases for PackTuple/UnpackTuple). These satisfy the
+    // "no missing names" validation loop below.
+    _controlCommandNames[ControlCommand.CommandType.PackTuple] = "pack:?";
+    _controlCommandNames[ControlCommand.CommandType.UnpackTuple] = "unpack:?";
+    // Placeholder — actual serialization uses the dynamic
+    // `sc:<op>:<skipCount>` form (see WriteRuntimeObject's special
+    // case for ShortCircuit).
+    _controlCommandNames[ControlCommand.CommandType.ShortCircuit] = "sc:?";
 
     for (let i = 0; i < ControlCommand.CommandType.TOTAL_VALUES; ++i) {
       if (_controlCommandNames[i] == null)

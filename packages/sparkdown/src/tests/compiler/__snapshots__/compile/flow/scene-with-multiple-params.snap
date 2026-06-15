@@ -1,0 +1,15 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "Pair",
+      "args": [
+        "a",
+        "b"
+      ],
+      "isFunction": false
+    }
+  ]
+}
+
+{}

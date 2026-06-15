@@ -1,0 +1,26 @@
+function arithmetic()
+  return 1+2-3*4/5%6^7
+end
+
+function comparison()
+  if a==b and c~=d and e<f and g>h and i<=j and k>=l then
+    return true
+  end
+end
+
+function logical()
+  return not x and(y or z)
+end
+
+function concat()
+  return "a".."b".."c"
+end
+
+function unary()
+  return -x+#list
+end
+
+function methods()
+  obj.field = obj :method()
+  obj : meth (a,b,c)
+end

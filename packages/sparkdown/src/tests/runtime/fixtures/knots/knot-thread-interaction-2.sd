@@ -1,0 +1,20 @@
+-> outer
+scene outer
+  <- middle
+  choose
+    * "Leave"
+      fin
+
+  end
+end
+scene middle
+  -> inner
+
+end
+scene inner
+  choose
+    * "From inner"
+      fin
+  end
+  done
+end

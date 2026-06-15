@@ -91,13 +91,20 @@ export class VariableReference extends Expression {
       return;
     }
 
-    if (
-      context.ResolveVariableWithName(this.name, this).found &&
-      !context.ResolveStruct(this.name)
-    ) {
-      // Allow reference to struct property
-      // (but not struct itself)
-      return;
+    {
+      const struct = context.ResolveStruct(this.name);
+      if (
+        context.ResolveVariableWithName(this.name, this).found &&
+        // Plain variable, OR a `define` that carries a runtime table
+        // (its VariableAssignment has an expression) — those ARE
+        // first-class runtime values (`companion`,
+        // `instances(companion)`, `c: companion`). Only pure data
+        // structs / builtin specs with no runtime table remain
+        // non-referenceable as bare values (legacy behavior).
+        (!struct || struct.variableAssignment?.expression != null)
+      ) {
+        return;
+      }
     }
 
     // Is it a read count?
@@ -105,6 +112,23 @@ export class VariableReference extends Expression {
     const targetForCount: ParsedObject | null =
       parsedPath.ResolveFromContext(this);
     if (targetForCount) {
+      // Lua-style first-class fn fallback: when the name resolves to
+      // a FUNCTION knot, leave the `RuntimeVariableReference` as-is
+      // (with `name` set, no `pathForCount`). At runtime the variable
+      // lookup misses (functions aren't in variablesState), and the
+      // knot-lookup fallback in `Story.ts` converts the reference
+      // into a `DivertTargetValue`. So `local f = double` works
+      // without requiring `local f = -> double`.
+      //
+      // The legacy ink convention of `myKnot` resolving to its read
+      // count still applies for NON-function knots (regular labelled
+      // sections, choices, etc.) so existing narrative scripts that
+      // gate on visit counts via bare names keep working.
+      let targetFlow = asOrNull(targetForCount, FlowBase);
+      if (targetFlow && targetFlow.isFunction) {
+        return;
+      }
+
       if (!targetForCount.containerForCounting) {
         throw new Error();
       }
@@ -124,39 +148,61 @@ export class VariableReference extends Expression {
       this._runtimeVarRef.pathForCount = targetForCount.runtimePath;
       this._runtimeVarRef.name = null;
 
-      // Check for very specific writer error: getting read count and
-      // printing it as content rather than as a piece of logic
-      // e.g. Writing {myFunc} instead of {myFunc()}
-      let targetFlow = asOrNull(targetForCount, FlowBase);
-      if (targetFlow && targetFlow.isFunction) {
-        // Is parent context content rather than logic?
-        if (
-          this.parent instanceof Weave ||
-          this.parent instanceof ContentList ||
-          this.parent instanceof FlowBase
-        ) {
-          this.Warning(
-            `\`${targetFlow.identifier}\` being used as read count rather than being called as function. Perhaps you intended to write ${targetFlow.identifier}()`,
-          );
-        }
-      }
-
       return;
     }
 
     // Couldn't find this multi-part path at all, whether as a divert target,
     // or list item reference.
     if (this.path.length > 1) {
+      // Last chance: maybe this is property access on a table-typed
+      // variable (sparkdown extension — `result.value` where `result`
+      // is a stored table). If the FIRST segment resolves as a variable
+      // (arg / temp / global), treat the remaining segments as key
+      // lookups. The runtime side (`Story.ts > VariableReference`
+      // branch) handles the actual indexing — see the
+      // "property-access via dotted name" comment there.
+      const baseName = this.path[0];
+      if (baseName) {
+        const baseResolve = context.ResolveVariableWithName(baseName, this);
+        const baseStruct = context.ResolveStruct(baseName);
+        if (
+          baseResolve.found &&
+          !context.constants.has(baseName) &&
+          // `companion.O` — the base is a `define` runtime table, so
+          // the dotted access walks it at runtime. Pure data structs
+          // (no runtime table) stay blocked as before.
+          (!baseStruct || baseStruct.variableAssignment?.expression != null)
+        ) {
+          // Variable-with-property-access — no compile-time error.
+          return;
+        }
+      }
+
       const pathStr = this.path.join(".");
       let errorMsg = `Cannot find item or path named \`${pathStr}\``;
 
-      this.Error(errorMsg);
+      // Luau-superset semantics: same logic as the single-name
+      // "Cannot find variable named" diagnostic below — downgrade
+      // unresolved dotted paths to a warning so the runtime can fall
+      // back to `NullValue` for property reads (`_G.bar`,
+      // `unknown.field`, ...). The diagnostic still surfaces in the
+      // IDE as a probable typo / forgotten declaration.
+      this.Error(errorMsg, this, true);
 
       return;
     }
 
     if (!context.ResolveVariableWithName(this.name, this).found) {
-      this.Error(`Cannot find variable named \`${this.name}\``, this);
+      // Luau-superset semantics: undefined names resolve to `nil` at
+      // runtime, not a compile error. Downgraded to a warning so it
+      // still surfaces in the IDE as a probable typo / forgotten
+      // declaration. The runtime falls back to `NullValue` (see
+      // Story.PerformLogicAndFlowControl's variable-reference branch).
+      this.Error(
+        `Cannot find variable named \`${this.name}\``,
+        this,
+        true,
+      );
     }
   }
 

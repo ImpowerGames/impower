@@ -90,8 +90,20 @@ export class Packet {
     current.add(token);
 
     if (current.endsPure) {
-      // Create an empty chunk to act as a clean split point
-      current = new Chunk(from, true);
+      // Create an empty chunk to act as a clean split point.
+      //
+      // Position the split AT THE END of the just-added chunk
+      // (`current.to`), NOT at the token's `from`. Using `from`
+      // would place the split BEFORE the content we just added —
+      // which makes `packet.last.to` artificially small. After an
+      // incremental parse appends `ahead` (whose last entry is one
+      // of these split chunks), the parser sets `parsedPos =
+      // packet.last.to` and finds it's *behind* the content's end.
+      // It then re-emits whatever sits between, producing duplicate
+      // tokens (most visibly: a duplicate trailing-EOF `Newline`
+      // grows by one with every incremental edit).
+      const splitAt = current.to;
+      current = new Chunk(splitAt, true);
       this.chunks.push(current);
     }
 

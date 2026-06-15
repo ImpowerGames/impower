@@ -1,0 +1,4 @@
+function update(state)
+  state.count = state.count + 1
+  return state
+end

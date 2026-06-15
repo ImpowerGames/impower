@@ -1,0 +1,5 @@
+plural (potion_count)
+  | zero = It's completely empty.
+  | one = There is only one health potion left.
+  | other = It rattles with {potion_count} health potions.
+end

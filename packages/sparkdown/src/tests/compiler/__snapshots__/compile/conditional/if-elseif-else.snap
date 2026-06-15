@@ -1,0 +1,111 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Conditional",
+          "init": null,
+          "branches": [
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": false,
+              "cond": {
+                "type": "UnaryExpression",
+                "op": "TRUTHY",
+                "operand": {
+                  "type": "VariableReference",
+                  "path": [
+                    "a"
+                  ]
+                }
+              },
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Wrap"
+                    },
+                    {
+                      "type": "Divert",
+                      "path": [
+                        "A"
+                      ],
+                      "isTunnel": false,
+                      "isThread": false
+                    },
+                    {
+                      "type": "Wrap"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": false,
+              "cond": {
+                "type": "UnaryExpression",
+                "op": "TRUTHY",
+                "operand": {
+                  "type": "VariableReference",
+                  "path": [
+                    "b"
+                  ]
+                }
+              },
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Wrap"
+                    },
+                    {
+                      "type": "Divert",
+                      "path": [
+                        "B"
+                      ],
+                      "isTunnel": false,
+                      "isThread": false
+                    },
+                    {
+                      "type": "Wrap"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": true,
+              "cond": null,
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Wrap"
+                    },
+                    {
+                      "type": "Divert",
+                      "path": [
+                        "C"
+                      ],
+                      "isTunnel": false,
+                      "isThread": false
+                    },
+                    {
+                      "type": "Wrap"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

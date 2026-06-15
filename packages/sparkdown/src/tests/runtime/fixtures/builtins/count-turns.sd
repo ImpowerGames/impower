@@ -1,0 +1,5 @@
+-> main
+scene main
+  {count.turns()}
+  done
+end

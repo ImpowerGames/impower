@@ -13,10 +13,11 @@ export class NumberExpression extends Expression {
   constructor(value: number | boolean, subtype: "int" | "float" | "bool") {
     super();
 
-    if (
-      (typeof value === "number" && !Number.isNaN(value)) ||
-      typeof value == "boolean"
-    ) {
+    // NaN is a legitimate float literal value — the `math.nan`
+    // stdlib constant substitutes it at compile time (math.luau's
+    // "math constants" section; serialization round-trips it via
+    // luauNumberToString's "nan" spelling).
+    if (typeof value === "number" || typeof value == "boolean") {
       this.value = value;
       this.subtype = subtype;
     } else {

@@ -1,0 +1,3 @@
+function update(state)
+  state.items["sword"].count += 1
+end

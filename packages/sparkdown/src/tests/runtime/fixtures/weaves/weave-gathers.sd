@@ -1,0 +1,16 @@
+-> main
+scene main
+  choose
+    * one
+      choose
+        * two
+      then
+        three
+      end
+    * four
+      five
+  then
+    six
+  end
+  done
+end

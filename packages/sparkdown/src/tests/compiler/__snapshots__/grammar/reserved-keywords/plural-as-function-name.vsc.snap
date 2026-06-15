@@ -1,0 +1,23 @@
+text.source.sparkdown [0..41]
+ ├─ meta.function.luau [0..26]
+ │   ├─ keyword.control.luau [0..8]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..15]: "plural"
+ │   └─ meta.parameter.luau [15..26]
+ │       ├─ punctuation.definition.template-expression.begin.sd [15..16]: "("
+ │       ├─ variable.parameter.function.luau [16..17]: "n"
+ │       ├─ keyword.operator.type.luau [17..18]: ":"
+ │       ├─ punctuation.whitespace.optional.sd [18..19]: " "
+ │       ├─ support.type.primitive.luau [19..25]: "number"
+ │       └─ punctuation.definition.template-expression.end.sd [25..26]: ")"
+ ├─ Newline [26..27]: "\n"
+ ├─ meta.function.luau [27..37]
+ │   └─ meta.function.body.luau [27..37]
+ │       └─ meta.function.luau [27..37]
+ │           ├─ punctuation.whitespace.optional.sd [27..29]: "  "
+ │           ├─ keyword.control.luau [29..35]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [35..36]: " "
+ │           └─ variable.other.readwrite.luau [36..37]: "n"
+ ├─ Newline [37..38]: "\n"
+ └─ meta.function.luau [38..41]
+     └─ keyword.control.end.luau [38..41]: "end"

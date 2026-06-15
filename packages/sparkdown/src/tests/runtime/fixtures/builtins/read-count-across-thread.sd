@@ -1,0 +1,15 @@
+-> main
+scene main
+  {count.visits(-> aside)}
+  <- aside
+  {count.visits(-> aside)}
+  choose
+    * "Continue"
+      fin
+
+  end
+end
+scene aside
+  Inside aside.
+  done
+end

@@ -1,0 +1,7 @@
+-> test
+scene test
+  choose
+    * Hello[.], world.
+  end
+  done
+end
