@@ -43,10 +43,12 @@ export default function FileEditorNavigation({
           >
             <ArrowLeft class="size-5" />
           </Button>
-          {/* Title area — `absolute` inner so long filenames truncate
-              with ellipsis instead of pushing the back button. */}
+          {/* Title area — `absolute inset-0` + flex centering so the title
+              (the rename field) is centered both axes in the header row and
+              long filenames truncate with ellipsis instead of pushing the
+              back button. */}
           <div class="relative flex flex-1 flex-row items-center justify-center px-4 text-base">
-            <div class="absolute inset-x-0 mx-auto overflow-hidden text-ellipsis whitespace-nowrap text-center">
+            <div class="absolute inset-0 flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap text-center">
               {children}
             </div>
           </div>

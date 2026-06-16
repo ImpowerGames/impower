@@ -191,12 +191,13 @@ export default function Router({
       );
       animsRef.current.push(fadeAnim);
 
+      let xformAnim: Animation | null = null;
       if (mode === "slide-x" || mode === "zoom") {
         const transform =
           mode === "slide-x"
             ? [`translateX(${SLIDE_DIST_PX * phase.dir}px)`, "translateX(0)"]
             : ["scale(0.99)", "scale(1)"]; // enter-zoom
-        const xformAnim = xform.animate(
+        xformAnim = xform.animate(
           { transform },
           {
             duration: TRANSFORM_MS,
@@ -214,7 +215,16 @@ export default function Router({
       }
 
       let cancelled = false;
-      fadeAnim.finished.then(
+      // Finish (clear styles) only once BOTH enter animations complete —
+      // mirrors sparkle's `animationsComplete(enterFadeEl, enterTransformEl)`.
+      // Gating on the fade alone (75ms) would cancel the zoom transform (150ms)
+      // ~halfway, ending the transition early (the "still too fast" bug). For
+      // slide-x the -75ms-delayed transform also finishes at ~75ms, so this is
+      // equivalent there.
+      const enterGate = xformAnim
+        ? Promise.all([fadeAnim.finished, xformAnim.finished])
+        : fadeAnim.finished;
+      enterGate.then(
         () => {
           if (cancelled) return;
           setPhase({ kind: "idle" });

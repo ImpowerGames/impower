@@ -86,14 +86,14 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
             spanning the whole header — main's field is ~the input's default
             ~20-char intrinsic width (its <s-input>'s inner <input> has no
             size), centered by the title slot's text-center. */}
-        <div class="relative inline-block overflow-hidden rounded px-2 text-foreground hover:bg-foreground/5">
+        <div class="relative inline-flex h-10 items-center overflow-hidden rounded px-2 text-foreground hover:bg-foreground/5">
           <input
             ref={inputRef}
             type="text"
             value={draftName}
             aria-label={displayName}
             placeholder={displayName}
-            class={`bg-transparent text-center text-base font-medium outline-none placeholder:text-[var(--theme-color-fab-bg)] ${
+            class={`bg-transparent text-center text-lg font-medium leading-none outline-none placeholder:text-[var(--theme-color-fab-bg)] ${
               diagnosticColor || "text-foreground"
             }`}
             onInput={(e) =>
