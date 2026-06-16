@@ -35,6 +35,15 @@ export type RouterProps = {
  * continuous slide motion despite the swap. */
 const FADE_MS = 75;
 const TRANSFORM_MS = 150;
+// slide-x (directional sub-tab swaps: Files/URLs, Main/Scripts, Game/Screenplay)
+// runs a bit longer so the slide reads at main's more deliberate pace. The
+// port's swap-on-exit-fade + idle-on-enter design makes the TOTAL fade-gated
+// (≈ 2×fade), so the fade and transform scale together (transform = 2×fade
+// keeps the -fade enter-continuity). main's sub-tab swap settles ~300ms (with a
+// long blank gap we deliberately DON'T copy); this lands the port's slide ~260ms
+// of continuous motion instead of its previous snappy ~150ms.
+const SLIDE_FADE_MS = 110;
+const SLIDE_TRANSFORM_MS = 220;
 const FADE_EASING = "linear";
 const TRANSFORM_EASING = "cubic-bezier(0.4, 0, 0.2, 1)";
 // Subtle 32px slide — sparkle's `exit-left` translates by translateX(-32px),
@@ -126,6 +135,10 @@ export default function Router({
     for (const a of animsRef.current) a.cancel();
     animsRef.current = [];
 
+    // slide-x runs at a longer cadence than fade/zoom (see SLIDE_* constants).
+    const fadeMs = mode === "slide-x" ? SLIDE_FADE_MS : FADE_MS;
+    const transformMs = mode === "slide-x" ? SLIDE_TRANSFORM_MS : TRANSFORM_MS;
+
     if (phase.kind === "idle") {
       fade.style.opacity = "";
       xform.style.transform = "";
@@ -135,7 +148,7 @@ export default function Router({
     if (phase.kind === "exit") {
       const fadeAnim = fade.animate(
         { opacity: [1, 0] },
-        { duration: FADE_MS, easing: FADE_EASING, fill: "forwards" },
+        { duration: fadeMs, easing: FADE_EASING, fill: "forwards" },
       );
       animsRef.current.push(fadeAnim);
 
@@ -148,7 +161,7 @@ export default function Router({
         xformAnim = xform.animate(
           { transform },
           {
-            duration: TRANSFORM_MS,
+            duration: transformMs,
             easing: TRANSFORM_EASING,
             fill: "forwards",
           },
@@ -187,7 +200,7 @@ export default function Router({
     if (phase.kind === "enter") {
       const fadeAnim = fade.animate(
         { opacity: [0, 1] },
-        { duration: FADE_MS, easing: FADE_EASING, fill: "forwards" },
+        { duration: fadeMs, easing: FADE_EASING, fill: "forwards" },
       );
       animsRef.current.push(fadeAnim);
 
@@ -200,14 +213,14 @@ export default function Router({
         xformAnim = xform.animate(
           { transform },
           {
-            duration: TRANSFORM_MS,
+            duration: transformMs,
             easing: TRANSFORM_EASING,
             // slide-x: negative delay — animation effectively starts already
             // 50% through, so the slide picks up mid-motion right where the
             // exit slide left off (mirrors `--theme-animation-enter-left:
             // enter-left 150ms -75ms`). zoom (sparkle's enter-zoom) has NO
             // negative delay — it runs full 150ms after the swap.
-            delay: mode === "slide-x" ? -FADE_MS : 0,
+            delay: mode === "slide-x" ? -fadeMs : 0,
             fill: "forwards",
           },
         );
