@@ -528,14 +528,45 @@ function readPropertyDefinition(
   propNode: SyntaxNode,
   ctx: LowerContext,
 ): DefineProperty | null {
-  const variableAssignment = getDescendent("LuauVariableAssignment", propNode);
-  if (!variableAssignment) return null;
+  // The key is either a bracket-key (`["selector"] = …`, `["$link"] = …`) or a
+  // plain identifier (`name = …`).
+  let name: string | null = null;
+  const bracketAssignment = getDescendent("LuauBracketKeyAssignment", propNode);
+  if (bracketAssignment) {
+    const indexNode = getDescendent(
+      "LuauTableIndexDeclaration",
+      bracketAssignment,
+    );
+    if (!indexNode) return null;
+    const inner = ctx
+      .read(indexNode.from, indexNode.to)
+      .replace(/^\[/, "")
+      .replace(/\]$/, "")
+      .trim();
+    // Only STRING-LITERAL keys are representable in the compile-time struct;
+    // computed keys (`[expr]`) stay runtime-only (the __def table still carries
+    // them). Unquote (and unescape) the literal.
+    if (
+      (inner.startsWith('"') && inner.endsWith('"')) ||
+      (inner.startsWith("'") && inner.endsWith("'"))
+    ) {
+      name = inner
+        .slice(1, -1)
+        .replace(/\\(["'\\])/g, "$1");
+    }
+    if (name == null) return null;
+  } else {
+    const variableAssignment = getDescendent(
+      "LuauVariableAssignment",
+      propNode,
+    );
+    if (!variableAssignment) return null;
+    const nameNode = getDescendent("LuauVariableName", variableAssignment);
+    if (!nameNode) return null;
+    name = ctx.read(nameNode.from, nameNode.to);
+  }
 
-  const nameNode = getDescendent("LuauVariableName", variableAssignment);
-  if (!nameNode) return null;
-  const name = ctx.read(nameNode.from, nameNode.to);
-
-  const opNode = getDescendent("LuauAssignmentOperation", variableAssignment);
+  const opNode = getDescendent("LuauAssignmentOperation", propNode);
   const expr = opNode ? lowerExpressionFromContainer(opNode, ctx) : null;
   if (!expr) return null;
 

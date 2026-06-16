@@ -4856,7 +4856,7 @@
       }
     },
     "LuauPropertyDefinition": {
-      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:store|local|const)\\b|\\b(?:read|write)\\b)?((?:[^\\S\\n\\r])*)(?=(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))",
+      "begin": "((?:[^\\S\\n\\r])*)(\\b(?:store|local|const)\\b|\\b(?:read|write)\\b)?((?:[^\\S\\n\\r])*)(?=(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\r\\n]*\\])(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -4889,11 +4889,29 @@
           "include": "#LuauComment"
         },
         {
+          "include": "#LuauBracketKeyAssignment"
+        },
+        {
           "include": "#LuauVariableAssignment"
         }
       ],
       "applyEndPatternLast": true,
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])*(?!(?:[-][-])))"
+    },
+    "LuauBracketKeyAssignment": {
+      "begin": "(?=\\[)",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauTableIndexDeclaration"
+        },
+        {
+          "include": "#LuauAssignmentOperation"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])|,)"
     },
     "LuauStyle": {
       "tag": "meta",

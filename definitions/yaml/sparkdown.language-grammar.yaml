@@ -3061,7 +3061,13 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LuauPropertyDefinition:
-    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})?({{WS}}*)(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    # A define-body property: `<key> = <value>`. The key is either a plain
+    # identifier (`name = …`) OR a Luau bracket-key (`["selector"] = …`,
+    # `["$link"] = …`) so define bodies are table-faithful and can express
+    # CSS-style selector keys / `$`-prefixed metadata keys (which aren't valid
+    # identifiers). The bracket form reuses the table-constructor pieces
+    # (LuauTableIndexDeclaration + LuauAssignmentOperation).
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}})?({{WS}}*)(?=(?:{{LUAU_IDENTIFIER}}|\[[^\]\r\n]*\]){{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
     beginCaptures:
       1:
         patterns:
@@ -3076,9 +3082,23 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauBracketKeyAssignment" }
       - { include: "#LuauVariableAssignment" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+
+  # A bracket-keyed define-body property: `[<keyExpr>] = <value>`. The key is a
+  # Luau expression in brackets (a string literal for selectors / `$`-keys, or
+  # any computed key); the value is a normal assignment RHS. Used ONLY inside
+  # LuauPropertyDefinition (define bodies) — general statements keep the strict
+  # identifier-keyed LuauVariableAssignment.
+  LuauBracketKeyAssignment:
+    begin: (?=\[)
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTableIndexDeclaration" }
+      - { include: "#LuauAssignmentOperation" }
+    end: (?={{BEAT}})|(?=$|{{WS}}|,)
 
   # ----------------------------------------------------------------------------
   # Style (structured UI — sparkle style block, struct-registry only)
