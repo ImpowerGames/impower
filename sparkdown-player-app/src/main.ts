@@ -11,12 +11,28 @@ import "./style.css";
 
 const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
 
+// When served from localhost (local dev), accept the editor on ANY origin and
+// post back with "*". Otherwise, a mismatch between this player's compiled
+// VITE_SPARKDOWN_EDITOR_ORIGIN and the editor's actual origin (localhost vs
+// 127.0.0.1, or a different editor port) makes the browser SILENTLY drop the
+// handshake messages in both directions — the game preview stays black with no
+// error logged anywhere. Production (non-localhost) keeps strict origin checks.
+const IS_LOCALHOST =
+  location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const EDITOR_SEND_ORIGIN = IS_LOCALHOST ? "*" : SPARKDOWN_EDITOR_ORIGIN;
+const EDITOR_ACCEPT_ORIGIN = IS_LOCALHOST ? undefined : SPARKDOWN_EDITOR_ORIGIN;
+
 const connection = new Port2MessageConnection(
   (message: any, transfer?: Transferable[]) =>
-    window.parent.postMessage(message, SPARKDOWN_EDITOR_ORIGIN, transfer),
-  SPARKDOWN_EDITOR_ORIGIN,
+    window.parent.postMessage(message, EDITOR_SEND_ORIGIN, transfer),
+  EDITOR_ACCEPT_ORIGIN,
 );
 connection.listen();
+console.log(
+  `[sparkdown-player] ready — editor origin: ${
+    IS_LOCALHOST ? "(dev) any localhost accepted" : SPARKDOWN_EDITOR_ORIGIN
+  }`,
+);
 
 connection.addEventListener("message", async (e) => {
   const message = e.data;
