@@ -3,20 +3,10 @@ import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { useDiagnosticColor } from "../../workspace/useDiagnosticColor";
 import workspace from "../../workspace/WorkspaceStore";
 import FileEditorNavigation from "../file-editor-navigation/FileEditorNavigation";
+import LogicScriptEditor from "../logic-script-editor/LogicScriptEditor";
 
 export const propDefaults = {};
 export type LogicScriptsEditorProps = Partial<typeof propDefaults>;
-
-const HOST_STYLE = `
-  se-logic-scripts-editor {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    flex: 1 1 0%;
-    min-height: 0;
-  }
-`;
 
 /**
  * Multi-script editor frame. Used when the user opens a script from
@@ -83,7 +73,6 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
 
   return (
     <div class="flex flex-1 flex-col min-h-0">
-      <style>{HOST_STYLE}</style>
       <FileEditorNavigation onBack={handleBack}>
         <input
           ref={inputRef}
@@ -109,8 +98,7 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
         />
       </FileEditorNavigation>
       <div class="relative flex flex-1 flex-col min-h-0">
-        {/* @ts-expect-error legacy custom element */}
-        <se-logic-script-editor filename={filename} />
+        <LogicScriptEditor filename={filename} />
       </div>
     </div>
   );

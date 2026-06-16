@@ -3,13 +3,11 @@ import tailwindcss from "@tailwindcss/vite";
 import { exec, execSync } from "child_process";
 import * as dotenv from "dotenv";
 import fs from "fs";
-import MagicString from "magic-string";
 import path from "path";
 import glob from "tiny-glob";
 import { build, createServer, Plugin } from "vite";
 import pkg from "./package.json";
 import { ComponentSpec } from "./src/build/ComponentSpec.js";
-import extractAllSVGs from "./src/build/extractAllSVGs.js";
 import getScopedCSS from "./src/build/getScopedCSS.js";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
 
@@ -31,10 +29,6 @@ const indir = "src";
 const outdir = "out";
 
 const workersInDir = `${indir}/workers`;
-
-const graphicCSSPaths = [
-  `${indir}/modules/spark-editor/styles/icons/icons.css`,
-];
 
 const serviceWorkerPaths = [`${workersInDir}/sw.ts`];
 
@@ -143,23 +137,6 @@ var process = {
 const getRelativePath = (p: string) =>
   p.replace(process.cwd() + "\\", "").replace(/\\/g, "/");
 
-const extractGraphics = async () => {
-  const graphicCSSArray = await Promise.all(
-    graphicCSSPaths.map((p) =>
-      fs.promises.readFile(p, "utf-8").catch(() => ""),
-    ),
-  );
-  const injectedGraphics: Record<string, string> = {};
-  graphicCSSArray.forEach((css) => {
-    Object.entries(extractAllSVGs("--theme-icon-", css)).forEach(
-      ([name, svg]) => {
-        injectedGraphics[name] = svg;
-      },
-    );
-  });
-  return injectedGraphics;
-};
-
 const staticallyStylePage = (html: string, ssg: string) => {
   return html.replace(
     "</head>",
@@ -261,81 +238,6 @@ const viteLoadersPlugin = (): Plugin => ({
       const buffer = await fs.promises.readFile(file);
       return `export default new Uint8Array([${Array.from(buffer).join(",")}]);`;
     }
-  },
-});
-
-/**
- * HMR Plugin for Spec Components
- * We inject HMR boundaries into all App JS/TS files.
- * If the updated module is a ComponentSpec, it patches the live instances.
- * If it's a dependency (like a utility), it invalidates itself to bubble the update
- * up to the web component that imported it.
- */
-const viteSpecComponentHmrPlugin = (): Plugin => ({
-  name: "vite-spec-component-hmr",
-  apply: "serve",
-  transform(code, id) {
-    // Only apply to source files (exclude node_modules, workers, and server API logic)
-    if (
-      !id.includes("\0") &&
-      (id.includes("/node_modules/@impower") ||
-        !id.includes("/node_modules/")) &&
-      !id.includes(`/${apiInDir}/`) &&
-      !id.includes(`/${workersInDir}/`) &&
-      !id.includes(".worker.") &&
-      /\.(ts|js|mjs)$/.test(id)
-    ) {
-      const ms = new MagicString(code);
-      ms.append(`
-        if (import.meta.hot) {
-          const deepQuerySelectorAll = (selector, root = document) => {
-            const results = Array.from(root.querySelectorAll(selector));
-            const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, null);
-            let node;
-            while (node = walker.nextNode()) {
-              if (node.shadowRoot) {
-                results.push(...deepQuerySelectorAll(selector, node.shadowRoot));
-              }
-            }
-            return results;
-          };
-
-          import.meta.hot.accept((newModule) => {
-            if (!newModule || !newModule.default) {
-              // Not a web component (e.g., a utility function file). 
-              // Bubble HMR update up to the files that imported this!
-              import.meta.hot.invalidate();
-              return;
-            }
-            
-            const specs = Array.isArray(newModule.default) ? newModule.default : [newModule.default];
-            let isComponent = false;
-            
-            specs.forEach(spec => {
-              if (spec && spec.tag && spec.html) {
-                isComponent = true;
-                const instances = deepQuerySelectorAll(spec.tag);
-                instances.forEach(el => {
-                  if (typeof el.reload === 'function') {
-                    el.reload(spec);
-                  }
-                });
-              }
-            });
-
-            // If none of the exports were a ComponentSpec, bubble up to importers!
-            if (!isComponent) {
-              import.meta.hot.invalidate();
-            }
-          });
-        }
-      `);
-      return {
-        code: ms.toString(),
-        map: ms.generateMap({ hires: true }),
-      };
-    }
-    return null;
   },
 });
 
@@ -481,8 +383,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
         // html file doesn't exist for this route
         if (!fs.existsSync(possibleHtmlPath)) return next();
 
-        const injectedGraphics = await extractGraphics();
-
         // Load the impower-dev Preact registry on the server so we can
         // statically render <se-main-window> etc. into HTML before JS runs.
         // ssrLoadModule means edits to the registry HMR like everything else.
@@ -511,29 +411,9 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           );
         }
 
-        // Also include the unlayered Tailwind overrides at document level.
-        // Radix UI's portaled content (Dropdown, Dialog, Tooltip) renders
-        // at document.body, OUTSIDE every shadow root — so the overrides
-        // adopted into shadow roots via sharedCSS don't reach it. Sparkle's
-        // `@layer normalize { * { flex-flow: column } }` in the SSG block
-        // wins against impower-ui's `@layer utilities { .flex-row {...} }`
-        // there too. Concatenate the unlayered overrides to win the
-        // cascade for portaled UI.
-        let tailwindUnlayeredCss = "";
-        try {
-          const path = `${indir}/modules/spark-editor/styles/tailwind-unlayered.css`;
-          tailwindUnlayeredCss = await fs.promises.readFile(path, "utf-8");
-        } catch (err) {
-          console.warn(
-            "[ssg] Failed to inline tailwind-unlayered.css:",
-            err instanceof Error ? err.message : err,
-          );
-        }
-
         const componentPaths = await glob(
           `${componentsInDir}/**/*.{js,mjs,ts}`,
         );
-        const components: Record<string, ComponentSpec> = {};
         const scopedCssSet = new Set<string>();
         for (const cp of componentPaths) {
           const module = await server.ssrLoadModule(
@@ -543,10 +423,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             ? module.default
             : [module.default];
           specs.forEach((s: ComponentSpec) => {
-            if (s.tag) {
-              s.graphics = { ...injectedGraphics, ...(s.graphics || {}) };
-              components[s.tag] = s;
-            }
             if (s.css) {
               scopedCssSet.add(
                 s.html && s.tag ? getScopedCSS(s.css, s.tag) : s.css,
@@ -581,7 +457,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
         let renderedHtml = staticallyRenderPage(
           documentHtml,
           { html, cssPath, mjsPath },
-          components,
           preactRegistry,
         );
 
@@ -589,11 +464,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
 
         const styledHtml = staticallyStylePage(
           renderedHtml,
-          [
-            Array.from(scopedCssSet).join("\n"),
-            impowerUiTailwindCss,
-            tailwindUnlayeredCss,
-          ]
+          [Array.from(scopedCssSet).join("\n"), impowerUiTailwindCss]
             .filter(Boolean)
             .join("\n"),
         );
@@ -763,8 +634,6 @@ const expandPageComponents = async () => {
     let documentHtml = await fs.promises
       .readFile(documentHtmlInPath, "utf-8")
       .catch(() => "");
-    const injectedGraphics = await extractGraphics();
-    const components: Record<string, ComponentSpec> = {};
     const scopedCssSet = new Set<string>();
     await Promise.all(
       componentBundlePaths.map(async (bundlePath) => {
@@ -775,13 +644,6 @@ const expandPageComponents = async () => {
           ).default;
           if (Array.isArray(componentBundle)) {
             componentBundle.forEach((spec: ComponentSpec) => {
-              if (spec.tag) {
-                spec.graphics = {
-                  ...(spec.graphics || {}),
-                  ...injectedGraphics,
-                };
-                components[spec.tag] = spec;
-              }
               if (spec.css) {
                 scopedCssSet.add(
                   spec.html && spec.tag
@@ -817,7 +679,6 @@ const expandPageComponents = async () => {
         const renderedHtml = staticallyRenderPage(
           documentHtml,
           { html, cssPath, mjsPath },
-          components,
         );
         const styledHtml = staticallyStylePage(
           renderedHtml,
@@ -978,6 +839,12 @@ const serve = async () => {
         "react-resizable-panels",
         /^@radix-ui\//,
         "@impower/impower-ui",
+        // The sparkdown-document-views script editor + screenplay preview
+        // are now rendered as direct Preact components (not custom-element
+        // tags), so the SSG walker imports their .tsx — Vite must transform
+        // them through the preact/compat pipeline rather than load them as
+        // raw TS via Node's resolver.
+        "@impower/sparkdown-document-views",
       ],
     },
     plugins: [
@@ -985,7 +852,6 @@ const serve = async () => {
       viteInlineWorkerPlugin(),
       viteLoadersPlugin(),
       preact(),
-      viteSpecComponentHmrPlugin(),
       viteStaticallyRenderedPagesPlugin(),
       tailwindcss(),
     ],

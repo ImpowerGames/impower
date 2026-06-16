@@ -2,7 +2,6 @@ import { Button, Plus } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import getUniqueFileName from "../../utils/getUniqueFileName";
 import workspace from "../../workspace/WorkspaceStore";
-import { Workspace } from "../../workspace/Workspace";
 
 export type FileAddButtonProps = {
   /** Pattern for the new filename (e.g. `"asset00.url"` or `"script00.sd"`). */
@@ -33,6 +32,7 @@ export default function FileAddButton({
   async function onClick() {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
     const files = await Workspace.fs.getFiles(projectId);
     const filenames = Object.keys(files).map((uri) =>
       Workspace.fs.getFilename(uri),

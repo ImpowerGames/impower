@@ -1,10 +1,8 @@
-import { ConnectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage";
-import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
-import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
-import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
-import { DidWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage";
+// Protocol message types are dynamic-imported inside the listener effect:
+// they re-export from `vscode-languageserver-protocol` which is CJS-only
+// and crashes Vite SSR module load if statically imported here
+// (see memory: feedback_defer_cjs_imports_in_ssr_loaded_modules).
+import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules/script-editor/SparkdownScriptEditor";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { debounce } from "../../utils/debounce";
@@ -15,44 +13,13 @@ export const propDefaults = {
 };
 export type LogicScriptEditorProps = Partial<typeof propDefaults>;
 
-const HOST_STYLE = `
-  se-logic-script-editor {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-    flex: 1 1 0%;
-    min-height: 0;
-  }
-
-  /* Sparkle's normalize sets \`* { max-width: 100% }\` on everything,
-     which collapses CodeMirror's selection/cursor SVG layers: the
-     layer is \`position: absolute\` with no explicit size and computes
-     to 0×0, so \`max-width: 100%\` then caps each descendant's inline-
-     style width (e.g. .cm-selectionBackground's 172.688px) to 0 —
-     hiding the painted selection rectangle. Restore \`max-width: none\`
-     for the CM tree so CM's own absolute layout wins. */
-  se-logic-script-editor .cm-editor,
-  se-logic-script-editor .cm-editor * {
-    max-width: none;
-  }
-
-  /* Spec-component normalize sets \`* { user-select: none }\`; re-assert
-     for the CodeMirror content + gutter so text can be selected. */
-  se-logic-script-editor .cm-content,
-  se-logic-script-editor .cm-content *,
-  se-logic-script-editor .cm-gutters,
-  se-logic-script-editor .cm-gutters * {
-    user-select: text;
-    -webkit-user-select: text;
-  }
-`;
-
 const AUTOSAVE_DELAY = 200;
 
 /**
- * Wraps `<sparkdown-script-editor>` with the workspace-aware lifecycle
- * the legacy `<se-logic-script-editor>` provided.
+ * Wraps the SparkdownScriptEditor (Preact) component with the
+ * workspace-aware lifecycle the legacy `<se-logic-script-editor>`
+ * provided. The inner editor is imported directly from
+ * sparkdown-document-views rather than registered as a custom element.
  *
  * Lifecycle ownership is split between two effects:
  *   1. Listener effect (deps: []). Attaches the `jsonrpc` window
@@ -73,7 +40,6 @@ const AUTOSAVE_DELAY = 200;
 export default function LogicScriptEditor({
   filename = "",
 }: LogicScriptEditorProps) {
-  const editorRef = useRef<HTMLElement | null>(null);
   // Stable per-document state — read by the protocol handler and save flow.
   const uriRef = useRef<string | undefined>(undefined);
   const versionRef = useRef<number | undefined>(undefined);
@@ -99,129 +65,159 @@ export default function LogicScriptEditor({
     );
   }).value;
 
-  useEffect(() => {
-    const el = editorRef.current;
-    if (!el) return;
-    if (readonly) el.setAttribute("readonly", "");
-    else el.removeAttribute("readonly");
-  }, [readonly]);
-
   // Listener effect — mount-only, no dynamic deps, so it survives every
   // workspace signal update and is guaranteed to be attached when the
   // inner editor's ConnectedEditorMessage fires.
   useEffect(() => {
     let disposed = false;
+    let detach: (() => void) | undefined;
 
-    const loadFile = async () => {
-      const { Workspace } = await import("../../workspace/Workspace");
+    (async () => {
+      const [
+        { ConnectedEditorMessage },
+        { LoadEditorMessage },
+        { MessageProtocol },
+        { DidChangeTextDocumentMessage },
+        { DidSaveTextDocumentMessage },
+        { DidDeleteFilesMessage },
+        { DidWriteFilesMessage },
+      ] = await Promise.all([
+        import(
+          "@impower/spark-editor-protocol/src/protocols/editor/ConnectedEditorMessage"
+        ),
+        import(
+          "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage"
+        ),
+        import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
+        import(
+          "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage"
+        ),
+        import(
+          "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage"
+        ),
+        import(
+          "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage"
+        ),
+        import(
+          "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage"
+        ),
+      ]);
       if (disposed) return;
-      const pid = workspace.state.peek().project?.id;
-      if (!pid) return;
-      const fn = filenameRef.current || "main.sd";
-      const editor = Workspace.window.getActiveEditorForFile(fn);
-      if (!editor) return;
 
-      const uri = editor.uri;
-      const files = await Workspace.fs.getFiles(pid);
-      if (disposed) return;
-      const file = files[uri];
-      const text = file?.text || "";
-      const version = file?.version || 0;
-      const languageId = file?.languageId || "sparkdown";
-
-      const languageServerInitializeParams =
-        await Workspace.ls.getInitializeParams();
-      const languageServerInitializeResult =
-        await Workspace.ls.getInitializeResult();
-      if (disposed) return;
-
-      uriRef.current = uri;
-      versionRef.current = version;
-      textRef.current = text;
-
-      const detail = LoadEditorMessage.type.request({
-        textDocument: { uri, languageId, version, text },
-        focused: editor.focused,
-        visibleRange: editor.visibleRange,
-        selectedRange: editor.selectedRange,
-        breakpointLines: editor.breakpointLines,
-        pinpointLines: editor.pinpointLines,
-        highlightLines: editor.highlightLines,
-        languageServerInitializeParams,
-        languageServerInitializeResult,
-        preserveEditor: Boolean(editor.originalFilename),
-      });
-      window.dispatchEvent(
-        new CustomEvent(MessageProtocol.event, {
-          detail,
-          bubbles: true,
-          composed: true,
-        }),
-      );
-    };
-    loadFileRef.current = loadFile;
-
-    const debouncedSave = debounce(async () => {
-      if (uriRef.current && versionRef.current && textRef.current != null) {
+      const loadFile = async () => {
         const { Workspace } = await import("../../workspace/Workspace");
         if (disposed) return;
-        await Workspace.fs.writeTextDocument({
-          textDocument: {
-            uri: uriRef.current,
-            version: versionRef.current,
-            text: textRef.current,
-          },
+        const pid = workspace.state.peek().project?.id;
+        if (!pid) return;
+        const fn = filenameRef.current || "main.sd";
+        const editor = Workspace.window.getActiveEditorForFile(fn);
+        if (!editor) return;
+
+        const uri = editor.uri;
+        const files = await Workspace.fs.getFiles(pid);
+        if (disposed) return;
+        const file = files[uri];
+        const text = file?.text || "";
+        const version = file?.version || 0;
+        const languageId = file?.languageId || "sparkdown";
+
+        const languageServerInitializeParams =
+          await Workspace.ls.getInitializeParams();
+        const languageServerInitializeResult =
+          await Workspace.ls.getInitializeResult();
+        if (disposed) return;
+
+        uriRef.current = uri;
+        versionRef.current = version;
+        textRef.current = text;
+
+        const detail = LoadEditorMessage.type.request({
+          textDocument: { uri, languageId, version, text },
+          focused: editor.focused,
+          visibleRange: editor.visibleRange,
+          selectedRange: editor.selectedRange,
+          breakpointLines: editor.breakpointLines,
+          pinpointLines: editor.pinpointLines,
+          highlightLines: editor.highlightLines,
+          languageServerInitializeParams,
+          languageServerInitializeResult,
+          preserveEditor: Boolean(editor.originalFilename),
         });
-        await Workspace.window.recordScriptChange();
-      }
-    }, AUTOSAVE_DELAY);
+        window.dispatchEvent(
+          new CustomEvent(MessageProtocol.event, {
+            detail,
+            bubbles: true,
+            composed: true,
+          }),
+        );
+      };
+      loadFileRef.current = loadFile;
 
-    const handleProtocol = (e: Event) => {
-      if (!(e instanceof CustomEvent)) return;
-      const detail = e.detail;
-      if (DidChangeTextDocumentMessage.type.is(detail)) {
-        const params = detail.params;
-        if (
-          uriRef.current != null &&
-          uriRef.current === params.textDocument.uri
-        ) {
-          versionRef.current = params.textDocument.version;
+      const debouncedSave = debounce(async () => {
+        if (uriRef.current && versionRef.current && textRef.current != null) {
+          const { Workspace } = await import("../../workspace/Workspace");
+          if (disposed) return;
+          await Workspace.fs.writeTextDocument({
+            textDocument: {
+              uri: uriRef.current,
+              version: versionRef.current,
+              text: textRef.current,
+            },
+          });
+          await Workspace.window.recordScriptChange();
         }
-      } else if (DidWriteFilesMessage.type.is(detail)) {
-        const params = detail.params;
-        if (
-          params.remote &&
-          params.files.find((f) => f.uri === uriRef.current)
-        ) {
-          loadFile();
-        }
-      } else if (DidDeleteFilesMessage.type.is(detail)) {
-        const params = detail.params;
-        if (params.files.find((f) => f.uri === uriRef.current)) {
-          loadFile();
-        }
-      } else if (DidSaveTextDocumentMessage.type.is(detail)) {
-        const params = detail.params;
-        if (
-          uriRef.current != null &&
-          uriRef.current === params.textDocument.uri &&
-          versionRef.current != null
-        ) {
-          if (params.text != null) {
-            textRef.current = params.text;
-            debouncedSave();
+      }, AUTOSAVE_DELAY);
+
+      const handleProtocol = (e: Event) => {
+        if (!(e instanceof CustomEvent)) return;
+        const detail = e.detail;
+        if (DidChangeTextDocumentMessage.type.is(detail)) {
+          const params = detail.params;
+          if (
+            uriRef.current != null &&
+            uriRef.current === params.textDocument.uri
+          ) {
+            versionRef.current = params.textDocument.version;
           }
+        } else if (DidWriteFilesMessage.type.is(detail)) {
+          const params = detail.params;
+          if (
+            params.remote &&
+            params.files.find((f) => f.uri === uriRef.current)
+          ) {
+            loadFile();
+          }
+        } else if (DidDeleteFilesMessage.type.is(detail)) {
+          const params = detail.params;
+          if (params.files.find((f) => f.uri === uriRef.current)) {
+            loadFile();
+          }
+        } else if (DidSaveTextDocumentMessage.type.is(detail)) {
+          const params = detail.params;
+          if (
+            uriRef.current != null &&
+            uriRef.current === params.textDocument.uri &&
+            versionRef.current != null
+          ) {
+            if (params.text != null) {
+              textRef.current = params.text;
+              debouncedSave();
+            }
+          }
+        } else if (ConnectedEditorMessage.type.is(detail)) {
+          // Inner editor signals it's mounted and ready — initial load.
+          loadFile();
         }
-      } else if (ConnectedEditorMessage.type.is(detail)) {
-        // Inner editor signals it's mounted and ready — initial load.
-        loadFile();
-      }
-    };
+      };
 
-    window.addEventListener(MessageProtocol.event, handleProtocol);
+      window.addEventListener(MessageProtocol.event, handleProtocol);
+      detach = () =>
+        window.removeEventListener(MessageProtocol.event, handleProtocol);
+    })();
+
     return () => {
       disposed = true;
-      window.removeEventListener(MessageProtocol.event, handleProtocol);
+      detach?.();
     };
   }, []);
 
@@ -235,16 +231,8 @@ export default function LogicScriptEditor({
   }, [filename, textPulledAt]);
 
   return (
-    <>
-      <style>{HOST_STYLE}</style>
-      <div class="relative flex flex-1 flex-col min-h-0 bg-engine-950">
-        {/* @ts-expect-error legacy custom element */}
-        <sparkdown-script-editor
-          ref={editorRef}
-          top="0px"
-          bottom="60px"
-        />
-      </div>
-    </>
+    <div class="relative flex flex-1 flex-col min-h-0 bg-engine-950">
+      <SparkdownScriptEditor readonly={readonly} top="0px" bottom="60px" />
+    </div>
   );
 }

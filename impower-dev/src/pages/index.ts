@@ -1,41 +1,24 @@
-import {
-  SparkdownScriptEditorElement,
-  setLanguageServer as setScriptEditorLanguageServer,
-} from "@impower/sparkdown-document-views/src/modules/script-editor";
-import Sparkle from "@impower/sparkle/src/index.js";
-import extractAllSVGs from "../build/extractAllSVGs";
+import { setLanguageServer as setScriptEditorLanguageServer } from "@impower/sparkdown-document-views/src/modules/script-editor/SparkdownScriptEditor";
 import SparkEditor from "../modules/spark-editor/index";
-import icons from "../modules/spark-editor/styles/icons/icons.css";
 import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 
 const load = async () => {
-  const graphics: Record<string, string> = {};
-  const svgs = extractAllSVGs("--theme-icon-", icons);
-  Object.entries(svgs).forEach(([name, svg]) => {
-    graphics[name] = svg;
-  });
-  // Wire the LSP worker/connection before any <sparkdown-script-editor>
+  // Wire the LSP worker/connection before any SparkdownScriptEditor
   // instance mounts (Controller reads these at construction time).
   setScriptEditorLanguageServer({
     worker: Workspace.ls.worker,
     connection: Workspace.ls.connection,
   });
-  await Promise.allSettled([
-    Sparkle.init({ graphics }),
-    SparkdownScriptEditorElement.register(),
-    SparkEditor.init({ graphics }),
-  ]);
-  // Once all web components (and their constructable stylesheets) are loaded,
-  // the statically-generated stylesheet is no longer needed
-  const ssgStyleSheetElement =
-    document.querySelector('link[href="/ssg.css"]') ||
-    document.querySelector("#ssg-css");
-  if (ssgStyleSheetElement) {
-    window.requestAnimationFrame(() => {
-      document.documentElement.style["opacity"] = "1";
-      ssgStyleSheetElement.remove();
-    });
-  }
+  await SparkEditor.init();
+  // Reveal the page now that web components are registered. The
+  // `<style id="ssg-css">` block stays in <head> permanently — it
+  // carries the spec-component normalize (scrollbar styling, base
+  // resets), impower-ui Tailwind, and the unlayered overrides. Removing
+  // it (the legacy did, on the assumption sparkle's adoptAll had
+  // replaced it) leaves the page unstyled now that sparkle is gone.
+  window.requestAnimationFrame(() => {
+    document.documentElement.style["opacity"] = "1";
+  });
 };
 
 load();

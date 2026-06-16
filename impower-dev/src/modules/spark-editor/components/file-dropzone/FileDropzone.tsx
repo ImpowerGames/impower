@@ -5,15 +5,6 @@ import getValidFileName from "../../utils/getValidFileName";
 export const propDefaults = {};
 export type FileDropzoneProps = Partial<typeof propDefaults>;
 
-// Host CSS — full-bleed absolute overlay (z:2) that lets pointer events
-// through normally and only paints the "Import Project Files" prompt
-// while the user is dragging files over the window.
-const HOST_STYLE = `
-  se-file-dropzone {
-    display: contents;
-  }
-`;
-
 /**
  * Window-level file-drop catcher. Listens for drag/drop on window so the
  * user can drop a zip or asset files anywhere in the editor and they'll
@@ -147,18 +138,13 @@ export default function FileDropzone(_props: FileDropzoneProps) {
   }, []);
 
   return (
-    <>
-      <style>{HOST_STYLE}</style>
-      <div class="pointer-events-none absolute inset-0 z-[2] flex flex-col">
-        {dragging && (
-          <div
-            class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-engine-900 text-foreground text-xl font-semibold"
-          >
-            <Download class="size-16" stroke-width="1" />
-            Import Project Files
-          </div>
-        )}
-      </div>
-    </>
+    <div class="pointer-events-none absolute inset-0 z-[2] flex flex-col">
+      {dragging && (
+        <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-engine-900 text-foreground text-xl font-semibold">
+          <Download class="size-16" stroke-width="1" />
+          Import Project Files
+        </div>
+      )}
+    </div>
   );
 }

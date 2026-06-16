@@ -7,19 +7,6 @@ import ShareScreenplay from "../share-screenplay/ShareScreenplay";
 export const propDefaults = {};
 export type ShareProps = Partial<typeof propDefaults>;
 
-// se-share lives inside spark-editor's shadow root, which has Tailwind
-// adopted at upgrade time. preact-custom-element wraps this in
-// shadow:false, so the rendered children land in the host's light DOM
-// (i.e. spark-editor's shadow) and pick up Tailwind too.
-const HOST_STYLE = `
-  se-share {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-  }
-`;
-
 type Panel = "game" | "screenplay";
 
 /**
@@ -41,7 +28,6 @@ export default function Share(_props: ShareProps) {
 
   return (
     <>
-      <style>{HOST_STYLE}</style>
       <div class="sticky top-0 z-10 flex-none bg-engine-900">
         <Tabs
           value={panel}

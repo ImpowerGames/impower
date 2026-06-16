@@ -10,72 +10,16 @@ import {
   Tab,
   Tabs,
 } from "@impower/impower-ui/components";
-import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { startTransition } from "preact/compat";
 import workspace from "../../workspace/WorkspaceStore";
+import Assets from "../assets/Assets";
 import HeaderNavigation from "../header-navigation/HeaderNavigation";
-
-// Workspace's top-level instantiates WorkspaceWindow whose constructor touches
-// localStorage / window — fine in the browser, fatal during SSR. Defer until
-// the handler actually fires.
-
-// Vite injects impower-ui's Tailwind output into document.head as <style
-// data-vite-dev-id="...impower-ui/src/style.css">. <spark-editor> uses shadow
-// DOM, so those styles don't cascade in. On mount we mirror the Vite-injected
-// styles into the host shadow root so utility classes (flex, w-full, ...) used
-// by SplitPane/Tabs actually apply.
-function adoptImpowerUiStyles(root: ShadowRoot) {
-  const TW_MARK = "data-impower-ui-tw";
-  const adopt = () => {
-    const sources = document.querySelectorAll<HTMLStyleElement>(
-      'style[data-vite-dev-id*="impower-ui"]',
-    );
-    for (const src of sources) {
-      const key = src.dataset["viteDevId"] ?? src.textContent?.slice(0, 32) ?? "";
-      if (root.querySelector(`style[${TW_MARK}="${CSS.escape(key)}"]`)) continue;
-      const clone = document.createElement("style");
-      clone.setAttribute(TW_MARK, key);
-      clone.textContent = src.textContent;
-      root.appendChild(clone);
-    }
-  };
-  adopt();
-  const obs = new MutationObserver(adopt);
-  obs.observe(document.head, { childList: true, subtree: true });
-  return () => obs.disconnect();
-}
+import Logic from "../logic/Logic";
+import Preview from "../preview/Preview";
+import SharePanel from "../share/Share";
 
 type PaneType = "logic" | "assets" | "share";
-
-// Two CSS concerns that fundamentally can't be Tailwind utilities; everything
-// else on the rendered tree is plain Tailwind classes:
-//   1. Host-only rule. The <se-main-window> custom-element host can't carry
-//      its own classes; its display/sizing has to be a CSS rule.
-//   2. Scoped unlayered overrides for the handful of Tailwind utilities that
-//      compete with sparkle's `* { flex-flow: column; flex-shrink: 0;
-//      min-width: 0; max-width: 100% }` global reset. Even after wrapping
-//      sparkle's normalize in @layer normalize, the reset still beats
-//      Tailwind's @layer utilities in this shadow-DOM cascade — adopted
-//      stylesheets and <style> elements maintain separate layer hierarchies,
-//      and the order doesn't fall the way the spec text suggests for
-//      single-stylesheet cascades. Unlayered always wins, so redeclaring the
-//      conflicting utilities unlayered (scoped to .mw-root so it can't bleed
-//      anywhere unexpected) is the path that actually works.
-const STYLE = `
-  se-main-window {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-  }
-  .mw-root .flex-row { flex-direction: row; }
-  .mw-root .flex-col { flex-direction: column; }
-  .mw-root .flex-wrap { flex-wrap: wrap; }
-  .mw-root .flex-1 { flex: 1 1 0%; min-width: 0; }
-  .mw-root .items-stretch { align-items: stretch; }
-  .mw-root .items-center { align-items: center; }
-  .mw-root .justify-center { justify-content: center; }
-`;
 
 export const propDefaults = {};
 export type MainWindowProps = Partial<typeof propDefaults>;
@@ -90,21 +34,6 @@ export default function MainWindow(_props: MainWindowProps) {
   // — that's the signal that restoreProjectWorkspace has run to completion.
   const workspaceReady = !!workspace.signals.projectId.value;
   const [previewActive, setPreviewActive] = useState<"start" | "end">("start");
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  // useLayoutEffect (not useEffect) — Tailwind has to land in the shadow
-  // root BEFORE the browser paints MainWindow's first render. With useEffect
-  // there's one frame where the shadow tree has Preact's just-rendered DOM
-  // but no Tailwind to style it, producing a visible "snap from unstyled
-  // to styled" flash on every hydration.
-  useLayoutEffect(() => {
-    const root = rootRef.current?.getRootNode?.();
-    if (root instanceof ShadowRoot) {
-      const dispose = adoptImpowerUiStyles(root);
-      return () => dispose();
-    }
-    return;
-  }, []);
 
   useEffect(() => {
     let dispose: (() => void) | undefined;
@@ -139,9 +68,9 @@ export default function MainWindow(_props: MainWindowProps) {
   }, []);
 
   const onPaneChange = (next: string) => {
-    // Mark the workspace-store update (and the resulting <se-logic> /
-    // <se-assets> / <se-share> mount) as a low-priority transition, so the
-    // tab activation animation (color + scale) gets to paint before the
+    // Mark the workspace-store update (and the resulting Logic / Assets
+    // / SharePanel mount) as a low-priority transition, so the tab
+    // activation animation (color + scale) gets to paint before the
     // potentially-heavy pane DOM is built.
     startTransition(() => {
       void import("../../workspace/Workspace").then(({ Workspace }) => {
@@ -158,11 +87,7 @@ export default function MainWindow(_props: MainWindowProps) {
   const isSSR = typeof window === "undefined";
 
   return (
-    <div
-      class="mw-root flex flex-col w-full h-full min-h-0"
-      ref={rootRef}
-    >
-      <style>{STYLE}</style>
+    <div class="flex flex-col w-full h-full min-h-0">
       <HeaderNavigation />
       <div class="relative flex flex-1 min-h-0">
         {!isSSR && (
@@ -173,26 +98,20 @@ export default function MainWindow(_props: MainWindowProps) {
             start={
               <div class="relative flex flex-col w-full h-full">
                 <Router active={pane} mode="fade">
-                  {/* @ts-expect-error legacy custom element */}
-                  <se-logic key="logic" />
-                  {/* @ts-expect-error legacy custom element */}
-                  <se-assets key="assets" />
-                  {/* @ts-expect-error legacy custom element */}
-                  <se-share key="share" />
+                  <Logic key="logic" />
+                  <Assets key="assets" />
+                  <SharePanel key="share" />
                 </Router>
               </div>
             }
             end={
               <div class="relative flex flex-col w-full h-full bg-black">
-                {/* @ts-expect-error legacy custom element */}
-                <se-preview />
+                <Preview />
               </div>
             }
           />
         )}
       </div>
-      {/* @ts-expect-error legacy custom element */}
-      <se-notifications />
       <div
         class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full"
       >

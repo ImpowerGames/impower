@@ -1,6 +1,8 @@
+import FileDropzone from "../components/file-dropzone/FileDropzone";
+import MainWindow from "../components/main-window/MainWindow";
+
 // Host CSS — spark-editor is the page root; make it a full-bleed flex
-// column so its children can fill the viewport. Mirrors the legacy
-// `<s-box position="relative" bg-color="panel" grow>` wrapper.
+// column so its children can fill the viewport.
 const HOST_STYLE = `
   spark-editor {
     position: relative;
@@ -22,25 +24,17 @@ export const propDefaults = {};
 export type SparkEditorProps = Partial<typeof propDefaults>;
 
 /**
- * Page-root host element. Wraps the main editor window plus two
- * window-level overlays (interaction-blocker, file-dropzone).
- *
- * Rendered as a Preact custom element with shadow:false — i.e. its
- * children live in light DOM. The legacy spec-component version used a
- * shadow root, which the SSR walker mirrored into light DOM, producing
- * a duplicate `<se-main-window>` subtree (two iframes, two store
- * subscriptions). With light-DOM-only rendering there's a single tree.
+ * Page-root host element. Wraps the main editor window plus the window-
+ * level file-dropzone overlay. shadow:false — i.e. its children live in
+ * light DOM (the legacy version used a shadow root that the SSR walker
+ * mirrored into light DOM, producing a duplicate MainWindow subtree).
  */
 export default function SparkEditor(_props: SparkEditorProps) {
   return (
     <>
       <style>{HOST_STYLE}</style>
-      {/* @ts-expect-error legacy custom element */}
-      <se-main-window />
-      {/* @ts-expect-error legacy custom element */}
-      <se-interaction-blocker hidden />
-      {/* @ts-expect-error legacy custom element */}
-      <se-file-dropzone />
+      <MainWindow />
+      <FileDropzone />
     </>
   );
 }

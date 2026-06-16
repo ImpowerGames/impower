@@ -199,7 +199,7 @@ export default function Tabs({
                 <div
                   aria-hidden="true"
                   class={cn(
-                    "pointer-events-none absolute bg-foreground transition-transform duration-150 ease-out",
+                    "pointer-events-none absolute bg-tab-foreground transition-transform duration-150 ease-out",
                     vertical
                       ? "left-auto right-0 w-0.5"
                       : "top-auto bottom-0 h-0.5",
@@ -261,11 +261,11 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
-  // Active icon/label color — always `text-foreground` (near-white). Matches
-  // impower.dev's design (active s-tab uses rgb(242, 242, 242) regardless of
-  // indicator style). Don't switch to `text-primary` for the underline
-  // variant — that's a shadcn convention that doesn't apply here.
-  const activeColorClass = "text-foreground";
+  // Active icon/label color. Uses `text-tab-foreground`, which defaults to
+  // the editor's `--theme-color-tab-active-text` (rgb(242,242,242)) and
+  // falls back to `--theme-color-fg` (pure white) for apps that don't set
+  // it. Matches sparkle s-tab's `active-text-color="tab-active-text"`.
+  const activeColorClass = "text-tab-foreground";
   // A `color` prop overrides BOTH active and inactive coloring — so a
   // diagnostic-colored tab stays the same color regardless of selection.
   const inactiveColor = color || "text-engine-500";

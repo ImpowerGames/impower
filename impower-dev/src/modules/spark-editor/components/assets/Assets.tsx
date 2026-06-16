@@ -20,18 +20,6 @@ import FileListBorder from "../file-list/FileListBorder";
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
 
-// Match the same host-sizing pattern used in Share / Preview — preact-custom-
-// element shadow:false leaves the host at default inline display, which
-// collapses inside the SplitPane.start flex container.
-const HOST_STYLE = `
-  se-assets {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-  }
-`;
-
 type Panel = "files" | "urls";
 
 /**
@@ -58,7 +46,6 @@ export default function Assets(_props: AssetsProps) {
 
   return (
     <>
-      <style>{HOST_STYLE}</style>
       <div class="sticky top-0 z-10 flex-none bg-engine-900">
         <Tabs
           value={panel}

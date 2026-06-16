@@ -7,18 +7,8 @@ import type {
 } from "parse5/dist/tree-adapters/default";
 import { type ComponentChildren, type ComponentType, h } from "preact";
 import { renderToString } from "preact-render-to-string";
-import { ComponentSpec } from "./ComponentSpec.js";
-import expandComponents from "./expandComponents.js";
 
 export type ComponentRegistry = Record<string, ComponentType<any>>;
-
-export type ExpandOptions = {
-  // When provided, spec-component tags emitted by Preact components get
-  // expanded inline (same pass) instead of needing a separate second
-  // walker. Reparsing the whole body to do that with expandHtml loses
-  // custom-element tags nested under an inline <style>.
-  specComponents?: Record<string, ComponentSpec>;
-};
 
 const kebabToCamel = (s: string): string =>
   s.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
@@ -57,7 +47,6 @@ const nodeToVNode = (node: ChildNode): ComponentChildren => {
 const expandIn = (
   parent: DocumentFragment | Element,
   registry: ComponentRegistry,
-  options?: ExpandOptions,
 ): void => {
   for (const child of parent.childNodes) {
     if (!isElement(child)) continue;
@@ -87,17 +76,10 @@ const expandIn = (
           (c as { parentNode?: typeof child }).parentNode = child;
         }
         // Recurse to expand nested Preact tags emitted by this component.
-        expandIn(child, registry, options);
-        // Then expand any spec-component tags emitted by this component (so
-        // the page ships fully-rendered including the legacy spec-component
-        // sub-elements that Preact-ported parents reference, e.g.
-        // <se-header-menu-button> inside HeaderNavigation).
-        if (options?.specComponents) {
-          expandComponents(child, options.specComponents);
-        }
+        expandIn(child, registry);
       }
     } else {
-      expandIn(child, registry, options);
+      expandIn(child, registry);
     }
   }
 };
@@ -105,9 +87,8 @@ const expandIn = (
 export const expandPreactComponents = (
   html: string,
   registry: ComponentRegistry,
-  options?: ExpandOptions,
 ): string => {
   const doc = parseFragment(html);
-  expandIn(doc, registry, options);
+  expandIn(doc, registry);
   return serialize(doc);
 };

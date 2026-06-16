@@ -1,13 +1,19 @@
-import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+// `@impower/spark-editor-protocol` re-exports types from
+// `vscode-languageserver-protocol` (CJS-only). A static import here trips
+// Vite SSR with "exports is not defined" during preact-registry walk.
+// `Workspace` constructs WorkspaceWindow (touches localStorage/window) at
+// module load. Both must be deferred — see memory:
+// feedback_defer_cjs_imports_in_ssr_loaded_modules.
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import globToRegex from "../../utils/globToRegex";
 import workspace from "../../workspace/WorkspaceStore";
-import { Workspace } from "../../workspace/Workspace";
 import FileItem from "./FileItem";
+
+// Pure helper that doesn't need Workspace (Workspace.fs.getFilename used
+// to be the source of truth, but it's literally `uri.split('/').pop()`).
+const getFilenameFromUri = (uri: string) => uri.split("/").pop() ?? "";
 
 export type FileListProps = {
   /** Glob of filenames to INCLUDE in this list. Defaults to `*`. */
@@ -59,6 +65,7 @@ export default function FileList({
         return;
       }
       try {
+        const { Workspace } = await import("../../workspace/Workspace");
         const files = await Workspace.fs.getFiles(projectId);
         if (cancelled) return;
         const includeRegex = include ? globToRegex(include) : /.*/;
@@ -87,6 +94,7 @@ export default function FileList({
   const reload = async () => {
     if (!projectId) return;
     try {
+      const { Workspace } = await import("../../workspace/Workspace");
       const files = await Workspace.fs.getFiles(projectId);
       const includeRegex = include ? globToRegex(include) : /.*/;
       const excludeRegex = exclude ? globToRegex(exclude) : undefined;
@@ -109,60 +117,79 @@ export default function FileList({
   // relevant to this list's glob, never reload mid-rename (the create+change
   // pair would cause the order to shift while the user is editing the name).
   useEffect(() => {
-    const onProtocol = (e: Event) => {
-      if (!(e instanceof CustomEvent)) return;
-      if (!DidChangeWatchedFilesMessage.type.is(e.detail)) return;
-      const params = e.detail.params;
-      const changes = params.changes;
-      const includeRegex = include ? globToRegex(include) : /.*/;
-      const excludeRegex = exclude ? globToRegex(exclude) : undefined;
-      const isRelevant = changes.some(
-        (c) => includeRegex.test(c.uri) && !excludeRegex?.test(c.uri),
-      );
-      if (!isRelevant) return;
-      const isCreate = changes.every(
-        (c) => c.type === FileChangeType.Created,
-      );
-      const isDelete = changes.every(
-        (c) => c.type === FileChangeType.Deleted,
-      );
-      // A rename emits a paired Changed + Created on the same uri. If every
-      // change pairs up that way, treat it as a rename and skip the reload
-      // (FileItem owns the optimistic update of its own label).
-      const isRename = changes.every((c) =>
-        c.type === FileChangeType.Created
-          ? changes.some(
-              (other) =>
-                other.uri === c.uri && other.type === FileChangeType.Changed,
-            )
-          : c.type === FileChangeType.Changed
+    let detach: (() => void) | undefined;
+    let cancelled = false;
+    (async () => {
+      const [
+        { FileChangeType },
+        { MessageProtocol },
+        { DidChangeWatchedFilesMessage },
+        { Workspace },
+      ] = await Promise.all([
+        import("@impower/spark-editor-protocol/src/enums/FileChangeType"),
+        import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
+        import(
+          "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage"
+        ),
+        import("../../workspace/Workspace"),
+      ]);
+      if (cancelled) return;
+      const onProtocol = (e: Event) => {
+        if (!(e instanceof CustomEvent)) return;
+        if (!DidChangeWatchedFilesMessage.type.is(e.detail)) return;
+        const params = e.detail.params;
+        const changes = params.changes;
+        const includeRegex = include ? globToRegex(include) : /.*/;
+        const excludeRegex = exclude ? globToRegex(exclude) : undefined;
+        const isRelevant = changes.some(
+          (c) => includeRegex.test(c.uri) && !excludeRegex?.test(c.uri),
+        );
+        if (!isRelevant) return;
+        const isCreate = changes.every(
+          (c) => c.type === FileChangeType.Created,
+        );
+        const isDelete = changes.every(
+          (c) => c.type === FileChangeType.Deleted,
+        );
+        const isRename = changes.every((c) =>
+          c.type === FileChangeType.Created
             ? changes.some(
                 (other) =>
-                  other.uri === c.uri && other.type === FileChangeType.Created,
+                  other.uri === c.uri && other.type === FileChangeType.Changed,
               )
-            : true,
-      );
-      if (!(params.remote || isCreate || isDelete || !isRename)) return;
+            : c.type === FileChangeType.Changed
+              ? changes.some(
+                  (other) =>
+                    other.uri === c.uri &&
+                    other.type === FileChangeType.Created,
+                )
+              : true,
+        );
+        if (!(params.remote || isCreate || isDelete || !isRename)) return;
 
-      // Special case: a single new `.sd` file means the user just created a
-      // script — open it immediately.
-      const firstFilename = Workspace.fs.getFilename(changes[0]?.uri || "");
-      if (
-        isCreate &&
-        changes.length === 1 &&
-        firstFilename?.endsWith(".sd")
-      ) {
-        Workspace.window.openedFileEditor(firstFilename);
-        return;
-      }
-      void reload();
+        const firstFilename = getFilenameFromUri(changes[0]?.uri || "");
+        if (
+          isCreate &&
+          changes.length === 1 &&
+          firstFilename?.endsWith(".sd")
+        ) {
+          Workspace.window.openedFileEditor(firstFilename);
+          return;
+        }
+        void reload();
+      };
+      window.addEventListener(MessageProtocol.event, onProtocol);
+      detach = () =>
+        window.removeEventListener(MessageProtocol.event, onProtocol);
+    })();
+    return () => {
+      cancelled = true;
+      detach?.();
     };
-    window.addEventListener(MessageProtocol.event, onProtocol);
-    return () => window.removeEventListener(MessageProtocol.event, onProtocol);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, include, exclude]);
 
-  const filenames = (uris ?? []).map((uri) => Workspace.fs.getFilename(uri));
+  const filenames = (uris ?? []).map((uri) => getFilenameFromUri(uri));
 
   const rowVirtualizer = useVirtualizer({
     count: filenames.length,

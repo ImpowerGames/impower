@@ -3,7 +3,6 @@ import { useComputed } from "@preact/signals";
 import { useRef } from "preact/hooks";
 import getValidFileName from "../../utils/getValidFileName";
 import workspace from "../../workspace/WorkspaceStore";
-import { Workspace } from "../../workspace/Workspace";
 
 export type FileUploadButtonProps = {
   /** `accept=""` for the underlying file input. */
@@ -41,6 +40,7 @@ export default function FileUploadButton({
     if (!fileList) return;
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
     const files = await Promise.all(
       Array.from(fileList).map(async (file) => ({
         uri: Workspace.fs.getFileUri(projectId, getValidFileName(file.name)),

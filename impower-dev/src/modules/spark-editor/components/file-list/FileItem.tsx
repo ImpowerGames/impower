@@ -2,7 +2,6 @@ import { Button } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
-import { Workspace } from "../../workspace/Workspace";
 import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileOptionsButton from "./FileOptionsButton";
 
@@ -67,6 +66,7 @@ export default function FileItem({ filename }: FileItemProps) {
   async function rename(oldFilename: string, newFilename: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
     const oldUri = Workspace.fs.getFileUri(projectId, oldFilename);
     const newUri = Workspace.fs.getFileUri(projectId, newFilename);
     const renamed = await Workspace.fs.renameFiles({
@@ -82,6 +82,7 @@ export default function FileItem({ filename }: FileItemProps) {
   async function deleteFile() {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
     const uri = Workspace.fs.getFileUri(projectId, filename);
     const deleted = await Workspace.fs.deleteFiles({ files: [{ uri }] });
     if (deleted.some((d) => d.type === "script")) {
@@ -91,9 +92,10 @@ export default function FileItem({ filename }: FileItemProps) {
     }
   }
 
-  function onRowClick(e: MouseEvent) {
+  async function onRowClick(e: MouseEvent) {
     if (renaming) return;
     e.stopPropagation();
+    const { Workspace } = await import("../../workspace/Workspace");
     Workspace.window.openedFileEditor(filename);
   }
 

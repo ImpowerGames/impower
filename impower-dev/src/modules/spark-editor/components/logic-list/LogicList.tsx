@@ -11,6 +11,8 @@ import workspace from "../../workspace/WorkspaceStore";
 import FileAddButton from "../file-list/FileAddButton";
 import FileList from "../file-list/FileList";
 import FileListBorder from "../file-list/FileListBorder";
+import LogicScriptEditor from "../logic-script-editor/LogicScriptEditor";
+import LogicScriptsEditor from "../logic-scripts-editor/LogicScriptsEditor";
 
 export const propDefaults = {};
 export type LogicListProps = Partial<typeof propDefaults>;
@@ -58,19 +60,6 @@ export default function LogicList(_props: LogicListProps) {
 
   return (
     <>
-      <style>{`
-        /* Legacy spec-components default to inline display, which collapses
-           to 0×0 inside our flex container. Make them fill the available
-           space the same way <se-logic-script-editor> does for main. */
-        se-logic-scripts-editor {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          height: 100%;
-          flex: 1 1 0%;
-          min-height: 0;
-        }
-      `}</style>
       {/* Hide Main / Scripts sub-tabs while viewing a script in the editor.
           The legacy <s-router> implicitly did this — the "logic-editor"
           route had its own header (<se-file-editor-navigation> with a
@@ -99,16 +88,21 @@ export default function LogicList(_props: LogicListProps) {
           CodeMirror renders invisible. */}
       <div class="relative flex flex-col flex-1 min-h-0">
         <Router active={panel} mode="slide-x">
-          {/* @ts-expect-error legacy custom element */}
-          <se-logic-script-editor
+          {/* `--loading-indicator-width: 50%` makes the LoadingBar sit
+              above the (active) Main tab indicator on the parent Tabs,
+              giving the "indicator fills with progress" illusion. The
+              CSS var cascades to the LoadingBar inside via
+              `var(--loading-indicator-width, 100%)`. */}
+          <div
             key="main"
-            filename="main.sd"
+            class="flex flex-1 flex-col min-h-0"
             style="--loading-indicator-width:50%"
-          />
+          >
+            <LogicScriptEditor filename="main.sd" />
+          </div>
           <div key="scripts" class="flex flex-1 flex-col min-h-0">
             {showScriptsEditor ? (
-              /* @ts-expect-error legacy custom element */
-              <se-logic-scripts-editor />
+              <LogicScriptsEditor />
             ) : (
               <FileList
                 include="*.{sd}"

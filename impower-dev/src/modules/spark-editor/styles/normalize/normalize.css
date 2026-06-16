@@ -1,7 +1,23 @@
-/* Wrapped in @layer normalize so consumers' layered styles (e.g. Tailwind's
-   @layer utilities) win over this universal reset. Without the wrap, the
-   unlayered `*` rule would beat every layered utility regardless of
-   specificity. */
+/* Document-wide normalize for the impower editor. Replaces the legacy
+   spec-component normalize that defensively zeroed
+   pointer-events/touch-action/user-select/background-size/border on every
+   element (and expected each spec-component to opt back in via its own
+   scoped CSS). With the Preact + Tailwind port we no longer have that
+   opt-in surface, so the defensive resets just made every raw `<input>`,
+   `<a>`, and scrollable region unclickable / un-selectable until manually
+   annotated.
+
+   What stays:
+   - The sparkle-era universal flex defaults (`flex-direction: column`,
+     `min-width: 0`, `max-width: 100%`, etc.) — these are wrapped in
+     `@layer normalize` so Tailwind's layered utilities win against them,
+     but they remain in effect for everything that doesn't get a layered
+     opinion (notably the internals of `<sparkdown-script-editor>` and
+     `<sparkdown-screenplay-preview>`, whose component CSS was authored
+     against them). Removing these collapses the screenplay preview into
+     a single 181000px-tall column.
+   - Scrollbar styling, focus-outline suppression, `[hidden]`, `[popover]`. */
+
 @layer normalize {
   * {
     flex-direction: column;
@@ -10,4 +26,66 @@
     min-width: 0;
     max-width: 100%;
   }
+}
+
+/* Scrollbars (Chromium + Firefox). */
+*::-webkit-scrollbar {
+  width: var(--theme-scrollbar-size, 8px);
+  height: var(--theme-scrollbar-size, 8px);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(
+    --theme-color-scrollbar-thumb-hover,
+    hsl(0 0% 0% / 50%)
+  );
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--theme-color-scrollbar-thumb, hsl(0 0% 0% / 25%));
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-track {
+  background-color: var(--theme-color-scrollbar-track, hsl(0 0% 0% / 15%));
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+}
+
+*::-webkit-scrollbar-corner {
+  display: none;
+}
+
+* {
+  scrollbar-width: var(--theme-scrollbar-thickness, thin);
+  scrollbar-color: var(--theme-color-scrollbar-thumb, hsl(0 0% 0% / 25%))
+    var(--theme-color-scrollbar-track, hsl(0 0% 0% / 15%));
+}
+
+/* Suppress the platform-native focus ring + tap flash. Per-component
+   focus indicators (ring / outline tailwind utilities) replace this. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+*::-moz-focus-inner {
+  border: none;
+}
+
+*:focus,
+*:focus-visible {
+  outline: none;
+}
+
+/* Hidden + popover utility resets. */
+[hidden] {
+  display: none !important;
+}
+
+[popover] {
+  margin: 0;
+  padding: 0;
+  inset: auto;
 }

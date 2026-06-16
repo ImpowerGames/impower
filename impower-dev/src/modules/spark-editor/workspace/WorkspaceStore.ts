@@ -1,7 +1,10 @@
 import { computed, signal, type ReadonlySignal } from "@preact/signals";
-import { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
+// Type-only import — `WorkspaceCache` is just a TS shape, and the runtime
+// re-exports in `@impower/spark-editor-protocol/src/types` reach into
+// `vscode-languageserver-protocol` (CJS) which crashes Vite SSR.
+import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
 import { emit } from "../../../../../packages/spec-component/src/utils/emit";
-import { IStore } from "../../../../../packages/spec-component/src/types/IStore";
+import type { IStore } from "../../../../../packages/spec-component/src/types/IStore";
 
 const cache: WorkspaceCache = {
   project: { id: "" },

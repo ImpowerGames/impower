@@ -1,3 +1,4 @@
+import SparkdownScreenplayPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview";
 import { useEffect, useRef } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
 import PreviewScreenplayToolbar from "../preview-screenplay-toolbar/PreviewScreenplayToolbar";
@@ -5,21 +6,10 @@ import PreviewScreenplayToolbar from "../preview-screenplay-toolbar/PreviewScree
 export const propDefaults = {};
 export type PreviewScreenplayProps = Partial<typeof propDefaults>;
 
-// `display: flex` host so the toolbar (sticky-top) + viewer (grow) stack
-// correctly inside the Preview pane's wrapper.
-const HOST_STYLE = `
-  se-preview-screenplay {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-  }
-`;
-
 /**
  * Right-pane Screenplay preview. Renders the toolbar + the
- * `<sparkdown-screenplay-preview>` viewer (a Preact-custom-element from
- * sparkdown-document-views), and dispatches LoadPreviewMessage whenever
+ * SparkdownScreenplayPreview viewer (a Preact component imported directly
+ * from sparkdown-document-views), and dispatches LoadPreviewMessage whenever
  * the active editor's file changes or the cache shifts.
  *
  * Mirrors the legacy <se-preview-screenplay> behavior: subscribes to
@@ -204,15 +194,10 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
 
   return (
     <>
-      <style>{HOST_STYLE}</style>
       <PreviewScreenplayToolbar />
       <div class="relative flex flex-1 min-h-0">
         <div class="absolute inset-0 flex flex-col overflow-y-auto">
-          {/* @ts-expect-error sparkdown's custom element from sparkdown-document-views */}
-          <sparkdown-screenplay-preview
-            scroll-margin="auto auto 60px auto"
-            top="48px"
-          />
+          <SparkdownScreenplayPreview scrollMargin="auto auto 60px auto" />
         </div>
       </div>
     </>

@@ -3,6 +3,7 @@ import HeaderMenuButton from "../header-menu-button/HeaderMenuButton";
 import HeaderSyncToolbar from "../header-sync-toolbar/HeaderSyncToolbar";
 import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
 import HeaderTitleCaption from "../header-title-caption/HeaderTitleCaption";
+import PreviewToggleButton from "../preview-toggle-button/PreviewToggleButton";
 
 /**
  * Top header bar shell. Listens for Ctrl+S to trigger
@@ -40,13 +41,15 @@ export default function HeaderNavigation() {
             <HeaderTitleCaption />
           </div>
           <HeaderSyncToolbar />
-          {/* sparkle's <s-hidden hide-above="lg"> hid the preview toggle at
-              >=1280px (sparkle's lg breakpoint). Tailwind's `lg:` is 1024px
-              by default, so we use an arbitrary `min-[1280px]:hidden` to
-              match the original breakpoint exactly. */}
-          <div class="flex flex-row items-center min-[1280px]:hidden">
-            {/* @ts-expect-error legacy custom element */}
-            <se-preview-toggle-button id="previewButton" />
+          {/* The preview toggle only needs to be visible while the
+              SplitPane has collapsed and is showing a single pane at a
+              time. Above 960px the split fits both panels side-by-side
+              (see <MainWindow>'s `collapseBelow={960}`), so the toggle
+              is meaningless and we hide it. Keep these two breakpoints
+              in sync — otherwise the toggle shows even when both panels
+              are already visible. */}
+          <div class="flex flex-row items-center min-[960px]:hidden">
+            <PreviewToggleButton />
           </div>
         </div>
         {/* 1px divider hugging the bottom edge — sparkle used s-divider with

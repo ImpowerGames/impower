@@ -177,6 +177,12 @@
   --color-surface: var(--theme-color-surface);
   --color-surface-border: var(--theme-color-surface-border);
   --color-divider: var(--theme-color-divider);
+  /* Tab-active foreground — slightly muted off-white instead of pure white.
+     Matches sparkle's `--theme-color-tab-active-text` (hsl(0 0% 95%) ≈
+     rgb(242 242 242)). Distinguishes tab labels from the pure-white header
+     title text — softer at large weights/sizes. Apps that want different
+     tab foreground can override `--theme-color-tab-active-text`. */
+  --color-tab-foreground: var(--theme-color-tab-active-text, var(--color-foreground));
 
   /* Opacity variants are handled by Tailwind v4's slash modifier:
        text-foreground/60   →  color-mix(in oklab, var(--color-foreground) 60%, transparent)

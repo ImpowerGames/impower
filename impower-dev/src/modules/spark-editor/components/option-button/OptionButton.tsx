@@ -1,26 +1,22 @@
 import { Button } from "@impower/impower-ui/components";
-import { cva, type VariantProps } from "class-variance-authority";
 import type { ComponentChildren, JSX } from "preact";
 
-const optionButtonSize = cva("", {
-  variants: {
-    size: {
-      default: "h-14 px-8 text-base",
-      sm: "h-12 px-6 text-sm",
-    },
-  },
-  defaultVariants: { size: "default" },
-});
+const sizeClasses = {
+  default: "h-14 px-8 text-base",
+  sm: "h-12 px-6 text-sm",
+} as const;
+
+export type OptionButtonSize = keyof typeof sizeClasses;
 
 export type OptionButtonProps = Omit<
   JSX.HTMLAttributes<HTMLButtonElement>,
   "size" | "type"
-> &
-  VariantProps<typeof optionButtonSize> & {
-    /** Tailwind classes appended after the base layout. */
-    class?: string;
-    children?: ComponentChildren;
-  };
+> & {
+  size?: OptionButtonSize;
+  /** Tailwind classes appended after the base layout. */
+  class?: string;
+  children?: ComponentChildren;
+};
 
 /**
  * List-row button for the share/assets/logic panes. Full-width, fixed
@@ -32,7 +28,7 @@ export type OptionButtonProps = Omit<
  * variant adds the row-specific height + padding on top.
  */
 export default function OptionButton({
-  size,
+  size = "default",
   class: className = "",
   children,
   ...rest
@@ -40,7 +36,7 @@ export default function OptionButton({
   return (
     <Button
       variant="ghost"
-      class={`w-full justify-between rounded-none text-foreground/80 ${optionButtonSize({ size })} ${className}`}
+      class={`w-full justify-between rounded-none text-foreground/80 ${sizeClasses[size]} ${className}`}
       {...rest}
     >
       {children}

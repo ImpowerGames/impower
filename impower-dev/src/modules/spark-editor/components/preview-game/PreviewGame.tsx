@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { SparkProgram } from "../../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
+import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
 
 const SPARKDOWN_PLAYER_ORIGIN =
   import.meta.env.VITE_SPARKDOWN_PLAYER_ORIGIN || "";
@@ -7,16 +8,11 @@ const SPARKDOWN_PLAYER_ORIGIN =
 export const propDefaults = {};
 export type PreviewGameProps = Partial<typeof propDefaults>;
 
-// `display: flex` host so the toolbar (sticky-top) + iframe (grow) stack
-// correctly. `display: contents` on the host would lose the flex container
-// needed for the iframe wrapper's `flex: 1`.
-const HOST_STYLE = `
-  se-preview-game {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    height: 100%;
-  }
+// Iframe wrap styling lives here so the iframe can fill the available
+// vertical space — Tailwind can't trivially express the `pointer-events:
+// auto` opt-in over sparkle's universal `* { pointer-events: none }`
+// reset without re-declaring it as an inlined rule.
+const STYLE = `
   .pg-iframe-wrap {
     position: relative;
     display: flex;
@@ -502,9 +498,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
 
   return (
     <>
-      <style>{HOST_STYLE}</style>
-      {/* @ts-expect-error preact-custom-element backing the Preact PreviewGameToolbar */}
-      <se-preview-game-toolbar />
+      <style>{STYLE}</style>
+      <PreviewGameToolbar />
       <div ref={previewRef} class="pg-iframe-wrap" id="preview">
         <iframe
           ref={iframeRef}
