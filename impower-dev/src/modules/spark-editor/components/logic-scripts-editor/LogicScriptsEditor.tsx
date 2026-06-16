@@ -80,15 +80,20 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
             the <Ripple/> wave to white regardless of the input's diagnostic
             color (main's ripple-color="white" is likewise fixed); the input
             keeps its own (possibly red/yellow) text color. overflow-hidden +
-            rounded clips the wave to the field box. */}
-        <div class="relative w-full overflow-hidden rounded text-foreground hover:bg-foreground/5">
+            rounded clips the wave to the field box.
+
+            `inline-block` (NOT w-full) so the box hugs the input rather than
+            spanning the whole header — main's field is ~the input's default
+            ~20-char intrinsic width (its <s-input>'s inner <input> has no
+            size), centered by the title slot's text-center. */}
+        <div class="relative inline-block overflow-hidden rounded px-2 text-foreground hover:bg-foreground/5">
           <input
             ref={inputRef}
             type="text"
             value={draftName}
             aria-label={displayName}
             placeholder={displayName}
-            class={`w-full bg-transparent text-center text-base font-medium outline-none placeholder:text-[var(--theme-color-fab-bg)] ${
+            class={`bg-transparent text-center text-base font-medium outline-none placeholder:text-[var(--theme-color-fab-bg)] ${
               diagnosticColor || "text-foreground"
             }`}
             onInput={(e) =>

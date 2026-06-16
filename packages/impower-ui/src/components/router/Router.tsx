@@ -139,12 +139,13 @@ export default function Router({
       );
       animsRef.current.push(fadeAnim);
 
+      let xformAnim: Animation | null = null;
       if (mode === "slide-x" || mode === "zoom") {
         const transform =
           mode === "slide-x"
             ? ["translateX(0)", `translateX(${-SLIDE_DIST_PX * phase.dir}px)`]
             : ["scale(1)", "scale(0.99)"]; // exit-zoom
-        const xformAnim = xform.animate(
+        xformAnim = xform.animate(
           { transform },
           {
             duration: TRANSFORM_MS,
@@ -156,7 +157,17 @@ export default function Router({
       }
 
       let cancelled = false;
-      fadeAnim.finished.then(
+      // When to swap content + start entering — mirrors sparkle router.ts:
+      //   • directional (slide-x): wait only for the exit FADE (75ms), so the
+      //     slide reads as one continuous motion across the swap.
+      //   • non-directional (zoom / fade): wait for the exit FADE *and*
+      //     TRANSFORM (150ms) to BOTH finish before swapping. Swapping early
+      //     (after the fade) would make the whole transition ~2x too fast.
+      const swapGate =
+        mode === "slide-x" || !xformAnim
+          ? fadeAnim.finished
+          : Promise.all([fadeAnim.finished, xformAnim.finished]);
+      swapGate.then(
         () => {
           if (cancelled) return;
           // Swap content while invisible, then move into enter phase.
