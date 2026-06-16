@@ -727,8 +727,16 @@ export class Story extends FlowBase {
         // (context[type][name] — e.g. `define raffles as character` +
         // `define raffles as synth`), so they don't conflict. Two of the
         // SAME type still do.
-        const objType = (obj as { type?: { name?: string } })?.type?.name;
-        const valType = value.type?.name;
+        // A ROOT define (`define image with …`) declares a type and carries
+        // no `structDefinition`/`type`, so fall back to its own name as its
+        // type identity — letting the builtin type `image` coexist with a
+        // same-named instance of another type (`style.image`).
+        const defType = (o: any): string | undefined =>
+          o?.type?.name ??
+          o?.structDefinition?.type?.name ??
+          (o?.isDefineDeclaration ? o?.variableName : undefined);
+        const objType = defType(obj);
+        const valType = value.type?.name ?? defType(value.variableAssignment);
         if (objType && valType && objType !== valType) {
           continue;
         }
@@ -758,7 +766,13 @@ export class Story extends FlowBase {
       varDecl !== obj &&
       varDecl.isGlobalDeclaration &&
       varDecl.listDefinition == null &&
-      varDecl.structDefinition == null
+      varDecl.structDefinition == null &&
+      // A ROOT define (`define image with …`) declares a type and has no
+      // structDefinition, but it is NOT a plain var — a same-named instance of
+      // a DIFFERENT type (e.g. `style.image`) coexists with it (namespaced as a
+      // type-scoped singleton; see FlowBase.AddNewVariableDeclaration). Only a
+      // genuine plain-var collision should error here.
+      !varDecl.isDefineDeclaration
     ) {
       this.NameConflictError(obj, identifier, varDecl.identifier);
     }

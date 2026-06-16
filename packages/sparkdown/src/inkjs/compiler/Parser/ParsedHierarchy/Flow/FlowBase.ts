@@ -202,8 +202,18 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       // context.synth.raffles, picked up via FindAll(StructDefinition)),
       // not a single flat global, so this isn't a real collision. (Two
       // defines of the SAME type, or a define vs a plain var, still error.)
-      const newType = varDecl.structDefinition?.type?.name;
-      const existingType = varab.structDefinition?.type?.name;
+      // A ROOT define (`define image with …`) declares the type named after
+      // itself and carries no `structDefinition` (only typed `as T` defines
+      // do), so fall back to its own name as its type identity. This lets a
+      // builtin type (`image`) coexist with a same-named instance of another
+      // type (`style.image`, the style for image elements): the type keeps the
+      // flat global and the instance namespaces as `$style_image`.
+      const newType =
+        varDecl.structDefinition?.type?.name ??
+        (varDecl.isDefineDeclaration ? varDecl.variableName : undefined);
+      const existingType =
+        varab.structDefinition?.type?.name ??
+        (varab.isDefineDeclaration ? varab.variableName : undefined);
       if (
         varDecl.isDefineDeclaration &&
         varab.isDefineDeclaration &&
