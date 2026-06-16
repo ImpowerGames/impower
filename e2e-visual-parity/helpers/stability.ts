@@ -27,6 +27,15 @@ export async function awaitStable(page: Page, opts: { timeout?: number } = {}) {
     .waitFor({ state: "visible", timeout })
     .catch(() => {});
 
-  // 4. brief settle for late micro-task renders (skeletons unmounting, etc.).
+  // 4. if a script editor is on the page, wait for CodeMirror to mount — it
+  //    loads its document via an async message round-trip, so it appears after
+  //    the shell. Best-effort: scenarios without an editor just time out fast.
+  await page
+    .locator(".cm-content")
+    .first()
+    .waitFor({ state: "visible", timeout: 10_000 })
+    .catch(() => {});
+
+  // 5. brief settle for late micro-task renders (skeletons unmounting, etc.).
   await page.waitForTimeout(400);
 }
