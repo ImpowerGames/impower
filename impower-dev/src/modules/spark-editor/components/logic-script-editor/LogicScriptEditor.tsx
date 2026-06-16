@@ -213,6 +213,16 @@ export default function LogicScriptEditor({
       window.addEventListener(MessageProtocol.event, handleProtocol);
       detach = () =>
         window.removeEventListener(MessageProtocol.event, handleProtocol);
+
+      // Initial load — don't rely solely on ConnectedEditorMessage. The inner
+      // SparkdownScriptEditor mounts as a direct child, and its controller can
+      // emit ConnectedEditor before this listener attaches (its single dynamic
+      // import resolves faster than this effect's Promise.all of 7), so the
+      // one-shot would be missed and the editor would never receive a document.
+      // The proactive load covers the controller-ahead ordering; the
+      // ConnectedEditor handler above covers the controller-behind ordering.
+      // Mirrors PreviewScreenplay.
+      loadFile();
     })();
 
     return () => {
