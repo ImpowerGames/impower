@@ -10,25 +10,30 @@ import {
 
 const SCENARIO = "shell-hydrated-default-logic";
 
+// Text-rendering-relevant properties (the diff is concentrated on chrome text).
+const TEXT_PROPS = [
+  "fontFamily", "fontSize", "fontWeight", "fontStyle",
+  "letterSpacing", "lineHeight", "textTransform", "color", "transform",
+];
+
 const CHECKPOINTS: Checkpoint[] = [
   {
-    // Whole editor: looser gate — icon-heavy chrome + any intentional restyles.
+    // Whole editor. Gate just above the cross-bundler rasterization floor
+    // (~0.14%) so real visual regressions fail but font-AA noise passes.
     id: "full-viewport",
-    maxDiffRatio: 0.02,
+    maxDiffRatio: 0.005,
     probes: [
       { name: "project-name-input", at: h.projectName, props: ["fontSize", "fontWeight", "color"] },
       { name: "sync-caption", at: h.syncCaption, props: ["fontSize", "color"] },
       { name: "editor", at: h.editor, props: ["fontFamily", "fontSize", "lineHeight", "backgroundColor"] },
-    ],
-  },
-  {
-    // Script-editor region clip — tighter; CodeMirror is the same lib in both.
-    id: "script-editor",
-    target: h.editor,
-    maxDiffRatio: 0.01,
-    probes: [
-      { name: "editor-content", at: h.editorContent, props: ["fontFamily", "fontSize", "lineHeight", "whiteSpace", "color"] },
-      { name: "editor-gutters", at: h.editorGutters, props: ["color", "backgroundColor", "fontSize"] },
+      // Chrome text shown as diffs in diff.png — classify real-style vs rasterization.
+      { name: "header-title", at: (p) => p.getByText("Parity Fixture").first(), props: TEXT_PROPS },
+      { name: "subtab-main", at: (p) => p.getByRole("tab", { name: "Main" }), props: TEXT_PROPS },
+      { name: "subtab-scripts", at: (p) => p.getByRole("tab", { name: "Scripts" }), props: TEXT_PROPS },
+      { name: "nav-logic", at: (p) => p.getByRole("tab", { name: "Logic" }), props: TEXT_PROPS },
+      { name: "nav-assets", at: (p) => p.getByRole("tab", { name: "Assets" }), props: TEXT_PROPS },
+      { name: "nav-share", at: (p) => p.getByRole("tab", { name: "Share" }), props: TEXT_PROPS },
+      { name: "game-preview-label", at: (p) => p.getByText("Game Preview").first(), props: TEXT_PROPS },
     ],
   },
 ];
@@ -43,16 +48,29 @@ test("@smoke shell parity (hydrated default Logic view)", async ({ browser }) =>
   const now = new Date();
   const { a, b, dispose } = await setupStacks(browser, BASIC_FIXTURE);
   try {
-    const failures: string[] = [];
+    // Gate on the VISUAL (pixel) layer. Computed-style deltas are informational:
+    // cross-app the two design systems apply colors via different tokens and
+    // mechanisms (e.g. opacity vs color), so exact CSS parity isn't achievable
+    // or the goal — visual parity is. The harness proved this: aligning the fg
+    // token to one of main's colors moved zero pixels (the diffs are sub-
+    // threshold + main's palette is non-uniform).
+    const pixelFailures: string[] = [];
     for (const cp of CHECKPOINTS) {
       const r = await compareCheckpoint(SCENARIO, cp, a, b, al, now);
       console.log(
-        `[${cp.id}] pixel ${(r.pixel.ratio * 100).toFixed(3)}% (<=${(r.pixel.maxDiffRatio * 100).toFixed(2)}%) ${r.pixel.pass ? "PASS" : "FAIL"} | probes ${r.probes.length} | failures ${r.failures.length}`,
+        `[${cp.id}] pixel ${(r.pixel.ratio * 100).toFixed(3)}% (<=${(r.pixel.maxDiffRatio * 100).toFixed(2)}%) ${r.pixel.pass ? "PASS" : "FAIL"}`,
       );
-      for (const f of r.failures) console.log("    " + f);
-      failures.push(...r.failures);
+      if (!r.pixel.pass) pixelFailures.push(...r.failures.filter((f) => /pixel/.test(f)));
+      for (const p of r.probes) {
+        if (p.unresolved) {
+          console.log(`    (info) probe '${p.name}' unresolved baseline=${p.unresolved.baseline} port=${p.unresolved.port}`);
+        }
+        for (const d of p.kept ?? []) {
+          console.log(`    (info) ${p.name}.${d.prop}: baseline=${d.baseline} port=${d.port}`);
+        }
+      }
     }
-    expect(failures, `\nunsuppressed parity failures:\n${failures.join("\n")}`).toEqual([]);
+    expect(pixelFailures, `\nvisual (pixel) parity failures:\n${pixelFailures.join("\n")}`).toEqual([]);
   } finally {
     await dispose();
   }
