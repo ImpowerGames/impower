@@ -147,10 +147,13 @@ export default function SplitPane({
       )}
       <Group
         orientation={orientation}
-        defaultLayout={[defaultSizes[0], defaultSizes[1]]}
         className="flex flex-1 w-full h-full"
       >
-        <Panel minSize={minSize} className="overflow-hidden">
+        <Panel
+          defaultSize={defaultSizes[0]}
+          minSize={minSize}
+          className="overflow-hidden"
+        >
           {start}
         </Panel>
         <Separator
@@ -162,7 +165,11 @@ export default function SplitPane({
               : SEPARATOR_VERTICAL,
           )}
         />
-        <Panel minSize={minSize} className="overflow-hidden">
+        <Panel
+          defaultSize={defaultSizes[1]}
+          minSize={minSize}
+          className="overflow-hidden"
+        >
           {end}
         </Panel>
       </Group>

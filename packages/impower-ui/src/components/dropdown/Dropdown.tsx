@@ -81,10 +81,14 @@ export function DropdownItem({
   class: className,
   children,
   ...rest
-}: { class?: string; children?: ComponentChildren } & Omit<
-  JSX.HTMLAttributes<HTMLDivElement>,
-  "class"
->) {
+}: {
+  class?: string;
+  children?: ComponentChildren;
+  // Radix's onSelect (fires on item activation). Declared explicitly because
+  // preact's DOM `onSelect` (text-selection) has an incompatible signature;
+  // it's omitted from the spread below so radix's wins.
+  onSelect?: (event: Event) => void;
+} & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "onSelect">) {
   return (
     <DropdownMenuPrimitive.Item class={cn(dropdownItem(), className)} {...rest}>
       {children}
@@ -103,10 +107,11 @@ export function DropdownCheckboxItem({
   class?: string;
   checked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
+  onSelect?: (event: Event) => void;
   children?: ComponentChildren;
 } & Omit<
   JSX.HTMLAttributes<HTMLDivElement>,
-  "class" | "checked" | "onChange"
+  "class" | "checked" | "onChange" | "onSelect"
 >) {
   return (
     <DropdownMenuPrimitive.CheckboxItem

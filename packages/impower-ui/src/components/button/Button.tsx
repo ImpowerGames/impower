@@ -110,6 +110,10 @@ export type ButtonProps = Omit<
      *  doesn't accidentally submit ancestor forms. Ignored when `asChild`
      *  is true (the child element controls its own semantics). */
     type?: "button" | "submit" | "reset";
+    /** Disable the button. preact's generic HTMLAttributes doesn't include
+     *  `disabled`, so it's declared explicitly here; it's forwarded to the
+     *  underlying `<button>` (or slotted element) via `...rest`. */
+    disabled?: boolean;
     children?: ComponentChildren;
   };
 
