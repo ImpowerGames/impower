@@ -809,7 +809,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const easing = easingOverride ?? animation?.timing?.easing ?? "ease";
       const fill = animation?.timing?.fill ?? "none";
       const direction = animation?.timing?.direction ?? "normal";
-      const keyframes = animation?.keyframes;
+      // Authored `define X as animation with keyframes = {...}` lowers to a
+      // single keyframe OBJECT, not an array (e.g. pan_left/pan_right's
+      // `{ background_position: "left" }`). AnimationPlayer expects an array, so
+      // wrap a lone keyframe into a one-element array.
+      const rawKeyframes = animation?.keyframes;
+      const keyframes = Array.isArray(rawKeyframes)
+        ? rawKeyframes
+        : rawKeyframes != null
+          ? [rawKeyframes]
+          : [];
       const timing = {
         delay,
         duration,

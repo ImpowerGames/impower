@@ -30,21 +30,17 @@ export default class AnimationPlayer {
         // Defensive: an authored `define X as animation with keyframes = {...}`
         // can resolve to a non-array `keyframes` (object/undefined). Normalize so
         // one malformed animation can't throw and black out the whole preview.
+        // Defensive net: a lone keyframe object (e.g. authored
+        // `keyframes = {...}`) is one keyframe, not an array. The engine
+        // (getAnimationDefinition) already normalizes this; here we just avoid
+        // crashing if a non-array slips through.
         const rawKeyframes: unknown = (animation as { keyframes?: unknown })
           .keyframes;
         const keyframeList: any[] = Array.isArray(rawKeyframes)
           ? rawKeyframes
-          : rawKeyframes && typeof rawKeyframes === "object"
-            ? Object.values(rawKeyframes)
+          : rawKeyframes != null
+            ? [rawKeyframes]
             : [];
-        if (!Array.isArray(rawKeyframes)) {
-          console.warn(
-            "[AnimationPlayer] non-array keyframes for animation",
-            (animation as { $name?: string }).$name,
-            "→ normalized:",
-            rawKeyframes,
-          );
-        }
         keyframeList.forEach((keyframe) => {
           if (keyframe) {
             const convertedKeyframe: Keyframe = {};
