@@ -67,10 +67,17 @@ export interface UIHarness {
   snapshotFiltered(prefix: string): unknown[];
 }
 
+// PRELUDE=1 runs the golden-master against the builtins .sd PRELUDE (compiled
+// into the program) instead of the JS DEFAULT_BUILTIN_DEFINITIONS — to verify
+// the prelude reproduces the engine's behavior before deleting the JS builtins.
+const USE_BUILTINS_PRELUDE = process.env["PRELUDE"] === "1";
+
 export function compileUI(source: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    definitions: { builtins: DEFAULT_BUILTIN_DEFINITIONS as any },
+    ...(USE_BUILTINS_PRELUDE
+      ? { useBuiltinsPrelude: true }
+      : { definitions: { builtins: DEFAULT_BUILTIN_DEFINITIONS as any } }),
     files: [
       {
         uri: MAIN_URI,

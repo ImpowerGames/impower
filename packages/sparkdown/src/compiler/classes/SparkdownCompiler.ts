@@ -9,6 +9,7 @@ import "../../inkjs/engine/Container";
 import { parseSparkle } from "@impower/sparkle-screen-renderer/src/parser/parser";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
+import { BUILTINS_PRELUDE } from "../builtins/builtins";
 import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
@@ -75,6 +76,9 @@ import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
+// Synthetic URI for the bundled builtins prelude (registered as a document so
+// it can be parsed + auto-included; see config.useBuiltinsPrelude).
+const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 const VIEW_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.VIEW_DEFINE_TYPES || [];
 const STYLING_DEFINE_TYPES =
@@ -216,6 +220,12 @@ export class SparkdownCompiler {
       this._config.skipValidation = config.skipValidation;
     }
     if (
+      config.useBuiltinsPrelude !== undefined &&
+      config.useBuiltinsPrelude !== this._config.useBuiltinsPrelude
+    ) {
+      this._config.useBuiltinsPrelude = config.useBuiltinsPrelude;
+    }
+    if (
       config.workspace !== undefined &&
       config.workspace !== this._config.workspace
     ) {
@@ -269,6 +279,21 @@ export class SparkdownCompiler {
         }
         this.addFile({ file });
       }
+    }
+    // Register the bundled builtins prelude as a document so it can be parsed +
+    // auto-included into every program (see parseIncrementally).
+    if (
+      this._config.useBuiltinsPrelude &&
+      !this.documents.has(BUILTINS_PRELUDE_URI)
+    ) {
+      this.documents.add({
+        textDocument: {
+          uri: BUILTINS_PRELUDE_URI,
+          languageId: LANGUAGE_NAME,
+          version: 0,
+          text: BUILTINS_PRELUDE,
+        },
+      });
     }
     return LANGUAGE_NAME;
   }
@@ -463,7 +488,12 @@ export class SparkdownCompiler {
     // `currentParentUri` before each include descent.
     state.fileResolutionState = fileResolutionState;
 
-    this.populateBuiltins(state, program);
+    // The builtins prelude (config.useBuiltinsPrelude) supplies builtins as
+    // real defines compiled into the program (context + runtime), so the JS
+    // populateBuiltins path is skipped in that mode.
+    if (!this._config.useBuiltinsPrelude) {
+      this.populateBuiltins(state, program);
+    }
 
     try {
       profile("start", this._profilerId, "ink/parse", uri);
@@ -1022,6 +1052,26 @@ export class SparkdownCompiler {
     };
     for (const flow of topLevelFlowBaseObjs) {
       autoTerminate(flow);
+    }
+
+    // Implicitly include the builtins prelude at the TOP of the entry program
+    // so its `define`s populate program.context (via the chunk loop above) AND
+    // run first at global-init (the runtime __def tables). Guarded so the
+    // prelude doesn't include itself and includes don't double-add it.
+    if (
+      this._config.useBuiltinsPrelude &&
+      !isInclude &&
+      uri !== BUILTINS_PRELUDE_URI
+    ) {
+      const preludeStory = this.parseIncrementally(
+        BUILTINS_PRELUDE_URI,
+        fileHandler,
+        true,
+        state,
+        program,
+        onDiagnostic,
+      );
+      topLevelIncludedFileObjs.unshift(new IncludedFile(preludeStory));
     }
 
     const combinedParsedStory = new Story(

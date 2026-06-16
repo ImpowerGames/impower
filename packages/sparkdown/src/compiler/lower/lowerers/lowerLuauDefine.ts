@@ -103,6 +103,14 @@ function coerceScalarLiteral(raw: string): unknown {
   if (s === "true") return true;
   if (s === "false") return false;
   if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+  // A TYPED reference (`layer.instance`, `image.none`) is NOT a scalar string —
+  // let `expressionToContextValue` resolve it to a `{ $type, $name }` ref (the
+  // engine reads e.g. `animation.target.$name`). Without this it would be
+  // stored as the literal string "layer.instance" and `.$name` would be
+  // undefined. (Checked after the number rule so `1.5` stays a number.)
+  if (/^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$/.test(s)) {
+    return undefined;
+  }
   // A bare identifier / reference / call is not a literal we can store.
   if (/[()]/.test(s)) return undefined;
   return s;
