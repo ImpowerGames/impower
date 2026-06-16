@@ -14,11 +14,19 @@ export interface PixelResult {
   diff?: PNG;
 }
 
-/** Live A/B pixel comparison (§7). */
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Live A/B pixel comparison (§7). `suppressRects` (allowlist pixel regions) are
+ * painted identical in both images before diffing, so they contribute zero. */
 export function comparePixels(
   aBuf: Buffer,
   bBuf: Buffer,
-  opts: { threshold?: number; includeAA?: boolean } = {},
+  opts: { threshold?: number; includeAA?: boolean; suppressRects?: Rect[] } = {},
 ): PixelResult {
   const a = PNG.sync.read(aBuf);
   const b = PNG.sync.read(bBuf);
@@ -30,6 +38,21 @@ export function comparePixels(
       ratio: 1,
       sizeMismatch: { a: [a.width, a.height], b: [b.width, b.height] },
     };
+  }
+  for (const r of opts.suppressRects ?? []) {
+    const x0 = Math.max(0, Math.floor(r.x));
+    const y0 = Math.max(0, Math.floor(r.y));
+    const x1 = Math.min(a.width, Math.ceil(r.x + r.width));
+    const y1 = Math.min(a.height, Math.ceil(r.y + r.height));
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const i = (a.width * y + x) << 2;
+        a.data[i] = b.data[i] = 0;
+        a.data[i + 1] = b.data[i + 1] = 0;
+        a.data[i + 2] = b.data[i + 2] = 0;
+        a.data[i + 3] = b.data[i + 3] = 255;
+      }
+    }
   }
   const diff = new PNG({ width: a.width, height: a.height });
   const mismatch = pixelmatch(a.data, b.data, diff.data, a.width, a.height, {
