@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { BASIC_FIXTURE } from "../fixtures/basic";
+import { MULTI_FIXTURE } from "../fixtures/multi";
 import { loadAllowlist } from "../helpers/allowlist";
 import { h } from "../helpers/handles";
 import {
@@ -64,6 +65,27 @@ test("@views Share view", async ({ browser }) => {
   try {
     await clickBoth(a, b, async (sp) => h.bottomTab(sp.page, "Share").click());
     await discover("share-view", a, b);
+  } finally {
+    await dispose();
+  }
+});
+
+// Populated project: multiple scripts + assets, to exercise list/row rendering.
+test("@views Assets view (populated)", async ({ browser }) => {
+  const { a, b, dispose } = await setupStacks(browser, MULTI_FIXTURE);
+  try {
+    await clickBoth(a, b, async (sp) => h.bottomTab(sp.page, "Assets").click());
+    await discover("assets-populated", a, b);
+  } finally {
+    await dispose();
+  }
+});
+
+test("@views Scripts list (populated)", async ({ browser }) => {
+  const { a, b, dispose } = await setupStacks(browser, MULTI_FIXTURE);
+  try {
+    await clickBoth(a, b, async (sp) => h.subTab(sp.page, "Scripts").click());
+    await discover("scripts-populated", a, b);
   } finally {
     await dispose();
   }
