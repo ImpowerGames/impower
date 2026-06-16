@@ -1,19 +1,25 @@
-// Regression: authored animations inherit `fill: "both"` from default_animation.
+// Regression: `define X as animation` inherits the animation type's defaults.
 //
-// An animation authored as `define X as animation with keyframes = {...}` does
-// NOT pass through the `default_animation` constructor (only the builtins in
-// uiBuiltinDefinitions do), so it reaches `context.animation` with NO `timing`
-// block. `getAnimationDefinition` must still default its fill to "both"
-// (matching `default_animation`) so the animated end-state PERSISTS — e.g.
-// `pan_right` keeps the backdrop panned instead of WAAPI reverting
-// `background-position` to its base when the animation completes (fill: "none").
+// `define X as <type>` is inheritance — X should inherit <type>'s `$default`
+// property values. The compiler bakes this into `program.context` (see
+// SparkdownCompiler.populateDefinedDefaultProperties): the type's `$default`
+// (with `timing.fill: "both"`, easing, etc.) is deep-merged UNDER every
+// authored instance. So an authored animation with no `timing` block still
+// resolves with `fill: "both"`, and `getAnimationDefinition` reads it straight
+// off the struct — no per-consumer default needed.
 //
-// The companion case guards against over-correcting: a builtin that explicitly
-// sets `fill: "none"` (e.g. `shake`) must keep "none" — the default is a
-// fallback, not a blanket override.
+// Without that inheritance, `pan_right` reached the renderer with `fill:"none"`
+// and WAAPI reverted `background-position` to base on completion (backdrop
+// snapped back instead of staying panned).
+//
+// Two layers are covered:
+//   - compiler: the resolved context struct carries inherited timing (incl. a
+//     deep-merge that preserves sibling timing fields under a partial override);
+//   - end-to-end: the engine emits that inherited `fill` in the ui/write-image
+//     stream, while a builtin's explicit `fill: "none"` (shake) is untouched.
 
 import { describe, expect, test } from "vitest";
-import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
+import { compileUI, createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const DEFS = `define BG as image with
   src = "https://example.com/bg.png"
@@ -22,6 +28,15 @@ end
 define pan_right as animation with
   keyframes = {
     background_position = "right"
+  }
+end
+
+define slow_pan as animation with
+  keyframes = {
+    background_position = "right"
+  }
+  timing = {
+    duration = "3s"
   }
 end
 
@@ -62,15 +77,49 @@ function findAnimateAnimation(harness: Awaited<ReturnType<typeof runInstant>>) {
   return animateInstr.targetAnimations[0];
 }
 
-describe("authored animation fill inheritance", () => {
-  test("`define X as animation` with no timing inherits fill: both", async () => {
+describe("authored define inherits its type's $default (compiler)", () => {
+  test("`define X as animation` with no timing inherits the full default timing", () => {
+    const { program } = compileUI(story(`  [[show backdrop BG]]`));
+    const panRight = (program as any).context?.animation?.["pan_right"];
+    expect(panRight).toBeDefined();
+    // Inherited from the animation type's $default:
+    expect(panRight.timing).toMatchObject({
+      delay: 0,
+      duration: 0,
+      easing: "ease",
+      iterations: 1,
+      fill: "both",
+      direction: "normal",
+    });
+    expect(panRight.target).toEqual({ $type: "layer", $name: "self" });
+    // Authored value is preserved (not clobbered by the default's empty array).
+    expect(panRight.keyframes).toMatchObject({ background_position: "right" });
+  });
+
+  test("partial `timing` deep-merges: authored field wins, siblings inherited", () => {
+    const { program } = compileUI(story(`  [[show backdrop BG]]`));
+    const slowPan = (program as any).context?.animation?.["slow_pan"];
+    expect(slowPan).toBeDefined();
+    expect(slowPan.timing).toMatchObject({
+      duration: "3s", // authored override wins
+      delay: 0, // inherited
+      easing: "ease", // inherited
+      iterations: 1, // inherited
+      fill: "both", // inherited (the bug: previously dropped)
+      direction: "normal", // inherited
+    });
+  });
+});
+
+describe("authored animation fill (end-to-end stream)", () => {
+  test("authored `pan_right` reaches the renderer with inherited fill: both", async () => {
     const harness = await runInstant(
       `  [[show backdrop BG]]\n  [[animate backdrop with pan_right]]`,
     );
     const anim = findAnimateAnimation(harness);
     expect(anim.$name).toBe("pan_right");
-    // The fix: authored animations persist their end state by default, so the
-    // backdrop stays panned instead of snapping back.
+    // The end state persists, so the backdrop stays panned instead of snapping
+    // back. Sourced from the inherited timing, not a consumer-side guess.
     expect(anim.timing.fill).toBe("both");
     // The keyframe-wrap: a lone authored keyframe object becomes a one-element
     // array (AnimationPlayer expects an array).
@@ -78,7 +127,7 @@ describe("authored animation fill inheritance", () => {
     expect(anim.keyframes).toHaveLength(1);
   });
 
-  test("builtin with explicit fill: none is left unchanged (targeted fallback)", async () => {
+  test("builtin with explicit fill: none is left unchanged (shake)", async () => {
     const harness = await runInstant(
       `  [[show backdrop BG]]\n  [[animate backdrop with shake]]`,
     );

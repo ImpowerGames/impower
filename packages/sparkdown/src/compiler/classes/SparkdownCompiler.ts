@@ -1579,19 +1579,91 @@ export class SparkdownCompiler {
   ) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateDefinedDefaultProperties", uri);
-    if (state.defaultDefinitions) {
-      for (const [defaultType, defaultStruct] of Object.entries(
-        state.defaultDefinitions,
-      )) {
-        const structs = program.context?.[defaultType];
-        if (structs) {
-          for (const [name, struct] of Object.entries(structs)) {
-            structs[name] = { ...defaultStruct, ...struct };
+    // `define X as <type>` is inheritance: X must inherit <type>'s default
+    // property values. The type's effective default lives in context under the
+    // reserved `$default` name (the builtin placed by `populateBuiltins`,
+    // possibly overridden by an authored `define $default as <type>`). Deep-
+    // merge it UNDER every authored instance of that type so omitted (incl.
+    // nested) properties fall back to the default — e.g. an authored
+    // `define pan_right as animation with keyframes = {...}` (no `timing`
+    // block) inherits the animation type's `timing` (delay/duration/easing/
+    // fill/…), and a partial `timing = { duration = "3s" }` keeps the other
+    // timing fields instead of dropping them.
+    //
+    // (The legacy `state.defaultDefinitions` source for this merge was never
+    // populated anywhere, so this inheritance previously didn't happen and
+    // consumers had to re-specify type defaults themselves.)
+    const context = program.context;
+    if (context) {
+      for (const structs of Object.values(context)) {
+        const defaultStruct = (structs as Record<string, any>)?.["$default"];
+        if (!defaultStruct || typeof defaultStruct !== "object") {
+          continue;
+        }
+        for (const [name, struct] of Object.entries(structs)) {
+          // Reserved meta entries ($default, $optional, $optional:<name>,
+          // $schema, $recursive, …) describe the type, not instances — never
+          // merge into them.
+          if (name.startsWith("$")) {
+            continue;
           }
+          if (!struct || typeof struct !== "object" || Array.isArray(struct)) {
+            continue;
+          }
+          (structs as Record<string, any>)[name] = this.inheritDefaults(
+            defaultStruct,
+            struct,
+          );
         }
       }
     }
     profile("end", this._profilerId, "populateDefinedDefaultProperties", uri);
+  }
+
+  /** Deep-merge `override` ONTO `base`: `override` wins, `base` fills gaps, and
+   *  nested plain objects merge recursively (arrays and primitives are replaced
+   *  wholesale by `override`). Used to inherit a type's `$default` into an
+   *  authored define without clobbering sibling fields of nested objects. */
+  inheritDefaults(base: any, override: any): any {
+    if (
+      base == null ||
+      typeof base !== "object" ||
+      Array.isArray(base) ||
+      override == null ||
+      typeof override !== "object" ||
+      Array.isArray(override)
+    ) {
+      return override;
+    }
+    const result: Record<string, any> = {};
+    // Inherit `base`'s properties EXCEPT reserved `$`-prefixed metadata
+    // ($type / $name / $recursive / …). Those describe identity and type-level
+    // behavior and must come from the instance itself — leaking `$default`'s
+    // (e.g. `$recursive: true`, or `$name: "$default"`) onto every instance
+    // would corrupt them. The instance carries its own `$type`/`$name`, which
+    // the override pass below preserves.
+    for (const [k, bv] of Object.entries(base)) {
+      if (k.startsWith("$")) {
+        continue;
+      }
+      result[k] = bv;
+    }
+    for (const [k, v] of Object.entries(override)) {
+      const bv = (base as Record<string, any>)[k];
+      if (
+        bv != null &&
+        typeof bv === "object" &&
+        !Array.isArray(bv) &&
+        v != null &&
+        typeof v === "object" &&
+        !Array.isArray(v)
+      ) {
+        result[k] = this.inheritDefaults(bv, v);
+      } else {
+        result[k] = v;
+      }
+    }
+    return result;
   }
 
   getPropertyPath(
