@@ -1245,6 +1245,15 @@
         },
         {
           "include": "#SceneWithoutParametersDeclaration"
+        },
+        {
+          "include": "#SparkdownLineComment"
+        },
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Unknown"
         }
       ],
       "end": "$"
@@ -1330,6 +1339,9 @@
       },
       "patterns": [
         {
+          "include": "#SparkdownLineComment"
+        },
+        {
           "include": "#Annotation"
         },
         {
@@ -1337,6 +1349,9 @@
         },
         {
           "include": "#BranchWithoutParametersDeclaration"
+        },
+        {
+          "include": "#Unknown"
         }
       ],
       "end": "$"
