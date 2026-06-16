@@ -80,10 +80,20 @@ export interface CheckpointResult {
   failures: string[];
 }
 
-/** Seed + settle + freeze both stacks for a scenario. */
-export async function setupStacks(browser: Browser, fixture: Fixture) {
+/** Seed + settle + freeze both stacks for a scenario. Pass `opts.viewport` to
+ *  override the default desktop viewport (e.g. the mobile <960px layout) —
+ *  `CONTEXT_OPTS` hard-codes desktop, so a Playwright project viewport alone
+ *  wouldn't take effect here. */
+export async function setupStacks(
+  browser: Browser,
+  fixture: Fixture,
+  opts?: { viewport?: { width: number; height: number } },
+) {
   const setup = async (stack: Stack): Promise<StackPage> => {
-    const ctx = await browser.newContext(CONTEXT_OPTS);
+    const ctx = await browser.newContext({
+      ...CONTEXT_OPTS,
+      ...(opts?.viewport ? { viewport: opts.viewport } : {}),
+    });
     await ctx.addInitScript(initScript);
     const page = await ctx.newPage();
     await seedProject(page, stack.origin, fixture);

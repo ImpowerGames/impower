@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { MOBILE_VIEWPORT } from "../parity.config";
 import { BASIC_FIXTURE } from "../fixtures/basic";
 import { MULTI_FIXTURE } from "../fixtures/multi";
 import { loadAllowlist } from "../helpers/allowlist";
 import { h } from "../helpers/handles";
 import {
+  type Checkpoint,
   compareCheckpoint,
   setupStacks,
   type StackPage,
@@ -49,6 +51,34 @@ async function gate(scenario: string, a: StackPage, b: StackPage, maxDiffRatio: 
   return r;
 }
 
+/**
+ * Gate a checkpoint on BOTH pixel AND computed-style probes — the pattern that
+ * catches small-element typography/border/layout diffs the whole-viewport pixel
+ * ratio dilutes below its threshold (the class of bug the manual review caught
+ * that this suite originally missed). `r.failures` already merges pixel +
+ * unsuppressed style deltas.
+ */
+async function gateCheckpoint(
+  scenario: string,
+  a: StackPage,
+  b: StackPage,
+  cp: Checkpoint,
+) {
+  const r = await compareCheckpoint(scenario, cp, a, b, loadAllowlist(), new Date());
+  const px = r.pixel.sizeMismatch ? "SIZE MISMATCH" : `${(r.pixel.ratio * 100).toFixed(3)}%`;
+  console.log(`[${scenario}] pixel ${px} (gate ${((cp.maxDiffRatio ?? 0) * 100).toFixed(2)}%) + ${cp.probes?.length ?? 0} style probe(s)`);
+  for (const p of r.probes) {
+    if (p.unresolved) {
+      console.log(`    (FAIL) probe '${p.name}' unresolved baseline=${p.unresolved.baseline} port=${p.unresolved.port}`);
+    }
+    for (const d of p.kept ?? []) {
+      console.log(`    (FAIL) ${p.name}.${d.prop}: baseline=${d.baseline} port=${d.port}`);
+    }
+  }
+  expect(r.failures, `\n[${scenario}] parity failures (pixel + style):\n${r.failures.join("\n")}`).toEqual([]);
+  return r;
+}
+
 test("@views Assets view", async ({ browser }) => {
   const { a, b, dispose } = await setupStacks(browser, BASIC_FIXTURE);
   try {
@@ -73,10 +103,62 @@ test("@views Share view", async ({ browser }) => {
   const { a, b, dispose } = await setupStacks(browser, BASIC_FIXTURE);
   try {
     await clickBoth(a, b, async (sp) => h.bottomTab(sp.page, "Share").click());
-    // Higher gate: share has the most right-aligned chrome (export rows + the
-    // outlined Publish button), so the 4px SplitPane separator residual + text
-    // floor land it around 0.556%.
-    await gate("share-view", a, b, 0.008);
+    // Pixel gate (0.8% — share has the most right-aligned chrome + the 4px
+    // SplitPane separator residual) PLUS computed-style probes on the two
+    // widgets whose typography/border diffs slipped past the whole-viewport
+    // pixel floor in the original suite:
+    //   - Publish button (outlined CTA): font-size/weight, box height, corner
+    //     radius, all 4 border widths + color. (width omitted — the 4px pane
+    //     residual is a known separator artifact.)
+    //   - export rows: font-weight/size/color (the rows were 500 vs main's 400).
+    await gateCheckpoint("share-view", a, b, {
+      id: "full",
+      maxDiffRatio: 0.008,
+      probes: [
+        {
+          name: "publish-button",
+          at: (p) => p.getByRole("button", { name: /publish/i }),
+          props: [
+            "fontSize", "fontWeight", "lineHeight", "height",
+            "paddingTop", "paddingBottom", "paddingLeft", "paddingRight",
+            "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+            "borderTopColor", "borderRadius", "color",
+          ],
+        },
+        {
+          name: "export-row",
+          at: (p) => p.getByText("Spark Cartridge"),
+          props: ["fontSize", "fontWeight", "lineHeight", "color"],
+        },
+      ],
+    });
+  } finally {
+    await dispose();
+  }
+});
+
+// Mobile (<960px) layout — the entire responsive breakpoint the desktop-only
+// suite never rendered. This is a PORT-SIDE guard rather than a cross-app diff:
+// the baseline's preview-toggle is an icon-only <s-button> with an empty
+// accessible name (its label lives in shadow DOM), so it isn't cleanly
+// targetable in-harness at mobile width. The reference is unambiguous though —
+// main lays the icon+label in a horizontal row (sparkle `--_child-layout:row`),
+// so we assert the port toggle is `flex-direction:row`. The original bug
+// rendered it `column` (icon stacked over text); this fails if it regresses.
+test("@mobile @views Preview-toggle is a horizontal row (port, <960px)", async ({ browser }) => {
+  const { b, dispose } = await setupStacks(browser, BASIC_FIXTURE, {
+    viewport: MOBILE_VIEWPORT,
+  });
+  try {
+    const toggle = b.page.getByRole("button", { name: "Toggle Preview" });
+    await expect(toggle).toBeVisible();
+    const flexDirection = await toggle.evaluate(
+      (el) => getComputedStyle(el).flexDirection,
+    );
+    expect(
+      flexDirection,
+      "preview-toggle must lay icon+label in a row like main (was column)",
+    ).toBe("row");
   } finally {
     await dispose();
   }

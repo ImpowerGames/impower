@@ -31,9 +31,15 @@ export const PORT = {
 export type Stack = typeof BASELINE | typeof PORT;
 export const STACKS: Stack[] = [BASELINE, PORT];
 
+/** Desktop viewport (the default gated layout). */
+export const DESKTOP_VIEWPORT = { width: 1280, height: 800 };
+/** Mobile viewport (<960px) — the collapsed single-pane layout where the
+ *  preview-toggle button and other responsive-only chrome appear. */
+export const MOBILE_VIEWPORT = { width: 390, height: 844 };
+
 /** Context options shared by both A/B contexts (mirrors playwright.config `use`). */
 export const CONTEXT_OPTS = {
-  viewport: { width: 1280, height: 800 },
+  viewport: DESKTOP_VIEWPORT,
   deviceScaleFactor: 1,
   colorScheme: "dark" as const,
   reducedMotion: "reduce" as const,
@@ -66,7 +72,10 @@ export const BASE_PROPS = [
   "color", "backgroundColor", "opacity",
   "fontFamily", "fontSize", "fontWeight", "lineHeight",
   "letterSpacing", "textAlign", "textTransform",
-  "borderTopWidth", "borderColor", "borderStyle", "borderRadius",
+  // All four border widths — a left/right/bottom-only change (e.g. an
+  // outline-thickness regression) hides if we read only the top edge.
+  "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth",
+  "borderColor", "borderStyle", "borderRadius",
   "boxShadow", "transform", "zIndex", "overflow",
 ];
 
