@@ -11,10 +11,14 @@ import {
 import { awaitStable } from "../helpers/stability";
 
 /**
- * Breadth-discovery scenarios: navigate both stacks to a view, capture + measure
- * the diff (artifacts written), but DON'T hard-gate yet — the point is to find
- * where the port diverges more from main so we know where the real parity work
- * is. Tagged @views (excluded from @smoke).
+ * Per-view parity gates. These started as breadth-discovery scenarios (find
+ * where the port diverges from main); now that the divergences they surfaced
+ * are fixed — the drawer width, the scrollbar-gutter content offset — each one
+ * GATES on the pixel diff so a regression fails CI. Tagged @views (excluded
+ * from @smoke). Thresholds are ~1.5x the measured-stable ratio: tight enough to
+ * catch a real regression, loose enough for cross-machine font-AA variance.
+ * (The residual is the cross-bundler text-rasterization floor — see shell.spec
+ * for why ~0.14% is the practical minimum.)
  */
 async function clickBoth(a: StackPage, b: StackPage, locate: (sp: StackPage) => Promise<void>) {
   for (const sp of [a, b]) {
@@ -23,10 +27,10 @@ async function clickBoth(a: StackPage, b: StackPage, locate: (sp: StackPage) => 
   }
 }
 
-async function discover(scenario: string, a: StackPage, b: StackPage) {
+async function gate(scenario: string, a: StackPage, b: StackPage, maxDiffRatio: number) {
   const r = await compareCheckpoint(
     scenario,
-    { id: "full", maxDiffRatio: 1 }, // discovery: never gate on ratio
+    { id: "full", maxDiffRatio },
     a,
     b,
     loadAllowlist(),
@@ -34,8 +38,14 @@ async function discover(scenario: string, a: StackPage, b: StackPage) {
   );
   const px = r.pixel.sizeMismatch
     ? `SIZE MISMATCH ${r.pixel.sizeMismatch.a.join("x")} vs ${r.pixel.sizeMismatch.b.join("x")}`
-    : `${(r.pixel.ratio * 100).toFixed(3)}% mismatch`;
-  console.log(`[${scenario}] ${px}`);
+    : `${(r.pixel.ratio * 100).toFixed(3)}%`;
+  console.log(
+    `[${scenario}] pixel ${px} (<=${(maxDiffRatio * 100).toFixed(2)}%) ${r.pixel.pass ? "PASS" : "FAIL"}`,
+  );
+  expect(
+    r.pixel.pass,
+    `[${scenario}] pixel ${px} exceeded gate ${(maxDiffRatio * 100).toFixed(2)}%`,
+  ).toBe(true);
   return r;
 }
 
@@ -43,8 +53,7 @@ test("@views Assets view", async ({ browser }) => {
   const { a, b, dispose } = await setupStacks(browser, BASIC_FIXTURE);
   try {
     await clickBoth(a, b, async (sp) => h.bottomTab(sp.page, "Assets").click());
-    const r = await discover("assets-view", a, b);
-    expect(r.pixel.mismatch).not.toBe(-1); // both captured at equal size (or logged)
+    await gate("assets-view", a, b, 0.006);
   } finally {
     await dispose();
   }
@@ -54,7 +63,7 @@ test("@views Scripts list view", async ({ browser }) => {
   const { a, b, dispose } = await setupStacks(browser, BASIC_FIXTURE);
   try {
     await clickBoth(a, b, async (sp) => h.subTab(sp.page, "Scripts").click());
-    await discover("scripts-view", a, b);
+    await gate("scripts-view", a, b, 0.006);
   } finally {
     await dispose();
   }
@@ -64,7 +73,10 @@ test("@views Share view", async ({ browser }) => {
   const { a, b, dispose } = await setupStacks(browser, BASIC_FIXTURE);
   try {
     await clickBoth(a, b, async (sp) => h.bottomTab(sp.page, "Share").click());
-    await discover("share-view", a, b);
+    // Higher gate: share has the most right-aligned chrome (export rows + the
+    // outlined Publish button), so the 4px SplitPane separator residual + text
+    // floor land it around 0.556%.
+    await gate("share-view", a, b, 0.008);
   } finally {
     await dispose();
   }
@@ -77,7 +89,7 @@ test("@views Header menu drawer", async ({ browser }) => {
     await clickBoth(a, b, async (sp) =>
       sp.page.getByRole("button", { name: "Open Menu" }).click(),
     );
-    await discover("menu-drawer", a, b);
+    await gate("menu-drawer", a, b, 0.0045);
   } finally {
     await dispose();
   }
@@ -114,7 +126,7 @@ test.fixme(
           .catch(() => {});
         await sp.page.waitForTimeout(1500);
       }
-      await discover("preview-screenplay", a, b);
+      await gate("preview-screenplay", a, b, 1); // fixme: baseline-side, non-gating
     } finally {
       await dispose();
     }
@@ -143,7 +155,7 @@ test.fixme(
           .catch(() => {});
         await sp.page.waitForTimeout(150);
       }
-      await discover("file-options-menu", a, b);
+      await gate("file-options-menu", a, b, 1); // fixme: baseline-side, non-gating
     } finally {
       await dispose();
     }
@@ -155,7 +167,7 @@ test("@views Assets view (populated)", async ({ browser }) => {
   const { a, b, dispose } = await setupStacks(browser, MULTI_FIXTURE);
   try {
     await clickBoth(a, b, async (sp) => h.bottomTab(sp.page, "Assets").click());
-    await discover("assets-populated", a, b);
+    await gate("assets-populated", a, b, 0.004);
   } finally {
     await dispose();
   }
@@ -165,7 +177,7 @@ test("@views Scripts list (populated)", async ({ browser }) => {
   const { a, b, dispose } = await setupStacks(browser, MULTI_FIXTURE);
   try {
     await clickBoth(a, b, async (sp) => h.subTab(sp.page, "Scripts").click());
-    await discover("scripts-populated", a, b);
+    await gate("scripts-populated", a, b, 0.004);
   } finally {
     await dispose();
   }
