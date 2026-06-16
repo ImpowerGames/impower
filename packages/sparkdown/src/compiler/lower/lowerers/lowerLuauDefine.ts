@@ -23,6 +23,7 @@ import { LowerContext, SiblingSubFlowInfo } from "../context";
 import {
   buildClosureExpression,
   lowerExpressionFromContainer,
+  processLuauEscapes,
   scanFreeVariables,
 } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
@@ -94,11 +95,15 @@ function coerceScalarLiteral(raw: string): unknown {
   const s = raw.trim();
   if (!s || s.includes("\n")) return undefined;
   if (s.startsWith("{") || s.startsWith("[")) return undefined;
+  // Unescape Luau string-literal escapes (\\, \", \n, \xNN, …) so the context
+  // value matches the runtime string (the StringExpression path already runs
+  // processLuauEscapes). Without this, e.g. a prosody regex `"/(?:^|\\b).../"`
+  // reaches context doubly-escaped and the engine builds an invalid RegExp.
   if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
-    return s.slice(1, -1);
+    return processLuauEscapes(s.slice(1, -1));
   }
   if (s.length >= 2 && s.startsWith("'") && s.endsWith("'")) {
-    return s.slice(1, -1);
+    return processLuauEscapes(s.slice(1, -1));
   }
   if (s === "true") return true;
   if (s === "false") return false;

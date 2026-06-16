@@ -1821,7 +1821,7 @@ function lowerString(node: SyntaxNode, ctx: LowerContext): Expression {
 // (`\\`), brace (`\{`), and `\z` (skip following whitespace),
 // plus numeric (`\ddd`), hex (`\xHH`), and Unicode (`\u{HHHH}`)
 // forms. Unknown escapes pass the following character through.
-function processLuauEscapes(s: string): string {
+export function processLuauEscapes(s: string): string {
   let out = "";
   let i = 0;
   while (i < s.length) {
