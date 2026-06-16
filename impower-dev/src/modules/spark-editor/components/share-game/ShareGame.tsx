@@ -36,7 +36,7 @@ const TARGETS: Target[] = [
  */
 export default function ShareGame(_props: ShareGameProps) {
   return (
-    <div class="absolute inset-0 flex flex-col overflow-y-auto py-4">
+    <div class="absolute inset-0 flex flex-col overflow-y-auto [scrollbar-gutter:stable] py-4">
       <nav class="flex flex-col">
         {TARGETS.map((t) => {
           const Icon = t.icon;

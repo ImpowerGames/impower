@@ -87,7 +87,7 @@ export default function ShareScreenplay(_props: ShareScreenplayProps) {
   };
 
   return (
-    <div class="absolute inset-0 flex flex-col overflow-y-auto py-4">
+    <div class="absolute inset-0 flex flex-col overflow-y-auto [scrollbar-gutter:stable] py-4">
       <nav class="flex flex-col">
         {ROWS.map((row) => {
           const Icon = row.icon;

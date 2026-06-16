@@ -204,7 +204,7 @@ export default function FileList({
     <div class="relative flex h-full w-full flex-col">
       <div
         ref={scrollRef}
-        class="relative flex-1 overflow-auto pt-4 pb-24"
+        class="relative flex-1 overflow-auto [scrollbar-gutter:stable] pt-4 pb-24"
       >
         {isEmpty ? (
           <div class="flex h-full flex-col">{emptyState}</div>
