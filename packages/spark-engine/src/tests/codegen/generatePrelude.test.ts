@@ -12,10 +12,14 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { DEFAULT_BUILTIN_DEFINITIONS } from "../../game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { serializeBuiltinsToPrelude } from "../../codegen/serializeBuiltinsToPrelude";
 
-const OUT = resolve(
+const BUILTINS_DIR = resolve(
   __dirname,
-  "../../../../sparkdown/src/compiler/builtins/builtins.sd",
+  "../../../../sparkdown/src/compiler/builtins",
 );
+const OUT = resolve(BUILTINS_DIR, "builtins.sd");
+// Importable wrapper (esbuild/vite/node-safe) — the compiler imports this; the
+// .sd is the human-editable source. Re-run this codegen after editing the .sd.
+const OUT_TS = resolve(BUILTINS_DIR, "builtins.ts");
 
 describe("generate builtins prelude", () => {
   test("serialize + compile-check + write", () => {
@@ -74,7 +78,16 @@ describe("generate builtins prelude", () => {
       `// program.context (LSP) and the runtime __def tables (engine).\n` +
       `//\n` +
       `// Originally generated from DEFAULT_BUILTIN_DEFINITIONS; hand-maintainable.\n\n`;
-    writeFileSync(OUT, header + prelude, "utf8");
-    console.log("wrote", OUT);
+    const sdContent = header + prelude;
+    writeFileSync(OUT, sdContent, "utf8");
+    writeFileSync(
+      OUT_TS,
+      `// GENERATED from builtins.sd — do not hand-edit. Edit builtins.sd and\n` +
+        `// re-run the prelude codegen. (esbuild can't import .sd raw, so the\n` +
+        `// compiler imports this string wrapper — same pattern as the grammar JSON.)\n` +
+        `export const BUILTINS_PRELUDE = ${JSON.stringify(sdContent)};\n`,
+      "utf8",
+    );
+    console.log("wrote", OUT, "and", OUT_TS);
   });
 });
