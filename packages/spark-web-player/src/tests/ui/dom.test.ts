@@ -70,6 +70,104 @@ describe("dom render", () => {
   });
 });
 
+// Step-1 (D15) image oracle: covers the relocated hide / crossfade / layered /
+// animate paths the single `image show` test above did not. Driven against the
+// PRE-D15 engine (which builds the image DOM engine-side) to capture the
+// baseline DOM the renderer-side D15 realization must reproduce.
+//
+// A second `portrait` layer (with two `image` content slots, one per asset) and
+// extra image defs (BG2 / SPRITE / SHADOW) give the multi-asset + crossfade
+// scenarios real targets. `[[show ...]]` / `[[hide ...]]` / `[[animate ...]]`
+// directives mirror the Layer-2 `image.test.ts` fixtures.
+const IMAGE_SCREEN = `define BG as image with
+  src = "https://example.com/bg.png"
+end
+
+define BG2 as image with
+  src = "https://example.com/bg2.png"
+end
+
+define SPRITE as image with
+  src = "https://example.com/hero.png"
+end
+
+define SHADOW as image with
+  src = "https://example.com/shadow.png"
+end
+
+screen main with
+  stage:
+    backdrop:
+      image
+    portrait:
+      image
+end
+`;
+
+function imageStory(body: string) {
+  return `${IMAGE_SCREEN}\n-> start\n\nscene start\n${body}\nend\n`;
+}
+
+async function runImageBeats(body: string) {
+  const harness = createDOMHarness(imageStory(body));
+  await harness.ready;
+  harness.jumpTo("start");
+  let beat = harness.nextBeat();
+  while (beat) {
+    await harness.display(beat, true);
+    await flushMicrotasks();
+    beat = harness.nextBeat();
+  }
+  return harness;
+}
+
+describe("dom render · image lifecycle", () => {
+  test("image hide clears the backdrop layer", async () => {
+    const harness = await runImageBeats(
+      `  [[show backdrop BG]]\n  [[hide backdrop]]`,
+    );
+    expect(harness.snapshotDOM()).toMatchSnapshot();
+  });
+
+  test("crossfade: show BG then BG2 leaves only the new layer", async () => {
+    const harness = await runImageBeats(
+      `  [[show backdrop BG]]\n  [[show backdrop BG2]]`,
+    );
+    expect(harness.snapshotDOM()).toMatchSnapshot();
+  });
+
+  test("layered images stack background-image on one span", async () => {
+    const harness = await runImageBeats(`  [[show portrait SPRITE+SHADOW]]`);
+    expect(harness.snapshotDOM()).toMatchSnapshot();
+  });
+
+  test("image animate keeps the shown layer", async () => {
+    const harness = await runImageBeats(
+      `  [[show portrait SPRITE]]\n  [[animate portrait with shake]]`,
+    );
+    expect(harness.snapshotDOM()).toMatchSnapshot();
+  });
+
+  // Regression guard for the D15 code-review finding: a hide carrying an asset
+  // builds a transient `instance` span, fades it, then must DESTROY it (the
+  // pre-D15 engine destroyed every faded exit element; it left the previously
+  // shown layer alone). So hide-with-asset must NOT increase the layer count vs
+  // the show alone — a leaked transient span would. The assetless `[[hide
+  // backdrop]]` path never builds a span, so it could not catch the leak.
+  test("asset-bearing hide destroys its transient layer (no leak)", async () => {
+    const shown = await runImageBeats(`  [[show backdrop BG]]`);
+    const shownCount =
+      shown.overlay.querySelectorAll(".backdrop .instance").length;
+    const hidden = await runImageBeats(
+      `  [[show backdrop BG]]\n  [[hide backdrop BG]]`,
+    );
+    expect(
+      hidden.overlay.querySelectorAll(".backdrop .instance").length,
+    ).toBe(shownCount);
+    expect(hidden.snapshotDOM()).toMatchSnapshot();
+  });
+});
+
 const CHOICE_SCREEN = `screen main with
   dialogue:
     text

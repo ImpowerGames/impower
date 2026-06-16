@@ -2431,34 +2431,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
         "xl": 1280,
         "xs": 400,
       },
-      "content": {
-        "text": "",
-      },
-      "element": "e-18",
-      "style": undefined,
-    },
-  },
-  {
-    "id": "req-43",
-    "kind": "request",
-    "method": "ui/destroy",
-    "params": {
-      "element": "e-19",
-    },
-  },
-  {
-    "id": "req-44",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
       "content": undefined,
       "element": "e-17",
       "style": {
@@ -2467,63 +2439,17 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-45",
+    "id": "req-43",
     "kind": "request",
-    "method": "ui/update",
+    "method": "ui/write-image",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": {
-        "text": "",
-      },
-      "element": "e-23",
-      "style": undefined,
+      "instant": true,
+      "instructions": [],
+      "target": "backdrop",
     },
   },
   {
-    "id": "req-46",
-    "kind": "request",
-    "method": "ui/destroy",
-    "params": {
-      "element": "e-24",
-    },
-  },
-  {
-    "id": "req-47",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": {
-        "text": "",
-      },
-      "element": "e-21",
-      "style": undefined,
-    },
-  },
-  {
-    "id": "req-48",
-    "kind": "request",
-    "method": "ui/destroy",
-    "params": {
-      "element": "e-22",
-    },
-  },
-  {
-    "id": "req-49",
+    "id": "req-44",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -2543,7 +2469,17 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-50",
+    "id": "req-45",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "portrait",
+    },
+  },
+  {
+    "id": "req-46",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -2563,7 +2499,17 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-51",
+    "id": "req-47",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "character_name",
+    },
+  },
+  {
+    "id": "req-48",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -2583,7 +2529,17 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
     },
   },
   {
-    "id": "req-52",
+    "id": "req-49",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "character_parenthetical",
+    },
+  },
+  {
+    "id": "req-50",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -2600,6 +2556,16 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
       "style": {
         "display": "none",
       },
+    },
+  },
+  {
+    "id": "req-51",
+    "kind": "request",
+    "method": "ui/write-image",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "dialogue",
     },
   },
 ]

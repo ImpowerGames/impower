@@ -1,10 +1,13 @@
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
+import { createImageElement } from "../../../../spark-dom/src/utils/createImageElement";
+import { resolveAnimationTargets } from "../../../../spark-dom/src/utils/resolveAnimationTargets";
 import { getCSSPropertyKeyValue } from "../../../../spark-dom/src/utils/getCSSPropertyKeyValue";
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
 import { getRevealAnimation } from "../../../../spark-dom/src/utils/getRevealAnimation";
 import { TextInstruction } from "../../../../spark-engine/src/game/core/types/Instruction";
+import { Animation } from "../../../../spark-engine/src/game/modules/ui/types/Animation";
 import { AnimateElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
 import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
@@ -12,6 +15,10 @@ import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
+import {
+  WriteImageInstruction,
+  WriteImageMessage,
+} from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteImageMessage";
 import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { Manager } from "../Manager";
@@ -195,6 +202,11 @@ export default class UIManager extends Manager {
       const params = msg.params;
       await this.writeText(params.target, params.instructions, params.instant);
       return WriteTextMessage.type.result(params.target);
+    }
+    if (WriteImageMessage.type.isRequest(msg)) {
+      const params = msg.params;
+      await this.writeImage(params.target, params.instructions);
+      return WriteImageMessage.type.result(params.target);
     }
     if (AnimateElementsMessage.type.isRequest(msg)) {
       const params = msg.params;
@@ -476,6 +488,182 @@ export default class UIManager extends Manager {
         player.add({ element, animations: [animation] });
       }
       await player.play();
+    }
+  }
+
+  /**
+   * [D15] Consumer-side realization of an image write. Replaces the engine's
+   * per-layer `ui/create` (the `instance` span + child `img`) + the crossfade
+   * `ui/animate` (in/out) + the prior-layer `ui/destroy`: the engine now sends a
+   * single `ui/write-image` carrying a fully-resolved `WriteImageInstruction[]`
+   * (background/mask CSS, src, `Animation` objects), and the consumer builds the
+   * DOM + drives the enter → exit → destroy lifecycle here.
+   *
+   * Lifecycle (mirrors the old `UIModule.Image.applyChanges`):
+   *   1. build every new `instance` span; collect the target-wrapper reveal,
+   *      the new-layer enter/exit animations, the transition "affected"
+   *      animations, and the previous layers to fade out + destroy;
+   *   2. play the target-wrapper animations;
+   *   3. play the enter (+affected) and exit animations in parallel;
+   *   4. destroy the faded-out previous layers.
+   * Awaiting all of it preserves the engine's `await animateElements()`
+   * lifecycle so auto-advance still waits on the reveal.
+   */
+  protected async writeImage(
+    target: string,
+    instructions: WriteImageInstruction[],
+  ) {
+    const targetEls = this.findTargetElements(target);
+    const targetEffects: { element: HTMLElement; animations: Animation[] }[] =
+      [];
+    const enterEffects: { element: HTMLElement; animations: Animation[] }[] = [];
+    const exitEffects: { element: HTMLElement; animations: Animation[] }[] = [];
+    const toDestroy: HTMLElement[] = [];
+
+    const applyStyle = this.applyStyle.bind(this);
+
+    for (const targetEl of targetEls) {
+      const imageEls = this.getContentElements(targetEl, "image");
+      const maskEls = this.getContentElements(targetEl, "mask");
+      if (instructions.length === 0) {
+        // Clear path (the engine cleared image + mask content then set
+        // display:none on the wrapper, which it still emits via ui/update).
+        for (const imageEl of imageEls) {
+          imageEl.replaceChildren();
+        }
+        for (const maskEl of maskEls) {
+          maskEl.replaceChildren();
+        }
+        continue;
+      }
+      // Each content kind: image content fills background_image, mask fills
+      // mask_image; the resolved value is identical, only the property differs.
+      const contentTargets: { els: HTMLElement[]; property: string }[] = [
+        { els: imageEls, property: "background_image" },
+        { els: maskEls, property: "mask_image" },
+      ];
+      for (const instruction of instructions) {
+        this.addAnimationEffects(
+          targetEffects,
+          targetEl,
+          instruction.targetAnimations,
+        );
+        if (instruction.affected) {
+          for (const a of instruction.affected) {
+            for (const el of this.findTargetElements(a.target)) {
+              this.addAnimationEffects(enterEffects, el, a.animations);
+            }
+          }
+        }
+        const content = instruction.content;
+        if (!content) {
+          continue;
+        }
+        for (const { els, property } of contentTargets) {
+          for (const contentEl of els) {
+            // Capture existing layers BEFORE creating the new one (crossfade).
+            const prevSpanEls = Array.from(contentEl.children) as HTMLElement[];
+            const newSpanEl = createImageElement(
+              contentEl,
+              property,
+              content.background,
+              content.imageNames,
+              content.src,
+              applyStyle,
+            );
+            if (instruction.control === "show") {
+              // 'show' fades out + destroys the previous layers (the crossfade).
+              // The engine only ever destroyed spans it had enqueued an exit
+              // animation for; the builtin `hide` always resolves, so every
+              // previous layer is faded out then destroyed.
+              if (content.previousHideAnimation) {
+                for (const prevSpanEl of prevSpanEls) {
+                  this.addAnimationEffects(exitEffects, prevSpanEl, [
+                    content.previousHideAnimation,
+                  ]);
+                  if (!toDestroy.includes(prevSpanEl)) {
+                    toDestroy.push(prevSpanEl);
+                  }
+                }
+              }
+              if (content.enterAnimation) {
+                this.addAnimationEffects(enterEffects, newSpanEl, [
+                  content.enterAnimation,
+                ]);
+              }
+            } else if (instruction.control === "hide") {
+              if (content.exitAnimation) {
+                this.addAnimationEffects(exitEffects, newSpanEl, [
+                  content.exitAnimation,
+                ]);
+              }
+              // The pre-D15 engine's destroy loop removed every faded exit
+              // element; a hide-with-assets builds a transient span that must be
+              // destroyed after fading, not left orphaned in the layer.
+              if (!toDestroy.includes(newSpanEl)) {
+                toDestroy.push(newSpanEl);
+              }
+            } else if (instruction.control === "animate") {
+              if (content.enterAnimation) {
+                this.addAnimationEffects(enterEffects, newSpanEl, [
+                  content.enterAnimation,
+                ]);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 1. target-wrapper animations first
+    if (targetEffects.length > 0) {
+      const player = new AnimationPlayer();
+      for (const e of targetEffects) {
+        player.add(e);
+      }
+      await player.play();
+    }
+    // 2. enter + exit content animations in parallel
+    const playEffects = (
+      effects: { element: HTMLElement; animations: Animation[] }[],
+    ) => {
+      if (effects.length === 0) {
+        return Promise.resolve();
+      }
+      const player = new AnimationPlayer();
+      for (const e of effects) {
+        player.add(e);
+      }
+      return player.play();
+    };
+    await Promise.all([playEffects(enterEffects), playEffects(exitEffects)]);
+    // 3. destroy the faded-out previous layers
+    for (const el of toDestroy) {
+      el.remove();
+    }
+  }
+
+  /**
+   * [D15] Push animation effects, honoring each Animation's `target` layer
+   * selector — the redirection the engine's `enqueueAnimation` used to do. A
+   * non-"self" target animates the matching DESCENDANTS of `element` (e.g.
+   * align_* target the inner "instance" layer), not `element` itself.
+   */
+  private addAnimationEffects(
+    effects: { element: HTMLElement; animations: Animation[] }[],
+    element: HTMLElement,
+    animations: Animation[] | undefined,
+  ) {
+    if (!animations?.length) {
+      return;
+    }
+    for (const animation of animations) {
+      for (const el of resolveAnimationTargets(
+        element,
+        animation.target?.$name,
+      )) {
+        effects.push({ element: el, animations: [animation] });
+      }
     }
   }
 }

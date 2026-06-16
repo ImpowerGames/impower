@@ -51,6 +51,11 @@ import {
   UpdateElementMessageMap,
 } from "./messages/UpdateElementMessage";
 import {
+  WriteImageInstruction,
+  WriteImageMessage,
+  WriteImageMessageMap,
+} from "./messages/WriteImageMessage";
+import {
   WriteTextMessage,
   WriteTextMessageMap,
 } from "./messages/WriteTextMessage";
@@ -69,6 +74,7 @@ export type UIMessageMap = AnimateElementsMessageMap &
   SetThemeMessageMap &
   UnobserveElementMessageMap &
   UpdateElementMessageMap &
+  WriteImageMessageMap &
   WriteTextMessageMap;
 
 export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
@@ -1074,19 +1080,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      protected process(
-        targetEl: Element,
-        content: {
-          element: Element;
-          property: string;
-        }[],
+      /**
+       * [D15] Resolve an `ImageInstruction[]` into a renderer-agnostic
+       * `WriteImageInstruction[]`. This keeps ALL engine-context lookups
+       * (transition resolution, `getAnimationDefinition`,
+       * `getBackgroundImageFromString`/src resolution) engine-side — it just
+       * ships the resolved CSS strings + `Animation` objects instead of
+       * building DOM and emitting per-element `ui/create`/`ui/animate`/
+       * `ui/destroy`. The consumer realizes the `instance` span(s) + drives the
+       * enter/exit/destroy lifecycle. Mirrors D14 (`getRevealAnimation`).
+       */
+      protected resolve(
         sequence: ImageInstruction[],
         instant: boolean,
-        enterContentAnimationMap: Map<Element, Animation[]>,
-        exitContentAnimationMap: Map<Element, Animation[]>,
-        targetAnimationMap: Map<Element, Animation[]>,
-      ) {
+      ): WriteImageInstruction[] {
+        const instructions: WriteImageInstruction[] = [];
         for (const e of sequence) {
+          const out: WriteImageInstruction = { control: e.control };
+          const targetAnimations: Animation[] = [];
+          const affected: { target: string; animations: Animation[] }[] = [];
           // Reveal target before showing content
           const isFirstContentReveal =
             e.control === "show" && e.assets && e.assets.length > 0;
@@ -1099,7 +1111,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             };
             const animation = $.getAnimationDefinition(showEvent, instant);
             if (animation) {
-              $.enqueueAnimation(targetEl, animation, targetAnimationMap);
+              targetAnimations.push(animation);
             }
           }
           const transitionWith = e.with || "";
@@ -1163,130 +1175,110 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             ? hideAnimationDuration / transitionSpeed
             : over;
           const hideEase = e.ease;
-          // Animate any other elements affected by the transition
+          // Animate any other elements affected by the transition. These are
+          // arbitrary class selectors (e.g. `transitional`) → animation, so the
+          // consumer re-resolves the selector against the live DOM.
           if (transition) {
             for (const [k, v] of Object.entries(transition)) {
               if (!k.startsWith("$") && !k.startsWith("on_")) {
                 const animateWith = typeof v === "string" ? v : v?.$name;
                 if (animateWith) {
-                  for (const el of $.findElements(k)) {
-                    const animateEvent = {
-                      name: animateWith,
-                      after: e.after,
-                      over: e.over,
-                      ease: e.ease,
-                    };
-                    const animation = $.getAnimationDefinition(
-                      animateEvent,
-                      instant,
-                    );
-                    if (animation) {
-                      $.enqueueAnimation(
-                        el,
-                        animation,
-                        enterContentAnimationMap,
-                      );
-                    }
+                  const animateEvent = {
+                    name: animateWith,
+                    after: e.after,
+                    over: e.over,
+                    ease: e.ease,
+                  };
+                  const animation = $.getAnimationDefinition(
+                    animateEvent,
+                    instant,
+                  );
+                  if (animation) {
+                    affected.push({ target: k, animations: [animation] });
                   }
                 }
               }
             }
           }
           if (e.assets && e.assets.length > 0) {
-            for (const c of content) {
-              const contentElement = c.element;
-              const contentProperty = c.property;
-              // We are affecting the image
-              const style: Record<string, string | null> = {
-                ...(e.style || {}),
-                display: null,
-                opacity: "0",
+            // Resolve the content layer once (identical for image + mask
+            // content elements; only the CSS property differs, picked
+            // consumer-side). The consumer creates the `instance` span(s).
+            const imageNames = e.assets.join(" ");
+            const background = e.assets
+              .map((a) => $.getBackgroundImageFromString(a))
+              .reverse()
+              .join(", ");
+            const src = e.assets.flatMap((a) =>
+              $.getImageSrcsFromValue(a),
+            )[0];
+            const content: WriteImageInstruction["content"] = {
+              background,
+              imageNames,
+            };
+            if (src != null) {
+              content.src = src;
+            }
+            if (e.control === "show") {
+              const showEvent = {
+                name: showWith,
+                after: showAfter,
+                over: showOver,
+                ease: showEase,
               };
-              const imageNames = e.assets.join(" ");
-              const images = e.assets
-                .map((a) => $.getBackgroundImageFromString(a))
-                .reverse()
-                .join(", ");
-              style[contentProperty] = images;
-              const prevSpanEls = [...contentElement.children];
-              const newSpanEl = $.createImage(
-                contentElement,
-                e.assets,
-                contentProperty,
-                { attributes: { image: imageNames } },
+              const enterAnimation = $.getAnimationDefinition(
+                showEvent,
+                instant,
               );
-              // 'show' is equivalent to calling 'hide' on all previous elements on the layer,
-              // before calling 'show' on the new element
-              if (e.control === "show") {
-                // Hide previous elements
-                for (const prevSpanEl of prevSpanEls) {
-                  const hideEvent = {
-                    name: hideWith,
-                    after: hideAfter,
-                    over: hideOver,
-                    ease: hideEase,
-                  };
-                  const animation = $.getAnimationDefinition(
-                    hideEvent,
-                    instant,
-                  );
-                  if (animation) {
-                    $.enqueueAnimation(
-                      prevSpanEl,
-                      animation,
-                      exitContentAnimationMap,
-                    );
-                  }
-                }
-                // Show new elements
-                const showEvent = {
-                  name: showWith,
-                  after: showAfter,
-                  over: showOver,
-                  ease: showEase,
-                };
-                const animation = $.getAnimationDefinition(showEvent, instant);
-                if (animation) {
-                  $.enqueueAnimation(
-                    newSpanEl,
-                    animation,
-                    enterContentAnimationMap,
-                  );
-                }
-              } else if (e.control === "hide") {
-                const hideEvent = {
-                  name: hideWith,
-                  after: hideAfter,
-                  over: hideOver,
-                  ease: hideEase,
-                };
-                const animation = $.getAnimationDefinition(hideEvent, instant);
-                if (animation) {
-                  $.enqueueAnimation(
-                    newSpanEl,
-                    animation,
-                    exitContentAnimationMap,
-                  );
-                }
-              } else if (e.control === "animate") {
-                const showEvent = {
-                  name: showWith,
-                  after: showAfter,
-                  over: showOver,
-                  ease: showEase,
-                };
-                const animation = $.getAnimationDefinition(showEvent, instant);
-                if (animation) {
-                  $.enqueueAnimation(
-                    newSpanEl,
-                    animation,
-                    enterContentAnimationMap,
-                  );
-                }
+              if (enterAnimation) {
+                content.enterAnimation = enterAnimation;
+              }
+              const hideEvent = {
+                name: hideWith,
+                after: hideAfter,
+                over: hideOver,
+                ease: hideEase,
+              };
+              const previousHideAnimation = $.getAnimationDefinition(
+                hideEvent,
+                instant,
+              );
+              if (previousHideAnimation) {
+                content.previousHideAnimation = previousHideAnimation;
+              }
+            } else if (e.control === "hide") {
+              const hideEvent = {
+                name: hideWith,
+                after: hideAfter,
+                over: hideOver,
+                ease: hideEase,
+              };
+              const exitAnimation = $.getAnimationDefinition(
+                hideEvent,
+                instant,
+              );
+              if (exitAnimation) {
+                content.exitAnimation = exitAnimation;
+              }
+            } else if (e.control === "animate") {
+              const showEvent = {
+                name: showWith,
+                after: showAfter,
+                over: showOver,
+                ease: showEase,
+              };
+              const enterAnimation = $.getAnimationDefinition(
+                showEvent,
+                instant,
+              );
+              if (enterAnimation) {
+                content.enterAnimation = enterAnimation;
               }
             }
+            out.content = content;
           } else {
-            // We are affecting the image wrapper
+            // We are affecting the image wrapper (no assets): show/hide/animate
+            // the target element itself.
             if (e.control === "hide") {
               const hideEvent = {
                 name: hideWith,
@@ -1296,7 +1288,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               };
               const animation = $.getAnimationDefinition(hideEvent, instant);
               if (animation) {
-                $.enqueueAnimation(targetEl, animation, targetAnimationMap);
+                targetAnimations.push(animation);
               }
             } else if (e.control === "show") {
               const showEvent = {
@@ -1307,7 +1299,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               };
               const animation = $.getAnimationDefinition(showEvent, instant);
               if (animation) {
-                $.enqueueAnimation(targetEl, animation, targetAnimationMap);
+                targetAnimations.push(animation);
               }
             } else if (e.control === "animate") {
               if (e.with) {
@@ -1322,12 +1314,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   instant,
                 );
                 if (animation) {
-                  $.enqueueAnimation(targetEl, animation, targetAnimationMap);
+                  targetAnimations.push(animation);
                 }
               }
             }
           }
+          if (targetAnimations.length > 0) {
+            out.targetAnimations = targetAnimations;
+          }
+          if (affected.length > 0) {
+            out.affected = affected;
+          }
+          instructions.push(out);
         }
+        return instructions;
       }
 
       protected async applyChanges(
@@ -1335,69 +1335,41 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[] | null,
         instant: boolean,
       ) {
-        const enterContentAnimationMap = new Map<Element, Animation[]>();
-        const exitContentAnimationMap = new Map<Element, Animation[]>();
-        const targetAnimationMap = new Map<Element, Animation[]>();
-        for (const targetEl of $.findElements(target)) {
+        // [D15] The engine no longer builds the per-layer `instance` span DOM,
+        // the crossfade enter/exit animations, or the prior-layer destroys. It
+        // still owns the structural target element tree (the `display` toggle on
+        // the `backdrop`/`portrait` wrapper) but delegates the image-layer
+        // realization + animation lifecycle to the consumer via a single
+        // `ui/write-image` carrying a fully-resolved `WriteImageInstruction[]`.
+        const targetEls = $.findElements(target);
+        for (const targetEl of targetEls) {
           if (targetEl) {
-            const imageEls = $.getContentElements(targetEl, "image");
-            const maskEls = $.getContentElements(targetEl, "mask");
-            // Enqueue image events
             if (sequence) {
               $.updateElement(targetEl, {
                 style: { display: null },
               });
-              this.process(
-                targetEl,
-                [
-                  ...imageEls.map((element) => ({
-                    element,
-                    property: "background_image",
-                  })),
-                  ...maskEls.map((element) => ({
-                    element,
-                    property: "mask_image",
-                  })),
-                ],
-                sequence,
-                instant,
-                enterContentAnimationMap,
-                exitContentAnimationMap,
-                targetAnimationMap,
-              );
             } else {
-              for (const imageEl of imageEls) {
-                $.clearElement(imageEl);
-              }
-              for (const maskEl of maskEls) {
-                $.clearElement(maskEl);
-              }
               $.updateElement(targetEl, {
                 style: { display: "none" },
               });
             }
           }
         }
-        const targetEffects = Array.from(targetAnimationMap).map(
-          ([element, animations]) => ({ element, animations }),
-        );
-        const enterContentEffects = Array.from(enterContentAnimationMap).map(
-          ([element, animations]) => ({ element, animations }),
-        );
-        const exitContentEffects = Array.from(exitContentAnimationMap).map(
-          ([element, animations]) => ({ element, animations }),
-        );
-        // Animate target
-        await $.animateElements(targetEffects);
-        // Animate in and out content
-        await Promise.all([
-          $.animateElements(enterContentEffects),
-          $.animateElements(exitContentEffects),
-        ]);
-        // Then destroy exited content
-        for (const e of exitContentEffects) {
-          $.destroyElement(e.element);
+        if (targetEls.length === 0) {
+          return;
         }
+        // One message per write — the consumer rebuilds the image/mask content
+        // children and drives the enter/exit/destroy lifecycle. `await` here
+        // preserves the prior `await animateElements()` lifecycle: the write
+        // completes only once the crossfade animations have finished (so
+        // auto-advance still waits on the reveal).
+        await $.emit(
+          WriteImageMessage.type.request({
+            target,
+            instructions: sequence ? this.resolve(sequence, instant) : [],
+            instant,
+          }),
+        );
       }
 
       async clear(target: string) {
