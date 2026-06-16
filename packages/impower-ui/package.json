@@ -3,15 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "main": "./dist/impower-ui.umd.cjs",
+  "main": "./dist/impower-ui.js",
   "module": "./dist/impower-ui.js",
   "types": "./dist/impower-ui.d.ts",
   "exports": {
     "./components": {
       "development": "./src/components/index.ts",
       "types": "./src/components/index.ts",
-      "import": "./dist/impower-ui.js",
-      "require": "./dist/impower-ui.umd.cjs"
+      "import": "./dist/impower-ui.js"
     },
     "./preact": {
       "development": "./src/preact/PreactComponent.ts",
