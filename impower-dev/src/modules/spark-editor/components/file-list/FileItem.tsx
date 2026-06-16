@@ -1,4 +1,4 @@
-import { Button } from "@impower/impower-ui/components";
+import { Button, Ripple } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
@@ -114,24 +114,35 @@ export default function FileItem({ filename }: FileItemProps) {
         <DiagnosticsLabel filename={filename}>
           <div class="flex flex-1 flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
             {renaming ? (
-              <input
-                ref={inputRef}
-                value={inputValue}
-                onInput={(e) =>
-                  setInputValue((e.target as HTMLInputElement).value)
-                }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    commit();
-                  } else if (e.key === "Escape") {
-                    e.preventDefault();
-                    setRenaming(false);
+              // Ripple wrapper mirrors main's <s-input> tap ripple. stopPropagation
+              // on pointerDown so the wave fires here (not on the enclosing row
+              // Button, which would otherwise double-ripple); text-foreground
+              // (white) pins the wave white like main. The row already supplies
+              // the hover tint underneath, so no hover:bg here.
+              <div
+                class="relative w-full overflow-hidden rounded text-foreground"
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <input
+                  ref={inputRef}
+                  value={inputValue}
+                  onInput={(e) =>
+                    setInputValue((e.target as HTMLInputElement).value)
                   }
-                }}
-                onClick={(e) => e.stopPropagation()}
-                class="w-full bg-transparent text-foreground outline-none"
-              />
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commit();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      setRenaming(false);
+                    }
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  class="w-full bg-transparent text-foreground outline-none"
+                />
+                <Ripple />
+              </div>
             ) : (
               <>
                 <span>{name}</span>

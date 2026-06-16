@@ -5,6 +5,15 @@ import { forwardRef } from "preact/compat";
 import { cn } from "../../utils/cn";
 import Ripple from "../ripple/Ripple";
 
+// Sparkle's filled s-button elevation: rest = shadow-box-1, hover lifts to
+// box-2, active depresses to box-0 (none). Values are the dark-theme resolved
+// composites (key + ambient) from sparkle shadows.css. Applied to the solid
+// fill variants (primary/secondary/destructive/fab) only.
+const FILLED_SHADOW =
+  "shadow-[0_1px_1.5px_hsl(0_0%_0%/0.24),0_1px_1px_hsl(0_0%_0%/0.48)] " +
+  "hover:shadow-[0_3px_3px_hsl(0_0%_0%/0.32),0_3px_3px_hsl(0_0%_0%/0.46)] " +
+  "active:shadow-none";
+
 // Variant configuration in cva form. The defaultVariants set the
 // no-variant-prop case to `primary` + `default`.
 export const buttonVariants = cva(
@@ -29,9 +38,14 @@ export const buttonVariants = cva(
     // sitting on a single row.
     "inline-flex flex-row items-center justify-center gap-2 whitespace-nowrap",
     "rounded-md text-sm font-medium select-none cursor-pointer pointer-events-auto",
-    "transition-colors duration-150",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-    "focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    // 100ms (matches main's button.css --_duration) + box-shadow so the
+    // filled-variant elevation lift animates.
+    "transition-[color,background-color,border-color,box-shadow] duration-100",
+    // Keyboard focus ring matches main: a 3px solid INSET outline in the dark
+    // focus color (sparkle --theme-color-primary-20 = sky-900 #0c4a6e), not a
+    // bright outset ring. outline-none suppresses the UA outline on mouse focus
+    // (focus-visible is keyboard-only, like main's shouldShowStrongFocus).
+    "outline-none focus-visible:[outline:3px_solid_#0c4a6e] focus-visible:[outline-offset:-3px]",
     "disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed",
   ],
   {
@@ -42,9 +56,9 @@ export const buttonVariants = cva(
         // For solid-fill variants the overlay is a `before:` pseudo so
         // the underlying bg color stays intact (don't mix-replace it).
         primary:
-          "bg-primary text-background before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]",
+          `bg-primary text-background before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12] ${FILLED_SHADOW}`,
         secondary:
-          "bg-engine-700 text-foreground before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]",
+          `bg-engine-700 text-foreground before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12] ${FILLED_SHADOW}`,
         // `border-solid` re-asserts the border-style — sparkle's normalize.css
         // ships `* { border: none }` which leaks into shadow:false light-DOM
         // and zeros out border-width if we only set color via Tailwind. Same
@@ -57,12 +71,12 @@ export const buttonVariants = cva(
           "bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/[0.12]",
         link: "bg-transparent text-primary underline-offset-4 hover:underline h-auto px-0 py-0",
         destructive:
-          "bg-danger-500 text-foreground before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]",
+          `bg-danger-500 text-foreground before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12] ${FILLED_SHADOW}`,
         // Floating-action button: the slate-blue rounded-full CTA used
         // by Upload Files / Add URL / New Script. Sparkle's
         // `bg-color="fab-bg" text-color="fab-fg"` maps to the theme
         // tokens (hsl(210.8 44.9% 34.9%) / white).
-        fab: "bg-[var(--theme-color-fab-bg)] text-[var(--theme-color-fab-fg)] before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12]",
+        fab: `bg-[var(--theme-color-fab-bg)] text-[var(--theme-color-fab-fg)] before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12] ${FILLED_SHADOW}`,
       },
       size: {
         default: "h-10 px-4 py-2",
