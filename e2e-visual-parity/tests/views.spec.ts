@@ -178,6 +178,42 @@ test("@mobile @views Preview-toggle is a horizontal row (port, <960px)", async (
   }
 });
 
+// Drilled-in script editor — the ONLY state where the rename header renders.
+// No prior scenario opened a script, so the rename input's height/font/width
+// divergences (port was 24px/16px/532px vs main's 40px/18px/~203px) went
+// uncaught. Gate the rename input's computed metrics here. (Pixel isn't gated:
+// a full-viewport clip carries the 4px SplitPane pane residual, and clipping to
+// the input fails on the apps' 9px width difference — the metric probe is the
+// reliable signal for this state.)
+test("@views Script editor rename header (drilled-in)", async ({ browser }) => {
+  const { a, b, dispose } = await setupStacks(browser, MULTI_FIXTURE);
+  try {
+    await clickBoth(a, b, async (sp) => {
+      await h.subTab(sp.page, "Scripts").click();
+      await awaitStable(sp.page);
+      await sp.page.getByRole("button", { name: /characters/i }).first().click();
+      // Ensure the drill-in actually opened the editor (rename field present)
+      // before measuring — otherwise the probe would be spuriously unresolved.
+      await sp.page
+        .getByRole("textbox", { name: /characters/i })
+        .waitFor({ state: "visible", timeout: 10000 });
+    });
+    await gateCheckpoint("script-rename-header", a, b, {
+      id: "full",
+      maxDiffRatio: 1, // see note above — gated via the probe, not pixel
+      probes: [
+        {
+          name: "rename-input",
+          at: (p) => p.getByRole("textbox", { name: /characters/i }),
+          props: ["height", "fontSize", "fontWeight"],
+        },
+      ],
+    });
+  } finally {
+    await dispose();
+  }
+});
+
 // --- Interactions (open menus/drawers via existing role/aria handles) ---
 test("@views Header menu drawer", async ({ browser }) => {
   const { a, b, dispose } = await setupStacks(browser, BASIC_FIXTURE);
