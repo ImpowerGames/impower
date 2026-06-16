@@ -37,6 +37,15 @@ export interface Probe {
   /** Logical name — also the `selector` key the allowlist matches against. */
   name: string;
   at: (p: Page) => Locator;
+  /**
+   * Per-app locator overrides. When the two apps carry the same VISIBLE style
+   * on structurally-different nodes (e.g. the port's `<Tab>` crossfades two
+   * label copies, so the `role="tab"` button inherits the container color while
+   * the baseline's `role="tab"` carries the label color directly), point each
+   * app at the node that actually renders the style. Falls back to `at`.
+   */
+  atBaseline?: (p: Page) => Locator;
+  atPort?: (p: Page) => Locator;
   props?: string[];
 }
 
@@ -174,8 +183,8 @@ export async function compareCheckpoint(
   // --- Layer B: computed-style ---
   const probeResults: ProbeResult[] = [];
   for (const probe of cp.probes ?? []) {
-    const la = probe.at(a.page);
-    const lb = probe.at(b.page);
+    const la = (probe.atBaseline ?? probe.at)(a.page);
+    const lb = (probe.atPort ?? probe.at)(b.page);
     const [ca, cb] = [await la.count(), await lb.count()];
     if (!ca || !cb) {
       probeResults.push({ name: probe.name, unresolved: { baseline: ca, port: cb } });
