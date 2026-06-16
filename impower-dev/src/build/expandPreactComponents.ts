@@ -55,11 +55,10 @@ const expandIn = (
       const props = attrsToProps(child.attrs);
       const childVNodes = child.childNodes.map(nodeToVNode);
       // Best-effort SSR. A component may not render cleanly outside the
-      // browser (e.g. react-resizable-panels' SplitPane reaches for a real
-      // React's useRef during render). In that case, leave the tag's empty
-      // shell in place — the browser will hydrate it post-load. We lose the
-      // FOUC-prevention benefit for this subtree but the rest of the page
-      // still gets statically rendered.
+      // browser (e.g. one that reaches for browser-only APIs during render).
+      // In that case, leave the tag's empty shell in place — the browser will
+      // hydrate it post-load. We lose the FOUC-prevention benefit for this
+      // subtree but the rest of the page still gets statically rendered.
       let rendered: string | null = null;
       try {
         rendered = renderToString(h(Component, props, ...childVNodes));

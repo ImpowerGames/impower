@@ -79,11 +79,12 @@ export default function MainWindow(_props: MainWindowProps) {
     });
   };
 
-  // SplitPane wraps react-resizable-panels which calls React hooks. In dev
-  // SSR (preact-render-to-string) those hooks throw "invalid hook call"
-  // because real React isn't running. Skip the split during SSR — the
-  // header + bottom-nav (the visible chrome on first paint) still get
-  // statically rendered. The middle fills in once Preact hydrates.
+  // Skip the split pane (and the heavy, browser-dependent pane content —
+  // Logic / Assets / Share / Preview) during dev SSR. The header + bottom-nav
+  // (the visible chrome on first paint) still get statically rendered; the
+  // middle fills in once Preact hydrates. (SplitPane itself is now SSR-safe —
+  // custom flex/Preact-hooks, no react-resizable-panels — but its children
+  // reach for browser-only APIs, so the guard stays.)
   const isSSR = typeof window === "undefined";
 
   return (
