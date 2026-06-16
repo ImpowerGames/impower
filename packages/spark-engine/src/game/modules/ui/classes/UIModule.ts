@@ -807,7 +807,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const duration = durationOverride ?? animation?.timing?.duration ?? "0s";
       const iterations = loopOverride ?? animation?.timing?.iterations ?? 1;
       const easing = easingOverride ?? animation?.timing?.easing ?? "ease";
-      const fill = animation?.timing?.fill ?? "none";
+      // Default to "both" to match `default_animation`. Builtins always carry an
+      // explicit fill (the constructor merges one in), so this fallback only
+      // fires for AUTHORED animations (e.g. `define pan_right as animation with
+      // keyframes = {...}`) that don't go through `default_animation` and thus
+      // have no timing block. Those should persist their end state by default —
+      // matching the rest of these fallbacks, which already mirror the
+      // constructor's defaults (delay 0s, duration 0s, iterations 1, ease, ...).
+      const fill = animation?.timing?.fill ?? "both";
       const direction = animation?.timing?.direction ?? "normal";
       // Authored `define X as animation with keyframes = {...}` lowers to a
       // single keyframe OBJECT, not an array (e.g. pan_left/pan_right's
