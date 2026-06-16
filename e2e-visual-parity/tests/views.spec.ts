@@ -118,12 +118,13 @@ test("@views Preview screenplay (desktop)", async ({ browser }) => {
   }
 });
 
-// FIXME: unreliable. The per-row "Options" handle is ambiguous cross-app —
-// clicking it can end with the script opened (port) rather than the options
-// dropdown reliably open in both apps, so the capture is a divergent state, not
-// a real visual diff. This is the role-less per-row control the spec flagged as
-// needing a shared data-testid on both apps; wire that for a deterministic
-// dropdown capture. Skipped so the suite reflects only meaningful comparisons.
+// FIXME: unreliable — interaction-determinism, NOT a handle problem. Both apps
+// expose aria-label="Options" (port Radix dropdown trigger; baseline s-button
+// #more), so the handle resolves. But the dropdown is transient and the
+// populated-list row behavior diverges (the capture can land with the script
+// opened in the port rather than the dropdown reliably open in both), so the
+// result is a divergent state, not a real visual diff. Needs deterministic
+// dropdown handling (assert-open + hold) — not a testid. Skipped for now.
 test.fixme("@views File options menu", async ({ browser }) => {
   const { a, b, dispose } = await setupStacks(browser, MULTI_FIXTURE);
   try {
