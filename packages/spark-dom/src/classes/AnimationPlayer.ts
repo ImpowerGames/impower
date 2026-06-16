@@ -27,7 +27,25 @@ export default class AnimationPlayer {
       // Convert engine animations to dom animations
       animations.forEach((animation) => {
         const convertedKeyframes: Keyframe[] = [];
-        animation.keyframes.forEach((keyframe) => {
+        // Defensive: an authored `define X as animation with keyframes = {...}`
+        // can resolve to a non-array `keyframes` (object/undefined). Normalize so
+        // one malformed animation can't throw and black out the whole preview.
+        const rawKeyframes: unknown = (animation as { keyframes?: unknown })
+          .keyframes;
+        const keyframeList: any[] = Array.isArray(rawKeyframes)
+          ? rawKeyframes
+          : rawKeyframes && typeof rawKeyframes === "object"
+            ? Object.values(rawKeyframes)
+            : [];
+        if (!Array.isArray(rawKeyframes)) {
+          console.warn(
+            "[AnimationPlayer] non-array keyframes for animation",
+            (animation as { $name?: string }).$name,
+            "→ normalized:",
+            rawKeyframes,
+          );
+        }
+        keyframeList.forEach((keyframe) => {
           if (keyframe) {
             const convertedKeyframe: Keyframe = {};
             for (const [k, v] of Object.entries(keyframe)) {
