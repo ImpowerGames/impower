@@ -50,6 +50,10 @@ import {
   UpdateElementMessage,
   UpdateElementMessageMap,
 } from "./messages/UpdateElementMessage";
+import {
+  WriteTextMessage,
+  WriteTextMessageMap,
+} from "./messages/WriteTextMessage";
 
 export interface UIState {
   text?: Record<string, TextState[]>;
@@ -64,7 +68,8 @@ export type UIMessageMap = AnimateElementsMessageMap &
   ObserveElementMessageMap &
   SetThemeMessageMap &
   UnobserveElementMessageMap &
-  UpdateElementMessageMap;
+  UpdateElementMessageMap &
+  WriteTextMessageMap;
 
 export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _root?: Element;
@@ -938,113 +943,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      protected process(
-        contentEl: Element,
-        sequence: TextInstruction[],
-        instant: boolean,
-        enterElements: Map<Element, Animation[]>,
-        _exitElements: Map<Element, Animation[]>,
-      ) {
-        let lineWrapperEl: Element | undefined = undefined;
-        let wordWrapperEl: Element | undefined = undefined;
-        let wasSpace: boolean | undefined = undefined;
-        let wasNewline: boolean | undefined = undefined;
-        let prevTextAlign: string | undefined = undefined;
-        for (const e of sequence) {
-          const text = e.text;
-          // Wrap each line in a block div
-          const isNewline = text === "\n";
-          // Support transform animations and text-wrapping by wrapping each word in an inline-block span
-          const isSpace = text === " " || text === "\t" || text === "\n";
-          // Support aligning text by wrapping consecutive aligned chunks in a block div
-          const textAlign = e.style?.text_align;
-          const alignStyle = textAlign
-            ? {
-                text_align: textAlign,
-              }
-            : undefined;
-          // text_align must be applied to a parent element
-          if (textAlign !== prevTextAlign) {
-            // Surround group consecutive spans that have the same text alignment a text_line div
-            lineWrapperEl = $.createElement(contentEl, {
-              type: "div",
-              name: "text_line",
-              style: alignStyle,
-            });
-          } else if (wasNewline === undefined || isNewline !== wasNewline) {
-            // Surround each line in a text_line div
-            lineWrapperEl = $.createElement(contentEl, {
-              type: "div",
-              name: "text_line",
-            });
-          }
-          // Support consecutive whitespace collapsing
-          const style: Record<string, string | number | null> = {
-            display: null,
-            opacity: "0",
-            ...(e.style || {}),
-          };
-          if (text === "\n" || text === " " || text === "\t") {
-            style["display"] = "inline";
-          }
-          if (text === "\n" || isSpace) {
-            wordWrapperEl = $.createElement(lineWrapperEl || contentEl, {
-              type: "span",
-              name: "text_space",
-              style: alignStyle,
-            });
-          } else if (
-            wasSpace === undefined ||
-            isSpace !== wasSpace ||
-            textAlign !== prevTextAlign
-          ) {
-            // this is the start of a new word chunk so create a text_word span
-            wordWrapperEl = $.createElement(lineWrapperEl || contentEl, {
-              type: "span",
-              name: "text_word",
-              style: alignStyle,
-            });
-          }
-          prevTextAlign = textAlign;
-          wasNewline = isNewline;
-          wasSpace = isSpace;
-          // Append text to wordWrapper, blockWrapper, or content
-          const textParentEl = wordWrapperEl || lineWrapperEl || contentEl;
-          const newSpanEl =
-            text === "\n"
-              ? $.createElement(textParentEl, {
-                  type: "span",
-                  name: "text_letter",
-                  content: { text: "" }, // text_line div already handles breaking up lines
-                  style,
-                })
-              : $.createElement(textParentEl, {
-                  type: "span",
-                  name: "text_letter",
-                  content: { text },
-                  style,
-                });
-          const animation = $.getAnimationDefinition(
-            { name: "show", after: e.after, over: e.over, ease: e.ease },
-            instant,
-          );
-          if (animation) {
-            $.enqueueAnimation(newSpanEl, animation, enterElements);
-          }
-        }
-      }
-
       protected async applyChanges(
         target: string,
         sequence: TextInstruction[] | null,
         instant: boolean,
       ) {
-        const enterContentAnimationMap = new Map<Element, Animation[]>();
-        const exitContentAnimationMap = new Map<Element, Animation[]>();
-        for (const targetEl of $.findElements(target)) {
+        // [D14] The engine no longer builds per-glyph spans or per-letter
+        // reveal animations. It still owns the structural target element tree
+        // (so it can keep the flattened a11y `text` attribute + the reveal
+        // target's `display` toggle authoritative), but it delegates the
+        // span/whitespace/text-align decomposition AND the per-char reveal of
+        // the `text`/`stroke` content children to the consumer via a single
+        // `ui/write-text` message per target.
+        const targetEls = $.findElements(target);
+        for (const targetEl of targetEls) {
           if (targetEl) {
-            const textEls = $.getContentElements(targetEl, "text");
-            const strokeEls = $.getContentElements(targetEl, "stroke");
             if (sequence) {
               $.updateElement(targetEl, {
                 style: { display: null },
@@ -1052,34 +965,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   text: sequence?.map((t) => t.text).join("") ?? null,
                 },
               });
-              // Create and set text
-              for (const textEl of textEls) {
-                this.process(
-                  textEl,
-                  sequence,
-                  instant,
-                  enterContentAnimationMap,
-                  exitContentAnimationMap,
-                );
-              }
-              // Create and set stroke
-              for (const strokeEl of strokeEls) {
-                this.process(
-                  strokeEl,
-                  sequence,
-                  instant,
-                  enterContentAnimationMap,
-                  exitContentAnimationMap,
-                );
-              }
             } else {
-              // Clear text and stroke
-              for (const textEl of textEls) {
-                $.clearElement(textEl);
-              }
-              for (const strokeEl of strokeEls) {
-                $.clearElement(strokeEl);
-              }
               $.updateElement(targetEl, {
                 style: { display: "none" },
                 attributes: {
@@ -1089,21 +975,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         }
-        const enterContentEffects = Array.from(enterContentAnimationMap).map(
-          ([element, animations]) => ({ element, animations }),
-        );
-        const exitContentEffects = Array.from(exitContentAnimationMap).map(
-          ([element, animations]) => ({ element, animations }),
-        );
-        // Animate in and out content
-        await Promise.all([
-          $.animateElements(enterContentEffects),
-          $.animateElements(exitContentEffects),
-        ]);
-        // Then destroy exited content
-        for (const e of exitContentEffects) {
-          $.destroyElement(e.element);
+        if (targetEls.length === 0) {
+          return;
         }
+        // One message per write — the consumer rebuilds the `text`/`stroke`
+        // children and drives the reveal from each instruction's after/over
+        // timing. `await` here preserves the prior `await animateElements()`
+        // lifecycle: the write completes only once the reveal has finished.
+        await $.emit(
+          WriteTextMessage.type.request({
+            target,
+            instructions: sequence ?? [],
+            instant,
+          }),
+        );
       }
 
       async clear(target: string) {

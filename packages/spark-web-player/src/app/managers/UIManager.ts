@@ -3,6 +3,8 @@ import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messag
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
 import { getCSSPropertyKeyValue } from "../../../../spark-dom/src/utils/getCSSPropertyKeyValue";
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
+import { getRevealAnimation } from "../../../../spark-dom/src/utils/getRevealAnimation";
+import { TextInstruction } from "../../../../spark-engine/src/game/core/types/Instruction";
 import { AnimateElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
 import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
@@ -10,6 +12,7 @@ import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UpdateElementMessage";
+import { WriteTextMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/WriteTextMessage";
 import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
@@ -188,6 +191,11 @@ export default class UIManager extends Manager {
       }
       return UpdateElementMessage.type.result(params.element);
     }
+    if (WriteTextMessage.type.isRequest(msg)) {
+      const params = msg.params;
+      await this.writeText(params.target, params.instructions, params.instant);
+      return WriteTextMessage.type.result(params.target);
+    }
     if (AnimateElementsMessage.type.isRequest(msg)) {
       const params = msg.params;
       const player = new AnimationPlayer();
@@ -228,5 +236,246 @@ export default class UIManager extends Manager {
       }
     }
     return undefined;
+  }
+
+  /**
+   * Resolve a `target` selector (a className plus optional `#index`) to the
+   * matching structural element(s) in the live DOM.
+   *
+   * Mirrors the engine's `UIModule.findElements`: it recursively collects
+   * every element whose className includes the requested name, then (when an
+   * `#index` instance suffix is present) narrows to that single occurrence.
+   * The engine owns the `Element` tree and only forwards the original `target`
+   * string, so the consumer re-resolves it here against the real DOM. (D13 may
+   * later replace this with a consumer-side id→element map.)
+   */
+  protected findTargetElements(target: string): HTMLElement[] {
+    const overlay = this.app.overlay;
+    if (!overlay) {
+      return [];
+    }
+    const [name, instance] = target.split("#");
+    if (!name) {
+      return [];
+    }
+    // The engine matches on *all* class tokens of a space-separated selector.
+    const classes = name.split(" ").filter(Boolean);
+    const selector = classes.map((c) => `.${CSS.escape(c)}`).join("");
+    if (!selector) {
+      return [];
+    }
+    const matches = Array.from(
+      overlay.querySelectorAll(selector),
+    ) as HTMLElement[];
+    if (instance) {
+      const instanceIndex = Number(instance);
+      if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
+        const el = matches[instanceIndex];
+        return el ? [el] : [];
+      }
+      return [];
+    }
+    return matches;
+  }
+
+  /** Direct children of `parent` whose className includes `tag`. */
+  protected getContentElements(parent: HTMLElement, tag: string): HTMLElement[] {
+    return Array.from(parent.children).filter((c) =>
+      c.className.split(" ").includes(tag),
+    ) as HTMLElement[];
+  }
+
+  /** Apply an engine style map to a DOM element, matching the create/update path. */
+  protected applyStyle(
+    el: HTMLElement,
+    style: Record<string, string | number | null>,
+  ) {
+    for (const [k, v] of Object.entries(style)) {
+      const [prop, value] = getCSSPropertyKeyValue(k, v);
+      const cssEntries = getCssEquivalent(prop, value);
+      if (v == null) {
+        for (const [cssProp] of cssEntries) {
+          el.style.removeProperty(cssProp);
+        }
+      } else {
+        for (const [cssProp, cssValue] of cssEntries) {
+          el.style.setProperty(cssProp, cssValue);
+        }
+      }
+    }
+  }
+
+  /**
+   * [D14] Port of the engine's `UIModule.Text.process`, run against the real
+   * DOM. Decomposes a `TextInstruction[]` into `text_line`/`text_word`/
+   * `text_space`/`text_letter` spans (handling whitespace collapsing and
+   * text-align line wrapping) under `contentEl`, and collects each new letter
+   * span with its per-char `show` reveal animation so the caller can play them
+   * all in one batch.
+   */
+  protected processText(
+    contentEl: HTMLElement,
+    sequence: TextInstruction[],
+    instant: boolean,
+    enter: { element: HTMLElement; animation: ReturnType<typeof getRevealAnimation> }[],
+  ) {
+    let lineWrapperEl: HTMLElement | undefined = undefined;
+    let wordWrapperEl: HTMLElement | undefined = undefined;
+    let wasSpace: boolean | undefined = undefined;
+    let wasNewline: boolean | undefined = undefined;
+    let prevTextAlign: string | undefined = undefined;
+    const createEl = (
+      parent: HTMLElement,
+      type: string,
+      name: string | undefined,
+      style: Record<string, string | number | null> | undefined,
+      text: string | undefined,
+    ): HTMLElement => {
+      const el = document.createElement(type);
+      if (name) {
+        el.className = name;
+      }
+      if (text != null) {
+        el.textContent = text;
+      }
+      if (style) {
+        this.applyStyle(el, style);
+      }
+      parent.appendChild(el);
+      return el;
+    };
+    for (const e of sequence) {
+      const text = e.text;
+      // Wrap each line in a block div
+      const isNewline = text === "\n";
+      // Support transform animations and text-wrapping by wrapping each word in an inline-block span
+      const isSpace = text === " " || text === "\t" || text === "\n";
+      // Support aligning text by wrapping consecutive aligned chunks in a block div
+      const textAlign = e.style?.text_align;
+      const alignStyle = textAlign
+        ? {
+            text_align: textAlign,
+          }
+        : undefined;
+      // text_align must be applied to a parent element
+      if (textAlign !== prevTextAlign) {
+        // Surround group consecutive spans that have the same text alignment a text_line div
+        lineWrapperEl = createEl(
+          contentEl,
+          "div",
+          "text_line",
+          alignStyle,
+          undefined,
+        );
+      } else if (wasNewline === undefined || isNewline !== wasNewline) {
+        // Surround each line in a text_line div
+        lineWrapperEl = createEl(
+          contentEl,
+          "div",
+          "text_line",
+          undefined,
+          undefined,
+        );
+      }
+      // Support consecutive whitespace collapsing
+      const style: Record<string, string | number | null> = {
+        display: null,
+        opacity: "0",
+        ...(e.style || {}),
+      };
+      if (text === "\n" || text === " " || text === "\t") {
+        style["display"] = "inline";
+      }
+      if (text === "\n" || isSpace) {
+        wordWrapperEl = createEl(
+          lineWrapperEl || contentEl,
+          "span",
+          "text_space",
+          alignStyle,
+          undefined,
+        );
+      } else if (
+        wasSpace === undefined ||
+        isSpace !== wasSpace ||
+        textAlign !== prevTextAlign
+      ) {
+        // this is the start of a new word chunk so create a text_word span
+        wordWrapperEl = createEl(
+          lineWrapperEl || contentEl,
+          "span",
+          "text_word",
+          alignStyle,
+          undefined,
+        );
+      }
+      prevTextAlign = textAlign;
+      wasNewline = isNewline;
+      wasSpace = isSpace;
+      // Append text to wordWrapper, blockWrapper, or content
+      const textParentEl = wordWrapperEl || lineWrapperEl || contentEl;
+      const newSpanEl = createEl(
+        textParentEl,
+        "span",
+        "text_letter",
+        style,
+        text === "\n" ? "" : text, // text_line div already handles breaking up lines
+      );
+      enter.push({
+        element: newSpanEl,
+        animation: getRevealAnimation({ after: e.after, over: e.over }, instant),
+      });
+    }
+  }
+
+  /**
+   * [D14] Consumer-side realization of a text write. Replaces the engine's
+   * per-glyph `CreateElement` + per-letter `AnimateElements` emission: the
+   * engine now sends a single `ui/write-text` carrying the `TextInstruction[]`,
+   * and the consumer rebuilds the `text` + `stroke` content children and drives
+   * the reveal here.
+   */
+  protected async writeText(
+    target: string,
+    instructions: TextInstruction[],
+    instant: boolean,
+  ) {
+    const targetEls = this.findTargetElements(target);
+    const enter: {
+      element: HTMLElement;
+      animation: ReturnType<typeof getRevealAnimation>;
+    }[] = [];
+    for (const targetEl of targetEls) {
+      const textEls = this.getContentElements(targetEl, "text");
+      const strokeEls = this.getContentElements(targetEl, "stroke");
+      if (instructions.length > 0) {
+        // Build text + stroke (the faux-outline duplicate) from the same
+        // instructions, mirroring the engine's dual process() over both.
+        // NOTE: a write APPENDS spans (matching the engine's old process(),
+        // which never cleared first). Re-writes to the same non-transient
+        // target accumulate; transient targets are emptied via the clear path
+        // (empty instructions) before each new beat.
+        for (const textEl of textEls) {
+          this.processText(textEl, instructions, instant, enter);
+        }
+        for (const strokeEl of strokeEls) {
+          this.processText(strokeEl, instructions, instant, enter);
+        }
+      } else {
+        // Clear text + stroke (the `null`-sequence / clear path).
+        for (const textEl of textEls) {
+          textEl.replaceChildren();
+        }
+        for (const strokeEl of strokeEls) {
+          strokeEl.replaceChildren();
+        }
+      }
+    }
+    if (enter.length > 0) {
+      const player = new AnimationPlayer();
+      for (const { element, animation } of enter) {
+        player.add({ element, animations: [animation] });
+      }
+      await player.play();
+    }
   }
 }
