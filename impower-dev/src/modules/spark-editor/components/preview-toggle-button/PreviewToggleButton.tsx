@@ -63,7 +63,7 @@ export default function PreviewToggleButton(_props: PreviewToggleButtonProps) {
       aria-label="Toggle Preview"
       aria-pressed={active}
       onClick={onClick}
-      class="mr-2 h-9 w-[84px] flex-col gap-0.5 px-0 text-[10px] font-semibold"
+      class="mr-2 h-9 w-[84px] gap-1.5 px-2.5 text-sm font-semibold"
     >
       <Icon class="size-[18px]" />
       {label}

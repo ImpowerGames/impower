@@ -52,7 +52,7 @@ export const buttonVariants = cva(
         // normalize reset; sticking with explicit `border-solid border-1` is
         // the workaround.
         outline:
-          "border-solid border border-foreground/30 bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/[0.12]",
+          "border-solid border border-foreground bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/[0.12]",
         ghost:
           "bg-transparent text-foreground hover:bg-foreground/5 active:bg-foreground/[0.12]",
         link: "bg-transparent text-primary underline-offset-4 hover:underline h-auto px-0 py-0",
@@ -68,7 +68,11 @@ export const buttonVariants = cva(
         default: "h-10 px-4 py-2",
         sm: "h-9 rounded-md px-3 text-sm",
         xs: "h-7 rounded px-2 text-xs",
-        lg: "h-11 rounded-md px-8",
+        // Matches main's sparkle `size="lg"` computed box exactly: height
+        // 48px (h-12), corner 4px (rounded, not rounded-md's 6px), padding-
+        // inline 20px (px-5), and font-size 16px (text-base = --theme-text-md-
+        // font-size; the cva base is text-sm/14px otherwise).
+        lg: "h-12 rounded px-5 text-base",
         icon: "size-10 p-0",
         // Larger circular icon button for toolbars (48px). Matches
         // sparkle's <s-button variant="icon" width="48" height="48">.

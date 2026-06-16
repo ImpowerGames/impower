@@ -36,7 +36,7 @@ export default function OptionButton({
   return (
     <Button
       variant="ghost"
-      class={`w-full justify-between rounded-none text-foreground/80 ${sizeClasses[size]} ${className}`}
+      class={`w-full justify-between rounded-none font-normal text-foreground/80 ${sizeClasses[size]} ${className}`}
       {...rest}
     >
       {children}

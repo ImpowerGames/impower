@@ -58,13 +58,19 @@ export default function LogicList(_props: LogicListProps) {
     });
   };
 
+  // Two-level router nesting, mirroring the baseline's <se-logic>:
+  //   outer (this Router, mode="fade")  = list-view  ↔  script editor
+  //       — non-directional cross-fade, matching main's `<s-router key=
+  //         "logic-view">` (no `directional`). This is the drill-in/back.
+  //   inner (mode="slide-x")            = Main  ↔  Scripts
+  //       — directional slide, matching main's `<s-router key="logic-panel"
+  //         directional>`.
+  // The whole list view (sub-tabs INCLUDED) lives in the outer "list" route,
+  // so opening a script cross-fades the tabs+content out and the editor in —
+  // exactly like main, instead of the tabs popping away instantly.
   return (
-    <>
-      {/* Hide Main / Scripts sub-tabs while viewing a script in the editor.
-          The legacy <s-router> implicitly did this — the "logic-editor"
-          route had its own header (<se-file-editor-navigation> with a
-          back button), so the panel tabs went away. */}
-      {!showScriptsEditor && (
+    <Router active={showScriptsEditor ? "editor" : "list"} mode="fade">
+      <div key="list" class="relative flex flex-col flex-1 min-h-0">
         <div class="sticky top-0 z-10 flex-none bg-engine-900">
           <Tabs
             value={panel}
@@ -80,30 +86,26 @@ export default function LogicList(_props: LogicListProps) {
             </Tab>
           </Tabs>
         </div>
-      )}
-      {/* `flex flex-col` (not just `block`) — the legacy spec-component
-          children inside use sparkle's `grow` attribute (= flex:1), which
-          needs a flex parent to fill the available height. Without it,
-          se-logic-script-editor's inner s-box collapses to 0 height and
-          CodeMirror renders invisible. */}
-      <div class="relative flex flex-col flex-1 min-h-0">
-        <Router active={panel} mode="slide-x">
-          {/* `--loading-indicator-width: 50%` makes the LoadingBar sit
-              above the (active) Main tab indicator on the parent Tabs,
-              giving the "indicator fills with progress" illusion. The
-              CSS var cascades to the LoadingBar inside via
-              `var(--loading-indicator-width, 100%)`. */}
-          <div
-            key="main"
-            class="flex flex-1 flex-col min-h-0"
-            style="--loading-indicator-width:50%"
-          >
-            <LogicScriptEditor filename="main.sd" />
-          </div>
-          <div key="scripts" class="flex flex-1 flex-col min-h-0">
-            {showScriptsEditor ? (
-              <LogicScriptsEditor />
-            ) : (
+        {/* `flex flex-col` (not just `block`) — the legacy spec-component
+            children inside use sparkle's `grow` attribute (= flex:1), which
+            needs a flex parent to fill the available height. Without it,
+            se-logic-script-editor's inner s-box collapses to 0 height and
+            CodeMirror renders invisible. */}
+        <div class="relative flex flex-col flex-1 min-h-0">
+          <Router active={panel} mode="slide-x">
+            {/* `--loading-indicator-width: 50%` makes the LoadingBar sit
+                above the (active) Main tab indicator on the parent Tabs,
+                giving the "indicator fills with progress" illusion. The
+                CSS var cascades to the LoadingBar inside via
+                `var(--loading-indicator-width, 100%)`. */}
+            <div
+              key="main"
+              class="flex flex-1 flex-col min-h-0"
+              style="--loading-indicator-width:50%"
+            >
+              <LogicScriptEditor filename="main.sd" />
+            </div>
+            <div key="scripts" class="flex flex-1 flex-col min-h-0">
               <FileList
                 include="*.{sd}"
                 exclude="main.sd"
@@ -114,34 +116,38 @@ export default function LogicList(_props: LogicListProps) {
                   </FileListBorder>
                 }
               />
-            )}
-          </div>
-        </Router>
-        {/* FAB anchored at the bottom — pulled out of the sliding
-            Router (same pattern as Assets) so it doesn't move with
-            the panel content. Only relevant on the Scripts list view;
-            on Main and inside the script editor it fades out.
+            </div>
+          </Router>
+          {/* FAB anchored at the bottom — pulled out of the sliding
+              Router (same pattern as Assets) so it doesn't move with
+              the panel content. Only relevant on the Scripts list view;
+              on Main it fades out. (The editor route is a separate fade
+              branch, so the FAB never renders there.)
 
-            The fade-IN is delayed 150ms (the duration of the panel's
-            slide+fade transition) so the FAB doesn't appear over the
-            previous panel's content mid-slide — it waits until the
-            new panel is fully in place, then fades in. The fade-OUT
-            has no delay so the FAB clears immediately as soon as the
-            user navigates away. */}
-        <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 [&_button]:pointer-events-auto">
-          <div
-            class={`transition-opacity duration-200 ${
-              panel === "scripts" && !showScriptsEditor
-                ? "opacity-100 delay-150"
-                : "pointer-events-none opacity-0"
-            }`}
-          >
-            <FileAddButton defaultFilename="script00.sd">
-              New Script
-            </FileAddButton>
+              The fade-IN is delayed 150ms (the duration of the panel's
+              slide+fade transition) so the FAB doesn't appear over the
+              previous panel's content mid-slide — it waits until the
+              new panel is fully in place, then fades in. The fade-OUT
+              has no delay so the FAB clears immediately as soon as the
+              user navigates away. */}
+          <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 [&_button]:pointer-events-auto">
+            <div
+              class={`transition-opacity duration-200 ${
+                panel === "scripts"
+                  ? "opacity-100 delay-150"
+                  : "pointer-events-none opacity-0"
+              }`}
+            >
+              <FileAddButton defaultFilename="script00.sd">
+                New Script
+              </FileAddButton>
+            </div>
           </div>
         </div>
       </div>
-    </>
+      <div key="editor" class="relative flex flex-col flex-1 min-h-0">
+        <LogicScriptsEditor />
+      </div>
+    </Router>
   );
 }

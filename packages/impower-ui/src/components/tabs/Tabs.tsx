@@ -5,7 +5,6 @@ import { useContext, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { createContext } from "preact";
 import type { IconComponent } from "../icon/icons.generated";
 import { cn } from "../../utils/cn";
-import Ripple from "../ripple/Ripple";
 
 const tabsContainer = cva("relative flex w-full", {
   variants: {
@@ -31,15 +30,17 @@ const tabsList = cva("flex w-full", {
 // the underline slides via a single shared <div> rendered by Tabs.
 const tabTrigger = cva(
   [
-    // `relative overflow-hidden` so the inner <Ripple /> can position its
-    // waves inside the tab and the radial gradient gets clipped to the
-    // tab shape.
+    // `relative overflow-hidden` clips the active-underline + crossfade
+    // copies to the tab shape. (Tabs intentionally do NOT ripple — see the
+    // hover/active overlay note below.)
     "group relative flex flex-1 items-center justify-center overflow-hidden",
     "gap-x-2 gap-y-0.5 px-5 text-sm font-semibold select-none cursor-pointer pointer-events-auto",
     "disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none",
     // Static hover/active overlay — matches sparkle's universal
     // --theme-opacity-hover (0.05) and --theme-opacity-press (0.12).
-    // The <Ripple /> child adds the radial expanding wave on top.
+    // This is the ONLY press feedback: main's s-tab is rendered with
+    // `disable-ripple` in every spark-editor usage, so tabs get the color
+    // tint but no radial wave. (Button/Dropdown still ripple.)
     "hover:bg-foreground/5 active:bg-foreground/[0.12]",
   ],
   {
@@ -375,7 +376,6 @@ export function Tab({
             {children}
           </span>
         </span>
-        <Ripple />
       </button>
     </RadixTabs.Trigger>
   );

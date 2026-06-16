@@ -226,7 +226,7 @@ function RunToggle({
       variant="ghost"
       aria-label={running ? "Stop Game" : "Play Game"}
       onClick={onClick}
-      class="h-12 w-12 flex-col gap-0.5 rounded-full pt-1 px-0 text-[11px] font-semibold text-primary"
+      class="h-12 w-12 flex-col gap-0 rounded-full py-0 px-4 text-[11px] font-medium text-primary/70"
     >
       <Icon class="size-[18px]" />
       {label}
