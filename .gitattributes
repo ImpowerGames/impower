@@ -1,0 +1,40 @@
+# Normalize line endings: store as LF in the repo and check out as LF on every
+# platform. Without this, git's core.autocrlf=true rewrites text files to CRLF
+# in the Windows working tree, which shifts parse offsets and newline tokens and
+# breaks the sparkdown grammar/compile snapshot tests (snapshots are LF-based).
+* text=auto eol=lf
+
+# Explicit text types (authoring + source + snapshots) — always LF.
+*.sd    text eol=lf
+*.snap  text eol=lf
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.json  text eol=lf
+*.md    text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.svg   text eol=lf
+
+# Binary assets — never normalize (protect from EOL/diff mangling).
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
+*.wav   binary
+*.mp3   binary
+*.ogg   binary
+*.m4a   binary
+*.mp4   binary
+*.pdf   binary
+*.zip   binary
