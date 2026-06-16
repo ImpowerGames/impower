@@ -91,7 +91,7 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
           role="dialog"
           aria-modal="true"
           aria-label="Menu"
-          class={`flex h-full w-80 flex-col bg-engine-800 shadow-xl transition-transform duration-200 ${
+          class={`flex h-full w-[300px] flex-col bg-engine-800 shadow-xl transition-transform duration-200 ${
             open ? "translate-x-0" : "-translate-x-full"
           }`}
         >
