@@ -15,7 +15,8 @@
     },
     "./preact": {
       "development": "./src/preact/PreactComponent.ts",
-      "types": "./src/preact/PreactComponent.ts"
+      "types": "./src/preact/PreactComponent.ts",
+      "default": "./src/preact/PreactComponent.ts"
     },
     "./style.css": {
       "development": "./src/style.css",
