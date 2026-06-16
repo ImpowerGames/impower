@@ -657,6 +657,49 @@ const expandPageComponents = async () => {
       }),
     );
     await fs.promises.mkdir(publicOutDir, { recursive: true });
+
+    // Compile impower-ui's Tailwind utilities (scanning impower-dev's classes)
+    // and inline them into the SSG <style> block — mirrors the dev SSG
+    // (viteStaticallyRenderedPagesPlugin). Production has no running dev server,
+    // so spin up a transient middleware-mode server just to run the CSS through
+    // Vite's pipeline. Without this the prod page ships unstyled (Tailwind
+    // classes with no stylesheet to resolve them).
+    let tailwindCss = "";
+    {
+      const cssServer = await createServer({
+        configFile: false,
+        root: process.cwd(),
+        resolve: { alias, dedupe },
+        plugins: [tailwindcss()],
+        // No HMR: this is a one-shot build-time compile; the HMR ws server
+        // would otherwise grab port 24678 and clash with any running dev server.
+        server: { middlewareMode: true, hmr: false },
+        logLevel: "warn",
+      });
+      try {
+        // Use the `/@fs/<abs>` form — a transient (non-serve) server doesn't
+        // resolve the `/node_modules/...` URL form, but the explicit fs path
+        // loads. `?direct` returns the compiled CSS (Tailwind utilities for
+        // impower-dev's classes via root auto-detection + impower-ui via the
+        // stylesheet's own `@source`).
+        const cssAbs = path.resolve(
+          process.cwd(),
+          "node_modules/@impower/impower-ui/src/style.css",
+        );
+        const tw = await cssServer.transformRequest(
+          "/@fs/" + cssAbs.replace(/\\/g, "/") + "?direct",
+        );
+        if (tw?.code) tailwindCss = tw.code;
+      } catch (err) {
+        console.warn(
+          "[ssg] Failed to compile impower-ui Tailwind CSS:",
+          err instanceof Error ? err.message : err,
+        );
+      } finally {
+        await cssServer.close();
+      }
+    }
+
     console.log("");
     console.log(STEP_COLOR, "Expanding HTML...");
     await Promise.all(
@@ -682,7 +725,7 @@ const expandPageComponents = async () => {
         );
         const styledHtml = staticallyStylePage(
           renderedHtml,
-          Array.from(scopedCssSet).join("\n"),
+          [Array.from(scopedCssSet).join("\n"), tailwindCss].join("\n"),
         );
         await fs.promises.mkdir(path.dirname(dest), { recursive: true });
         await fs.promises.writeFile(dest, styledHtml, "utf-8");
