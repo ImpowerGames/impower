@@ -1,0 +1,2203 @@
+// The implicitly-imported builtins prelude: a `define` for every builtin
+// type/instance. Compiled into every program so builtins populate both
+// program.context (LSP) and the runtime __def tables (engine).
+//
+// Originally generated from DEFAULT_BUILTIN_DEFINITIONS; hand-maintainable.
+
+define metadata with
+  title = ""
+  credit = ""
+  author = ""
+  source = ""
+  notes = ""
+  date = ""
+  contact = ""
+  revision = ""
+  font = ""
+  header = ""
+  footer = ""
+  watermark = ""
+  tl = ""
+  tc = ""
+  tr = ""
+  cc = ""
+  bl = ""
+  br = ""
+end
+
+define filter with
+  includes = { "" }
+  excludes = { "" }
+end
+
+define world with
+  src = ""
+end
+
+define ui as config with
+  styles_element_name = "styles"
+  screens_element_name = "screens"
+  breakpoints = { xs = 400, sm = 640, md = 768, lg = 1024, xl = 1280 }
+end
+
+define interpreter as config with
+  directives = { title = "^", heading = "$", transitional = "%", action = "" }
+  fallbacks = { layer = "portrait", channel = "sound" }
+end
+
+define image with
+  ["$link"] = { audio = {}, synth = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  src = ""
+  data = ""
+end
+
+define layered_image with
+  assets = { image.none }
+end
+
+define filtered_image with
+  image = image.none
+  filters = { filter.none }
+end
+
+define color with
+end
+
+define red as color with
+  value = "rgb(220,38,38)"
+end
+
+define red_10 as color with
+  value = "rgb(76,5,5)"
+end
+
+define red_20 as color with
+  value = "rgb(127,29,29)"
+end
+
+define red_30 as color with
+  value = "rgb(153,27,27)"
+end
+
+define red_40 as color with
+  value = "rgb(185,28,28)"
+end
+
+define red_50 as color with
+  value = "rgb(220,38,38)"
+end
+
+define red_60 as color with
+  value = "rgb(239,68,68)"
+end
+
+define red_70 as color with
+  value = "rgb(248,113,113)"
+end
+
+define red_80 as color with
+  value = "rgb(252,165,165)"
+end
+
+define red_90 as color with
+  value = "rgb(254,205,205)"
+end
+
+define red_95 as color with
+  value = "rgb(254,226,226)"
+end
+
+define red_99 as color with
+  value = "rgb(254,242,242)"
+end
+
+define orange as color with
+  value = "rgb(234,88,12)"
+end
+
+define orange_10 as color with
+  value = "rgb(77,24,6)"
+end
+
+define orange_20 as color with
+  value = "rgb(124,45,18)"
+end
+
+define orange_30 as color with
+  value = "rgb(154,52,18)"
+end
+
+define orange_40 as color with
+  value = "rgb(194,65,12)"
+end
+
+define orange_50 as color with
+  value = "rgb(234,88,12)"
+end
+
+define orange_60 as color with
+  value = "rgb(249,115,22)"
+end
+
+define orange_70 as color with
+  value = "rgb(251,146,60)"
+end
+
+define orange_80 as color with
+  value = "rgb(253,186,116)"
+end
+
+define orange_90 as color with
+  value = "rgb(254,215,170)"
+end
+
+define orange_95 as color with
+  value = "rgb(255,237,213)"
+end
+
+define orange_99 as color with
+  value = "rgb(255,247,237)"
+end
+
+define amber as color with
+  value = "rgb(217,119,6)"
+end
+
+define amber_10 as color with
+  value = "rgb(77,29,4)"
+end
+
+define amber_20 as color with
+  value = "rgb(120,53,15)"
+end
+
+define amber_30 as color with
+  value = "rgb(146,64,14)"
+end
+
+define amber_40 as color with
+  value = "rgb(180,83,9)"
+end
+
+define amber_50 as color with
+  value = "rgb(217,119,6)"
+end
+
+define amber_60 as color with
+  value = "rgb(245,158,11)"
+end
+
+define amber_70 as color with
+  value = "rgb(251,191,36)"
+end
+
+define amber_80 as color with
+  value = "rgb(252,211,77)"
+end
+
+define amber_90 as color with
+  value = "rgb(253,230,138)"
+end
+
+define amber_95 as color with
+  value = "rgb(254,243,199)"
+end
+
+define amber_99 as color with
+  value = "rgb(255,251,235)"
+end
+
+define yellow as color with
+  value = "rgb(202,138,4)"
+end
+
+define yellow_10 as color with
+  value = "rgb(72,35,7)"
+end
+
+define yellow_20 as color with
+  value = "rgb(113,63,18)"
+end
+
+define yellow_30 as color with
+  value = "rgb(133,76,8)"
+end
+
+define yellow_40 as color with
+  value = "rgb(161,98,7)"
+end
+
+define yellow_50 as color with
+  value = "rgb(202,138,4)"
+end
+
+define yellow_60 as color with
+  value = "rgb(234,179,8)"
+end
+
+define yellow_70 as color with
+  value = "rgb(244,220,64)"
+end
+
+define yellow_80 as color with
+  value = "rgb(250,232,103)"
+end
+
+define yellow_90 as color with
+  value = "rgb(253,244,153)"
+end
+
+define yellow_95 as color with
+  value = "rgb(254,249,195)"
+end
+
+define yellow_99 as color with
+  value = "rgb(254,252,232)"
+end
+
+define lime as color with
+  value = "rgb(101,163,13)"
+end
+
+define lime_10 as color with
+  value = "rgb(30,50,10)"
+end
+
+define lime_20 as color with
+  value = "rgb(54,83,20)"
+end
+
+define lime_30 as color with
+  value = "rgb(63,98,18)"
+end
+
+define lime_40 as color with
+  value = "rgb(77,124,15)"
+end
+
+define lime_50 as color with
+  value = "rgb(101,163,13)"
+end
+
+define lime_60 as color with
+  value = "rgb(132,204,22)"
+end
+
+define lime_70 as color with
+  value = "rgb(163,230,53)"
+end
+
+define lime_80 as color with
+  value = "rgb(190,242,100)"
+end
+
+define lime_90 as color with
+  value = "rgb(217,249,157)"
+end
+
+define lime_95 as color with
+  value = "rgb(236,252,203)"
+end
+
+define lime_99 as color with
+  value = "rgb(247,254,231)"
+end
+
+define green as color with
+  value = "rgb(22,163,74)"
+end
+
+define green_10 as color with
+  value = "rgb(5,46,22)"
+end
+
+define green_20 as color with
+  value = "rgb(20,83,45)"
+end
+
+define green_30 as color with
+  value = "rgb(22,101,52)"
+end
+
+define green_40 as color with
+  value = "rgb(21,128,61)"
+end
+
+define green_50 as color with
+  value = "rgb(22,163,74)"
+end
+
+define green_60 as color with
+  value = "rgb(34,197,94)"
+end
+
+define green_70 as color with
+  value = "rgb(74,222,128)"
+end
+
+define green_80 as color with
+  value = "rgb(134,239,172)"
+end
+
+define green_90 as color with
+  value = "rgb(187,247,208)"
+end
+
+define green_95 as color with
+  value = "rgb(220,252,231)"
+end
+
+define green_99 as color with
+  value = "rgb(240,253,244)"
+end
+
+define emerald as color with
+  value = "rgb(5,150,105)"
+end
+
+define emerald_10 as color with
+  value = "rgb(2,44,34)"
+end
+
+define emerald_20 as color with
+  value = "rgb(6,78,59)"
+end
+
+define emerald_30 as color with
+  value = "rgb(6,95,70)"
+end
+
+define emerald_40 as color with
+  value = "rgb(4,120,87)"
+end
+
+define emerald_50 as color with
+  value = "rgb(5,150,105)"
+end
+
+define emerald_60 as color with
+  value = "rgb(16,185,129)"
+end
+
+define emerald_70 as color with
+  value = "rgb(52,211,153)"
+end
+
+define emerald_80 as color with
+  value = "rgb(110,231,183)"
+end
+
+define emerald_90 as color with
+  value = "rgb(167,243,208)"
+end
+
+define emerald_95 as color with
+  value = "rgb(209,250,229)"
+end
+
+define emerald_99 as color with
+  value = "rgb(236,253,245)"
+end
+
+define teal as color with
+  value = "rgb(13,148,136)"
+end
+
+define teal_10 as color with
+  value = "rgb(4,47,46)"
+end
+
+define teal_20 as color with
+  value = "rgb(19,78,74)"
+end
+
+define teal_30 as color with
+  value = "rgb(17,94,89)"
+end
+
+define teal_40 as color with
+  value = "rgb(15,118,110)"
+end
+
+define teal_50 as color with
+  value = "rgb(13,148,136)"
+end
+
+define teal_60 as color with
+  value = "rgb(20,183,171)"
+end
+
+define teal_70 as color with
+  value = "rgb(45,212,191)"
+end
+
+define teal_80 as color with
+  value = "rgb(94,234,212)"
+end
+
+define teal_90 as color with
+  value = "rgb(153,246,228)"
+end
+
+define teal_95 as color with
+  value = "rgb(204,251,241)"
+end
+
+define teal_99 as color with
+  value = "rgb(240,253,250)"
+end
+
+define cyan as color with
+  value = "rgb(8,145,178)"
+end
+
+define cyan_10 as color with
+  value = "rgb(8,51,68)"
+end
+
+define cyan_20 as color with
+  value = "rgb(22,78,99)"
+end
+
+define cyan_30 as color with
+  value = "rgb(21,94,117)"
+end
+
+define cyan_40 as color with
+  value = "rgb(14,116,144)"
+end
+
+define cyan_50 as color with
+  value = "rgb(8,145,178)"
+end
+
+define cyan_60 as color with
+  value = "rgb(6,182,212)"
+end
+
+define cyan_70 as color with
+  value = "rgb(34,211,238)"
+end
+
+define cyan_80 as color with
+  value = "rgb(103,232,249)"
+end
+
+define cyan_90 as color with
+  value = "rgb(165,243,252)"
+end
+
+define cyan_95 as color with
+  value = "rgb(207,250,254)"
+end
+
+define cyan_99 as color with
+  value = "rgb(236,254,255)"
+end
+
+define sky as color with
+  value = "rgb(2,132,199)"
+end
+
+define sky_10 as color with
+  value = "rgb(8,47,73)"
+end
+
+define sky_20 as color with
+  value = "rgb(12,74,110)"
+end
+
+define sky_30 as color with
+  value = "rgb(7,89,133)"
+end
+
+define sky_40 as color with
+  value = "rgb(3,105,161)"
+end
+
+define sky_50 as color with
+  value = "rgb(2,132,199)"
+end
+
+define sky_60 as color with
+  value = "rgb(14,165,233)"
+end
+
+define sky_70 as color with
+  value = "rgb(56,189,248)"
+end
+
+define sky_80 as color with
+  value = "rgb(125,211,252)"
+end
+
+define sky_90 as color with
+  value = "rgb(186,230,253)"
+end
+
+define sky_95 as color with
+  value = "rgb(224,242,254)"
+end
+
+define sky_99 as color with
+  value = "rgb(240,249,255)"
+end
+
+define blue as color with
+  value = "rgb(37,99,235)"
+end
+
+define blue_10 as color with
+  value = "rgb(23,37,84)"
+end
+
+define blue_20 as color with
+  value = "rgb(30,58,138)"
+end
+
+define blue_30 as color with
+  value = "rgb(30,64,175)"
+end
+
+define blue_40 as color with
+  value = "rgb(29,78,216)"
+end
+
+define blue_50 as color with
+  value = "rgb(37,99,235)"
+end
+
+define blue_60 as color with
+  value = "rgb(59,130,246)"
+end
+
+define blue_70 as color with
+  value = "rgb(96,165,250)"
+end
+
+define blue_80 as color with
+  value = "rgb(147,197,253)"
+end
+
+define blue_90 as color with
+  value = "rgb(191,219,253)"
+end
+
+define blue_95 as color with
+  value = "rgb(219,234,254)"
+end
+
+define blue_99 as color with
+  value = "rgb(239,246,255)"
+end
+
+define indigo as color with
+  value = "rgb(79,70,229)"
+end
+
+define indigo_10 as color with
+  value = "rgb(30,27,75)"
+end
+
+define indigo_20 as color with
+  value = "rgb(49,46,129)"
+end
+
+define indigo_30 as color with
+  value = "rgb(55,48,163)"
+end
+
+define indigo_40 as color with
+  value = "rgb(67,56,202)"
+end
+
+define indigo_50 as color with
+  value = "rgb(79,70,229)"
+end
+
+define indigo_60 as color with
+  value = "rgb(99,102,241)"
+end
+
+define indigo_70 as color with
+  value = "rgb(129,140,248)"
+end
+
+define indigo_80 as color with
+  value = "rgb(165,180,252)"
+end
+
+define indigo_90 as color with
+  value = "rgb(199,210,254)"
+end
+
+define indigo_95 as color with
+  value = "rgb(224,231,255)"
+end
+
+define indigo_99 as color with
+  value = "rgb(238,242,255)"
+end
+
+define violet as color with
+  value = "rgb(124,58,237)"
+end
+
+define violet_10 as color with
+  value = "rgb(46,16,101)"
+end
+
+define violet_20 as color with
+  value = "rgb(76,29,149)"
+end
+
+define violet_30 as color with
+  value = "rgb(91,33,182)"
+end
+
+define violet_40 as color with
+  value = "rgb(109,40,217)"
+end
+
+define violet_50 as color with
+  value = "rgb(124,58,237)"
+end
+
+define violet_60 as color with
+  value = "rgb(139,92,246)"
+end
+
+define violet_70 as color with
+  value = "rgb(167,139,250)"
+end
+
+define violet_80 as color with
+  value = "rgb(196,181,253)"
+end
+
+define violet_90 as color with
+  value = "rgb(221,214,254)"
+end
+
+define violet_95 as color with
+  value = "rgb(237,233,254)"
+end
+
+define violet_99 as color with
+  value = "rgb(245,243,255)"
+end
+
+define purple as color with
+  value = "rgb(147,51,234)"
+end
+
+define purple_10 as color with
+  value = "rgb(59,7,100)"
+end
+
+define purple_20 as color with
+  value = "rgb(88,28,135)"
+end
+
+define purple_30 as color with
+  value = "rgb(107,33,168)"
+end
+
+define purple_40 as color with
+  value = "rgb(126,34,206)"
+end
+
+define purple_50 as color with
+  value = "rgb(147,51,234)"
+end
+
+define purple_60 as color with
+  value = "rgb(168,85,247)"
+end
+
+define purple_70 as color with
+  value = "rgb(192,132,252)"
+end
+
+define purple_80 as color with
+  value = "rgb(216,180,254)"
+end
+
+define purple_90 as color with
+  value = "rgb(233,213,255)"
+end
+
+define purple_95 as color with
+  value = "rgb(243,232,255)"
+end
+
+define purple_99 as color with
+  value = "rgb(250,245,255)"
+end
+
+define fuchsia as color with
+  value = "rgb(192,38,211)"
+end
+
+define fuchsia_10 as color with
+  value = "rgb(74,4,76)"
+end
+
+define fuchsia_20 as color with
+  value = "rgb(112,26,117)"
+end
+
+define fuchsia_30 as color with
+  value = "rgb(134,25,143)"
+end
+
+define fuchsia_40 as color with
+  value = "rgb(162,28,175)"
+end
+
+define fuchsia_50 as color with
+  value = "rgb(192,38,211)"
+end
+
+define fuchsia_60 as color with
+  value = "rgb(217,70,239)"
+end
+
+define fuchsia_70 as color with
+  value = "rgb(232,121,249)"
+end
+
+define fuchsia_80 as color with
+  value = "rgb(240,171,252)"
+end
+
+define fuchsia_90 as color with
+  value = "rgb(245,208,255)"
+end
+
+define fuchsia_95 as color with
+  value = "rgb(250,232,255)"
+end
+
+define fuchsia_99 as color with
+  value = "rgb(253,244,255)"
+end
+
+define pink as color with
+  value = "rgb(219,39,119)"
+end
+
+define pink_10 as color with
+  value = "rgb(80,7,36)"
+end
+
+define pink_20 as color with
+  value = "rgb(131,24,67)"
+end
+
+define pink_30 as color with
+  value = "rgb(157,23,77)"
+end
+
+define pink_40 as color with
+  value = "rgb(190,24,93)"
+end
+
+define pink_50 as color with
+  value = "rgb(219,39,119)"
+end
+
+define pink_60 as color with
+  value = "rgb(236,72,153)"
+end
+
+define pink_70 as color with
+  value = "rgb(244,114,182)"
+end
+
+define pink_80 as color with
+  value = "rgb(249,168,212)"
+end
+
+define pink_90 as color with
+  value = "rgb(251,207,232)"
+end
+
+define pink_95 as color with
+  value = "rgb(252,231,243)"
+end
+
+define pink_99 as color with
+  value = "rgb(253,242,248)"
+end
+
+define rose as color with
+  value = "rgb(225,29,72)"
+end
+
+define rose_10 as color with
+  value = "rgb(76,5,25)"
+end
+
+define rose_20 as color with
+  value = "rgb(136,19,55)"
+end
+
+define rose_30 as color with
+  value = "rgb(159,18,57)"
+end
+
+define rose_40 as color with
+  value = "rgb(190,18,60)"
+end
+
+define rose_50 as color with
+  value = "rgb(225,29,72)"
+end
+
+define rose_60 as color with
+  value = "rgb(244,63,94)"
+end
+
+define rose_70 as color with
+  value = "rgb(251,113,133)"
+end
+
+define rose_80 as color with
+  value = "rgb(253,164,175)"
+end
+
+define rose_90 as color with
+  value = "rgb(254,205,211)"
+end
+
+define rose_95 as color with
+  value = "rgb(255,228,230)"
+end
+
+define rose_99 as color with
+  value = "rgb(255,241,242)"
+end
+
+define slate as color with
+  value = "rgb(71,85,105)"
+end
+
+define slate_10 as color with
+  value = "rgb(2,6,23)"
+end
+
+define slate_20 as color with
+  value = "rgb(15,23,42)"
+end
+
+define slate_30 as color with
+  value = "rgb(30,41,59)"
+end
+
+define slate_40 as color with
+  value = "rgb(51,65,85)"
+end
+
+define slate_50 as color with
+  value = "rgb(71,85,105)"
+end
+
+define slate_60 as color with
+  value = "rgb(100,116,139)"
+end
+
+define slate_70 as color with
+  value = "rgb(148,163,184)"
+end
+
+define slate_80 as color with
+  value = "rgb(203,213,225)"
+end
+
+define slate_90 as color with
+  value = "rgb(226,232,240)"
+end
+
+define slate_95 as color with
+  value = "rgb(241,245,249)"
+end
+
+define slate_99 as color with
+  value = "rgb(248,250,252)"
+end
+
+define gray as color with
+  value = "rgb(75,85,99)"
+end
+
+define gray_10 as color with
+  value = "rgb(3,7,18)"
+end
+
+define gray_20 as color with
+  value = "rgb(17,24,39)"
+end
+
+define gray_30 as color with
+  value = "rgb(31,41,55)"
+end
+
+define gray_40 as color with
+  value = "rgb(55,65,82)"
+end
+
+define gray_50 as color with
+  value = "rgb(75,85,99)"
+end
+
+define gray_60 as color with
+  value = "rgb(107,114,128)"
+end
+
+define gray_70 as color with
+  value = "rgb(156,163,175)"
+end
+
+define gray_80 as color with
+  value = "rgb(209,213,219)"
+end
+
+define gray_90 as color with
+  value = "rgb(229,231,235)"
+end
+
+define gray_95 as color with
+  value = "rgb(243,244,246)"
+end
+
+define gray_99 as color with
+  value = "rgb(249,250,251)"
+end
+
+define zinc as color with
+  value = "rgb(82,82,91)"
+end
+
+define zinc_10 as color with
+  value = "rgb(9,9,11)"
+end
+
+define zinc_20 as color with
+  value = "rgb(24,24,27)"
+end
+
+define zinc_30 as color with
+  value = "rgb(39,39,42)"
+end
+
+define zinc_40 as color with
+  value = "rgb(63,63,70)"
+end
+
+define zinc_50 as color with
+  value = "rgb(82,82,91)"
+end
+
+define zinc_60 as color with
+  value = "rgb(113,113,122)"
+end
+
+define zinc_70 as color with
+  value = "rgb(161,161,170)"
+end
+
+define zinc_80 as color with
+  value = "rgb(212,212,216)"
+end
+
+define zinc_90 as color with
+  value = "rgb(228,228,231)"
+end
+
+define zinc_95 as color with
+  value = "rgb(244,244,245)"
+end
+
+define zinc_99 as color with
+  value = "rgb(250,250,250)"
+end
+
+define stone as color with
+  value = "rgb(87,83,78)"
+end
+
+define stone_10 as color with
+  value = "rgb(12,10,9)"
+end
+
+define stone_20 as color with
+  value = "rgb(28,25,23)"
+end
+
+define stone_30 as color with
+  value = "rgb(41,37,36)"
+end
+
+define stone_40 as color with
+  value = "rgb(68,64,60)"
+end
+
+define stone_50 as color with
+  value = "rgb(87,83,78)"
+end
+
+define stone_60 as color with
+  value = "rgb(120,113,108)"
+end
+
+define stone_70 as color with
+  value = "rgb(168,162,158)"
+end
+
+define stone_80 as color with
+  value = "rgb(214,211,209)"
+end
+
+define stone_90 as color with
+  value = "rgb(231,229,228)"
+end
+
+define stone_95 as color with
+  value = "rgb(245,245,244)"
+end
+
+define stone_99 as color with
+  value = "rgb(250,250,249)"
+end
+
+define neutral as color with
+  value = "rgb(112,112,112)"
+end
+
+define neutral_0 as color with
+  value = "rgb(0,0,0)"
+end
+
+define neutral_10 as color with
+  value = "rgb(37,37,37)"
+end
+
+define neutral_20 as color with
+  value = "rgb(52,52,52)"
+end
+
+define neutral_30 as color with
+  value = "rgb(69,69,69)"
+end
+
+define neutral_40 as color with
+  value = "rgb(95,95,95)"
+end
+
+define neutral_50 as color with
+  value = "rgb(112,112,112)"
+end
+
+define neutral_60 as color with
+  value = "rgb(142,142,142)"
+end
+
+define neutral_70 as color with
+  value = "rgb(181,181,181)"
+end
+
+define neutral_80 as color with
+  value = "rgb(222,222,222)"
+end
+
+define neutral_90 as color with
+  value = "rgb(235,235,235)"
+end
+
+define neutral_95 as color with
+  value = "rgb(247,247,247)"
+end
+
+define neutral_99 as color with
+  value = "rgb(250,250,250)"
+end
+
+define neutral_100 as color with
+  value = "rgb(255,255,255)"
+end
+
+define black as color with
+  value = "rgb(0,0,0)"
+end
+
+define white as color with
+  value = "rgb(255,255,255)"
+end
+
+define component with
+  ["$recursive"] = true
+end
+
+define theme with
+  ["$recursive"] = true
+end
+
+define style with
+  ["$recursive"] = true
+end
+
+define main as style with
+  ["$recursive"] = true
+  font_family = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto,
+    Helvetica, Arial, system-ui, sans-serif, \"Apple Color Emoji\",
+    \"Segoe UI Emoji\", \"Segoe UI Symbol\""
+  font_size = "1.25rem"
+  line_height = "1.5"
+  color = "white"
+  ["@screen_size(sm)"] = { font_size = "1.125rem" }
+end
+
+define row as style with
+  ["$recursive"] = true
+  display = "flex"
+  flex_direction = "row"
+end
+
+define column as style with
+  ["$recursive"] = true
+  display = "flex"
+  flex_direction = "column"
+end
+
+define stack as style with
+  ["$recursive"] = true
+  ["> *"] = { position = "absolute", inset = "0" }
+end
+
+define overlay as style with
+  ["$recursive"] = true
+  position = "absolute"
+  inset = "0"
+end
+
+define text as style with
+  ["$recursive"] = true
+  display = "block"
+  pointer_events = "auto"
+  user_select = "none"
+  text_wrap = "wrap"
+  white_space = "pre-line"
+  [">> *"] = { display = "inline" }
+end
+
+define stroke as style with
+  ["$recursive"] = true
+  display = "block"
+  pointer_events = "none"
+  user_select = "none"
+  text_wrap = "wrap"
+  position = "absolute"
+  inset = "0"
+  text_stroke = "1"
+  color = "black"
+  white_space = "pre-line"
+  [">> *"] = { display = "inline" }
+end
+
+define text_line as style with
+  ["$recursive"] = true
+  display = "block"
+  text_wrap = "wrap"
+end
+
+define text_word as style with
+  ["$recursive"] = true
+  display = "inline-block"
+end
+
+define text_space as style with
+  ["$recursive"] = true
+  display = "inline"
+end
+
+define text_letter as style with
+  ["$recursive"] = true
+end
+
+define image as style with
+  ["$recursive"] = true
+  display = "block"
+  pointer_events = "auto"
+  position = "absolute"
+  inset = 0
+  isolation = "isolate"
+  will_change = "transform"
+  container_type = "size"
+  container_name = "image"
+  ["> *"] = { position = "absolute", inset = "0", background_position = "center", background_repeat = "no-repeat", background_size = "auto 100%", will_change = "transform", min_width = "100%", width = "fit-content", translate = "calc(0.5 * (100cqw - 100%)) 0" }
+end
+
+define object as style with
+  ["$recursive"] = true
+  height = "100%"
+  object_fit = "cover"
+  visibility = "hidden"
+end
+
+define mask as style with
+  ["$recursive"] = true
+  display = "block"
+  pointer_events = "auto"
+  position = "absolute"
+  inset = 0
+  isolation = "isolate"
+  will_change = "transform"
+  ["> *"] = { mix_blend_mode = "plus-lighter", position = "absolute", inset = "0", mask_position = "center", mask_repeat = "no-repeat", mask_size = "auto 100%", will_change = "transform" }
+end
+
+define loading_bar as style with
+  ["$recursive"] = true
+  z_index = "1000"
+  position = "relative"
+  width = "100%"
+  height = "4px"
+end
+
+define loading_fill as style with
+  ["$recursive"] = true
+  width = "100%"
+  height = "100%"
+  background_color = "cyan50"
+  transform = "scaleX(var(--loading_progress))"
+  transform_origin = "left"
+end
+
+define screen as style with
+  ["$recursive"] = true
+  position = "absolute"
+  inset = "0"
+  pointer_events = "none"
+  [">> *"] = { pointer_events = "none" }
+end
+
+define stage as style with
+  ["$recursive"] = true
+  position = "absolute"
+  inset = "0"
+  display = "flex"
+  flex_direction = "column"
+end
+
+define backdrop as style with
+  ["$recursive"] = true
+  position = "absolute"
+  inset = "0"
+  background_position = "center"
+  background_size = "cover"
+end
+
+define portrait as style with
+  ["$recursive"] = true
+  position = "absolute"
+  top = "10%"
+  right = "0"
+  bottom = "0"
+  left = "0"
+  display = "flex"
+  flex_direction = "column"
+  background_size = "auto 100%"
+  background_position = "center"
+  ["> image >> *"] = { mix_blend_mode = "plus-lighter" }
+end
+
+define choices as style with
+  ["$recursive"] = true
+  position = "relative"
+  flex = "1"
+  display = "flex"
+  flex_direction = "column"
+  align_items = "center"
+  justify_content = "center"
+  width = "100%"
+  gap = "8px"
+  margin_bottom = "100px"
+  ["@screen_size(sm)"] = { margin_bottom = "120px" }
+end
+
+define choice as style with
+  ["$recursive"] = true
+  display = "flex"
+  flex_direction = "row"
+  width = "90%"
+  max_width = "800px"
+  background_color = "rgb(0 0 0 / 65%)"
+  padding = "8px"
+  border_radius = "8px"
+  border = "1px solid"
+  text_align = "center"
+  align_items = "center"
+  justify_content = "center"
+  cursor = "pointer"
+  ["@hovered"] = { background_color = "black", transition = "all 0.15s linear" }
+end
+
+define textbox as style with
+  ["$recursive"] = true
+  position = "absolute"
+  bottom = "0"
+  left = "0"
+  right = "0"
+  display = "flex"
+  flex_direction = "column"
+  align_items = "center"
+  color = "white"
+  flex = 1
+end
+
+define textbox_background as style with
+  ["$recursive"] = true
+  position = "absolute"
+  inset = "0"
+  background_image = "linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)"
+end
+
+define textbox_content as style with
+  ["$recursive"] = true
+  position = "relative"
+  flex = "1"
+  display = "flex"
+  flex_direction = "column"
+  max_width = "800px"
+  width = "100%"
+  margin = "0 auto"
+  min_height = "200px"
+  padding = "16px 32px"
+  ["@screen_size(sm)"] = { min_height = "240px", padding = "16px" }
+end
+
+define character_info as style with
+  ["$recursive"] = true
+  display = "flex"
+  flex_direction = "row"
+  justify_content = "center"
+  align_items = "flex-end"
+  gap = "8px"
+  line_height = "1"
+  font_size = "1.875rem"
+  ["@screen_size(sm)"] = { font_size = "1.5rem" }
+end
+
+define character_name as style with
+  ["$recursive"] = true
+  padding_bottom = "8px"
+  font_weight = "600px"
+end
+
+define character_parenthetical as style with
+  ["$recursive"] = true
+  padding_bottom = "8px"
+  font_weight = "400px"
+  font_size = "1rem"
+  ["@screen_size(sm)"] = { font_size = "0.875rem" }
+end
+
+define title as style with
+  ["$recursive"] = true
+  position = "absolute"
+  inset = "0"
+  padding_left = "40px"
+  padding_right = "40px"
+  display = "flex"
+  flex_direction = "column"
+  justify_content = "center"
+  align_self = "center"
+  text_align = "center"
+  font_weight = "bold"
+end
+
+define heading as style with
+  ["$recursive"] = true
+  position = "absolute"
+  inset = "0"
+  padding_left = "40px"
+  padding_right = "40px"
+  display = "flex"
+  flex_direction = "column"
+  justify_content = "center"
+  align_self = "center"
+  text_align = "center"
+  font_weight = "bold"
+end
+
+define transitional as style with
+  ["$recursive"] = true
+  position = "absolute"
+  inset = "0"
+  padding_left = "40px"
+  padding_right = "40px"
+  padding_bottom = "24px"
+  display = "flex"
+  flex_direction = "column"
+  justify_content = "center"
+  align_self = "flex-end"
+  text_align = "right"
+  width = "100%"
+end
+
+define dialogue as style with
+  ["$recursive"] = true
+  margin = "0 auto"
+  width = "68%"
+  ["@screen_size(sm)"] = { width = "80%" }
+end
+
+define action as style with
+  ["$recursive"] = true
+  position = "absolute"
+  inset = "0"
+  padding_left = "40px"
+  padding_right = "40px"
+  display = "flex"
+  flex_direction = "column"
+  justify_content = "center"
+  align_self = "center"
+  text_align = "center"
+end
+
+define continue_indicator as style with
+  ["$recursive"] = true
+  opacity = "0"
+  line_height = "1"
+  width = "16px"
+  height = "16px"
+  position = "absolute"
+  right = "16px"
+  bottom = "16px"
+  font_size = "16px"
+  transition = "opacity 0.25s linear"
+  animation = "0.5s infinite bounce"
+  animation_play_state = "paused"
+end
+
+define screen with
+  ["$recursive"] = true
+end
+
+define loading as screen with
+  ["$recursive"] = true
+  loading_bar = { loading_fill = {} }
+end
+
+define main as screen with
+  ["$recursive"] = true
+  stage = { animation = {}, backdrop = { image = "transparent" }, portrait = { image = {} } }
+  choices = { ["choice 0"] = { text = {} }, ["choice 1"] = { text = {} }, ["choice 2"] = { text = {} }, ["choice 3"] = { text = {} }, ["choice 4"] = { text = {} }, ["choice 5"] = { text = {} } }
+  textbox = { textbox_background = {}, textbox_content = { character_info = { character_name = { stroke = {}, text = {} }, character_parenthetical = { stroke = {}, text = {} } }, title = { stroke = {}, text = {} }, heading = { stroke = {}, text = {} }, transitional = { stroke = {}, text = {} }, dialogue = { stroke = {}, text = {} }, action = { stroke = {}, text = {} } }, continue_indicator = { text = "▼" } }
+  screen = { animation = {} }
+end
+
+define layer with
+end
+
+define self as layer with
+end
+
+define instance as layer with
+end
+
+define object as layer with
+end
+
+define animation with
+  target = layer.self
+  keyframes = {}
+  timing = { delay = 0, duration = 0, easing = "ease", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define show as animation with
+  target = layer.self
+  keyframes = { { opacity = "1" } }
+  timing = { delay = 0, duration = 0, easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define hide as animation with
+  target = layer.self
+  keyframes = { { opacity = "0" } }
+  timing = { delay = 0, duration = 0, easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define align_left as animation with
+  target = layer.instance
+  keyframes = { { translate = "calc(0 * (100cqw - 100%)) 0" } }
+  timing = { delay = 0, duration = 0, easing = "ease-in-out", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define align_center as animation with
+  target = layer.instance
+  keyframes = { { translate = "calc(0.5 * (100cqw - 100%)) 0" } }
+  timing = { delay = 0, duration = 0, easing = "ease-in-out", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define align_right as animation with
+  target = layer.instance
+  keyframes = { { translate = "calc(1 * (100cqw - 100%)) 0" } }
+  timing = { delay = 0, duration = 0, easing = "ease-in-out", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define spin as animation with
+  target = layer.self
+  keyframes = { { transform = "rotate(360deg)" } }
+  timing = { delay = 0, duration = 0, easing = "linear", iterations = "infinite", fill = "none", direction = "normal" }
+end
+
+define ping as animation with
+  target = layer.self
+  keyframes = { { offset = 0.75, transform = "scale(2)", opacity = "0" }, { offset = 1, transform = "scale(2)", opacity = "0" } }
+  timing = { delay = 0, duration = 0, easing = "ease", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define bounce as animation with
+  target = layer.self
+  keyframes = { { transform = "translateY(-50%)", easing = "cubic-bezier(0.8,0,1,1)" }, { transform = "none", easing = "cubic-bezier(0,0,0.2,1)" }, { transform = "translateY(-50%)", easing = "cubic-bezier(0.8,0,1,1)" } }
+  timing = { delay = 0, duration = 0, easing = "ease", iterations = "infinite", fill = "none", direction = "normal" }
+end
+
+define wave as animation with
+  target = layer.self
+  keyframes = { { transform = "translateY(0)" }, { transform = "translateY(-15%)" }, { transform = "translateY(0)" } }
+  timing = { delay = 0, duration = "750ms", easing = "ease-in-out", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define wavy as animation with
+  target = layer.self
+  keyframes = { { transform = "translateY(0)" }, { transform = "translateY(-15%)" }, { transform = "translateY(0)" } }
+  timing = { delay = 0, duration = "750ms", easing = "ease-in-out", iterations = "infinite", fill = "none", direction = "normal" }
+end
+
+define shaky as animation with
+  target = layer.self
+  keyframes = { { left = "calc(1em / 60)", top = "calc(1em / 60)" }, { left = "calc(-1em / 60)", top = "calc(-2em / 60)" }, { left = "calc(-2em / 60)", top = "calc(0em / 60)" }, { left = "calc(2em / 60)", top = "calc(2em / 60)" }, { left = "calc(1em / 60)", top = "calc(-1em / 60)" }, { left = "calc(-1em / 60)", top = "calc(2em / 60)" }, { left = "calc(-2em / 60)", top = "calc(1em / 60)" }, { left = "calc(2em / 60)", top = "calc(1em / 60)" }, { left = "calc(-1em / 60)", top = "calc(-1em / 60)" }, { left = "calc(1em / 60)", top = "calc(2em / 60)" }, { left = "calc(1em / 60)", top = "calc(-2em / 60)" } }
+  timing = { delay = 0, duration = "300ms", easing = "ease-in-out", iterations = "infinite", fill = "none", direction = "normal" }
+end
+
+define shake as animation with
+  target = layer.self
+  keyframes = { { transform = "translate(0.4vh, 0.2vh)" }, { transform = "translate(-0.2vh, -0.4vh)" }, { transform = "translate(-0.6vh, 0vh)" }, { transform = "translate(0vh, 0.4vh)" }, { transform = "translate(0.2vh, -0.2vh)" }, { transform = "translate(-0.2vh, 0.4vh)" }, { transform = "translate(-0.6vh, 0.2vh)" }, { transform = "translate(0.4vh, 0.2vh)" }, { transform = "translate(-0.2vh, -0.2vh)" }, { transform = "translate(0.4vh, 0.4vh)" }, { transform = "translate(0.2vh, -0.4vh)" } }
+  timing = { delay = 0, duration = "300ms", easing = "ease-in-out", iterations = 1, fill = "none", direction = "normal" }
+end
+
+define shaking as animation with
+  target = layer.self
+  keyframes = { { transform = "translate(0.4vh, 0.2vh)" }, { transform = "translate(-0.2vh, -0.4vh)" }, { transform = "translate(-0.6vh, 0vh)" }, { transform = "translate(0vh, 0.4vh)" }, { transform = "translate(0.2vh, -0.2vh)" }, { transform = "translate(-0.2vh, 0.4vh)" }, { transform = "translate(-0.6vh, 0.2vh)" }, { transform = "translate(0.4vh, 0.2vh)" }, { transform = "translate(-0.2vh, -0.2vh)" }, { transform = "translate(0.4vh, 0.4vh)" }, { transform = "translate(0.2vh, -0.4vh)" } }
+  timing = { delay = 0, duration = "300ms", easing = "ease-in-out", iterations = "infinite", fill = "both", direction = "normal" }
+end
+
+define shiver as animation with
+  target = layer.self
+  keyframes = { { transform = "translate(0.2vh, 0.1vh)" }, { transform = "translate(-0.1vh, -0.2vh)" }, { transform = "translate(-0.3vh, 0vh)" }, { transform = "translate(0vh, 0.2vh)" }, { transform = "translate(0.1vh, -0.1vh)" }, { transform = "translate(-0.1vh, 0.2vh)" }, { transform = "translate(-0.3vh, 0.1vh)" }, { transform = "translate(0.2vh, 0.1vh)" }, { transform = "translate(-0.1vh, -0.1vh)" }, { transform = "translate(0.2vh, 0.2vh)" }, { transform = "translate(0.1vh, -0.2vh)" } }
+  timing = { delay = 0, duration = "300ms", easing = "ease-in-out", iterations = 1, fill = "none", direction = "normal" }
+end
+
+define shivering as animation with
+  target = layer.self
+  keyframes = { { transform = "translate(0.2vh, 0.1vh)" }, { transform = "translate(-0.1vh, -0.2vh)" }, { transform = "translate(-0.3vh, 0vh)" }, { transform = "translate(0vh, 0.2vh)" }, { transform = "translate(0.1vh, -0.1vh)" }, { transform = "translate(-0.1vh, 0.2vh)" }, { transform = "translate(-0.3vh, 0.1vh)" }, { transform = "translate(0.2vh, 0.1vh)" }, { transform = "translate(-0.1vh, -0.1vh)" }, { transform = "translate(0.2vh, 0.2vh)" }, { transform = "translate(0.1vh, -0.2vh)" } }
+  timing = { delay = 0, duration = "300ms", easing = "ease-in-out", iterations = "infinite", fill = "none", direction = "normal" }
+end
+
+define waitout as animation with
+  target = layer.self
+  keyframes = { { opacity = "0" } }
+  timing = { delay = 0, duration = "0.5s", easing = "step-end", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define waitin as animation with
+  target = layer.self
+  keyframes = { { opacity = "1" } }
+  timing = { delay = 0, duration = "0.5s", easing = "step-end", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define fadeout as animation with
+  target = layer.self
+  keyframes = { { opacity = "0" } }
+  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define fadein as animation with
+  target = layer.self
+  keyframes = { { opacity = "1" } }
+  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define pulse as animation with
+  target = layer.self
+  keyframes = { { opacity = "0" }, { opacity = "1" }, { opacity = "0" } }
+  timing = { delay = 0, duration = "1s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define blackout as animation with
+  target = layer.self
+  keyframes = { { background_color = "black", opacity = "0" }, { background_color = "black", opacity = "1" } }
+  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define blackin as animation with
+  target = layer.self
+  keyframes = { { background_color = "black", opacity = "1" }, { background_color = "black", opacity = "0" } }
+  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define blackpulse as animation with
+  target = layer.self
+  keyframes = { { background_color = "black", opacity = "0" }, { background_color = "black", opacity = "1" }, { background_color = "black", opacity = "0" } }
+  timing = { delay = 0, duration = "1s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define whiteout as animation with
+  target = layer.self
+  keyframes = { { background_color = "white", opacity = "0" }, { background_color = "white", opacity = "1" } }
+  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define whitein as animation with
+  target = layer.self
+  keyframes = { { background_color = "white", opacity = "1" }, { background_color = "white", opacity = "0" } }
+  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define whitepulse as animation with
+  target = layer.self
+  keyframes = { { background_color = "white", opacity = "0" }, { background_color = "white", opacity = "1" }, { background_color = "white", opacity = "0" } }
+  timing = { delay = 0, duration = "1s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+end
+
+define transition with
+  on_hide = animation.hide
+  on_show = animation.show
+end
+
+define fade as transition with
+  on_hide = animation.fadeout
+  on_show = animation.fadein
+end
+
+define screenfade as transition with
+  on_hide = animation.waitout
+  on_show = animation.waitin
+  screen = animation.blackpulse
+end
+
+define screenflash as transition with
+  on_hide = animation.waitout
+  on_show = animation.waitin
+  screen = animation.whitepulse
+end
+
+define font with
+  src = ""
+  font_family = ""
+  font_weight = "normal"
+  font_style = "normal"
+  font_stretch = "normal"
+  font_display = "block"
+  unicode_range = "U+0-10FFFF"
+end
+
+define shadow with
+  layers = { { x = 0, y = 1, blur = 3, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 4, blur = 8, spread = 3, color = "black", opacity = 0.15 } }
+end
+
+define xs as shadow with
+  layers = { { x = 0, y = 1, blur = 2, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 1, blur = 3, spread = 1, color = "black", opacity = 0.15 } }
+end
+
+define sm as shadow with
+  layers = { { x = 0, y = 1, blur = 2, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 2, blur = 6, spread = 2, color = "black", opacity = 0.15 } }
+end
+
+define md as shadow with
+  layers = { { x = 0, y = 1, blur = 3, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 4, blur = 8, spread = 3, color = "black", opacity = 0.15 } }
+end
+
+define lg as shadow with
+  layers = { { x = 0, y = 2, blur = 3, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 6, blur = 10, spread = 4, color = "black", opacity = 0.15 } }
+end
+
+define xl as shadow with
+  layers = { { x = 0, y = 4, blur = 4, spread = 0, color = "black", opacity = 0.3 }, { x = 0, y = 8, blur = 12, spread = 6, color = "black", opacity = 0.15 } }
+end
+
+define ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.2, 0, 0, 1 }
+end
+
+define linear as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0, 0, 1, 1 }
+end
+
+define spring as ease with
+  ["function"] = "linear"
+  parameters = { "0", "0.009", "0.035 2.1%", "0.141", "0.281 6.7%", "0.723 12.9%", "0.938 16.7%", "1.017", "1.077", "1.121", "1.149 24.3%", "1.159", "1.163", "1.161", "1.154 29.9%", "1.129 32.8%", "1.051 39.6%", "1.017 43.1%", "0.991", "0.977 51%", "0.974 53.8%", "0.975 57.1%", "0.997 69.8%", "1.003 76.9%", "1.004 83.8%", "1" }
+end
+
+define elastic as ease with
+  ["function"] = "linear"
+  parameters = { "0", "0.218 2.1%", "0.862 6.5%", "1.114", "1.296 10.7%", "1.346", "1.37 12.9%", "1.373", "1.364 14.5%", "1.315 16.2%", "1.032 21.8%", "0.941 24%", "0.891 25.9%", "0.877", "0.869 27.8%", "0.87", "0.882 30.7%", "0.907 32.4%", "0.981 36.4%", "1.012 38.3%", "1.036", "1.046 42.7% 44.1%", "1.042 45.7%", "0.996 53.3%", "0.988", "0.984 57.5%", "0.985 60.7%", "1.001 68.1%", "1.006 72.2%", "0.998 86.7%", "1" }
+end
+
+define bounce as ease with
+  ["function"] = "linear"
+  parameters = { "0", "0.004", "0.016", "0.035", "0.063", "0.098", "0.141 13.6%", "0.25", "0.391", "0.563", "0.765", "1", "0.891 40.9%", "0.848", "0.813", "0.785", "0.766", "0.754", "0.75", "0.754", "0.766", "0.785", "0.813", "0.848", "0.891 68.2%", "1 72.7%", "0.973", "0.953", "0.941", "0.938", "0.941", "0.953", "0.973", "1", "0.988", "0.984", "0.988", "1" }
+end
+
+define in_sine as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.12, 0, 0.39, 0 }
+end
+
+define out_sine as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.61, 1, 0.88, 1 }
+end
+
+define in_out_sine as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.37, 0, 0.63, 1 }
+end
+
+define in_quad as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.11, 0, 0.5, 0 }
+end
+
+define out_quad as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.5, 1, 0.89, 1 }
+end
+
+define in_out_quad as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.45, 0, 0.55, 1 }
+end
+
+define in_cubic as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.32, 0, 0.67, 0 }
+end
+
+define out_cubic as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.33, 1, 0.68, 1 }
+end
+
+define in_out_cubic as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.65, 0, 0.35, 1 }
+end
+
+define in_quart as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.5, 0, 0.75, 0 }
+end
+
+define out_quart as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.25, 1, 0.5, 1 }
+end
+
+define in_out_quart as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.76, 0, 0.24, 1 }
+end
+
+define in_quint as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.64, 0, 0.78, 0 }
+end
+
+define out_quint as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.22, 1, 0.36, 1 }
+end
+
+define in_out_quint as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.83, 0, 0.17, 1 }
+end
+
+define in_expo as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.7, 0, 0.84, 0 }
+end
+
+define out_expo as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.16, 1, 0.3, 1 }
+end
+
+define in_out_expo as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.87, 0, 0.13, 1 }
+end
+
+define in_circ as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.55, 0, 1, 0.45 }
+end
+
+define out_circ as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0, 0.55, 0.45, 1 }
+end
+
+define in_out_circ as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.85, 0, 0.15, 1 }
+end
+
+define in_back as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.36, 0, 0.66, -0.56 }
+end
+
+define out_back as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.34, 1.56, 0.64, 1 }
+end
+
+define in_out_back as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0.68, -0.6, 0.32, 1.6 }
+end
+
+define gradient with
+  type = "linear"
+  angle = 180
+  stops = { { color = "white", opacity = 1, position = 0.5 }, { color = "white", opacity = 0, position = 1 } }
+end
+
+define graphic with
+  width = 32
+  height = 32
+  tiling = { on = false, zoom = 1, angle = 0 }
+  shapes = { { path = "M 0 0 L 64 0 L 64 64 L 0 64 L 0 0", fill_color = "none", fill_opacity = 1, stroke_color = "none", stroke_opacity = 1, stroke_weight = 1, stroke_join = "miter", stroke_cap = "round" } }
+end
+
+define audio with
+  ["$link"] = { image = {}, synth = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  src = ""
+  volume = 1
+  loop = false
+  loop_start = 0
+  loop_end = 0
+  cues = { 0 }
+end
+
+define layered_audio with
+  assets = { audio.none }
+  cues = { 0 }
+  loop_start = 0
+  loop_end = 0
+end
+
+define synth with
+  ["$link"] = { image = {}, audio = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  shape = "triangle"
+  phase = 0
+  volume = 0.5
+  envelope = { offset = 0, attack = 0.007, decay = 0.003, sustain = 0.035, release = 0.01, level = 0.5 }
+  pitch = { frequency = 440, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
+  vibrato = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }
+  fm = { on = false, ratio = 1, ratio_ramp = 0, strength = 0.5, strength_ramp = 0 }
+  arpeggio = { on = false, rate = 50, rate_ramp = 0, max_octaves = 1, max_notes = 160, glide = 0, direction = "up", tones = { 0, 4, 7 }, levels = {}, shapes = {}, phases = {} }
+  tremolo = { on = false, rate = 10, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  ring = { on = false, rate = 1620, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  wahwah = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  distortion = { on = false, edge = 0.5, edge_ramp = 0, grit = 0.5, grit_ramp = 0 }
+  bitcrush = { on = false, crush = 0.5, crush_ramp = 0, skip = 0.5, skip_ramp = 0 }
+  delay = { on = false, length = 0.15, strength = 0.5, feedback = 0.75 }
+  reverb = { on = false, room_size = 0.5, mix = 0.5, damping = 0.5 }
+  highpass = { on = false, cutoff = 2000, cutoff_ramp = 0 }
+  lowpass = { on = false, cutoff = 4000, cutoff_ramp = 0, resonance = 0.5 }
+end
+
+define character as synth with
+  ["$link"] = { image = {}, audio = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  shape = "triangle"
+  phase = 0
+  volume = 0.5
+  envelope = { offset = 0, attack = 0.007, decay = 0.003, sustain = 0.035, release = 0.01, level = 0.5 }
+  pitch = { frequency = 440, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
+  vibrato = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }
+  fm = { on = false, ratio = 1, ratio_ramp = 0, strength = 0.5, strength_ramp = 0 }
+  arpeggio = { on = false, rate = 50, rate_ramp = 0, max_octaves = 1, max_notes = 160, glide = 0, direction = "up", tones = { 0, 4, 7 }, levels = {}, shapes = {}, phases = {} }
+  tremolo = { on = false, rate = 10, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  ring = { on = false, rate = 1620, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  wahwah = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  distortion = { on = false, edge = 0.5, edge_ramp = 0, grit = 0.5, grit_ramp = 0 }
+  bitcrush = { on = false, crush = 0.5, crush_ramp = 0, skip = 0.5, skip_ramp = 0 }
+  delay = { on = false, length = 0.15, strength = 0.5, feedback = 0.75 }
+  reverb = { on = false, room_size = 0.5, mix = 0.5, damping = 0.5 }
+  highpass = { on = false, cutoff = 2000, cutoff_ramp = 0 }
+  lowpass = { on = false, cutoff = 4000, cutoff_ramp = 0, resonance = 0.5 }
+end
+
+define typewriter as synth with
+  ["$link"] = { image = {}, audio = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  shape = "tangent"
+  phase = 0
+  volume = 0.5
+  envelope = { offset = 0, attack = 0.01, decay = 0.003, sustain = 0.04, release = 0.01, level = 0.15 }
+  pitch = { frequency = 3465, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
+  highpass = { on = true, cutoff = 6600, cutoff_ramp = 0 }
+  vibrato = { on = true, rate = 55, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  arpeggio = { on = true, rate = 100, rate_ramp = 0, max_octaves = 1, max_notes = 160, glide = 0, direction = "up", tones = { 0 }, levels = { 0.2, 1, 0.1, 0.05, 0.01, 1, 0 }, shapes = {}, phases = {} }
+  harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }
+  fm = { on = false, ratio = 1, ratio_ramp = 0, strength = 0.5, strength_ramp = 0 }
+  tremolo = { on = false, rate = 10, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  ring = { on = false, rate = 1620, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  wahwah = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  distortion = { on = false, edge = 0.5, edge_ramp = 0, grit = 0.5, grit_ramp = 0 }
+  bitcrush = { on = false, crush = 0.5, crush_ramp = 0, skip = 0.5, skip_ramp = 0 }
+  delay = { on = false, length = 0.15, strength = 0.5, feedback = 0.75 }
+  reverb = { on = false, room_size = 0.5, mix = 0.5, damping = 0.5 }
+  lowpass = { on = false, cutoff = 4000, cutoff_ramp = 0, resonance = 0.5 }
+end
+
+define mixer with
+  gain = 1
+end
+
+define main as mixer with
+  gain = 1
+end
+
+define music as mixer with
+  gain = 1
+end
+
+define sound as mixer with
+  gain = 1
+end
+
+define voice as mixer with
+  gain = 1
+end
+
+define typewriter as mixer with
+  gain = 1
+end
+
+define channel with
+  mixer = mixer.none
+  loop = false
+  play_behavior = "replace"
+end
+
+define music as channel with
+  mixer = "music"
+  loop = true
+  play_behavior = "replace"
+end
+
+define ambient as channel with
+  mixer = "sound"
+  loop = true
+  play_behavior = "stack"
+end
+
+define sound as channel with
+  mixer = "sound"
+  loop = false
+  play_behavior = "stack"
+end
+
+define voice as channel with
+  mixer = "voice"
+  loop = false
+  play_behavior = "replace"
+end
+
+define typewriter as channel with
+  mixer = "sound"
+  loop = false
+  play_behavior = "replace"
+end
+
+define typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = "/([\\p{L}\\p{N}']+)/u"
+  yelled = "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
+  punctuated = "/(?:^|\\s)(?:[.]\\s*?)+(?:$|\\s)/u"
+end
+
+define title as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = "/([\\p{L}\\p{N}']+)/u"
+  yelled = "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
+  punctuated = "/(?:^|\\s)(?:[.]\\s*?)+(?:$|\\s)/u"
+end
+
+define heading as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0.025
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = "/([\\p{L}\\p{N}']+)/u"
+  yelled = "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
+  punctuated = "/(?:^|\\s)(?:[.]\\s*?)+(?:$|\\s)/u"
+end
+
+define transitional as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0.025
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = "/([\\p{L}\\p{N}']+)/u"
+  yelled = "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
+  punctuated = "/(?:^|\\s)(?:[.]\\s*?)+(?:$|\\s)/u"
+end
+
+define dialogue as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0.025
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = "/([\\p{L}\\p{N}']+)/u"
+  yelled = "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
+  punctuated = "/(?:^|\\s)(?:[.]\\s*?)+(?:$|\\s)/u"
+end
+
+define action as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0.025
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = "/([\\p{L}\\p{N}']+)/u"
+  yelled = "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
+  punctuated = "/(?:^|\\s)(?:[.]\\s*?)+(?:$|\\s)/u"
+end
+
+define character_name as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = "/([\\p{L}\\p{N}']+)/u"
+  yelled = "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
+  punctuated = "/(?:^|\\s)(?:[.]\\s*?)+(?:$|\\s)/u"
+end
+
+define character_parenthetical as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = "/([\\p{L}\\p{N}']+)/u"
+  yelled = "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
+  punctuated = "/(?:^|\\s)(?:[.]\\s*?)+(?:$|\\s)/u"
+end
+
+define portrait as typewriter with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, inflection = {}, prosody = {} }
+  fade_duration = 0
+  animation_offset = 0.06
+  letter_pause = 0
+  phrase_pause_scale = 5
+  em_dash_pause_scale = 16
+  stressed_pause_scale = 10
+  punctuated_pause_scale = 15
+  min_syllable_length = 3
+  voiced = "/([\\p{L}\\p{N}']+)/u"
+  yelled = "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u"
+  punctuated = "/(?:^|\\s)(?:[.]\\s*?)+(?:$|\\s)/u"
+end
+
+define character with
+  ["$link"] = { image = {}, audio = {}, synth = {}, typewriter = {}, inflection = {}, prosody = {} }
+  name = ""
+end
+
+define prosody with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, typewriter = {}, inflection = {} }
+  lilt_question = "/(?:^|\\b)[~]+([!?]*[?][!?]*)[ \"']*$/"
+  lilt_exclamation = "/(?:^|\\b)[~]+([!]+)[ \"']*$/"
+  lilt = "/(?:^|\\b)([~]+)[ ]*$/"
+  anxious_lilt = "/(?:^|\\b)([~]+)[.][.][.]+[ \"']*$/"
+  exclamation = "/(?:^|\\b)([!?]*[!][!?]*)[ \"']*$/"
+  resolved_anxious_question = "/(?:^|\\b)(?:who|whose|what|when|where|why|which|how)\\b.*\\b[^\\t\\n\\r !?]+[.][.][.]+([!?]*[?][!?]*)[ \"']*$/"
+  resolved_question = "/(?:^|\\b)(?:who|whose|what|when|where|why|which|how)\\b.*\\b[^\\t\\n\\r !?]+([!?]*[?][!?]*)[ \"']*$/"
+  anxious_question = "/(?:^|\\b)[.][.][.]+([?]+)[ \"']*$/"
+  question = "/(?:^|\\b)([!?]*[?][!?]*)[ \"']*$/"
+  comma = "/(?:^|\\b)([,])[ \"']*$/"
+  partial = "/(?:^|\\b)[-]([-]+)[ \"']*$/"
+  anxious = "/(?:^|\\b)[.][.]([.]+)[ \"']*$/"
+  statement = "/(?:^|\\b)([.])[ \"']*$/"
+end
+
+define inflection with
+  ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, typewriter = {}, prosody = {} }
+  lilt_question = { 1, 2, 3, 4, 5 }
+  lilt_exclamation = { 3, 4, 5, 6, 7 }
+  lilt = { 1, -2, 7, 10 }
+  anxious_lilt = { 1, -4, 10, 7 }
+  exclamation = { 2, 5 }
+  resolved_anxious_question = { -1, 0 }
+  anxious_question = { -1, 2 }
+  resolved_question = { 1, 1 }
+  anxious = { -1, -1 }
+  question = { 0, 2 }
+  partial = { 1, 1 }
+  comma = { -1, -1 }
+  statement = { 0, 0 }
+end
