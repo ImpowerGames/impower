@@ -3,8 +3,16 @@
   "displayName": "Spark Engine",
   "description": "A light-weight library used to run spark games.",
   "version": "0.0.1",
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
   "dependencies": {
     "@impower/sparkdown": "file:../sparkdown",
     "@impower/jsonrpc": "file:../jsonrpc"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "vitest": "^2.1.8"
   }
 }

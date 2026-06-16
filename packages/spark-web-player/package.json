@@ -7,7 +7,9 @@
   "scripts": {
     "build": "node ./scripts/bundle-globals.ts",
     "watch": "node ./scripts/bundle-globals.ts --watch",
-    "package": "node ./scripts/bundle-globals.ts --production"
+    "package": "node ./scripts/bundle-globals.ts --production",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@impower/spark-dom": "file:../spark-dom",
@@ -22,6 +24,8 @@
     "@types/node": "^22.14.1",
     "chokidar": "^4.0.3",
     "dts-bundle-generator": "^9.5.1",
-    "ts-morph": "^25.0.1"
+    "jsdom": "^25.0.1",
+    "ts-morph": "^25.0.1",
+    "vitest": "^2.1.8"
   }
 }

@@ -1,0 +1,7036 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`text targets > action (default target) 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "The room is quiet.",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-3",
+      "name": "text_line",
+      "parent": "e-2",
+      "style": undefined,
+      "type": "div",
+    },
+  },
+  {
+    "id": "req-3",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-4",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-4",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "T",
+      },
+      "element": "e-5",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-5",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "h",
+      },
+      "element": "e-6",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-6",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "e",
+      },
+      "element": "e-7",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-7",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-8",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-8",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-9",
+      "name": "text_letter",
+      "parent": "e-8",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-9",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-10",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-10",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "r",
+      },
+      "element": "e-11",
+      "name": "text_letter",
+      "parent": "e-10",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-11",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "o",
+      },
+      "element": "e-12",
+      "name": "text_letter",
+      "parent": "e-10",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-12",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "o",
+      },
+      "element": "e-13",
+      "name": "text_letter",
+      "parent": "e-10",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-13",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "m",
+      },
+      "element": "e-14",
+      "name": "text_letter",
+      "parent": "e-10",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-14",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-15",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-15",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-16",
+      "name": "text_letter",
+      "parent": "e-15",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-16",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-17",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-17",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "i",
+      },
+      "element": "e-18",
+      "name": "text_letter",
+      "parent": "e-17",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-18",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "s",
+      },
+      "element": "e-19",
+      "name": "text_letter",
+      "parent": "e-17",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-19",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-20",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-20",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-21",
+      "name": "text_letter",
+      "parent": "e-20",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-21",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-22",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-22",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "q",
+      },
+      "element": "e-23",
+      "name": "text_letter",
+      "parent": "e-22",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-23",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "u",
+      },
+      "element": "e-24",
+      "name": "text_letter",
+      "parent": "e-22",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-24",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "i",
+      },
+      "element": "e-25",
+      "name": "text_letter",
+      "parent": "e-22",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-25",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "e",
+      },
+      "element": "e-26",
+      "name": "text_letter",
+      "parent": "e-22",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-26",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "t",
+      },
+      "element": "e-27",
+      "name": "text_letter",
+      "parent": "e-22",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-27",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": ".",
+      },
+      "element": "e-28",
+      "name": "text_letter",
+      "parent": "e-22",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-28",
+    "kind": "request",
+    "method": "ui/animate",
+    "params": {
+      "effects": [
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-5",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-6",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-7",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-9",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-11",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-12",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-13",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-14",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-16",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-18",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-19",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-21",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-23",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-24",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-25",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-26",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-27",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-28",
+        },
+      ],
+    },
+  },
+]
+`;
+
+exports[`text targets > inline color via underline / centered styling 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "Some underlined words.",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-3",
+      "name": "text_line",
+      "parent": "e-2",
+      "style": undefined,
+      "type": "div",
+    },
+  },
+  {
+    "id": "req-3",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-4",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-4",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "S",
+      },
+      "element": "e-5",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-5",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "o",
+      },
+      "element": "e-6",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-6",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "m",
+      },
+      "element": "e-7",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-7",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "e",
+      },
+      "element": "e-8",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-8",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-9",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-9",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-10",
+      "name": "text_letter",
+      "parent": "e-9",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-10",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-11",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-11",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "u",
+      },
+      "element": "e-12",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+        "text_decoration": "underline",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-12",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "n",
+      },
+      "element": "e-13",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+        "text_decoration": "underline",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-13",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "d",
+      },
+      "element": "e-14",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+        "text_decoration": "underline",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-14",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "e",
+      },
+      "element": "e-15",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+        "text_decoration": "underline",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-15",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "r",
+      },
+      "element": "e-16",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+        "text_decoration": "underline",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-16",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "l",
+      },
+      "element": "e-17",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+        "text_decoration": "underline",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-17",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "i",
+      },
+      "element": "e-18",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+        "text_decoration": "underline",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-18",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "n",
+      },
+      "element": "e-19",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+        "text_decoration": "underline",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-19",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "e",
+      },
+      "element": "e-20",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+        "text_decoration": "underline",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-20",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "d",
+      },
+      "element": "e-21",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+        "text_decoration": "underline",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-21",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-22",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-22",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-23",
+      "name": "text_letter",
+      "parent": "e-22",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-23",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-24",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-24",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "w",
+      },
+      "element": "e-25",
+      "name": "text_letter",
+      "parent": "e-24",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-25",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "o",
+      },
+      "element": "e-26",
+      "name": "text_letter",
+      "parent": "e-24",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-26",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "r",
+      },
+      "element": "e-27",
+      "name": "text_letter",
+      "parent": "e-24",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-27",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "d",
+      },
+      "element": "e-28",
+      "name": "text_letter",
+      "parent": "e-24",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-28",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "s",
+      },
+      "element": "e-29",
+      "name": "text_letter",
+      "parent": "e-24",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-29",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": ".",
+      },
+      "element": "e-30",
+      "name": "text_letter",
+      "parent": "e-24",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-30",
+    "kind": "request",
+    "method": "ui/animate",
+    "params": {
+      "effects": [
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-5",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-6",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-7",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-8",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-10",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-12",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-13",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-14",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-15",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-16",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-17",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-18",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-19",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-20",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-21",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-23",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-25",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-26",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-27",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-28",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-29",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-30",
+        },
+      ],
+    },
+  },
+]
+`;
+
+exports[`text targets > inline wavy / shaky animations 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "This is wavy and shaky text.",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-3",
+      "name": "text_line",
+      "parent": "e-2",
+      "style": undefined,
+      "type": "div",
+    },
+  },
+  {
+    "id": "req-3",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-4",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-4",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "T",
+      },
+      "element": "e-5",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-5",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "h",
+      },
+      "element": "e-6",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-6",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "i",
+      },
+      "element": "e-7",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-7",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "s",
+      },
+      "element": "e-8",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-8",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-9",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-9",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-10",
+      "name": "text_letter",
+      "parent": "e-9",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-10",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-11",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-11",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "i",
+      },
+      "element": "e-12",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-12",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "s",
+      },
+      "element": "e-13",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-13",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-14",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-14",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-15",
+      "name": "text_letter",
+      "parent": "e-14",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-15",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-16",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-16",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "w",
+      },
+      "element": "e-17",
+      "name": "text_letter",
+      "parent": "e-16",
+      "style": {
+        "animation_delay": -0.06,
+        "animation_duration": "750ms",
+        "animation_iteration_count": "infinite",
+        "animation_name": "wavy",
+        "animation_timing_function": "ease-in-out",
+        "display": "inline-block",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-17",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "a",
+      },
+      "element": "e-18",
+      "name": "text_letter",
+      "parent": "e-16",
+      "style": {
+        "animation_delay": -0.12,
+        "animation_duration": "750ms",
+        "animation_iteration_count": "infinite",
+        "animation_name": "wavy",
+        "animation_timing_function": "ease-in-out",
+        "display": "inline-block",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-18",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "v",
+      },
+      "element": "e-19",
+      "name": "text_letter",
+      "parent": "e-16",
+      "style": {
+        "animation_delay": -0.18,
+        "animation_duration": "750ms",
+        "animation_iteration_count": "infinite",
+        "animation_name": "wavy",
+        "animation_timing_function": "ease-in-out",
+        "display": "inline-block",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-19",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "y",
+      },
+      "element": "e-20",
+      "name": "text_letter",
+      "parent": "e-16",
+      "style": {
+        "animation_delay": -0.24,
+        "animation_duration": "750ms",
+        "animation_iteration_count": "infinite",
+        "animation_name": "wavy",
+        "animation_timing_function": "ease-in-out",
+        "display": "inline-block",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-20",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-21",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-21",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-22",
+      "name": "text_letter",
+      "parent": "e-21",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-22",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-23",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-23",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "a",
+      },
+      "element": "e-24",
+      "name": "text_letter",
+      "parent": "e-23",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-24",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "n",
+      },
+      "element": "e-25",
+      "name": "text_letter",
+      "parent": "e-23",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-25",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "d",
+      },
+      "element": "e-26",
+      "name": "text_letter",
+      "parent": "e-23",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-26",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-27",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-27",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-28",
+      "name": "text_letter",
+      "parent": "e-27",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-28",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-29",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-29",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "s",
+      },
+      "element": "e-30",
+      "name": "text_letter",
+      "parent": "e-29",
+      "style": {
+        "animation_delay": -0.06,
+        "animation_duration": "300ms",
+        "animation_iteration_count": "infinite",
+        "animation_name": "shaky",
+        "animation_timing_function": "ease-in-out",
+        "display": "inline-block",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-30",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "h",
+      },
+      "element": "e-31",
+      "name": "text_letter",
+      "parent": "e-29",
+      "style": {
+        "animation_delay": -0.12,
+        "animation_duration": "300ms",
+        "animation_iteration_count": "infinite",
+        "animation_name": "shaky",
+        "animation_timing_function": "ease-in-out",
+        "display": "inline-block",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-31",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "a",
+      },
+      "element": "e-32",
+      "name": "text_letter",
+      "parent": "e-29",
+      "style": {
+        "animation_delay": -0.18,
+        "animation_duration": "300ms",
+        "animation_iteration_count": "infinite",
+        "animation_name": "shaky",
+        "animation_timing_function": "ease-in-out",
+        "display": "inline-block",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-32",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "k",
+      },
+      "element": "e-33",
+      "name": "text_letter",
+      "parent": "e-29",
+      "style": {
+        "animation_delay": -0.24,
+        "animation_duration": "300ms",
+        "animation_iteration_count": "infinite",
+        "animation_name": "shaky",
+        "animation_timing_function": "ease-in-out",
+        "display": "inline-block",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-33",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "y",
+      },
+      "element": "e-34",
+      "name": "text_letter",
+      "parent": "e-29",
+      "style": {
+        "animation_delay": -0.3,
+        "animation_duration": "300ms",
+        "animation_iteration_count": "infinite",
+        "animation_name": "shaky",
+        "animation_timing_function": "ease-in-out",
+        "display": "inline-block",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-34",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-35",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-35",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-36",
+      "name": "text_letter",
+      "parent": "e-35",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-36",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-37",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-37",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "t",
+      },
+      "element": "e-38",
+      "name": "text_letter",
+      "parent": "e-37",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-38",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "e",
+      },
+      "element": "e-39",
+      "name": "text_letter",
+      "parent": "e-37",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-39",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "x",
+      },
+      "element": "e-40",
+      "name": "text_letter",
+      "parent": "e-37",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-40",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "t",
+      },
+      "element": "e-41",
+      "name": "text_letter",
+      "parent": "e-37",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-41",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": ".",
+      },
+      "element": "e-42",
+      "name": "text_letter",
+      "parent": "e-37",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-42",
+    "kind": "request",
+    "method": "ui/animate",
+    "params": {
+      "effects": [
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-5",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-6",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-7",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-8",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-10",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-12",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-13",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-15",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-17",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-18",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-19",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-20",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-22",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-24",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-25",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-26",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-28",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-30",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-31",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-32",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-33",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-34",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-36",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-38",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-39",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-40",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-41",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-42",
+        },
+      ],
+    },
+  },
+]
+`;
+
+exports[`text targets > multi-line action with whitespace + text-align wrapping 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "First line here.",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-3",
+      "name": "text_line",
+      "parent": "e-2",
+      "style": undefined,
+      "type": "div",
+    },
+  },
+  {
+    "id": "req-3",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-4",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-4",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "F",
+      },
+      "element": "e-5",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-5",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "i",
+      },
+      "element": "e-6",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-6",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "r",
+      },
+      "element": "e-7",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-7",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "s",
+      },
+      "element": "e-8",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-8",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "t",
+      },
+      "element": "e-9",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-9",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-10",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-10",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-11",
+      "name": "text_letter",
+      "parent": "e-10",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-11",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-12",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-12",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "l",
+      },
+      "element": "e-13",
+      "name": "text_letter",
+      "parent": "e-12",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-13",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "i",
+      },
+      "element": "e-14",
+      "name": "text_letter",
+      "parent": "e-12",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-14",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "n",
+      },
+      "element": "e-15",
+      "name": "text_letter",
+      "parent": "e-12",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-15",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "e",
+      },
+      "element": "e-16",
+      "name": "text_letter",
+      "parent": "e-12",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-16",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-17",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-17",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-18",
+      "name": "text_letter",
+      "parent": "e-17",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-18",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-19",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-19",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "h",
+      },
+      "element": "e-20",
+      "name": "text_letter",
+      "parent": "e-19",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-20",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "e",
+      },
+      "element": "e-21",
+      "name": "text_letter",
+      "parent": "e-19",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-21",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "r",
+      },
+      "element": "e-22",
+      "name": "text_letter",
+      "parent": "e-19",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-22",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "e",
+      },
+      "element": "e-23",
+      "name": "text_letter",
+      "parent": "e-19",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-23",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": ".",
+      },
+      "element": "e-24",
+      "name": "text_letter",
+      "parent": "e-19",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-24",
+    "kind": "request",
+    "method": "ui/animate",
+    "params": {
+      "effects": [
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-5",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-6",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-7",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-8",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-9",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-11",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-13",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-14",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-15",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-16",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-18",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-20",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-21",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-22",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-23",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-24",
+        },
+      ],
+    },
+  },
+]
+`;
+
+exports[`text targets > scene heading ($:) 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "INT. HOUSE - DAY",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-3",
+      "name": "text_line",
+      "parent": "e-2",
+      "style": undefined,
+      "type": "div",
+    },
+  },
+  {
+    "id": "req-3",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-4",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-4",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "I",
+      },
+      "element": "e-5",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-5",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "N",
+      },
+      "element": "e-6",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-6",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "T",
+      },
+      "element": "e-7",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-7",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": ".",
+      },
+      "element": "e-8",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-8",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-9",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-9",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-10",
+      "name": "text_letter",
+      "parent": "e-9",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-10",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-11",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-11",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "H",
+      },
+      "element": "e-12",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-12",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "O",
+      },
+      "element": "e-13",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-13",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "U",
+      },
+      "element": "e-14",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-14",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "S",
+      },
+      "element": "e-15",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-15",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "E",
+      },
+      "element": "e-16",
+      "name": "text_letter",
+      "parent": "e-11",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-16",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-17",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-17",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-18",
+      "name": "text_letter",
+      "parent": "e-17",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-18",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-19",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-19",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "-",
+      },
+      "element": "e-20",
+      "name": "text_letter",
+      "parent": "e-19",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-20",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-21",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-21",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-22",
+      "name": "text_letter",
+      "parent": "e-21",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-22",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-23",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-23",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "D",
+      },
+      "element": "e-24",
+      "name": "text_letter",
+      "parent": "e-23",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-24",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "A",
+      },
+      "element": "e-25",
+      "name": "text_letter",
+      "parent": "e-23",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-25",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "Y",
+      },
+      "element": "e-26",
+      "name": "text_letter",
+      "parent": "e-23",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-26",
+    "kind": "request",
+    "method": "ui/animate",
+    "params": {
+      "effects": [
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-5",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-6",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-7",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-8",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-10",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-12",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-13",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-14",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-15",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-16",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-18",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-20",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-22",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-24",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-25",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-26",
+        },
+      ],
+    },
+  },
+]
+`;
+
+exports[`text targets > title (^:) 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "My Title",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-3",
+      "name": "text_line",
+      "parent": "e-2",
+      "style": undefined,
+      "type": "div",
+    },
+  },
+  {
+    "id": "req-3",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-4",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-4",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "My",
+      },
+      "element": "e-5",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-5",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-6",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-6",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-7",
+      "name": "text_letter",
+      "parent": "e-6",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-7",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-8",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-8",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "Title",
+      },
+      "element": "e-9",
+      "name": "text_letter",
+      "parent": "e-8",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-9",
+    "kind": "request",
+    "method": "ui/animate",
+    "params": {
+      "effects": [
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-5",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-7",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-9",
+        },
+      ],
+    },
+  },
+]
+`;
+
+exports[`text targets > transition (%:) 1`] = `
+[
+  {
+    "id": "req-1",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": {
+        "text": "CUT TO:",
+      },
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": null,
+      },
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-3",
+      "name": "text_line",
+      "parent": "e-2",
+      "style": undefined,
+      "type": "div",
+    },
+  },
+  {
+    "id": "req-3",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-4",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-4",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "C",
+      },
+      "element": "e-5",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-5",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "U",
+      },
+      "element": "e-6",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-6",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "T",
+      },
+      "element": "e-7",
+      "name": "text_letter",
+      "parent": "e-4",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-7",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-8",
+      "name": "text_space",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-8",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": " ",
+      },
+      "element": "e-9",
+      "name": "text_letter",
+      "parent": "e-8",
+      "style": {
+        "display": "inline",
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-9",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-10",
+      "name": "text_word",
+      "parent": "e-3",
+      "style": undefined,
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-10",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "T",
+      },
+      "element": "e-11",
+      "name": "text_letter",
+      "parent": "e-10",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-11",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": "O",
+      },
+      "element": "e-12",
+      "name": "text_letter",
+      "parent": "e-10",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-12",
+    "kind": "request",
+    "method": "ui/create",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": {
+        "text": ":",
+      },
+      "element": "e-13",
+      "name": "text_letter",
+      "parent": "e-10",
+      "style": {
+        "display": null,
+        "opacity": "0",
+      },
+      "type": "span",
+    },
+  },
+  {
+    "id": "req-13",
+    "kind": "request",
+    "method": "ui/animate",
+    "params": {
+      "effects": [
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-5",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-6",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-7",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-9",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-11",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-12",
+        },
+        {
+          "animations": [
+            {
+              "$name": "show",
+              "$type": "animation",
+              "keyframes": [
+                {
+                  "opacity": "1",
+                },
+              ],
+              "target": {
+                "$name": "self",
+                "$type": "layer",
+              },
+              "timing": {
+                "delay": "0s",
+                "direction": "normal",
+                "duration": "0s",
+                "easing": "linear",
+                "fill": "both",
+                "iterations": 1,
+              },
+            },
+          ],
+          "element": "e-13",
+        },
+      ],
+    },
+  },
+]
+`;
