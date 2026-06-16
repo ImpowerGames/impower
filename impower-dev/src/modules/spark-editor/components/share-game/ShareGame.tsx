@@ -56,7 +56,10 @@ export default function ShareGame(_props: ShareGameProps) {
                 <button
                   type="button"
                   aria-label="Settings"
-                  class="relative -mr-6 inline-flex size-12 cursor-pointer pointer-events-auto items-center justify-center overflow-hidden rounded-full text-foreground/50 hover:bg-foreground/5 hover:text-foreground active:bg-foreground/[0.12]"
+                  // `size-10` (40px) matches main's `variant="icon"` gear; a
+                  // 48px (size-12) button padded the centered 20px glyph 4px
+                  // further from the .s.png label than main.
+                  class="relative -mr-6 inline-flex size-10 cursor-pointer pointer-events-auto items-center justify-center overflow-hidden rounded-full text-foreground/50 hover:bg-foreground/5 hover:text-foreground active:bg-foreground/[0.12]"
                   onClick={(e) => {
                     // Don't propagate to the option-button row.
                     e.stopPropagation();

@@ -130,6 +130,20 @@ test("@views Share view", async ({ browser }) => {
           at: (p) => p.getByText("Spark Cartridge"),
           props: ["fontSize", "fontWeight", "lineHeight", "color"],
         },
+        {
+          // The per-row settings gear: its BUTTON box size drives the gap
+          // between the ".s.png" label and the (centered) glyph. main's gear is
+          // 40px (variant="icon"); a 48px button pushed the icon 4px further
+          // right. exact:true avoids matching the row button (whose accessible
+          // name also contains "Settings"). Margins aren't probed — the port
+          // uses a parent flex `gap` where main uses the gear's margin-left,
+          // same 16px spacing via a different mechanism.
+          // (borderRadius not probed: both render a circle but main uses 50%
+          // while rounded-full computes to ~9999px — visually identical.)
+          name: "settings-gear",
+          at: (p) => p.getByRole("button", { name: "Settings", exact: true }).first(),
+          props: ["width", "height"],
+        },
       ],
     });
   } finally {
