@@ -426,6 +426,35 @@ export function lowerLuauDefine(
       block.context = { [type]: { [name]: struct } };
       block.contextPropertyRegistry = { [type]: { [name]: flat } };
     }
+  } else {
+    // A ROOT define (`define X with <props>`, no `as T`) DECLARES type X and
+    // its default property values. Emit those props as the type's `$default`
+    // entry, so the LSP / `populateDefinedDefaultProperties` see X's defaults
+    // and instances of X (`define Y as X`) inherit them in `program.context`
+    // — mirroring the runtime, where instances inherit the root table's props
+    // through `__index`. (Without this a root define's own props were dropped
+    // from context entirely.) This is also how the builtins prelude expresses
+    // each type's `$default` (`define animation with <defaults> end`).
+    const type = nameIdentifier.name ?? "";
+    if (type) {
+      const struct: Record<string, unknown> = {
+        $type: type,
+        $name: "$default",
+      };
+      const flat: Record<string, unknown> = {};
+      for (const prop of properties) {
+        let value = coerceScalarLiteral(prop.rawValue);
+        if (value === undefined) {
+          value = expressionToContextValue(prop.expr);
+        }
+        if (value !== undefined) {
+          struct[prop.name] = value;
+          flat[prop.name] = value;
+        }
+      }
+      block.context = { [type]: { ["$default"]: struct } };
+      block.contextPropertyRegistry = { [type]: { ["$default"]: flat } };
+    }
   }
 
   return block;
