@@ -1,3 +1,4 @@
+import { Ripple } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { useDiagnosticColor } from "../../workspace/useDiagnosticColor";
@@ -74,28 +75,37 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
   return (
     <div class="flex flex-1 flex-col min-h-0">
       <FileEditorNavigation onBack={handleBack}>
-        <input
-          ref={inputRef}
-          type="text"
-          value={draftName}
-          aria-label={displayName}
-          placeholder={displayName}
-          class={`w-full bg-transparent text-center text-base font-medium outline-none placeholder:text-[var(--theme-color-fab-bg)] ${
-            diagnosticColor || "text-foreground"
-          }`}
-          onInput={(e) =>
-            setDraftName((e.target as HTMLInputElement).value)
-          }
-          onFocus={(e) => (e.target as HTMLInputElement).select()}
-          onBlur={() => {
-            void commitRename();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              (e.target as HTMLInputElement).blur();
+        {/* Wrapper carries the tap ripple + hover tint, mirroring main's
+            `<s-input ripple-color="white">`. `text-foreground` (white) pins
+            the <Ripple/> wave to white regardless of the input's diagnostic
+            color (main's ripple-color="white" is likewise fixed); the input
+            keeps its own (possibly red/yellow) text color. overflow-hidden +
+            rounded clips the wave to the field box. */}
+        <div class="relative w-full overflow-hidden rounded text-foreground hover:bg-foreground/5">
+          <input
+            ref={inputRef}
+            type="text"
+            value={draftName}
+            aria-label={displayName}
+            placeholder={displayName}
+            class={`w-full bg-transparent text-center text-base font-medium outline-none placeholder:text-[var(--theme-color-fab-bg)] ${
+              diagnosticColor || "text-foreground"
+            }`}
+            onInput={(e) =>
+              setDraftName((e.target as HTMLInputElement).value)
             }
-          }}
-        />
+            onFocus={(e) => (e.target as HTMLInputElement).select()}
+            onBlur={() => {
+              void commitRename();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                (e.target as HTMLInputElement).blur();
+              }
+            }}
+          />
+          <Ripple />
+        </div>
       </FileEditorNavigation>
       <div class="relative flex flex-1 flex-col min-h-0">
         <LogicScriptEditor filename={filename} />

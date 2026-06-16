@@ -55,7 +55,7 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
           `overflow-hidden`. Mirrors the legacy s-input's
           `bg-color="none"` + `p="0 4" m="0 -4"` + ripple. */}
       <div
-        class="relative -mx-1 h-7 flex-1 overflow-hidden rounded px-1 text-foreground"
+        class="relative -mx-1 h-7 flex-1 overflow-hidden rounded px-1 text-foreground hover:bg-foreground/5"
         style={{ maxWidth: "600px" }}
       >
         <div class="absolute inset-y-0 inset-x-1">
