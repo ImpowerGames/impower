@@ -21,9 +21,9 @@ editor compiles a project and pushes it over the RPC bridge.
 cd sparkdown-player-app
 npx vite --port <PP> --strictPort
 
-# 2. Editor (pick a port EP); point it at the player's port:
+# 2. Editor (pick a port EP + a unique HMR port HP); point it at the player's port:
 cd impower-dev
-PORT=<EP> VITE_SPARKDOWN_PLAYER_ORIGIN=http://localhost:<PP> npm run dev
+PORT=<EP> HMR_PORT=<HP> VITE_SPARKDOWN_PLAYER_ORIGIN=http://localhost:<PP> npm run dev
 
 # 3. Open the editor:
 http://localhost:<EP>      # use this exact host (see below)
@@ -61,10 +61,12 @@ assumptions.
 
 ### Other gotchas
 
-- **HMR port 24679 is hardcoded** (`impower-dev/build.ts`). Running a 2nd editor
-  logs `Port 24679 is already in use` and floods the console with
-  `WebSocket closed without opened` — HMR is off for that editor, but it still
-  serves; just hard-reload after edits. Cosmetic.
+- **HMR port** defaults to **24679** but is overridable via `HMR_PORT`
+  (`impower-dev/build.ts`). Give each concurrently-running editor a unique
+  `HMR_PORT` — otherwise the 2nd one can't bind 24679 and the browser floods with
+  thousands of `WebSocket closed without opened` exceptions that also EVICT real
+  logs from the console buffer (making console debugging useless). With a unique
+  `HMR_PORT`, HMR works and the console stays clean.
 - **Worker bundle staleness:** `sparkdown-player-app` builds its engine/compiler
   worker once and ignores dependency changes. After editing `packages/*` engine/
   compiler code, **fully restart** the player server — a reload / `--force` won't
