@@ -200,7 +200,11 @@ export default function Tabs({
                 <div
                   aria-hidden="true"
                   class={cn(
-                    "pointer-events-none absolute bg-tab-foreground transition-transform duration-150 ease-out",
+                    // duration-150 + Tailwind's default ease (cubic-bezier
+                    // (0.4,0,0.2,1)) matches main's tabs.css indicator slide
+                    // (--_duration 150ms, --_ease cubic-bezier(0.4,0,0.2,1)).
+                    // (No ease-out: that's cubic-bezier(0,0,0.2,1), wrong curve.)
+                    "pointer-events-none absolute bg-tab-foreground transition-transform duration-150",
                     vertical
                       ? "left-auto right-0 w-0.5"
                       : "top-auto bottom-0 h-0.5",

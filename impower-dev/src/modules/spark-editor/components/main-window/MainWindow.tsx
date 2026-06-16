@@ -97,7 +97,7 @@ export default function MainWindow(_props: MainWindowProps) {
             collapseBelow={960}
             start={
               <div class="relative flex flex-col w-full h-full">
-                <Router active={pane} mode="fade">
+                <Router active={pane} mode="zoom">
                   <Logic key="logic" />
                   <Assets key="assets" />
                   <SharePanel key="share" />

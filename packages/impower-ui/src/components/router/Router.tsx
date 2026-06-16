@@ -1,16 +1,20 @@
 import type { ComponentChildren, VNode } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
-type RouterMode = "fade" | "slide-x";
+type RouterMode = "fade" | "slide-x" | "zoom";
 
 export type RouterProps = {
   /** The key of the child to display. Must match one of the children's `key` prop. */
   active: string;
   /**
    * Transition style:
-   * - `fade` (default) — old fades out, content swaps, new fades in.
-   * - `slide-x` — same fade + a subtle horizontal slide. Direction
-   *   inferred from key order: moving to a later key slides left.
+   * - `zoom` — fade + a subtle 1% scale dip (1 → 0.99 → 1). This is what
+   *   main's NON-directional `<s-router>` does by default (exit-zoom /
+   *   enter-zoom, 150ms, + 75ms fade). Use for pane / drill-in switches.
+   * - `slide-x` — fade + a horizontal slide. Main's `directional` router
+   *   (enter-left/right). Direction inferred from key order.
+   * - `fade` (default) — fade only, no transform. (Main has no fade-only
+   *   route transition; prefer `zoom` to match it.)
    */
   mode?: RouterMode;
   /**
@@ -135,14 +139,13 @@ export default function Router({
       );
       animsRef.current.push(fadeAnim);
 
-      if (mode === "slide-x") {
+      if (mode === "slide-x" || mode === "zoom") {
+        const transform =
+          mode === "slide-x"
+            ? ["translateX(0)", `translateX(${-SLIDE_DIST_PX * phase.dir}px)`]
+            : ["scale(1)", "scale(0.99)"]; // exit-zoom
         const xformAnim = xform.animate(
-          {
-            transform: [
-              "translateX(0)",
-              `translateX(${-SLIDE_DIST_PX * phase.dir}px)`,
-            ],
-          },
+          { transform },
           {
             duration: TRANSFORM_MS,
             easing: TRANSFORM_EASING,
@@ -177,22 +180,22 @@ export default function Router({
       );
       animsRef.current.push(fadeAnim);
 
-      if (mode === "slide-x") {
+      if (mode === "slide-x" || mode === "zoom") {
+        const transform =
+          mode === "slide-x"
+            ? [`translateX(${SLIDE_DIST_PX * phase.dir}px)`, "translateX(0)"]
+            : ["scale(0.99)", "scale(1)"]; // enter-zoom
         const xformAnim = xform.animate(
-          {
-            transform: [
-              `translateX(${SLIDE_DIST_PX * phase.dir}px)`,
-              "translateX(0)",
-            ],
-          },
+          { transform },
           {
             duration: TRANSFORM_MS,
             easing: TRANSFORM_EASING,
-            // Negative delay — animation effectively starts already
-            // 50% through, so the slide picks up mid-motion right
-            // where the exit slide left off. Mirrors sparkle's
-            // `--theme-animation-enter-left: enter-left 150ms -75ms`.
-            delay: -FADE_MS,
+            // slide-x: negative delay — animation effectively starts already
+            // 50% through, so the slide picks up mid-motion right where the
+            // exit slide left off (mirrors `--theme-animation-enter-left:
+            // enter-left 150ms -75ms`). zoom (sparkle's enter-zoom) has NO
+            // negative delay — it runs full 150ms after the swap.
+            delay: mode === "slide-x" ? -FADE_MS : 0,
             fill: "forwards",
           },
         );
@@ -227,6 +230,9 @@ export default function Router({
         <div
           ref={transformRef}
           class="flex flex-1 flex-col min-h-0"
+          // zoom pivots at top center to match sparkle's router
+          // `transform-origin: var(--_pivot, top center)`.
+          style={mode === "zoom" ? { transformOrigin: "top center" } : undefined}
         >
           {child}
         </div>

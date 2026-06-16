@@ -59,9 +59,10 @@ export default function LogicList(_props: LogicListProps) {
   };
 
   // Two-level router nesting, mirroring the baseline's <se-logic>:
-  //   outer (this Router, mode="fade")  = list-view  ↔  script editor
-  //       — non-directional cross-fade, matching main's `<s-router key=
-  //         "logic-view">` (no `directional`). This is the drill-in/back.
+  //   outer (this Router, mode="zoom")  = list-view  ↔  script editor
+  //       — non-directional zoom+fade, matching main's `<s-router key=
+  //         "logic-view">` (no `directional` → exit-zoom/enter-zoom +
+  //         fade). This is the drill-in/back.
   //   inner (mode="slide-x")            = Main  ↔  Scripts
   //       — directional slide, matching main's `<s-router key="logic-panel"
   //         directional>`.
@@ -69,7 +70,7 @@ export default function LogicList(_props: LogicListProps) {
   // so opening a script cross-fades the tabs+content out and the editor in —
   // exactly like main, instead of the tabs popping away instantly.
   return (
-    <Router active={showScriptsEditor ? "editor" : "list"} mode="fade">
+    <Router active={showScriptsEditor ? "editor" : "list"} mode="zoom">
       <div key="list" class="relative flex flex-col flex-1 min-h-0">
         <div class="sticky top-0 z-10 flex-none bg-engine-900">
           <Tabs
