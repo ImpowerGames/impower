@@ -1,2 +1,6 @@
 export * from "./SparkdownScriptEditor.elem";
-export { setLanguageServer } from "./SparkdownScriptEditor";
+export {
+  default as SparkdownScriptEditor,
+  setLanguageServer,
+  type SparkdownScriptEditorProps,
+} from "./SparkdownScriptEditor";

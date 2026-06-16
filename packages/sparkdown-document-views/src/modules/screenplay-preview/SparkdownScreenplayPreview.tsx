@@ -29,13 +29,14 @@ export default function SparkdownScreenplayPreview({
       ({ ScreenplayPreviewController }) => {
         if (cancelled) return;
 
-        // Light-DOM: the custom element is a normal ancestor in the same tree,
-        // so `closest()` finds it directly. (For shadow:true we'd need
-        // getRootNode().host instead since closest doesn't pierce shadow.)
-        const realHost = root.closest(
-          "sparkdown-screenplay-preview",
-        ) as HTMLElement | null;
-        if (!realHost) return;
+        // Host = the <sparkdown-screenplay-preview> custom-element ancestor
+        // when used via the element wrapper (vscode-sparkdown), else the
+        // component's own root element when rendered directly as a Preact
+        // component (impower-dev).
+        const realHost =
+          (root.closest(
+            "sparkdown-screenplay-preview",
+          ) as HTMLElement | null) ?? root;
 
         controller = new ScreenplayPreviewController(
           realHost,
@@ -53,7 +54,7 @@ export default function SparkdownScreenplayPreview({
   }, [scrollMargin]);
 
   return (
-    <div class="root" ref={rootRef}>
+    <div class="sparkdown-screenplay-preview-root" ref={rootRef}>
       <style>{cssText}</style>
       <LoadingBar
         containerRef={loadingRef}

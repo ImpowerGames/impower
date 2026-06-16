@@ -68,12 +68,14 @@ export default function SparkdownScriptEditor({
         return;
       }
 
-      // Light-DOM: the custom element is a normal ancestor in the same tree,
-      // so closest() finds it directly without piercing a shadow boundary.
-      const realHost = root.closest(
-        "sparkdown-script-editor",
-      ) as HTMLElement | null;
-      if (!realHost) return;
+      // Host = the <sparkdown-script-editor> custom-element ancestor when
+      // used via the element wrapper (vscode-sparkdown), else the
+      // component's own root element when rendered directly as a Preact
+      // component (impower-dev). Both are ancestors of the CodeMirror tree,
+      // so the controller's querySelector + event wiring works either way.
+      const realHost =
+        (root.closest("sparkdown-script-editor") as HTMLElement | null) ??
+        root;
 
       const controller = new ScriptEditorController(
         realHost,
@@ -108,7 +110,7 @@ export default function SparkdownScriptEditor({
   }, [readonly]);
 
   return (
-    <div class="root" ref={rootRef}>
+    <div class="sparkdown-script-editor-root" ref={rootRef}>
       <style>{cssText}</style>
       {/* `top: -2px` (inline — Tailwind doesn't scan this package) so
           the bar sits ON the tab underline above the editor (both 2px
