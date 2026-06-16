@@ -8,7 +8,8 @@
     "parity": "playwright test",
     "parity:smoke": "playwright test --grep @smoke",
     "parity:report": "playwright show-report report/playwright",
-    "parity:validate-allowlist": "tsx scripts/validate-allowlist.ts"
+    "parity:validate-allowlist": "tsx scripts/validate-allowlist.ts",
+    "parity:report:build": "tsx scripts/build-report.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1",
