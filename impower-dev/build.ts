@@ -438,6 +438,16 @@ const serve = async () => {
       watch: { ignored: ["**/out/**", "**/.dev/**"] },
     },
     resolve: { alias, dedupe },
+    // Point the dependency scanner at the real client entry (the page JS).
+    // Otherwise Vite auto-globs the project's *.html files as scan entries, and
+    // viteLoadersPlugin rewrites those to `?raw` — which rolldown's scanner
+    // can't load on Windows ("os error 123", the `?` in the path), aborting dep
+    // pre-bundling entirely. The HTML shells carry no <script> (the SSG injects
+    // the page module at render time), so scanning the .ts entry is both
+    // correct and what lets pre-bundling actually run.
+    optimizeDeps: {
+      entries: [`${pagesInDir}/**/*.{js,mjs,ts}`, "!**/*.d.ts"],
+    },
     // Force React-flavored deps through Vite's transform pipeline (which
     // respects resolve.alias react → preact/compat). Without noExternal,
     // these packages load via Node's CJS resolver and pull in the real React
