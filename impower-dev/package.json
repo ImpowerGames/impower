@@ -10,7 +10,8 @@
     "prod": "tsx ./build.ts --production",
     "prebuild": "npm run build:impower-ui",
     "build": "tsx ./build.ts --production --minify",
-    "start": "node ./out/api/index.js"
+    "start": "node ./out/api/index.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
@@ -45,12 +46,14 @@
     "@types/node": "^20.3.2",
     "@types/ws": "^8.5.5",
     "chokidar": "^3.5.3",
+    "jsdom": "^25.0.1",
     "kill-port": "^2.0.1",
     "pino-pretty": "^10.0.0",
     "preact-render-to-string": "^6.5.0",
     "tiny-glob": "^0.2.9",
     "tsx": "^4.19.1",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.9"
   },
   "peerDependencies": {
     "@codemirror/autocomplete": "^6.19.0",
