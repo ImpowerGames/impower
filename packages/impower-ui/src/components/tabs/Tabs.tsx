@@ -295,7 +295,7 @@ export function Tab({
       >
         {(icon || activeIcon) && (
           <span
-            class="relative inline-flex items-center justify-center"
+            class="relative inline-flex flex-col items-center justify-center"
             style={{ width: `${ctx.iconSize}px`, height: `${ctx.iconSize}px` }}
           >
             {/* Inactive icon copy — visible by default, fades out on active.

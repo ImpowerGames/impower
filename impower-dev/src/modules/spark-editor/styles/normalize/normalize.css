@@ -8,26 +8,31 @@
    annotated.
 
    What stays:
-   - The sparkle-era universal flex defaults (`flex-direction: column`,
-     `min-width: 0`, `max-width: 100%`, etc.), kept GLOBAL on `*`. The whole
-     app (not just the embedded sparkdown-document-views) was ported to match
-     a baseline that ships these globally — most notably `flex-shrink: 0`,
-     which the Tailwind-styled chrome implicitly relies on (e.g. the bottom-nav
-     icon+label column overlaps without it). An earlier attempt to scope these
-     to only the document-views regressed that chrome at larger viewports, so
-     they stay global. They're wrapped in `@layer normalize` so Tailwind's
-     layered utilities still win where a component sets an explicit opinion;
-     the one spot that genuinely fights them (HeaderTitleButton's max-width) is
-     handled with a documented inline override there.
+   - Global flex HYGIENE defaults (`flex-shrink: 0`, `min-width: 0`,
+     `max-width: 100%`). These don't conflict with Tailwind — a component
+     overrides them per-element with `shrink`/`flex-1`/`min-w-*`/`max-w-*`
+     (utility layer wins) — and the chrome relies on them broadly (notably
+     `flex-shrink: 0`: the bottom-nav icon+label column overlaps without it).
+     Kept global on purpose. (`flex-wrap: nowrap` was dropped — it's the
+     browser default, a no-op.)
+   - `flex-direction: column` is the ONE sparkle default that genuinely
+     surprises (Tailwind `flex` should mean row). Chrome components now declare
+     their direction explicitly (`flex-row`/`flex-col`), so it's removed from
+     the global `*`. The embedded sparkdown-document-views' internal CSS was
+     authored against the column default, so it stays SCOPED to their subtrees.
    - Scrollbar styling, focus-outline suppression, `[hidden]`, `[popover]`. */
 
 @layer normalize {
   * {
-    flex-direction: column;
-    flex-wrap: nowrap;
     flex-shrink: 0;
     min-width: 0;
     max-width: 100%;
+  }
+  .sparkdown-script-editor-root,
+  .sparkdown-script-editor-root *,
+  .sparkdown-screenplay-preview-root,
+  .sparkdown-screenplay-preview-root * {
+    flex-direction: column;
   }
 }
 

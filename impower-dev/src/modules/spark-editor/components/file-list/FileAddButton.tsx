@@ -57,7 +57,7 @@ export default function FileAddButton({
   }
 
   return (
-    <div class="mx-4 my-6 flex">
+    <div class="mx-4 my-6 flex flex-col">
       {/* `ml-auto` docks the button right; when collapsed it shrinks to a 48px
           circle (w-12, px-0) showing only the icon, while the label fades +
           collapses its width to 0 so the icon stays centered. */}

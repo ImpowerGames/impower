@@ -48,7 +48,7 @@ export default function FileEditorNavigation({
               long filenames truncate with ellipsis instead of pushing the
               back button. */}
           <div class="relative flex flex-1 flex-row items-center justify-center px-4 text-base">
-            <div class="absolute inset-0 flex items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap text-center">
+            <div class="absolute inset-0 flex flex-col items-center justify-center overflow-hidden text-ellipsis whitespace-nowrap text-center">
               {children}
             </div>
           </div>

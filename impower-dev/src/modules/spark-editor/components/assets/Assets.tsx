@@ -168,7 +168,7 @@ function AssetsFab({
     collapsed ? "ml-0 max-w-0 opacity-0" : "ml-2 max-w-[12rem] opacity-100"
   }`;
   return (
-    <div class="mx-4 my-6 flex">
+    <div class="mx-4 my-6 flex flex-col">
       <Button
         variant="fab"
         disabled={disabledSig.value}

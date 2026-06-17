@@ -3,7 +3,10 @@ import { type ComponentChildren } from "preact";
 import { useRef, useState } from "preact/hooks";
 import { cn } from "../../utils/cn";
 
-const splitPaneRoot = cva("flex w-full h-full", {
+// `flex-col` is explicit (was relying on the global `* { flex-direction:
+// column }` normalize); the real split axis lives on the inner container's
+// inline `flexDirection`, so this root only stacks its single child.
+const splitPaneRoot = cva("flex flex-col w-full h-full", {
   variants: {
     collapseActive: {
       none: "",

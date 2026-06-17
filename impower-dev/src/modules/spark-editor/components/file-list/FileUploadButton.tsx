@@ -56,7 +56,7 @@ export default function FileUploadButton({
   }
 
   return (
-    <div class="mx-4 my-6 flex">
+    <div class="mx-4 my-6 flex flex-col">
       <Button
         variant="fab"
         disabled={disabledSig.value}
