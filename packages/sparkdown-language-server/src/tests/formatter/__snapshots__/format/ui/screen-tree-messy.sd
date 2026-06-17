@@ -1,0 +1,8 @@
+   screen main with
+      stage:   
+         backdrop:
+              image = "black"
+         portrait:
+              mask shadow_1
+              image
+  end

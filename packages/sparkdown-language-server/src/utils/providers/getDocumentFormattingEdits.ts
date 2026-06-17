@@ -382,6 +382,17 @@ export const getFormatting = (
   let sceneActive = false;
   let branchActive = false;
 
+  // screen/component/style bodies nest by INDENTATION (the grammar emits flat
+  // body-line siblings; depth isn't in the tree). To normalize them the
+  // formatter reconstructs each line's depth from the relative indentation —
+  // the same way the lowerer does (lowerStructBody / lowerSparkleBody) — so
+  // over-indentation is corrected to canonical `tabSize`-per-level while the
+  // author's relative nesting is preserved. `sparkleIndentStack` holds the
+  // raw (author) indent widths of the enclosing levels, increasing; it resets
+  // whenever we enter a different body (`_content` node identity changes).
+  let sparkleContentFrom: number | undefined = undefined;
+  let sparkleIndentStack: number[] = [];
+
   let tempIndentLevel: number | undefined = undefined;
   let matchNextIndentLevel: { from: number; to: number } | undefined =
     undefined;
@@ -463,23 +474,64 @@ export const getFormatting = (
       const stackPos = firstNonWs >= 0 ? lineStart + firstNonWs : from;
       const stack = getStack<SparkdownNodeName>(tree, stackPos, 1);
 
-      // screen / component element trees nest by INDENTATION, which the
-      // parse tree doesn't capture (the grammar emits flat `LuauUIElement`
-      // sibling lines; the lowerer rebuilds depth from the indent column).
-      // The formatter therefore can't compute their indent — it PRESERVES
-      // the author's, exactly, since it's structurally significant. The
-      // `_content` wrapper excludes the header (in `_begin`) and the `end`
-      // (in `_end`), so those still normalize to the block's level.
-      if (
-        firstNonWs >= 0 &&
-        stack.some(
-          (n) =>
-            n &&
-            (n.name === "LuauStyle_content" ||
-              n.name === "LuauScreen_content" ||
-              n.name === "LuauComponent_content"),
-        )
-      ) {
+      // screen / component / style element trees nest by INDENTATION, which
+      // the parse tree doesn't capture (the grammar emits flat body-line
+      // siblings; the lowerer rebuilds depth from the indent column). The
+      // formatter can't read depth from the tree, so it reconstructs it from
+      // the relative indentation (mirroring the lowerer) and emits canonical
+      // `tabSize`-per-level indentation — correcting over-indentation / stray
+      // whitespace while preserving the author's nesting. The `_content`
+      // wrapper excludes the header (`_begin`) and `end` (`_end`), so those
+      // still normalize to the block's own level via the normal path below.
+      const sparkleContentNode =
+        firstNonWs >= 0
+          ? stack.find(
+              (n) =>
+                n &&
+                (n.name === "LuauStyle_content" ||
+                  n.name === "LuauScreen_content" ||
+                  n.name === "LuauComponent_content"),
+            )
+          : undefined;
+      if (sparkleContentNode) {
+        // Reset the level stack when we cross into a different body.
+        if (sparkleContentFrom !== sparkleContentNode.from) {
+          sparkleContentFrom = sparkleContentNode.from;
+          sparkleIndentStack = [];
+        }
+        // Raw author indent width (tabs expanded), used only to compare
+        // relative nesting — never emitted.
+        let rawWidth = 0;
+        for (const ch of currentIndentation) {
+          rawWidth += ch === "\t" ? options.tabSize : 1;
+        }
+        while (
+          sparkleIndentStack.length > 0 &&
+          rawWidth < sparkleIndentStack[sparkleIndentStack.length - 1]!
+        ) {
+          sparkleIndentStack.pop();
+        }
+        if (
+          sparkleIndentStack.length === 0 ||
+          rawWidth > sparkleIndentStack[sparkleIndentStack.length - 1]!
+        ) {
+          sparkleIndentStack.push(rawWidth);
+        }
+        const depth = sparkleIndentStack.length - 1;
+        // Body sits one level past the block header (its own level).
+        const bodyLevel = computeBlockIndent(stack) + 1 + depth;
+        const expectedIndentation = options.insertSpaces
+          ? " ".repeat(bodyLevel * options.tabSize)
+          : "\t".repeat(bodyLevel);
+        if (currentIndentation !== expectedIndentation) {
+          pushIfInRange({
+            lineNumber: indentRange.start.line + 1,
+            range: indentRange,
+            oldText: document.getText(indentRange),
+            newText: expectedIndentation,
+            type: "indent",
+          });
+        }
         return;
       }
 
