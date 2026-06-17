@@ -28,7 +28,6 @@ import {
   staticallyStylePage,
   viteBannerPlugin,
   viteDefineProcessPlugin,
-  viteLoadersPlugin,
   viteStaticallyRenderedPagesPlugin,
   WATCH,
 } from "./vite.config.js";
@@ -131,7 +130,6 @@ const buildPages = async () => {
     configFile: false,
     resolve: { alias, dedupe },
     plugins: [
-      viteLoadersPlugin(),
       viteDefineProcessPlugin(),
       viteBannerPlugin(PROCESS_ENV_BANNER_JS),
       tailwindcss(),
@@ -355,12 +353,10 @@ const serve = async () => {
     },
     resolve: { alias, dedupe },
     // Point the dependency scanner at the real client entry (the page JS).
-    // Otherwise Vite auto-globs the project's *.html files as scan entries, and
-    // viteLoadersPlugin rewrites those to `?raw` — which rolldown's scanner
-    // can't load on Windows ("os error 123", the `?` in the path), aborting dep
-    // pre-bundling entirely. The HTML shells carry no <script> (the SSG injects
-    // the page module at render time), so scanning the .ts entry is both
-    // correct and what lets pre-bundling actually run.
+    // Otherwise Vite auto-globs the project's *.html files as scan entries —
+    // but the HTML shells carry no <script> (the SSG injects the page module at
+    // render time), so scanning them finds nothing and also picks up stale out/
+    // artifacts. Scanning the .ts entry is what lets pre-bundling actually run.
     optimizeDeps: {
       entries: [`${pagesInDir}/**/*.{js,mjs,ts}`, "!**/*.d.ts"],
     },
@@ -399,7 +395,6 @@ const serve = async () => {
     },
     plugins: [
       viteDefineProcessPlugin(),
-      viteLoadersPlugin(),
       preact(),
       viteStaticallyRenderedPagesPlugin(),
       tailwindcss(),

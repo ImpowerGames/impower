@@ -217,56 +217,6 @@ const viteDefineProcessPlugin = (): Plugin => ({
   },
 });
 
-// Cache: file path → true if it's a Tailwind entry (contains @import "tailwindcss").
-// Such files must NOT be wrapped as `export default "..."` — they need Vite's
-// normal CSS pipeline (with @tailwindcss/vite) so utility classes are
-// generated. Component-local .css files are still wrapped for string injection.
-const tailwindEntryCache = new Map<string, boolean>();
-const isTailwindEntry = async (file: string): Promise<boolean> => {
-  if (tailwindEntryCache.has(file)) return tailwindEntryCache.get(file)!;
-  try {
-    const content = await fs.promises.readFile(file, "utf-8");
-    const hit = /@import\s+["']tailwindcss["']|@tailwind\s/.test(content);
-    tailwindEntryCache.set(file, hit);
-    return hit;
-  } catch {
-    tailwindEntryCache.set(file, false);
-    return false;
-  }
-};
-
-const viteLoadersPlugin = (): Plugin => ({
-  name: "vite-custom-loaders",
-  enforce: "pre",
-  async resolveId(source, importer) {
-    if (/\.(html|css|svg|txt|csv)$/.test(source) && !source.includes("?")) {
-      const res = await this.resolve(source, importer, { skipSelf: true });
-      if (res) {
-        if (source.endsWith(".css") && (await isTailwindEntry(res.id))) {
-          return null;
-        }
-        return `${res.id}?raw`;
-      }
-    }
-    return null;
-  },
-  async load(id) {
-    if (id.includes("\0")) return;
-    const file = id.split("?")[0];
-    if (/\.(html|css|svg|txt|csv)$/.test(file)) {
-      if (file.endsWith(".css") && (await isTailwindEntry(file))) {
-        return;
-      }
-      const content = await fs.promises.readFile(file, "utf-8");
-      return `export default ${JSON.stringify(content)};`;
-    }
-    if (/\.(ttf|woff2)$/.test(file)) {
-      const buffer = await fs.promises.readFile(file);
-      return `export default new Uint8Array([${Array.from(buffer).join(",")}]);`;
-    }
-  },
-});
-
 const viteBannerPlugin = (banner: string): Plugin => ({
   name: "vite-banner-plugin",
   renderChunk(code, chunk) {
@@ -576,7 +526,6 @@ export {
   staticallyStylePage,
   readEditorGlobalCss,
   viteDefineProcessPlugin,
-  viteLoadersPlugin,
   viteBannerPlugin,
   viteStaticallyRenderedPagesPlugin,
 };
