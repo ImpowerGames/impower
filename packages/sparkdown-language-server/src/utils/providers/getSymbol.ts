@@ -7,6 +7,53 @@ import { Tree } from "@lezer/common";
 import { Position } from "vscode-languageserver";
 import { type Range } from "vscode-languageserver-textdocument";
 
+// The OOP `define <name> as character with name = "X" …` literal. Returns the
+// string CONTENT node (`X`, quotes excluded) when the cursor is inside it, so
+// rename/find-references key on the same range as the `character.?.name=X`
+// annotation. Returns undefined for any other string.
+const findCharacterNameValue = (
+  document: SparkdownDocument,
+  stack: GrammarSyntaxNode<SparkdownNodeName>[],
+):
+  | { symbol: GrammarSyntaxNode<SparkdownNodeName>; nameRange: Range; canRename: true }
+  | undefined => {
+  const contentNode = stack.find(
+    (n) => n.name === "LuauDoubleQuotedString_content",
+  );
+  if (!contentNode) {
+    return undefined;
+  }
+  const propertyDefinition = stack.find(
+    (n) => n.name === "LuauPropertyDefinition",
+  );
+  if (!propertyDefinition) {
+    return undefined;
+  }
+  const propertyNameNode = getDescendent("LuauVariableName", propertyDefinition);
+  if (
+    !propertyNameNode ||
+    document.read(propertyNameNode.from, propertyNameNode.to).trim() !== "name"
+  ) {
+    return undefined;
+  }
+  const defineNode = stack.find((n) => n.name === "LuauDefine");
+  if (!defineNode) {
+    return undefined;
+  }
+  const parentNode = getDescendent("LuauDefineParentName", defineNode);
+  if (
+    !parentNode ||
+    document.read(parentNode.from, parentNode.to).trim() !== "character"
+  ) {
+    return undefined;
+  }
+  return {
+    symbol: contentNode,
+    nameRange: document.range(contentNode.from, contentNode.to),
+    canRename: true,
+  };
+};
+
 export const getSymbol = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
@@ -24,109 +71,48 @@ export const getSymbol = (
     getStack<SparkdownNodeName>(tree, document.offsetAt(position), -1),
   ];
   for (const stack of stacks) {
+    // A character's `name = "X"` literal: renaming/find-references targets the
+    // string CONTENT (`X`), matching the `character.?.name=X` annotation the
+    // ReferenceAnnotator emits over that same range. The Luau-port define is
+    // `define <name> as character with name = "X"` — an OOP LuauPropertyDefinition
+    // (not the pre-port struct field), so detect it via that shape.
+    const characterNameValue = findCharacterNameValue(document, stack);
+    if (characterNameValue) {
+      return characterNameValue;
+    }
     const symbol = stack.find(
       (n) =>
-        n.name === "FunctionDeclarationName" ||
+        // Narrative beats + functions
+        n.name === "LuauFunctionName" ||
         n.name === "SceneDeclarationName" ||
         n.name === "BranchDeclarationName" ||
-        n.name === "KnotDeclarationName" ||
-        n.name === "StitchDeclarationName" ||
         n.name === "LabelDeclarationName" ||
-        n.name === "DefineTypeName" ||
-        n.name === "DefineVariableName" ||
-        n.name === "ViewDeclarationScalarPropertyName" ||
-        n.name === "StylingDeclarationScalarPropertyName" ||
-        n.name === "PlainDeclarationScalarPropertyName" ||
-        n.name === "ViewDeclarationObjectPropertyName" ||
-        n.name === "StylingDeclarationObjectPropertyName" ||
-        n.name === "PlainDeclarationObjectPropertyName" ||
-        n.name === "TypeName" ||
-        n.name === "VariableName" ||
-        n.name === "PropertyName" ||
-        n.name === "FunctionName" ||
         n.name === "DivertPartName" ||
+        // Defines (inverted model): name is the instance/root-type, parent is
+        // the type (OOP) or `$extends` (structural).
+        n.name === "LuauDefineName" ||
+        n.name === "LuauDefineParentName" ||
+        // Struct-body property/header keys (style/screen/component/animation/theme)
+        n.name === "StylingDeclarationScalarPropertyName" ||
+        n.name === "DeclarationScalarPropertyKey" ||
+        n.name === "BuiltinComponentName" ||
+        n.name === "CustomComponentName" ||
+        n.name === "ComponentName" ||
+        n.name === "PropertyName" ||
+        n.name === "SelectorPropertyNamePart" ||
+        // Luau identifiers (variable reads/decls + OOP define property names)
+        n.name === "LuauVariableName" ||
+        n.name === "TypeName" ||
+        // Narrative references
         n.name === "DialogueCharacterName" ||
         n.name === "AssetCommandFileName" ||
         n.name === "AssetCommandFilterName" ||
         n.name === "AssetCommandTarget" ||
         n.name === "NameValue" ||
-        n.name === "IncludeContent" ||
-        n.name === "ViewStructFieldValue" ||
-        n.name === "StylingStructFieldValue" ||
-        n.name === "PlainStructFieldValue",
+        n.name === "IncludeContent",
     );
     if (symbol) {
       const symbolRange = document.range(symbol.from, symbol.to);
-      if (
-        symbol.name === "ViewStructFieldValue" ||
-        symbol.name === "StylingStructFieldValue" ||
-        symbol.name === "PlainStructFieldValue"
-      ) {
-        const defineDeclarationNode = stack.find(
-          (n) =>
-            n.name === "DefineViewDeclaration" ||
-            n.name === "DefineStylingDeclaration" ||
-            n.name === "DefinePlainDeclaration",
-        );
-        if (defineDeclarationNode) {
-          const defineTypeNode = getDescendent(
-            "DefineTypeName",
-            defineDeclarationNode,
-          );
-          if (defineTypeNode) {
-            const defineType = document.read(
-              defineTypeNode.from,
-              defineTypeNode.to,
-            );
-            if (defineType === "character") {
-              const structFieldNodes = stack.filter(
-                (n) =>
-                  n.name === "ViewStructField" ||
-                  n.name === "StylingStructField" ||
-                  n.name === "PlainStructField",
-              );
-              if (structFieldNodes.length === 1) {
-                const propertyNameNode = getDescendent(
-                  [
-                    "ViewDeclarationScalarPropertyName",
-                    "StylingDeclarationScalarPropertyName",
-                    "PlainDeclarationScalarPropertyName",
-                  ],
-                  structFieldNodes[0]!,
-                );
-                if (propertyNameNode) {
-                  const propertyName = document.read(
-                    propertyNameNode.from,
-                    propertyNameNode.to,
-                  );
-                  if (propertyName === "name") {
-                    const stringFieldValueNode = stack.find(
-                      (n) => n.name === "StringFieldValue",
-                    );
-                    if (stringFieldValueNode) {
-                      const stringContentNode = getDescendent(
-                        ["StringContent", "PlainStringContent"],
-                        stringFieldValueNode,
-                      );
-                      if (stringContentNode) {
-                        return {
-                          symbol: stringContentNode,
-                          nameRange: document.range(
-                            stringContentNode.from,
-                            stringContentNode.to,
-                          ),
-                          canRename: true,
-                        };
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-        return { symbol };
-      }
       if (symbol.name === "IncludeContent") {
         const range = document.range(symbol.from, symbol.to);
         const text = document.getText(range);

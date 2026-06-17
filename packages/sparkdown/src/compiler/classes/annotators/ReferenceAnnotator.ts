@@ -1,8 +1,6 @@
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
-import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
 import { SparkDeclaration } from "../../types/SparkDeclaration";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkSelector } from "../../types/SparkSelector";
@@ -50,33 +48,124 @@ function ancestorMatching(
   return null;
 }
 
+// DFS in-order: first descendant (or self) whose name is in `names`, else null.
+function firstDescendant(node: any, names: Set<string>): any {
+  if (names.has(node.name)) return node;
+  let c = node.firstChild;
+  while (c) {
+    const found = firstDescendant(c, names);
+    if (found) return found;
+    c = c.nextSibling;
+  }
+  return null;
+}
+
 const FUNCTION_DECL_NAME = new Set(["LuauFunctionDeclarationName"]);
 const FUNCTION_DEFINITION = new Set(["LuauFunctionDefinition"]);
 const VARIABLE_DECL_SITE = new Set(["LuauVariableAssignment_begin"]);
 const VARIABLE_DEFINITION = new Set(["LuauVariableDefinition"]);
 
+// The OOP define property line (`store trust = 0`, `name = "RAFFLES"`). Its LHS
+// name LuauVariableName must be claimed as a `property` declaration by the
+// LuauPropertyDefinition branch, NOT emitted as a generic variable read.
+const PROPERTY_DEFINITION = new Set(["LuauPropertyDefinition"]);
+
+// `LuauStructBodyLine` is the per-physical-line wrapper of a structural
+// (style/screen/component/animation/theme) body; the indent is the column of
+// the body content relative to that line's start.
+const STRUCT_BODY_LINE = new Set(["LuauStructBodyLine"]);
+
+// The identifier tokens that carry a struct property/header KEY in the Luau-port
+// grammar (LuauStructScalarProperty / LuauStructObjectHeader capture-2). The old
+// per-flavor `*DeclarationScalarPropertyName` / `*ObjectPropertyName` nodes are
+// gone; these are the generic replacements.
+const STRUCT_KEY_TOKENS = new Set([
+  "BuiltinComponentName",
+  "StylingDeclarationScalarPropertyName",
+  "DeclarationScalarPropertyKey",
+  "CustomComponentName",
+  "ComponentName",
+  "PropertyName",
+  "SelectorPropertyNamePart",
+]);
+
+// Top-level structural-define keyword nodes → the engine type they declare.
+// Their `name` (LuauDefineName) is an INSTANCE under that type, and a trailing
+// `as PARENT` is `$extends` (a sibling of the SAME type), not the type itself.
+const STRUCTURAL_TYPE_BY_NODE: Record<string, string> = {
+  LuauStyle: "style",
+  LuauScreen: "screen",
+  LuauComponent: "component",
+  LuauAnimation: "animation",
+  LuauTheme: "theme",
+};
+
 export class ReferenceAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Reference>
 > {
-  defineModifier = "";
-
+  // The engine type of the define currently being walked. For an OOP `define
+  // <name> as <parent>` this is the PARENT (the inverted model: parent = type);
+  // for a root `define <name> with …` it is the name itself; for a structural
+  // block it is the keyword (style/screen/component/animation/theme).
   defineType = "";
 
+  // The instance name of the current define (`$default` for a root define, whose
+  // properties live under `context.<type>.$default`).
   defineName = "";
 
-  definePropertyPathParts: {
-    key?: string | number;
-    arrayLength?: number;
-  }[] = [];
+  // True while inside a structural (style/screen/…) block — distinguishes the
+  // struct-body property syntax from the OOP `LuauPropertyDefinition` syntax and
+  // marks a trailing `as PARENT` as `$extends` rather than the type.
+  inStructural = false;
+
+  // OOP only: whether the current `define` has a parent (`as PARENT`). Drives
+  // whether the name is a type declaration (root) or an instance (typed).
+  oopHasParent = false;
+
+  // OOP typed defines emit `<name>` BEFORE `<parent>` in source order, but the
+  // name's symbolId is `<parent>.<name>`, so its emission is deferred until the
+  // parent is known.
+  pendingOOPName: { from: number; to: number; name: string } | null = null;
+
+  // Indentation path stack for a structural struct body. Each frame records the
+  // body-content column + the path key (property name, or array index); deeper
+  // lines nest, same-or-shallower lines pop. Mirrors lowerStructBodyTyped's
+  // indentation reader, but incrementally over enter().
+  structPathStack: { indent: number; key: string | number; arrayLength?: number }[] =
+    [];
 
   divertPathParts: string[] = [];
 
   override begin() {
-    this.defineModifier = "";
     this.defineType = "";
     this.defineName = "";
-    this.definePropertyPathParts = [];
+    this.inStructural = false;
+    this.oopHasParent = false;
+    this.pendingOOPName = null;
+    this.structPathStack = [];
     this.divertPathParts = [];
+  }
+
+  private resetDefineState() {
+    this.defineType = "";
+    this.defineName = "";
+    this.inStructural = false;
+    this.oopHasParent = false;
+    this.pendingOOPName = null;
+    this.structPathStack = [];
+  }
+
+  // The `{types:[type], name:"$default", …}` selector a define-type reference
+  // carries so go-to-definition / hover can resolve the type's default struct.
+  private typeNameSelector(type: string): SparkSelector[] {
+    return [
+      {
+        types: [type],
+        name: "$default",
+        displayType: "type",
+        displayName: type,
+      },
+    ];
   }
 
   override enter(
@@ -129,22 +218,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "DefineIdentifier") {
-      const context = getContextNames(nodeRef.node);
-      if (
-        context.includes("DefineViewDeclaration") ||
-        context.includes("DefineStylingDeclaration") ||
-        context.includes("DefinePlainDeclaration")
-      ) {
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            declaration: "define",
-            kind: "write",
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-    }
     if (nodeRef.name === "LuauFunctionParameter") {
       // Scope the param symbol under its enclosing function's name, matching
       // the pre-port `funcName.param` id. The name lives at
@@ -189,161 +262,207 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (
-      nodeRef.name === "DefineViewDeclaration" ||
-      nodeRef.name === "DefineStylingDeclaration" ||
-      nodeRef.name === "DefinePlainDeclaration"
-    ) {
-      this.defineModifier = "";
-      this.defineType = "";
-      this.defineName = "";
-      this.definePropertyPathParts = [{}];
+
+    // ----- Define declarations (the Luau-port, inverted model) -----------------
+    //
+    // OOP `define <name> as <parent>` : type = parent, instance = name.
+    // OOP `define <name> with …`       : root define, name IS the type.
+    // structural `style/screen/component/animation/theme <name> [as <extends>]` :
+    //   type = keyword, instance = name, trailing `as` = `$extends` (same type).
+    if (nodeRef.name === "LuauDefine") {
+      this.resetDefineState();
+      this.inStructural = false;
+      this.oopHasParent = !!getDescendent("LuauDefineParentName", nodeRef.node);
       return annotations;
     }
-    if (nodeRef.name === "DefineModifierName") {
-      this.defineModifier = this.read(nodeRef.from, nodeRef.to);
+    if (STRUCTURAL_TYPE_BY_NODE[nodeRef.name]) {
+      this.resetDefineState();
+      this.inStructural = true;
+      this.defineType = STRUCTURAL_TYPE_BY_NODE[nodeRef.name]!;
       return annotations;
     }
-    if (nodeRef.name === "DefineTypeName") {
-      this.defineType = this.read(nodeRef.from, nodeRef.to);
+    if (nodeRef.name === "LuauDefineName") {
+      const name = this.read(nodeRef.from, nodeRef.to).trim();
+      if (this.inStructural) {
+        // Structural instance: `<keyword>.<name>` (e.g. `style.my_button`).
+        this.defineName = name;
+        annotations.push(
+          SparkdownAnnotation.mark<Reference>({
+            declaration: "define_variable_name",
+            symbolIds: [`${this.defineType}.${name}`],
+            kind: "write",
+            linkable: true,
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+      if (!this.oopHasParent) {
+        // Root OOP define: the name IS the declared type. Properties live under
+        // `<type>.$default`.
+        this.defineType = name;
+        this.defineName = "$default";
+        annotations.push(
+          SparkdownAnnotation.mark<Reference>({
+            declaration: "define_type_name",
+            symbolIds: [name],
+            kind: "write",
+            selectors: this.typeNameSelector(name),
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+      // Typed OOP define: defer the name until the parent (= type) is known.
+      this.defineName = name;
+      this.pendingOOPName = { from: nodeRef.from, to: nodeRef.to, name };
+      return annotations;
+    }
+    if (nodeRef.name === "LuauDefineParentName") {
+      const parent = this.read(nodeRef.from, nodeRef.to).trim();
+      if (this.inStructural) {
+        // `as PARENT` on a structural block is `$extends` — a read reference to
+        // another define of the SAME type (e.g. `animation X as Y` → animation.Y).
+        annotations.push(
+          SparkdownAnnotation.mark<Reference>({
+            symbolIds: [`${this.defineType}.${parent}`],
+            kind: "read",
+            linkable: true,
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+      // OOP typed define: the parent IS the engine type.
+      this.defineType = parent;
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
-          symbolIds: [this.defineType],
           declaration: "define_type_name",
+          symbolIds: [parent],
           kind: "write",
-          selectors: [
-            {
-              types: [this.defineType],
-              name: "$default",
-              displayType: "type",
-              displayName: this.defineType,
-            },
-          ],
+          selectors: this.typeNameSelector(parent),
         }).range(nodeRef.from, nodeRef.to),
       );
-      return annotations;
-    }
-    if (nodeRef.name === "DefineVariableName") {
-      this.defineName = this.read(nodeRef.from, nodeRef.to);
-      annotations.push(
-        SparkdownAnnotation.mark<Reference>({
-          symbolIds: [this.defineType + "." + this.defineName],
-          linkable: true,
-          declaration: "define_variable_name",
-          kind: "write",
-        }).range(nodeRef.from, nodeRef.to),
-      );
-      return annotations;
-    }
-    if (
-      nodeRef.name === "ViewStructScalarItem" ||
-      nodeRef.name === "StylingStructScalarItem" ||
-      nodeRef.name === "PlainStructScalarItem" ||
-      nodeRef.name === "ViewStructObjectItemBlock" ||
-      nodeRef.name === "StylingStructObjectItemBlock" ||
-      nodeRef.name === "PlainStructObjectItemBlock" ||
-      nodeRef.name === "ViewStructObjectItemWithInlineScalarProperty" ||
-      nodeRef.name === "StylingStructObjectItemWithInlineScalarProperty" ||
-      nodeRef.name === "PlainStructObjectItemWithInlineScalarProperty" ||
-      nodeRef.name === "ViewStructObjectItemWithInlineObjectProperty" ||
-      nodeRef.name === "StylingStructObjectItemWithInlineObjectProperty" ||
-      nodeRef.name === "PlainStructObjectItemWithInlineObjectProperty"
-    ) {
-      const parent = this.definePropertyPathParts.at(-1);
-      if (parent) {
-        parent.arrayLength ??= 0;
-        this.definePropertyPathParts.push({ key: parent.arrayLength });
-        parent.arrayLength += 1;
+      if (this.pendingOOPName) {
+        annotations.push(
+          SparkdownAnnotation.mark<Reference>({
+            declaration: "define_variable_name",
+            symbolIds: [`${parent}.${this.pendingOOPName.name}`],
+            kind: "write",
+            linkable: true,
+          }).range(this.pendingOOPName.from, this.pendingOOPName.to),
+        );
+        this.pendingOOPName = null;
       }
       return annotations;
     }
-    if (
-      nodeRef.name === "ViewDeclarationScalarPropertyName" ||
-      nodeRef.name === "StylingDeclarationScalarPropertyName" ||
-      nodeRef.name === "PlainDeclarationScalarPropertyName" ||
-      nodeRef.name === "ViewDeclarationObjectPropertyName" ||
-      nodeRef.name === "StylingDeclarationObjectPropertyName" ||
-      nodeRef.name === "PlainDeclarationObjectPropertyName"
-    ) {
-      const name = this.read(nodeRef.from, nodeRef.to);
-      this.definePropertyPathParts.push({
-        key: name,
-      });
-      const propertyPath = this.definePropertyPathParts
-        .filter((p) => p.key != null)
-        .map(({ key }) => key)
-        .join(".");
-      annotations.push(
-        SparkdownAnnotation.mark<Reference>({
-          declaration: "property",
-          symbolIds: [
-            this.defineType + "." + this.defineName + "." + propertyPath,
-            ...(this.defineType === "screen"
-              ? name.split(" ").map((n) => `layer.${n}`)
-              : []),
-          ],
-          interdependentIds:
-            this.defineType === "style"
-              ? name.split(" ").map((n) => `layer.${n}`)
-              : this.defineType === "screen"
-                ? name.split(" ").map((n) => `style.${n}`)
-                : [],
-          kind: "write",
-        }).range(nodeRef.from, nodeRef.to),
-      );
-      // For verifying linked types actually exist
-      if (propertyPath.startsWith(".link.")) {
-        const type = propertyPath.split(".").findLast((n) => Boolean(n));
-        if (type) {
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              selectors: [{ types: [type] }],
-            }).range(nodeRef.from, nodeRef.to),
+
+    // ----- OOP define property (`store trust = 0`, `name = "RAFFLES"`) ---------
+    if (nodeRef.name === "LuauPropertyDefinition") {
+      const begin = getDescendent("LuauVariableAssignment_begin", nodeRef.node);
+      const nameNode = begin
+        ? getDescendent("LuauVariableName", begin)
+        : getDescendent("LuauVariableName", nodeRef.node);
+      if (nameNode) {
+        const propName = this.read(nameNode.from, nameNode.to).trim();
+        annotations.push(
+          SparkdownAnnotation.mark<Reference>({
+            declaration: "property",
+            symbolIds: [`${this.defineType}.${this.defineName}.${propName}`],
+            kind: "write",
+          }).range(nameNode.from, nameNode.to),
+        );
+        // A character's `name = "X"` value is the cross-reference target a
+        // dialogue cue (`X:`) resolves to via `character.?.name=X`.
+        if (this.defineType === "character" && propName === "name") {
+          const stringNode = getDescendent(
+            "LuauDoubleQuotedString",
+            nodeRef.node,
           );
+          const contentNode = stringNode
+            ? getDescendent("LuauDoubleQuotedString_content", stringNode)
+            : null;
+          if (contentNode) {
+            const value = this.read(contentNode.from, contentNode.to);
+            annotations.push(
+              SparkdownAnnotation.mark<Reference>({
+                declaration: "character_name",
+                symbolIds: ["character.?.name=" + value],
+              }).range(contentNode.from, contentNode.to),
+            );
+          }
         }
       }
       return annotations;
     }
+
+    // ----- Structural struct-body property lines -------------------------------
     if (
-      nodeRef.name === "ViewStructFieldValue" ||
-      nodeRef.name === "StylingStructFieldValue" ||
-      nodeRef.name === "PlainStructFieldValue"
+      nodeRef.name === "LuauStructScalarProperty" ||
+      nodeRef.name === "LuauStructObjectHeader" ||
+      nodeRef.name === "LuauStructArrayItem"
     ) {
-      // For type checking
-      const defineProperty = this.definePropertyPathParts
+      const bodyLine = ancestorMatching(nodeRef.node, STRUCT_BODY_LINE, 6);
+      const indent = bodyLine ? nodeRef.from - bodyLine.from : 0;
+      // Pop siblings + deeper frames so the stack reflects this line's parents.
+      while (
+        this.structPathStack.length > 0 &&
+        this.structPathStack[this.structPathStack.length - 1]!.indent >= indent
+      ) {
+        this.structPathStack.pop();
+      }
+
+      if (nodeRef.name === "LuauStructArrayItem") {
+        // `-` array item: no referenceable name; push an index frame so nested
+        // properties get a stable path. Index comes from the parent container.
+        const parent = this.structPathStack[this.structPathStack.length - 1];
+        let index = 0;
+        if (parent) {
+          parent.arrayLength ??= 0;
+          index = parent.arrayLength;
+          parent.arrayLength += 1;
+        }
+        this.structPathStack.push({ indent, key: index });
+        return annotations;
+      }
+
+      const keyNode = firstDescendant(nodeRef.node, STRUCT_KEY_TOKENS);
+      const key = keyNode
+        ? this.read(keyNode.from, keyNode.to).trim()
+        : this.read(nodeRef.from, nodeRef.to)
+            .trim()
+            .replace(/:\s*$/, "")
+            .trim();
+      const from = keyNode ? keyNode.from : nodeRef.from;
+      const to = keyNode ? keyNode.to : nodeRef.to;
+
+      const pathKeys = this.structPathStack
         .filter((p) => p.key != null)
-        .map((p) => p.key)
-        .join(".");
-      const declaration = {
-        modifier: this.defineModifier,
-        type: this.defineType,
-        name: this.defineName,
-        property: defineProperty,
-      };
+        .map((p) => p.key);
+      const propertyPath = [...pathKeys, key].join(".");
+      const classWords = key.split(" ").filter(Boolean);
+      const symbolIds = [
+        `${this.defineType}.${this.defineName}.${propertyPath}`,
+        ...(this.defineType === "screen"
+          ? classWords.map((w) => `layer.${w}`)
+          : []),
+      ];
+      const interdependentIds =
+        this.defineType === "style"
+          ? classWords.map((w) => `layer.${w}`)
+          : this.defineType === "screen"
+            ? classWords.map((w) => `style.${w}`)
+            : [];
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
-          assigned: declaration,
-          prop: true,
-        }).range(nodeRef.from, nodeRef.to),
-      );
-      // For finding references
-      const value = this.read(nodeRef.from, nodeRef.to);
-      const isCharacterNameFieldValue =
-        this.defineType === "character" && defineProperty === "name";
-      const symbolIds = isCharacterNameFieldValue
-        ? ["character.?.name=" + value.slice(1, -1)]
-        : [];
-      // don't include surrounding string quotes in symbol range
-      const from = value.startsWith('"') ? nodeRef.from + 1 : nodeRef.from;
-      const to = value.endsWith('"') ? nodeRef.to - 1 : nodeRef.to;
-      annotations.push(
-        SparkdownAnnotation.mark<Reference>({
+          declaration: "property",
           symbolIds,
-          declaration: isCharacterNameFieldValue ? "character_name" : undefined,
+          interdependentIds,
+          kind: "write",
         }).range(from, to),
       );
+      // Push this line as a potential parent for deeper lines.
+      this.structPathStack.push({ indent, key });
       return annotations;
     }
+
     if (nodeRef.name === "TypeName") {
       const type = this.read(nodeRef.from, nodeRef.to);
       const types = [type];
@@ -356,6 +475,14 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "LuauVariableName") {
       const name = this.read(nodeRef.from, nodeRef.to);
+      // Skip the LHS name of an OOP define property — the LuauPropertyDefinition
+      // branch already claimed it as a `property` declaration.
+      if (
+        ancestorMatching(nodeRef.node, VARIABLE_DECL_SITE, 6) &&
+        ancestorMatching(nodeRef.node, PROPERTY_DEFINITION)
+      ) {
+        return annotations;
+      }
       // Declaration site: the LHS of a `store`/`local`/`const` definition
       // (nested in LuauVariableAssignment_begin AND a LuauVariableDefinition;
       // a bare reassignment has the former but not the latter). const vs var
@@ -378,112 +505,17 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
-      const context = getContextStack(nodeRef.node);
-      const typeNameNode = getDescendentInsideParent(
-        ["TypeName"],
-        ["LuauAccessPath", "StylingAccessPath"],
-        context,
+      // Value read: reference the binding by bare name (and `.name` scoped form
+      // for divert-style resolution).
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          symbolIds: ["." + name, name],
+          kind: "read",
+          linkable: true,
+          firstMatchOnly: true,
+        }).range(nodeRef.from, nodeRef.to),
       );
-      const types = typeNameNode
-        ? [this.read(typeNameNode.from, typeNameNode.to)]
-        : [];
-      // Record reference in field value
-      if (
-        context.some(
-          (n) =>
-            n.name === "ViewStructFieldValue" ||
-            n.name === "StylingStructFieldValue" ||
-            n.name === "PlainStructFieldValue",
-        )
-      ) {
-        const defineProperty = this.definePropertyPathParts
-          .filter((p) => p.key != null)
-          .map((p) => p.key)
-          .join(".");
-        const declaration = {
-          modifier: this.defineModifier,
-          type: this.defineType,
-          name: this.defineName,
-          property: defineProperty,
-        };
-        if (types.length > 0) {
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              selectors: [{ types, name }],
-              assigned: declaration,
-              symbolIds: types.map((type) => `${type}.${name}`),
-              kind: "read",
-              linkable: true,
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        } else {
-          const name = this.read(nodeRef.from, nodeRef.to);
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              selectors: [{ name }],
-              assigned: declaration,
-              symbolIds: ["?" + "." + name], // will need to infer type later
-              kind: "read",
-              linkable: true,
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        }
-      } else {
-        if (types.length > 0) {
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              symbolIds: types.map((type) => `${type}.${name}`),
-              kind: "read",
-              linkable: true,
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        } else {
-          const name = this.read(nodeRef.from, nodeRef.to);
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              symbolIds:
-                types.length > 0
-                  ? types.map((type) => `${type}.${name}`)
-                  : ["." + name, name],
-              kind: "read",
-              linkable: true,
-              firstMatchOnly: true,
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        }
-      }
-    }
-    if (nodeRef.name === "StylingStringIdentifier") {
-      const context = getContextStack(nodeRef.node);
-      // Record reference in field value
-      if (context.some((n) => n.name === "StylingStructFieldValue")) {
-        const defineProperty = this.definePropertyPathParts
-          .filter((p) => p.key != null)
-          .map((p) => p.key)
-          .join(".");
-        const declaration = {
-          modifier: this.defineModifier,
-          type: this.defineType,
-          name: this.defineName,
-          property: defineProperty,
-        };
-        const name = this.read(nodeRef.from, nodeRef.to);
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            selectors: [{ name }],
-            assigned: declaration,
-            symbolIds: ["?" + "." + name], // will need to infer type later
-            kind: "read",
-            linkable: true,
-            stylingStringIdentifier: true,
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
+      return annotations;
     }
     if (nodeRef.name === "AssetCommandTarget") {
       const context = getContextNames(nodeRef.node);
@@ -665,42 +697,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Reference>>[] {
     if (
-      nodeRef.name === "DefineViewDeclaration" ||
-      nodeRef.name === "DefineStylingDeclaration" ||
-      nodeRef.name === "DefinePlainDeclaration"
+      nodeRef.name === "LuauDefine" ||
+      STRUCTURAL_TYPE_BY_NODE[nodeRef.name]
     ) {
-      this.defineModifier = "";
-      this.defineType = "";
-      this.defineName = "";
-      this.definePropertyPathParts = [];
-      return annotations;
-    }
-    if (
-      nodeRef.name === "ViewStructScalarItem" ||
-      nodeRef.name === "StylingStructScalarItem" ||
-      nodeRef.name === "PlainStructScalarItem" ||
-      nodeRef.name === "ViewStructObjectItemBlock" ||
-      nodeRef.name === "PlainStructObjectItemBlock" ||
-      nodeRef.name === "ViewStructObjectItemWithInlineScalarProperty" ||
-      nodeRef.name === "PlainStructObjectItemWithInlineScalarProperty" ||
-      nodeRef.name === "ViewStructObjectItemWithInlineObjectProperty" ||
-      nodeRef.name === "PlainStructObjectItemWithInlineObjectProperty" ||
-      nodeRef.name === "ViewStructObjectItemWithInlineScalarProperty_begin" ||
-      nodeRef.name === "PlainStructObjectItemWithInlineScalarProperty_begin" ||
-      nodeRef.name === "ViewStructObjectItemWithInlineObjectProperty_end" ||
-      nodeRef.name === "PlainStructObjectItemWithInlineObjectProperty_end"
-    ) {
-      this.definePropertyPathParts.pop();
-      return annotations;
-    }
-    if (
-      nodeRef.name === "ViewStructScalarProperty" ||
-      nodeRef.name === "StylingStructScalarProperty" ||
-      nodeRef.name === "PlainStructScalarProperty" ||
-      nodeRef.name === "ViewStructObjectProperty" ||
-      nodeRef.name === "PlainStructObjectProperty"
-    ) {
-      this.definePropertyPathParts.pop();
+      this.resetDefineState();
       return annotations;
     }
     if (nodeRef.name === "DivertPath") {
