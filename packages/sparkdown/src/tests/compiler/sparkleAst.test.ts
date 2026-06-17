@@ -158,6 +158,34 @@ end
     ]);
   });
 
+  test("`@event=handler` lowers to EventBindings (ref + call)", () => {
+    const ast = screenAst(`screen hud with
+  row:
+    button "Use" @click=use_item
+    button "Hit" @click=take_damage(10)
+end
+`);
+    const [useBtn, hitBtn] = ast.hud.children[0].children;
+    expect(useBtn.tag).toBe("button");
+    expect(useBtn.content).toEqual([{ kind: "literal", text: "Use" }]);
+    expect(useBtn.events).toEqual([
+      { event: "click", handler: { kind: "ref", name: "use_item" } },
+    ]);
+    expect(hitBtn.events).toEqual([
+      {
+        event: "click",
+        handler: {
+          kind: "call",
+          binding: {
+            exprId: expect.stringMatching(/^__binding_\d+$/),
+            source: "take_damage(10)",
+            span: expect.objectContaining({ from: expect.any(Number) }),
+          },
+        },
+      },
+    ]);
+  });
+
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
     const ast = screenAst(`screen hud with
   text = "literal {{braces}} kept"

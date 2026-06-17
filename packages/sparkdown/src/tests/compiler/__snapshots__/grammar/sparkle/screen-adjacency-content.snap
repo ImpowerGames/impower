@@ -71,21 +71,25 @@ sparkdown [0..143]
  │   │   │   │               ├─ LuauStructAdjacencyContent_c3 [51..52]
  │   │   │   │               │   └─ LuauStructAdjacencyContent_c3 [51..52]
  │   │   │   │               │       └─ OptionalWhitespace [51..52]: " "
- │   │   │   │               └─ LuauStructAdjacencyContent_c4 [52..59]
- │   │   │   │                   └─ StringFieldValue [52..59]
- │   │   │   │                       ├─ StringFieldValue_c1 [52..53]
- │   │   │   │                       │   └─ PunctuationStringOpen [52..53]: "\""
- │   │   │   │                       ├─ StringFieldValue_c2 [53..58]
- │   │   │   │                       │   └─ PlainStringContent [53..58]
- │   │   │   │                       │       └─ PlainStringContent_c1 [53..58]
- │   │   │   │                       │           ├─ StringCharacter [53..54]: "b"
- │   │   │   │                       │           ├─ StringCharacter [54..55]: "l"
- │   │   │   │                       │           ├─ StringCharacter [55..56]: "a"
- │   │   │   │                       │           ├─ StringCharacter [56..57]: "c"
- │   │   │   │                       │           └─ StringCharacter [57..58]: "k"
- │   │   │   │                       ├─ StringFieldValue_c3 [58..59]
- │   │   │   │                       │   └─ PunctuationStringClose [58..59]: "\""
- │   │   │   │                       └─ StringFieldValue_c4 59
+ │   │   │   │               ├─ LuauStructAdjacencyContent_c4 [52..59]
+ │   │   │   │               │   └─ StringFieldValue [52..59]
+ │   │   │   │               │       ├─ StringFieldValue_c1 [52..53]
+ │   │   │   │               │       │   └─ PunctuationStringOpen [52..53]: "\""
+ │   │   │   │               │       ├─ StringFieldValue_c2 [53..58]
+ │   │   │   │               │       │   └─ PlainStringContent [53..58]
+ │   │   │   │               │       │       └─ PlainStringContent_c1 [53..58]
+ │   │   │   │               │       │           ├─ StringCharacter [53..54]: "b"
+ │   │   │   │               │       │           ├─ StringCharacter [54..55]: "l"
+ │   │   │   │               │       │           ├─ StringCharacter [55..56]: "a"
+ │   │   │   │               │       │           ├─ StringCharacter [56..57]: "c"
+ │   │   │   │               │       │           └─ StringCharacter [57..58]: "k"
+ │   │   │   │               │       ├─ StringFieldValue_c3 [58..59]
+ │   │   │   │               │       │   └─ PunctuationStringClose [58..59]: "\""
+ │   │   │   │               │       └─ StringFieldValue_c4 59
+ │   │   │   │               ├─ LuauStructAdjacencyContent_c5 59
+ │   │   │   │               │   └─ LuauStructAdjacencyContent_c5 59
+ │   │   │   │               │       └─ OptionalWhitespace 59
+ │   │   │   │               └─ LuauStructAdjacencyContent_c6 59
  │   │   │   └─ LuauStructBodyLine_c3 59
  │   │   │       └─ LuauStructBodyLine_c3 59
  │   │   │           └─ OptionalWhitespace 59
@@ -182,37 +186,41 @@ sparkdown [0..143]
  │   │   │   │               ├─ LuauStructAdjacencyContent_c3 [127..128]
  │   │   │   │               │   └─ LuauStructAdjacencyContent_c3 [127..128]
  │   │   │   │               │       └─ OptionalWhitespace [127..128]: " "
- │   │   │   │               └─ LuauStructAdjacencyContent_c4 [128..138]
- │   │   │   │                   └─ StringFieldValueInterpolated [128..138]
- │   │   │   │                       ├─ StringFieldValueInterpolated_begin [128..129]
- │   │   │   │                       │   └─ StringFieldValueInterpolated_begin_c1 [128..129]
- │   │   │   │                       │       └─ PunctuationStringOpen [128..129]: "\""
- │   │   │   │                       ├─ StringFieldValueInterpolated_content [129..137]
- │   │   │   │                       │   ├─ StringCharacter [129..130]: "H"
- │   │   │   │                       │   ├─ StringCharacter [130..131]: "P"
- │   │   │   │                       │   ├─ StringCharacter [131..132]: ":"
- │   │   │   │                       │   ├─ StringCharacter [132..133]: " "
- │   │   │   │                       │   └─ LuauInterpolatedStringExpression [133..137]
- │   │   │   │                       │       ├─ LuauInterpolatedStringExpression_begin [133..134]
- │   │   │   │                       │       │   └─ LuauInterpolatedStringExpression_begin_c1 [133..134]
- │   │   │   │                       │       │       └─ PunctuationBraceOpen [133..134]: "{"
- │   │   │   │                       │       ├─ LuauInterpolatedStringExpression_content [134..136]
- │   │   │   │                       │       │   └─ LuauAccessPath [134..136]
- │   │   │   │                       │       │       ├─ LuauAccessPath_begin 134
- │   │   │   │                       │       │       ├─ LuauAccessPath_content [134..136]
- │   │   │   │                       │       │       │   └─ LuauAccessPart [134..136]
- │   │   │   │                       │       │       │       └─ LuauVariable [134..136]
- │   │   │   │                       │       │       │           └─ LuauVariable_c1 [134..136]
- │   │   │   │                       │       │       │               └─ LuauVariableName [134..136]: "hp"
- │   │   │   │                       │       │       └─ LuauAccessPath_end 136
- │   │   │   │                       │       │           └─ LuauAccessPath_end_c1 136
- │   │   │   │                       │       └─ LuauInterpolatedStringExpression_end [136..137]
- │   │   │   │                       │           └─ LuauInterpolatedStringExpression_end_c1 [136..137]
- │   │   │   │                       │               └─ PunctuationBraceClose [136..137]: "}"
- │   │   │   │                       └─ StringFieldValueInterpolated_end [137..138]
- │   │   │   │                           ├─ StringFieldValueInterpolated_end_c1 [137..138]
- │   │   │   │                           │   └─ PunctuationStringClose [137..138]: "\""
- │   │   │   │                           └─ StringFieldValueInterpolated_end_c2 138
+ │   │   │   │               ├─ LuauStructAdjacencyContent_c4 [128..138]
+ │   │   │   │               │   └─ StringFieldValueInterpolated [128..138]
+ │   │   │   │               │       ├─ StringFieldValueInterpolated_begin [128..129]
+ │   │   │   │               │       │   └─ StringFieldValueInterpolated_begin_c1 [128..129]
+ │   │   │   │               │       │       └─ PunctuationStringOpen [128..129]: "\""
+ │   │   │   │               │       ├─ StringFieldValueInterpolated_content [129..137]
+ │   │   │   │               │       │   ├─ StringCharacter [129..130]: "H"
+ │   │   │   │               │       │   ├─ StringCharacter [130..131]: "P"
+ │   │   │   │               │       │   ├─ StringCharacter [131..132]: ":"
+ │   │   │   │               │       │   ├─ StringCharacter [132..133]: " "
+ │   │   │   │               │       │   └─ LuauInterpolatedStringExpression [133..137]
+ │   │   │   │               │       │       ├─ LuauInterpolatedStringExpression_begin [133..134]
+ │   │   │   │               │       │       │   └─ LuauInterpolatedStringExpression_begin_c1 [133..134]
+ │   │   │   │               │       │       │       └─ PunctuationBraceOpen [133..134]: "{"
+ │   │   │   │               │       │       ├─ LuauInterpolatedStringExpression_content [134..136]
+ │   │   │   │               │       │       │   └─ LuauAccessPath [134..136]
+ │   │   │   │               │       │       │       ├─ LuauAccessPath_begin 134
+ │   │   │   │               │       │       │       ├─ LuauAccessPath_content [134..136]
+ │   │   │   │               │       │       │       │   └─ LuauAccessPart [134..136]
+ │   │   │   │               │       │       │       │       └─ LuauVariable [134..136]
+ │   │   │   │               │       │       │       │           └─ LuauVariable_c1 [134..136]
+ │   │   │   │               │       │       │       │               └─ LuauVariableName [134..136]: "hp"
+ │   │   │   │               │       │       │       └─ LuauAccessPath_end 136
+ │   │   │   │               │       │       │           └─ LuauAccessPath_end_c1 136
+ │   │   │   │               │       │       └─ LuauInterpolatedStringExpression_end [136..137]
+ │   │   │   │               │       │           └─ LuauInterpolatedStringExpression_end_c1 [136..137]
+ │   │   │   │               │       │               └─ PunctuationBraceClose [136..137]: "}"
+ │   │   │   │               │       └─ StringFieldValueInterpolated_end [137..138]
+ │   │   │   │               │           ├─ StringFieldValueInterpolated_end_c1 [137..138]
+ │   │   │   │               │           │   └─ PunctuationStringClose [137..138]: "\""
+ │   │   │   │               │           └─ StringFieldValueInterpolated_end_c2 138
+ │   │   │   │               ├─ LuauStructAdjacencyContent_c5 138
+ │   │   │   │               │   └─ LuauStructAdjacencyContent_c5 138
+ │   │   │   │               │       └─ OptionalWhitespace 138
+ │   │   │   │               └─ LuauStructAdjacencyContent_c6 138
  │   │   │   └─ LuauStructBodyLine_c3 138
  │   │   │       └─ LuauStructBodyLine_c3 138
  │   │   │           └─ OptionalWhitespace 138

@@ -113,6 +113,28 @@ end
   });
 });
 
+describe("screen · inline events", () => {
+  test("`@event` handlers are dropped from the static struct + compile cleanly", () => {
+    const r = compileUI(`store hp = 100
+function use_item()
+end
+function take_damage(n)
+end
+screen hud with
+  row:
+    button "Use" @click=use_item
+    button "Hit" @click=take_damage(10)
+end
+`);
+    expect(r.errors).toEqual([]);
+    // The reactive `@click` attrs are not in the static context struct — only
+    // the element + its content survive.
+    expect(r.screen["hud"]["row"]).toEqual({
+      button: "Hit",
+    });
+  });
+});
+
 describe("component", () => {
   test("component produces $type component", () => {
     const r = compileUI(`component card with

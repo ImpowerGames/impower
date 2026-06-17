@@ -7188,7 +7188,7 @@
       "match": "([:])"
     },
     "LuauStructAdjacencyContent": {
-      "match": "^((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_-]*))((?:[^\\S\\n\\r])+)([\"].*)$",
+      "match": "^((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_-]*))((?:[^\\S\\n\\r])+)(\"(?:\\\\.|[^\"])*\")((?:[^\\S\\n\\r])*)([^\\n]*)$",
       "captures": {
         "1": {
           "patterns": [
@@ -7221,8 +7221,62 @@
               "include": "#StringFieldValue"
             }
           ]
+        },
+        "5": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#LuauElementAttribute"
+            }
+          ]
         }
       }
+    },
+    "LuauElementAttribute": {
+      "patterns": [
+        {
+          "include": "#LuauEventAttribute"
+        }
+      ]
+    },
+    "LuauEventAttribute": {
+      "begin": "([@])((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#EventAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#EventAttributeName"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        }
+      ],
+      "end": "(?=$|(?:[^\\S\\n\\r])+[@#])"
     },
     "LuauStructBareMarker": {
       "match": "^((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_-]*))((?:[^\\S\\n\\r])*)([^\\n]*)$",

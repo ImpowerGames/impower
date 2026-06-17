@@ -1,0 +1,6 @@
+screen hud with
+  row:
+    button "Use" @click=use_item
+    button "Hit" @click=take_damage(10)
+    image "black"
+end

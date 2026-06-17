@@ -1,0 +1,27 @@
+text.source.sparkdown [0..118]
+ ├─ meta.screen.luau [0..15]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..10]: "hud"
+ │   ├─ punctuation.whitespace.optional.sd [10..11]: " "
+ │   └─ keyword.control.as.luau [11..15]: "with"
+ ├─ Newline [15..16]: "\n"
+ ├─ meta.screen.luau [16..22]
+ │   ├─ punctuation.whitespace.optional.sd [16..18]: "  "
+ │   └─ meta.struct.body.luau [18..22]: "row:"
+ ├─ Newline [22..23]: "\n"
+ ├─ meta.screen.luau [23..55]
+ │   ├─ punctuation.whitespace.optional.sd [23..27]: "    "
+ │   └─ meta.struct.body.luau [27..55]: "button \"Use\" @click=use_item"
+ ├─ Newline [55..56]: "\n"
+ ├─ meta.screen.luau [56..95]
+ │   ├─ punctuation.whitespace.optional.sd [56..60]: "    "
+ │   └─ meta.struct.body.luau [60..95]: "button \"Hit\" @click=take_damage(10)"
+ ├─ Newline [95..96]: "\n"
+ ├─ meta.screen.luau [96..113]
+ │   ├─ punctuation.whitespace.optional.sd [96..100]: "    "
+ │   └─ meta.struct.body.luau [100..113]: "image \"black\""
+ ├─ Newline [113..114]: "\n"
+ ├─ meta.screen.luau [114..117]
+ │   └─ keyword.control.end.luau [114..117]: "end"
+ └─ Newline [117..118]: "\n"

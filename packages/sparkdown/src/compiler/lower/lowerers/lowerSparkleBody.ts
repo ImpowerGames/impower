@@ -9,6 +9,7 @@ import {
   type BodyNode,
   type ContentPart,
   type ElementNode,
+  type EventBinding,
   type PropValue,
 } from "../../types/SparkleNode";
 import { type SparkRange } from "../../types/SparkRange";
@@ -198,6 +199,52 @@ function lowerBinding(interpNode: SyntaxNode, ctx: LowerContext): Binding {
   return { exprId, source, span };
 }
 
+const EVENT_ATTR = new Set(["LuauEventAttribute"]);
+const EVENT_NAME = new Set(["EventAttributeName"]);
+const EVENT_CONTENT = new Set(["LuauEventAttribute_content"]);
+const BARE_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/** DFS: every `LuauEventAttribute` descendant, in source order. */
+function eventAttributes(node: SyntaxNode): SyntaxNode[] {
+  const out: SyntaxNode[] = [];
+  const walk = (n: SyntaxNode) => {
+    let c = n.firstChild;
+    while (c) {
+      if (EVENT_ATTR.has(c.name)) out.push(c);
+      else walk(c);
+      c = c.nextSibling;
+    }
+  };
+  walk(node);
+  return out;
+}
+
+/** Build EventBindings (spec §4.5) from a line's `@event=handler` attributes.
+ *  `@e=name` → a `ref` (the runtime calls the named function); `@e=call(args)`
+ *  → a `call` whose binding (`__binding_N`) the runtime invokes. Inline closures
+ *  `@e={ … }` are a later increment. */
+function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
+  const events: EventBinding[] = [];
+  for (const attr of eventAttributes(lineNode)) {
+    const nameNode = firstDescendant(attr, EVENT_NAME);
+    const event = nameNode ? ctx.read(nameNode.from, nameNode.to).trim() : "";
+    if (!event) continue;
+    const handlerNode = firstDescendant(attr, EVENT_CONTENT);
+    const handlerText = handlerNode
+      ? ctx.read(handlerNode.from, handlerNode.to).trim()
+      : "";
+    if (handlerNode && BARE_NAME_RE.test(handlerText)) {
+      events.push({ event, handler: { kind: "ref", name: handlerText } });
+    } else if (handlerNode) {
+      events.push({
+        event,
+        handler: { kind: "call", binding: lowerBinding(handlerNode, ctx) },
+      });
+    }
+  }
+  return events;
+}
+
 /** Build the ordered literal/binding content parts for an element's display
  *  content. Handles the interpolation-aware `StringFieldValueInterpolated`
  *  (literal runs + `{expr}` bindings) and plain values (a single literal part),
@@ -326,7 +373,7 @@ function buildBlock(
         classes: [],
         content,
         props: {},
-        events: [],
+        events: readEvents(kind, ctx),
         children: [],
       };
       i = attachBlock(element, lines, i, childIndent, ctx);

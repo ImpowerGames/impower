@@ -4450,7 +4450,7 @@ repository:
   # (cap 2) + the content value (cap 4); the static context builder maps it to
   # `{ tag: content }`, identical to the `tag = "content"` scalar form.
   LuauStructAdjacencyContent:
-    match: ^({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}+)(["].*)$
+    match: ^({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}+)("(?:\\.|[^"])*")({{WS}}*)([^\n]*)$
     captures:
       1:
         patterns:
@@ -4466,6 +4466,38 @@ repository:
         patterns:
           - { include: "#StringFieldValueInterpolated" }
           - { include: "#StringFieldValue" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      # Trailing inline attributes after the content (`@event=handler`, …).
+      6:
+        patterns:
+          - { include: "#LuauElementAttribute" }
+
+  # Inline element attributes (spec §4.5): trailing `@event=handler` bindings on
+  # an element line. `#prop=value` follows in a later increment. Each event's
+  # handler is a Luau expression (a bare function name or a call); inline
+  # closures `@e={ … }` come later.
+  LuauElementAttribute:
+    patterns:
+      - { include: "#LuauEventAttribute" }
+
+  LuauEventAttribute:
+    begin: ([@])({{LUAU_IDENTIFIER}})({{WS}}*)([=])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+    patterns:
+      - { include: "#LuauExpression" }
+    end: (?=$|{{WS}}+[@#])
 
   LuauStructBareMarker:
     match: ^({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}*)([^\n]*)$
