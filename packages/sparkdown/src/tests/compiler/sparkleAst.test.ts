@@ -303,6 +303,41 @@ end
     ]);
   });
 
+  test("for...in...do...else lowers to a ForNode (bindings + each + else)", () => {
+    const ast = screenAst(`screen bag with
+  for item in inventory do
+    text "{item.name}"
+  else
+    text "empty"
+  end
+end
+`);
+    const forNode = ast.bag.children[0];
+    expect(forNode.kind).toBe("for");
+    expect(forNode.bindings).toEqual(["item"]);
+    expect(forNode.each.source).toContain("inventory");
+    expect(forNode.children[0].tag).toBe("text");
+    expect(forNode.children[0].content[0]).toEqual({
+      kind: "binding",
+      binding: expect.objectContaining({ source: "{item.name}" }),
+    });
+    expect(forNode.else[0].content).toEqual([{ kind: "literal", text: "empty" }]);
+  });
+
+  test("for with two bindings (`k, v`) and no else", () => {
+    const ast = screenAst(`screen t with
+  for k, v in scores do
+    text "{k}"
+  end
+end
+`);
+    const forNode = ast.t.children[0];
+    expect(forNode.kind).toBe("for");
+    expect(forNode.bindings).toEqual(["k", "v"]);
+    expect(forNode.each.source).toContain("scores");
+    expect(forNode.else).toBeUndefined();
+  });
+
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
     const ast = screenAst(`screen hud with
   text = "literal {{braces}} kept"

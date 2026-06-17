@@ -1,0 +1,9 @@
+screen bag with
+  for item in inventory do
+    row:
+      text "{item.name}"
+      button "Use" @click=use_item
+  else
+    text "Your bag is empty."
+  end
+end

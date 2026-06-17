@@ -4646,6 +4646,7 @@ repository:
   LuauSparkleControlBlock:
     patterns:
       - { include: "#LuauSparkleIfBlock" }
+      - { include: "#LuauSparkleForLoop" }
 
   LuauSparkleIfBlock:
     begin: ({{WS}}*)(if)\b({{WS}}*)
@@ -4718,6 +4719,57 @@ repository:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
+
+  # `for <bindings> in <expr> do <element lines> [else <empty fallback>] end`
+  # (spec §4.6). Reuses the Luau `LuauForCondition` (bindings + `in` + iterable,
+  # ends before `do`) and `LuauSparkleElseBlock` (the empty-iterable fallback).
+  # `do` is consumed here (not via LuauDoBlock, whose body is Luau statements);
+  # the body is sparkle element lines + nested control blocks.
+  LuauSparkleForLoop:
+    begin: ({{WS}}*)(for)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauForKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauForCondition" }
+      - { include: "#LuauSparkleDoMark" }
+      - { include: "#LuauSparkleElseBlock" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # The `do` keyword that opens a for-loop's body (consumed after the condition).
+  LuauSparkleDoMark:
+    match: ({{WS}}*)(do)\b({{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauDoKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
 
 
   # ----------------------------------------------------------------------------

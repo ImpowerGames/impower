@@ -7495,6 +7495,9 @@
       "patterns": [
         {
           "include": "#LuauSparkleIfBlock"
+        },
+        {
+          "include": "#LuauSparkleForLoop"
         }
       ]
     },
@@ -7652,6 +7655,101 @@
         }
       ],
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:end)\\b)"
+    },
+    "LuauSparkleForLoop": {
+      "begin": "((?:[^\\S\\n\\r])*)(for)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauForKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauForCondition"
+        },
+        {
+          "include": "#LuauSparkleDoMark"
+        },
+        {
+          "include": "#LuauSparkleElseBlock"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauSparkleDoMark": {
+      "match": "((?:[^\\S\\n\\r])*)(do)\\b((?:[^\\S\\n\\r])*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauDoKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      }
     },
     "LuauScreen": {
       "tag": "meta",

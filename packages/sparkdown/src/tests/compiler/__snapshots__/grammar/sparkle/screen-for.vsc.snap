@@ -1,0 +1,47 @@
+text.source.sparkdown [0..159]
+ ├─ meta.screen.luau [0..15]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..10]: "bag"
+ │   ├─ punctuation.whitespace.optional.sd [10..11]: " "
+ │   └─ keyword.control.as.luau [11..15]: "with"
+ ├─ Newline [15..16]: "\n"
+ ├─ meta.screen.luau [16..42]
+ │   ├─ punctuation.whitespace.optional.sd [16..18]: "  "
+ │   ├─ keyword.control.for.luau [18..21]: "for"
+ │   ├─ punctuation.whitespace.optional.sd [21..22]: " "
+ │   ├─ variable.other.readwrite.luau [22..26]: "item"
+ │   ├─ punctuation.whitespace.required.sd [26..27]: " "
+ │   ├─ keyword.control.end.luau [27..29]: "in"
+ │   ├─ punctuation.whitespace.required.sd [29..30]: " "
+ │   ├─ variable.other.readwrite.luau [30..39]: "inventory"
+ │   ├─ punctuation.whitespace.optional.sd [39..40]: " "
+ │   └─ keyword.control.do.luau [40..42]: "do"
+ ├─ Newline [42..43]: "\n"
+ ├─ meta.screen.luau [43..51]
+ │   ├─ punctuation.whitespace.optional.sd [43..47]: "    "
+ │   └─ meta.struct.body.luau [47..51]: "row:"
+ ├─ Newline [51..52]: "\n"
+ ├─ meta.screen.luau [52..76]
+ │   ├─ punctuation.whitespace.optional.sd [52..58]: "      "
+ │   └─ meta.struct.body.luau [58..76]: "text \"{item.name}\""
+ ├─ Newline [76..77]: "\n"
+ ├─ meta.screen.luau [77..111]
+ │   ├─ punctuation.whitespace.optional.sd [77..83]: "      "
+ │   └─ meta.struct.body.luau [83..111]: "button \"Use\" @click=use_item"
+ ├─ Newline [111..112]: "\n"
+ ├─ meta.screen.luau [112..118]
+ │   ├─ punctuation.whitespace.optional.sd [112..114]: "  "
+ │   └─ keyword.control.else.luau [114..118]: "else"
+ ├─ Newline [118..119]: "\n"
+ ├─ meta.screen.luau [119..148]
+ │   ├─ punctuation.whitespace.optional.sd [119..123]: "    "
+ │   └─ meta.struct.body.luau [123..148]: "text \"Your bag is empty.\""
+ ├─ Newline [148..149]: "\n"
+ ├─ meta.screen.luau [149..154]
+ │   ├─ punctuation.whitespace.optional.sd [149..151]: "  "
+ │   └─ keyword.control.end.luau [151..154]: "end"
+ ├─ Newline [154..155]: "\n"
+ ├─ meta.screen.luau [155..158]
+ │   └─ keyword.control.end.luau [155..158]: "end"
+ └─ Newline [158..159]: "\n"

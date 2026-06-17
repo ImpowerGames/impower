@@ -4,13 +4,17 @@ import { ErrorType } from "../../../inkjs/engine/Error";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ReturnType } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
-import { lowerExpressionFromContainer } from "../expression/lowerExpression";
+import {
+  lowerExpressionFromContainer,
+  lowerExpressionFromNodes,
+} from "../expression/lowerExpression";
 import {
   type Binding,
   type BodyNode,
   type ContentPart,
   type ElementNode,
   type EventBinding,
+  type ForNode,
   type IfNode,
   type PropValue,
 } from "../../types/SparkleNode";
@@ -44,7 +48,10 @@ interface NodeLine {
   control?: boolean;
 }
 
-const CONTROL_BLOCK_NAMES = new Set(["LuauSparkleIfBlock"]);
+const CONTROL_BLOCK_NAMES = new Set([
+  "LuauSparkleIfBlock",
+  "LuauSparkleForLoop",
+]);
 // Clause sub-blocks of a control block — collected explicitly by the control
 // builder, so the generic item walk must NOT descend into or emit them.
 const CONTROL_CLAUSE_NAMES = new Set([
@@ -624,10 +631,98 @@ function lowerCondition(
   );
 }
 
-/** Build a control-flow BodyNode. Currently `if`/`elseif`/`else` (IfNode);
- *  `for`/`match`/`slot`/`fill` follow. */
+/** Build a control-flow BodyNode. `if` (IfNode) / `for` (ForNode); `match`/
+ *  `slot`/`fill` follow. */
 function buildControl(node: SyntaxNode, ctx: LowerContext): BodyNode {
+  if (node.name === "LuauSparkleForLoop") return buildForNode(node, ctx);
   return buildIfNode(node, ctx);
+}
+
+const WS_NODE_NAMES = new Set([
+  "ExtraWhitespace",
+  "OptionalWhitespace",
+  "RequiredWhitespace",
+  "Newline",
+]);
+
+/** Compile a list of sibling expression nodes (e.g. the iterable after `in`)
+ *  into a Binding, mirroring {@link lowerBinding} but for a node LIST rather
+ *  than a single container. */
+function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding {
+  const first = nodes[0]!;
+  const last = nodes[nodes.length - 1]!;
+  const exprId = `__binding_${first.from}`;
+  const source = ctx.read(first.from, last.to);
+  const span: SparkRange = {
+    file: ctx.filePath,
+    line: ctx.lineNumber(first.from),
+    from: first.from,
+    to: last.to,
+  };
+  const already = ctx.hoistedKnots?.some(
+    (o) => o instanceof Function && o.identifier?.name === exprId,
+  );
+  if (!already && ctx.hoistedKnots) {
+    const expr = lowerExpressionFromNodes(nodes, ctx);
+    ctx.hoistedKnots.push(
+      new Function(new Identifier(exprId), [new ReturnType(expr ?? null)], []),
+    );
+  }
+  return { exprId, source, span };
+}
+
+/** `LuauSparkleForLoop` → ForNode (spec §4.6). `for <bindings> in <expr> do …
+ *  [else …] end`: bindings = the loop variable name(s) before `in`; `each` =
+ *  the iterable after `in`; `else` = the empty-iterable fallback. Numeric `for`
+ *  (no `in`) is a follow-up. */
+function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
+  const content = firstDescendant(
+    forBlock,
+    new Set(["LuauSparkleForLoop_content"]),
+  );
+  const condContent = content
+    ? firstDescendant(content, new Set(["LuauForCondition_content"]))
+    : null;
+  let bindings: string[] = [];
+  let each: Binding | undefined;
+  if (condContent) {
+    const inKw = firstDescendant(condContent, new Set(["LuauInKeyword"]));
+    if (inKw) {
+      bindings = ctx
+        .read(condContent.from, inKw.from)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const iterableNodes: SyntaxNode[] = [];
+      let c = condContent.firstChild;
+      while (c) {
+        if (c.from >= inKw.to && !WS_NODE_NAMES.has(c.name)) {
+          iterableNodes.push(c);
+        }
+        c = c.nextSibling;
+      }
+      if (iterableNodes.length > 0) {
+        each = lowerBindingFromNodes(iterableNodes, ctx);
+      }
+    }
+  }
+  const elseBlock = content
+    ? childrenByName(content, new Set(["LuauSparkleElseBlock"]))[0]
+    : undefined;
+  const forNode: ForNode = {
+    kind: "for",
+    bindings,
+    ...(each ? { each } : {}),
+    children: buildBranchChildren(content, ctx),
+  };
+  if (elseBlock) {
+    const elseContent = firstDescendant(
+      elseBlock,
+      new Set(["LuauSparkleElseBlock_content"]),
+    );
+    forNode.else = buildBranchChildren(elseContent, ctx);
+  }
+  return forNode;
 }
 
 /** `LuauSparkleIfBlock` → IfNode: the `if` + each `elseif` are branches

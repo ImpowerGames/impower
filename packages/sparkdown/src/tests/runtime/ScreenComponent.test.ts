@@ -225,6 +225,23 @@ end
   });
 });
 
+describe("screen · for loop", () => {
+  test("for/in/do/else compiles cleanly (iterable binding hoisted)", () => {
+    const r = compileUI(`store inventory = {}
+function use_item()
+end
+screen bag with
+  for item in inventory do
+    button "Use" @click=use_item
+  else
+    text "empty"
+  end
+end
+`);
+    expect(r.errors).toEqual([]);
+  });
+});
+
 describe("component", () => {
   test("component produces $type component", () => {
     const r = compileUI(`component card with
