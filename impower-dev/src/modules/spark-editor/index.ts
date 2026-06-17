@@ -1,16 +1,20 @@
 import { h, hydrate } from "preact";
-import { adoptAll } from "../../../../packages/spec-component/src/component";
 import SparkEditorComponent from "./main/SparkEditor";
 import editorIcons from "./styles/icons/icons.css";
 import editorTheme from "./styles/theme/theme.css";
 
-// Global stylesheets adopted document-wide (constructable stylesheets): the
+// Global stylesheets adopted document-wide as constructable stylesheets: the
 // editor theme tokens + icon definitions.
-const DEFAULT_STYLES = { editorTheme, editorIcons } as const;
+const GLOBAL_STYLES = [editorTheme, editorIcons];
 
 export default abstract class SparkEditor {
   static async init(): Promise<void> {
-    adoptAll(DEFAULT_STYLES);
+    const sheets = GLOBAL_STYLES.map((cssText) => {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(cssText);
+      return sheet;
+    });
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, ...sheets];
     // Plain Preact mount — no custom element. `hydrate` reuses the dev-server
     // SSR pre-render of `#root`, or renders fresh in prod (where `#root` ships
     // empty). Replaces the former preact-custom-element `<spark-editor>` host.
