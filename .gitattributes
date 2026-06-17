@@ -1,3 +1,24 @@
+# Normalize all text files to LF in the repository on every platform,
+# regardless of `core.autocrlf`. Keeps line endings consistent and stops
+# editors/formatters on Windows from silently committing CRLF — which otherwise
+# flips a touched file's whole content in the diff (`\r\n` vs `\n` on every
+# line). `text=auto` lets git auto-detect binary vs text; `eol=lf` forces LF for
+# anything detected as text.
+* text=auto eol=lf
+
+# Binary assets — never normalize (git usually auto-detects these, but be
+# explicit so a stray heuristic never rewrites them).
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.ttf   binary
+*.woff  binary
+*.woff2 binary
+*.pdf   binary
+
 # Grammar test fixtures (`.sd`) are read byte-for-byte by the snapshot tests,
 # and the `.snap` / `.vsc.snap` baselines are generated on LF checkouts. Force
 # LF for both on every platform so the snapshot suites are byte-stable
