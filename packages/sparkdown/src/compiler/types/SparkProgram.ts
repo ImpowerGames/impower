@@ -48,6 +48,15 @@ export interface SparkProgram {
   // then name. Lets the Game runtime read assets without the LSP-only
   // program.context. Derived from `context` after asset population.
   assets?: { [type: string]: { [name: string]: any } };
+  // Dedicated engine-facing channel for every remaining define-typed context
+  // entry the engine reads (animation/character/ease/color/synth/transition/
+  // config/layered_*/…) — i.e. `context` minus the types covered by the
+  // screens/components/styles/assets channels above. Carries the fully-merged
+  // structs (builtin $defaults already applied), so the Game runtime can build
+  // its context entirely from these channels instead of the LSP-only
+  // `program.context`. (Transitional: true runtime-`__def` sourcing of defines
+  // awaits builtins being instantiated into the story; see buildContextFromStory.)
+  defines?: { [type: string]: { [name: string]: any } };
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };

@@ -1453,6 +1453,20 @@ export class SparkdownCompiler {
         program.assets[type] = structuredClone(structs);
       }
     }
+    // Every remaining define-typed context entry (animation/character/ease/…) —
+    // i.e. context minus the types carried by the channels above. Lets the Game
+    // build its entire context from channels (no program.context dependency).
+    const CHANNELED_TYPES = new Set<string>([
+      "screen",
+      "component",
+      "style",
+      ...ASSET_TYPES,
+    ]);
+    for (const [type, structs] of Object.entries(program.context ?? {})) {
+      if (CHANNELED_TYPES.has(type)) continue;
+      program.defines ??= {};
+      program.defines[type] = structuredClone(structs);
+    }
     profile("end", this._profilerId, "populateEngineChannels", uri);
   }
 

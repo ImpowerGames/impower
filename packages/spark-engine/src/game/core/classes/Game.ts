@@ -269,15 +269,26 @@ export class Game<T extends M = {}> {
         resolve: options?.resolve,
         requestFrame: options?.requestFrame,
       },
-      ...(this._program.context || {}),
     };
 
-    // Source the static screen/component element trees from the dedicated
-    // `program.screens` / `program.components` channel rather than the LSP-only
-    // `program.context` (a step toward making the runtime context independent of
-    // `program.context`). The channel is the compiler's deep clone of the
-    // fully-assembled `context.screen` / `context.component`, so this is
-    // behaviorally identical to the spread above while moving screens off it.
+    // Build the runtime context entirely from the compiler's dedicated engine
+    // channels — NOT the LSP-only `program.context` (the Game runtime no longer
+    // depends on that field). Together these channels cover every context type:
+    //   defines  — define-typed structs (animation/character/ease/config/…),
+    //              fully merged with builtin $defaults
+    //   assets   — file-derived + implicit-def assets (image/audio/font/…)
+    //   screens/components/styles — static UI structs
+    // Mutable interpreter state (visited/returned/…) is written onto this object
+    // by the modules at runtime; it was never part of program.context.
+    const assignChannel = (src?: { [type: string]: any }) => {
+      if (src) {
+        for (const [type, structs] of Object.entries(src)) {
+          this._context[type] = structs;
+        }
+      }
+    };
+    assignChannel(this._program.defines);
+    assignChannel(this._program.assets);
     if (this._program.screens) {
       this._context["screen"] = this._program.screens;
     }
@@ -286,12 +297,6 @@ export class Game<T extends M = {}> {
     }
     if (this._program.styles) {
       this._context["style"] = this._program.styles;
-    }
-    // Source file-derived + implicit-def assets from the dedicated channel.
-    if (this._program.assets) {
-      for (const [type, structs] of Object.entries(this._program.assets)) {
-        this._context[type] = structs;
-      }
     }
 
     // Override default modules with custom ones if specified
