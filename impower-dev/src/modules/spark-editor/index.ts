@@ -1,17 +1,22 @@
+import { h, hydrate } from "preact";
 import { adoptAll } from "../../../../packages/spec-component/src/component";
-import { SparkEditorElement } from "./main/SparkEditor.elem";
+import SparkEditorComponent from "./main/SparkEditor";
 import editorIcons from "./styles/icons/icons.css";
 import editorTheme from "./styles/theme/theme.css";
 
+// Global stylesheets adopted document-wide (constructable stylesheets): the
+// editor theme tokens + icon definitions.
 const DEFAULT_STYLES = { editorTheme, editorIcons } as const;
 
 export default abstract class SparkEditor {
   static async init(): Promise<void> {
     adoptAll(DEFAULT_STYLES);
-    // Only one custom element remains: <spark-editor> (the page root in
-    // pages/index.html). Everything else — including the sparkdown-
-    // document-views script editor and screenplay preview — is rendered
-    // as a direct Preact import.
-    await SparkEditorElement.register();
+    // Plain Preact mount — no custom element. `hydrate` reuses the dev-server
+    // SSR pre-render of `#root`, or renders fresh in prod (where `#root` ships
+    // empty). Replaces the former preact-custom-element `<spark-editor>` host.
+    const root = document.getElementById("root");
+    if (root) {
+      hydrate(h(SparkEditorComponent, null), root);
+    }
   }
 }

@@ -1,17 +1,11 @@
-import type { ComponentRegistry } from "../../build/expandPreactComponents";
+import type { ComponentType } from "preact";
 import SparkEditor from "./main/SparkEditor";
 
-// Tag name → Preact component for the build-time SSR walker.
+// The page-root Preact component, loaded by the build-time SSR (the dev
+// server's `ssrLoadModule`) to pre-render `<div id="root">` so the page is
+// painted before JS loads.
 //
-// Only `<spark-editor>` (the page root in pages/index.html) needs walker
-// substitution. Everything else is rendered as a direct Preact import
-// from SparkEditor's tree, so the walker reaches them transitively via
-// renderToString.
-//
-// Pure runtime-free entries: this module is loaded both in the browser
-// AND during SSR (via Vite's ssrLoadModule). Only import the Preact .tsx
-// files here — never the .elem.ts wrappers, which call
-// `customElements.define` at import time and would explode in Node.
-export const preactRegistry: ComponentRegistry = {
-  "spark-editor": SparkEditor,
-};
+// Import ONLY the pure .tsx component here — never the runtime bootstrap
+// (`./index.ts`, which touches `document`) or browser-only modules, since
+// this module is evaluated in Node during SSR.
+export const rootComponent: ComponentType = SparkEditor;

@@ -383,13 +383,13 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
         // html file doesn't exist for this route
         if (!fs.existsSync(possibleHtmlPath)) return next();
 
-        // Load the impower-dev Preact registry on the server so we can
-        // statically render <se-main-window> etc. into HTML before JS runs.
-        // ssrLoadModule means edits to the registry HMR like everything else.
+        // Load the impower-dev page-root component on the server so we can
+        // pre-render <div id="root"> into static HTML before JS runs.
+        // ssrLoadModule means edits to it HMR like everything else.
         const preactRegistryModule = await server.ssrLoadModule(
           `/src/modules/spark-editor/preact-registry.ts`,
         );
-        const preactRegistry = preactRegistryModule.preactRegistry || {};
+        const rootComponent = preactRegistryModule.rootComponent;
 
         // Pull impower-ui's Tailwind output as raw CSS via Vite's CSS
         // pipeline (with `?direct` we get the compiled stylesheet, not the
@@ -457,7 +457,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
         let renderedHtml = staticallyRenderPage(
           documentHtml,
           { html, cssPath, mjsPath },
-          preactRegistry,
+          rootComponent,
         );
 
         renderedHtml = await server.transformIndexHtml(req.url, renderedHtml);
