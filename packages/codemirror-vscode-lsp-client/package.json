@@ -12,7 +12,7 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.37.0",
     "@lezer/highlight": "^1.2.1",
-    "marked": "^15.0.12",
+    "marked": "^17.0.4",
     "vscode-languageserver-protocol": "^3.17.5"
   }
 }

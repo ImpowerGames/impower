@@ -60,13 +60,48 @@ const DEDUPE_ONLY = new Set(["preact", "preact-custom-element"]);
 // package's node_modules OR is hoisted to a workspace-root node_modules.
 const require = createRequire(import.meta.url);
 const resolvePkgDir = (name: string): string => {
+  const segs = name.split("/");
+  // 1) Preferred: resolve the package's own package.json. Works for packages
+  // that expose `./package.json` (or have no `exports` map at all).
   try {
     return path.dirname(
       require.resolve(`${name}/package.json`, { paths: [process.cwd()] }),
     );
   } catch {
-    return path.resolve(process.cwd(), "node_modules", name);
+    // fall through
   }
+  // 2) Resolve the package entry — which honors the `exports` map — then slice
+  // the path back to the `node_modules/<name>` root (e.g. @codemirror/*, which
+  // omit `./package.json` from `exports` but DO export a main entry).
+  try {
+    const entry = require.resolve(name, { paths: [process.cwd()] });
+    const marker = path.join("node_modules", ...segs);
+    const idx = entry.lastIndexOf(marker);
+    if (idx >= 0) {
+      return entry.slice(0, idx + marker.length);
+    }
+  } catch {
+    // fall through
+  }
+  // 3) Exports-independent: walk up the node_modules chain from cwd looking for
+  // the package directory. Needed for packages whose `exports` map exposes
+  // neither `./package.json` NOR a main entry (e.g. @impower/impower-ui, which
+  // only publishes subpath exports). This is the only branch that's robust to
+  // workspace hoisting AND restrictive exports maps — a hardcoded
+  // `cwd/node_modules/<name>` breaks the moment the dep is hoisted to root.
+  let cur = process.cwd();
+  for (;;) {
+    const dir = path.join(cur, "node_modules", ...segs);
+    if (fs.existsSync(dir)) {
+      return dir;
+    }
+    const parent = path.dirname(cur);
+    if (parent === cur) {
+      break;
+    }
+    cur = parent;
+  }
+  return path.resolve(process.cwd(), "node_modules", name);
 };
 
 const alias: Record<string, string> = {};

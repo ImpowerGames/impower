@@ -3,3 +3,8 @@
 **/node_modules/
 **/dist/
 **/out/
+
+# npm workspaces: only the root lockfile is authoritative. Ignore stray
+# per-package lockfiles created by running `npm install` inside a workspace.
+**/package-lock.json
+!/package-lock.json
