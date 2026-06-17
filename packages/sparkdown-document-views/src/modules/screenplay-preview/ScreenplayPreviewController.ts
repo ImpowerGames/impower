@@ -19,7 +19,10 @@ import {
   SelectedEditorMethod,
   SelectedEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  onProtocolMessage,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
@@ -55,6 +58,7 @@ import {
   TextDocumentIdentifier,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
+import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
 import debounce from "../../utils/debounce.js";
 import { getScrollableParent } from "../../utils/getScrollableParent.js";
@@ -103,6 +107,7 @@ export class ScreenplayPreviewController {
     right?: number;
   } = { top: 0, bottom: 0, left: 0, right: 0 };
   protected _scrollTarget?: Range;
+  protected _protocolDisposers: (() => void)[] = [];
 
   constructor(
     host: HTMLElement,
@@ -112,13 +117,6 @@ export class ScreenplayPreviewController {
     this.host = host;
     this.refs = refs;
     this.options = options;
-  }
-
-  // Replaces spec-component's `this.emit(type, detail)`.
-  protected emit<T>(type: string, detail: T): void {
-    this.host.dispatchEvent(
-      new CustomEvent(type, { detail, bubbles: true, composed: true }),
-    );
   }
 
   setup(): void {
@@ -131,10 +129,10 @@ export class ScreenplayPreviewController {
     this.host.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
       passive: true,
     });
-    window.addEventListener(MessageProtocol.event, this.handleProtocol);
-    this.emit(
-      MessageProtocol.event,
+    this.registerProtocolHandlers();
+    sendProtocolMessage(
       ConnectedPreviewMessage.type.notification({ type: "screenplay" }),
+      this.host,
     );
   }
 
@@ -151,47 +149,51 @@ export class ScreenplayPreviewController {
       "mouseleave",
       this.handlePointerLeaveScroller,
     );
-    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
+    this._protocolDisposers.forEach((d) => d());
+    this._protocolDisposers = [];
     const view = this._view;
     if (view) {
       this.unbindView(view);
     }
   }
 
-  protected handleProtocol = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      if (LoadPreviewMessage.type.is(e.detail)) {
-        const response = await this.handleLoadPreview(e.detail);
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
+  // One typed listener per protocol message we react to (replaces the old
+  // `handleProtocol` window router). Each `onProtocolMessage` returns a
+  // disposer, collected so `dispose()` can detach them all.
+  protected registerProtocolHandlers(): void {
+    const respond = async <R>(handler: Promise<R> | R) => {
+      const response = await handler;
+      if (response) {
+        sendProtocolMessage(response as unknown as Message, this.host);
       }
-      if (RevealPreviewRangeMessage.type.is(e.detail)) {
-        const response = await this.handleRevealPreviewRange(e.detail);
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-      }
-      if (DidChangeTextDocumentMessage.type.is(e.detail)) {
-        this.handleDidChangeTextDocument(e.detail);
-      }
-      if (HoveredOnEditorMessage.type.is(e.detail)) {
-        this.handlePointerLeaveScroller();
-      }
-      if (DidExpandPreviewPaneMessage.type.is(e.detail)) {
-        this.handleDidExpandPreviewPane(e.detail);
-      }
-      if (DidCollapsePreviewPaneMessage.type.is(e.detail)) {
-        this.handleDidCollapsePreviewPane(e.detail);
-      }
-      if (ScrolledEditorMessage.type.is(e.detail)) {
-        this.handleScrolledEditor(e.detail);
-      }
-      if (SelectedEditorMessage.type.is(e.detail)) {
-        this.handleSelectedEditor(e.detail);
-      }
-    }
-  };
+    };
+    this._protocolDisposers.push(
+      onProtocolMessage(LoadPreviewMessage.type, (m) =>
+        respond(this.handleLoadPreview(m)),
+      ),
+      onProtocolMessage(RevealPreviewRangeMessage.type, (m) =>
+        respond(this.handleRevealPreviewRange(m)),
+      ),
+      onProtocolMessage(DidChangeTextDocumentMessage.type, (m) =>
+        this.handleDidChangeTextDocument(m),
+      ),
+      onProtocolMessage(HoveredOnEditorMessage.type, () =>
+        this.handlePointerLeaveScroller(),
+      ),
+      onProtocolMessage(DidExpandPreviewPaneMessage.type, (m) =>
+        this.handleDidExpandPreviewPane(m),
+      ),
+      onProtocolMessage(DidCollapsePreviewPaneMessage.type, (m) =>
+        this.handleDidCollapsePreviewPane(m),
+      ),
+      onProtocolMessage(ScrolledEditorMessage.type, (m) =>
+        this.handleScrolledEditor(m),
+      ),
+      onProtocolMessage(SelectedEditorMessage.type, (m) =>
+        this.handleSelectedEditor(m),
+      ),
+    );
+  }
 
   protected bindView(view: EditorView) {
     this._domClientY = view.dom.offsetTop;
@@ -371,8 +373,7 @@ export class ScreenplayPreviewController {
             const head = cursorRange?.head;
             const uri = this._textDocument?.uri;
             if (uri) {
-              this.emit(
-                MessageProtocol.event,
+              sendProtocolMessage(
                 SelectedPreviewMessage.type.notification({
                   type: "screenplay",
                   textDocument: { uri },
@@ -385,6 +386,7 @@ export class ScreenplayPreviewController {
                     tr.annotation(Transaction.userEvent),
                   ),
                 }),
+                this.host,
               );
             }
           }
@@ -489,12 +491,12 @@ export class ScreenplayPreviewController {
   protected handlePointerEnterScroller = () => {
     this._userInitiatedScroll = true;
     if (this._textDocument) {
-      this.emit(
-        MessageProtocol.event,
+      sendProtocolMessage(
         HoveredOnPreviewMessage.type.notification({
           type: "screenplay",
           textDocument: this._textDocument,
         }),
+        this.host,
       );
     }
   };
@@ -502,12 +504,12 @@ export class ScreenplayPreviewController {
   protected handlePointerLeaveScroller = () => {
     this._userInitiatedScroll = false;
     if (this._textDocument) {
-      this.emit(
-        MessageProtocol.event,
+      sendProtocolMessage(
         HoveredOffPreviewMessage.type.notification({
           type: "screenplay",
           textDocument: this._textDocument,
         }),
+        this.host,
       );
     }
   };
@@ -523,14 +525,14 @@ export class ScreenplayPreviewController {
           if (this._userInitiatedScroll) {
             this.cacheVisibleRange(visibleRange);
             this._scrollTarget = undefined;
-            this.emit(
-              MessageProtocol.event,
+            sendProtocolMessage(
               ScrolledPreviewMessage.type.notification({
                 type: "screenplay",
                 textDocument: this._textDocument,
                 visibleRange: visibleRange,
                 target: e.target instanceof HTMLElement ? "element" : "window",
               }),
+              this.host,
             );
           }
         }

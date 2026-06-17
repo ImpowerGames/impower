@@ -51,7 +51,11 @@ import {
   ShowEditorStatusBarParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/ShowEditorStatusBarMessage";
 import { UnfocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  MessageProtocol,
+  onProtocolMessage,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import {
   ScrolledPreviewMessage,
@@ -86,6 +90,7 @@ import {
   Range,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
+import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/RequestMessage";
 import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
@@ -156,6 +161,7 @@ export class ScriptEditorController {
   protected _top: number = 0;
   protected _bottom: number = 0;
   protected _focusIntervalTimeout = 0;
+  protected _protocolDisposers: (() => void)[] = [];
 
   constructor(
     host: HTMLElement,
@@ -165,13 +171,6 @@ export class ScriptEditorController {
     this.host = host;
     this.refs = refs;
     this.options = options;
-  }
-
-  // Replaces spec-component's `this.emit(type, detail)`.
-  protected emit<T>(type: string, detail: T): void {
-    this.host.dispatchEvent(
-      new CustomEvent(type, { detail, bubbles: true, composed: true }),
-    );
   }
 
   setup(): void {
@@ -184,13 +183,13 @@ export class ScriptEditorController {
     this.host.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
       passive: true,
     });
-    window.addEventListener(MessageProtocol.event, this.handleProtocol);
+    this.registerProtocolHandlers();
     // Announce ourselves so the parent can replay any startup LoadEditorMessage
     // it sent before our window listener was attached. (preact-custom-element
     // mount + dynamic Controller import are several microtasks late.)
-    this.emit(
-      MessageProtocol.event,
+    sendProtocolMessage(
       ConnectedEditorMessage.type.notification({}),
+      this.host,
     );
   }
 
@@ -207,14 +206,15 @@ export class ScriptEditorController {
       "mouseleave",
       this.handlePointerLeaveScroller,
     );
-    window.removeEventListener(MessageProtocol.event, this.handleProtocol);
+    this._protocolDisposers.forEach((d) => d());
+    this._protocolDisposers = [];
     if (this._textDocument) {
       if (this._editing) {
-        this.emit(
-          MessageProtocol.event,
+        sendProtocolMessage(
           UnfocusedEditorMessage.type.notification({
             textDocument: this._textDocument,
           }),
+          this.host,
         );
       }
     }
@@ -231,75 +231,66 @@ export class ScriptEditorController {
     this.allowEditing(!readonly);
   }
 
-  protected handleProtocol = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      if (ScrollEditorMessage.type.is(e.detail)) {
-        this.handleScrollEditor(e.detail);
+  // One typed listener per protocol message we react to (replaces the old
+  // `handleProtocol` window router). Each `onProtocolMessage` returns a
+  // disposer, collected so `dispose()` can detach them all.
+  protected registerProtocolHandlers(): void {
+    const respond = async <R>(handler: Promise<R> | R) => {
+      const response = await handler;
+      if (response) {
+        sendProtocolMessage(response as unknown as Message, this.host);
       }
-      if (SelectEditorMessage.type.is(e.detail)) {
-        this.handleSelectEditor(e.detail);
-      }
-      if (LoadEditorMessage.type.is(e.detail)) {
-        const response = await this.handleLoadEditor(e.detail);
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-      }
-      if (SearchEditorMessage.type.is(e.detail)) {
-        const response = await this.handleSearchEditor(e.detail);
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-      }
-      if (ShowEditorStatusBarMessage.type.is(e.detail)) {
-        const response = await this.handleShowEditorStatusBar(e.detail);
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-      }
-      if (HideEditorStatusBarMessage.type.is(e.detail)) {
-        const response = await this.handleHideEditorStatusBar(e.detail);
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-      }
-      if (HoveredOnPreviewMessage.type.is(e.detail)) {
-        this.handlePointerLeaveScroller();
-      }
-      if (DidExpandPreviewPaneMessage.type.is(e.detail)) {
-        this.handleDidExpandPreviewPane(e.detail);
-      }
-      if (DidCollapsePreviewPaneMessage.type.is(e.detail)) {
-        this.handleDidCollapsePreviewPane(e.detail);
-      }
-      if (ScrolledPreviewMessage.type.is(e.detail)) {
-        this.handleScrolledPreview(e.detail);
-      }
-      if (SelectedPreviewMessage.type.is(e.detail)) {
-        this.handleSelectedPreview(e.detail);
-      }
-      if (SetEditorHighlightsMessage.type.is(e.detail)) {
-        const response = await this.handleSetEditorHighlights(e.detail);
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-      }
-      if (SetEditorPinpointsMessage.type.is(e.detail)) {
-        const response = await this.handleSetEditorPinpoints(e.detail);
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-      }
-      if (DidChangeWatchedFilesMessage.type.is(e.detail)) {
+    };
+    this._protocolDisposers.push(
+      onProtocolMessage(ScrollEditorMessage.type, (m) =>
+        this.handleScrollEditor(m),
+      ),
+      onProtocolMessage(SelectEditorMessage.type, (m) =>
+        this.handleSelectEditor(m),
+      ),
+      onProtocolMessage(LoadEditorMessage.type, (m) =>
+        respond(this.handleLoadEditor(m)),
+      ),
+      onProtocolMessage(SearchEditorMessage.type, (m) =>
+        respond(this.handleSearchEditor(m)),
+      ),
+      onProtocolMessage(ShowEditorStatusBarMessage.type, (m) =>
+        respond(this.handleShowEditorStatusBar(m)),
+      ),
+      onProtocolMessage(HideEditorStatusBarMessage.type, (m) =>
+        respond(this.handleHideEditorStatusBar(m)),
+      ),
+      onProtocolMessage(HoveredOnPreviewMessage.type, () =>
+        this.handlePointerLeaveScroller(),
+      ),
+      onProtocolMessage(DidExpandPreviewPaneMessage.type, (m) =>
+        this.handleDidExpandPreviewPane(m),
+      ),
+      onProtocolMessage(DidCollapsePreviewPaneMessage.type, (m) =>
+        this.handleDidCollapsePreviewPane(m),
+      ),
+      onProtocolMessage(ScrolledPreviewMessage.type, (m) =>
+        this.handleScrolledPreview(m),
+      ),
+      onProtocolMessage(SelectedPreviewMessage.type, (m) =>
+        this.handleSelectedPreview(m),
+      ),
+      onProtocolMessage(SetEditorHighlightsMessage.type, (m) =>
+        respond(this.handleSetEditorHighlights(m)),
+      ),
+      onProtocolMessage(SetEditorPinpointsMessage.type, (m) =>
+        respond(this.handleSetEditorPinpoints(m)),
+      ),
+      onProtocolMessage(DidChangeWatchedFilesMessage.type, (m) => {
         if (this._view) {
           const plugin = LSPPlugin.get(this._view);
           if (plugin) {
-            plugin.client.workspace.changeWatchedFiles(e.detail.params);
+            plugin.client.workspace.changeWatchedFiles(m.params);
           }
         }
-      }
-    }
-  };
+      }),
+    );
+  }
 
   protected bindView(view: EditorView) {
     this._domClientY = view.dom.offsetTop;
@@ -493,32 +484,26 @@ export class ScriptEditorController {
   };
 
   protected handleFocusFindInput = () => {
-    this.emit("input/focused", {});
     this._searchInputFocused = true;
   };
 
   protected handleBlurFindInput = () => {
-    this.emit("input/unfocused", {});
     this._searchInputFocused = false;
   };
 
   protected handleFocusReplaceInput = () => {
-    this.emit("input/focused", {});
     this._searchInputFocused = true;
   };
 
   protected handleBlurReplaceInput = () => {
-    this.emit("input/unfocused", {});
     this._searchInputFocused = false;
   };
 
   protected handleFocusGotoLineInput = () => {
-    this.emit("input/focused", {});
     this._searchInputFocused = true;
   };
 
   protected handleBlurGotoLineInput = () => {
-    this.emit("input/unfocused", {});
     this._searchInputFocused = false;
   };
 
@@ -559,13 +544,13 @@ export class ScriptEditorController {
         docChanged: false,
         userEvent: true,
       };
-      this.emit(
-        MessageProtocol.event,
+      sendProtocolMessage(
         DidSelectTextDocumentMessage.type.notification(params),
+        this.host,
       );
-      this.emit(
-        MessageProtocol.event,
+      sendProtocolMessage(
         SelectedEditorMessage.type.notification(params),
+        this.host,
       );
     } else {
       this.refs.editor.style.visibility = "hidden";
@@ -614,7 +599,7 @@ export class ScriptEditorController {
                     }
                   };
                   window.addEventListener(MessageProtocol.event, onProtocol);
-                  this.emit(MessageProtocol.event, request);
+                  sendProtocolMessage(request, this.host);
                 });
               },
               applyWorkspaceEdit: async (params) => {
@@ -639,7 +624,7 @@ export class ScriptEditorController {
                     }
                   };
                   window.addEventListener(MessageProtocol.event, onProtocol);
-                  this.emit(MessageProtocol.event, request);
+                  sendProtocolMessage(request, this.host);
                 });
               },
               onWillApplyWorkspaceEdit: () => {
@@ -665,13 +650,12 @@ export class ScriptEditorController {
           onFocus: () => {
             this._editing = true;
             if (this._textDocument) {
-              this.emit(
-                MessageProtocol.event,
+              sendProtocolMessage(
                 FocusedEditorMessage.type.notification({
                   textDocument: this._textDocument,
                 }),
+                this.host,
               );
-              this.emit("input/focused", {});
             }
           },
           onBlur: () => {
@@ -679,13 +663,12 @@ export class ScriptEditorController {
             if (this._textDocument) {
               if (!this._searchInputFocused) {
                 // Editor is still considered focused if focus was moved to search input
-                this.emit(
-                  MessageProtocol.event,
+                sendProtocolMessage(
                   UnfocusedEditorMessage.type.notification({
                     textDocument: this._textDocument,
                   }),
+                  this.host,
                 );
-                this.emit("input/unfocused", {});
               }
             }
           },
@@ -700,8 +683,7 @@ export class ScriptEditorController {
                   tr.startState.doc,
                   tr.changes,
                 );
-                this.emit(
-                  MessageProtocol.event,
+                sendProtocolMessage(
                   DidChangeTextDocumentMessage.type.notification({
                     textDocument: {
                       uri,
@@ -709,20 +691,21 @@ export class ScriptEditorController {
                     },
                     contentChanges,
                   }),
+                  this.host,
                 );
-                this.emit(
-                  MessageProtocol.event,
+                sendProtocolMessage(
                   WillSaveTextDocumentMessage.type.notification({
                     textDocument: { uri },
                     reason: TextDocumentSaveReason.AfterDelay,
                   }),
+                  this.host,
                 );
-                this.emit(
-                  MessageProtocol.event,
+                sendProtocolMessage(
                   DidSaveTextDocumentMessage.type.notification({
                     textDocument: { uri },
                     text: after,
                   }),
+                  this.host,
                 );
               }
             }
@@ -744,55 +727,55 @@ export class ScriptEditorController {
                     tr.annotation(Transaction.userEvent),
                   ),
                 };
-              this.emit(
-                MessageProtocol.event,
+              sendProtocolMessage(
                 DidSelectTextDocumentMessage.type.notification(params),
+                this.host,
               );
-              this.emit(
-                MessageProtocol.event,
+              sendProtocolMessage(
                 SelectedEditorMessage.type.notification(params),
+                this.host,
               );
             }
           },
           onBreakpointsChanged: (update, breakpointLineNumbers) => {
             const uri = this._textDocument?.uri;
             if (uri) {
-              this.emit(
-                MessageProtocol.event,
+              sendProtocolMessage(
                 ChangedEditorBreakpointsMessage.type.notification({
                   textDocument: { uri },
                   breakpointLines: breakpointLineNumbers.map(
                     (lineNumber) => lineNumber - 1,
                   ),
                 }),
+                this.host,
               );
             }
           },
           onPinpointsChanged: (update, pinpointLineNumbers) => {
             const uri = this._textDocument?.uri;
             if (uri) {
-              this.emit(
-                MessageProtocol.event,
+              sendProtocolMessage(
                 ChangedEditorPinpointsMessage.type.notification({
                   textDocument: { uri },
                   pinpointLines: pinpointLineNumbers.map(
                     (lineNumber) => lineNumber - 1,
                   ),
                 }),
+                this.host,
               );
             }
           },
           onHighlightsChanged: (update, highlightLineNumbers) => {
             const uri = this._textDocument?.uri;
             if (uri) {
-              this.emit(
-                MessageProtocol.event,
+              sendProtocolMessage(
                 ChangedEditorHighlightsMessage.type.notification({
                   textDocument: { uri },
                   highlightLines: highlightLineNumbers.map(
                     (lineNumber) => lineNumber - 1,
                   ),
                 }),
+                this.host,
               );
             }
           },
@@ -851,9 +834,9 @@ export class ScriptEditorController {
         });
       }
     }
-    this.emit(
-      MessageProtocol.event,
+    sendProtocolMessage(
       DidOpenTextDocumentMessage.type.notification({ textDocument }),
+      this.host,
     );
   }
 
@@ -1074,11 +1057,11 @@ export class ScriptEditorController {
   protected handlePointerEnterScroller = () => {
     this._userInitiatedScroll = true;
     if (this._textDocument) {
-      this.emit(
-        MessageProtocol.event,
+      sendProtocolMessage(
         HoveredOnEditorMessage.type.notification({
           textDocument: this._textDocument,
         }),
+        this.host,
       );
     }
   };
@@ -1086,11 +1069,11 @@ export class ScriptEditorController {
   protected handlePointerLeaveScroller = () => {
     this._userInitiatedScroll = false;
     if (this._textDocument) {
-      this.emit(
-        MessageProtocol.event,
+      sendProtocolMessage(
         HoveredOffEditorMessage.type.notification({
           textDocument: this._textDocument,
         }),
+        this.host,
       );
     }
   };
@@ -1105,13 +1088,13 @@ export class ScriptEditorController {
         if (this._textDocument) {
           if (this._userInitiatedScroll) {
             this.cacheVisibleRange(visibleRange);
-            this.emit(
-              MessageProtocol.event,
+            sendProtocolMessage(
               ScrolledEditorMessage.type.notification({
                 textDocument: this._textDocument,
                 visibleRange,
                 target: e.target instanceof HTMLElement ? "element" : "window",
               }),
+              this.host,
             );
           }
         }

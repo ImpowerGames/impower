@@ -26,7 +26,6 @@ import {
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
 import { isMobile } from "@impower/codemirror-vscode-lsp-client/src/context";
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
   InitializeParams,
   InitializeResult,
@@ -474,21 +473,11 @@ const createEditorView = (
     }),
   });
 
-  const handleProtocol = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      // TODO:
-      // if (CompiledProgramMessage.type.isNotification(message)) {
-      //   onParse(message);
-      // }
-    }
-  };
-
-  window.addEventListener(MessageProtocol.event, handleProtocol);
+  // No editor-view-level protocol subscriptions today. If one is needed
+  // later (e.g. reacting to CompiledProgram), register it with
+  // `onProtocolMessage` and dispose it here.
   const disposable = {
-    dispose: () => {
-      window.removeEventListener(MessageProtocol.event, handleProtocol);
-    },
+    dispose: () => {},
   };
   return [view, disposable];
 };
