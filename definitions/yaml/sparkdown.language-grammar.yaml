@@ -2840,6 +2840,8 @@ repository:
       - { include: "#LuauStyle" }
       - { include: "#LuauScreen" }
       - { include: "#LuauComponent" }
+      - { include: "#LuauAnimation" }
+      - { include: "#LuauTheme" }
       - { include: "#LuauDefine" }
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauVariableDefinition" }
@@ -3163,6 +3165,75 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
+  # `animation NAME [as PARENT] with <struct body> end` — static presentation
+  # config (keyframes/timing), style-family (NOT reactive). Same struct-body
+  # grammar as `style`, so values use the unquoted CSS vocabulary. Lowered to a
+  # compile-time struct (context.animation.<name>) that implicitly `$extends`
+  # the `animation` type for its $default timing. See lowerLuauStructDefine.
+  LuauAnimation:
+    tag: meta
+    name: meta.animation.luau
+    begin: ({{WS}}*)(animation)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauAnimationKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # `theme NAME [as PARENT] with <struct body> end` — static token config,
+  # style-family. Same shape as `animation`.
+  LuauTheme:
+    tag: meta
+    name: meta.theme.luau
+    begin: ({{WS}}*)(theme)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauThemeKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
   # One body line inside a structural-define block (`style`/`screen`/
   # `component`). Matched opaquely (indent + content) so the block spans
   # to its `end`; the lowerer parses the colon/indent struct from the raw
@@ -3232,6 +3303,29 @@ repository:
         patterns:
           - { include: "#LuauWithKeyword" }
 
+  # Name + optional `as PARENT` for `animation`/`theme` blocks (variable-length
+  # lookbehind over both keywords). Mirrors LuauStyleNameAndInheritance /
+  # LuauUINameAndInheritance so the lowerer reads the name/parent through the
+  # same LuauDefineName / LuauDefineParentName node names as `define`.
+  LuauAnimationThemeNameAndInheritance:
+    begin: (?<=(?:animation|theme)\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauDefineName" }
+    patterns:
+      - { include: "#LuauInheritanceOperation" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauWithKeyword" }
+
   # A single `prop = value` line. The value is captured raw (everything
   # to end-of-line, trailing whitespace trimmed) — it is a CSS-like
   # token, not a Luau expression.
@@ -3267,6 +3361,16 @@ repository:
     tag: controlKeyword
     name: keyword.control.style.luau
     match: (style)\b
+
+  LuauAnimationKeyword:
+    tag: controlKeyword
+    name: keyword.control.animation.luau
+    match: (animation)\b
+
+  LuauThemeKeyword:
+    tag: controlKeyword
+    name: keyword.control.theme.luau
+    match: (theme)\b
 
   LuauStylePropertyName:
     tag: attributeName

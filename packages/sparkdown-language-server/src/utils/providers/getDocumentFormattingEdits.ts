@@ -490,7 +490,9 @@ export const getFormatting = (
                 n &&
                 (n.name === "LuauStyle_content" ||
                   n.name === "LuauScreen_content" ||
-                  n.name === "LuauComponent_content"),
+                  n.name === "LuauComponent_content" ||
+                  n.name === "LuauAnimation_content" ||
+                  n.name === "LuauTheme_content"),
             )
           : undefined;
       if (sparkleContentNode) {

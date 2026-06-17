@@ -4547,6 +4547,12 @@
           "include": "#LuauComponent"
         },
         {
+          "include": "#LuauAnimation"
+        },
+        {
+          "include": "#LuauTheme"
+        },
+        {
           "include": "#LuauDefine"
         },
         {
@@ -4990,6 +4996,134 @@
         }
       }
     },
+    "LuauAnimation": {
+      "tag": "meta",
+      "name": "meta.animation.luau",
+      "begin": "((?:[^\\S\\n\\r])*)(animation)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauAnimationKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauAnimationThemeNameAndInheritance"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauTheme": {
+      "tag": "meta",
+      "name": "meta.theme.luau",
+      "begin": "((?:[^\\S\\n\\r])*)(theme)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauThemeKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauAnimationThemeNameAndInheritance"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
     "LuauStructBodyLine": {
       "match": "^((?:[^\\S\\n\\r])+)([^\\n]*?)((?:[^\\S\\n\\r])*)$",
       "captures": {
@@ -5088,6 +5222,44 @@
         }
       }
     },
+    "LuauAnimationThemeNameAndInheritance": {
+      "begin": "(?<=(?:animation|theme)\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauDefineName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauInheritanceOperation"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauWithKeyword"
+            }
+          ]
+        }
+      }
+    },
     "LuauStylePropertyDefinition": {
       "match": "((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_-]*))((?:[^\\S\\n\\r])*)(=)((?:[^\\S\\n\\r])*)([^\\n]*?)((?:[^\\S\\n\\r])*)$",
       "captures": {
@@ -5149,6 +5321,16 @@
       "tag": "controlKeyword",
       "name": "keyword.control.style.luau",
       "match": "(style)\\b"
+    },
+    "LuauAnimationKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.animation.luau",
+      "match": "(animation)\\b"
+    },
+    "LuauThemeKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.theme.luau",
+      "match": "(theme)\\b"
     },
     "LuauStylePropertyName": {
       "tag": "attributeName",
