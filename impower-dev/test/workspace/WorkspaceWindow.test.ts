@@ -1,12 +1,13 @@
 import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // The Workspace singleton instantiates 3 Workers at module load and
-// circular-imports WorkspaceWindow. We only exercise WorkspaceWindow's pure
-// store-transition actions, which never touch Workspace, so stub it out.
+// circular-imports WorkspaceWindow. Stub it; the only method our tested actions
+// reach is fs.writeProjectMetadata (the project-rename path).
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: {},
+  Workspace: { fs: { writeProjectMetadata: vi.fn() } },
 }));
 
 import workspace from "../../src/modules/spark-editor/workspace/WorkspaceStore";
@@ -80,5 +81,61 @@ describe("WorkspaceWindow store transitions", () => {
     win.openedPane("share");
     window.removeEventListener(MessageProtocol.event, listener);
     expect(received).toHaveLength(1);
+  });
+
+  // Inbound flow: an editor (the framework-agnostic CodeMirror view, a separate
+  // "process") reports scroll position via the protocol bus; WorkspaceWindow's
+  // handleProtocol folds it into the store. This view→store direction is
+  // legitimate and the refactor must preserve it.
+  it("folds an inbound ScrolledEditor protocol event into the store", () => {
+    const visibleRange = {
+      start: { line: 3, character: 0 },
+      end: { line: 9, character: 0 },
+    };
+    window.dispatchEvent(
+      new CustomEvent(MessageProtocol.event, {
+        detail: ScrolledEditorMessage.type.notification({
+          textDocument: { uri: "file:///project/dialogue.sd" },
+          visibleRange,
+        }),
+      }),
+    );
+    expect(
+      workspace.current.panes.logic.panels.scripts!.activeEditor?.visibleRange,
+    ).toEqual(visibleRange);
+  });
+
+  describe("project name editing", () => {
+    it("startedEditingProjectName flags the screen", () => {
+      win.startedEditingProjectName();
+      expect(workspace.current.screen.editingName).toBe(true);
+    });
+
+    it("finishedEditingProjectName with an unchanged name clears the flag without persisting", async () => {
+      const id = workspace.current.project.id;
+      // Seed a known name.
+      workspace.current = {
+        ...workspace.current,
+        project: { ...workspace.current.project, id, name: "Same" },
+      };
+      const changed = await win.finishedEditingProjectName("Same");
+      expect(changed).toBe(false);
+      expect(workspace.current.screen.editingName).toBe(false);
+    });
+
+    it("finishedEditingProjectName persists a changed name (regression: previousName captured before update)", async () => {
+      const id = workspace.current.project.id;
+      vi.spyOn(
+        WorkspaceWindow.prototype,
+        "recordScriptChange",
+      ).mockResolvedValue(undefined as never);
+      workspace.current = {
+        ...workspace.current,
+        project: { ...workspace.current.project, id, name: "Old" },
+      };
+      const changed = await win.finishedEditingProjectName("New");
+      expect(changed).toBe(true);
+      expect(workspace.current.project.name).toBe("New");
+    });
   });
 });
