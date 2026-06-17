@@ -24,6 +24,13 @@ export type FileListProps = {
   emptyState?: ComponentChildren;
   /** "New / Upload" call-to-action button rendered below the list. */
   action?: ComponentChildren;
+  /**
+   * Called with `true` once the list is scrolled off the top, `false` at the
+   * top. Lets the parent collapse the (sibling) FAB on scroll — mirrors main's
+   * `<s-collapsible collapsed="scrolled">`, whose sentinel/IntersectionObserver
+   * the FAB lives outside of here.
+   */
+  onScrolledChange?: (scrolled: boolean) => void;
 };
 
 // Slot height for the virtualizer. The row button itself is h-14 (56px),
@@ -44,9 +51,22 @@ export default function FileList({
   exclude,
   emptyState,
   action,
+  onScrolledChange,
 }: FileListProps) {
   const [uris, setUris] = useState<string[] | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Report scroll-off-top so the parent can collapse the FAB. The scroller
+  // (`scrollRef`) is always mounted, so binding once is enough; report the
+  // initial state immediately too.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !onScrolledChange) return;
+    const update = () => onScrolledChange(el.scrollTop > 0);
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    return () => el.removeEventListener("scroll", update);
+  }, [onScrolledChange]);
 
 
   // Make the active project id reactive so the list reloads when the user

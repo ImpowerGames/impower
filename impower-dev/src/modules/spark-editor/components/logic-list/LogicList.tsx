@@ -6,6 +6,7 @@ import {
   Tabs,
 } from "@impower/impower-ui/components";
 import { startTransition } from "preact/compat";
+import { useState } from "preact/hooks";
 import { useDiagnosticColor } from "../../workspace/useDiagnosticColor";
 import workspace from "../../workspace/WorkspaceStore";
 import FileAddButton from "../file-list/FileAddButton";
@@ -49,6 +50,9 @@ export default function LogicList(_props: LogicListProps) {
   const scriptsActiveEditor = state.panes?.logic?.panels?.scripts?.activeEditor;
   const showScriptsEditor =
     !!scriptsActiveEditor?.open && !!scriptsActiveEditor?.filename;
+
+  // Collapse the FAB to an icon once the scripts list is scrolled off the top.
+  const [fabCollapsed, setFabCollapsed] = useState(false);
 
   const onPanelChange = (next: string) => {
     startTransition(() => {
@@ -110,6 +114,7 @@ export default function LogicList(_props: LogicListProps) {
               <FileList
                 include="*.{sd}"
                 exclude="main.sd"
+                onScrolledChange={setFabCollapsed}
                 emptyState={
                   <FileListBorder>
                     <Book class="size-12 m-2" />
@@ -139,7 +144,10 @@ export default function LogicList(_props: LogicListProps) {
                   : "pointer-events-none opacity-0"
               }`}
             >
-              <FileAddButton defaultFilename="script00.sd">
+              <FileAddButton
+                defaultFilename="script00.sd"
+                collapsed={fabCollapsed}
+              >
                 New Script
               </FileAddButton>
             </div>

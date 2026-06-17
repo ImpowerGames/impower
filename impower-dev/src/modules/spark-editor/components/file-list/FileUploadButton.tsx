@@ -11,6 +11,8 @@ export type FileUploadButtonProps = {
   multiple?: boolean;
   /** Label shown on the button face. */
   children: string;
+  /** Collapse to an icon-only circle docked right (when the list is scrolled). */
+  collapsed?: boolean;
 };
 
 /**
@@ -22,6 +24,7 @@ export default function FileUploadButton({
   accept,
   multiple = true,
   children,
+  collapsed = false,
 }: FileUploadButtonProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const disabledSig = useComputed(() => {
@@ -53,15 +56,23 @@ export default function FileUploadButton({
   }
 
   return (
-    <div class="mx-4 my-6 flex justify-center">
+    <div class="mx-4 my-6 flex">
       <Button
         variant="fab"
-        size="fab"
         disabled={disabledSig.value}
         onClick={() => inputRef.current?.click()}
+        class={`ml-auto h-12 gap-0 overflow-hidden rounded-full text-base font-normal transition-[width,padding] duration-200 ease-out ${
+          collapsed ? "w-12 px-0" : "w-full px-5"
+        }`}
       >
-        <Upload class="size-5" />
-        {children}
+        <Upload class="size-5 shrink-0" />
+        <span
+          class={`overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-out ${
+            collapsed ? "ml-0 max-w-0 opacity-0" : "ml-2 max-w-[12rem] opacity-100"
+          }`}
+        >
+          {children}
+        </span>
       </Button>
       <input
         ref={inputRef}

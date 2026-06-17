@@ -10,7 +10,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { startTransition } from "preact/compat";
-import { useRef } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import getUniqueFileName from "../../utils/getUniqueFileName";
 import getValidFileName from "../../utils/getValidFileName";
 import workspace from "../../workspace/WorkspaceStore";
@@ -35,6 +35,9 @@ type Panel = "files" | "urls";
 export default function Assets(_props: AssetsProps) {
   const panel = (workspace.state.value.panes?.assets?.panel ||
     "files") as Panel;
+
+  // Collapse the FAB to an icon once the active list is scrolled off the top.
+  const [fabCollapsed, setFabCollapsed] = useState(false);
 
   const onPanelChange = (next: string) => {
     startTransition(() => {
@@ -66,6 +69,7 @@ export default function Assets(_props: AssetsProps) {
           <FileList
             key="files"
             exclude="*.{sd,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
+            onScrolledChange={setFabCollapsed}
             emptyState={
               <FileListBorder>
                 <Files class="size-12 m-2" />
@@ -76,6 +80,7 @@ export default function Assets(_props: AssetsProps) {
           <FileList
             key="urls"
             include="*.{url}"
+            onScrolledChange={setFabCollapsed}
             emptyState={
               <FileListBorder>
                 <Link class="size-12 m-2" />
@@ -91,14 +96,20 @@ export default function Assets(_props: AssetsProps) {
             stays at 100% opacity so there's no compositing-induced
             brightness dip during the cross-fade. */}
         <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 [&_button]:pointer-events-auto">
-          <AssetsFab panel={panel} />
+          <AssetsFab panel={panel} collapsed={fabCollapsed} />
         </div>
       </div>
     </>
   );
 }
 
-function AssetsFab({ panel }: { panel: Panel }) {
+function AssetsFab({
+  panel,
+  collapsed,
+}: {
+  panel: Panel;
+  collapsed: boolean;
+}) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
@@ -150,29 +161,37 @@ function AssetsFab({ panel }: { panel: Panel }) {
 
   const onClick = panel === "files" ? () => inputRef.current?.click() : addUrl;
 
+  // Collapsed: shrink to a 48px circle docked right, icon-only. The two
+  // crossfading label overlays keep their icon but collapse their text width
+  // to 0 so the icon stays centered (matching FileAddButton/FileUploadButton).
+  const labelClass = `overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-out ${
+    collapsed ? "ml-0 max-w-0 opacity-0" : "ml-2 max-w-[12rem] opacity-100"
+  }`;
   return (
-    <div class="mx-4 my-6 flex justify-center">
+    <div class="mx-4 my-6 flex">
       <Button
         variant="fab"
-        size="fab"
         disabled={disabledSig.value}
         onClick={onClick}
+        class={`ml-auto h-12 overflow-hidden rounded-full text-base font-normal transition-[width,padding] duration-200 ease-out ${
+          collapsed ? "w-12 px-0" : "w-full px-5"
+        }`}
       >
         <span
-          class={`absolute inset-0 flex flex-row items-center justify-center gap-2 transition-opacity duration-200 ${
+          class={`absolute inset-0 flex flex-row items-center justify-center gap-0 transition-opacity duration-200 ${
             panel === "files" ? "opacity-100 delay-150" : "opacity-0"
           }`}
         >
-          <Upload class="size-5" />
-          Upload Files
+          <Upload class="size-5 shrink-0" />
+          <span class={labelClass}>Upload Files</span>
         </span>
         <span
-          class={`absolute inset-0 flex flex-row items-center justify-center gap-2 transition-opacity duration-200 ${
+          class={`absolute inset-0 flex flex-row items-center justify-center gap-0 transition-opacity duration-200 ${
             panel === "urls" ? "opacity-100 delay-150" : "opacity-0"
           }`}
         >
-          <Plus class="size-5" />
-          Add URL
+          <Plus class="size-5 shrink-0" />
+          <span class={labelClass}>Add URL</span>
         </span>
       </Button>
       <input

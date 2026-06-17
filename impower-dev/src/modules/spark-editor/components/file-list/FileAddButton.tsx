@@ -8,6 +8,12 @@ export type FileAddButtonProps = {
   defaultFilename: string;
   /** Label shown on the button face. */
   children: string;
+  /**
+   * Collapse to an icon-only circle docked to the right. Driven by the file
+   * list's scroll position (collapsed once the list is scrolled off the top),
+   * mirroring main's `<s-collapsible collapsed="scrolled">`.
+   */
+  collapsed?: boolean;
 };
 
 /**
@@ -18,6 +24,7 @@ export type FileAddButtonProps = {
 export default function FileAddButton({
   defaultFilename,
   children,
+  collapsed = false,
 }: FileAddButtonProps) {
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
@@ -50,15 +57,26 @@ export default function FileAddButton({
   }
 
   return (
-    <div class="mx-4 my-6 flex justify-center">
+    <div class="mx-4 my-6 flex">
+      {/* `ml-auto` docks the button right; when collapsed it shrinks to a 48px
+          circle (w-12, px-0) showing only the icon, while the label fades +
+          collapses its width to 0 so the icon stays centered. */}
       <Button
         variant="fab"
-        size="fab"
         disabled={disabledSig.value}
         onClick={onClick}
+        class={`ml-auto h-12 gap-0 overflow-hidden rounded-full text-base font-normal transition-[width,padding] duration-200 ease-out ${
+          collapsed ? "w-12 px-0" : "w-full px-5"
+        }`}
       >
-        <Plus class="size-5" />
-        {children}
+        <Plus class="size-5 shrink-0" />
+        <span
+          class={`overflow-hidden whitespace-nowrap transition-[max-width,opacity,margin] duration-200 ease-out ${
+            collapsed ? "ml-0 max-w-0 opacity-0" : "ml-2 max-w-[12rem] opacity-100"
+          }`}
+        >
+          {children}
+        </span>
       </Button>
     </div>
   );
