@@ -1,4 +1,7 @@
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  onMessage,
+  sendMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
   ChangedEditorBreakpointsMessage,
   ChangedEditorBreakpointsMethod,
@@ -61,7 +64,7 @@ import createZipFile from "./utils/createZipFile";
  *   in-page UI. Intents below (openPane, openFileEditor, setPreviewMode, …)
  *   update it via `this.update()`; Preact components read the signals and
  *   re-render. They do NOT broadcast events for in-page consumption.
- * - `this.emit()` dispatches `spark-editor-protocol` messages on a window
+ * - `sendMessage()` dispatches `spark-editor-protocol` messages on a window
  *   CustomEvent bus — strictly the boundary to peers that can't read the
  *   in-page signal: the OPFS/LSP/PDF workers, the game-player & screenplay
  *   iframes, and the framework-agnostic CodeMirror editor-view controllers
@@ -72,7 +75,7 @@ import createZipFile from "./utils/createZipFile";
  *
  * The class is large; the sections below group it by concern. A future split
  * into per-concern modules behind this facade is viable once a shared "core"
- * (store/update/emit/cache/getPaneType) is extracted and the project
+ * (store/update/cache/getPaneType) is extracted and the project
  * lifecycle/sync methods gain test coverage.
  */
 export default class WorkspaceWindow {
@@ -87,52 +90,50 @@ export default class WorkspaceWindow {
     const id = cachedProjectId || WorkspaceConstants.LOCAL_PROJECT_ID;
     this.restoreProjectWorkspace(id);
     this.cacheProjectId(id);
-    window.addEventListener(MessageProtocol.event, this.handleProtocol);
+    onMessage(this.handleProtocol);
     const mediaQuery = window.matchMedia("(min-width: 960px)");
     mediaQuery.addEventListener("change", this.handleScreenSizeChange);
     this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
   }
 
-  protected handleProtocol = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      if (ShowDocumentMessage.type.is(e.detail)) {
-        const response = await this.handleShowDocument(
-          ShowDocumentMessage.type,
-          e.detail,
-        );
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-        return;
+  protected handleProtocol = async (message: unknown) => {
+    if (ShowDocumentMessage.type.is(message)) {
+      const response = await this.handleShowDocument(
+        ShowDocumentMessage.type,
+        message,
+      );
+      if (response) {
+        sendMessage(response);
       }
-      if (ApplyWorkspaceEditMessage.type.is(e.detail)) {
-        const response = await this.handleApplyWorkspaceEdit(
-          ApplyWorkspaceEditMessage.type,
-          e.detail,
-        );
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-        return;
+      return;
+    }
+    if (ApplyWorkspaceEditMessage.type.is(message)) {
+      const response = await this.handleApplyWorkspaceEdit(
+        ApplyWorkspaceEditMessage.type,
+        message,
+      );
+      if (response) {
+        sendMessage(response);
       }
-      if (ScrolledEditorMessage.type.is(e.detail)) {
-        this.handleScrolledEditor(e.detail);
-      }
-      if (SelectedEditorMessage.type.is(e.detail)) {
-        this.handleSelectedEditor(e.detail);
-      }
-      if (ChangedEditorBreakpointsMessage.type.is(e.detail)) {
-        this.handleChangedEditorBreakpoints(e.detail);
-      }
-      if (ChangedEditorPinpointsMessage.type.is(e.detail)) {
-        this.handleChangedEditorPinpoints(e.detail);
-      }
-      if (ChangedEditorHighlightsMessage.type.is(e.detail)) {
-        this.handleChangedEditorHighlights(e.detail);
-      }
-      if (CompiledProgramMessage.type.is(e.detail)) {
-        this.handleCompiledProgram(e.detail);
-      }
+      return;
+    }
+    if (ScrolledEditorMessage.type.is(message)) {
+      this.handleScrolledEditor(message);
+    }
+    if (SelectedEditorMessage.type.is(message)) {
+      this.handleSelectedEditor(message);
+    }
+    if (ChangedEditorBreakpointsMessage.type.is(message)) {
+      this.handleChangedEditorBreakpoints(message);
+    }
+    if (ChangedEditorPinpointsMessage.type.is(message)) {
+      this.handleChangedEditorPinpoints(message);
+    }
+    if (ChangedEditorHighlightsMessage.type.is(message)) {
+      this.handleChangedEditorHighlights(message);
+    }
+    if (CompiledProgramMessage.type.is(message)) {
+      this.handleCompiledProgram(message);
     }
   };
 
@@ -187,17 +188,6 @@ export default class WorkspaceWindow {
       project: { ...this.store.project, id },
     });
     localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, id);
-  }
-
-  protected emit<T>(eventName: string, detail?: T): boolean {
-    return window.dispatchEvent(
-      new CustomEvent(eventName, {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail,
-      }),
-    );
   }
 
   protected handleShowDocument = async (
@@ -377,9 +367,7 @@ export default class WorkspaceWindow {
         range: { start: { line, character: 0 }, end: { line, character: 0 } },
       })),
     );
-    this.emit(
-      MessageProtocol.event,
-      SetEditorHighlightsMessage.type.request({ locations }),
+    sendMessage(SetEditorHighlightsMessage.type.request({ locations }),
     );
   }
 
@@ -397,9 +385,7 @@ export default class WorkspaceWindow {
         range: { start: { line, character: 0 }, end: { line, character: 0 } },
       })),
     );
-    this.emit(
-      MessageProtocol.event,
-      SetEditorPinpointsMessage.type.request({ locations }),
+    sendMessage(SetEditorPinpointsMessage.type.request({ locations }),
     );
   }
 
@@ -599,9 +585,7 @@ export default class WorkspaceWindow {
         });
       }
       if (range) {
-        this.emit(
-          MessageProtocol.event,
-          SelectEditorMessage.type.request({
+        sendMessage(SelectEditorMessage.type.request({
             textDocument: { uri },
             range,
             scrollIntoView: "center",
@@ -636,13 +620,11 @@ export default class WorkspaceWindow {
         },
       });
     }
-    this.emit(MessageProtocol.event, UnfocusWindowMessage.type.request({}));
+    sendMessage(UnfocusWindowMessage.type.request({}));
   }
 
   search(uri: string) {
-    this.emit(
-      MessageProtocol.event,
-      SearchEditorMessage.type.request({ textDocument: { uri } }),
+    sendMessage(SearchEditorMessage.type.request({ textDocument: { uri } }),
     );
   }
 
@@ -765,9 +747,7 @@ export default class WorkspaceWindow {
         revealed: true,
       },
     });
-    this.emit(
-      MessageProtocol.event,
-      DidExpandPreviewPaneMessage.type.notification({}),
+    sendMessage(DidExpandPreviewPaneMessage.type.notification({}),
     );
   }
 
@@ -779,9 +759,7 @@ export default class WorkspaceWindow {
         revealed: false,
       },
     });
-    this.emit(
-      MessageProtocol.event,
-      DidCollapsePreviewPaneMessage.type.notification({}),
+    sendMessage(DidCollapsePreviewPaneMessage.type.notification({}),
     );
   }
 
@@ -877,7 +855,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(MessageProtocol.event, StartGameMessage.type.request({}));
+      sendMessage(StartGameMessage.type.request({}));
       if (this.store.preview.modes.game.paused) {
         this.unpauseGame();
       }
@@ -900,7 +878,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(MessageProtocol.event, StopGameMessage.type.request({}));
+      sendMessage(StopGameMessage.type.request({}));
     }
   }
 
@@ -919,7 +897,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(MessageProtocol.event, PauseGameMessage.type.request({}));
+      sendMessage(PauseGameMessage.type.request({}));
     }
   }
 
@@ -938,7 +916,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(MessageProtocol.event, UnpauseGameMessage.type.request({}));
+      sendMessage(UnpauseGameMessage.type.request({}));
     }
   }
 
@@ -949,9 +927,7 @@ export default class WorkspaceWindow {
         this.pauseGame();
       }
     }
-    this.emit(
-      MessageProtocol.event,
-      StepGameClockMessage.type.request({ seconds }),
+    sendMessage(StepGameClockMessage.type.request({ seconds }),
     );
   }
 
@@ -986,7 +962,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(MessageProtocol.event, EnableGameDebugMessage.type.request({}));
+      sendMessage(EnableGameDebugMessage.type.request({}));
     }
   }
 
@@ -1005,9 +981,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(
-        MessageProtocol.event,
-        DisableGameDebugMessage.type.request({}),
+      sendMessage(DisableGameDebugMessage.type.request({}),
       );
     }
   }
