@@ -3452,6 +3452,48 @@ repository:
         patterns:
           - { include: "#EndOfLine" }
 
+  # A double-quoted sparkle content string that contains at least one `{expr}`
+  # interpolation (reactive content, spec §6/D3). Listed BEFORE StringFieldValue
+  # at every value site so PLAIN (non-interpolated) strings fall through to
+  # StringFieldValue unchanged — its highlighting tree stays byte-identical.
+  # Same `string`/`string.quoted.double.sd` scope so the color matches; each
+  # `{expr}` reuses the existing LuauInterpolatedStringExpression node (so it
+  # colors like backtick interpolation AND is the named node the reactive
+  # lowerer reads to build bindings). `{{`/`}}` are literal braces (D3) and are
+  # matched first so they never open an interpolation. The begin-lookahead
+  # requires a lone `{` (skipping `{{`/`}}` pairs and escapes) so a string with
+  # only literal braces is left to plain StringFieldValue.
+  StringFieldValueInterpolated:
+    tag: string
+    name: string.quoted.double.sd
+    begin: (["])(?=(?:[^"{}]|\{\{|\}\}|\\.)*\{(?!\{))
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+    patterns:
+      - { include: "#SparkleLiteralBrace" }
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#StringEscape" }
+      - { include: "#Color" }
+      - { include: "#StringCharacter" }
+    end: (["])({{EOPL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+      2:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  # Literal `{{` / `}}` inside an interpolated content string (D3). Same string
+  # scope so it blends with surrounding content; the lowerer collapses each to a
+  # single brace.
+  SparkleLiteralBrace:
+    tag: string
+    name: string.quoted.double.sd
+    match: (\{\{|\}\})
+
   UnquotedStringFieldValue:
     match: (.+)({{EOPL}})
     captures:
@@ -4352,6 +4394,7 @@ repository:
         patterns:
           - { include: "#NumericFieldValue" }
           - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValueInterpolated" }
           - { include: "#StringFieldValue" }
           - { include: "#StylingValue" }
           - { include: "#UnquotedStringFieldValue" }
@@ -4369,6 +4412,7 @@ repository:
         patterns:
           - { include: "#NumericFieldValue" }
           - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValueInterpolated" }
           - { include: "#StringFieldValue" }
           - { include: "#StylingValue" }
           - { include: "#UnquotedStringFieldValue" }

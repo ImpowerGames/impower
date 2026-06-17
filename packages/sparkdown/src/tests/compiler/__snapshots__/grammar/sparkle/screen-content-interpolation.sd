@@ -1,0 +1,7 @@
+screen hud with
+  stage:
+    text = "HP: {hp} / {max_hp}"
+    label = "score {score + bonus}"
+    note = "literal {{braces}} only"
+    color = "white"
+end
