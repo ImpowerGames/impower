@@ -1,11 +1,17 @@
 import { type SyntaxNode } from "@lezer/common";
 import { LowerContext } from "../context";
+import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
+import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { ReturnType } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
+import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import {
+  type Binding,
   type BodyNode,
   type ContentPart,
   type ElementNode,
   type PropValue,
 } from "../../types/SparkleNode";
+import { type SparkRange } from "../../types/SparkRange";
 
 // Builds the reactive Sparkle UI AST (docs/sparkle/reactive-sparkle-spec.md §6)
 // for a screen/component body. Unlike the static `lowerStructBody` (which
@@ -86,6 +92,7 @@ const KEY_TOKEN_NAMES = new Set([
 ]);
 
 const FIELD_VALUE_NAMES = new Set([
+  "StringFieldValueInterpolated",
   "StringFieldValue",
   "NumericFieldValue",
   "BooleanFieldValue",
@@ -145,9 +152,100 @@ function tagAndClasses(
   return { tag, classes };
 }
 
-/** Read a field-value node as a literal PropValue. Interpolation (`{expr}`)
- *  and `{expr}` bindings are added in a later increment; for now every value
- *  is a literal (current screen/component bodies carry no interpolation). */
+/** Collapse the content-string brace escapes (spec D3): `{{` → `{`, `}}` → `}`.
+ *  Only applied to display CONTENT (not Luau-position prop/style values). */
+function collapseBraceEscapes(text: string): string {
+  return text.replace(/\{\{/g, "{").replace(/\}\}/g, "}");
+}
+
+/** Compile a `{expr}` interpolation node (a `LuauInterpolatedStringExpression`)
+ *  into a {@link Binding}: a synthetic nullary function
+ *  `__binding_<from>() return <expr> end` hoisted into `ctx.hoistedKnots`, plus
+ *  the handle the AST carries. The reactive runtime (Phase 3) calls the hoisted
+ *  function to evaluate the binding (and, later, track its reads for deps); the
+ *  compiler only produces the handle + the function. Bindings read game-state
+ *  globals by name, so the function is nullary — no upvalue capture (one-way
+ *  binding, spec L6). The name is keyed on the source byte offset so it stays
+ *  unique across chunks and stable across edits (mirrors `__anon_fn_<from>`). */
+function lowerBinding(interpNode: SyntaxNode, ctx: LowerContext): Binding {
+  const exprId = `__binding_${interpNode.from}`;
+  const source = ctx.read(interpNode.from, interpNode.to);
+  const span: SparkRange = {
+    file: ctx.filePath,
+    line: ctx.lineNumber(interpNode.from),
+    from: interpNode.from,
+    to: interpNode.to,
+  };
+  // Hoist the evaluator once per source position (the same expression node can
+  // be lowered more than once; first registration wins). Snapshot-only callers
+  // without a hoist buffer skip it — the handle is still produced.
+  const already = ctx.hoistedKnots?.some(
+    (o) => o instanceof Function && o.identifier?.name === exprId,
+  );
+  if (!already && ctx.hoistedKnots) {
+    // The expression lives in the `_content` child; passing the wrapper node
+    // works — `lowerExpressionFromContainer` skips the brace punctuation (same
+    // call shape as `lowerInterpolatedString`).
+    const expr = lowerExpressionFromContainer(interpNode, ctx);
+    const fn = new Function(
+      new Identifier(exprId),
+      [new ReturnType(expr ?? null)],
+      [],
+    );
+    ctx.hoistedKnots.push(fn);
+  }
+  return { exprId, source, span };
+}
+
+/** Build the ordered literal/binding content parts for an element's display
+ *  content. Handles the interpolation-aware `StringFieldValueInterpolated`
+ *  (literal runs + `{expr}` bindings) and plain values (a single literal part),
+ *  collapsing `{{`/`}}` brace escapes in literal text. */
+function readContentParts(
+  value: SyntaxNode | null,
+  ctx: LowerContext,
+): ContentPart[] {
+  if (value?.name === "StringFieldValueInterpolated") {
+    const inner = firstDescendant(value, INTERP_CONTENT_WRAPPER);
+    const parts: ContentPart[] = [];
+    let textBuf = "";
+    const flush = () => {
+      if (textBuf.length > 0) {
+        parts.push({ kind: "literal", text: collapseBraceEscapes(textBuf) });
+        textBuf = "";
+      }
+    };
+    let child = inner?.firstChild ?? null;
+    while (child) {
+      if (child.name === "LuauInterpolatedStringExpression") {
+        flush();
+        parts.push({ kind: "binding", binding: lowerBinding(child, ctx) });
+      } else {
+        textBuf += ctx.read(child.from, child.to);
+      }
+      child = child.nextSibling;
+    }
+    flush();
+    return parts.length > 0 ? parts : [{ kind: "literal", text: "" }];
+  }
+  // Plain value → a single literal content part (collapse brace escapes for
+  // strings; numbers/bools stringify).
+  const literal = readLiteralValue(value, ctx);
+  if (literal.kind === "literal") {
+    const text =
+      typeof literal.value === "string"
+        ? collapseBraceEscapes(literal.value)
+        : String(literal.value);
+    return [{ kind: "literal", text }];
+  }
+  return [{ kind: "binding", binding: literal.binding }];
+}
+
+const INTERP_CONTENT_WRAPPER = new Set(["StringFieldValueInterpolated_content"]);
+
+/** Read a field-value node as a literal PropValue, used for inline props/style
+ *  values (Luau-position values that are NOT reactive in v1). Display content
+ *  goes through {@link readContentParts} instead. */
 const PLAIN_STRING_CONTENT = new Set(["PlainStringContent"]);
 
 function readLiteralValue(value: SyntaxNode | null, ctx: LowerContext): PropValue {
@@ -214,14 +312,12 @@ function buildBlock(
 
     if (kind.name === "LuauStructScalarProperty") {
       const keyNode = firstDescendant(kind, KEY_TOKEN_NAMES);
-      const value = readLiteralValue(firstDescendant(kind, FIELD_VALUE_NAMES), ctx);
+      const valueNode = firstDescendant(kind, FIELD_VALUE_NAMES);
       if (keyNode?.name === "BuiltinComponentName") {
-        // `image = "black"` → an element whose content is the value.
+        // `image = "black"` / `text = "HP: {hp}"` → an element whose display
+        // content is the value (literal + `{expr}` reactive bindings).
         const tag = ctx.read(keyNode.from, keyNode.to).trim();
-        const content: ContentPart[] =
-          value.kind === "literal"
-            ? [{ kind: "literal", text: String(value.value) }]
-            : [{ kind: "binding", binding: value.binding }];
+        const content: ContentPart[] = readContentParts(valueNode, ctx);
         const element: ElementNode = {
           kind: "element",
           tag,
@@ -235,8 +331,10 @@ function buildBlock(
         children.push(element);
       } else {
         // Non-builtin `key = value` → a style prop on the enclosing element.
+        // Props are Luau-position values (static in v1), so they read as a
+        // literal — interpolation applies to display content only.
         const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
-        if (key) props[key] = value;
+        if (key) props[key] = readLiteralValue(valueNode, ctx);
         i += 1;
       }
       continue;

@@ -79,6 +79,25 @@ end
   });
 });
 
+describe("screen · reactive content interpolation", () => {
+  test("interpolated content compiles cleanly (binding evaluators hoisted)", () => {
+    // `{expr}` in display content lowers to a hoisted nullary binding function
+    // (`__binding_<from>() return <expr> end`). The full pipeline must compile
+    // those with no errors — a malformed flow or unresolved reference would
+    // surface as a diagnostic here.
+    const r = compileUI(`store hp = 100
+store max_hp = 100
+screen hud with
+  text = "HP: {hp} / {max_hp + 0}"
+end
+`);
+    expect(r.errors).toEqual([]);
+    // Static struct still carries the raw content string (engine path
+    // unchanged in Phase 1).
+    expect(r.screen["hud"]["text"]).toBe("HP: {hp} / {max_hp + 0}");
+  });
+});
+
 describe("component", () => {
   test("component produces $type component", () => {
     const r = compileUI(`component card with

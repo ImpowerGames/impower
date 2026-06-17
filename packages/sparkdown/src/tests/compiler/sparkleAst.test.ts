@@ -99,6 +99,49 @@ end
     });
   });
 
+  test("interpolated content lowers to ordered literal + binding parts", () => {
+    const ast = screenAst(`screen hud with
+  text = "HP: {hp} / {max_hp}"
+end
+`);
+    const text = ast.hud.children[0];
+    expect(text.tag).toBe("text");
+    expect(text.content).toEqual([
+      { kind: "literal", text: "HP: " },
+      {
+        kind: "binding",
+        binding: {
+          exprId: expect.stringMatching(/^__binding_\d+$/),
+          source: "{hp}",
+          span: expect.objectContaining({ from: expect.any(Number) }),
+        },
+      },
+      { kind: "literal", text: " / " },
+      {
+        kind: "binding",
+        binding: {
+          exprId: expect.stringMatching(/^__binding_\d+$/),
+          source: "{max_hp}",
+          span: expect.objectContaining({ from: expect.any(Number) }),
+        },
+      },
+    ]);
+    // Each binding gets its own evaluator id (distinct source positions).
+    expect(text.content[1].binding.exprId).not.toBe(
+      text.content[3].binding.exprId,
+    );
+  });
+
+  test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
+    const ast = screenAst(`screen hud with
+  text = "literal {{braces}} kept"
+end
+`);
+    expect(ast.hud.children[0].content).toEqual([
+      { kind: "literal", text: "literal {braces} kept" },
+    ]);
+  });
+
   test("`as PARENT` carries inheritance onto the screen node", () => {
     const ast = screenAst(`screen pause as main with
   text
