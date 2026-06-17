@@ -1,0 +1,10 @@
+screen sheet with
+  match player_class do
+  case "knight"
+    text "Knight"
+  case "mage"
+    text "Mage"
+  else
+    text "Other"
+  end
+end

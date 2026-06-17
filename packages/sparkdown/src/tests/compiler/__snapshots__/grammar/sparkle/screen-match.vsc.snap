@@ -1,0 +1,59 @@
+text.source.sparkdown [0..145]
+ ├─ meta.screen.luau [0..17]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..12]: "sheet"
+ │   ├─ punctuation.whitespace.optional.sd [12..13]: " "
+ │   └─ keyword.control.as.luau [13..17]: "with"
+ ├─ Newline [17..18]: "\n"
+ ├─ meta.screen.luau [18..41]
+ │   ├─ punctuation.whitespace.optional.sd [18..20]: "  "
+ │   ├─ keyword.control.match.luau [20..25]: "match"
+ │   ├─ punctuation.whitespace.optional.sd [25..26]: " "
+ │   ├─ variable.other.readwrite.luau [26..32]: "player"
+ │   ├─ meta.template.expression.accessor.sd [32..33]: "."
+ │   ├─ variable.other.property.luau [33..38]: "class"
+ │   ├─ punctuation.whitespace.optional.sd [38..39]: " "
+ │   └─ keyword.control.do.luau [39..41]: "do"
+ ├─ Newline [41..42]: "\n"
+ ├─ meta.screen.luau [42..57]
+ │   ├─ punctuation.whitespace.optional.sd [42..44]: "  "
+ │   ├─ keyword.control.case.luau [44..48]: "case"
+ │   ├─ punctuation.whitespace.optional.sd [48..49]: " "
+ │   └─ string.quoted.double.luau [49..57]
+ │       ├─ punctuation.definition.string.double.begin.sd [49..50]: "\""
+ │       ├─ markup.raw.text.sd [50..56]: "knight"
+ │       └─ punctuation.definition.string.double.end.sd [56..57]: "\""
+ ├─ Newline [57..58]: "\n"
+ ├─ meta.screen.luau [58..75]
+ │   ├─ punctuation.whitespace.optional.sd [58..62]: "    "
+ │   └─ meta.struct.body.luau [62..75]: "text \"Knight\""
+ ├─ Newline [75..76]: "\n"
+ ├─ meta.screen.luau [76..89]
+ │   ├─ punctuation.whitespace.optional.sd [76..78]: "  "
+ │   ├─ keyword.control.case.luau [78..82]: "case"
+ │   ├─ punctuation.whitespace.optional.sd [82..83]: " "
+ │   └─ string.quoted.double.luau [83..89]
+ │       ├─ punctuation.definition.string.double.begin.sd [83..84]: "\""
+ │       ├─ markup.raw.text.sd [84..88]: "mage"
+ │       └─ punctuation.definition.string.double.end.sd [88..89]: "\""
+ ├─ Newline [89..90]: "\n"
+ ├─ meta.screen.luau [90..105]
+ │   ├─ punctuation.whitespace.optional.sd [90..94]: "    "
+ │   └─ meta.struct.body.luau [94..105]: "text \"Mage\""
+ ├─ Newline [105..106]: "\n"
+ ├─ meta.screen.luau [106..112]
+ │   ├─ punctuation.whitespace.optional.sd [106..108]: "  "
+ │   └─ keyword.control.else.luau [108..112]: "else"
+ ├─ Newline [112..113]: "\n"
+ ├─ meta.screen.luau [113..134]
+ │   ├─ punctuation.whitespace.optional.sd [113..117]: "    "
+ │   └─ meta.struct.body.luau [117..134]: "text \"Adventurer\""
+ ├─ Newline [134..135]: "\n"
+ ├─ meta.screen.luau [135..140]
+ │   ├─ punctuation.whitespace.optional.sd [135..137]: "  "
+ │   └─ keyword.control.end.luau [137..140]: "end"
+ ├─ Newline [140..141]: "\n"
+ ├─ meta.screen.luau [141..144]
+ │   └─ keyword.control.end.luau [141..144]: "end"
+ └─ Newline [144..145]: "\n"

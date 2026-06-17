@@ -242,6 +242,22 @@ end
   });
 });
 
+describe("screen · match", () => {
+  test("match/case/else compiles cleanly (matched expr hoisted)", () => {
+    const r = compileUI(`store player_class = "knight"
+screen sheet with
+  match player_class do
+  case "knight"
+    text "Knight"
+  else
+    text "Other"
+  end
+end
+`);
+    expect(r.errors).toEqual([]);
+  });
+});
+
 describe("component", () => {
   test("component produces $type component", () => {
     const r = compileUI(`component card with

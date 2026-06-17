@@ -4647,6 +4647,7 @@ repository:
     patterns:
       - { include: "#LuauSparkleIfBlock" }
       - { include: "#LuauSparkleForLoop" }
+      - { include: "#LuauSparkleMatchBlock" }
 
   LuauSparkleIfBlock:
     begin: ({{WS}}*)(if)\b({{WS}}*)
@@ -4770,6 +4771,80 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+
+  # `match <expr> do  case <value> …  [else …]  end` (spec §4.6). Distinct from
+  # the alternator `match | arm` (display context): this is a UI control block
+  # with `case` arms whose bodies are sparkle element lines. `do` is consumed by
+  # LuauSparkleDoMark; the empty/default arm reuses LuauSparkleElseBlock.
+  LuauSparkleMatchBlock:
+    begin: ({{WS}}*)(match)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauMatchKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkleMatchCondition" }
+      - { include: "#LuauSparkleDoMark" }
+      - { include: "#LuauSparkleCaseClause" }
+      - { include: "#LuauSparkleElseBlock" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # The matched expression, between `match` and `do` (may span lines).
+  LuauSparkleMatchCondition:
+    begin: (?<=match\b{{WS}}*)(?!{{BEAT}}|do\b)
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}}|{{END}})|(?={{WS}}*do\b)
+
+  # A `case <value>` arm: the value expression is on the `case` line; the body is
+  # the indented element lines below, until the next `case`/`else`/`end`.
+  LuauSparkleCaseClause:
+    begin: ({{WS}}*)(case)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCaseKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkleCaseValue" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:case|else|end)\b)
+
+  # The case value expression (on the `case` line, ends at end-of-line).
+  LuauSparkleCaseValue:
+    begin: (?<=case\b{{WS}}*)(?!{{BEAT}}|$)
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: (?=$)
 
 
   # ----------------------------------------------------------------------------
@@ -6480,6 +6555,16 @@ repository:
     tag: controlKeyword
     name: keyword.control.for.luau
     match: (for)\b
+
+  LuauMatchKeyword:
+    tag: controlKeyword
+    name: keyword.control.match.luau
+    match: (match)\b
+
+  LuauCaseKeyword:
+    tag: controlKeyword
+    name: keyword.control.case.luau
+    match: (case)\b
 
   LuauWhileKeyword:
     tag: controlKeyword

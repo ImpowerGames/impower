@@ -16,6 +16,7 @@ import {
   type EventBinding,
   type ForNode,
   type IfNode,
+  type MatchNode,
   type PropValue,
 } from "../../types/SparkleNode";
 import { type SparkRange } from "../../types/SparkRange";
@@ -51,12 +52,14 @@ interface NodeLine {
 const CONTROL_BLOCK_NAMES = new Set([
   "LuauSparkleIfBlock",
   "LuauSparkleForLoop",
+  "LuauSparkleMatchBlock",
 ]);
 // Clause sub-blocks of a control block — collected explicitly by the control
 // builder, so the generic item walk must NOT descend into or emit them.
 const CONTROL_CLAUSE_NAMES = new Set([
   "LuauSparkleElseifBlock",
   "LuauSparkleElseBlock",
+  "LuauSparkleCaseClause",
 ]);
 
 /** Collect a body's items (element lines + control blocks) with their indent
@@ -635,7 +638,70 @@ function lowerCondition(
  *  `slot`/`fill` follow. */
 function buildControl(node: SyntaxNode, ctx: LowerContext): BodyNode {
   if (node.name === "LuauSparkleForLoop") return buildForNode(node, ctx);
+  if (node.name === "LuauSparkleMatchBlock") return buildMatchNode(node, ctx);
   return buildIfNode(node, ctx);
+}
+
+const MATCH_CONDITION_CONTENT = new Set(["LuauSparkleMatchCondition_content"]);
+const CASE_VALUE_CONTENT = new Set(["LuauSparkleCaseValue_content"]);
+
+/** `LuauSparkleMatchBlock` → MatchNode (spec §4.6). `match <expr> do  case
+ *  <value> …  [else …]  end`: each `case` arm (value + children) is a grammar
+ *  child; `else` is the default. */
+function buildMatchNode(matchBlock: SyntaxNode, ctx: LowerContext): MatchNode {
+  const content = firstDescendant(
+    matchBlock,
+    new Set(["LuauSparkleMatchBlock_content"]),
+  );
+  const cases: MatchNode["cases"] = [];
+  let elseChildren: BodyNode[] | undefined;
+  let exprBinding: Binding | undefined;
+  if (content) {
+    const condNode = firstDescendant(
+      content,
+      new Set(["LuauSparkleMatchCondition"]),
+    );
+    if (condNode) {
+      exprBinding = lowerCondition(condNode, MATCH_CONDITION_CONTENT, ctx);
+    }
+    for (const clause of childrenByName(
+      content,
+      new Set(["LuauSparkleCaseClause"]),
+    )) {
+      const valueNode = firstDescendant(
+        clause,
+        new Set(["LuauSparkleCaseValue"]),
+      );
+      const clauseContent = firstDescendant(
+        clause,
+        new Set(["LuauSparkleCaseClause_content"]),
+      );
+      if (valueNode) {
+        cases.push({
+          value: lowerCondition(valueNode, CASE_VALUE_CONTENT, ctx),
+          children: buildBranchChildren(clauseContent, ctx),
+        });
+      }
+    }
+    const elseBlock = childrenByName(
+      content,
+      new Set(["LuauSparkleElseBlock"]),
+    )[0];
+    if (elseBlock) {
+      const elseContent = firstDescendant(
+        elseBlock,
+        new Set(["LuauSparkleElseBlock_content"]),
+      );
+      elseChildren = buildBranchChildren(elseContent, ctx);
+    }
+  }
+  const node: MatchNode = {
+    kind: "match",
+    expr: exprBinding ?? { exprId: "", source: "", span: { line: 0, from: 0, to: 0 } },
+    cases,
+  };
+  if (elseChildren) node.else = elseChildren;
+  return node;
 }
 
 const WS_NODE_NAMES = new Set([

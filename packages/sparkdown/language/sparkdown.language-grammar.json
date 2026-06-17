@@ -7498,6 +7498,9 @@
         },
         {
           "include": "#LuauSparkleForLoop"
+        },
+        {
+          "include": "#LuauSparkleMatchBlock"
         }
       ]
     },
@@ -7750,6 +7753,143 @@
           ]
         }
       }
+    },
+    "LuauSparkleMatchBlock": {
+      "begin": "((?:[^\\S\\n\\r])*)(match)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauMatchKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauSparkleMatchCondition"
+        },
+        {
+          "include": "#LuauSparkleDoMark"
+        },
+        {
+          "include": "#LuauSparkleCaseClause"
+        },
+        {
+          "include": "#LuauSparkleElseBlock"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauSparkleMatchCondition": {
+      "begin": "(?<=match\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|do\\b)",
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|(?:(?:[^\\S\\n\\r])*(?:end)\\b))|(?=(?:[^\\S\\n\\r])*do\\b)"
+    },
+    "LuauSparkleCaseClause": {
+      "begin": "((?:[^\\S\\n\\r])*)(case)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauCaseKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauSparkleCaseValue"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:case|else|end)\\b)"
+    },
+    "LuauSparkleCaseValue": {
+      "begin": "(?<=case\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$)",
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=$)"
     },
     "LuauScreen": {
       "tag": "meta",
@@ -10325,6 +10465,16 @@
       "tag": "controlKeyword",
       "name": "keyword.control.for.luau",
       "match": "(for)\\b"
+    },
+    "LuauMatchKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.match.luau",
+      "match": "(match)\\b"
+    },
+    "LuauCaseKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.case.luau",
+      "match": "(case)\\b"
     },
     "LuauWhileKeyword": {
       "tag": "controlKeyword",

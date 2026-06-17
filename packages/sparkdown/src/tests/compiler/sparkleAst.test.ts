@@ -338,6 +338,32 @@ end
     expect(forNode.else).toBeUndefined();
   });
 
+  test("match/case/else lowers to a MatchNode (expr + case arms + else)", () => {
+    const ast = screenAst(`screen sheet with
+  match player.class do
+  case "knight"
+    text "Knight"
+  case "mage"
+    text "Mage"
+  else
+    text "Other"
+  end
+end
+`);
+    const matchNode = ast.sheet.children[0];
+    expect(matchNode.kind).toBe("match");
+    expect(matchNode.expr.source).toContain("player.class");
+    expect(matchNode.cases).toHaveLength(2);
+    expect(matchNode.cases[0].value.source).toContain("knight");
+    expect(matchNode.cases[0].children[0].content).toEqual([
+      { kind: "literal", text: "Knight" },
+    ]);
+    expect(matchNode.cases[1].value.source).toContain("mage");
+    expect(matchNode.else[0].content).toEqual([
+      { kind: "literal", text: "Other" },
+    ]);
+  });
+
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
     const ast = screenAst(`screen hud with
   text = "literal {{braces}} kept"

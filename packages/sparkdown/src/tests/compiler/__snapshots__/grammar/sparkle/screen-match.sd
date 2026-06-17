@@ -1,0 +1,10 @@
+screen sheet with
+  match player.class do
+  case "knight"
+    text "Knight"
+  case "mage"
+    text "Mage"
+  else
+    text "Adventurer"
+  end
+end
