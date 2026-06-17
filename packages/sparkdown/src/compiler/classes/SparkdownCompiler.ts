@@ -664,6 +664,7 @@ export class SparkdownCompiler {
         diagnostics,
         content,
         context,
+        sparkle,
         defaultDefinitions,
         uuid,
         hoistedKnots,
@@ -974,6 +975,19 @@ export class SparkdownCompiler {
             program.context ??= {};
             program.context[type] ??= {};
             program.context[type][name] = struct;
+          }
+        }
+      }
+      if (sparkle) {
+        // Merge the reactive Sparkle UI AST onto program.sparkle (additive;
+        // not yet consumed — the static screens/components channels still
+        // drive rendering until Phase 3).
+        for (const kind of ["screens", "components"] as const) {
+          const trees = sparkle[kind];
+          if (trees) {
+            program.sparkle ??= {};
+            program.sparkle[kind] ??= {};
+            Object.assign(program.sparkle[kind]!, trees);
           }
         }
       }

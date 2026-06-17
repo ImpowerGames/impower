@@ -4,6 +4,11 @@ import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
 import { findChildByName } from "../utils/alternatorArms";
 import { collectStructBodyLines, parseStructBody } from "./lowerStructBody";
+import { buildSparkleBody } from "./lowerSparkleBody";
+import {
+  type ComponentNode,
+  type ScreenNode,
+} from "../../types/SparkleNode";
 
 // `screen NAME [as PARENT] with <colon/indent element tree> end` (and
 // `component`). Structural UI keywords; lower to a COMPILE-TIME struct in
@@ -40,8 +45,37 @@ export function lowerLuauUI(
     ...body,
   };
 
+  // Reactive Sparkle UI AST (additive, not yet consumed by the engine — the
+  // static `context` struct above still drives rendering). Built by reading
+  // the grammar's already-separated element tokens, never re-parsing raw text.
+  const children = buildSparkleBody(contentNode, ctx);
+  const sparkle =
+    uiType === "screen"
+      ? {
+          screens: {
+            [name]: {
+              kind: "screen",
+              name,
+              ...(parent ? { extends: parent } : {}),
+              children,
+            } satisfies ScreenNode,
+          },
+        }
+      : {
+          components: {
+            [name]: {
+              kind: "component",
+              name,
+              ...(parent ? { extends: parent } : {}),
+              params: [],
+              children,
+            } satisfies ComponentNode,
+          },
+        };
+
   return {
     content: [],
     context: { [uiType]: { [name]: struct } },
+    sparkle,
   };
 }
