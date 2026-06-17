@@ -447,8 +447,21 @@ const serve = async () => {
     // Preact-compatible vnodes.
     ssr: {
       noExternal: [
-        "react-resizable-panels",
+        // The Radix react-ecosystem (@radix-ui/*, @floating-ui/*, and the
+        // react-*/use-*/aria-hidden helper packages they pull in) all
+        // `import "react"`. Externalized, that bare import hits Node's resolver
+        // (no react — the app is Preact) and the dev SSG render throws "Cannot
+        // find module/package 'react'". Bundling them routes the import through
+        // the react → preact/compat alias above. (Prod bundles everything, so
+        // this only matters for the dev server's ssrLoadModule path.)
+        // Any react-named package, in any scope: react, react-dom, react-*,
+        // @tanstack/react-virtual, etc.
+        /(?:^|\/)react(?:-|\/|$)/,
         /^@radix-ui\//,
+        /^@floating-ui\//,
+        // Radix helpers that import react but aren't react-named.
+        /^use-/,
+        "aria-hidden",
         "@impower/impower-ui",
         // The sparkdown-document-views script editor + screenplay preview
         // are now rendered as direct Preact components (not custom-element
