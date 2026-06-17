@@ -34,13 +34,12 @@ export function collectStructBodyLines(
     let child = node?.firstChild ?? null;
     while (child) {
       if (child.name === "LuauStructBodyContent") {
-        // Inline element attributes (`@event=handler`, …) are reactive and not
-        // part of the static struct the engine consumes — truncate the line at
-        // the first attribute token so `button "Use" @click=x` → `button "Use"`.
-        const attrFrom = firstAttributeFrom(child);
-        const text = ctx
-          .read(child.from, attrFrom ?? child.to)
-          .trim();
+        // Inline element attributes (`@event=handler`, `#prop=value`) are
+        // reactive and not part of the static struct the engine consumes —
+        // excise their spans so `button "Use" @click=x` → `button "Use"` and
+        // `column #gap=16:` → `column :` (the trailing `:` is kept so the line
+        // still reads as a container header).
+        const text = textWithoutAttributes(child, ctx).trim();
         // Skip whole-line `--` Luau comments. `style`/`screen`/`component`
         // bodies are Luau contexts (where `//` is floor division, NOT a
         // comment — so `//` is intentionally not treated as a comment here);
@@ -63,24 +62,39 @@ export function collectStructBodyLines(
   return lines;
 }
 
-// The byte offset of the first inline element attribute (`@event=…`) within a
-// body-content node, or null if the line carries none. Used to drop reactive
-// attributes from the static struct.
-function firstAttributeFrom(node: SyntaxNode): number | null {
-  let found: number | null = null;
+// Spans of inline element attributes (`@event=…`, `#prop=…`) within a
+// body-content node, in source order. Used to excise reactive attributes from
+// the static struct text (they are not part of the engine-consumed struct).
+function attributeRanges(node: SyntaxNode): { from: number; to: number }[] {
+  const ranges: { from: number; to: number }[] = [];
   const walk = (n: SyntaxNode) => {
     let c = n.firstChild;
     while (c) {
-      if (c.name === "LuauEventAttribute") {
-        if (found == null || c.from < found) found = c.from;
-        return;
+      if (c.name === "LuauEventAttribute" || c.name === "LuauPropAttribute") {
+        ranges.push({ from: c.from, to: c.to });
+      } else {
+        walk(c);
       }
-      walk(c);
       c = c.nextSibling;
     }
   };
   walk(node);
-  return found;
+  return ranges;
+}
+
+// The body-content line text with all inline attribute spans removed, so the
+// static struct sees only the structural part (`column #gap=16:` → `column :`).
+function textWithoutAttributes(node: SyntaxNode, ctx: LowerContext): string {
+  const ranges = attributeRanges(node);
+  if (ranges.length === 0) return ctx.read(node.from, node.to);
+  let result = "";
+  let pos = node.from;
+  for (const { from, to } of ranges) {
+    if (from > pos) result += ctx.read(pos, from);
+    pos = to;
+  }
+  if (node.to > pos) result += ctx.read(pos, node.to);
+  return result;
 }
 
 export function parseStructBody(lines: BodyLine[]): Record<string, unknown> {

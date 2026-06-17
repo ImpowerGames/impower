@@ -7163,6 +7163,9 @@
         "2": {
           "patterns": [
             {
+              "include": "#LuauElementAttribute"
+            },
+            {
               "include": "#SelectorPropertyNamePart"
             },
             {
@@ -7242,7 +7245,13 @@
     "LuauElementAttribute": {
       "patterns": [
         {
+          "include": "#RequiredWhitespace"
+        },
+        {
           "include": "#LuauEventAttribute"
+        },
+        {
+          "include": "#LuauPropAttribute"
         }
       ]
     },
@@ -7278,6 +7287,90 @@
       ],
       "end": "(?=$|(?:[^\\S\\n\\r])+[@#])"
     },
+    "LuauPropAttribute": {
+      "begin": "([#])((?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[-](?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#StyleAttributeName"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EqualOperator"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauInterpolatedStringExpression"
+        },
+        {
+          "include": "#InlinePropQuotedValue"
+        },
+        {
+          "include": "#InlinePropLiteralValue"
+        }
+      ],
+      "end": "(?=$|(?:[^\\S\\n\\r])+[@#])"
+    },
+    "InlinePropQuotedValue": {
+      "tag": "string",
+      "name": "string.quoted.double.sd",
+      "match": "([\"])((?:\\\\.|[^\"])*)([\"])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PlainStringContent"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
+    "InlinePropLiteralValue": {
+      "match": "([^\\s]+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Color"
+            },
+            {
+              "include": "#NumericLiteral"
+            },
+            {
+              "include": "#StringCharacter"
+            }
+          ]
+        }
+      }
+    },
     "LuauStructBareMarker": {
       "match": "^((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_-]*))((?:[^\\S\\n\\r])*)([^\\n]*)$",
       "captures": {
@@ -7305,6 +7398,9 @@
         },
         "4": {
           "patterns": [
+            {
+              "include": "#LuauElementAttribute"
+            },
             {
               "include": "#ComponentName"
             }

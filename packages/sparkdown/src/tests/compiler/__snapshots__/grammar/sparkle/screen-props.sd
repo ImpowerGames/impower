@@ -1,0 +1,7 @@
+screen panel with
+  column #gap=16:
+    text "Inventory"
+    row #background-color={team_color}:
+      image #src="icon.png"
+      text "{count} items" #opacity=0.5
+end

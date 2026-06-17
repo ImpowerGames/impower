@@ -135,6 +135,26 @@ end
   });
 });
 
+describe("screen · inline props", () => {
+  test("`#prop` is dropped from the static struct; container header keeps its `:`", () => {
+    const r = compileUI(`store team_color = "red"
+screen panel with
+  column #gap=16:
+    image #src="icon.png"
+    text "hi" #color={team_color}
+end
+`);
+    expect(r.errors).toEqual([]);
+    // `column #gap=16:` stays a container (the `:` survives attribute excision);
+    // its inline props are absent from the static struct. `image #src=…` → bare
+    // marker {}, `text "hi" #color=…` → { text: "hi" }.
+    expect(r.screen["panel"]["column"]).toEqual({
+      image: {},
+      text: "hi",
+    });
+  });
+});
+
 describe("component", () => {
   test("component produces $type component", () => {
     const r = compileUI(`component card with

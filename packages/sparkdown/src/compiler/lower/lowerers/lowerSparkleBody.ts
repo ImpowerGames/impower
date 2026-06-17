@@ -117,9 +117,15 @@ function firstDescendant(
   return null;
 }
 
+/** Inline-attribute subtrees (`@event`/`#prop`) — opaque to tag/class
+ *  collection, so a prop value (`#gap=16` → NumberLiteral) isn't mistaken for a
+ *  class and a handler's tokens don't leak in. */
+const ATTRIBUTE_NODES = new Set(["LuauEventAttribute", "LuauPropAttribute"]);
+
 /** DFS in-order: every descendant whose name is in `names`, source order, but
  *  WITHOUT descending into a matched node (so a value subtree's inner tokens
- *  don't leak when collecting top-level name tokens). */
+ *  don't leak when collecting top-level name tokens) and WITHOUT descending
+ *  into inline-attribute subtrees. */
 function descendants(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
   const out: SyntaxNode[] = [];
   const walk = (n: SyntaxNode) => {
@@ -127,7 +133,7 @@ function descendants(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
     while (c) {
       if (names.has(c.name)) {
         out.push(c);
-      } else {
+      } else if (!ATTRIBUTE_NODES.has(c.name)) {
         walk(c);
       }
       c = c.nextSibling;
@@ -243,6 +249,71 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
     }
   }
   return events;
+}
+
+const PROP_ATTR = new Set(["LuauPropAttribute"]);
+const PROP_NAME = new Set(["StyleAttributeName"]);
+const PROP_INTERP = new Set(["LuauInterpolatedStringExpression"]);
+const PROP_QUOTED = new Set(["InlinePropQuotedValue"]);
+const PROP_LITERAL = new Set(["InlinePropLiteralValue"]);
+
+/** DFS: every `LuauPropAttribute` descendant, in source order. */
+function propAttributes(node: SyntaxNode): SyntaxNode[] {
+  const out: SyntaxNode[] = [];
+  const walk = (n: SyntaxNode) => {
+    let c = n.firstChild;
+    while (c) {
+      if (PROP_ATTR.has(c.name)) out.push(c);
+      else walk(c);
+      c = c.nextSibling;
+    }
+  };
+  walk(node);
+  return out;
+}
+
+/** Parse an unquoted inline prop literal (`16`, `0.5`, `auto`, `#fff`, `true`):
+ *  numbers → number, `true`/`false` → boolean, everything else → string. */
+function parsePropLiteral(text: string): string | number | boolean {
+  const s = text.trim();
+  if (s === "true") return true;
+  if (s === "false") return false;
+  if (/^-?\d+(?:\.\d+)?$/.test(s)) return Number(s);
+  return s;
+}
+
+/** Build the inline `#prop=value` map (spec §4.2/§4.4) from a line's prop
+ *  attributes. `{expr}` → a reactive binding; `"string"`/literal → a literal
+ *  PropValue. The reactive runtime re-applies bound props on dep change. */
+function readProps(
+  lineNode: SyntaxNode,
+  ctx: LowerContext,
+): Record<string, PropValue> {
+  const props: Record<string, PropValue> = {};
+  for (const attr of propAttributes(lineNode)) {
+    const nameNode = firstDescendant(attr, PROP_NAME);
+    const name = nameNode ? ctx.read(nameNode.from, nameNode.to).trim() : "";
+    if (!name) continue;
+    const interp = firstDescendant(attr, PROP_INTERP);
+    if (interp) {
+      props[name] = { kind: "binding", binding: lowerBinding(interp, ctx) };
+      continue;
+    }
+    const quoted = firstDescendant(attr, PROP_QUOTED);
+    if (quoted) {
+      const raw = ctx.read(quoted.from, quoted.to);
+      props[name] = { kind: "literal", value: raw.replace(/^"|"$/g, "") };
+      continue;
+    }
+    const literal = firstDescendant(attr, PROP_LITERAL);
+    if (literal) {
+      props[name] = {
+        kind: "literal",
+        value: parsePropLiteral(ctx.read(literal.from, literal.to)),
+      };
+    }
+  }
+  return props;
 }
 
 /** Build the ordered literal/binding content parts for an element's display
@@ -372,7 +443,7 @@ function buildBlock(
         tag,
         classes: [],
         content,
-        props: {},
+        props: readProps(kind, ctx),
         events: readEvents(kind, ctx),
         children: [],
       };
@@ -411,16 +482,17 @@ function buildBlock(
       continue;
     }
 
-    // Object header (`stage:`) or bare marker (`image` / `mask shadow_1`) →
-    // an element; tag = first component name, classes = trailing parts.
+    // Object header (`stage:` / `column #gap=16:`) or bare marker (`image` /
+    // `mask shadow_1` / `row #background-color={c}`) → an element; tag = first
+    // component name, classes = trailing parts, plus inline props/events.
     const { tag: parsedTag, classes } = tagAndClasses(kind, ctx);
     const tag = parsedTag ?? ctx.read(content.from, content.to).trim();
     const element: ElementNode = {
       kind: "element",
       tag,
       classes,
-      props: {},
-      events: [],
+      props: readProps(kind, ctx),
+      events: readEvents(kind, ctx),
       children: [],
     };
     i = attachBlock(element, lines, i, childIndent, ctx);
@@ -441,7 +513,11 @@ function attachBlock(
   if (childIndent == null) return i + 1;
   const sub = buildBlock(lines, i + 1, childIndent, ctx);
   element.children = sub.children;
-  if (Object.keys(sub.props).length > 0) element.props = sub.props;
+  // Merge child-level `key = value` style props onto any inline `#prop`s already
+  // on the element line (inline props first, child-level props win on conflict).
+  if (Object.keys(sub.props).length > 0) {
+    element.props = { ...element.props, ...sub.props };
+  }
   return sub.next;
 }
 

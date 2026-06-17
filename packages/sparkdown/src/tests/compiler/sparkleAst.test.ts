@@ -186,6 +186,33 @@ end
     ]);
   });
 
+  test("`#prop=value` lowers to literal + binding PropValues (header/marker/adjacency)", () => {
+    const ast = screenAst(`screen panel with
+  column #gap=16:
+    image #src="icon.png"
+    text "hi" #opacity=0.5 #color={team_color}
+end
+`);
+    const column = ast.panel.children[0];
+    expect(column.tag).toBe("column");
+    expect(column.props).toEqual({ gap: { kind: "literal", value: 16 } });
+    const [img, txt] = column.children;
+    expect(img.tag).toBe("image");
+    expect(img.props).toEqual({ src: { kind: "literal", value: "icon.png" } });
+    expect(txt.tag).toBe("text");
+    expect(txt.props).toEqual({
+      opacity: { kind: "literal", value: 0.5 },
+      color: {
+        kind: "binding",
+        binding: {
+          exprId: expect.stringMatching(/^__binding_\d+$/),
+          source: "{team_color}",
+          span: expect.objectContaining({ from: expect.any(Number) }),
+        },
+      },
+    });
+  });
+
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
     const ast = screenAst(`screen hud with
   text = "literal {{braces}} kept"

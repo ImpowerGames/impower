@@ -1,0 +1,31 @@
+text.source.sparkdown [0..169]
+ ├─ meta.screen.luau [0..17]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..12]: "panel"
+ │   ├─ punctuation.whitespace.optional.sd [12..13]: " "
+ │   └─ keyword.control.as.luau [13..17]: "with"
+ ├─ Newline [17..18]: "\n"
+ ├─ meta.screen.luau [18..35]
+ │   ├─ punctuation.whitespace.optional.sd [18..20]: "  "
+ │   └─ meta.struct.body.luau [20..35]: "column #gap=16:"
+ ├─ Newline [35..36]: "\n"
+ ├─ meta.screen.luau [36..56]
+ │   ├─ punctuation.whitespace.optional.sd [36..40]: "    "
+ │   └─ meta.struct.body.luau [40..56]: "text \"Inventory\""
+ ├─ Newline [56..57]: "\n"
+ ├─ meta.screen.luau [57..96]
+ │   ├─ punctuation.whitespace.optional.sd [57..61]: "    "
+ │   └─ meta.struct.body.luau [61..96]: "row #background-color={team_color}:"
+ ├─ Newline [96..97]: "\n"
+ ├─ meta.screen.luau [97..124]
+ │   ├─ punctuation.whitespace.optional.sd [97..103]: "      "
+ │   └─ meta.struct.body.luau [103..124]: "image #src=\"icon.png\""
+ ├─ Newline [124..125]: "\n"
+ ├─ meta.screen.luau [125..164]
+ │   ├─ punctuation.whitespace.optional.sd [125..131]: "      "
+ │   └─ meta.struct.body.luau [131..164]: "text \"{count} items\" #opacity=0.5"
+ ├─ Newline [164..165]: "\n"
+ ├─ meta.screen.luau [165..168]
+ │   └─ keyword.control.end.luau [165..168]: "end"
+ └─ Newline [168..169]: "\n"

@@ -4424,8 +4424,13 @@ repository:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
+      # Element attributes are tried FIRST so a container header can carry inline
+      # props/events (`column #gap=16:`, `row @click=x:`). `#name=`/`@name=` don't
+      # collide with style headers' `> selector` / `@breakpoint(…)` (no `=` after
+      # the keyword), so those still fall through to SelectorPropertyNamePart.
       2:
         patterns:
+          - { include: "#LuauElementAttribute" }
           - { include: "#SelectorPropertyNamePart" }
           - { include: "#ComponentName" }
           - { include: "#PropertyName" }
@@ -4481,7 +4486,12 @@ repository:
   # closures `@e={ … }` come later.
   LuauElementAttribute:
     patterns:
+      # Consume inter-attribute whitespace (non-zero-width, so it isn't flagged
+      # by the zero-width-include guard and doesn't halt capture tokenization on
+      # an unrecognized space between two attributes).
+      - { include: "#RequiredWhitespace" }
       - { include: "#LuauEventAttribute" }
+      - { include: "#LuauPropAttribute" }
 
   LuauEventAttribute:
     begin: ([@])({{LUAU_IDENTIFIER}})({{WS}}*)([=])({{WS}}*)
@@ -4499,6 +4509,54 @@ repository:
       - { include: "#LuauExpression" }
     end: (?=$|{{WS}}+[@#])
 
+  # Inline style/attribute prop (spec §4.2/§4.4): `#prop=value`, e.g.
+  # `row #gap=16`, `#background-color={team_color}`, `image #src="a.png"`. The
+  # value is `{expr}` (reactive — reuses LuauInterpolatedStringExpression so
+  # `{…}` is interpolation, NOT a Luau table), a quoted string, or an unquoted
+  # literal (number / keyword / `#hex`). Prop names allow hyphens. Value rules
+  # carry no `{{EOPL}}` (the value is mid-line; more attrs may follow).
+  LuauPropAttribute:
+    begin: ([#])({{LUAU_IDENTIFIER}}(?:[-]{{LUAU_IDENTIFIER}})*)({{WS}}*)([=])({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#StyleAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#StyleAttributeName" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+    patterns:
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#InlinePropQuotedValue" }
+      - { include: "#InlinePropLiteralValue" }
+    end: (?=$|{{WS}}+[@#])
+
+  InlinePropQuotedValue:
+    tag: string
+    name: string.quoted.double.sd
+    match: (["])((?:\\.|[^"])*)(["])
+    captures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+      2:
+        patterns:
+          - { include: "#PlainStringContent" }
+      3:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  InlinePropLiteralValue:
+    match: ([^\s]+)
+    captures:
+      1:
+        patterns:
+          - { include: "#Color" }
+          - { include: "#NumericLiteral" }
+          - { include: "#StringCharacter" }
+
   LuauStructBareMarker:
     match: ^({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}*)([^\n]*)$
     captures:
@@ -4512,8 +4570,12 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+      # Trailing class names AND inline attributes (`row #gap=16`,
+      # `button @click=x`, `mask shadow_1 #x=2`). Attributes are tried first so
+      # `#`/`@name=` aren't mis-read as class component names.
       4:
         patterns:
+          - { include: "#LuauElementAttribute" }
           - { include: "#ComponentName" }
 
   # Full-line catch-all so any struct-body line NOT matched by a wrapper above
