@@ -108,23 +108,19 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       ),
     ]).then(
       ([
-        { MessageProtocol },
+        { onMessage },
         { DragFilesEnterMessage },
         { DragFilesLeaveMessage },
         { DragFilesOverMessage },
         { DropFilesMessage },
       ]) => {
-        const onProtocol = (e: Event) => {
-          if (!(e instanceof CustomEvent)) return;
-          const m = e.detail;
-          if (DragFilesEnterMessage.type.is(m)) dragEnter();
-          else if (DragFilesLeaveMessage.type.is(m)) dragLeave();
-          else if (DragFilesOverMessage.type.is(m)) dragOver();
-          else if (DropFilesMessage.type.is(m)) handleDrop(m.params.files);
-        };
-        window.addEventListener(MessageProtocol.event, onProtocol);
-        disposeProtocol = () =>
-          window.removeEventListener(MessageProtocol.event, onProtocol);
+        const disposers = [
+          onMessage(DragFilesEnterMessage.type, () => dragEnter()),
+          onMessage(DragFilesLeaveMessage.type, () => dragLeave()),
+          onMessage(DragFilesOverMessage.type, () => dragOver()),
+          onMessage(DropFilesMessage.type, (m) => handleDrop(m.params.files)),
+        ];
+        disposeProtocol = () => disposers.forEach((d) => d());
       },
     );
 

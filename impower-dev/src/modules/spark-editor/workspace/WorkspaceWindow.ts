@@ -90,14 +90,16 @@ export default class WorkspaceWindow {
     const id = cachedProjectId || WorkspaceConstants.LOCAL_PROJECT_ID;
     this.restoreProjectWorkspace(id);
     this.cacheProjectId(id);
-    onMessage(this.handleProtocol);
+    this.registerProtocolHandlers();
     const mediaQuery = window.matchMedia("(min-width: 960px)");
     mediaQuery.addEventListener("change", this.handleScreenSizeChange);
     this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
   }
 
-  protected handleProtocol = async (message: unknown) => {
-    if (ShowDocumentMessage.type.is(message)) {
+  // Inbound protocol → store. One typed listener per message kind; each
+  // handler receives the fully-typed message (no instanceof/`.is()` guards).
+  protected registerProtocolHandlers() {
+    onMessage(ShowDocumentMessage.type, async (message) => {
       const response = await this.handleShowDocument(
         ShowDocumentMessage.type,
         message,
@@ -105,9 +107,8 @@ export default class WorkspaceWindow {
       if (response) {
         sendMessage(response);
       }
-      return;
-    }
-    if (ApplyWorkspaceEditMessage.type.is(message)) {
+    });
+    onMessage(ApplyWorkspaceEditMessage.type, async (message) => {
       const response = await this.handleApplyWorkspaceEdit(
         ApplyWorkspaceEditMessage.type,
         message,
@@ -115,27 +116,20 @@ export default class WorkspaceWindow {
       if (response) {
         sendMessage(response);
       }
-      return;
-    }
-    if (ScrolledEditorMessage.type.is(message)) {
-      this.handleScrolledEditor(message);
-    }
-    if (SelectedEditorMessage.type.is(message)) {
-      this.handleSelectedEditor(message);
-    }
-    if (ChangedEditorBreakpointsMessage.type.is(message)) {
-      this.handleChangedEditorBreakpoints(message);
-    }
-    if (ChangedEditorPinpointsMessage.type.is(message)) {
-      this.handleChangedEditorPinpoints(message);
-    }
-    if (ChangedEditorHighlightsMessage.type.is(message)) {
-      this.handleChangedEditorHighlights(message);
-    }
-    if (CompiledProgramMessage.type.is(message)) {
-      this.handleCompiledProgram(message);
-    }
-  };
+    });
+    onMessage(ScrolledEditorMessage.type, (m) => this.handleScrolledEditor(m));
+    onMessage(SelectedEditorMessage.type, (m) => this.handleSelectedEditor(m));
+    onMessage(ChangedEditorBreakpointsMessage.type, (m) =>
+      this.handleChangedEditorBreakpoints(m),
+    );
+    onMessage(ChangedEditorPinpointsMessage.type, (m) =>
+      this.handleChangedEditorPinpoints(m),
+    );
+    onMessage(ChangedEditorHighlightsMessage.type, (m) =>
+      this.handleChangedEditorHighlights(m),
+    );
+    onMessage(CompiledProgramMessage.type, (m) => this.handleCompiledProgram(m));
+  }
 
   get store() {
     return workspace.current;

@@ -26,16 +26,20 @@ export const sendMessage = (
   );
 
 /**
- * Subscribe to spark-editor-protocol messages on the bus. The handler receives
- * the message detail — narrow it with `SomeMessage.type.is(message)`. Returns a
+ * Subscribe to a specific spark-editor-protocol message on the bus. Pass the
+ * message's `.type` (e.g. `DidChangeWatchedFilesMessage.type`); the handler is
+ * called only for that message, with the message fully typed — no
+ * `instanceof CustomEvent` / `.type.is(...)` boilerplate. For a listener that
+ * handles several message types, register one `onMessage` per type. Returns a
  * disposer that removes the listener. `target` defaults to `window`.
  */
-export const onMessage = (
-  handler: (message: unknown) => void,
+export const onMessage = <M>(
+  type: { is: (value: any) => value is M },
+  handler: (message: M) => void,
   target: EventTarget = window,
 ): (() => void) => {
   const listener = (e: Event) => {
-    if (e instanceof CustomEvent) {
+    if (e instanceof CustomEvent && e.detail != null && type.is(e.detail)) {
       handler(e.detail);
     }
   };

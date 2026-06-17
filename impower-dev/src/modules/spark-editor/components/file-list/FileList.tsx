@@ -142,7 +142,7 @@ export default function FileList({
     (async () => {
       const [
         { FileChangeType },
-        { MessageProtocol },
+        { onMessage },
         { DidChangeWatchedFilesMessage },
         { Workspace },
       ] = await Promise.all([
@@ -154,10 +154,8 @@ export default function FileList({
         import("../../workspace/Workspace"),
       ]);
       if (cancelled) return;
-      const onProtocol = (e: Event) => {
-        if (!(e instanceof CustomEvent)) return;
-        if (!DidChangeWatchedFilesMessage.type.is(e.detail)) return;
-        const params = e.detail.params;
+      detach = onMessage(DidChangeWatchedFilesMessage.type, (message) => {
+        const params = message.params;
         const changes = params.changes;
         const includeRegex = include ? globToRegex(include) : /.*/;
         const excludeRegex = exclude ? globToRegex(exclude) : undefined;
@@ -197,10 +195,7 @@ export default function FileList({
           return;
         }
         void reload();
-      };
-      window.addEventListener(MessageProtocol.event, onProtocol);
-      detach = () =>
-        window.removeEventListener(MessageProtocol.event, onProtocol);
+      });
     })();
     return () => {
       cancelled = true;
