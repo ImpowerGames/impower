@@ -1147,354 +1147,428 @@ define style with
   ["$recursive"] = true
 end
 
-define main as style with
-  ["$recursive"] = true
-  font_family = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto,
-    Helvetica, Arial, system-ui, sans-serif, \"Apple Color Emoji\",
-    \"Segoe UI Emoji\", \"Segoe UI Symbol\""
-  font_size = "1.25rem"
-  line_height = "1.5"
-  color = "white"
-  ["@screen_size(sm)"] = { font_size = "1.125rem" }
+style main with
+  $recursive = true
+  font_family = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto,\n    Helvetica, Arial, system-ui, sans-serif, \"Apple Color Emoji\",\n    \"Segoe UI Emoji\", \"Segoe UI Symbol\""
+  font_size = 1.25rem
+  line_height = 1.5
+  color = white
+  @screen_size(sm):
+    font_size = 1.125rem
 end
 
-define row as style with
-  ["$recursive"] = true
-  display = "flex"
-  flex_direction = "row"
+style row with
+  $recursive = true
+  display = flex
+  flex_direction = row
 end
 
-define column as style with
-  ["$recursive"] = true
-  display = "flex"
-  flex_direction = "column"
+style column with
+  $recursive = true
+  display = flex
+  flex_direction = column
 end
 
-define stack as style with
-  ["$recursive"] = true
-  ["> *"] = { position = "absolute", inset = "0" }
+style stack with
+  $recursive = true
+  > *:
+    position = absolute
+    inset = 0
 end
 
-define overlay as style with
-  ["$recursive"] = true
-  position = "absolute"
-  inset = "0"
-end
-
-define text as style with
-  ["$recursive"] = true
-  display = "block"
-  pointer_events = "auto"
-  user_select = "none"
-  text_wrap = "wrap"
-  white_space = "pre-line"
-  [">> *"] = { display = "inline" }
-end
-
-define stroke as style with
-  ["$recursive"] = true
-  display = "block"
-  pointer_events = "none"
-  user_select = "none"
-  text_wrap = "wrap"
-  position = "absolute"
-  inset = "0"
-  text_stroke = "1"
-  color = "black"
-  white_space = "pre-line"
-  [">> *"] = { display = "inline" }
-end
-
-define text_line as style with
-  ["$recursive"] = true
-  display = "block"
-  text_wrap = "wrap"
-end
-
-define text_word as style with
-  ["$recursive"] = true
-  display = "inline-block"
-end
-
-define text_space as style with
-  ["$recursive"] = true
-  display = "inline"
-end
-
-define text_letter as style with
-  ["$recursive"] = true
-end
-
-define image as style with
-  ["$recursive"] = true
-  display = "block"
-  pointer_events = "auto"
-  position = "absolute"
+style overlay with
+  $recursive = true
+  position = absolute
   inset = 0
-  isolation = "isolate"
-  will_change = "transform"
-  container_type = "size"
-  container_name = "image"
-  ["> *"] = { position = "absolute", inset = "0", background_position = "center", background_repeat = "no-repeat", background_size = "auto 100%", will_change = "transform", min_width = "100%", width = "fit-content", translate = "calc(0.5 * (100cqw - 100%)) 0" }
 end
 
-define object as style with
-  ["$recursive"] = true
-  height = "100%"
-  object_fit = "cover"
-  visibility = "hidden"
+style text with
+  $recursive = true
+  display = block
+  pointer_events = auto
+  user_select = none
+  text_wrap = wrap
+  white_space = pre-line
+  >> *:
+    display = inline
 end
 
-define mask as style with
-  ["$recursive"] = true
-  display = "block"
-  pointer_events = "auto"
-  position = "absolute"
+style stroke with
+  $recursive = true
+  display = block
+  pointer_events = none
+  user_select = none
+  text_wrap = wrap
+  position = absolute
   inset = 0
-  isolation = "isolate"
-  will_change = "transform"
-  ["> *"] = { mix_blend_mode = "plus-lighter", position = "absolute", inset = "0", mask_position = "center", mask_repeat = "no-repeat", mask_size = "auto 100%", will_change = "transform" }
+  text_stroke = 1
+  color = black
+  white_space = pre-line
+  >> *:
+    display = inline
 end
 
-define loading_bar as style with
-  ["$recursive"] = true
-  z_index = "1000"
-  position = "relative"
-  width = "100%"
-  height = "4px"
+style text_line with
+  $recursive = true
+  display = block
+  text_wrap = wrap
 end
 
-define loading_fill as style with
-  ["$recursive"] = true
-  width = "100%"
-  height = "100%"
-  background_color = "cyan50"
-  transform = "scaleX(var(--loading_progress))"
-  transform_origin = "left"
+style text_word with
+  $recursive = true
+  display = inline-block
 end
 
-define screen as style with
-  ["$recursive"] = true
-  position = "absolute"
-  inset = "0"
-  pointer_events = "none"
-  [">> *"] = { pointer_events = "none" }
+style text_space with
+  $recursive = true
+  display = inline
 end
 
-define stage as style with
-  ["$recursive"] = true
-  position = "absolute"
-  inset = "0"
-  display = "flex"
-  flex_direction = "column"
+style text_letter with
+  $recursive = true
 end
 
-define backdrop as style with
-  ["$recursive"] = true
-  position = "absolute"
-  inset = "0"
-  background_position = "center"
-  background_size = "cover"
+style image with
+  $recursive = true
+  display = block
+  pointer_events = auto
+  position = absolute
+  inset = 0
+  isolation = isolate
+  will_change = transform
+  container_type = size
+  container_name = image
+  > *:
+    position = absolute
+    inset = 0
+    background_position = center
+    background_repeat = no-repeat
+    background_size = auto 100%
+    will_change = transform
+    min_width = 100%
+    width = fit-content
+    translate = calc(0.5 * (100cqw - 100%)) 0
 end
 
-define portrait as style with
-  ["$recursive"] = true
-  position = "absolute"
-  top = "10%"
-  right = "0"
-  bottom = "0"
-  left = "0"
-  display = "flex"
-  flex_direction = "column"
-  background_size = "auto 100%"
-  background_position = "center"
-  ["> image >> *"] = { mix_blend_mode = "plus-lighter" }
+style object with
+  $recursive = true
+  height = 100%
+  object_fit = cover
+  visibility = hidden
 end
 
-define choices as style with
-  ["$recursive"] = true
-  position = "relative"
-  flex = "1"
-  display = "flex"
-  flex_direction = "column"
-  align_items = "center"
-  justify_content = "center"
-  width = "100%"
-  gap = "8px"
-  margin_bottom = "100px"
-  ["@screen_size(sm)"] = { margin_bottom = "120px" }
+style mask with
+  $recursive = true
+  display = block
+  pointer_events = auto
+  position = absolute
+  inset = 0
+  isolation = isolate
+  will_change = transform
+  > *:
+    mix_blend_mode = plus-lighter
+    position = absolute
+    inset = 0
+    mask_position = center
+    mask_repeat = no-repeat
+    mask_size = auto 100%
+    will_change = transform
 end
 
-define choice as style with
-  ["$recursive"] = true
-  display = "flex"
-  flex_direction = "row"
-  width = "90%"
-  max_width = "800px"
-  background_color = "rgb(0 0 0 / 65%)"
-  padding = "8px"
-  border_radius = "8px"
-  border = "1px solid"
-  text_align = "center"
-  align_items = "center"
-  justify_content = "center"
-  cursor = "pointer"
-  ["@hovered"] = { background_color = "black", transition = "all 0.15s linear" }
+style loading_bar with
+  $recursive = true
+  z_index = 1000
+  position = relative
+  width = 100%
+  height = 4px
 end
 
-define textbox as style with
-  ["$recursive"] = true
-  position = "absolute"
-  bottom = "0"
-  left = "0"
-  right = "0"
-  display = "flex"
-  flex_direction = "column"
-  align_items = "center"
-  color = "white"
+style loading_fill with
+  $recursive = true
+  width = 100%
+  height = 100%
+  background_color = cyan50
+  transform = scaleX(var(--loading_progress))
+  transform_origin = left
+end
+
+style screen with
+  $recursive = true
+  position = absolute
+  inset = 0
+  pointer_events = none
+  >> *:
+    pointer_events = none
+end
+
+style stage with
+  $recursive = true
+  position = absolute
+  inset = 0
+  display = flex
+  flex_direction = column
+end
+
+style backdrop with
+  $recursive = true
+  position = absolute
+  inset = 0
+  background_position = center
+  background_size = cover
+end
+
+style portrait with
+  $recursive = true
+  position = absolute
+  top = 10%
+  right = 0
+  bottom = 0
+  left = 0
+  display = flex
+  flex_direction = column
+  background_size = auto 100%
+  background_position = center
+  > image >> *:
+    mix_blend_mode = plus-lighter
+end
+
+style choices with
+  $recursive = true
+  position = relative
+  flex = 1
+  display = flex
+  flex_direction = column
+  align_items = center
+  justify_content = center
+  width = 100%
+  gap = 8px
+  margin_bottom = 100px
+  @screen_size(sm):
+    margin_bottom = 120px
+end
+
+style choice with
+  $recursive = true
+  display = flex
+  flex_direction = row
+  width = 90%
+  max_width = 800px
+  background_color = rgb(0 0 0 / 65%)
+  padding = 8px
+  border_radius = 8px
+  border = 1px solid
+  text_align = center
+  align_items = center
+  justify_content = center
+  cursor = pointer
+  @hovered:
+    background_color = black
+    transition = all 0.15s linear
+end
+
+style textbox with
+  $recursive = true
+  position = absolute
+  bottom = 0
+  left = 0
+  right = 0
+  display = flex
+  flex_direction = column
+  align_items = center
+  color = white
   flex = 1
 end
 
-define textbox_background as style with
-  ["$recursive"] = true
-  position = "absolute"
-  inset = "0"
-  background_image = "linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)"
+style textbox_background with
+  $recursive = true
+  position = absolute
+  inset = 0
+  background_image = linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)
 end
 
-define textbox_content as style with
-  ["$recursive"] = true
-  position = "relative"
-  flex = "1"
-  display = "flex"
-  flex_direction = "column"
-  max_width = "800px"
-  width = "100%"
-  margin = "0 auto"
-  min_height = "200px"
-  padding = "16px 32px"
-  ["@screen_size(sm)"] = { min_height = "240px", padding = "16px" }
+style textbox_content with
+  $recursive = true
+  position = relative
+  flex = 1
+  display = flex
+  flex_direction = column
+  max_width = 800px
+  width = 100%
+  margin = 0 auto
+  min_height = 200px
+  padding = 16px 32px
+  @screen_size(sm):
+    min_height = 240px
+    padding = 16px
 end
 
-define character_info as style with
-  ["$recursive"] = true
-  display = "flex"
-  flex_direction = "row"
-  justify_content = "center"
-  align_items = "flex-end"
-  gap = "8px"
-  line_height = "1"
-  font_size = "1.875rem"
-  ["@screen_size(sm)"] = { font_size = "1.5rem" }
+style character_info with
+  $recursive = true
+  display = flex
+  flex_direction = row
+  justify_content = center
+  align_items = flex-end
+  gap = 8px
+  line_height = 1
+  font_size = 1.875rem
+  @screen_size(sm):
+    font_size = 1.5rem
 end
 
-define character_name as style with
-  ["$recursive"] = true
-  padding_bottom = "8px"
-  font_weight = "600px"
+style character_name with
+  $recursive = true
+  padding_bottom = 8px
+  font_weight = 600px
 end
 
-define character_parenthetical as style with
-  ["$recursive"] = true
-  padding_bottom = "8px"
-  font_weight = "400px"
-  font_size = "1rem"
-  ["@screen_size(sm)"] = { font_size = "0.875rem" }
+style character_parenthetical with
+  $recursive = true
+  padding_bottom = 8px
+  font_weight = 400px
+  font_size = 1rem
+  @screen_size(sm):
+    font_size = 0.875rem
 end
 
-define title as style with
-  ["$recursive"] = true
-  position = "absolute"
-  inset = "0"
-  padding_left = "40px"
-  padding_right = "40px"
-  display = "flex"
-  flex_direction = "column"
-  justify_content = "center"
-  align_self = "center"
-  text_align = "center"
-  font_weight = "bold"
+style title with
+  $recursive = true
+  position = absolute
+  inset = 0
+  padding_left = 40px
+  padding_right = 40px
+  display = flex
+  flex_direction = column
+  justify_content = center
+  align_self = center
+  text_align = center
+  font_weight = bold
 end
 
-define heading as style with
-  ["$recursive"] = true
-  position = "absolute"
-  inset = "0"
-  padding_left = "40px"
-  padding_right = "40px"
-  display = "flex"
-  flex_direction = "column"
-  justify_content = "center"
-  align_self = "center"
-  text_align = "center"
-  font_weight = "bold"
+style heading with
+  $recursive = true
+  position = absolute
+  inset = 0
+  padding_left = 40px
+  padding_right = 40px
+  display = flex
+  flex_direction = column
+  justify_content = center
+  align_self = center
+  text_align = center
+  font_weight = bold
 end
 
-define transitional as style with
-  ["$recursive"] = true
-  position = "absolute"
-  inset = "0"
-  padding_left = "40px"
-  padding_right = "40px"
-  padding_bottom = "24px"
-  display = "flex"
-  flex_direction = "column"
-  justify_content = "center"
-  align_self = "flex-end"
-  text_align = "right"
-  width = "100%"
+style transitional with
+  $recursive = true
+  position = absolute
+  inset = 0
+  padding_left = 40px
+  padding_right = 40px
+  padding_bottom = 24px
+  display = flex
+  flex_direction = column
+  justify_content = center
+  align_self = flex-end
+  text_align = right
+  width = 100%
 end
 
-define dialogue as style with
-  ["$recursive"] = true
-  margin = "0 auto"
-  width = "68%"
-  ["@screen_size(sm)"] = { width = "80%" }
+style dialogue with
+  $recursive = true
+  margin = 0 auto
+  width = 68%
+  @screen_size(sm):
+    width = 80%
 end
 
-define action as style with
-  ["$recursive"] = true
-  position = "absolute"
-  inset = "0"
-  padding_left = "40px"
-  padding_right = "40px"
-  display = "flex"
-  flex_direction = "column"
-  justify_content = "center"
-  align_self = "center"
-  text_align = "center"
+style action with
+  $recursive = true
+  position = absolute
+  inset = 0
+  padding_left = 40px
+  padding_right = 40px
+  display = flex
+  flex_direction = column
+  justify_content = center
+  align_self = center
+  text_align = center
 end
 
-define continue_indicator as style with
-  ["$recursive"] = true
-  opacity = "0"
-  line_height = "1"
-  width = "16px"
-  height = "16px"
-  position = "absolute"
-  right = "16px"
-  bottom = "16px"
-  font_size = "16px"
-  transition = "opacity 0.25s linear"
-  animation = "0.5s infinite bounce"
-  animation_play_state = "paused"
+style continue_indicator with
+  $recursive = true
+  opacity = 0
+  line_height = 1
+  width = 16px
+  height = 16px
+  position = absolute
+  right = 16px
+  bottom = 16px
+  font_size = 16px
+  transition = opacity 0.25s linear
+  animation = 0.5s infinite bounce
+  animation_play_state = paused
 end
 
 define screen with
   ["$recursive"] = true
 end
 
-define loading as screen with
-  ["$recursive"] = true
-  loading_bar = { loading_fill = {} }
+screen loading with
+  $recursive = true
+  loading_bar:
+    loading_fill:
 end
 
-define main as screen with
-  ["$recursive"] = true
-  stage = { animation = {}, backdrop = { image = "transparent" }, portrait = { image = {} } }
-  choices = { ["choice 0"] = { text = {} }, ["choice 1"] = { text = {} }, ["choice 2"] = { text = {} }, ["choice 3"] = { text = {} }, ["choice 4"] = { text = {} }, ["choice 5"] = { text = {} } }
-  textbox = { textbox_background = {}, textbox_content = { character_info = { character_name = { stroke = {}, text = {} }, character_parenthetical = { stroke = {}, text = {} } }, title = { stroke = {}, text = {} }, heading = { stroke = {}, text = {} }, transitional = { stroke = {}, text = {} }, dialogue = { stroke = {}, text = {} }, action = { stroke = {}, text = {} } }, continue_indicator = { text = "▼" } }
-  screen = { animation = {} }
+screen main with
+  $recursive = true
+  stage:
+    animation:
+    backdrop:
+      image = transparent
+    portrait:
+      image:
+  choices:
+    choice 0:
+      text:
+    choice 1:
+      text:
+    choice 2:
+      text:
+    choice 3:
+      text:
+    choice 4:
+      text:
+    choice 5:
+      text:
+  textbox:
+    textbox_background:
+    textbox_content:
+      character_info:
+        character_name:
+          stroke:
+          text:
+        character_parenthetical:
+          stroke:
+          text:
+      title:
+        stroke:
+        text:
+      heading:
+        stroke:
+        text:
+      transitional:
+        stroke:
+        text:
+      dialogue:
+        stroke:
+        text:
+      action:
+        stroke:
+        text:
+    continue_indicator:
+      text = ▼
+  screen:
+    animation:
 end
 
 define layer with
@@ -1732,6 +1806,11 @@ define ease with
   parameters = { 0.2, 0, 0, 1 }
 end
 
+define none as ease with
+  ["function"] = "cubic-bezier"
+  parameters = { 0, 0, 0, 0 }
+end
+
 define linear as ease with
   ["function"] = "cubic-bezier"
   parameters = { 0, 0, 1, 1 }
@@ -1908,6 +1987,28 @@ define synth with
   phase = 0
   volume = 0.5
   envelope = { offset = 0, attack = 0.007, decay = 0.003, sustain = 0.035, release = 0.01, level = 0.5 }
+  pitch = { frequency = 440, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
+  vibrato = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }
+  fm = { on = false, ratio = 1, ratio_ramp = 0, strength = 0.5, strength_ramp = 0 }
+  arpeggio = { on = false, rate = 50, rate_ramp = 0, max_octaves = 1, max_notes = 160, glide = 0, direction = "up", tones = { 0, 4, 7 }, levels = {}, shapes = {}, phases = {} }
+  tremolo = { on = false, rate = 10, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  ring = { on = false, rate = 1620, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  wahwah = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
+  distortion = { on = false, edge = 0.5, edge_ramp = 0, grit = 0.5, grit_ramp = 0 }
+  bitcrush = { on = false, crush = 0.5, crush_ramp = 0, skip = 0.5, skip_ramp = 0 }
+  delay = { on = false, length = 0.15, strength = 0.5, feedback = 0.75 }
+  reverb = { on = false, room_size = 0.5, mix = 0.5, damping = 0.5 }
+  highpass = { on = false, cutoff = 2000, cutoff_ramp = 0 }
+  lowpass = { on = false, cutoff = 4000, cutoff_ramp = 0, resonance = 0.5 }
+end
+
+define none as synth with
+  ["$link"] = { image = {}, audio = {}, character = {}, typewriter = {}, inflection = {}, prosody = {} }
+  shape = "triangle"
+  phase = 0
+  volume = 0.5
+  envelope = { offset = 0, attack = 0, decay = 0, sustain = 1, release = 0, level = 0 }
   pitch = { frequency = 440, frequency_ramp = 0, frequency_torque = 0, frequency_jerk = 0 }
   vibrato = { on = false, rate = 5, rate_ramp = 0, strength = 0.5, strength_ramp = 0, shape = "sine" }
   harmonics = { on = false, count = 4, count_ramp = 0, falloff = 0.5, falloff_ramp = 0 }

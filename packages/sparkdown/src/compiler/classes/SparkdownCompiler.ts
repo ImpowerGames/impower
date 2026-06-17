@@ -652,6 +652,32 @@ export class SparkdownCompiler {
     const topLevelWeaveObjs: ParsedObject[] = [];
     const topLevelContent: (FlowBase | Weave)[] = [];
 
+    // Implicitly include the builtins prelude at the TOP of the entry program,
+    // BEFORE this file's own chunks are processed. This mirrors how the legacy
+    // `populateBuiltins` seeded `program.context` first: the prelude's `define`s
+    // populate context (and the runtime __def tables) as the base layer, so
+    // authored content that reuses a builtin name (e.g. an authored
+    // `screen main`) OVERRIDES the builtin in place — preserving both the
+    // override semantics and the builtin key order. (Parsing the prelude after
+    // this file's chunk loop instead let the builtin clobber the authored
+    // define and reversed the key order.) Guarded so the prelude doesn't
+    // include itself and includes don't double-add it.
+    if (
+      this._config.useBuiltinsPrelude &&
+      !isInclude &&
+      uri !== BUILTINS_PRELUDE_URI
+    ) {
+      const preludeStory = this.parseIncrementally(
+        BUILTINS_PRELUDE_URI,
+        fileHandler,
+        true,
+        state,
+        program,
+        onDiagnostic,
+      );
+      topLevelIncludedFileObjs.unshift(new IncludedFile(preludeStory));
+    }
+
     while (cur.value) {
       const {
         include,
@@ -1052,26 +1078,6 @@ export class SparkdownCompiler {
     };
     for (const flow of topLevelFlowBaseObjs) {
       autoTerminate(flow);
-    }
-
-    // Implicitly include the builtins prelude at the TOP of the entry program
-    // so its `define`s populate program.context (via the chunk loop above) AND
-    // run first at global-init (the runtime __def tables). Guarded so the
-    // prelude doesn't include itself and includes don't double-add it.
-    if (
-      this._config.useBuiltinsPrelude &&
-      !isInclude &&
-      uri !== BUILTINS_PRELUDE_URI
-    ) {
-      const preludeStory = this.parseIncrementally(
-        BUILTINS_PRELUDE_URI,
-        fileHandler,
-        true,
-        state,
-        program,
-        onDiagnostic,
-      );
-      topLevelIncludedFileObjs.unshift(new IncludedFile(preludeStory));
     }
 
     const combinedParsedStory = new Story(

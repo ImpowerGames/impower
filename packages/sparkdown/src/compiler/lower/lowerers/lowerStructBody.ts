@@ -149,11 +149,48 @@ const STRUCT_REFERENCE_RE =
 function parseScalar(raw: string): unknown {
   const s = raw.trim();
   if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
-    return s.slice(1, -1);
+    // Quoted string literal: strip quotes and process escapes. The line-based
+    // body can't carry a literal newline, so multi-line values (e.g. a CSS
+    // `font_family` stack) are written on one line with `\n` escapes; unescape
+    // them here so the value round-trips. Mirrors lowerExpression's string
+    // escape handling.
+    return unescapeString(s.slice(1, -1));
+  }
+  // `true` / `false` parse to booleans (Luau keywords). No CSS value is the
+  // bare word `true`/`false`, so this is safe — and lets `$recursive = true`
+  // round-trip as a boolean rather than the string "true".
+  if (s === "true") {
+    return true;
+  }
+  if (s === "false") {
+    return false;
   }
   const ref = STRUCT_REFERENCE_RE.exec(s);
   if (ref) {
     return { $type: ref[1], $name: ref[2] };
   }
   return s;
+}
+
+function unescapeString(s: string): string {
+  return s.replace(/\\(.)/g, (_m, c: string) => {
+    switch (c) {
+      case "n":
+        return "\n";
+      case "r":
+        return "\r";
+      case "t":
+        return "\t";
+      case "b":
+        return "\b";
+      case "f":
+        return "\f";
+      case "v":
+        return "\v";
+      case "0":
+        return "\0";
+      default:
+        return c; // \\  \"  and any other escaped char → the literal char
+    }
+  });
 }

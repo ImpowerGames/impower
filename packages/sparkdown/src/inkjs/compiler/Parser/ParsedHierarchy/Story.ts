@@ -58,7 +58,6 @@ export class Story extends FlowBase {
       case "system":
       case "scene":
       case "branch":
-      case "none":
         return true;
     }
 
