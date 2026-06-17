@@ -10,7 +10,7 @@ import {
   Tab,
   Tabs,
 } from "@impower/impower-ui/components";
-import { useEffect, useState } from "preact/hooks";
+import { useComputed } from "@preact/signals";
 import { startTransition } from "preact/compat";
 import workspace from "../../workspace/WorkspaceStore";
 import Assets from "../assets/Assets";
@@ -33,39 +33,12 @@ export default function MainWindow(_props: MainWindowProps) {
   // pane is jarring. Suppress active-tab highlighting until projectId is set
   // — that's the signal that restoreProjectWorkspace has run to completion.
   const workspaceReady = !!workspace.signals.projectId.value;
-  const [previewActive, setPreviewActive] = useState<"start" | "end">("start");
-
-  useEffect(() => {
-    let dispose: (() => void) | undefined;
-    Promise.all([
-      import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
-      import(
-        "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage"
-      ),
-      import(
-        "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage"
-      ),
-    ]).then(
-      ([
-        { MessageProtocol },
-        { DidExpandPreviewPaneMessage },
-        { DidCollapsePreviewPaneMessage },
-      ]) => {
-        const onProtocol = (e: Event) => {
-          if (!(e instanceof CustomEvent)) return;
-          if (DidExpandPreviewPaneMessage.type.is(e.detail)) {
-            setPreviewActive("end");
-          } else if (DidCollapsePreviewPaneMessage.type.is(e.detail)) {
-            setPreviewActive("start");
-          }
-        };
-        window.addEventListener(MessageProtocol.event, onProtocol);
-        dispose = () =>
-          window.removeEventListener(MessageProtocol.event, onProtocol);
-      },
-    );
-    return () => dispose?.();
-  }, []);
+  // Which SplitPane side is active on mobile — derived straight from the
+  // reactive store rather than mirrored via DidExpand/CollapsePreviewPane
+  // window events.
+  const previewActive = useComputed(() =>
+    workspace.state.value.preview?.revealed ? "end" : "start",
+  ).value;
 
   const onPaneChange = (next: string) => {
     // Mark the workspace-store update (and the resulting Logic / Assets
