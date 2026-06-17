@@ -1,15 +1,12 @@
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
-import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
-import { fetchProperty } from "./fetchProperty";
 import { readProperty } from "./readProperty";
 
 export const getExpectedSelectorTypes = (
   program: SparkProgram,
   declaration: SparkDeclaration | undefined,
   config?: SparkdownCompilerConfig,
-  state?: SparkdownCompilerState,
 ) => {
   const structType = declaration?.type;
   const structName = declaration?.name;
@@ -29,22 +26,13 @@ export const getExpectedSelectorTypes = (
       .split(".")
       .map((x) => (!Number.isNaN(Number(x)) ? 0 : x))
       .join(".");
-    const expectedPropertyValue = state?.contextPropertyRegistry
-      ? fetchProperty(
-          expectedPropertyPath,
-          state?.contextPropertyRegistry?.[structType]?.["$default"],
-          state?.contextPropertyRegistry?.[structType]?.[
-            `$optional:${structName}`
-          ],
-          state?.contextPropertyRegistry?.[structType]?.["$optional"],
-        )
-      : readProperty(
-          expectedPropertyPath,
-          program.context?.[structType]?.["$default"],
-          program.context?.[structType]?.[`$optional:${structName}`],
-          program.context?.[structType]?.["$optional"],
-          config?.definitions?.optionals?.[structType]?.["$optional"],
-        );
+    const expectedPropertyValue = readProperty(
+      expectedPropertyPath,
+      program.context?.[structType]?.["$default"],
+      program.context?.[structType]?.[`$optional:${structName}`],
+      program.context?.[structType]?.["$optional"],
+      config?.definitions?.optionals?.[structType]?.["$optional"],
+    );
     if (
       expectedPropertyValue &&
       typeof expectedPropertyValue === "object" &&
@@ -55,35 +43,18 @@ export const getExpectedSelectorTypes = (
     }
     // Use the property value array specified in $schema to infer additional possible types
     const schemaPropertyValueArrays = [
-      state?.contextPropertyRegistry
-        ? fetchProperty(
-            expectedPropertyPath,
-            state?.contextPropertyRegistry?.[structType]?.[
-              `$schema:${structName}`
-            ],
-          )
-        : readProperty(
-            expectedPropertyPath,
-            program.context?.[structType]?.[`$schema:${structName}`],
-          ),
-      state?.contextPropertyRegistry
-        ? fetchProperty(
-            expectedPropertyPath,
-            state?.contextPropertyRegistry?.[structType]?.["$schema"],
-          )
-        : readProperty(
-            expectedPropertyPath,
-            program.context?.[structType]?.["$schema"],
-          ),
-      state?.contextPropertyRegistry
-        ? fetchProperty(
-            expectedPropertyPath,
-            state?.contextPropertyRegistry?.[structType]?.["$schema"],
-          )
-        : readProperty(
-            expectedPropertyPath,
-            config?.definitions?.schemas?.[structType]?.["$schema"],
-          ),
+      readProperty(
+        expectedPropertyPath,
+        program.context?.[structType]?.[`$schema:${structName}`],
+      ),
+      readProperty(
+        expectedPropertyPath,
+        program.context?.[structType]?.["$schema"],
+      ),
+      readProperty(
+        expectedPropertyPath,
+        config?.definitions?.schemas?.[structType]?.["$schema"],
+      ),
     ];
     for (const schemaPropertyValueArray of schemaPropertyValueArrays) {
       if (Array.isArray(schemaPropertyValueArray)) {

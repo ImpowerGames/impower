@@ -43,9 +43,6 @@ export interface CompiledBlock {
   context?: {
     [type: string]: { [name: string]: any };
   };
-  contextPropertyRegistry?: {
-    [type: string]: { [name: string]: { [propertyPath: string]: any } };
-  };
   defaultDefinitions?: { [type: string]: any };
   json?: string;
   uuid?: string;

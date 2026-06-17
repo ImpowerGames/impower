@@ -407,22 +407,18 @@ export function lowerLuauDefine(
   // carries a StructDefinition above, but that parsed-hierarchy → engine
   // serialization path emits an EMPTY struct for OOP defines (the runtime
   // `__def` table is treated as their source of truth), so the struct
-  // never lands in `program.context` / `contextPropertyRegistry`. The
-  // engine's reference resolver (`resolveSelector`) only consults those,
-  // so e.g. a dialogue cue `RAFFLES:` can't find its character — every cue
-  // warns and no portrait renders. The structural UI lowerers
-  // (style/screen/component) hit the same wall and solve it by emitting
-  // directly through the chunk's `context` field; do the same here for the
-  // scalar (engine-relevant) properties. `resolveSelector` prefers
-  // `contextPropertyRegistry` when present, and its property/value match
-  // (cue → character by `name`) reads BOTH, so populate both. Non-scalar
-  // props are left to the runtime table (see `coerceScalarLiteral`).
+  // never lands in `program.context`. The engine's reference resolver
+  // (`resolveSelector`) only consults `program.context`, so e.g. a dialogue
+  // cue `RAFFLES:` can't find its character — every cue warns and no portrait
+  // renders. The structural UI lowerers (style/screen/component) hit the same
+  // wall and solve it by emitting directly through the chunk's `context`
+  // field; do the same here for the scalar (engine-relevant) properties.
+  // Non-scalar props are left to the runtime table (see `coerceScalarLiteral`).
   if (parentIdentifier) {
     const type = parentIdentifier.name ?? "";
     const name = nameIdentifier.name ?? "";
     if (type && name) {
       const struct: Record<string, unknown> = { $type: type, $name: name };
-      const flat: Record<string, unknown> = {};
       for (const prop of properties) {
         // Scalars (and engine value tokens like `surface-2`) come from the
         // raw source; tables/arrays/references fall back to the parsed
@@ -433,11 +429,9 @@ export function lowerLuauDefine(
         }
         if (value !== undefined) {
           struct[prop.name] = value;
-          flat[prop.name] = value;
         }
       }
       block.context = { [type]: { [name]: struct } };
-      block.contextPropertyRegistry = { [type]: { [name]: flat } };
     }
   } else {
     // A ROOT define (`define X with <props>`, no `as T`) DECLARES type X and
@@ -454,7 +448,6 @@ export function lowerLuauDefine(
         $type: type,
         $name: "$default",
       };
-      const flat: Record<string, unknown> = {};
       for (const prop of properties) {
         let value = coerceScalarLiteral(prop.rawValue);
         if (value === undefined) {
@@ -462,11 +455,9 @@ export function lowerLuauDefine(
         }
         if (value !== undefined) {
           struct[prop.name] = value;
-          flat[prop.name] = value;
         }
       }
       block.context = { [type]: { ["$default"]: struct } };
-      block.contextPropertyRegistry = { [type]: { ["$default"]: flat } };
     }
   }
 

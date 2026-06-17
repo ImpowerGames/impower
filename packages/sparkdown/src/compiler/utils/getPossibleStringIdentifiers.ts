@@ -1,15 +1,12 @@
 import { SparkDeclaration } from "../types/SparkDeclaration";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
-import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
-import { fetchProperty } from "./fetchProperty";
 import { readProperty } from "./readProperty";
 
 export const getPossibleStringIdentifiers = (
   program: SparkProgram,
   declaration: SparkDeclaration | undefined,
   config?: SparkdownCompilerConfig,
-  state?: SparkdownCompilerState,
 ) => {
   const structType = declaration?.type;
   const structName = declaration?.name;
@@ -31,35 +28,18 @@ export const getPossibleStringIdentifiers = (
       .join(".");
     // Use the property value array specified in $schema to infer additional possible types
     const schemaPropertyValueArrays = [
-      state?.contextPropertyRegistry
-        ? fetchProperty(
-            expectedPropertyPath,
-            state?.contextPropertyRegistry?.[structType]?.[
-              `$schema:${structName}`
-            ],
-          )
-        : readProperty(
-            expectedPropertyPath,
-            program.context?.[structType]?.[`$schema:${structName}`],
-          ),
-      state?.contextPropertyRegistry
-        ? fetchProperty(
-            expectedPropertyPath,
-            state?.contextPropertyRegistry?.[structType]?.["$schema"],
-          )
-        : readProperty(
-            expectedPropertyPath,
-            program.context?.[structType]?.["$schema"],
-          ),
-      state?.contextPropertyRegistry
-        ? fetchProperty(
-            expectedPropertyPath,
-            state?.contextPropertyRegistry?.[structType]?.["$schema"],
-          )
-        : readProperty(
-            expectedPropertyPath,
-            config?.definitions?.schemas?.[structType]?.["$schema"],
-          ),
+      readProperty(
+        expectedPropertyPath,
+        program.context?.[structType]?.[`$schema:${structName}`],
+      ),
+      readProperty(
+        expectedPropertyPath,
+        program.context?.[structType]?.["$schema"],
+      ),
+      readProperty(
+        expectedPropertyPath,
+        config?.definitions?.schemas?.[structType]?.["$schema"],
+      ),
     ];
     for (const schemaPropertyValueArray of schemaPropertyValueArrays) {
       if (Array.isArray(schemaPropertyValueArray)) {
