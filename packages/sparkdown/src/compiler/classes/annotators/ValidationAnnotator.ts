@@ -11,56 +11,19 @@ const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
 const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
-const IMAGE_CLAUSE_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.IMAGE_CLAUSE_KEYWORDS || [];
-const AUDIO_CLAUSE_KEYWORDS =
-  GRAMMAR_DEFINITION.variables.AUDIO_CLAUSE_KEYWORDS || [];
 
-const PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES = [
-  "hovered",
-  "focused",
-  "pressed",
-  "disabled",
-  "enabled",
-  "checked",
-  "unchecked",
-  "required",
-  "valid",
-  "invalid",
-  "readonly",
-  "first",
-  "last",
-  "only",
-  "odd",
-  "even",
-  "empty",
-  "blank",
-  "opened",
-  "before",
-  "after",
-  "placeholder",
-  "selection",
-  "marker",
-  "backdrop",
-  "initial",
-];
-const PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES = [
-  "language",
-  "direction",
-  "has",
-  "screen",
-  "theme",
-];
-const PROPERTY_SELECTOR_DIRECTION_ARGUMENTS = ["rtl", "ltr"];
-const PROPERTY_SELECTOR_THEME_ARGUMENTS = ["dark", "light"];
-const PROPERTY_SELECTOR_SCREEN_ARGUMENTS = [
-  "xs",
-  "sm",
-  "md",
-  "lg",
-  "xl",
-  "2xl",
-];
+// NOTE: This annotator previously also validated property selectors
+// (`PropertySelectorSimpleConditionName`/`...FunctionConditionName`/
+// `PropertySelectorConstant`), reserved define names (`DefineVariableName`),
+// and `InvalidFieldValue`. The Luau port restructured the selector grammar
+// (now `SimpleSelectorFunction`/`RecursiveSelectorFunction`/
+// `SelectorPropertyNamePart`, bad names caught by `InvalidSelectorPropertyName`)
+// and typed field values (`Numeric/Boolean/String/UnquotedStringFieldValue`),
+// so those node names no longer exist — the branches were dead. They were
+// removed (along with the `ConditionalBracedBlock` value-type checks: the
+// asset-clause value position now only admits TimeValue/NumberValue/NameValue,
+// so no conditional node appears there). Only the asset-command validations
+// below remain live.
 
 export interface Diagnostic {
   message?: string;
@@ -70,114 +33,10 @@ export interface Diagnostic {
 export class ValidationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Diagnostic>
 > {
-  selectorFunctionName = "";
-
-  override begin(): void {
-    this.selectorFunctionName = "";
-  }
-
   override enter(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
-    if (nodeRef.name === "DefineVariableName") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      if (
-        IMAGE_CLAUSE_KEYWORDS.includes(text) ||
-        AUDIO_CLAUSE_KEYWORDS.includes(text)
-      ) {
-        const message = `\`${text}\` is not allowed as a defined name`;
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({
-            message,
-            severity: "error",
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-    }
-    // Report invalid property selectors
-    if (nodeRef.name === "PropertySelectorSimpleConditionName") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      if (!PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)) {
-        const message = PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(
-          text,
-        )
-          ? "Conditional selector should be a function"
-          : "Unrecognized conditional selector";
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "PropertySelectorFunctionConditionName") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      this.selectorFunctionName = text;
-      if (!PROPERTY_SELECTOR_FUNCTION_CONDITION_NAMES.includes(text)) {
-        const message = PROPERTY_SELECTOR_SIMPLE_CONDITION_NAMES.includes(text)
-          ? "Conditional selector is not a function"
-          : "Unrecognized conditional selector";
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "PropertySelectorConstant") {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      if (
-        this.selectorFunctionName === "direction" &&
-        !PROPERTY_SELECTOR_DIRECTION_ARGUMENTS.includes(text)
-      ) {
-        const message = `Unrecognized direction argument: Supported values are ${formatList(
-          PROPERTY_SELECTOR_DIRECTION_ARGUMENTS,
-        )}`;
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-      if (
-        this.selectorFunctionName === "theme" &&
-        !PROPERTY_SELECTOR_THEME_ARGUMENTS.includes(text)
-      ) {
-        const message = `Unrecognized theme argument: Supported values are ${formatList(
-          PROPERTY_SELECTOR_THEME_ARGUMENTS,
-        )}`;
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-      if (
-        this.selectorFunctionName === "screen" &&
-        !PROPERTY_SELECTOR_SCREEN_ARGUMENTS.includes(text)
-      ) {
-        const message = `Unrecognized screen argument: Supported values are ${formatList(
-          PROPERTY_SELECTOR_SCREEN_ARGUMENTS,
-        )}`;
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({ message }).range(
-            nodeRef.from,
-            nodeRef.to,
-          ),
-        );
-        return annotations;
-      }
-    }
     if (nodeRef.name === "AssetCommandFilterName") {
       const context = getContextNames(nodeRef.node);
       // Record audio filter reference
@@ -246,16 +105,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (nodeRef.name === "InvalidFieldValue") {
-      const message = `Invalid property value`;
-      annotations.push(
-        SparkdownAnnotation.mark<Diagnostic>({
-          message,
-          severity: "error",
-        }).range(nodeRef.from, nodeRef.to),
-      );
-      return annotations;
-    }
     if (nodeRef.name === "AssetCommandClauseKeyword") {
       const text = this.read(nodeRef.from, nodeRef.to);
       const nextNonWhitespacePos = this.getNextNonWhitespacePos(nodeRef.to);
@@ -268,7 +117,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         : "";
       if (text === "after") {
         if (
-          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "TimeValue" &&
           nextValueNodeType !== "NumberValue"
         ) {
@@ -290,7 +138,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       if (text === "over") {
         if (
-          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "TimeValue" &&
           nextValueNodeType !== "NumberValue"
         ) {
@@ -314,7 +161,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         const context = getContextNames(nodeRef.node);
         if (
           context.includes("ImageCommand") &&
-          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "NameValue"
         ) {
           const message = `\`${text}\` should be followed by the name of a transition or animation\n> e.g. \`with shake\``;
@@ -334,7 +180,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
         if (
           context.includes("AudioCommand") &&
-          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "NameValue"
         ) {
           const message =
@@ -358,7 +203,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         const context = getContextNames(nodeRef.node);
         if (
           context.includes("ImageCommand") &&
-          nextValueNodeType !== "ConditionalBracedBlock" &&
           nextValueNodeType !== "NameValue"
         ) {
           const message = `\`${text}\` should be followed by the name of an ease\n> e.g. \`ease linear\``;
@@ -379,8 +223,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       if (text === "to") {
         if (
-          (nextValueNodeType !== "ConditionalBracedBlock" &&
-            nextValueNodeType !== "NumberValue") ||
+          nextValueNodeType !== "NumberValue" ||
           (nextValueNodeType === "NumberValue" && Number(nextValueNodeText) < 0)
         ) {
           const message = `\`${text}\` should be followed by a number greater than 0\n> e.g. \`to 0\`, \`to 0.5\`, \`to 1\``;
@@ -409,8 +252,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       ) {
         if (
           nextValueNode &&
-          (nextValueNodeType === "ConditionalBracedBlock" ||
-            nextValueNodeType === "TimeValue" ||
+          (nextValueNodeType === "TimeValue" ||
             nextValueNodeType === "NumberValue")
         ) {
           const message = `\`${text}\` is a flag and cannot take an argument`;

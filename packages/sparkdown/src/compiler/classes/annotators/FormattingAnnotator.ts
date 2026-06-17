@@ -39,7 +39,6 @@ const KEYWORDS_REQUIRING_TRAILING_SPACE = new Set([
   "LuauWithKeyword",
   "LuauNewKeyword",
   "LuauLocalKeyword",
-  "LuauStoreKeyword",
   "LuauConstKeyword",
   "LuauFunctionKeyword",
   "LuauDefineKeyword",
@@ -219,11 +218,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     for (const ancestor of stack) {
       if (ancestor === nodeRef.node) continue;
       const name = ancestor.name;
-      if (
-        name === "sparkdown" ||
-        name === "Program" ||
-        name === "Document"
-      ) {
+      if (name === "sparkdown") {
         continue;
       }
       // Any real ancestor disqualifies us.
