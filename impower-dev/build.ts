@@ -217,35 +217,6 @@ const viteDefineProcessPlugin = (): Plugin => ({
   },
 });
 
-const viteInlineWorkerPlugin = (): Plugin => ({
-  name: "vite-inline-worker",
-  enforce: "pre",
-  async load(id) {
-    if (id.includes("\0")) return;
-    const file = id.split("?")[0];
-    if (/\.worker\.(?:ts|js)$/.test(file)) {
-      console.log("");
-      const result = await build({
-        configFile: false,
-        build: {
-          lib: { entry: file, formats: ["es"], fileName: "worker" },
-          write: false,
-          minify: MINIFY,
-        },
-      });
-      // @ts-ignore
-      let bundledText = Array.isArray(result)
-        ? result[0].output[0].code
-        : "output" in result
-          ? result.output[0].code || ""
-          : "";
-      const exportIndex = bundledText.lastIndexOf("export");
-      if (exportIndex >= 0) bundledText = bundledText.slice(0, exportIndex);
-      return `export default ${JSON.stringify(bundledText)};`;
-    }
-  },
-});
-
 // Cache: file path → true if it's a Tailwind entry (contains @import "tailwindcss").
 // Such files must NOT be wrapped as `export default "..."` — they need Vite's
 // normal CSS pipeline (with @tailwindcss/vite) so utility classes are
@@ -616,7 +587,6 @@ const buildPages = async () => {
     configFile: false,
     resolve: { alias, dedupe },
     plugins: [
-      viteInlineWorkerPlugin(),
       viteLoadersPlugin(),
       viteDefineProcessPlugin(),
       viteBannerPlugin(PROCESS_ENV_BANNER_JS),
@@ -943,7 +913,6 @@ const serve = async () => {
     },
     plugins: [
       viteDefineProcessPlugin(),
-      viteInlineWorkerPlugin(),
       viteLoadersPlugin(),
       preact(),
       viteStaticallyRenderedPagesPlugin(),
