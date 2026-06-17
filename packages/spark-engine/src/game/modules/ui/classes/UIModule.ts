@@ -6,6 +6,8 @@ import type {
   BodyNode,
   ContentPart,
   ElementNode,
+  IfNode,
+  MatchNode,
   ScreenNode,
 } from "@impower/sparkdown/src/compiler/types/SparkleNode";
 import type { Game } from "../../../core/classes/Game";
@@ -74,6 +76,31 @@ export interface UIState {
   attributes?: Record<string, Record<string, string | null>>;
 }
 
+/** A reactive span: an inline element whose text comes (partly) from a `{expr}`
+ *  binding, with the last resolved value for equality-gated updates. */
+interface ReactiveText {
+  element: Element;
+  content: ContentPart[];
+  last: string;
+}
+
+/** An if/match conditional: a persistent wrapper element + the currently-active
+ *  branch index (`-1` = else/no-match, `-2` = not yet mounted) + the child scope
+ *  holding that branch's registrations (dropped when the branch switches). */
+interface ReactiveRegion {
+  wrapper: Element;
+  node: IfNode | MatchNode;
+  active: number;
+  scope: ReactiveScope;
+}
+
+/** Reactive registrations produced by one mount pass, mirroring the mount tree
+ *  so a subtree's spans + nested regions can be torn down together. */
+interface ReactiveScope {
+  texts: ReactiveText[];
+  regions: ReactiveRegion[];
+}
+
 export type UIMessageMap = AnimateElementsMessageMap &
   CreateElementMessageMap &
   DestroyElementMessageMap &
@@ -135,7 +162,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override onReset() {
     this._events = {};
-    this._reactiveTexts = [];
+    this._rootScopes = [];
   }
 
   override async onConnected() {
@@ -710,20 +737,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   // I2 — one-way binding eval: `{expr}` content is evaluated to its live value at
   // mount, the bound span is registered, and `refreshScreens()` re-evaluates +
   // updates changed spans on the coarse per-turn boundary (Coordinator.display).
-  // Control-flow (I3 if/match, I4 for), @events (I5), and #prop bindings land in
-  // later increments.
+  // I3 — if/match: each conditional mounts a PERSISTENT, layout-transparent
+  // wrapper (`display: contents`) that reserves its sibling position. Only the
+  // active branch's children live inside it; when the condition changes, the
+  // wrapper's contents are torn down and the new branch is mounted in place —
+  // so ordering survives even though ui/create is append-only. Reactive
+  // registrations are kept in a scope TREE that mirrors the mount tree, so a
+  // branch's spans/nested-regions are dropped together on unmount.
+  // for/slot/fill (I4+), @events (I5), and #prop bindings land later.
   // ---------------------------------------------------------------------------
 
-  /** Spans whose text comes (partly) from a reactive `{expr}` binding, with the
-   *  last resolved value for equality-gated updates. Rebuilt on each mount. */
-  protected _reactiveTexts: {
-    element: Element;
-    content: ContentPart[];
-    last: string;
-  }[] = [];
+  /** One {@link ReactiveScope} per mounted screen — the roots of the scope tree
+   *  walked each turn by {@link refreshScreens}. Rebuilt on every mount. */
+  protected _rootScopes: ReactiveScope[] = [];
 
   constructScreensFromAst(...structNames: string[]): void {
-    this._reactiveTexts = [];
+    this._rootScopes = [];
     const screens = this._game.program?.sparkle?.screens;
     if (!screens) {
       return;
@@ -754,22 +783,32 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
+    const scope: ReactiveScope = { texts: [], regions: [] };
+    this._rootScopes.push(scope);
     for (const child of screen.children) {
-      this.mountNode(uiEl, child);
+      this.mountNode(uiEl, child, scope);
     }
     return uiEl;
   }
 
-  protected mountNode(parent: Element, node: BodyNode): void {
+  protected mountNode(
+    parent: Element,
+    node: BodyNode,
+    scope: ReactiveScope,
+  ): void {
     if (node.kind === "element") {
-      this.mountElement(parent, node);
+      this.mountElement(parent, node, scope);
+    } else if (node.kind === "if" || node.kind === "match") {
+      this.mountRegion(parent, node, scope);
     }
-    // Control-flow + slot/fill nodes (if/for/match/slot/fill) are mounted in
-    // later increments (I3 if/match, I4 for, plus component slot/fill); they do
-    // not appear in the static screen golden, so I1 skips them.
+    // for/slot/fill are mounted in later increments (I4 for; component slot/fill).
   }
 
-  protected mountElement(parent: Element, node: ElementNode): Element {
+  protected mountElement(
+    parent: Element,
+    node: ElementNode,
+    scope: ReactiveScope,
+  ): Element {
     // Element name = builtin tag joined with its bare-word classes, matching the
     // static path's dotted-segment naming ("mask shadow_1", "text", "stage").
     const name = [node.tag, ...node.classes].join(" ");
@@ -777,22 +816,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // Builtin leaf semantics, mirroring constructScreen's class-detection:
     // text/stroke render an inline span; image/mask render a background span.
     if (node.tag === "text" || node.tag === "stroke") {
-      this.mountTextContent(el, node.content);
+      this.mountTextContent(el, node.content, scope);
     } else if (node.tag === "image") {
       this.mountImageContent(el, node.content, "background_image");
     } else if (node.tag === "mask") {
       this.mountImageContent(el, node.content, "mask_image");
     }
     for (const child of node.children) {
-      this.mountNode(el, child);
+      this.mountNode(el, child, scope);
     }
     return el;
   }
 
   /** Mount a text/stroke leaf's inline span. A content-less leaf creates no span
    *  (matching constructScreen's `typeof v === "string"` guard); content with a
-   *  reactive `{expr}` binding registers the span for per-turn re-eval. */
-  protected mountTextContent(parent: Element, content?: ContentPart[]): void {
+   *  reactive `{expr}` binding registers the span in `scope` for per-turn
+   *  re-eval. */
+  protected mountTextContent(
+    parent: Element,
+    content: ContentPart[] | undefined,
+    scope: ReactiveScope,
+  ): void {
     if (!content || content.length === 0) {
       return;
     }
@@ -803,7 +847,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       style: { display: "inline" },
     });
     if (this.contentHasBinding(content)) {
-      this._reactiveTexts.push({ element: span, content, last: text });
+      scope.texts.push({ element: span, content, last: text });
     }
   }
 
@@ -819,6 +863,80 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const value =
       content && content.length > 0 ? this.resolveContent(content) : undefined;
     this.createImage(parent, [value], property);
+  }
+
+  /** Mount an if/match conditional. A persistent `display: contents` wrapper
+   *  reserves the sibling position; the active branch's children are mounted
+   *  into it via a child scope, recorded as a region of the parent scope. */
+  protected mountRegion(
+    parent: Element,
+    node: IfNode | MatchNode,
+    scope: ReactiveScope,
+  ): void {
+    const wrapper = this.createElement(parent, {
+      type: "div",
+      name: "",
+      style: { display: "contents" },
+    });
+    const region: ReactiveRegion = {
+      wrapper,
+      node,
+      active: -2, // nothing mounted yet
+      scope: { texts: [], regions: [] },
+    };
+    scope.regions.push(region);
+    this.activateBranch(region);
+  }
+
+  /** Mount the currently-selected branch of a region into its wrapper, recording
+   *  `active` so refresh can detect a change. `-1` = else/no-match (renders
+   *  `else` children, or nothing). */
+  protected activateBranch(region: ReactiveRegion): void {
+    const selected = this.selectBranch(region.node);
+    region.active = selected;
+    const children = this.branchChildren(region.node, selected);
+    for (const child of children) {
+      this.mountNode(region.wrapper, child, region.scope);
+    }
+  }
+
+  /** Index of the active branch: the first truthy `if`/`elseif` condition, the
+   *  first matching `match` case, or `-1` for else/no-match. */
+  protected selectBranch(node: IfNode | MatchNode): number {
+    if (node.kind === "if") {
+      for (let i = 0; i < node.branches.length; i += 1) {
+        if (this.isTruthy(this.evalBinding(node.branches[i]!.condition))) {
+          return i;
+        }
+      }
+      return -1;
+    }
+    const value = this.evalBinding(node.expr);
+    for (let i = 0; i < node.cases.length; i += 1) {
+      if (this.evalBinding(node.cases[i]!.value) === value) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /** Children of the selected branch (`-1` → `else` arm, or empty). */
+  protected branchChildren(
+    node: IfNode | MatchNode,
+    selected: number,
+  ): BodyNode[] {
+    if (selected < 0) {
+      return node.else ?? [];
+    }
+    return node.kind === "if"
+      ? node.branches[selected]!.children
+      : node.cases[selected]!.children;
+  }
+
+  /** Luau truthiness: everything except `nil` and `false` is truthy (0 and ""
+   *  are truthy). */
+  protected isTruthy(value: unknown): boolean {
+    return value != null && value !== false;
   }
 
   protected contentHasBinding(content: ContentPart[]): boolean {
@@ -841,21 +959,53 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return text;
   }
 
-  /** Coarse per-turn re-eval: re-resolve every registered reactive span and
-   *  emit an `ui/update` only when its text changed (equality-gated). Called on
-   *  the existing per-beat boundary (Coordinator.display → updateUI), where the
-   *  story is settled so {@link evalBinding}'s EvaluateFunction is safe. No-op
-   *  unless the reactive path is active. */
+  /** Coarse per-turn re-eval over the scope tree: re-resolve reactive spans
+   *  (equality-gated ui/update) and switch any conditional whose active branch
+   *  changed. Called on the existing per-beat boundary (Coordinator.display →
+   *  updateUI), where the story is settled so {@link evalBinding}'s
+   *  EvaluateFunction is safe. No-op unless the reactive path is active. */
   refreshScreens(): void {
     if (!this._reactive) {
       return;
     }
-    for (const entry of this._reactiveTexts) {
+    for (const scope of this._rootScopes) {
+      this.refreshScope(scope);
+    }
+  }
+
+  protected refreshScope(scope: ReactiveScope): void {
+    for (const entry of scope.texts) {
       const text = this.resolveContent(entry.content);
       if (text !== entry.last) {
         entry.last = text;
         this.updateElement(entry.element, { content: { text } });
       }
+    }
+    for (const region of scope.regions) {
+      this.refreshRegion(region);
+    }
+  }
+
+  protected refreshRegion(region: ReactiveRegion): void {
+    const next = this.selectBranch(region.node);
+    if (next === region.active) {
+      // Same branch still active — recurse to refresh its inner scope.
+      this.refreshScope(region.scope);
+      return;
+    }
+    // Branch switched: tear down the old subtree + its registrations, then
+    // mount the new branch into the same persistent wrapper (position preserved).
+    this.teardownRegion(region);
+    region.scope = { texts: [], regions: [] };
+    this.activateBranch(region);
+  }
+
+  /** Destroy a region's mounted subtree (everything inside its wrapper). The
+   *  wrapper itself persists; dropping `region.scope` discards all the span /
+   *  nested-region registrations that subtree owned. */
+  protected teardownRegion(region: ReactiveRegion): void {
+    for (const child of [...region.wrapper.children]) {
+      this.destroyElement(child);
     }
   }
 
