@@ -1,6 +1,7 @@
 import preact from "@preact/preset-vite";
 import tailwindcss from "@tailwindcss/vite";
-import { exec, execSync } from "child_process";
+import { exec, execSync, spawn } from "child_process";
+import * as chokidar from "chokidar";
 import * as dotenv from "dotenv";
 import fs from "fs";
 import { createRequire } from "module";
@@ -278,6 +279,69 @@ const viteBannerPlugin = (banner: string): Plugin => ({
 const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
   name: "vite-statically-rendered-pages",
   configureServer(server) {
+    const outDevDir = path.resolve(process.cwd(), outdir, ".dev");
+    fs.mkdirSync(outDevDir, { recursive: true });
+
+    // --- Worker hot-reload ---------------------------------------------------
+    // External workers (`new Worker("/x.js")`) live in sibling packages and are
+    // bundled by their own esbuild.js, so they sit OUTSIDE Vite's module graph —
+    // editing them (or their transitively-bundled engine/compiler deps) used to
+    // require a full dev-server restart. Instead, run each worker's esbuild in
+    // --watch mode: it rebuilds incrementally into outDevDir on any input
+    // change, and a watcher on those outputs triggers a full page reload, which
+    // re-instantiates the Worker with the fresh bundle.
+    const workerProcs: ReturnType<typeof spawn>[] = [];
+    for (const wp of externalWorkerPaths) {
+      const pkgRoot = wp.substring(0, wp.indexOf("/src/"));
+      const esbuildScript = path.resolve(process.cwd(), pkgRoot, "esbuild.js");
+      if (fs.existsSync(esbuildScript)) {
+        workerProcs.push(
+          spawn("node", ["esbuild.js", `--outdir=${outDevDir}`, "--watch"], {
+            cwd: path.dirname(esbuildScript),
+            stdio: "ignore",
+          }),
+        );
+      }
+    }
+    const killWorkerProcs = () => {
+      for (const p of workerProcs) {
+        try {
+          p.kill();
+        } catch {
+          /* already gone */
+        }
+      }
+    };
+    server.httpServer?.once("close", killWorkerProcs);
+    process.once("exit", killWorkerProcs);
+
+    // Reload the page when a rebuilt worker bundle (or the SW source) changes.
+    // Suppress the burst of events from the watch processes' initial builds so
+    // the freshly-loaded page isn't immediately reloaded on startup.
+    let acceptReloads = false;
+    setTimeout(() => {
+      acceptReloads = true;
+    }, 3000);
+    let reloadTimer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleReload = () => {
+      if (!acceptReloads) return;
+      // Coalesce the burst of fs events a single esbuild rebuild emits (it
+      // rewrites the bundle + sourcemap, sometimes in multiple passes) into one
+      // page reload.
+      clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => server.ws.send({ type: "full-reload" }), 400);
+    };
+    chokidar
+      .watch(outDevDir, { ignoreInitial: true })
+      .on("add", (f) => /\.js$/.test(f) && scheduleReload())
+      .on("change", (f) => /\.js$/.test(f) && scheduleReload());
+    chokidar
+      .watch(
+        serviceWorkerPaths.map((p) => path.resolve(process.cwd(), p)),
+        { ignoreInitial: true },
+      )
+      .on("change", scheduleReload);
+
     // Inject custom middleware into Vite's dev server
     server.middlewares.use(async (req, res, next) => {
       try {
@@ -311,28 +375,29 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             ? path.resolve(process.cwd(), workerPkgRoot, "esbuild.js")
             : "";
 
-          const outDevDir = path.resolve(process.cwd(), outdir, ".dev");
-
           if (isExternal && fs.existsSync(workerEsbuildScriptPath)) {
-            if (!fs.existsSync(outDevDir)) {
-              fs.mkdirSync(outDevDir, { recursive: true });
-            }
-            if (!isMap) {
+            const filePath = path.join(
+              outDevDir,
+              isMap ? `${name}.js.map` : `${name}.js`,
+            );
+            // The --watch esbuild process (started in configureServer) keeps
+            // this file fresh. On a cold first request it may not exist yet,
+            // so fall back to a one-shot build.
+            if (!fs.existsSync(filePath) && !isMap) {
               execSync(`node esbuild.js --outdir=${outDevDir}`, {
                 cwd: path.dirname(workerEsbuildScriptPath),
                 stdio: "ignore",
               });
             }
-            const filePath = path.join(
-              outDevDir,
-              isMap ? `${name}.js.map` : `${name}.js`,
-            );
             if (fs.existsSync(filePath)) {
               res.statusCode = 200;
               res.setHeader(
                 "Content-Type",
                 isMap ? "application/json" : "application/javascript",
               );
+              // Never cache the worker bundle in dev, so a full-reload after a
+              // rebuild always re-fetches the latest code.
+              res.setHeader("Cache-Control", "no-store");
               res.end(fs.readFileSync(filePath, "utf-8"));
               return;
             }
