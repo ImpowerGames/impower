@@ -95,32 +95,38 @@ a `window` `CustomEvent` bus (and forwarded to/from workers & iframes by
 
 `Workspace.window` is the **bridge** between the two worlds:
 
-- **Outbound** — `this.emit(MessageProtocol.event, SomeMessage…)` broadcasts a
-  protocol message to peers. Legitimate emits are all cross-process: game
-  control (`StartGameMessage`), editor commands (`SetEditorHighlightsMessage`,
+- **Outbound** — `sendProtocolMessage(SomeMessage…)` broadcasts a protocol
+  message to peers. Legitimate emits are all cross-process: game control
+  (`StartGameMessage`), editor commands (`SetEditorHighlightsMessage`,
   `SelectEditorMessage`), request/response pairs (`ShowDocument`,
   `ApplyWorkspaceEdit`), and `DidExpand/CollapsePreviewPaneMessage` (consumed by
   the editor-view controllers).
-- **Inbound** — `handleProtocol()` listens on the same bus and folds
+- **Inbound** — `registerProtocolHandlers()` subscribes with one
+  `onProtocolMessage(SomeMessage.type, handler)` per message kind and folds
   peer-originated events back into the store: editor scroll/selection
   (`ScrolledEditorMessage`, `SelectedEditorMessage`), `CompiledProgramMessage`
   from the compiler worker, etc. This view→store direction is legitimate — the
   CodeMirror view genuinely *is* the source of truth for its own scroll
   position, and reports it up.
 
+Both helpers live in `@impower/spark-editor-protocol`'s `MessageProtocol`
+module. They're named `sendProtocolMessage` / `onProtocolMessage` (not
+`send`/`onMessage`) to stay distinct from a Worker's `postMessage` / `onmessage`
+— this bus is in-page `CustomEvent`s, not the worker/port channel.
+
 ### The rule of thumb
 
 > If a consumer is an in-page Preact component, share state through the
-> **store** (signals + intents). Only reach for `this.emit` / the protocol bus
-> when the consumer is **out-of-process** (a worker, an iframe, or the
-> framework-agnostic editor views).
+> **store** (signals + intents). Only reach for `sendProtocolMessage` / the
+> protocol bus when the consumer is **out-of-process** (a worker, an iframe, or
+> the framework-agnostic editor views).
 
-A component listening to `window.addEventListener(MessageProtocol.event, …)` is
-correct **only** when the event originates out-of-process — e.g. `FileList`
-reacting to the OPFS worker's `DidChangeWatchedFilesMessage`, or `PreviewGame`
-reacting to the player iframe's `GameStartedMessage`. If you find yourself
-listening for an event that an in-page component *emitted*, that's the
-web-component anti-pattern — use a signal instead.
+A component subscribing with `onProtocolMessage(SomeMessage.type, …)` is correct
+**only** when the event originates out-of-process — e.g. `FileList` reacting to
+the OPFS worker's `DidChangeWatchedFilesMessage`, or `PreviewGame` reacting to
+the player iframe's `GameStartedMessage`. If you find yourself listening for an
+event that an in-page component *emitted*, that's the web-component
+anti-pattern — use a signal instead.
 
 ## The `Workspace` singleton
 

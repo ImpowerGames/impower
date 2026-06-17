@@ -62,19 +62,24 @@ something changed — put it in the store and let that component read the signal
 ## When to use the protocol bus
 
 Only to talk to **out-of-process** peers (workers, iframes, the CodeMirror
-editor views). For example, to ask the game player to start you emit a protocol
-request from a `WorkspaceWindow` intent:
+editor views). Use the `sendProtocolMessage` / `onProtocolMessage` helpers from
+`@impower/spark-editor-protocol` (named that way to stay distinct from a
+Worker's `postMessage` / `onmessage`). For example, to ask the game player to
+start you emit a protocol request from a `WorkspaceWindow` intent:
 
 ```ts
-this.emit(MessageProtocol.event, StartGameMessage.type.request({}));
+sendProtocolMessage(StartGameMessage.type.request({}));
 ```
 
-and to react to something a worker/iframe reports, a component listens:
+and to react to something a worker/iframe reports, a component subscribes by
+message type (the handler receives the message fully typed, and the call
+returns a disposer):
 
 ```tsx
-window.addEventListener(MessageProtocol.event, (e) => {
-  if (e instanceof CustomEvent && DidChangeWatchedFilesMessage.type.is(e.detail)) { … }
+const dispose = onProtocolMessage(DidChangeWatchedFilesMessage.type, (message) => {
+  // message is a DidChangeWatchedFilesMessage — no instanceof/`.type.is` needed
 });
+// later (e.g. in a useEffect cleanup): dispose();
 ```
 
 If both the emitter and the consumer are in-page Preact, you're using the wrong

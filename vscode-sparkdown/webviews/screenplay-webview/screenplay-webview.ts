@@ -1,4 +1,7 @@
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  MessageProtocol,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { SparkdownScreenplayPreviewElement } from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview.elem";
 
@@ -16,16 +19,12 @@ window.addEventListener("message", (e: MessageEvent) => {
     });
   }
   // Forward protocol messages from vscode extension to window
-  window.dispatchEvent(
-    new CustomEvent(MessageProtocol.event, {
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      detail: message,
-    }),
-  );
+  sendProtocolMessage(message);
 });
 
+// Stays a raw bus listener (not the typed `onProtocolMessage` helper): it
+// relays every message bubbling up from the preview (`e.target !== window`) to
+// the vscode extension, discriminating on target rather than message type.
 window.addEventListener(MessageProtocol.event, (e: Event) => {
   if (e instanceof CustomEvent) {
     const message = e.detail;

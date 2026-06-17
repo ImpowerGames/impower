@@ -1,6 +1,9 @@
 import { Port2MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port2MessageConnection";
 import { isMessage } from "@impower/jsonrpc/src/common/utils/isMessage";
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  MessageProtocol,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { DragFilesEnterMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesEnterMessage";
 import { DragFilesLeaveMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesLeaveMessage";
 import { DragFilesOverMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesOverMessage";
@@ -25,14 +28,7 @@ connection.addEventListener("message", async (e) => {
   const message = e.data;
   if (isMessage(message)) {
     // Forward protocol messages from editor to player
-    window.dispatchEvent(
-      new CustomEvent(MessageProtocol.event, {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: message,
-      }),
-    );
+    sendProtocolMessage(message);
     // Forward protocol responses and notifications from editor to service worker
     navigator.serviceWorker.controller?.postMessage(
       message,
@@ -43,6 +39,10 @@ connection.addEventListener("message", async (e) => {
 
 const workspaceState = installWorkspaceWorker(connection);
 
+// Stays a raw bus listener (not the typed `onProtocolMessage` helper): it's a
+// generic relay that forwards EVERY message bubbling up from the player
+// (`e.target !== window`) to the editor, discriminating on target rather than
+// message type — which a type-keyed handler can't express.
 window.addEventListener(MessageProtocol.event, (e) => {
   if (e instanceof CustomEvent) {
     const message = e.detail;
