@@ -521,64 +521,89 @@ export class GamePlayerController {
   // disposer so `dispose()` can detach them all. Because handlers are bound
   // arrow-properties, each registration is a single `route(type, handler)`.
   protected registerProtocolHandlers(): void {
-    const route = <M extends { method: string }>(
-      type: { is: (value: any) => value is M },
-      handler: (message: M) => unknown,
+    // `respond` wires a REQUEST type to its handler: the handler's return type
+    // is inferred from the message type's own `response()` (i.e. it MUST return
+    // that message's `Response`), so forgetting to `return` it is a compile
+    // error rather than a silently-dropped response. `notify` wires a
+    // NOTIFICATION type (handler returns void); its `response?: never` rejects
+    // request types, so the request/notification split is type-checked both
+    // ways. Both wrap the profile() instrumentation, send any response on the
+    // bus, and collect the disposer for `dispose()`.
+    const respond = <Req extends { method: string }, Res>(
+      type: {
+        is: (value: any) => value is Req;
+        response: (...args: any[]) => Res;
+      },
+      handler: (message: Req) => Res | Promise<Res>,
     ) => {
       this._protocolDisposers.push(
         onProtocolMessage(type, async (message) => {
           profile("start", message.method);
           const response = await handler(message);
-          if (response) {
-            sendProtocolMessage(response as unknown as Message, this.host);
-          }
+          sendProtocolMessage(response as unknown as Message, this.host);
           profile("end", message.method);
         }),
       );
     };
-    route(
+    const notify = <Msg extends { method: string }>(
+      type: { is: (value: any) => value is Msg; response?: never },
+      handler: (message: Msg) => void | Promise<void>,
+    ) => {
+      this._protocolDisposers.push(
+        onProtocolMessage(type, async (message) => {
+          profile("start", message.method);
+          await handler(message);
+          profile("end", message.method);
+        }),
+      );
+    };
+
+    // Notifications (fire-and-forget, no response).
+    notify(
       SelectedCompilerDocumentMessage.type,
       this.handleSelectedCompilerDocument,
     );
-    route(RemovedCompilerFileMessage.type, this.handleRemovedCompilerFile);
-    route(CompiledProgramMessage.type, this.handleCompiledProgram);
-    route(ResizeGameMessage.type, this.handleResizeGame);
-    route(SetGameBreakpointsMessage.type, this.handleSetGameBreakpoints);
-    route(
+    notify(RemovedCompilerFileMessage.type, this.handleRemovedCompilerFile);
+    notify(CompiledProgramMessage.type, this.handleCompiledProgram);
+
+    // Requests (handler must return the message's Response).
+    respond(ResizeGameMessage.type, this.handleResizeGame);
+    respond(SetGameBreakpointsMessage.type, this.handleSetGameBreakpoints);
+    respond(
       SetGameFunctionBreakpointsMessage.type,
       this.handleSetGameFunctionBreakpoints,
     );
-    route(
+    respond(
       SetGameDataBreakpointsMessage.type,
       this.handleSetGameDataBreakpoints,
     );
-    route(EnableGameDebugMessage.type, this.handleEnableGameDebug);
-    route(DisableGameDebugMessage.type, this.handleDisableGameDebug);
-    route(StartGameMessage.type, this.handleStartGame);
-    route(StopGameMessage.type, this.handleStopGame);
-    route(RestartGameMessage.type, this.handleRestartGame);
-    route(PauseGameMessage.type, this.handlePauseGame);
-    route(UnpauseGameMessage.type, this.handleUnpauseGame);
-    route(StepGameClockMessage.type, this.handleStepGameClock);
-    route(StepGameMessage.type, this.handleStepGame);
-    route(ContinueGameMessage.type, this.handleContinueGame);
-    route(GetGameScriptsMessage.type, this.handleGetGameScripts);
-    route(
+    respond(EnableGameDebugMessage.type, this.handleEnableGameDebug);
+    respond(DisableGameDebugMessage.type, this.handleDisableGameDebug);
+    respond(StartGameMessage.type, this.handleStartGame);
+    respond(StopGameMessage.type, this.handleStopGame);
+    respond(RestartGameMessage.type, this.handleRestartGame);
+    respond(PauseGameMessage.type, this.handlePauseGame);
+    respond(UnpauseGameMessage.type, this.handleUnpauseGame);
+    respond(StepGameClockMessage.type, this.handleStepGameClock);
+    respond(StepGameMessage.type, this.handleStepGame);
+    respond(ContinueGameMessage.type, this.handleContinueGame);
+    respond(GetGameScriptsMessage.type, this.handleGetGameScripts);
+    respond(
       GetGamePossibleBreakpointLocationsMessage.type,
       this.handleGetGamePossibleBreakpointLocations,
     );
-    route(GetGameStackTraceMessage.type, this.handleGetGameStackTrace);
-    route(
+    respond(GetGameStackTraceMessage.type, this.handleGetGameStackTrace);
+    respond(
       GetGameEvaluationContextMessage.type,
       this.handleGetGameEvaluationContext,
     );
-    route(GetGameVariablesMessage.type, this.handleGetGameVariables);
-    route(GetGameThreadsMessage.type, this.handleGetGameThreads);
-    route(
+    respond(GetGameVariablesMessage.type, this.handleGetGameVariables);
+    respond(GetGameThreadsMessage.type, this.handleGetGameThreads);
+    respond(
       EnterGameFullscreenModeMessage.type,
       this.handleEnterGameFullscreenMode,
     );
-    route(
+    respond(
       ExitGameFullscreenModeMessage.type,
       this.handleExitGameFullscreenMode,
     );
