@@ -1,5 +1,6 @@
 import { type SyntaxNode } from "@lezer/common";
 import { LowerContext } from "../context";
+import { ErrorType } from "../../../inkjs/engine/Error";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ReturnType } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
@@ -143,21 +144,51 @@ function descendants(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
   return out;
 }
 
-/** Tag + classes from an object-header/bare-marker node: first component name
- *  is the tag, trailing component names / bare numbers are classes
- *  (`choice 0` → tag "choice" + ["0"]; `mask shadow_1` → "mask" + ["shadow_1"]). */
+/** Tag + classes from an object-header/bare-marker node. Per the sparkle rule:
+ *  the BUILTIN/component token is the tag (position-independent — `mask shadow_1`
+ *  and `shadow_1 mask` both → tag "mask"); every OTHER bare word (and bare
+ *  number) is a class. A line with more than one builtin tag is ambiguous, so a
+ *  warning is emitted (the first builtin is kept as the tag). With no builtin,
+ *  the first token is taken as the (component) tag. */
 function tagAndClasses(
   node: SyntaxNode,
   ctx: LowerContext,
 ): { tag: string | null; classes: string[] } {
   const tokens = descendants(node, NAME_TOKEN_NAMES);
   if (tokens.length === 0) return { tag: null, classes: [] };
-  const tag = ctx.read(tokens[0]!.from, tokens[0]!.to).trim();
+  const builtins = tokens.filter((t) => t.name === "BuiltinComponentName");
+  const tagNode = builtins[0] ?? tokens[0]!;
+  if (builtins.length > 1) warnMultipleTags(builtins, ctx);
+  const tag = ctx.read(tagNode.from, tagNode.to).trim();
   const classes = tokens
-    .slice(1)
+    .filter((t) => t !== tagNode)
     .map((t) => ctx.read(t.from, t.to).trim())
     .filter(Boolean);
   return { tag, classes };
+}
+
+/** Warn (editor-side) when an element line names more than one builtin tag —
+ *  ambiguous which is the element. No-op for snapshot callers without a
+ *  diagnostics buffer. */
+function warnMultipleTags(builtins: SyntaxNode[], ctx: LowerContext): void {
+  if (!ctx.diagnostics) return;
+  const names = builtins.map((b) => ctx.read(b.from, b.to).trim());
+  for (const extra of builtins.slice(1)) {
+    ctx.diagnostics.push({
+      message: `An element can only have one tag, but found multiple: ${names.join(
+        ", ",
+      )}. Only the first is used as the tag — did you mean a class?`,
+      severity: ErrorType.Warning,
+      source: {
+        fileName: null,
+        filePath: ctx.filePath ?? null,
+        startLineNumber: ctx.lineNumber(extra.from) + 1,
+        endLineNumber: ctx.lineNumber(extra.to) + 1,
+        startCharacterNumber: ctx.characterNumber(extra.from) + 1,
+        endCharacterNumber: ctx.characterNumber(extra.to) + 1,
+      },
+    });
+  }
 }
 
 /** Collapse the content-string brace escapes (spec D3): `{{` → `{`, `}}` → `}`.
@@ -483,14 +514,17 @@ function buildBlock(
     }
 
     // Object header (`stage:` / `column #gap=16:`) or bare marker (`image` /
-    // `mask shadow_1` / `row #background-color={c}`) → an element; tag = first
-    // component name, classes = trailing parts, plus inline props/events.
+    // `mask shadow_1` / `text title "Inventory"` / `row #background-color={c}`)
+    // → an element; the builtin/component token is the tag, other bare words are
+    // classes, plus optional adjacency content + inline props/events.
     const { tag: parsedTag, classes } = tagAndClasses(kind, ctx);
     const tag = parsedTag ?? ctx.read(content.from, content.to).trim();
+    const contentNode = firstDescendant(kind, FIELD_VALUE_NAMES);
     const element: ElementNode = {
       kind: "element",
       tag,
       classes,
+      ...(contentNode ? { content: readContentParts(contentNode, ctx) } : {}),
       props: readProps(kind, ctx),
       events: readEvents(kind, ctx),
       children: [],

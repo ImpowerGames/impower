@@ -1,0 +1,7 @@
+screen main with
+  stage:
+    mask shadow_1
+    text title "Inventory"
+    button primary "Use"
+    icon @click=use_item
+end

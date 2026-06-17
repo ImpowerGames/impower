@@ -7399,7 +7399,16 @@
         "4": {
           "patterns": [
             {
+              "include": "#RequiredWhitespace"
+            },
+            {
               "include": "#LuauElementAttribute"
+            },
+            {
+              "include": "#StringFieldValueInterpolated"
+            },
+            {
+              "include": "#StringFieldValue"
             },
             {
               "include": "#ComponentName"

@@ -213,6 +213,24 @@ end
     });
   });
 
+  test("classes are bare words; the builtin token is the tag (position-independent)", () => {
+    const ast = screenAst(`screen main with
+  stage:
+    mask shadow_1
+    shadow_1 mask
+    text title "Inventory"
+end
+`);
+    const [m1, m2, txt] = ast.main.children[0].children;
+    expect(m1).toMatchObject({ tag: "mask", classes: ["shadow_1"] });
+    // Tag is the builtin regardless of position.
+    expect(m2).toMatchObject({ tag: "mask", classes: ["shadow_1"] });
+    // Class + adjacency content on one element line.
+    expect(txt.tag).toBe("text");
+    expect(txt.classes).toEqual(["title"]);
+    expect(txt.content).toEqual([{ kind: "literal", text: "Inventory" }]);
+  });
+
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
     const ast = screenAst(`screen hud with
   text = "literal {{braces}} kept"

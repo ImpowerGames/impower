@@ -4570,12 +4570,17 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
-      # Trailing class names AND inline attributes (`row #gap=16`,
-      # `button @click=x`, `mask shadow_1 #x=2`). Attributes are tried first so
-      # `#`/`@name=` aren't mis-read as class component names.
+      # Trailing class names, content, AND inline attributes — order:
+      # whitespace (consumed so inter-token spaces don't halt tokenization),
+      # attributes (`#prop=`/`@event=`), quoted content (`text title "Inventory"`),
+      # then bare component names (= classes). The element TAG vs class is decided
+      # by the lowerer (the builtin/component token is the tag, position-independent).
       4:
         patterns:
+          - { include: "#RequiredWhitespace" }
           - { include: "#LuauElementAttribute" }
+          - { include: "#StringFieldValueInterpolated" }
+          - { include: "#StringFieldValue" }
           - { include: "#ComponentName" }
 
   # Full-line catch-all so any struct-body line NOT matched by a wrapper above

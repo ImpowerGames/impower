@@ -183,10 +183,12 @@ function nextChildIndent(
 const STRUCT_REFERENCE_RE =
   /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)$/;
 
-// Adjacency element content: `<tag> "quoted content"` (spec §4.2/D2). The tag
-// is a bare identifier; the value is a double-quoted string (which may contain
-// `{interp}` — kept as raw text in the static struct, like the scalar form).
-const ADJACENCY_CONTENT_RE = /^([A-Za-z_][A-Za-z0-9_]*)\s+(".*")$/;
+// Adjacency element content: `<tag> [class…] "quoted content"` (spec §4.2/D2).
+// The key is the tag plus any classes (matching the bare-marker key shape, e.g.
+// `mask shadow_1`); the value is the trailing double-quoted string (which may
+// contain `{interp}` — kept as raw text in the static struct, like the scalar
+// form). Attributes have already been excised upstream.
+const ADJACENCY_CONTENT_RE = /^(.*\S)\s+("(?:\\.|[^"])*")$/;
 
 // Scalar value: strip surrounding quotes for strings; resolve a bare
 // `<type>.<name>` reference to a `{ $type, $name }` struct reference

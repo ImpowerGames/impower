@@ -155,6 +155,55 @@ end
   });
 });
 
+describe("screen · classes", () => {
+  test("classes stay in the static struct key; content is the value", () => {
+    const r = compileUI(`screen main with
+  stage:
+    mask shadow_1
+    text title "Inventory"
+end
+`);
+    expect(r.errors).toEqual([]);
+    expect(r.screen["main"]["stage"]).toEqual({
+      "mask shadow_1": {},
+      "text title": "Inventory",
+    });
+  });
+
+  test("multiple builtin tags on one element line warns (does not error)", () => {
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [
+        {
+          uri: "inmemory:///m.sd",
+          type: "script",
+          name: "m",
+          ext: "sd",
+          text: `screen main with
+  stage:
+    button text "Oops"
+end
+`,
+          version: 1,
+          languageId: "sparkdown",
+        },
+      ],
+    });
+    const result = compiler.compile({
+      textDocument: { uri: "inmemory:///m.sd" },
+    });
+    const messages: string[] = [];
+    for (const docDiags of Object.values(result.program.diagnostics ?? {})) {
+      for (const d of docDiags as any[]) {
+        messages.push(
+          typeof d?.message === "string" ? d.message : (d?.message?.value ?? ""),
+        );
+      }
+    }
+    expect(messages.some((m) => m.includes("only have one tag"))).toBe(true);
+  });
+});
+
 describe("component", () => {
   test("component produces $type component", () => {
     const r = compileUI(`component card with

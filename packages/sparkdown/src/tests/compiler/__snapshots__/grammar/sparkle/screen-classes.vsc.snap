@@ -1,0 +1,31 @@
+text.source.sparkdown [0..125]
+ ├─ meta.screen.luau [0..16]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..11]: "main"
+ │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
+ │   └─ keyword.control.as.luau [12..16]: "with"
+ ├─ Newline [16..17]: "\n"
+ ├─ meta.screen.luau [17..25]
+ │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
+ │   └─ meta.struct.body.luau [19..25]: "stage:"
+ ├─ Newline [25..26]: "\n"
+ ├─ meta.screen.luau [26..43]
+ │   ├─ punctuation.whitespace.optional.sd [26..30]: "    "
+ │   └─ meta.struct.body.luau [30..43]: "mask shadow_1"
+ ├─ Newline [43..44]: "\n"
+ ├─ meta.screen.luau [44..70]
+ │   ├─ punctuation.whitespace.optional.sd [44..48]: "    "
+ │   └─ meta.struct.body.luau [48..70]: "text title \"Inventory\""
+ ├─ Newline [70..71]: "\n"
+ ├─ meta.screen.luau [71..95]
+ │   ├─ punctuation.whitespace.optional.sd [71..75]: "    "
+ │   └─ meta.struct.body.luau [75..95]: "button primary \"Use\""
+ ├─ Newline [95..96]: "\n"
+ ├─ meta.screen.luau [96..120]
+ │   ├─ punctuation.whitespace.optional.sd [96..100]: "    "
+ │   └─ meta.struct.body.luau [100..120]: "icon @click=use_item"
+ ├─ Newline [120..121]: "\n"
+ ├─ meta.screen.luau [121..124]
+ │   └─ keyword.control.end.luau [121..124]: "end"
+ └─ Newline [124..125]: "\n"
