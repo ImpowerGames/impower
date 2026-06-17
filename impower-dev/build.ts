@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { exec, execSync } from "child_process";
 import * as dotenv from "dotenv";
 import fs from "fs";
+import { createRequire } from "module";
 import path from "path";
 import glob from "tiny-glob";
 import { build, createServer, Plugin } from "vite";
@@ -54,13 +55,27 @@ const pagesInDir = `${indir}/pages`;
 // single instance is used across the workspace.
 const DEDUPE_ONLY = new Set(["preact", "preact-custom-element"]);
 
+// Resolve a dependency via Node's module resolver rather than a hardcoded
+// `cwd/node_modules/...` path, so it works whether the dep lives in this
+// package's node_modules OR is hoisted to a workspace-root node_modules.
+const require = createRequire(import.meta.url);
+const resolvePkgDir = (name: string): string => {
+  try {
+    return path.dirname(
+      require.resolve(`${name}/package.json`, { paths: [process.cwd()] }),
+    );
+  } catch {
+    return path.resolve(process.cwd(), "node_modules", name);
+  }
+};
+
 const alias: Record<string, string> = {};
 const dedupe: string[] = [];
 for (const depName of Object.keys(pkg.peerDependencies || {})) {
   if (DEDUPE_ONLY.has(depName)) {
     dedupe.push(depName);
   } else {
-    alias[depName] = path.resolve(process.cwd(), "node_modules", depName);
+    alias[depName] = resolvePkgDir(depName);
   }
 }
 
@@ -70,13 +85,18 @@ for (const depName of Object.keys(pkg.peerDependencies || {})) {
 // packages/impower-ui — and preact-render-to-string can't drive React's
 // hook dispatcher. Force the alias here so SSR uses Preact's compat layer
 // the same way the browser does.
-alias["react"] = path.resolve(
-  process.cwd(),
-  "node_modules/preact/compat/dist/compat.mjs",
-);
-alias["react-dom"] = path.resolve(
-  process.cwd(),
-  "node_modules/preact/compat/dist/compat.mjs",
+const preactCompat = require.resolve("preact/compat", {
+  paths: [process.cwd()],
+});
+alias["react"] = preactCompat;
+alias["react-dom"] = preactCompat;
+
+// impower-ui's Tailwind entry stylesheet — the SSG runs it through Vite's
+// `?direct` pipeline to inline the editor's utilities. Resolved hoist-robustly
+// (the file is reached via the package dir, not its `exports` map).
+const impowerUiStyleCss = path.join(
+  resolvePkgDir("@impower/impower-ui"),
+  "src/style.css",
 );
 
 const PRODUCTION = process.argv.includes("--production");
@@ -401,7 +421,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
         let impowerUiTailwindCss = "";
         try {
           const tw = await server.transformRequest(
-            "/node_modules/@impower/impower-ui/src/style.css?direct",
+            "/@fs/" + impowerUiStyleCss.replace(/\\/g, "/") + "?direct",
           );
           if (tw?.code) impowerUiTailwindCss = tw.code;
         } catch (err) {
@@ -682,12 +702,8 @@ const expandPageComponents = async () => {
         // loads. `?direct` returns the compiled CSS (Tailwind utilities for
         // impower-dev's classes via root auto-detection + impower-ui via the
         // stylesheet's own `@source`).
-        const cssAbs = path.resolve(
-          process.cwd(),
-          "node_modules/@impower/impower-ui/src/style.css",
-        );
         const tw = await cssServer.transformRequest(
-          "/@fs/" + cssAbs.replace(/\\/g, "/") + "?direct",
+          "/@fs/" + impowerUiStyleCss.replace(/\\/g, "/") + "?direct",
         );
         if (tw?.code) tailwindCss = tw.code;
       } catch (err) {
