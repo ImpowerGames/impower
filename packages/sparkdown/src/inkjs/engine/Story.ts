@@ -2455,6 +2455,11 @@ export class Story extends InkObject {
             }
           }
           if (indexBase instanceof ObjectValue) {
+            // Reactive dep tracking: this binding read into a table — record the
+            // table's identity so an in-place mutation of it re-runs the binding.
+            if (this.state.variablesState.reactiveDepsEnabled) {
+              this.state.variablesState.recordReactiveTableRead(indexBase.value);
+            }
             const direct = indexBase.value?.get(keyStr) ?? null;
             if (direct != null) {
               resolved = direct;
@@ -2557,6 +2562,14 @@ export class Story extends InkObject {
                 storeBase.value.delete(keyStr);
               } else {
                 storeBase.value.set(keyStr, val);
+              }
+              // Reactive dep tracking: an in-place table mutation, keyed by the
+              // table's backing-Map identity (a binding that read this table
+              // re-runs). Cheap no-op when reactive tracking is disabled.
+              if (this.state.variablesState.reactiveDepsEnabled) {
+                this.state.variablesState.recordReactiveTableChange(
+                  storeBase.value,
+                );
               }
             }
           } else {
@@ -3468,6 +3481,16 @@ export class Story extends InkObject {
           return true;
         }
 
+        // Reactive dep tracking: record the global this binding read (the first
+        // dotted segment — `player.hp` depends on global `player`). Over-
+        // approximate (a local shadowing this name is harmless: a re-eval at
+        // worst, never a miss). Cheap no-op when reactive tracking is disabled.
+        if (this.state.variablesState.reactiveDepsEnabled && varRef.name) {
+          this.state.variablesState.recordReactiveGlobalRead(
+            varRef.name.split(".")[0]!,
+          );
+        }
+
         foundValue = this.state.variablesState.GetVariableWithName(varRef.name);
 
         // Property-access via dotted name (sparkdown extension). If the
@@ -3533,6 +3556,11 @@ export class Story extends InkObject {
               // `__index(t, "x")` / chained-table lookup. Matches
               // the IndexValue ControlCommand's metamethod behavior.
               if (cur instanceof ObjectValue) {
+                // Reactive dep tracking: this dotted read walked through `cur` —
+                // record its identity so an in-place mutation re-runs the binding.
+                if (this.state.variablesState.reactiveDepsEnabled) {
+                  this.state.variablesState.recordReactiveTableRead(cur.value);
+                }
                 const direct = cur.value?.get(seg);
                 if (direct != null) {
                   cur = direct;

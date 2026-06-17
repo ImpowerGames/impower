@@ -563,6 +563,10 @@ export class VariablesState extends VariablesStateAccessor<
       this._globalVariables.set(variableName, value);
     }
 
+    // Reactive dep tracking: a global write is a coarse-grained change keyed by
+    // name (a binding that read this global re-runs). Cheap no-op when disabled.
+    this.recordReactiveGlobalChange(variableName);
+
     // TODO: Not sure !== is equivalent to !value.Equals(oldValue)
     if (
       this.variableChangedEvent !== null &&
@@ -653,4 +657,83 @@ export class VariablesState extends VariablesStateAccessor<
   private _listDefsOrigin: ListDefinitionsOrigin | null;
 
   private _batchObservingVariableChanges: boolean = false;
+
+  // -------------------------------------------------------------------------
+  // Reactive dependency tracking (Phase 4 fine-grained primitive).
+  //
+  // The reactive UI runtime needs to know, since its last refresh, WHICH game
+  // state changed — at finer granularity than the whole-global `variableChanged`
+  // observation: a table-field write (`player.hp = 5`) mutates a table in place
+  // and fires no global change. So we accumulate, while `reactiveDepsEnabled`:
+  //   - changed GLOBAL names  (SetGlobal)
+  //   - changed TABLE identities (StoreIndex — the ObjectValue's backing Map)
+  // and, during a single binding evaluation bracketed by
+  // begin/endReactiveRead(), the GLOBAL names + TABLE identities that binding
+  // READ. The runtime re-runs a binding only when its read-set intersects the
+  // change-set. False positives (e.g. a local shadowing a global name, or a
+  // speculative lookahead write) are safe — they cost an extra (equality-gated)
+  // re-eval, never a missed update. Disabled by default → zero cost for
+  // non-reactive games (every hook is a single boolean check).
+  // -------------------------------------------------------------------------
+  public reactiveDepsEnabled = false;
+  private _reactiveChangedGlobals = new Set<string>();
+  private _reactiveChangedTables = new Set<object>();
+  private _reactiveReadGlobals: Set<string> | null = null;
+  private _reactiveReadTables: Set<object> | null = null;
+
+  /** Record a global-name write (no-op unless reactive tracking is enabled). */
+  public recordReactiveGlobalChange(name: string): void {
+    if (this.reactiveDepsEnabled && name) {
+      this._reactiveChangedGlobals.add(name);
+    }
+  }
+
+  /** Record an in-place table mutation by the table's backing-Map identity. */
+  public recordReactiveTableChange(table: object): void {
+    if (this.reactiveDepsEnabled && table) {
+      this._reactiveChangedTables.add(table);
+    }
+  }
+
+  /** Record a global-name read into the active binding's dep set (if tracking). */
+  public recordReactiveGlobalRead(name: string): void {
+    if (this._reactiveReadGlobals && name) {
+      this._reactiveReadGlobals.add(name);
+    }
+  }
+
+  /** Record a table read into the active binding's dep set (if tracking). */
+  public recordReactiveTableRead(table: object): void {
+    if (this._reactiveReadTables && table) {
+      this._reactiveReadTables.add(table);
+    }
+  }
+
+  /** Begin capturing the reads of a single binding evaluation. */
+  public beginReactiveRead(): void {
+    this._reactiveReadGlobals = new Set();
+    this._reactiveReadTables = new Set();
+  }
+
+  /** End capture and return the binding's dependency set. */
+  public endReactiveRead(): { globals: Set<string>; tables: Set<object> } {
+    const deps = {
+      globals: this._reactiveReadGlobals ?? new Set<string>(),
+      tables: this._reactiveReadTables ?? new Set<object>(),
+    };
+    this._reactiveReadGlobals = null;
+    this._reactiveReadTables = null;
+    return deps;
+  }
+
+  /** Take + clear the change-set accumulated since the last call (per refresh). */
+  public takeReactiveChanges(): { globals: Set<string>; tables: Set<object> } {
+    const changes = {
+      globals: this._reactiveChangedGlobals,
+      tables: this._reactiveChangedTables,
+    };
+    this._reactiveChangedGlobals = new Set();
+    this._reactiveChangedTables = new Set();
+    return changes;
+  }
 }

@@ -85,12 +85,21 @@ export interface UIState {
  *  event-handler closures read the latest values. */
 type ReactiveEnv = Record<string, unknown>;
 
+/** The globals + table identities a binding read, captured during its eval
+ *  (Phase 4). A registration re-runs only when its deps intersect the turn's
+ *  change-set — unless it's in a loop-iteration scope (its value depends on the
+ *  per-iteration `env`, which isn't a tracked global/table), in which case it
+ *  re-evaluates every turn (equality-gated). */
+type ReactiveDeps = { globals: Set<string>; tables: Set<object> };
+
 /** A reactive span: an inline element whose text comes (partly) from a `{expr}`
- *  binding, with the last resolved value for equality-gated updates. */
+ *  binding, with the last resolved value for equality-gated updates + the deps
+ *  that gate its re-eval. */
 interface ReactiveText {
   element: Element;
   content: ContentPart[];
   last: string;
+  deps: ReactiveDeps;
 }
 
 /** An if/match conditional: a persistent wrapper element + the currently-active
@@ -102,6 +111,9 @@ interface CondRegion {
   node: IfNode | MatchNode;
   active: number;
   scope: ReactiveScope;
+  /** Deps of the branch-selection (the condition/expr/case-value reads), gating
+   *  whether `selectBranch` is re-run on a turn. */
+  deps: ReactiveDeps;
 }
 
 /** One rendered item of a reactive `for`: its key (positional id for now —
@@ -802,6 +814,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!screens) {
       return;
     }
+    // Enable fine-grained dependency tracking for the whole reactive lifetime;
+    // mount captures each binding's read deps (Phase 4).
+    this._game.story.variablesState.reactiveDepsEnabled = true;
     const targetAllScreens = !structNames || structNames.length === 0;
     const validScreenNames = targetAllScreens
       ? Object.keys(screens)
@@ -814,6 +829,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    // Discard load-time change residue so the first per-turn refresh only sees
+    // changes produced after mount.
+    this._game.story.variablesState.takeReactiveChanges();
   }
 
   protected constructScreenFromAst(screen: ScreenNode): Element {
@@ -934,15 +952,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!content || content.length === 0) {
       return;
     }
-    const text = this.resolveContent(content, scope.env);
+    const { text, deps } = this.resolveContentTracked(content, scope.env);
     const span = this.createElement(parent, {
       type: "span",
       content: { text },
       style: { display: "inline" },
     });
     if (this.contentHasBinding(content)) {
-      scope.texts.push({ element: span, content, last: text });
+      scope.texts.push({ element: span, content, last: text, deps });
     }
+  }
+
+  /** Resolve content while capturing the union of its bindings' read deps, so
+   *  the span re-evaluates only when one of those deps changes (Phase 4). */
+  protected resolveContentTracked(
+    content: ContentPart[],
+    env: ReactiveEnv,
+  ): { text: string; deps: ReactiveDeps } {
+    const vs = this._game.story.variablesState;
+    vs.beginReactiveRead();
+    const text = this.resolveContent(content, env);
+    const deps = vs.endReactiveRead();
+    return { text, deps };
   }
 
   /** Mount an image/mask leaf's background span. Content (literal or `{expr}`)
@@ -980,16 +1011,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       node,
       active: -2, // nothing mounted yet
       scope: { env: scope.env, texts: [], regions: [] },
+      deps: { globals: new Set(), tables: new Set() },
     };
     scope.regions.push(region);
     this.activateBranch(region);
   }
 
   /** Mount the currently-selected branch of a region into its wrapper, recording
-   *  `active` so refresh can detect a change. `-1` = else/no-match (renders
-   *  `else` children, or nothing). */
+   *  `active` so refresh can detect a change + capturing the branch-selection's
+   *  read deps so refresh can skip re-selecting when nothing it reads changed.
+   *  `-1` = else/no-match (renders `else` children, or nothing). */
   protected activateBranch(region: CondRegion): void {
+    const vs = this._game.story.variablesState;
+    vs.beginReactiveRead();
     const selected = this.selectBranch(region.node, region.scope.env);
+    region.deps = vs.endReactiveRead();
     region.active = selected;
     const children = this.branchChildren(region.node, selected);
     for (const child of children) {
@@ -1169,58 +1205,90 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   // --- per-turn refresh -----------------------------------------------------
 
-  /** Coarse per-turn re-eval over the scope tree: re-resolve reactive spans
-   *  (equality-gated ui/update), switch any conditional whose branch changed,
-   *  and reconcile `for` lists. Called on the existing per-beat boundary
-   *  (Coordinator.display → updateUI), where the story is settled so
-   *  {@link evalBinding}'s EvaluateFunction is safe. No-op unless the reactive
-   *  path is active. */
+  /** Per-turn re-eval over the scope tree, called on the existing per-beat
+   *  boundary (Coordinator.display → updateUI). Fine-grained (Phase 4): the
+   *  turn's change-set (globals + tables written since the last refresh) is
+   *  taken once, and a binding re-evaluates only when its read deps intersect it
+   *  — EXCEPT inside a loop-iteration scope, where a binding's value comes from
+   *  the per-iteration `env` (not a tracked global/table), so it re-evaluates
+   *  every turn (equality-gated). The story is settled here, so
+   *  {@link evalBinding}'s EvaluateFunction is safe. No-op unless reactive. */
   refreshScreens(): void {
     if (!this._reactive) {
       return;
     }
+    const changes = this._game.story.variablesState.takeReactiveChanges();
     for (const scope of this._rootScopes) {
-      this.refreshScope(scope);
+      this.refreshScope(scope, changes);
     }
   }
 
-  protected refreshScope(scope: ReactiveScope): void {
+  protected refreshScope(scope: ReactiveScope, changes: ReactiveDeps): void {
+    // A loop-iteration scope's bindings depend on the per-iteration env, which
+    // isn't a tracked global/table — re-evaluate them every turn (equality-
+    // gated). Top-level / conditional scopes dep-gate per registration.
+    const envScope = this.scopeHasEnv(scope);
     for (const entry of scope.texts) {
-      const text = this.resolveContent(entry.content, scope.env);
-      if (text !== entry.last) {
-        entry.last = text;
-        this.updateElement(entry.element, { content: { text } });
+      if (envScope || this.depsChanged(entry.deps, changes)) {
+        const { text, deps } = this.resolveContentTracked(
+          entry.content,
+          scope.env,
+        );
+        entry.deps = deps;
+        if (text !== entry.last) {
+          entry.last = text;
+          this.updateElement(entry.element, { content: { text } });
+        }
       }
     }
     for (const region of scope.regions) {
       if (region.kind === "for") {
-        this.refreshForRegion(region, scope.env);
+        this.refreshForRegion(region, scope.env, changes);
       } else {
-        this.refreshCondRegion(region);
+        this.refreshCondRegion(region, changes, envScope);
       }
     }
   }
 
-  protected refreshCondRegion(region: CondRegion): void {
-    const next = this.selectBranch(region.node, region.scope.env);
-    if (next === region.active) {
-      // Same branch still active — recurse to refresh its inner scope.
-      this.refreshScope(region.scope);
-      return;
+  protected refreshCondRegion(
+    region: CondRegion,
+    changes: ReactiveDeps,
+    envScope: boolean,
+  ): void {
+    // Re-run branch selection only when the condition's deps changed (or it's in
+    // a loop scope). When nothing it reads changed, the active branch can't have
+    // changed — skip the selectBranch eval and just refresh the live children.
+    if (envScope || this.depsChanged(region.deps, changes)) {
+      const vs = this._game.story.variablesState;
+      vs.beginReactiveRead();
+      const next = this.selectBranch(region.node, region.scope.env);
+      region.deps = vs.endReactiveRead();
+      if (next !== region.active) {
+        // Branch switched: tear down the old subtree + its registrations, mount
+        // the new branch into the same persistent wrapper (position preserved,
+        // env reference reused so an enclosing for-iteration's values stay live).
+        this.clearWrapper(region.wrapper);
+        region.scope = { env: region.scope.env, texts: [], regions: [] };
+        region.active = next;
+        for (const child of this.branchChildren(region.node, next)) {
+          this.mountNode(region.wrapper, child, region.scope);
+        }
+        return;
+      }
     }
-    // Branch switched: tear down the old subtree + its registrations, then
-    // mount the new branch into the same persistent wrapper (position preserved,
-    // env reference reused so an enclosing for-iteration's values stay live).
-    this.clearWrapper(region.wrapper);
-    region.scope = { env: region.scope.env, texts: [], regions: [] };
-    this.activateBranch(region);
+    // Same branch still active — recurse to refresh its inner scope.
+    this.refreshScope(region.scope, changes);
   }
 
   /** Positional `for` reconcile (Phase 3): re-evaluate the iterable, then update
    *  slot i in place (loop env mutated → spans/handlers see the new value),
    *  append new tail items, and drop removed tail items. Keyed reconciliation +
-   *  MoveElement (so reorders move retained nodes) are Phase 4. */
-  protected refreshForRegion(region: ForRegion, parentEnv: ReactiveEnv): void {
+   *  MoveElement (so reorders move retained nodes) are Phase 4 I9. */
+  protected refreshForRegion(
+    region: ForRegion,
+    parentEnv: ReactiveEnv,
+    changes: ReactiveDeps,
+  ): void {
     if (!region.node.each) {
       return;
     }
@@ -1235,7 +1303,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       region.iterations = [];
       if (region.elseScope) {
-        this.refreshScope(region.elseScope);
+        this.refreshScope(region.elseScope, changes);
       } else {
         this.mountForElse(region, parentEnv);
       }
@@ -1256,7 +1324,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const it = region.iterations[i]!;
       it.key = key;
       this.bindLoopVars(region.node.bindings, it.scope.env, key, value);
-      this.refreshScope(it.scope);
+      this.refreshScope(it.scope, changes);
     }
     // Append new tail items.
     for (let i = prev; i < next; i += 1) {
@@ -1270,6 +1338,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (next < prev) {
       region.iterations.length = next;
     }
+  }
+
+  /** Does any global/table dep intersect the turn's change-set? */
+  protected depsChanged(deps: ReactiveDeps, changes: ReactiveDeps): boolean {
+    for (const g of deps.globals) {
+      if (changes.globals.has(g)) {
+        return true;
+      }
+    }
+    for (const t of deps.tables) {
+      if (changes.tables.has(t)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** True for a loop-iteration scope (its env binds loop variables). */
+  protected scopeHasEnv(scope: ReactiveScope): boolean {
+    for (const _ in scope.env) {
+      return true;
+    }
+    return false;
   }
 
   /** Destroy one for-iteration's body roots (its wrapper subtree). Dropping the
