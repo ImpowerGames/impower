@@ -5,15 +5,11 @@ import fs from "fs";
 import path from "path";
 import glob from "tiny-glob";
 import { build, createServer } from "vite";
-import { ComponentSpec } from "./src/build/ComponentSpec.js";
-import getScopedCSS from "./src/build/getScopedCSS.js";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
 import {
   alias,
   apiInDir,
   apiOutDir,
-  componentsInDir,
-  componentsOutDir,
   dedupe,
   externalWorkerPaths,
   getServiceWorkerProcessEnvBanner,
@@ -27,6 +23,7 @@ import {
   PRODUCTION,
   publicInDir,
   publicOutDir,
+  readEditorGlobalCss,
   serviceWorkerPaths,
   staticallyStylePage,
   viteBannerPlugin,
@@ -156,166 +153,85 @@ const buildPages = async () => {
   });
 };
 
-const buildComponents = async () => {
-  console.log("");
-  console.log(STEP_COLOR, "Building Components...");
-  const entryPoints = await glob(`${componentsInDir}/**/*.{js,mjs,ts}`);
-
-  const input: Record<string, string> = {};
-  entryPoints.forEach((p) => {
-    console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
-    console.log(
-      OUT_COLOR,
-      `    ⤷ ${getRelativePath(p).replace(indir, outdir).replace(/\.ts$/, ".js")}`,
-    );
-    const name = path.relative(componentsInDir, p).replace(/\.[^/.]+$/, "");
-    input[name] = path.resolve(process.cwd(), p);
-  });
-
-  console.log("");
-  await build({
-    configFile: false,
-    resolve: { alias, dedupe },
-    plugins: [viteLoadersPlugin(), tailwindcss()],
-    build: {
-      outDir: componentsOutDir,
-      emptyOutDir: false,
-      ssr: true,
-      minify: MINIFY,
-      sourcemap: !PRODUCTION,
-      rollupOptions: {
-        input,
-        output: {
-          format: "esm",
-          entryFileNames: "[name].js",
-        },
-      },
-    },
-  });
-};
-
 const expandPageComponents = async () => {
   const htmlFilePaths = await glob(`${pagesInDir}/**/*.{html}`);
-  const componentBundlePaths = await glob(
-    `${componentsOutDir}/**/*.{js,mjs,ts}`,
-  );
-  if (componentBundlePaths.length > 0) {
-    console.log("");
-    console.log(STEP_COLOR, "Hoisting CSS...");
-    const documentHtmlInPath = `${publicInDir}/document.html`;
-    let documentHtml = await fs.promises
-      .readFile(documentHtmlInPath, "utf-8")
-      .catch(() => "");
-    const scopedCssSet = new Set<string>();
-    await Promise.all(
-      componentBundlePaths.map(async (bundlePath) => {
-        const fileName = path.parse(bundlePath).name;
-        if (!fileName.startsWith("chunk-")) {
-          const componentBundle = (
-            await import(`./${bundlePath.replace(/\\/g, "/")}`)
-          ).default;
-          if (Array.isArray(componentBundle)) {
-            componentBundle.forEach((spec: ComponentSpec) => {
-              if (spec.css) {
-                scopedCssSet.add(
-                  spec.html && spec.tag
-                    ? getScopedCSS(spec.css, spec.tag)
-                    : spec.css,
-                );
-              }
-            });
-          }
-        }
-      }),
-    );
-    await fs.promises.mkdir(publicOutDir, { recursive: true });
 
-    // Compile impower-ui's Tailwind utilities (scanning impower-dev's classes)
-    // and inline them into the SSG <style> block — mirrors the dev SSG
-    // (viteStaticallyRenderedPagesPlugin). Production has no running dev server,
-    // so spin up a transient middleware-mode server just to run the CSS through
-    // Vite's pipeline. Without this the prod page ships unstyled (Tailwind
-    // classes with no stylesheet to resolve them).
-    let tailwindCss = "";
-    {
-      const cssServer = await createServer({
-        configFile: false,
-        root: process.cwd(),
-        resolve: { alias, dedupe },
-        plugins: [tailwindcss()],
-        // No HMR: this is a one-shot build-time compile; the HMR ws server
-        // would otherwise grab port 24678 and clash with any running dev server.
-        server: { middlewareMode: true, hmr: false },
-        logLevel: "warn",
-      });
-      try {
-        // Use the `/@fs/<abs>` form — a transient (non-serve) server doesn't
-        // resolve the `/node_modules/...` URL form, but the explicit fs path
-        // loads. `?direct` returns the compiled CSS (Tailwind utilities for
-        // impower-dev's classes via root auto-detection + impower-ui via the
-        // stylesheet's own `@source`).
-        const tw = await cssServer.transformRequest(
-          "/@fs/" + impowerUiStyleCss.replace(/\\/g, "/") + "?direct",
-        );
-        if (tw?.code) tailwindCss = tw.code;
-      } catch (err) {
-        console.warn(
-          "[ssg] Failed to compile impower-ui Tailwind CSS:",
-          err instanceof Error ? err.message : err,
-        );
-      } finally {
-        await cssServer.close();
-      }
+  console.log("");
+  console.log(STEP_COLOR, "Hoisting CSS...");
+  const documentHtml = await fs.promises
+    .readFile(`${publicInDir}/document.html`, "utf-8")
+    .catch(() => "");
+
+  // Compile impower-ui's Tailwind utilities (scanning impower-dev's classes)
+  // and inline them into the SSG <style> block — mirrors the dev SSG
+  // (viteStaticallyRenderedPagesPlugin). Production has no running dev server,
+  // so spin up a transient middleware-mode server just to run the CSS through
+  // Vite's pipeline. Without this the prod page ships unstyled (Tailwind
+  // classes with no stylesheet to resolve them).
+  let tailwindCss = "";
+  {
+    const cssServer = await createServer({
+      configFile: false,
+      root: process.cwd(),
+      resolve: { alias, dedupe },
+      plugins: [tailwindcss()],
+      // No HMR: this is a one-shot build-time compile; the HMR ws server would
+      // otherwise grab a port and clash with any running dev server.
+      server: { middlewareMode: true, hmr: false },
+      logLevel: "warn",
+    });
+    try {
+      // `/@fs/<abs>?direct` returns the compiled stylesheet (Tailwind utilities
+      // for impower-dev's classes via root auto-detection + impower-ui via the
+      // stylesheet's own `@source`).
+      const tw = await cssServer.transformRequest(
+        "/@fs/" + impowerUiStyleCss.replace(/\\/g, "/") + "?direct",
+      );
+      if (tw?.code) tailwindCss = tw.code;
+    } catch (err) {
+      console.warn(
+        "[ssg] Failed to compile impower-ui Tailwind CSS:",
+        err instanceof Error ? err.message : err,
+      );
+    } finally {
+      await cssServer.close();
     }
-
-    console.log("");
-    console.log(STEP_COLOR, "Expanding HTML...");
-    await Promise.all(
-      htmlFilePaths.map(async (entryPath) => {
-        const src = entryPath.replace("\\", "/");
-        const dest = src.replace(pagesInDir, publicOutDir);
-        console.log(SRC_COLOR, `  ${getRelativePath(src)}`);
-        console.log(OUT_COLOR, `    ⤷ ${getRelativePath(dest)}`);
-        const fileName = path.parse(src).name;
-        const basePath = path.dirname(dest);
-        const cssFilePath = `${basePath}/${fileName}.css`;
-        const jsFilePath = `${basePath}/${fileName}.js`;
-        const cssPath = fs.existsSync(cssFilePath)
-          ? cssFilePath.replace(publicOutDir, "")
-          : "";
-        const mjsPath = fs.existsSync(jsFilePath)
-          ? jsFilePath.replace(publicOutDir, "")
-          : "";
-        const html = await fs.promises.readFile(src, "utf-8").catch(() => "");
-        const renderedHtml = staticallyRenderPage(
-          documentHtml,
-          { html, cssPath, mjsPath },
-        );
-        const styledHtml = staticallyStylePage(
-          renderedHtml,
-          [Array.from(scopedCssSet).join("\n"), tailwindCss].join("\n"),
-        );
-        await fs.promises.mkdir(path.dirname(dest), { recursive: true });
-        await fs.promises.writeFile(dest, styledHtml, "utf-8");
-      }),
-    );
-    // Finished processing component bundles.
-    // Since these bundles are not used at runtime, they can be deleted.
-    await fs.promises.rm(componentsOutDir, { recursive: true });
-  } else {
-    console.log("");
-    console.log(STEP_COLOR, "Copying HTML Files...");
-    await Promise.all(
-      htmlFilePaths.map(async (entryPath) => {
-        const src = entryPath.replace("\\", "/");
-        const dest = src.replace(indir, outdir);
-        console.log(SRC_COLOR, `  ${getRelativePath(src)}`);
-        console.log(OUT_COLOR, `    ⤷ ${getRelativePath(dest)}`);
-        await fs.promises.mkdir(path.dirname(dest), { recursive: true });
-        await fs.promises.copyFile(src, dest);
-      }),
-    );
   }
+
+  // Editor-global CSS (normalize + theme) first, then impower-ui's Tailwind.
+  const ssgCss = [readEditorGlobalCss(), tailwindCss]
+    .filter(Boolean)
+    .join("\n");
+
+  console.log("");
+  console.log(STEP_COLOR, "Expanding HTML...");
+  await Promise.all(
+    htmlFilePaths.map(async (entryPath) => {
+      const src = entryPath.replace("\\", "/");
+      const dest = src.replace(pagesInDir, publicOutDir);
+      console.log(SRC_COLOR, `  ${getRelativePath(src)}`);
+      console.log(OUT_COLOR, `    ⤷ ${getRelativePath(dest)}`);
+      const fileName = path.parse(src).name;
+      const basePath = path.dirname(dest);
+      const cssFilePath = `${basePath}/${fileName}.css`;
+      const jsFilePath = `${basePath}/${fileName}.js`;
+      const cssPath = fs.existsSync(cssFilePath)
+        ? cssFilePath.replace(publicOutDir, "")
+        : "";
+      const mjsPath = fs.existsSync(jsFilePath)
+        ? jsFilePath.replace(publicOutDir, "")
+        : "";
+      const html = await fs.promises.readFile(src, "utf-8").catch(() => "");
+      const renderedHtml = staticallyRenderPage(documentHtml, {
+        html,
+        cssPath,
+        mjsPath,
+      });
+      const styledHtml = staticallyStylePage(renderedHtml, ssgCss);
+      await fs.promises.mkdir(path.dirname(dest), { recursive: true });
+      await fs.promises.writeFile(dest, styledHtml, "utf-8");
+    }),
+  );
 };
 
 const createPackageJson = async () => {
@@ -514,8 +430,6 @@ const serve = async () => {
     await copyPublic();
     await buildApi();
     await buildPages();
-    await buildComponents();
-    await new Promise((resolve) => setTimeout(resolve, 100));
     await expandPageComponents();
     await createPackageJson();
     await buildWorkers();

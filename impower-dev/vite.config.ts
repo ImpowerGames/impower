@@ -18,8 +18,6 @@ import path from "path";
 import glob from "tiny-glob";
 import { build, defineConfig, Plugin } from "vite";
 import pkg from "./package.json";
-import { ComponentSpec } from "./src/build/ComponentSpec.js";
-import getScopedCSS from "./src/build/getScopedCSS.js";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
 
 const indir = "src";
@@ -37,8 +35,6 @@ const externalWorkerPaths = [
 
 const apiInDir = `${indir}/api`;
 const apiOutDir = `${outdir}/api`;
-const componentsInDir = `${indir}/components`;
-const componentsOutDir = `${outdir}/components`;
 const publicInDir = `${indir}/public`;
 const publicOutDir = `${outdir}/public`;
 const pagesInDir = `${indir}/pages`;
@@ -191,6 +187,17 @@ const staticallyStylePage = (html: string, ssg: string) => {
     `<style id="ssg-css">${ssg}\nhtml{opacity:1;}</style>\n</head>`,
   );
 };
+
+// Editor-global stylesheets inlined verbatim into the SSG `<style id="ssg-css">`
+// block, ahead of impower-ui's compiled Tailwind. Plain CSS — read raw.
+const EDITOR_GLOBAL_CSS_FILES = [
+  `${indir}/modules/spark-editor/styles/normalize/normalize.css`,
+  `${indir}/modules/spark-editor/styles/theme/theme.css`,
+];
+const readEditorGlobalCss = (): string =>
+  EDITOR_GLOBAL_CSS_FILES.map((f) =>
+    fs.readFileSync(path.resolve(process.cwd(), f), "utf-8"),
+  ).join("\n");
 
 // ----------------------------------------------------------------------------
 // Vite Plugins
@@ -494,26 +501,6 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
           );
         }
 
-        const componentPaths = await glob(
-          `${componentsInDir}/**/*.{js,mjs,ts}`,
-        );
-        const scopedCssSet = new Set<string>();
-        for (const cp of componentPaths) {
-          const module = await server.ssrLoadModule(
-            `/${cp.replace(/\\/g, "/")}`,
-          );
-          const specs = Array.isArray(module.default)
-            ? module.default
-            : [module.default];
-          specs.forEach((s: ComponentSpec) => {
-            if (s.css) {
-              scopedCssSet.add(
-                s.html && s.tag ? getScopedCSS(s.css, s.tag) : s.css,
-              );
-            }
-          });
-        }
-
         const cssPath = fs.existsSync(
           path.join(process.cwd(), `${pagesInDir}/${route}.css`),
         )
@@ -547,7 +534,7 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
 
         const styledHtml = staticallyStylePage(
           renderedHtml,
-          [Array.from(scopedCssSet).join("\n"), impowerUiTailwindCss]
+          [readEditorGlobalCss(), impowerUiTailwindCss]
             .filter(Boolean)
             .join("\n"),
         );
@@ -572,8 +559,6 @@ export {
   outdir,
   apiInDir,
   apiOutDir,
-  componentsInDir,
-  componentsOutDir,
   publicInDir,
   publicOutDir,
   pagesInDir,
@@ -589,6 +574,7 @@ export {
   PATH_RESOLUTION_BANNER,
   getServiceWorkerProcessEnvBanner,
   staticallyStylePage,
+  readEditorGlobalCss,
   viteDefineProcessPlugin,
   viteLoadersPlugin,
   viteBannerPlugin,
