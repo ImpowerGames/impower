@@ -20,7 +20,6 @@ import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/m
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
 import { ResizeGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
-import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
 import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
@@ -290,7 +289,8 @@ export class SparkdownPreviewGamePanelManager {
         settings,
         files: Object.values(files),
         definitions: {
-          builtins: DEFAULT_BUILTIN_DEFINITIONS,
+          // builtins now come from the implicitly-imported builtins prelude
+          // (useBuiltinsPrelude is the compiler default).
           optionals: DEFAULT_OPTIONAL_DEFINITIONS,
           schemas: DEFAULT_SCHEMA_DEFINITIONS,
           descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,

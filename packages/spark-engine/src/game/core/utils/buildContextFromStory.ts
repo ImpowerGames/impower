@@ -14,12 +14,14 @@ import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 // instances (each instance is itself a define table — skipped when collecting
 // props).
 //
-// NOTE: builtin `$default`s (e.g. `animation`'s default `timing`) are NOT
-// runtime defines — they live in the engine's DEFAULT_BUILTIN_DEFINITIONS and
-// are merged in by `Game.rebuildContext`. This converter only produces the
-// AUTHORED-define layer. Likewise it is intentionally RICHER than the lossy
-// compile-time `program.context` (which omits computed/non-scalar props that
-// had no faithful literal form); the runtime table carries the real values.
+// NOTE: builtins (e.g. `animation`'s default `timing`) now originate in the
+// implicitly-imported builtins prelude (builtins.sd), so they are real defines
+// rather than a separate JS table. During the transition they still reach the
+// engine via `program.context` (mergePreludeContext); wiring their runtime
+// `__def` tables into the engine is Phase 3. This converter produces the
+// AUTHORED-define layer and is intentionally RICHER than the lossy compile-time
+// `program.context` (which omits computed/non-scalar props that had no faithful
+// literal form); the runtime table carries the real values.
 
 const DEFINE_MARKER = "__define";
 const DEFINE_PARENT_MARKER = "__defineParent";

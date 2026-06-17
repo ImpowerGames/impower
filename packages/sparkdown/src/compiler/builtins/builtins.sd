@@ -2,7 +2,9 @@
 // type/instance. Compiled into every program so builtins populate both
 // program.context (LSP) and the runtime __def tables (engine).
 //
-// Originally generated from DEFAULT_BUILTIN_DEFINITIONS; hand-maintainable.
+// This is the hand-maintained source of truth for builtins. Edit it directly,
+// then re-run the prelude codegen (generatePrelude.test.ts) to regenerate the
+// builtins.ts wrapper the compiler imports.
 
 define metadata with
   title = ""

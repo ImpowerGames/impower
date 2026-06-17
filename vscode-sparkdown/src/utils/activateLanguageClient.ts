@@ -1,4 +1,3 @@
-import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
 import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
@@ -62,7 +61,8 @@ export const activateLanguageClient = async (
       settings: JSON.parse(JSON.stringify(sparkdownConfig)),
       files,
       definitions: {
-        builtins: DEFAULT_BUILTIN_DEFINITIONS,
+        // builtins now come from the implicitly-imported builtins prelude
+        // (useBuiltinsPrelude is the compiler default).
         optionals: DEFAULT_OPTIONAL_DEFINITIONS,
         schemas: DEFAULT_SCHEMA_DEFINITIONS,
         descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,

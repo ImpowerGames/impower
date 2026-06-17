@@ -12,7 +12,6 @@ import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
 import { GameToggledFullscreenModeMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage";
-import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
 import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
@@ -109,7 +108,8 @@ export default class GamePreview extends Component(spec) {
         settings: Workspace.configuration.settings,
         files: Object.values(files),
         definitions: {
-          builtins: DEFAULT_BUILTIN_DEFINITIONS,
+          // builtins now come from the implicitly-imported builtins prelude
+          // (useBuiltinsPrelude is the compiler default).
           optionals: DEFAULT_OPTIONAL_DEFINITIONS,
           schemas: DEFAULT_SCHEMA_DEFINITIONS,
           descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,

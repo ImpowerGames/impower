@@ -20,7 +20,6 @@
 
 import { JSDOM, VirtualConsole } from "jsdom";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { DEFAULT_BUILTIN_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
 import UIManager from "../../app/managers/UIManager";
@@ -43,7 +42,9 @@ export interface DOMHarness {
 function compile(source: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    definitions: { builtins: DEFAULT_BUILTIN_DEFINITIONS as any },
+    // Builtins come from the implicitly-imported builtins prelude (the compiler
+    // default), exactly like the production player.
+    useBuiltinsPrelude: true,
     files: [
       {
         uri: MAIN_URI,

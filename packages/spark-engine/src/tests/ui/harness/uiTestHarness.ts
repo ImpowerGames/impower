@@ -8,9 +8,10 @@
 // engine→consumer boundary must keep emitting an equivalent stream.
 //
 // How it drives (faithful path, see docs/sparkle/reactive-sparkle-spec.md §9):
-//   1. Compile a tiny `.sd` through the real `SparkdownCompiler`, configured
-//      with `DEFAULT_BUILTIN_DEFINITIONS` exactly like the production player
-//      (so config/breakpoints/animations/typewriter/transitions are present).
+//   1. Compile a tiny `.sd` through the real `SparkdownCompiler`, which pulls in
+//      the implicitly-imported builtins prelude exactly like the production
+//      player (so config/breakpoints/animations/typewriter/transitions are
+//      present).
 //   2. Construct a real `Game` (which instantiates the real `UIModule`,
 //      `AudioModule`, `InterpreterModule`, …) and `connect()` it to a mock
 //      Connection that records every emitted message and replies to requests.
@@ -27,7 +28,6 @@
 // synchronous `setTimeout`).
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { DEFAULT_BUILTIN_DEFINITIONS } from "../../../game/modules/DEFAULT_BUILTIN_DEFINITIONS";
 import { Game } from "../../../game/core/classes/Game";
 import type { Instructions } from "../../../game/core/types/Instructions";
 
@@ -69,17 +69,11 @@ export interface UIHarness {
 
 // The golden-master compiles the builtins .sd PRELUDE into the program (which
 // populates both program.context and the runtime __def tables) — the production
-// engine path. `PRELUDE=0` opts back into the legacy JS DEFAULT_BUILTIN_
-// DEFINITIONS for A/B comparison during the transition (kept until the JS
-// builtins are deleted). The committed snapshots reflect the PRELUDE path.
-const USE_BUILTINS_PRELUDE = process.env["PRELUDE"] !== "0";
-
+// engine path.
 export function compileUI(source: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    ...(USE_BUILTINS_PRELUDE
-      ? { useBuiltinsPrelude: true }
-      : { definitions: { builtins: DEFAULT_BUILTIN_DEFINITIONS as any } }),
+    useBuiltinsPrelude: true,
     files: [
       {
         uri: MAIN_URI,
