@@ -1,4 +1,4 @@
-text.source.sparkdown [0..125]
+text.source.sparkdown [0..161]
  ├─ meta.screen.luau [0..16]
  │   ├─ keyword.control.screen.luau [0..6]: "screen"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
@@ -18,14 +18,14 @@ text.source.sparkdown [0..125]
  │   ├─ punctuation.whitespace.optional.sd [44..48]: "    "
  │   └─ meta.struct.body.luau [48..70]: "text title \"Inventory\""
  ├─ Newline [70..71]: "\n"
- ├─ meta.screen.luau [71..95]
+ ├─ meta.screen.luau [71..111]
  │   ├─ punctuation.whitespace.optional.sd [71..75]: "    "
- │   └─ meta.struct.body.luau [75..95]: "button primary \"Use\""
- ├─ Newline [95..96]: "\n"
- ├─ meta.screen.luau [96..120]
- │   ├─ punctuation.whitespace.optional.sd [96..100]: "    "
- │   └─ meta.struct.body.luau [100..120]: "icon @click=use_item"
- ├─ Newline [120..121]: "\n"
- ├─ meta.screen.luau [121..124]
- │   └─ keyword.control.end.luau [121..124]: "end"
- └─ Newline [124..125]: "\n"
+ │   └─ meta.struct.body.luau [75..111]: "button primary \"Use\" @click=use_item"
+ ├─ Newline [111..112]: "\n"
+ ├─ meta.screen.luau [112..156]
+ │   ├─ punctuation.whitespace.optional.sd [112..116]: "    "
+ │   └─ meta.struct.body.luau [116..156]: "label big \"HP: {hp}\" #color={team_color}"
+ ├─ Newline [156..157]: "\n"
+ ├─ meta.screen.luau [157..160]
+ │   └─ keyword.control.end.luau [157..160]: "end"
+ └─ Newline [160..161]: "\n"

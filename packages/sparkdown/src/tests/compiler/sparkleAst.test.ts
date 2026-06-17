@@ -231,6 +231,33 @@ end
     expect(txt.content).toEqual([{ kind: "literal", text: "Inventory" }]);
   });
 
+  test("class + adjacency content + trailing attribute coexist on one line", () => {
+    const ast = screenAst(`screen main with
+  stage:
+    button primary "Use" @click=use_item
+    label big "HP: {hp}" #color={team_color}
+end
+`);
+    const [btn, lbl] = ast.main.children[0].children;
+    expect(btn).toMatchObject({ tag: "button", classes: ["primary"] });
+    expect(btn.content).toEqual([{ kind: "literal", text: "Use" }]);
+    expect(btn.events).toEqual([
+      { event: "click", handler: { kind: "ref", name: "use_item" } },
+    ]);
+    expect(lbl).toMatchObject({ tag: "label", classes: ["big"] });
+    expect(lbl.content).toEqual([
+      { kind: "literal", text: "HP: " },
+      {
+        kind: "binding",
+        binding: expect.objectContaining({ source: "{hp}" }),
+      },
+    ]);
+    expect(lbl.props.color).toEqual({
+      kind: "binding",
+      binding: expect.objectContaining({ source: "{team_color}" }),
+    });
+  });
+
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
     const ast = screenAst(`screen hud with
   text = "literal {{braces}} kept"

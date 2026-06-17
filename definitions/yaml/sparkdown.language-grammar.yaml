@@ -4557,6 +4557,47 @@ repository:
           - { include: "#NumericLiteral" }
           - { include: "#StringCharacter" }
 
+  # Adjacency content string for inline element positions where a class or
+  # attribute may follow on the same line (e.g. `button primary "Use" @click=x`).
+  # Unlike StringFieldValue(Interpolated) these end at the closing quote rather
+  # than requiring end-of-property-line, so a trailing attribute doesn't break
+  # the match. Same scope/highlighting as StringFieldValue; the interpolated
+  # variant (a real `{expr}` present) is tried first.
+  LuauElementContentStringInterpolated:
+    tag: string
+    name: string.quoted.double.sd
+    begin: (["])(?=(?:[^"{}]|\{\{|\}\}|\\.)*\{(?!\{))
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+    patterns:
+      - { include: "#SparkleLiteralBrace" }
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#StringEscape" }
+      - { include: "#Color" }
+      - { include: "#StringCharacter" }
+    end: (["])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
+  LuauElementContentStringPlain:
+    tag: string
+    name: string.quoted.double.sd
+    match: (["])((?:\\.|[^"])*)(["])
+    captures:
+      1:
+        patterns:
+          - { include: "#PunctuationStringOpen" }
+      2:
+        patterns:
+          - { include: "#PlainStringContent" }
+      3:
+        patterns:
+          - { include: "#PunctuationStringClose" }
+
   LuauStructBareMarker:
     match: ^({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}*)([^\n]*)$
     captures:
@@ -4579,8 +4620,8 @@ repository:
         patterns:
           - { include: "#RequiredWhitespace" }
           - { include: "#LuauElementAttribute" }
-          - { include: "#StringFieldValueInterpolated" }
-          - { include: "#StringFieldValue" }
+          - { include: "#LuauElementContentStringInterpolated" }
+          - { include: "#LuauElementContentStringPlain" }
           - { include: "#ComponentName" }
 
   # Full-line catch-all so any struct-body line NOT matched by a wrapper above

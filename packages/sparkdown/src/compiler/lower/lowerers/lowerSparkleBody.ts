@@ -97,10 +97,24 @@ const KEY_TOKEN_NAMES = new Set([
 const FIELD_VALUE_NAMES = new Set([
   "StringFieldValueInterpolated",
   "StringFieldValue",
+  "LuauElementContentStringInterpolated",
+  "LuauElementContentStringPlain",
   "NumericFieldValue",
   "BooleanFieldValue",
   "StylingValue",
   "UnquotedStringFieldValue",
+]);
+
+// Interpolation-aware content-string nodes (EOPL-bound + inline EOPL-less). Each
+// wraps its parts under a `<name>_content` child the reader walks.
+const INTERP_CONTENT_NODES = new Set([
+  "StringFieldValueInterpolated",
+  "LuauElementContentStringInterpolated",
+]);
+// Plain (non-interpolated) quoted content-string nodes — read as a literal.
+const PLAIN_CONTENT_NODES = new Set([
+  "StringFieldValue",
+  "LuauElementContentStringPlain",
 ]);
 
 /** DFS in-order: the first descendant (or self) whose name is in `names`. */
@@ -355,8 +369,9 @@ function readContentParts(
   value: SyntaxNode | null,
   ctx: LowerContext,
 ): ContentPart[] {
-  if (value?.name === "StringFieldValueInterpolated") {
-    const inner = firstDescendant(value, INTERP_CONTENT_WRAPPER);
+  if (value && INTERP_CONTENT_NODES.has(value.name)) {
+    // Each interp content node wraps its parts under a `<name>_content` child.
+    const inner = firstDescendant(value, new Set([`${value.name}_content`]));
     const parts: ContentPart[] = [];
     let textBuf = "";
     const flush = () => {
@@ -391,8 +406,6 @@ function readContentParts(
   return [{ kind: "binding", binding: literal.binding }];
 }
 
-const INTERP_CONTENT_WRAPPER = new Set(["StringFieldValueInterpolated_content"]);
-
 /** Read a field-value node as a literal PropValue, used for inline props/style
  *  values (Luau-position values that are NOT reactive in v1). Display content
  *  goes through {@link readContentParts} instead. */
@@ -400,7 +413,7 @@ const PLAIN_STRING_CONTENT = new Set(["PlainStringContent"]);
 
 function readLiteralValue(value: SyntaxNode | null, ctx: LowerContext): PropValue {
   if (!value) return { kind: "literal", value: "" };
-  if (value.name === "StringFieldValue") {
+  if (PLAIN_CONTENT_NODES.has(value.name)) {
     // Read the unquoted inner content (PlainStringContent), else strip quotes.
     const inner = firstDescendant(value, PLAIN_STRING_CONTENT);
     if (inner) {

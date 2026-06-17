@@ -7371,6 +7371,75 @@
         }
       }
     },
+    "LuauElementContentStringInterpolated": {
+      "tag": "string",
+      "name": "string.quoted.double.sd",
+      "begin": "([\"])(?=(?:[^\"{}]|\\{\\{|\\}\\}|\\\\.)*\\{(?!\\{))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SparkleLiteralBrace"
+        },
+        {
+          "include": "#LuauInterpolatedStringExpression"
+        },
+        {
+          "include": "#StringEscape"
+        },
+        {
+          "include": "#Color"
+        },
+        {
+          "include": "#StringCharacter"
+        }
+      ],
+      "end": "([\"])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
+    "LuauElementContentStringPlain": {
+      "tag": "string",
+      "name": "string.quoted.double.sd",
+      "match": "([\"])((?:\\\\.|[^\"])*)([\"])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PlainStringContent"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
     "LuauStructBareMarker": {
       "match": "^((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_-]*))((?:[^\\S\\n\\r])*)([^\\n]*)$",
       "captures": {
@@ -7405,10 +7474,10 @@
               "include": "#LuauElementAttribute"
             },
             {
-              "include": "#StringFieldValueInterpolated"
+              "include": "#LuauElementContentStringInterpolated"
             },
             {
-              "include": "#StringFieldValue"
+              "include": "#LuauElementContentStringPlain"
             },
             {
               "include": "#ComponentName"
