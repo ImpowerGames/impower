@@ -266,10 +266,9 @@ export function Tab({
   children,
 }: TabProps) {
   const ctx = useContext(TabsContext);
-  // Active icon/label color. Uses `text-tab-foreground`, which defaults to
-  // the editor's `--theme-color-tab-active-text` (rgb(242,242,242)) and
-  // falls back to `--theme-color-fg` (pure white) for apps that don't set
-  // it. Matches sparkle s-tab's `active-text-color="tab-active-text"`.
+  // Active icon/label color. `text-tab-foreground` is a muted off-white
+  // (rgb(242,242,242)) — softer than the pure-white header title. Matches
+  // sparkle s-tab's `active-text-color="tab-active-text"`.
   const activeColorClass = "text-tab-foreground";
   // A `color` prop overrides BOTH active and inactive coloring — so a
   // diagnostic-colored tab stays the same color regardless of selection.

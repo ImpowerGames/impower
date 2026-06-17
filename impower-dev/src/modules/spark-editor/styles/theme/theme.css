@@ -14,20 +14,26 @@ html {
   --theme-size-footer-nav: 60px;
   --theme-size-panel-nav: 48px;
 
-  /* Editor-chrome theme seams still consumed by raw infra CSS:
-     - popup            → impower-ui `--color-popup` override seam
-     - panel            → document.css `.cm-context-menu`, SparkEditor host bg
-     - editor-bg        → sparkdown-document-views script-editor bg
-     - tab-active-text  → impower-ui `--color-tab-foreground` seam
-     - primary-bg       → document.css `html` background
-     Component code now uses Tailwind tokens (`bg-engine-700`, `bg-popup`,
-     `text-white`) instead of these — the former fab-bg/fab-fg/secondary-bg/
+  /* Editor-chrome dark-only constants consumed by RAW infra CSS (tag/portal
+     selectors that can't take a Tailwind class):
+     - panel      → document.css `.cm-context-menu`, SparkEditor host bg
+     - editor-bg  → sparkdown-document-views script-editor bg
+     - primary-bg → document.css `html` background
+     Component markup uses Tailwind tokens (`bg-engine-700`, `bg-popup`,
+     `text-white`) instead; the popup/tab-active-text/fab-*/secondary-bg/
      tab-inactive-text tokens were retired in the sparkle→Tailwind migration. */
-  --theme-color-popup: rgb(18, 18, 18);
   --theme-color-panel: hsl(210.6, 100%, 10%);
   --theme-color-editor-bg: hsl(210.6, 100%, 7%);
-  --theme-color-tab-active-text: hsl(0, 0%, 95%);
   --theme-color-primary-bg: hsl(210.7, 89.1%, 18%);
+
+  /* Dark-only scrollbar colors. Consumed by raw `::-webkit-scrollbar` /
+     `scrollbar-color` rules (pseudo-elements can't take a Tailwind class) in
+     this editor's normalize.css AND the sparkdown-document-views script editor.
+     Formerly defined in impower-ui's deleted .theme-dark block; the app owns
+     them now. white/15% thumb, white/50% hover, black/15% track. */
+  --theme-color-scrollbar-thumb: rgb(255 255 255 / 0.15);
+  --theme-color-scrollbar-thumb-hover: rgb(255 255 255 / 0.5);
+  --theme-color-scrollbar-track: rgb(0 0 0 / 0.15);
 
   --theme-color-palette-spot-0: #052d57;
   --theme-color-palette-spot-1: #415a89;

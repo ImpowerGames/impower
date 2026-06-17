@@ -62,7 +62,7 @@ function minToPx(minSize: number | string, trackPx: number): number {
 //   - a 1px always-visible line sits centered inside (::before)
 //   - a 4px colored indicator fades in on hover/active/focus (::after, 150ms)
 // Width/height never change, so the layout doesn't shift during interaction.
-// Resting line uses an explicit rgba — impower-ui's --theme-color-divider is
+// Resting line uses an explicit rgba — impower-ui's `--color-divider` is
 // 0.12 which is too prominent. Sparkle's original used 0.06.
 const SEPARATOR_BASE =
   // z-10 lifts the divider above panel-content stacking contexts so the

@@ -3,61 +3,15 @@
 @source ".";
 
 /* ----------------------------------------------------------------------------
- * Base theme variables.
+ * Tailwind theme tokens.
  *
- * Defined as CSS custom properties so theme switching at runtime works via the
- * `theme-light` / `theme-dark` class (or `[theme="..."]` attribute) on any
- * ancestor. The @theme block below aliases these into Tailwind tokens so
- * utility classes like `bg-fg`, `text-fg-80`, `bg-primary` resolve correctly
- * for the active theme.
- * --------------------------------------------------------------------------*/
-
-:root,
-.theme-light,
-[theme="light"] {
-  color-scheme: light;
-
-  /* Surface */
-  --theme-color-bg: rgb(255 255 255);
-  --theme-color-fg: rgb(0 0 0);
-
-  /* Surface composites */
-  --theme-color-surface: rgb(247 247 247); /* neutral-100 */
-  --theme-color-surface-border: rgb(0 0 0 / 0.12);
-  --theme-color-divider: rgb(0 0 0 / 0.13);
-
-  /* Scrollbars */
-  --theme-color-scrollbar-thumb: rgb(0 0 0 / 0.25);
-  --theme-color-scrollbar-thumb-hover: rgb(0 0 0 / 0.5);
-  --theme-color-scrollbar-track: rgb(255 255 255 / 0.1);
-
-  --theme-opacity-overlay: 0.25;
-}
-
-.theme-dark,
-[theme="dark"] {
-  color-scheme: dark;
-
-  /* Surface */
-  --theme-color-bg: rgb(0 0 0);
-  --theme-color-fg: rgb(255 255 255);
-
-  /* Surface composites */
-  --theme-color-surface: rgb(37 37 37); /* neutral-950 */
-  --theme-color-surface-border: rgb(255 255 255 / 0.12);
-  --theme-color-divider: rgb(255 255 255 / 0.12);
-
-  /* Scrollbars */
-  --theme-color-scrollbar-thumb: rgb(255 255 255 / 0.15);
-  --theme-color-scrollbar-thumb-hover: rgb(255 255 255 / 0.5);
-  --theme-color-scrollbar-track: rgb(0 0 0 / 0.15);
-
-  --theme-opacity-overlay: 0.5;
-}
-
-/* ----------------------------------------------------------------------------
- * Tailwind theme tokens. Color tokens alias the per-theme CSS variables above
- * so `bg-fg` / `text-fg-50` / `bg-primary` resolve correctly under either theme.
+ * The editor is DARK-ONLY (`<html class="theme-dark">`, `color-scheme: dark`),
+ * so colors are defined as flat dark literals directly in `@theme` — no
+ * `--theme-color-*` runtime layer and no `.theme-light`/`.theme-dark` switch.
+ * If runtime light/dark theming is ever needed, reintroduce the canonical
+ * Tailwind v4 pattern: per-theme `--token` vars in `:root`/`.dark` selectors
+ * aliased here via `var()` (you can't switch a `@theme` token directly — it's
+ * emitted once to `:root` at build time).
  * --------------------------------------------------------------------------*/
 
 @theme {
@@ -113,31 +67,24 @@
   --z-index-toast: 950;
   --z-index-tooltip: 1000;
 
-  /* Surface colors — bridge to runtime CSS vars for theme switching.
-     shadcn-style naming (`bg-background`, `text-foreground`) so the
-     utility prefix and color name don't collide visually like `bg-bg`. */
-  --color-background: var(--theme-color-bg);
-  --color-foreground: var(--theme-color-fg);
-  --color-surface: var(--theme-color-surface);
-  --color-surface-border: var(--theme-color-surface-border);
-  --color-divider: var(--theme-color-divider);
-  /* Floating-panel surface (dropdowns, popovers, modal cards). A fixed dark
-     neutral, NOT theme-switched — matches the legacy `--theme-color-popup`
-     (rgb(18,18,18)). The runtime var is the optional retheme seam; the
-     literal is the default so `bg-popup` works in standalone impower-ui. */
-  --color-popup: var(--theme-color-popup, rgb(18 18 18));
-  /* Tab-active foreground — slightly muted off-white instead of pure white.
-     Matches sparkle's `--theme-color-tab-active-text` (hsl(0 0% 95%) ≈
-     rgb(242 242 242)). Distinguishes tab labels from the pure-white header
-     title text — softer at large weights/sizes. Apps that want different
-     tab foreground can override `--theme-color-tab-active-text`. */
-  --color-tab-foreground: var(--theme-color-tab-active-text, var(--color-foreground));
+  /* Surface colors (dark-only literals). shadcn-style naming
+     (`bg-background`, `text-foreground`) so the utility prefix and color name
+     don't collide visually like `bg-bg`. */
+  --color-background: rgb(0 0 0);
+  --color-foreground: rgb(255 255 255);
+  --color-surface: rgb(37 37 37); /* neutral-950 */
+  --color-surface-border: rgb(255 255 255 / 0.12);
+  --color-divider: rgb(255 255 255 / 0.12);
+  /* Floating-panel surface (dropdowns, popovers, modal cards) — a fixed dark
+     neutral, distinct from `engine-*`. Use `bg-popup`. */
+  --color-popup: rgb(18 18 18);
+  /* Tab-active foreground — slightly muted off-white (not pure white) so tab
+     labels read softer than the pure-white header title at large sizes. */
+  --color-tab-foreground: rgb(242 242 242);
 
-  /* Opacity variants are handled by Tailwind v4's slash modifier:
+  /* Opacity variants use Tailwind v4's slash modifier — no opacity ladder:
        text-foreground/60   →  color-mix(in oklab, var(--color-foreground) 60%, transparent)
-       bg-background/10     →  same pattern for backgrounds
-     Sparkle components still reference the runtime --theme-color-fg-50
-     etc. directly via var(), which keeps working independently. */
+       bg-background/10     →  same pattern for backgrounds */
 
   /* Engine palette — the deep navy/slate ramp the editor chrome and
      bottom-nav use. Consolidates sparkle's scattered editor theme tokens
