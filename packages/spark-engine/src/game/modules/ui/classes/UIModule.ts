@@ -881,12 +881,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const targetEl of targetEls) {
       const style = { pointer_events: "auto" };
       this.updateElement(targetEl, { style });
-      this.emit(
-        UpdateElementMessage.type.request({
-          element: targetEl.id,
-          style,
-        }),
-      );
       if (callback) {
         this.emit(
           ObserveElementMessage.type.request({
