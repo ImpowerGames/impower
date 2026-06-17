@@ -4999,7 +4999,7 @@
     "LuauAnimation": {
       "tag": "meta",
       "name": "meta.animation.luau",
-      "begin": "((?:[^\\S\\n\\r])*)(animation)\\b((?:[^\\S\\n\\r])*)",
+      "begin": "((?:[^\\S\\n\\r])*)(animation)\\b(?![.(])((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5063,7 +5063,7 @@
     "LuauTheme": {
       "tag": "meta",
       "name": "meta.theme.luau",
-      "begin": "((?:[^\\S\\n\\r])*)(theme)\\b((?:[^\\S\\n\\r])*)",
+      "begin": "((?:[^\\S\\n\\r])*)(theme)\\b(?![.(])((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
         "1": {
           "patterns": [

@@ -40,11 +40,12 @@ export function lowerLuauStructDefine(
   const struct: Record<string, unknown> = {
     $type: type,
     $name: name,
-    // Inherit the type's $default (and any named parent's props) via the same
-    // chain `define X as <type>` used. A block IS the type root only if it
-    // names itself the type, which authors don't do — the builtin type roots
-    // stay `define <type> with …`.
-    $extends: parent || type,
+    // Only an EXPLICIT parent sets $extends (matches `style`/`define X as Y`).
+    // The type's own $default is inherited by EVERY non-$ entry of this type
+    // via populateDefinedDefaultProperties (by type, not by $extends), so the
+    // no-parent case needs no $extends — and adding one diverges from the
+    // `define X as animation` struct (which carries none).
+    ...(parent ? { $extends: parent } : {}),
     ...body,
   };
 

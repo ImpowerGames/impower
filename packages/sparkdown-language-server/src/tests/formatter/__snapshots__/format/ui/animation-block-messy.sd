@@ -1,0 +1,10 @@
+animation ping with
+     target = layer.self
+     keyframes:
+          -
+               offset = 0.75
+               transform = "scale(2)"
+     timing:
+          duration = 0
+          iterations = 1
+end

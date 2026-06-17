@@ -1591,160 +1591,534 @@ define animation with
   timing = { delay = 0, duration = 0, easing = "ease", iterations = 1, fill = "both", direction = "normal" }
 end
 
-define show as animation with
+animation show with
   target = layer.self
-  keyframes = { { opacity = "1" } }
-  timing = { delay = 0, duration = 0, easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define hide as animation with
+animation hide with
   target = layer.self
-  keyframes = { { opacity = "0" } }
-  timing = { delay = 0, duration = 0, easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define align_left as animation with
+animation align_left with
   target = layer.instance
-  keyframes = { { translate = "calc(0 * (100cqw - 100%)) 0" } }
-  timing = { delay = 0, duration = 0, easing = "ease-in-out", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      translate = "calc(0 * (100cqw - 100%)) 0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define align_center as animation with
+animation align_center with
   target = layer.instance
-  keyframes = { { translate = "calc(0.5 * (100cqw - 100%)) 0" } }
-  timing = { delay = 0, duration = 0, easing = "ease-in-out", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      translate = "calc(0.5 * (100cqw - 100%)) 0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define align_right as animation with
+animation align_right with
   target = layer.instance
-  keyframes = { { translate = "calc(1 * (100cqw - 100%)) 0" } }
-  timing = { delay = 0, duration = 0, easing = "ease-in-out", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      translate = "calc(1 * (100cqw - 100%)) 0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define spin as animation with
+animation spin with
   target = layer.self
-  keyframes = { { transform = "rotate(360deg)" } }
-  timing = { delay = 0, duration = 0, easing = "linear", iterations = "infinite", fill = "none", direction = "normal" }
+  keyframes:
+    -
+      transform = "rotate(360deg)"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "linear"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
 end
 
-define ping as animation with
+animation ping with
   target = layer.self
-  keyframes = { { offset = 0.75, transform = "scale(2)", opacity = "0" }, { offset = 1, transform = "scale(2)", opacity = "0" } }
-  timing = { delay = 0, duration = 0, easing = "ease", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      offset = 0.75
+      transform = "scale(2)"
+      opacity = "0"
+    -
+      offset = 1
+      transform = "scale(2)"
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define bounce as animation with
+animation bounce with
   target = layer.self
-  keyframes = { { transform = "translateY(-50%)", easing = "cubic-bezier(0.8,0,1,1)" }, { transform = "none", easing = "cubic-bezier(0,0,0.2,1)" }, { transform = "translateY(-50%)", easing = "cubic-bezier(0.8,0,1,1)" } }
-  timing = { delay = 0, duration = 0, easing = "ease", iterations = "infinite", fill = "none", direction = "normal" }
+  keyframes:
+    -
+      transform = "translateY(-50%)"
+      easing = "cubic-bezier(0.8,0,1,1)"
+    -
+      transform = "none"
+      easing = "cubic-bezier(0,0,0.2,1)"
+    -
+      transform = "translateY(-50%)"
+      easing = "cubic-bezier(0.8,0,1,1)"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
 end
 
-define wave as animation with
+animation wave with
   target = layer.self
-  keyframes = { { transform = "translateY(0)" }, { transform = "translateY(-15%)" }, { transform = "translateY(0)" } }
-  timing = { delay = 0, duration = "750ms", easing = "ease-in-out", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      transform = "translateY(0)"
+    -
+      transform = "translateY(-15%)"
+    -
+      transform = "translateY(0)"
+  timing:
+    delay = 0
+    duration = "750ms"
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define wavy as animation with
+animation wavy with
   target = layer.self
-  keyframes = { { transform = "translateY(0)" }, { transform = "translateY(-15%)" }, { transform = "translateY(0)" } }
-  timing = { delay = 0, duration = "750ms", easing = "ease-in-out", iterations = "infinite", fill = "none", direction = "normal" }
+  keyframes:
+    -
+      transform = "translateY(0)"
+    -
+      transform = "translateY(-15%)"
+    -
+      transform = "translateY(0)"
+  timing:
+    delay = 0
+    duration = "750ms"
+    easing = "ease-in-out"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
 end
 
-define shaky as animation with
+animation shaky with
   target = layer.self
-  keyframes = { { left = "calc(1em / 60)", top = "calc(1em / 60)" }, { left = "calc(-1em / 60)", top = "calc(-2em / 60)" }, { left = "calc(-2em / 60)", top = "calc(0em / 60)" }, { left = "calc(2em / 60)", top = "calc(2em / 60)" }, { left = "calc(1em / 60)", top = "calc(-1em / 60)" }, { left = "calc(-1em / 60)", top = "calc(2em / 60)" }, { left = "calc(-2em / 60)", top = "calc(1em / 60)" }, { left = "calc(2em / 60)", top = "calc(1em / 60)" }, { left = "calc(-1em / 60)", top = "calc(-1em / 60)" }, { left = "calc(1em / 60)", top = "calc(2em / 60)" }, { left = "calc(1em / 60)", top = "calc(-2em / 60)" } }
-  timing = { delay = 0, duration = "300ms", easing = "ease-in-out", iterations = "infinite", fill = "none", direction = "normal" }
+  keyframes:
+    -
+      left = "calc(1em / 60)"
+      top = "calc(1em / 60)"
+    -
+      left = "calc(-1em / 60)"
+      top = "calc(-2em / 60)"
+    -
+      left = "calc(-2em / 60)"
+      top = "calc(0em / 60)"
+    -
+      left = "calc(2em / 60)"
+      top = "calc(2em / 60)"
+    -
+      left = "calc(1em / 60)"
+      top = "calc(-1em / 60)"
+    -
+      left = "calc(-1em / 60)"
+      top = "calc(2em / 60)"
+    -
+      left = "calc(-2em / 60)"
+      top = "calc(1em / 60)"
+    -
+      left = "calc(2em / 60)"
+      top = "calc(1em / 60)"
+    -
+      left = "calc(-1em / 60)"
+      top = "calc(-1em / 60)"
+    -
+      left = "calc(1em / 60)"
+      top = "calc(2em / 60)"
+    -
+      left = "calc(1em / 60)"
+      top = "calc(-2em / 60)"
+  timing:
+    delay = 0
+    duration = "300ms"
+    easing = "ease-in-out"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
 end
 
-define shake as animation with
+animation shake with
   target = layer.self
-  keyframes = { { transform = "translate(0.4vh, 0.2vh)" }, { transform = "translate(-0.2vh, -0.4vh)" }, { transform = "translate(-0.6vh, 0vh)" }, { transform = "translate(0vh, 0.4vh)" }, { transform = "translate(0.2vh, -0.2vh)" }, { transform = "translate(-0.2vh, 0.4vh)" }, { transform = "translate(-0.6vh, 0.2vh)" }, { transform = "translate(0.4vh, 0.2vh)" }, { transform = "translate(-0.2vh, -0.2vh)" }, { transform = "translate(0.4vh, 0.4vh)" }, { transform = "translate(0.2vh, -0.4vh)" } }
-  timing = { delay = 0, duration = "300ms", easing = "ease-in-out", iterations = 1, fill = "none", direction = "normal" }
+  keyframes:
+    -
+      transform = "translate(0.4vh, 0.2vh)"
+    -
+      transform = "translate(-0.2vh, -0.4vh)"
+    -
+      transform = "translate(-0.6vh, 0vh)"
+    -
+      transform = "translate(0vh, 0.4vh)"
+    -
+      transform = "translate(0.2vh, -0.2vh)"
+    -
+      transform = "translate(-0.2vh, 0.4vh)"
+    -
+      transform = "translate(-0.6vh, 0.2vh)"
+    -
+      transform = "translate(0.4vh, 0.2vh)"
+    -
+      transform = "translate(-0.2vh, -0.2vh)"
+    -
+      transform = "translate(0.4vh, 0.4vh)"
+    -
+      transform = "translate(0.2vh, -0.4vh)"
+  timing:
+    delay = 0
+    duration = "300ms"
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "none"
+    direction = "normal"
 end
 
-define shaking as animation with
+animation shaking with
   target = layer.self
-  keyframes = { { transform = "translate(0.4vh, 0.2vh)" }, { transform = "translate(-0.2vh, -0.4vh)" }, { transform = "translate(-0.6vh, 0vh)" }, { transform = "translate(0vh, 0.4vh)" }, { transform = "translate(0.2vh, -0.2vh)" }, { transform = "translate(-0.2vh, 0.4vh)" }, { transform = "translate(-0.6vh, 0.2vh)" }, { transform = "translate(0.4vh, 0.2vh)" }, { transform = "translate(-0.2vh, -0.2vh)" }, { transform = "translate(0.4vh, 0.4vh)" }, { transform = "translate(0.2vh, -0.4vh)" } }
-  timing = { delay = 0, duration = "300ms", easing = "ease-in-out", iterations = "infinite", fill = "both", direction = "normal" }
+  keyframes:
+    -
+      transform = "translate(0.4vh, 0.2vh)"
+    -
+      transform = "translate(-0.2vh, -0.4vh)"
+    -
+      transform = "translate(-0.6vh, 0vh)"
+    -
+      transform = "translate(0vh, 0.4vh)"
+    -
+      transform = "translate(0.2vh, -0.2vh)"
+    -
+      transform = "translate(-0.2vh, 0.4vh)"
+    -
+      transform = "translate(-0.6vh, 0.2vh)"
+    -
+      transform = "translate(0.4vh, 0.2vh)"
+    -
+      transform = "translate(-0.2vh, -0.2vh)"
+    -
+      transform = "translate(0.4vh, 0.4vh)"
+    -
+      transform = "translate(0.2vh, -0.4vh)"
+  timing:
+    delay = 0
+    duration = "300ms"
+    easing = "ease-in-out"
+    iterations = "infinite"
+    fill = "both"
+    direction = "normal"
 end
 
-define shiver as animation with
+animation shiver with
   target = layer.self
-  keyframes = { { transform = "translate(0.2vh, 0.1vh)" }, { transform = "translate(-0.1vh, -0.2vh)" }, { transform = "translate(-0.3vh, 0vh)" }, { transform = "translate(0vh, 0.2vh)" }, { transform = "translate(0.1vh, -0.1vh)" }, { transform = "translate(-0.1vh, 0.2vh)" }, { transform = "translate(-0.3vh, 0.1vh)" }, { transform = "translate(0.2vh, 0.1vh)" }, { transform = "translate(-0.1vh, -0.1vh)" }, { transform = "translate(0.2vh, 0.2vh)" }, { transform = "translate(0.1vh, -0.2vh)" } }
-  timing = { delay = 0, duration = "300ms", easing = "ease-in-out", iterations = 1, fill = "none", direction = "normal" }
+  keyframes:
+    -
+      transform = "translate(0.2vh, 0.1vh)"
+    -
+      transform = "translate(-0.1vh, -0.2vh)"
+    -
+      transform = "translate(-0.3vh, 0vh)"
+    -
+      transform = "translate(0vh, 0.2vh)"
+    -
+      transform = "translate(0.1vh, -0.1vh)"
+    -
+      transform = "translate(-0.1vh, 0.2vh)"
+    -
+      transform = "translate(-0.3vh, 0.1vh)"
+    -
+      transform = "translate(0.2vh, 0.1vh)"
+    -
+      transform = "translate(-0.1vh, -0.1vh)"
+    -
+      transform = "translate(0.2vh, 0.2vh)"
+    -
+      transform = "translate(0.1vh, -0.2vh)"
+  timing:
+    delay = 0
+    duration = "300ms"
+    easing = "ease-in-out"
+    iterations = 1
+    fill = "none"
+    direction = "normal"
 end
 
-define shivering as animation with
+animation shivering with
   target = layer.self
-  keyframes = { { transform = "translate(0.2vh, 0.1vh)" }, { transform = "translate(-0.1vh, -0.2vh)" }, { transform = "translate(-0.3vh, 0vh)" }, { transform = "translate(0vh, 0.2vh)" }, { transform = "translate(0.1vh, -0.1vh)" }, { transform = "translate(-0.1vh, 0.2vh)" }, { transform = "translate(-0.3vh, 0.1vh)" }, { transform = "translate(0.2vh, 0.1vh)" }, { transform = "translate(-0.1vh, -0.1vh)" }, { transform = "translate(0.2vh, 0.2vh)" }, { transform = "translate(0.1vh, -0.2vh)" } }
-  timing = { delay = 0, duration = "300ms", easing = "ease-in-out", iterations = "infinite", fill = "none", direction = "normal" }
+  keyframes:
+    -
+      transform = "translate(0.2vh, 0.1vh)"
+    -
+      transform = "translate(-0.1vh, -0.2vh)"
+    -
+      transform = "translate(-0.3vh, 0vh)"
+    -
+      transform = "translate(0vh, 0.2vh)"
+    -
+      transform = "translate(0.1vh, -0.1vh)"
+    -
+      transform = "translate(-0.1vh, 0.2vh)"
+    -
+      transform = "translate(-0.3vh, 0.1vh)"
+    -
+      transform = "translate(0.2vh, 0.1vh)"
+    -
+      transform = "translate(-0.1vh, -0.1vh)"
+    -
+      transform = "translate(0.2vh, 0.2vh)"
+    -
+      transform = "translate(0.1vh, -0.2vh)"
+  timing:
+    delay = 0
+    duration = "300ms"
+    easing = "ease-in-out"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
 end
 
-define waitout as animation with
+animation waitout with
   target = layer.self
-  keyframes = { { opacity = "0" } }
-  timing = { delay = 0, duration = "0.5s", easing = "step-end", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "step-end"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define waitin as animation with
+animation waitin with
   target = layer.self
-  keyframes = { { opacity = "1" } }
-  timing = { delay = 0, duration = "0.5s", easing = "step-end", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "step-end"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define fadeout as animation with
+animation fadeout with
   target = layer.self
-  keyframes = { { opacity = "0" } }
-  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define fadein as animation with
+animation fadein with
   target = layer.self
-  keyframes = { { opacity = "1" } }
-  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define pulse as animation with
+animation pulse with
   target = layer.self
-  keyframes = { { opacity = "0" }, { opacity = "1" }, { opacity = "0" } }
-  timing = { delay = 0, duration = "1s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      opacity = "0"
+    -
+      opacity = "1"
+    -
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "1s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define blackout as animation with
+animation blackout with
   target = layer.self
-  keyframes = { { background_color = "black", opacity = "0" }, { background_color = "black", opacity = "1" } }
-  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      background_color = "black"
+      opacity = "0"
+    -
+      background_color = "black"
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define blackin as animation with
+animation blackin with
   target = layer.self
-  keyframes = { { background_color = "black", opacity = "1" }, { background_color = "black", opacity = "0" } }
-  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      background_color = "black"
+      opacity = "1"
+    -
+      background_color = "black"
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define blackpulse as animation with
+animation blackpulse with
   target = layer.self
-  keyframes = { { background_color = "black", opacity = "0" }, { background_color = "black", opacity = "1" }, { background_color = "black", opacity = "0" } }
-  timing = { delay = 0, duration = "1s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      background_color = "black"
+      opacity = "0"
+    -
+      background_color = "black"
+      opacity = "1"
+    -
+      background_color = "black"
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "1s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define whiteout as animation with
+animation whiteout with
   target = layer.self
-  keyframes = { { background_color = "white", opacity = "0" }, { background_color = "white", opacity = "1" } }
-  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      background_color = "white"
+      opacity = "0"
+    -
+      background_color = "white"
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define whitein as animation with
+animation whitein with
   target = layer.self
-  keyframes = { { background_color = "white", opacity = "1" }, { background_color = "white", opacity = "0" } }
-  timing = { delay = 0, duration = "0.5s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      background_color = "white"
+      opacity = "1"
+    -
+      background_color = "white"
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "0.5s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
-define whitepulse as animation with
+animation whitepulse with
   target = layer.self
-  keyframes = { { background_color = "white", opacity = "0" }, { background_color = "white", opacity = "1" }, { background_color = "white", opacity = "0" } }
-  timing = { delay = 0, duration = "1s", easing = "linear", iterations = 1, fill = "both", direction = "normal" }
+  keyframes:
+    -
+      background_color = "white"
+      opacity = "0"
+    -
+      background_color = "white"
+      opacity = "1"
+    -
+      background_color = "white"
+      opacity = "0"
+  timing:
+    delay = 0
+    duration = "1s"
+    easing = "linear"
+    iterations = 1
+    fill = "both"
+    direction = "normal"
 end
 
 define transition with

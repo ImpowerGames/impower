@@ -34,7 +34,6 @@ end
     expect(struct).toEqual({
       $type: "animation",
       $name: "ping",
-      $extends: "animation",
       target: { $type: "layer", $name: "self" },
       keyframes: [
         { offset: 0.75, transform: "scale(2)", opacity: "0" },
@@ -77,7 +76,6 @@ end
     expect(struct).toEqual({
       $type: "theme",
       $name: "dusk",
-      $extends: "theme",
       color: "#112233",
       radius: "8px",
     });

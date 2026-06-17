@@ -1,0 +1,4 @@
+theme dusk with
+  color = #112233
+  radius = 8px
+end

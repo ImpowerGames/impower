@@ -3173,7 +3173,10 @@ repository:
   LuauAnimation:
     tag: meta
     name: meta.animation.luau
-    begin: ({{WS}}*)(animation)\b({{WS}}*)
+    # `(?![.(])` keeps `animation` an identifier/namespace when followed by `.`
+    # or `(` — so `animation.fadein` refs and any `animation(...)` keep working
+    # in expression position; only a true `animation NAME with …` block starts.
+    begin: ({{WS}}*)(animation)\b(?![.(])({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -3206,7 +3209,9 @@ repository:
   LuauTheme:
     tag: meta
     name: meta.theme.luau
-    begin: ({{WS}}*)(theme)\b({{WS}}*)
+    # See LuauAnimation: `(?![.(])` keeps `theme.X` refs and the `theme(...)`
+    # selector function working in expression position.
+    begin: ({{WS}}*)(theme)\b(?![.(])({{WS}}*)
     beginCaptures:
       1:
         patterns:
