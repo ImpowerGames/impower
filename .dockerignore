@@ -21,9 +21,10 @@
 **/dist/
 **/.dev/
 
-# Legacy apps that are NOT npm workspaces (not needed by any image build).
+# Legacy / experimental — NOT npm-workspace members (not needed by any build).
 admin/
 impower-app/
+packages/concept-generator/
 
 # Meta files
 .gitignore

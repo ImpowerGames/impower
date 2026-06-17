@@ -8,12 +8,21 @@
 .github/
 .vercel/
 .vscode/
-node_modules/
 
+# Dependencies and build outputs are (re)produced inside the Docker builder.
+**/node_modules/
+**/out/
+**/dist/
+**/.dev/
+
+# Legacy / experimental — NOT npm-workspace members, so safe to keep out of the
+# upload. A manual `gcloud builds submit` runs `npm ci`, which needs every
+# workspace member present; these are excluded from the root workspaces array
+# (concept-generator via the `!packages/concept-generator` negation), so they
+# must NOT be workspace members or this would break the install.
 admin/
 impower-app/
 vscode-spark/
-vscode-sparkdown/
 packages/concept-generator/
 
 .gitignore
