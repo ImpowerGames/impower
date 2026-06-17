@@ -102,11 +102,15 @@ function getCompiledPrelude(): {
   if (_cachedPrelude) {
     return _cachedPrelude;
   }
-  // Compile the prelude in isolation. `useBuiltinsPrelude` stays false here so
-  // this compile doesn't recurse into itself; the prelude defines every builtin
-  // it needs, so no JS builtins are required.
+  // Compile the prelude in isolation. `useBuiltinsPrelude` MUST be false here so
+  // this compile doesn't recurse into itself (mergePreludeContext → here →
+  // mergePreludeContext → …, never reaching the `_cachedPrelude =` assignment →
+  // unbounded recursion/allocation). Set it explicitly rather than relying on the
+  // class default, which is now `true`. The prelude defines every builtin it
+  // needs, so no JS builtins are required.
   const compiler = new SparkdownCompiler();
   compiler.configure({
+    useBuiltinsPrelude: false,
     definitions: { builtins: {} as any },
     files: [
       {
@@ -151,7 +155,7 @@ export class SparkdownCompiler {
     this._profilerId = value;
   }
 
-  protected _config: SparkdownCompilerConfig = {};
+  protected _config: SparkdownCompilerConfig = { useBuiltinsPrelude: true };
   get config() {
     return this._config;
   }

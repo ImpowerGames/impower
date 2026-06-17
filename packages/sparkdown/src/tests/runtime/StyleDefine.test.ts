@@ -184,6 +184,11 @@ style c with
 end
 `);
     expect(r.errors).toEqual([]);
-    expect(Object.keys(r.style).sort()).toEqual(["a", "b", "c"]);
+    // All three authored styles coexist (builtins from the prelude are also
+    // present in context.style, so assert the authored set is a subset rather
+    // than the exhaustive key list).
+    for (const name of ["a", "b", "c"]) {
+      expect(r.style[name]?.$name).toBe(name);
+    }
   });
 });
