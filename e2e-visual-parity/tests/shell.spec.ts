@@ -62,6 +62,45 @@ test("@smoke allowlist.yaml is valid", () => {
   expect(issues, JSON.stringify(issues, null, 2)).toEqual([]);
 });
 
+// Port-side invariant: the editor's critical theme tokens must RESOLVE, and the
+// host (`#root`) must paint the navy panel color — not its gray `#1f1f1f`
+// fallback. A dropped token (e.g. a stray `*/` in a CSS comment that ate
+// `--theme-color-panel`) silently falls back behind every transparent panel,
+// a whole-chrome regression the pixel diff barely registers (the host is mostly
+// panel-COVERED in the seeded checkpoints). This guards the entire "CSS var
+// silently resolved to its fallback" class regardless of exposed area, and is
+// port-only because the baseline paints the navy on a different element.
+test("@smoke port theme tokens resolve (no fallback gray)", async ({ browser }) => {
+  const { b, dispose } = await setupStacks(browser, BASIC_FIXTURE);
+  try {
+    const result = await b.page.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      const tokens = [
+        "--theme-color-panel",
+        "--theme-color-editor-bg",
+        "--theme-color-primary-bg",
+        "--theme-color-scrollbar-thumb",
+        "--color-engine-900",
+        "--color-foreground",
+        "--color-popup",
+      ];
+      const empty = tokens.filter((t) => !cs.getPropertyValue(t).trim());
+      const root = document.getElementById("root");
+      return { empty, rootBg: root ? getComputedStyle(root).backgroundColor : null };
+    });
+    expect(
+      result.empty,
+      `theme tokens failed to resolve (empty — likely a dropped CSS var): ${result.empty.join(", ")}`,
+    ).toEqual([]);
+    expect(
+      result.rootBg,
+      "host #root must paint the navy panel color, not the gray #1f1f1f fallback",
+    ).not.toBe("rgb(31, 31, 31)");
+  } finally {
+    await dispose();
+  }
+});
+
 test("@smoke shell parity (hydrated default Logic view)", async ({ browser }) => {
   const al = loadAllowlist();
   const now = new Date();

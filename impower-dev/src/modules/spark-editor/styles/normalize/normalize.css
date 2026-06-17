@@ -8,24 +8,21 @@
    annotated.
 
    What stays:
-   - The sparkle-era flex defaults (`flex-direction: column`, `min-width: 0`,
-     `max-width: 100%`, etc.) — but SCOPED to the two embedded sparkdown-
-     document-views subtrees, whose component CSS was authored against them
-     (removing them collapses the screenplay preview into a single
-     181000px-tall column). Previously these were a global `*` rule, which
-     leaked into the Tailwind-styled editor chrome and occasionally fought
-     utilities (e.g. needing inline `max-width` overrides). Scoping confines
-     the blast radius to exactly the packages that need it; the rest of the
-     app relies purely on Tailwind + Preflight. Still wrapped in
-     `@layer normalize` so a document-view's own Tailwind utilities (if any)
-     win over these.
+   - The sparkle-era universal flex defaults (`flex-direction: column`,
+     `min-width: 0`, `max-width: 100%`, etc.), kept GLOBAL on `*`. The whole
+     app (not just the embedded sparkdown-document-views) was ported to match
+     a baseline that ships these globally — most notably `flex-shrink: 0`,
+     which the Tailwind-styled chrome implicitly relies on (e.g. the bottom-nav
+     icon+label column overlaps without it). An earlier attempt to scope these
+     to only the document-views regressed that chrome at larger viewports, so
+     they stay global. They're wrapped in `@layer normalize` so Tailwind's
+     layered utilities still win where a component sets an explicit opinion;
+     the one spot that genuinely fights them (HeaderTitleButton's max-width) is
+     handled with a documented inline override there.
    - Scrollbar styling, focus-outline suppression, `[hidden]`, `[popover]`. */
 
 @layer normalize {
-  .sparkdown-script-editor-root,
-  .sparkdown-script-editor-root *,
-  .sparkdown-screenplay-preview-root,
-  .sparkdown-screenplay-preview-root * {
+  * {
     flex-direction: column;
     flex-wrap: nowrap;
     flex-shrink: 0;
