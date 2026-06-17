@@ -53,6 +53,28 @@ import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
 
+/**
+ * Owns the editor's window/UI state and bridges it to out-of-process peers.
+ *
+ * Data flow:
+ * - The reactive `WorkspaceStore` (signals) is the single source of truth for
+ *   in-page UI. Intents below (openPane, openFileEditor, setPreviewMode, …)
+ *   update it via `this.update()`; Preact components read the signals and
+ *   re-render. They do NOT broadcast events for in-page consumption.
+ * - `this.emit()` dispatches `spark-editor-protocol` messages on a window
+ *   CustomEvent bus — strictly the boundary to peers that can't read the
+ *   in-page signal: the OPFS/LSP/PDF workers, the game-player & screenplay
+ *   iframes, and the framework-agnostic CodeMirror editor-view controllers
+ *   (a reusable package that must stay decoupled from this app's store).
+ * - `handleProtocol()` is the inbound half: it folds peer-originated events
+ *   (editor scroll/selection/highlights, compiled program, …) back into the
+ *   store.
+ *
+ * The class is large; the sections below group it by concern. A future split
+ * into per-concern modules behind this facade is viable once a shared "core"
+ * (store/update/emit/cache/getPaneType) is extracted and the project
+ * lifecycle/sync methods gain test coverage.
+ */
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
     this._loadProject.bind(this),
@@ -335,6 +357,11 @@ export default class WorkspaceWindow {
       },
     });
   };
+
+  // ===========================================================================
+  // Editor state & layout queries (highlights/pinpoints, pane/panel/editor
+  // lookups, showDocument/search/unfocus)
+  // ===========================================================================
 
   setHighlights(highlights: Record<string, number[]>) {
     this.update({
@@ -619,6 +646,10 @@ export default class WorkspaceWindow {
     );
   }
 
+  // ===========================================================================
+  // Panes, panels, views & file editors (store-only intents)
+  // ===========================================================================
+
   openPane(pane: PaneType) {
     this.update({
       ...this.store,
@@ -721,6 +752,11 @@ export default class WorkspaceWindow {
     }
   }
 
+  // ===========================================================================
+  // Preview pane (store-only intents; the Did*PreviewPane broadcasts notify the
+  // out-of-process editor-view controllers)
+  // ===========================================================================
+
   expandPreviewPane() {
     this.update({
       ...this.store,
@@ -758,6 +794,10 @@ export default class WorkspaceWindow {
       },
     });
   }
+
+  // ===========================================================================
+  // Project name editing & remote-resource picking
+  // ===========================================================================
 
   startEditingProjectName() {
     this.update({
@@ -816,6 +856,10 @@ export default class WorkspaceWindow {
       },
     });
   }
+
+  // ===========================================================================
+  // Game control (JSON-RPC requests to the game-player iframe)
+  // ===========================================================================
 
   startGame() {
     if (!this.store.preview.modes.game.running) {
@@ -967,6 +1011,11 @@ export default class WorkspaceWindow {
       );
     }
   }
+
+  // ===========================================================================
+  // Project lifecycle & remote sync (load/unload, Google Drive sync, conflict
+  // resolution, import/export). Heavily Workspace.fs/sync-coupled.
+  // ===========================================================================
 
   unloadProject() {
     const id = WorkspaceConstants.LOCAL_PROJECT_ID;
