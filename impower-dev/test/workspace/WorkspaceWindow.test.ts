@@ -70,7 +70,10 @@ describe("WorkspaceWindow store transitions", () => {
     expect(workspace.current.preview.mode).toBe("screenplay");
   });
 
-  it("broadcasts a cross-process protocol event on openPane", () => {
+  // openPane just updates the reactive store now — it no longer broadcasts a
+  // DidOpenPane protocol event (that event had no consumers anywhere; it was a
+  // web-component-era artifact). In-page UI reads the store signal directly.
+  it("openPane updates the store without broadcasting a (dead) protocol event", () => {
     const received: unknown[] = [];
     const listener = (e: Event) => {
       if (e instanceof CustomEvent && DidOpenPaneMessage.type.is(e.detail)) {
@@ -80,7 +83,8 @@ describe("WorkspaceWindow store transitions", () => {
     window.addEventListener(MessageProtocol.event, listener);
     win.openPane("share");
     window.removeEventListener(MessageProtocol.event, listener);
-    expect(received).toHaveLength(1);
+    expect(workspace.current.pane).toBe("share");
+    expect(received).toHaveLength(0);
   });
 
   // Inbound flow: an editor (the framework-agnostic CodeMirror view, a separate

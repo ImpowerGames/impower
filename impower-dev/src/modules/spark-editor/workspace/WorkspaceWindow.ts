@@ -20,13 +20,8 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
-import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCloseFileEditorMessage";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
-import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
-import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
-import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
-import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { UnfocusWindowMessage } from "@impower/spark-editor-protocol/src/protocols/window/UnfocusWindowMessage";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
@@ -629,10 +624,6 @@ export default class WorkspaceWindow {
       ...this.store,
       pane,
     });
-    this.emit(
-      MessageProtocol.event,
-      DidOpenPaneMessage.type.notification({ pane }),
-    );
   }
 
   openPanel(pane: PaneType, panel: PanelType) {
@@ -646,10 +637,6 @@ export default class WorkspaceWindow {
         },
       },
     });
-    this.emit(
-      MessageProtocol.event,
-      DidOpenPanelMessage.type.notification({ pane, panel }),
-    );
   }
 
   openView(pane: PaneType, view: string) {
@@ -663,10 +650,6 @@ export default class WorkspaceWindow {
         },
       },
     });
-    this.emit(
-      MessageProtocol.event,
-      DidOpenViewMessage.type.notification({ pane, view }),
-    );
   }
 
   openFileEditor(filename: string, oldFilename?: string) {
@@ -709,10 +692,6 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(
-        MessageProtocol.event,
-        DidOpenFileEditorMessage.type.notification({ pane, panel, filename }),
-      );
     }
   }
 
@@ -739,10 +718,6 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(
-        MessageProtocol.event,
-        DidCloseFileEditorMessage.type.notification({ pane, panel }),
-      );
     }
   }
 
