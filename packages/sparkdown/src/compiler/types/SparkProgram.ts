@@ -34,6 +34,14 @@ export interface SparkProgram {
   context?: {
     [type: string]: { [name: string]: any };
   };
+  // Dedicated engine-facing channel for the static screen/component structs the
+  // UIModule consumes (element trees keyed by name). Derived from `context`
+  // after full assembly (prelude builtins + authored + `$extends`/`$default`
+  // merges) so the Game runtime can read screens WITHOUT depending on the
+  // LSP-only `program.context`. (Distinct from the future reactive `ui`
+  // SparkleNode channel above.)
+  screens?: { [name: string]: any };
+  components?: { [name: string]: any };
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };

@@ -272,6 +272,19 @@ export class Game<T extends M = {}> {
       ...(this._program.context || {}),
     };
 
+    // Source the static screen/component element trees from the dedicated
+    // `program.screens` / `program.components` channel rather than the LSP-only
+    // `program.context` (a step toward making the runtime context independent of
+    // `program.context`). The channel is the compiler's deep clone of the
+    // fully-assembled `context.screen` / `context.component`, so this is
+    // behaviorally identical to the spread above while moving screens off it.
+    if (this._program.screens) {
+      this._context["screen"] = this._program.screens;
+    }
+    if (this._program.components) {
+      this._context["component"] = this._program.components;
+    }
+
     // Override default modules with custom ones if specified
     const allModules = {
       ...modules, // custom modules should be first in call order

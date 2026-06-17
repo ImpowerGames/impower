@@ -550,6 +550,7 @@ export class SparkdownCompiler {
     this.populateDeclarationLocations(program);
     this.sortPathLocations(program);
     this.buildContext(state, program);
+    this.populateUIChannel(program);
     if (!this._config.skipValidation) {
       this.validateSyntax(program);
       this.validateReferences(program);
@@ -1418,6 +1419,27 @@ export class SparkdownCompiler {
     this.populateImplicitDefs(program);
     this.populateDefinedDefaultProperties(state, program);
     profile("end", this._profilerId, "buildContext", uri);
+  }
+
+  /** Mirror the fully-assembled `context.screen` / `context.component` into the
+   *  dedicated `program.screens` / `program.components` channel the Game runtime
+   *  reads — so the engine can source screens WITHOUT touching the LSP-only
+   *  `program.context`. Runs after `buildContext` (and the prelude merge), so it
+   *  captures builtin + authored screens with `$extends`/`$default` already
+   *  applied. Deep-cloned so later context mutation can't leak into the engine
+   *  channel. */
+  populateUIChannel(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "populateUIChannel", uri);
+    const screen = program.context?.["screen"];
+    const component = program.context?.["component"];
+    if (screen) {
+      program.screens = structuredClone(screen);
+    }
+    if (component) {
+      program.components = structuredClone(component);
+    }
+    profile("end", this._profilerId, "populateUIChannel", uri);
   }
 
   /** Merge the once-compiled builtins prelude context into `program.context` as
