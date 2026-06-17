@@ -8,7 +8,7 @@ import {
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { downloadFile } from "../../utils/downloadFile";
-import type { AccountInfo } from "../../workspace/types/AccountInfo";
+import workspace from "../../workspace/WorkspaceStore";
 
 export const propDefaults = {};
 export type AccountProps = Partial<typeof propDefaults>;
@@ -26,15 +26,23 @@ export type AccountProps = Partial<typeof propDefaults>;
  *     pinned to the bottom; clicking that row opens a Radix dropdown
  *     with a Sign Out item.
  *
- * On mount the panel fetches the current Google account (if any) and
- * also kicks off the workspace's project load — that's what flips the
- * top-of-page sync status from skeleton to "Saved in cache". Subscribes
- * to the sync provider's `"revoke"` event so an externally-revoked
- * grant immediately swaps the UI back to unauthenticated.
+ * On mount the panel fetches the current Google account (if any), records
+ * it via `Workspace.window.setAccount`, and kicks off the workspace's
+ * project load — that's what flips the top-of-page sync status from skeleton
+ * to "Saved in cache". Account identity lives in the central store
+ * (`workspace.signals.account` / `signinLabel`), so an externally-revoked
+ * grant — which the sync provider detects on an `invalid_grant` response and
+ * pushes via `Workspace.window.clearAccount()` — re-renders this panel back to
+ * unauthenticated automatically, with no provider event subscription here.
  */
 export default function Account(_p: AccountProps) {
-  const [account, setAccount] = useState<AccountInfo | null>(null);
-  const [signinLabel, setSigninLabel] = useState("Sync With Google Drive");
+  // Account identity is global session state, not component-local: read the
+  // derived store signals. `account` is the usable signed-in account (uid +
+  // consented), `signinLabel` is the signed-out CTA text. Both are written via
+  // Workspace.window.setAccount()/clearAccount() — by the sign-in flow below
+  // and by the sync provider on out-of-band revocation.
+  const account = workspace.signals.account.value;
+  const signinLabel = workspace.signals.signinLabel.value;
   const [signoutOpen, setSignoutOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const accountRowRef = useRef<HTMLDivElement | null>(null);
@@ -63,22 +71,13 @@ export default function Account(_p: AccountProps) {
 
   useEffect(() => {
     let cancelled = false;
-    let detachRevoke: (() => void) | undefined;
     (async () => {
       const { Workspace } = await import("../../workspace/Workspace");
       try {
-        const provider = Workspace.sync.google;
-        const info = await provider.getCurrentAccount();
-        if (cancelled) return;
-        applyAccountInfo(info);
-        const onRevoke = () => {
-          if (cancelled) return;
-          setAccount(null);
-          setSigninLabel("Sync With Google Drive");
-        };
-        provider.addEventListener("revoke", onRevoke);
-        detachRevoke = () =>
-          provider.removeEventListener("revoke", onRevoke);
+        const info = await Workspace.sync.google.getCurrentAccount();
+        if (!cancelled) {
+          Workspace.window.setAccount(info);
+        }
       } catch (err) {
         console.error(err);
       }
@@ -90,21 +89,8 @@ export default function Account(_p: AccountProps) {
     })();
     return () => {
       cancelled = true;
-      detachRevoke?.();
     };
   }, []);
-
-  const applyAccountInfo = (info: AccountInfo | null) => {
-    if (!info || !info.uid) {
-      setAccount(null);
-      setSigninLabel("Sync With Google Drive");
-    } else if (!info.consented) {
-      setAccount(null);
-      setSigninLabel("Grant Access To Google Drive");
-    } else {
-      setAccount(info);
-    }
-  };
 
   const handleImportProjectChange = async (e: Event) => {
     const target = e.target as HTMLInputElement;
@@ -128,13 +114,11 @@ export default function Account(_p: AccountProps) {
   const handleSignIn = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
     try {
-      const provider = Workspace.sync.google;
-      const info = await provider.signIn();
-      applyAccountInfo(info);
+      const info = await Workspace.sync.google.signIn();
+      Workspace.window.setAccount(info);
     } catch (err) {
       console.error(err);
-      setAccount(null);
-      setSigninLabel("Sync With Google Drive");
+      Workspace.window.clearAccount();
     }
   };
 
@@ -148,8 +132,7 @@ export default function Account(_p: AccountProps) {
       Workspace.window.unloadProject();
       await provider.signOut();
       Workspace.window.loadNewProject(WorkspaceConstants.LOCAL_PROJECT_ID);
-      setAccount(null);
-      setSigninLabel("Sync With Google Drive");
+      Workspace.window.clearAccount();
     } catch (err) {
       console.error(err);
     }

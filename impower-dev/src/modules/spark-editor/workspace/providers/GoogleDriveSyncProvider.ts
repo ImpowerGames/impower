@@ -66,10 +66,6 @@ export default class GoogleDriveSyncProvider {
 
   protected _accountRef = new SingletonPromise(this.fetchAccount.bind(this));
 
-  protected _events = {
-    revoke: new Set<Function>(),
-  };
-
   protected async request<T>(
     method: "GET" | "POST" | "PUT",
     route: string,
@@ -92,20 +88,14 @@ export default class GoogleDriveSyncProvider {
     } catch (err: any) {
       if (err.error === "invalid_grant") {
         console.warn("access was revoked");
-        this._events.revoke.forEach((l) => {
-          l?.();
-        });
+        // Push the revocation straight into the workspace store so the UI
+        // reacts (Account flips back to signed-out). Dynamic import avoids a
+        // static cycle: Workspace -> WorkspaceSync -> this provider -> Workspace.
+        const { Workspace } = await import("../Workspace");
+        Workspace.window.clearAccount();
       }
       throw err;
     }
-  }
-
-  addEventListener(event: keyof typeof this._events, listener: Function) {
-    this._events[event].add(listener);
-  }
-
-  removeEventListener(event: keyof typeof this._events, listener: Function) {
-    this._events[event].delete(listener);
   }
 
   protected async loadGSIScript() {

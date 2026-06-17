@@ -52,6 +52,7 @@ import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
+import type { AccountInfo } from "./types/AccountInfo";
 import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
@@ -182,6 +183,27 @@ export default class WorkspaceWindow {
       project: { ...this.store.project, id },
     });
     localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, id);
+  }
+
+  // ===========================================================================
+  // Account state
+  //
+  // The signed-in Google account lives in a dedicated `workspace.account`
+  // signal (NOT the persisted cache — see WorkspaceStore for why). These
+  // intents are the single write path; the sync provider calls `clearAccount`
+  // on an out-of-band revocation (invalid_grant), and Account.tsx calls
+  // `setAccount` after sign-in / initial fetch. Components react via the
+  // derived `workspace.signals.account` / `signinLabel` computeds.
+  // ===========================================================================
+
+  /** Record the current Google account (or null when signed out). */
+  setAccount(info: AccountInfo | null) {
+    workspace.account.value = info ?? null;
+  }
+
+  /** Clear the signed-in account — used on sign-out and on revocation. */
+  clearAccount() {
+    workspace.account.value = null;
   }
 
   protected handleShowDocument = async (

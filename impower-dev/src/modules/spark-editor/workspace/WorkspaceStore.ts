@@ -3,6 +3,7 @@ import { computed, signal, type ReadonlySignal } from "@preact/signals";
 // re-exports in `@impower/spark-editor-protocol/src/types` reach into
 // `vscode-languageserver-protocol` (CJS) which crashes Vite SSR.
 import type { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
+import type { AccountInfo } from "./types/AccountInfo";
 
 const cache: WorkspaceCache = {
   project: { id: "" },
@@ -67,8 +68,17 @@ const cache: WorkspaceCache = {
 // narrow value (e.g. `projectId`) without re-rendering the whole shell on
 // every workspace mutation. `current` is a convenience snapshot accessor.
 class WorkspaceStore {
-  // The single source of truth.
+  // The single source of truth for persisted workspace layout.
   readonly state = signal<WorkspaceCache>(cache);
+
+  // Signed-in Google account, or null. Deliberately a SEPARATE signal rather
+  // than a field on `state`/`WorkspaceCache`: this is ephemeral session auth,
+  // not persisted workspace layout, and `AccountInfo` carries an OAuth `token`
+  // that must never be serialized to localStorage. Keeping it out of the
+  // persisted cache makes that structurally impossible. Written via
+  // `Workspace.window.setAccount()` / `clearAccount()`; read through the
+  // derived `signals.account` / `signals.signinLabel` below.
+  readonly account = signal<AccountInfo | null>(null);
 
   // Pre-built derived signals for the shell's most common slices. Each is a
   // ReadonlySignal so consumers can't mutate them directly — write the whole
@@ -78,6 +88,20 @@ class WorkspaceStore {
     previewMode: computed(() => this.state.value.preview?.mode ?? "game"),
     projectId: computed(() => this.state.value.project?.id ?? ""),
     syncStatus: computed(() => this.state.value.sync?.status),
+    // The usable signed-in account: only present once the user has a uid AND
+    // has consented. Mirrors the old `applyAccountInfo` gate in Account.tsx.
+    account: computed<AccountInfo | null>(() => {
+      const info = this.account.value;
+      return info && info.uid && info.consented ? info : null;
+    }),
+    // The signed-out CTA label: "Grant Access" when a uid exists but consent
+    // was withdrawn (the previously-signed-in-but-revoked case), else "Sync".
+    signinLabel: computed(() => {
+      const info = this.account.value;
+      return info && info.uid && !info.consented
+        ? "Grant Access To Google Drive"
+        : "Sync With Google Drive";
+    }),
   } as const satisfies Record<string, ReadonlySignal<unknown>>;
 
   /** Non-reactive snapshot read of the whole cache. */
