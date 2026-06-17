@@ -25,47 +25,14 @@
     monospace;
   --font-serif: Georgia, "Times New Roman", serif;
 
-  /* Custom spacing (3xs..4xl) — keeps Tailwind's numeric scale alongside */
-  --spacing-3xs: 2px;
-  --spacing-2xs: 4px;
-  --spacing-xs: 8px;
-  --spacing-sm: 12px;
-  --spacing-md: 16px;
-  --spacing-lg: 20px;
-  --spacing-xl: 28px;
-  --spacing-2xl: 36px;
-  --spacing-3xl: 48px;
-  --spacing-4xl: 72px;
-
-  /* Component sizing */
-  --size-icon: 1.25rem;
-  --size-toggle-sm: 0.875rem;
-  --size-toggle-md: 1.125rem;
-  --size-toggle-lg: 1.375rem;
-  --size-input-sm: 28px;
-  --size-input-md: 40px;
-  --size-input-lg: 48px;
-  --size-thumb: 16px;
-  --size-checkbox: 16px;
-
-  /* Radius */
+  /* Radius (matches Tailwind v4's stock sm/md/lg; kept explicit for intent).
+     Ported components use stock numeric spacing/sizing/duration/z utilities
+     (`p-4`, `size-5`, `duration-150`, `z-50`) — see
+     [[feedback_full_tailwind_token_direction]] — so the old named
+     `--spacing-*`/`--size-*`/`--duration-*`/`--z-index-*` scales were dropped. */
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 8px;
-
-  /* Transitions */
-  --duration-x-fast: 50ms;
-  --duration-fast: 150ms;
-  --duration-medium: 250ms;
-  --duration-slow: 500ms;
-  --duration-x-slow: 1000ms;
-
-  /* Z-indexes */
-  --z-index-drawer: 700;
-  --z-index-dialog: 800;
-  --z-index-dropdown: 900;
-  --z-index-toast: 950;
-  --z-index-tooltip: 1000;
 
   /* Surface colors (dark-only literals). shadcn-style naming
      (`bg-background`, `text-foreground`) so the utility prefix and color name
