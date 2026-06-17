@@ -13,6 +13,46 @@ const EDITOR_THEME: {
   ".lsp-semantic-token.lsp-type-operator *": {
     color: EDITOR_COLORS.operator,
   },
+  // Functions render in the screenwriter-yellow used for identifier
+  // names throughout the codebase. The stdlib variant gets the
+  // orange `standardFunction` tone so authors can tell a built-in
+  // call from a user-defined one at a glance.
+  ".lsp-semantic-token.lsp-type-function *": {
+    color: EDITOR_COLORS.functionName,
+  },
+  ".lsp-semantic-token.lsp-type-function.lsp-mod-defaultLibrary *": {
+    color: EDITOR_COLORS.standardFunction,
+  },
+  // Beats — sparkdown's umbrella for narrative anchors (scenes,
+  // branches, and labels) — share the section-name purple, matching
+  // the VS Code TextMate styling of `keyword.control.section.sd`.
+  // Beat declarations arrive here tagged as `class` (the LSP type
+  // assigned by `SemanticAnnotator` for SceneDeclarationName /
+  // BranchDeclarationName / LabelDeclarationName); divert paths that
+  // resolve to a beat get the same `class` from `getSemanticTokens`'
+  // post-compile lookup. The purple flows through the declaration
+  // AND every reference uniformly.
+  ".lsp-semantic-token.lsp-type-class *": {
+    color: EDITOR_COLORS.sectionNameDefinition,
+  },
+  // Stdlib namespaces (`math`, `string`, ...) get the standard-type
+  // teal so they read as "library root" rather than as a local
+  // identifier.
+  ".lsp-semantic-token.lsp-type-namespace *": {
+    color: EDITOR_COLORS.standardType,
+  },
+  // Const-variable references — the `readonly` modifier flips them
+  // to the brighter constantVariableName cyan so `const` declarations
+  // visually pop next to plain `local` / `store` ones.
+  ".lsp-semantic-token.lsp-type-variable.lsp-mod-readonly *": {
+    color: EDITOR_COLORS.constantVariableName,
+  },
+  // Function parameters render with their own light-blue tone (same
+  // shade as the broader variableName palette but kept on a dedicated
+  // rule so themes can override one without the other).
+  ".lsp-semantic-token.lsp-type-parameter *": {
+    color: EDITOR_COLORS.parameterName,
+  },
   "*, *::before, *::after": {
     boxSizing: "border-box",
     // When this editor is rendered in light DOM inside a spec-component

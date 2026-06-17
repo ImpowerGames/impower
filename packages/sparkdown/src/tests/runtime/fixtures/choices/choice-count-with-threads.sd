@@ -1,0 +1,20 @@
+-> hub
+scene hub
+  {count.choices()}
+  <- side
+  {count.choices()}
+  choose
+    * "Hub one"
+      fin
+    * "Hub two"
+      fin
+
+  end
+end
+scene side
+  choose
+    * "Side one"
+      fin
+  end
+  done
+end

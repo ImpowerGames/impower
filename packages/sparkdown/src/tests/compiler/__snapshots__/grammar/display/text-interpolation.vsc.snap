@@ -1,0 +1,16 @@
+text.source.sparkdown [0..33]
+ └─ string.display.text.chunk.sd [0..33]
+     ├─ markup.raw.text.sd [0..3]: "You"
+     ├─ markup.raw.space.sd [3..4]: " "
+     ├─ markup.raw.text.sd [4..8]: "have"
+     ├─ markup.raw.space.sd [8..9]: " "
+     ├─ meta.template.expression.luau [9..26]
+     │   ├─ punctuation.definition.template-expression.begin.sd [9..10]: "{"
+     │   ├─ meta.embedded.line.luau [10..25]
+     │   │   ├─ variable.other.readwrite.luau [10..19]: "inventory"
+     │   │   ├─ meta.template.expression.accessor.sd [19..20]: "."
+     │   │   └─ variable.other.property.luau [20..25]: "stars"
+     │   └─ punctuation.definition.template-expression.end.sd [25..26]: "}"
+     ├─ markup.raw.space.sd [26..27]: " "
+     ├─ markup.raw.text.sd [27..32]: "stars"
+     └─ markup.raw.punctuation.sd [32..33]: "."

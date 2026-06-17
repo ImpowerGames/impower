@@ -31,7 +31,7 @@ const getFileVersion = async (uri: string) => {
 const getFileLanguageId = async (uri: string) => {
   const doc = getEditor(uri)?.document ?? (await getOpenTextDocument(uri));
   if (doc) {
-    return doc.version;
+    return doc.languageId;
   }
   return null;
 };

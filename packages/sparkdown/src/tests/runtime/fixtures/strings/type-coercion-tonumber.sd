@@ -1,0 +1,4 @@
+store five = 5
+{"5" == ("" .. five) and "same" or "different"}
+{"blah" == ("" .. five) and "same" or "different"}
+done

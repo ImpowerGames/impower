@@ -1,0 +1,8 @@
+define foo with
+  x = 1
+  y = 2
+end
+
+function bar(a, b)
+  return a + b
+end

@@ -5,6 +5,7 @@ import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileCha
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
 import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
@@ -61,6 +62,8 @@ export class SparkdownPreviewGamePanelManager {
   }
 
   _initialized = false;
+
+  _fileWatchersRegistered = false;
 
   _connection = new Connection({
     onSend: (msg) => {
@@ -148,8 +151,20 @@ export class SparkdownPreviewGamePanelManager {
     panel.webview.html = this.getWebviewContent(panel.webview, context);
     this._initialized = false;
     panel.webview.onDidReceiveMessage(async (message) => {
+      if (
+        ConnectedPreviewMessage.type.isNotification(message) &&
+        message.params.type === "game"
+      ) {
+        // The webview (re)connected. This happens on first load and also
+        // whenever the webview is reloaded by vscode (e.g. when its tab is
+        // moved to another editor group or undocked into a new window). Each
+        // reload spins up a fresh webview instance that must be initialized
+        // again, so allow re-initialization here.
+        this._initialized = false;
+      }
       if (!this._initialized) {
         this._initialized = true;
+        this._connected = false;
         await this.connectAndInitializeWebview(document, canvasHeight);
       }
       if (ExecuteCommandMessage.type.isRequest(message)) {
@@ -239,23 +254,35 @@ export class SparkdownPreviewGamePanelManager {
     const settings = JSON.parse(JSON.stringify(sparkdownConfig));
 
     const files = await getWorkspaceFiles();
-    const fileWatchers = getWorkspaceFileWatchers();
-    for (const fileWatcher of fileWatchers) {
-      fileWatcher.onDidCreate(async (fileUri) => {
-        this.sendNotification(DidChangeWatchedFilesMessage.type, {
-          changes: [{ type: FileChangeType.Created, uri: fileUri.toString() }],
+    // Only register file watchers once per manager lifetime. This method runs
+    // again every time the webview is reloaded (e.g. moved or undocked), and
+    // re-creating watchers each time would leak them and duplicate listeners.
+    if (!this._fileWatchersRegistered) {
+      this._fileWatchersRegistered = true;
+      const fileWatchers = getWorkspaceFileWatchers();
+      for (const fileWatcher of fileWatchers) {
+        fileWatcher.onDidCreate(async (fileUri) => {
+          this.sendNotification(DidChangeWatchedFilesMessage.type, {
+            changes: [
+              { type: FileChangeType.Created, uri: fileUri.toString() },
+            ],
+          });
         });
-      });
-      fileWatcher.onDidChange(async (fileUri) => {
-        this.sendNotification(DidChangeWatchedFilesMessage.type, {
-          changes: [{ type: FileChangeType.Changed, uri: fileUri.toString() }],
+        fileWatcher.onDidChange(async (fileUri) => {
+          this.sendNotification(DidChangeWatchedFilesMessage.type, {
+            changes: [
+              { type: FileChangeType.Changed, uri: fileUri.toString() },
+            ],
+          });
         });
-      });
-      fileWatcher.onDidDelete(async (fileUri) => {
-        this.sendNotification(DidChangeWatchedFilesMessage.type, {
-          changes: [{ type: FileChangeType.Deleted, uri: fileUri.toString() }],
+        fileWatcher.onDidDelete(async (fileUri) => {
+          this.sendNotification(DidChangeWatchedFilesMessage.type, {
+            changes: [
+              { type: FileChangeType.Deleted, uri: fileUri.toString() },
+            ],
+          });
         });
-      });
+      }
     }
     await this.sendRequest(ConnectMessage.type, {});
     await this.sendRequest(InitializeMessage.type, {

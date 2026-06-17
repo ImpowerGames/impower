@@ -1,6 +1,6 @@
 comments:
-  lineComment: "//"
-  blockComment: ["/*", "*/"]
+  lineComment: "--"
+  blockComment: ["--[[", "]]"]
 
 brackets:
   - ["{", "}"]
@@ -10,25 +10,18 @@ brackets:
 colorizedBracketPairs: []
 
 autoClosingPairs:
-  - open: "{"
-    close: "}"
-  - open: "["
-    close: "]"
-  - open: "("
-    close: ")"
-  - open: '"'
-    close: '"'
-  - open: "`"
-    close: "`"
-  - open: "~~"
-    close: "~~"
-  - open: "::"
-    close: "::"
-  - open: "/*"
-    close: "*/"
-    notIn: ["string", "StringLiteral"]
+  - { open: "{", close: "}" }
+  - { open: "[", close: "]" }
+  - { open: "(", close: ")" }
+  - { open: '"', close: '"' }
+  - { open: "`", close: "`" }
+  - { open: "~~", close: "~~" }
+  - { open: "::", close: "::" }
+  - { open: "--[[", close: "]]" }
+  - { open: "--[=[", close: "]=]" }
+  - { open: "--[==[", close: "]==]" }
 
-autoCloseBefore: ";:.,=}])>` \n\t"
+autoCloseBefore: ";:.,=}])>` \t\n\r"
 
 surroundingPairs:
   - ["{", "}"]
@@ -42,6 +35,7 @@ surroundingPairs:
   - ["~", "~"]
   - [":", ":"]
   - ["^", "^"]
+  - ["--[[", "]]"]
 
 wordChars: _'
 
@@ -50,12 +44,64 @@ wordPattern:
   flags: u
 
 onEnterRules:
-  - beforeText: ^\s*[=]{2,}($|\s+)
-    action:
-      indent: "indent"
-  - beforeText: ^\s*[=]($|\s+)
-    action:
-      indent: "indent"
+  #--------------------------
+  #          LUAU
+  #--------------------------
+
+  # Inside `--[[ ]]` with `]]` after cursor: expand into a
+  # multi-line block comment. Also handles the long-bracket
+  # variants `--[=[ ]=]`, `--[==[ ]==]`, etc. — the backref
+  # `\1` ensures the closing level matches the opening level.
+  - beforeText: '^\s*--\[(=*)\[(?!.*\]\1\]).*$'
+    afterText: '\]=*\]'
+    action: { indent: indentOutdent }
+
+  # Inside `--[[ ]]` with no closer on the line: keep the
+  # next line indented one level in.
+  - beforeText: '^\s*--\[=*\[(?!.*\]=*\]).*$'
+    action: { indent: indent }
+
+  # `define` immediately followed by `end`:
+  - beforeText: '\bdefine\s*$'
+    afterText: '^\s*end\b'
+    action: { indent: indentOutdent }
+
+  # `function name(...)` immediately followed by `end`:
+  # expand the body. Covers `function foo()`, anonymous
+  # `function()`, generics `function f<T>(x: T): T`, etc.
+  - beforeText: '\bfunction\b[^()]*\([^()]*\)[^()]*$'
+    afterText: '^\s*end\b'
+    action: { indent: indentOutdent }
+
+  # `then` immediately followed by `end` / `elseif` / `else`:
+  - beforeText: '\bthen\s*$'
+    afterText: '^\s*(end|elseif|else)\b'
+    action: { indent: indentOutdent }
+
+  # `do` immediately followed by `end` (for / while / bare do):
+  - beforeText: '\bdo\s*$'
+    afterText: '^\s*end\b'
+    action: { indent: indentOutdent }
+
+  # `else` immediately followed by `end`:
+  - beforeText: '\belse\s*$'
+    afterText: '^\s*end\b'
+    action: { indent: indentOutdent }
+
+  # `repeat` immediately followed by `until`:
+  - beforeText: '\brepeat\s*$'
+    afterText: '^\s*until\b'
+    action: { indent: indentOutdent }
+
+  # Continue `---` doc-comments (Luau / Sumneko style).
+  # Only fires when the previous line has CONTENT after the
+  # dashes, so an empty `---` line gives a clean break.
+  - beforeText: '^\s*---(?!-)\s*\S.*$'
+    action: { indent: none, appendText: "--- " }
+
+  #--------------------------
+  #          SPARKDOWN
+  #--------------------------
 
   - beforeText: ^\s*[-]\s+[{]\s*$
     afterText: \s*[}]
@@ -125,17 +171,72 @@ onEnterRules:
     action:
       indent: "indent"
 
-  - beforeText: ^\s*
-    action:
-      indent: "none"
+indentationRules: # Increase the next line's indent when the current line:
+  #
+  #   a) ends with a block-opening keyword: `then`, `do`,
+  #      `else`, `repeat` (optional trailing line comment) —
+  #      only when the keyword is the LAST thing on the line,
+  #      so `if a then b else c` (if-expression) is excluded.
+  #
+  #        \b(else|then|do|repeat)\b \s* (--.*)? $
+  #
+  #   b) contains the `function` keyword and does NOT contain
+  #      `end` on the same line — handles every definition
+  #      shape including generics & return types, while
+  #      excluding one-line `function() ... end` literals.
+  #
+  #        \bfunction\b (?: (?!\bend\b) . )* $
+  #
+  #   c) ends with an opening bracket `{`, `(`, or `[`
+  #      (covers tables, multi-line call args, long strings,
+  #      and multi-line typed parameter lists).
+  #
+  #        [\{\(\[] \s* (--.*)? $
+  #
+  # The leading `^((?!--).)*` prevents triggering when the
+  # match would be inside a line comment.
+  increaseIndentPattern: ^((?!--).)*((\b(else|then|do|repeat|define|scene|branch)\b\s*(--.*)?$)|(\bfunction\b(?:(?!\bend\b).)*$)|([\{\(\[]\s*(--.*)?$))
 
-indentationRules:
-  decreaseIndentPattern: ^\s*[-]($|[ ]).*?[:]|[=]{2,}($|[ ]).*?|^\s*[\}\]\)].*$
-  increaseIndentPattern: ^.*(\{[^}]*|\([^)]*|\[[^\]]*)$
-  unIndentedLinePattern: ^(\t|[ ])*[ ]\*[^/]*\*\/\s*$|^(\t|[ ])*[ ]\*\/\s*$|^(\t|[ ])*[ ]\*([ ]([^\*]|\*(?!\/))*)?$
-  indentNextLinePattern: ^((.*=>\s*)|((.*[^\w]+|\s*)(if|while|for)\s*\(.*\)\s*))$
+  # Decrease the current line's indent when it starts with
+  # a block-closing token: `end`, `until`, `else`, `elseif`,
+  # `}`, `)`, or `]`. This gives the satisfying "type `end`
+  # and the line snaps to the right column" behavior.
+  decreaseIndentPattern: '^\s*((\b(elseif|else|end|until)\b)|\}|\)|\])'
+
+  # Apply ONE extra level of indent to the line following a
+  # line that ends with an assignment operator. Covers:
+  #     local x =
+  #         value
+  #     next_statement()    -- back to baseline automatically
+  #
+  # Also matches compound forms: `+=`, `-=`, `*=`, `/=`,
+  # `//=`, `%=`, `^=`, `..=`.
+  #
+  # The lookbehind `(?<![=<>!~])` excludes comparison and
+  # not-equal operators, so `==`, `~=`, `<=`, `>=` at end of
+  # line will NOT trigger continuation indent (they're rarely
+  # written as line-trailing tokens anyway, and treating them
+  # as block-opening would be surprising).
+  #
+  # Caveat: if the "next line" itself opens a block (e.g.
+  # `local x =\n    function()`), this combines with
+  # `increaseIndentPattern` — usually fine but worth knowing.
+  indentNextLinePattern: '^((?!--).)*(?<![=<>!~])=\s*(--.*)?$'
+
+  # Lines matching this pattern are skipped entirely — their
+  # indent is preserved as-typed AND they don't influence the
+  # indent of surrounding lines.
+  #
+  # Luau (via the Lua spec) lets the very first line of a
+  # chunk begin with `#` so it can be a shebang:
+  #     #!/usr/bin/env luau
+  # This rule pins such lines to whatever the user typed (in
+  # practice, column 0) and keeps them from leaking into the
+  # indent calculation for line 2.
+  unIndentedLinePattern: '^#\!'
 
 folding:
+  offSide: false
   markers:
-    start: ^\s*==.*?$
-    end: ^\s*==.*?$
+    start: '^\s*--\s*#?region\b'
+    end: '^\s*--\s*#?endregion\b'

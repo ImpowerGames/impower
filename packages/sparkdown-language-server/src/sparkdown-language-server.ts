@@ -16,6 +16,7 @@ import { getColorPresentations } from "./utils/providers/getColorPresentations";
 import { getCompletions } from "./utils/providers/getCompletions";
 import { getDocumentColors } from "./utils/providers/getDocumentColors";
 import { getDocumentFormattingEdits } from "./utils/providers/getDocumentFormattingEdits";
+import { applyTextEdits } from "./utils/providers/getFormatDirtyRange";
 import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
@@ -241,13 +242,31 @@ try {
     const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentFormatting ${uri} start`);
+    // Incremental (delta) formatting for format-on-save: only reprocess
+    // the construct(s) changed since the last format. The dirty range is
+    // the diff against the last formatted output — safe because outside
+    // it the text equals an already-formatted baseline.
+    const dirtyRange = document
+      ? workspace.formatDirtyRange(uri, document.getText())
+      : undefined;
     const result = getDocumentFormattingEdits(
-      settings,
       document,
       tree,
       annotations,
       params.options,
+      undefined,
+      undefined,
+      dirtyRange,
     );
+    // Cache the resulting (fully formatted) text as the next diff
+    // baseline. Apply our own edits to compute it — that's what the
+    // editor will materialize.
+    if (document) {
+      const formatted = result
+        ? applyTextEdits(document, result)
+        : document.getText();
+      workspace.markFormatted(uri, formatted);
+    }
     performance.mark(`lsp: onDocumentFormatting ${uri} end`);
     performance.measure(
       `lsp: onDocumentFormatting ${uri}`,
@@ -267,7 +286,6 @@ try {
     const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentRangeFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
-      settings,
       document,
       tree,
       annotations,
@@ -293,11 +311,11 @@ try {
     const annotations = workspace.annotations(uri);
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} start`);
     const result = getDocumentFormattingEdits(
-      settings,
       document,
       tree,
       annotations,
       params.options,
+      undefined,
       params.position,
     );
     performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} end`);

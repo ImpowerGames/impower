@@ -1,0 +1,11 @@
+<- make_default_choice
+Text.
+
+scene make_default_choice
+  choose
+    + ->
+  then
+    {5}
+    fin
+  end
+end

@@ -1,0 +1,6 @@
+choose
+  * Go left.
+  * Go right.
+then
+  N: You chose.
+end

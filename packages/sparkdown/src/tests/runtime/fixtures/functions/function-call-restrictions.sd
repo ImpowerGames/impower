@@ -1,0 +1,11 @@
+& myFunc()
+& aKnot()
+-> myFunc
+done
+
+function myFunc() return end
+
+scene aKnot
+  This is a normal scene.
+  fin
+end

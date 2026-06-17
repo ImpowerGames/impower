@@ -1,0 +1,4 @@
+define Settings with
+  max_trust = 10,
+  language = "en"
+end

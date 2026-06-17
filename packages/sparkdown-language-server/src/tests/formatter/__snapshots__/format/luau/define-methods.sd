@@ -1,0 +1,19 @@
+define Bird with
+  canFly = true
+  isFlying = false
+  fly()
+    self.isFlying = true
+    print("I'm a bird and I'm flying!")
+  end
+end
+
+define Penguin as Bird with
+  canFly = false
+  fly()
+print("Penguins can't fly...")
+  end
+  swim()
+self.isSwimming = true
+print("I'm a penguin and I'm swimming!")
+  end
+end

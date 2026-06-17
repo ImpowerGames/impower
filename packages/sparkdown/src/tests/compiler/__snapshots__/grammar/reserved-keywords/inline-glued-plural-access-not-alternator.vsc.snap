@@ -1,0 +1,17 @@
+text.source.sparkdown [0..27]
+ ├─ string.display.text.chunk.sd [0..26]
+ │   ├─ markup.raw.text.sd [0..1]: "x"
+ │   ├─ meta.glue.sd [1..4]
+ │   │   ├─ punctuation.whitespace.sd [1..2]: " "
+ │   │   └─ keyword.other.glue.sd [2..4]: ".."
+ │   ├─ markup.raw.space.sd [4..5]: " "
+ │   ├─ markup.raw.text.sd [5..11]: "plural"
+ │   ├─ markup.raw.punctuation.sd [11..12]: "."
+ │   ├─ markup.raw.text.sd [12..20]: "category"
+ │   ├─ markup.raw.punctuation.sd [20..21]: "("
+ │   ├─ markup.raw.text.sd [21..22]: "n"
+ │   ├─ markup.raw.punctuation.sd [22..23]: ")"
+ │   └─ meta.glue.sd [23..26]
+ │       ├─ punctuation.whitespace.sd [23..24]: " "
+ │       └─ keyword.other.glue.sd [24..26]: ".."
+ └─ Newline [26..27]: "\n"

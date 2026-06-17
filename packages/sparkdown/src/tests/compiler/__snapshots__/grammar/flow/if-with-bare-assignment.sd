@@ -1,0 +1,3 @@
+if true then
+  x = 5
+end

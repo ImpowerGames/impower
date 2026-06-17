@@ -1,0 +1,8 @@
+define companion as character with
+store trust = 0
+end
+
+define N as character with
+name = "Nova",
+color = "violet"
+end

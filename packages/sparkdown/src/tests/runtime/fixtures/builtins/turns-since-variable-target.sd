@@ -1,0 +1,13 @@
+-> start
+scene start
+  {count.turns(-> start)}
+  {count.turns(-> start)}
+  choose
+    + [Choice] -> next
+  end
+
+end
+scene next
+  {count.turns(-> start)}
+  fin
+end

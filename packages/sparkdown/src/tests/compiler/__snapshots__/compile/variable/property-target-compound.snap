@@ -1,0 +1,70 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "__pa_base_2",
+          "expression": {
+            "type": "VariableReference",
+            "path": [
+              "opts"
+            ]
+          }
+        },
+        {
+          "type": "VariableAssignment",
+          "kind": "temp",
+          "name": "__pa_key_2",
+          "expression": {
+            "type": "StringExpression",
+            "content": [
+              "count"
+            ]
+          }
+        },
+        {
+          "type": "StorePropertyAssignment",
+          "base": {
+            "type": "VariableReference",
+            "path": [
+              "__pa_base_2"
+            ]
+          },
+          "key": {
+            "type": "VariableReference",
+            "path": [
+              "__pa_key_2"
+            ]
+          },
+          "value": {
+            "type": "BinaryExpression",
+            "op": "+",
+            "left": {
+              "type": "IndexExpression",
+              "base": {
+                "type": "VariableReference",
+                "path": [
+                  "__pa_base_2"
+                ]
+              },
+              "key": {
+                "type": "VariableReference",
+                "path": [
+                  "__pa_key_2"
+                ]
+              }
+            },
+            "right": {
+              "type": "NumberExpression",
+              "value": 1,
+              "subtype": "int"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+-> main
+scene main
+  store s = "Hello, World!"
+  {s:upper()}
+  {s:lower()}
+  {s:len()}
+  {s:reverse()}
+  {s:sub(2, 5)}
+  {s:sub(-3)}
+  store whitespace = "  hi  "
+  {whitespace:trim()}
+  {s:startswith("Hello")}
+  {s:endswith("!")}
+  {s:find("World")}
+  {s:find("zzz")}
+  {s:gsub("World", "Luau")}
+  store ab = "ab"
+  {ab:rep(3)}
+  store x = "x"
+  {x:rep(3, "-")}
+  store n = "42"
+  {n:padstart(5, "0")}
+  {n:padend(5, "_")}
+  {s:at(1)}
+  {s:at(-1)}
+  done
+end

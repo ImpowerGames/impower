@@ -2,7 +2,7 @@ import { PushPopType } from "./PushPop";
 import { Path } from "./Path";
 import { Story } from "./Story";
 import { JsonSerialisation } from "./JsonSerialisation";
-import { ListValue } from "./Value";
+import { ListValue, VariablePointerValue } from "./Value";
 import { StringBuilder } from "./StringBuilder";
 import { Pointer } from "./Pointer";
 import { InkObject } from "./Object";
@@ -167,11 +167,65 @@ export class CallStack {
   }
 
   public Pop(type: PushPopType | null = null) {
-    if (this.CanPop(type)) {
-      this.callStack.pop();
-      return;
-    } else {
+    if (!this.CanPop(type)) {
       throw new Error("Mismatched push/pop in Callstack");
+    }
+    // Close any open upvalues that point at the frame we're about to
+    // remove. After closing, the pointer becomes self-contained — its
+    // `closedValue` holds the snapshot of the variable, and subsequent
+    // reads/writes via `VariablesState` go through the closed cell
+    // rather than chasing a now-defunct contextIndex.
+    const top = this.callStack[this.callStack.length - 1];
+    if (top && top.openUpvalues.length > 0) {
+      for (const ptr of top.openUpvalues) {
+        if (ptr.isClosed) continue;
+        // Find the variable in this frame's temporary scopes.
+        // Innermost-first matches the lookup order used elsewhere.
+        let value: InkObject | null = null;
+        for (let i = top.temporaryScopes.length - 1; i >= 0; i--) {
+          const found = top.temporaryScopes[i]!.get(ptr.variableName);
+          if (found !== undefined) {
+            value = found;
+            break;
+          }
+        }
+        // If we couldn't find the slot (shouldn't happen if the
+        // pointer was correctly registered) leave the pointer in a
+        // "closed-but-null" state so reads return null rather than
+        // crashing on a dangling contextIndex.
+        ptr.closedValue = value ?? null;
+      }
+      // Drop the references so the frame element can be GC'd cleanly.
+      top.openUpvalues = [];
+    }
+    this.callStack.pop();
+  }
+
+  // Look for an existing open upvalue in the given frame matching
+  // `variableName`. Used by the auto-resolve path so multiple closures
+  // capturing the same variable share a single pointer (Lua semantics:
+  // when one closure writes, the others see the change).
+  public FindOpenUpvalue(
+    contextIndex: number,
+    variableName: string,
+  ): VariablePointerValue | null {
+    const frame = this.callStack[contextIndex - 1];
+    if (!frame) return null;
+    for (const ptr of frame.openUpvalues) {
+      if (!ptr.isClosed && ptr.variableName === variableName) return ptr;
+    }
+    return null;
+  }
+
+  // Register a newly-created open upvalue with its target frame so it
+  // gets closed when that frame pops.
+  public RegisterOpenUpvalue(
+    pointer: VariablePointerValue,
+    contextIndex: number,
+  ): void {
+    const frame = this.callStack[contextIndex - 1];
+    if (frame) {
+      frame.openUpvalues.push(pointer);
     }
   }
 
@@ -184,16 +238,24 @@ export class CallStack {
 
     let contextElement = this.callStack[contextIndex - 1];
 
-    let varValue = tryGetValueFromMap(
-      contextElement.temporaryVariables,
-      name,
-      null,
-    );
-    if (varValue.exists) {
-      return varValue.result;
-    } else {
-      return null;
+    // The contextElement can be undefined when the lookup runs against
+    // an empty (or freshly-popped) call stack — e.g. during an Assign
+    // at top-level scope where there's no active function frame, or
+    // immediately after `CallValueAsFunction` has popped the inner
+    // frame and the caller's Assign asks "do I have a local with this
+    // name?". Treat as "no local exists" so the Assign path falls
+    // through to its `SetGlobal` branch (the Luau auto-global rule).
+    if (!contextElement) return null;
+
+    // Walk scope stack innermost → outermost. Matches Luau lexical
+    // scoping: an inner `local x` shadows an outer `x` for the duration
+    // of the inner block.
+    const scopes = contextElement.temporaryScopes;
+    for (let i = scopes.length - 1; i >= 0; i--) {
+      const varValue = tryGetValueFromMap(scopes[i]!, name, null);
+      if (varValue.exists) return varValue.result;
     }
+    return null;
   }
 
   public SetTemporaryVariable(
@@ -205,28 +267,67 @@ export class CallStack {
     if (contextIndex == -1) contextIndex = this.currentElementIndex + 1;
 
     let contextElement = this.callStack[contextIndex - 1];
+    const scopes = contextElement.temporaryScopes;
 
-    if (!declareNew && !contextElement.temporaryVariables.get(name)) {
-      throw new Error("Could not find temporary variable to set: " + name);
+    if (declareNew) {
+      // `local x = ...` (or any `isNewTemporaryDeclaration`) — always
+      // adds the binding to the innermost scope, shadowing any outer
+      // `x` in the same call-stack element.
+      const inner = scopes[scopes.length - 1]!;
+      const oldValue = tryGetValueFromMap(inner, name, null);
+      if (oldValue.exists) {
+        ListValue.RetainListOriginsForAssignment(oldValue.result, value);
+        // Lua timely closing across loop iterations: re-executing a
+        // `local x = ...` declaration in the SAME scope frame (loop
+        // bodies re-run their declarations every iteration — incl.
+        // the synthesized per-iteration loop-variable copy) creates a
+        // FRESH cell; the previous iteration's cell dies right here.
+        // Close any open upvalue captured against the old binding
+        // with its final value, so closures made in earlier
+        // iterations keep that iteration's value (basic.luau's
+        // "upvalues & loops (validates timely closing)" block).
+        // Genuine shadowing (`local x` in an INNER scope) never hits
+        // this path — the outer binding stays alive in its own frame
+        // and PopScope closes it when that block exits.
+        if (contextElement.openUpvalues.length > 0) {
+          const stillOpen: VariablePointerValue[] = [];
+          for (const ptr of contextElement.openUpvalues) {
+            if (!ptr.isClosed && ptr.variableName === name) {
+              ptr.closedValue = (oldValue.result as InkObject) ?? null;
+              continue;
+            }
+            if (!ptr.isClosed) stillOpen.push(ptr);
+          }
+          contextElement.openUpvalues = stillOpen;
+        }
+      }
+      inner.set(name, value);
+      return;
     }
 
-    let oldValue = tryGetValueFromMap(
-      contextElement.temporaryVariables,
-      name,
-      null,
-    );
-    if (oldValue.exists)
-      ListValue.RetainListOriginsForAssignment(oldValue.result, value);
-
-    contextElement.temporaryVariables.set(name, value);
+    // Reassigning an existing `local`. Walk scopes innermost → outermost
+    // to find the frame that declared it, then update there. Luau
+    // reassignment doesn't introduce a new binding.
+    for (let i = scopes.length - 1; i >= 0; i--) {
+      const frame = scopes[i]!;
+      if (frame.has(name)) {
+        const oldValue = tryGetValueFromMap(frame, name, null);
+        if (oldValue.exists) {
+          ListValue.RetainListOriginsForAssignment(oldValue.result, value);
+        }
+        frame.set(name, value);
+        return;
+      }
+    }
+    throw new Error("Could not find temporary variable to set: " + name);
   }
 
   public ContextForVariableNamed(name: string) {
-    if (this.currentElement.temporaryVariables.get(name)) {
-      return this.currentElementIndex + 1;
-    } else {
-      return 0;
+    const scopes = this.currentElement.temporaryScopes;
+    for (let i = scopes.length - 1; i >= 0; i--) {
+      if (scopes[i]!.has(name)) return this.currentElementIndex + 1;
     }
+    return 0;
   }
 
   public ThreadWithIndex(index: number) {
@@ -284,11 +385,31 @@ export namespace CallStack {
     public previousPointer: Pointer = Pointer.Null;
     public currentPointer: Pointer;
     public inExpressionEvaluation: boolean;
-    public temporaryVariables: Map<string, InkObject>;
+    // Stack of temporary-variable scope frames, innermost-last. The
+    // function/tunnel body itself is the outermost frame (index 0);
+    // each `BeginScope` control command pushes another. Sparkdown uses
+    // this to implement Luau's block-scoped `local x` (an inner `local`
+    // shadows the outer for the rest of the inner block, then the
+    // outer is visible again after `EndScope`). When no `BeginScope` is
+    // emitted, only the outer frame exists and the semantics collapse
+    // back to ink's function-scoped `temp`.
+    public temporaryScopes: Array<Map<string, InkObject>>;
     public type: PushPopType;
 
     public evaluationStackHeightWhenPushed: number = 0;
     public functionStartInOutputStream: number = 0;
+
+    // Lua-style open upvalues that reference variables in THIS frame.
+    // Populated by `Story`'s auto-resolve path when a
+    // `VariablePointerValue` with `contextIndex === -1` is pushed onto
+    // the evaluation stack and resolves to this frame's index. Drained
+    // and closed (snapshot value into `closedValue`) by `CallStack.Pop`
+    // immediately before the frame is removed.
+    //
+    // Closures that escape their lexical parent's lifetime (e.g. outer
+    // returns a function it constructed) work correctly because the
+    // captured pointer becomes self-contained at frame-pop time.
+    public openUpvalues: VariablePointerValue[] = [];
 
     constructor(
       type: PushPopType,
@@ -297,8 +418,58 @@ export namespace CallStack {
     ) {
       this.currentPointer = pointer.copy();
       this.inExpressionEvaluation = inExpressionEvaluation;
-      this.temporaryVariables = new Map();
+      this.temporaryScopes = [new Map()];
       this.type = type;
+    }
+
+    // Innermost (= current) scope. Kept as a getter/setter pair so the
+    // existing JSON serialization code that assigns a Map directly into
+    // `temporaryVariables` continues to work — it operates on the
+    // outermost frame, which is always present.
+    public get temporaryVariables(): Map<string, InkObject> {
+      return this.temporaryScopes[this.temporaryScopes.length - 1]!;
+    }
+    public set temporaryVariables(value: Map<string, InkObject>) {
+      // Assigning resets the scope stack to a single frame; this matches
+      // the legacy "ink temp-var map" shape used by save-state restore.
+      this.temporaryScopes = [value];
+    }
+
+    // Push a new innermost scope. Called by the runtime when it
+    // executes a `BeginScope` control command.
+    public PushScope() {
+      this.temporaryScopes.push(new Map());
+    }
+
+    // Pop the innermost scope. Called by the runtime when it executes
+    // an `EndScope` control command. Refuses to pop the outermost
+    // (function-level) frame.
+    //
+    // Lua closes upvalues when the BLOCK that declared the variable
+    // exits, not only at function return. Any open upvalue whose
+    // variable is bound in the scope being popped closes here with
+    // that binding's live value — `do local a = 1 f = function()
+    // return a end end` must let the escaped closure read 1 after the
+    // do-block ends. Without this, the pointer survived to the frame
+    // pop, by which time the binding was gone, and closed as a
+    // dangling null. Upvalues whose names live in OUTER scopes of
+    // this frame stay open (their binding is still alive).
+    public PopScope() {
+      if (this.temporaryScopes.length > 1) {
+        const popping = this.temporaryScopes[this.temporaryScopes.length - 1]!;
+        if (this.openUpvalues.length > 0) {
+          const stillOpen: VariablePointerValue[] = [];
+          for (const ptr of this.openUpvalues) {
+            if (!ptr.isClosed && popping.has(ptr.variableName)) {
+              ptr.closedValue = popping.get(ptr.variableName) ?? null;
+              continue;
+            }
+            if (!ptr.isClosed) stillOpen.push(ptr);
+          }
+          this.openUpvalues = stillOpen;
+        }
+        this.temporaryScopes.pop();
+      }
     }
 
     public Copy() {
@@ -307,7 +478,7 @@ export namespace CallStack {
         this.currentPointer,
         this.inExpressionEvaluation,
       );
-      copy.temporaryVariables = new Map(this.temporaryVariables);
+      copy.temporaryScopes = this.temporaryScopes.map((m) => new Map(m));
       copy.evaluationStackHeightWhenPushed =
         this.evaluationStackHeightWhenPushed;
       copy.functionStartInOutputStream = this.functionStartInOutputStream;
@@ -387,12 +558,28 @@ export namespace CallStack {
 
           let el = new Element(pushPopType, pointer, inExpressionEvaluation);
 
-          let temps = jElementObj["temp"];
-          if (typeof temps !== "undefined") {
-            el.temporaryVariables =
-              JsonSerialisation.JObjectToDictionaryRuntimeObjs(temps);
+          // Two save-state formats: legacy `temp` is a flat object map
+          // of temp-var name → value (from ink's function-scoped model);
+          // new `temps` is an array of such maps representing the scope
+          // stack innermost-last (sparkdown's Luau block scoping). On
+          // load we detect which form is present and restore
+          // accordingly. New saves always use `temps`.
+          let tempsArr = jElementObj["temps"];
+          if (Array.isArray(tempsArr)) {
+            el.temporaryScopes = tempsArr.map((m: any) =>
+              JsonSerialisation.JObjectToDictionaryRuntimeObjs(m),
+            );
+            if (el.temporaryScopes.length === 0) {
+              el.temporaryScopes = [new Map()];
+            }
           } else {
-            el.temporaryVariables.clear();
+            let temps = jElementObj["temp"];
+            if (typeof temps !== "undefined") {
+              el.temporaryVariables =
+                JsonSerialisation.JObjectToDictionaryRuntimeObjs(temps);
+            } else {
+              el.temporaryVariables.clear();
+            }
           }
 
           this.callstack.push(el);
@@ -446,12 +633,22 @@ export namespace CallStack {
         writer.WriteProperty("exp", el.inExpressionEvaluation);
         writer.WriteIntProperty("type", el.type);
 
-        if (el.temporaryVariables.size > 0) {
-          writer.WritePropertyStart("temp");
-          JsonSerialisation.WriteDictionaryRuntimeObjs(
-            writer,
-            el.temporaryVariables,
-          );
+        // Serialize the full scope stack (`temps`: array of maps,
+        // innermost-last) so block scopes are preserved across saves —
+        // a save mid-block restores with the inner scopes still active.
+        // Empty outer scope with no inner scopes is omitted to keep
+        // most save states compact (the reader treats omitted as
+        // "single empty scope").
+        const scopes = el.temporaryScopes;
+        const hasAnyVars =
+          scopes.length > 1 || (scopes[0] && scopes[0].size > 0);
+        if (hasAnyVars) {
+          writer.WritePropertyStart("temps");
+          writer.WriteArrayStart();
+          for (const frame of scopes) {
+            JsonSerialisation.WriteDictionaryRuntimeObjs(writer, frame);
+          }
+          writer.WriteArrayEnd();
           writer.WritePropertyEnd();
         }
 

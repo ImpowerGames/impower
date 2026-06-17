@@ -1,6 +1,15 @@
 import { InkObject } from "./Object";
 import { Container } from "./Container";
 
+// One entry of the property-mutation undo log. `oldValue === undefined`
+// means the key was absent before the mutation (so undo deletes it),
+// any other value (including null) means restore via `set(key, oldValue)`.
+export interface PropertyMutation {
+  readonly map: Map<string, InkObject>;
+  readonly key: string;
+  readonly oldValue: InkObject | undefined;
+}
+
 export class StatePatch {
   get globals() {
     return this._globals;
@@ -14,6 +23,9 @@ export class StatePatch {
   get turnIndices() {
     return this._turnIndices;
   }
+  get propertyMutations() {
+    return this._propertyMutations;
+  }
 
   constructor();
   constructor(toCopy: StatePatch | null);
@@ -24,12 +36,48 @@ export class StatePatch {
       this._changedVariables = new Set(toCopy._changedVariables);
       this._visitCounts = new Map(toCopy._visitCounts);
       this._turnIndices = new Map(toCopy._turnIndices);
+      // The undo log SHARES with the copied patch — when we create a new
+      // patch from an existing one during snapshot setup, we want both
+      // the original and copy to see the same mutation history, so
+      // rollback works consistently regardless of which state is current.
+      this._propertyMutations = toCopy._propertyMutations;
     } else {
       this._globals = new Map();
       this._changedVariables = new Set();
       this._visitCounts = new Map();
       this._turnIndices = new Map();
+      this._propertyMutations = [];
     }
+  }
+
+  // Record an in-place mutation of an ObjectValue's internal Map. Used
+  // by the runtime's `StoreIndex` handler when a state snapshot is
+  // active (newline lookahead): if the snapshot is later restored, the
+  // mutations are undone by walking this log in reverse. ObjectValue
+  // maps aren't captured by the snapshot's variable-patch mechanism
+  // (which only tracks `SetGlobal` calls), so without this we'd run
+  // `obj.field = obj.field + 1` twice across the rewind.
+  public RecordPropertyMutation(
+    map: Map<string, InkObject>,
+    key: string,
+    oldValue: InkObject | undefined,
+  ) {
+    this._propertyMutations.push({ map, key, oldValue });
+  }
+
+  // Walk the mutation log in reverse and restore each Map entry to its
+  // pre-mutation state. Called from `Story.RestoreStateSnapshot` to undo
+  // the speculative writes that happened during newline lookahead.
+  public UndoPropertyMutations() {
+    for (let i = this._propertyMutations.length - 1; i >= 0; i--) {
+      const m = this._propertyMutations[i]!;
+      if (m.oldValue === undefined) {
+        m.map.delete(m.key);
+      } else {
+        m.map.set(m.key, m.oldValue);
+      }
+    }
+    this._propertyMutations = [];
   }
 
   public TryGetGlobal(name: string | null, /* out */ value: InkObject | null) {
@@ -76,4 +124,5 @@ export class StatePatch {
   private _changedVariables: Set<string> = new Set();
   private _visitCounts: Map<Container, number> = new Map();
   private _turnIndices: Map<Container, number> = new Map();
+  private _propertyMutations: PropertyMutation[];
 }

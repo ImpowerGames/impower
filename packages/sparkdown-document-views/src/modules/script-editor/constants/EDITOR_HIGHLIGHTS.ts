@@ -15,6 +15,10 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
 
   { tag: tags.string, color: c.string },
 
+  { tag: tags.special(tags.string), color: c.foreground },
+
+  { tag: tags.definition(tags.string), color: c.string },
+
   { tag: tags.monospace, color: c.escape },
   { tag: tags.quote, fontStyle: "italic" },
   { tag: tags.emphasis, fontStyle: "italic" },
@@ -47,12 +51,30 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.keyword, color: c.keyword },
   { tag: tags.moduleKeyword, color: c.moduleKeyword },
   { tag: tags.controlKeyword, color: c.controlKeyword },
-  { tag: tags.definitionKeyword, color: c.definitionKeyword },
   { tag: tags.operatorKeyword, color: c.operatorKeyword },
+  { tag: tags.definition(tags.typeName), color: c.typeNameDefinition },
+  { tag: tags.special(tags.logicOperator), color: c.specialOperator },
+  { tag: tags.special(tags.arithmeticOperator), color: c.specialOperator },
+  { tag: tags.special(tags.compareOperator), color: c.specialOperator },
+  { tag: tags.special(tags.operator), color: c.specialOperator },
   { tag: tags.propertyName, color: c.propertyName },
   { tag: tags.variableName, color: c.variableName },
+  { tag: tags.constant(tags.variableName), color: c.constantVariableName },
   { tag: tags.attributeName, color: c.attributeName },
-  { tag: tags.function(tags.variableName), color: c.functionName },
+  { tag: tags.function(tags.name), color: c.functionName },
+  {
+    tag: tags.special(tags.function(tags.name)),
+    color: c.builtin,
+  },
+  {
+    tag: tags.standard(tags.function(tags.name)),
+    color: c.standardFunction,
+  },
+  {
+    tag: tags.standard(tags.variableName),
+    color: c.standardType,
+  },
+  { tag: tags.function(tags.variableName), color: c.parameterName },
   { tag: tags.className, color: c.className },
 
   { tag: tags.definition(tags.annotation), color: c.chunkNameDefinition },

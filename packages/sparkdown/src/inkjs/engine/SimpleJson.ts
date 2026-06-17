@@ -281,6 +281,13 @@ export namespace SimpleJson {
 
     // Since JSON doesn't support NaN and Infinity, these values
     // are converted here.
+    //
+    // Whole-number floats (e.g. `3.0`) need a string marker (`"3.0f"`) so
+    // the loader's regex (`/^([0-9]+.[0-9]+f)$/` in `JsonSerialisation`)
+    // can recover them as `FloatValue` rather than `IntValue`. Without the
+    // marker, `JSON.stringify(3.0)` produces `3` and the loader can't tell
+    // it was originally a float — so mixed-type ops like `7 / 3.0` would
+    // degrade to integer division.
     public WriteFloat(value: number | null) {
       if (value === null) {
         return;
@@ -288,11 +295,27 @@ export namespace SimpleJson {
 
       this.StartNewObject(false);
       if (value == Number.POSITIVE_INFINITY) {
-        this._addToCurrentObject(3.4e38);
+        // String markers (like the `"N.0f"` float marker below) —
+        // JSON can't carry Infinity/NaN, and the old clamps
+        // (3.4e38 / 0.0) silently changed the VALUE, breaking Lua
+        // semantics for `math.huge` constants and nan results.
+        // `JsonSerialisation.JTokenToRuntimeObject` recovers these.
+        this._addToCurrentObject("inff");
       } else if (value == Number.NEGATIVE_INFINITY) {
-        this._addToCurrentObject(-3.4e38);
+        this._addToCurrentObject("-inff");
       } else if (isNaN(value)) {
-        this._addToCurrentObject(0.0);
+        this._addToCurrentObject("nanf");
+      } else if (Number.isInteger(value)) {
+        // Whole-number float: emit as the `"N.0f"` string form that
+        // `JsonSerialisation.JTokenToRuntimeObject` recognizes. Large
+        // integral floats (>= 1e21) stringify in exponent form where
+        // the ".0" infix would corrupt the token (`"3.4e+38.0f"`) —
+        // append just the `f` suffix instead; the loader's regex
+        // accepts exponent forms.
+        const repr = value.toString();
+        this._addToCurrentObject(
+          repr.includes("e") ? `${repr}f` : `${repr}.0f`,
+        );
       } else {
         this._addToCurrentObject(value);
       }

@@ -1,0 +1,23 @@
+text.source.sparkdown [0..32]
+ ├─ keyword.control.if.luau [0..2]: "if"
+ ├─ punctuation.whitespace.separator.optional.sd [2..3]: " "
+ ├─ keyword.control.divert.mark.sd [3..5]: "->"
+ ├─ punctuation.whitespace.separator.optional.sd [5..6]: " "
+ ├─ keyword.control.divert.path.sd [6..7]
+ │   └─ keyword.control.divert.path.sd [6..7]: "X"
+ ├─ punctuation.whitespace.extra.sd [7..8]: " "
+ ├─ keyword.operator.comparison.luau [8..10]: "=="
+ ├─ punctuation.whitespace.separator.optional.sd [10..11]: " "
+ ├─ keyword.control.divert.mark.sd [11..13]: "->"
+ ├─ punctuation.whitespace.separator.optional.sd [13..14]: " "
+ ├─ keyword.control.divert.path.sd [14..15]
+ │   └─ keyword.control.divert.path.sd [14..15]: "Y"
+ ├─ punctuation.whitespace.extra.sd [15..16]: " "
+ ├─ keyword.control.then.luau [16..20]: "then"
+ ├─ Newline [20..21]: "\n"
+ ├─ punctuation.whitespace.indent.sd [21..23]: "  "
+ ├─ string.display.text.chunk.sd [23..27]
+ │   └─ markup.raw.text.sd [23..27]: "body"
+ ├─ Newline [27..28]: "\n"
+ ├─ keyword.control.end.luau [28..31]: "end"
+ └─ Newline [31..32]: "\n"

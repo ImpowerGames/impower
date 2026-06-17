@@ -1,0 +1,8 @@
+# Grammar test fixtures (`.sd`) are read byte-for-byte by the snapshot tests,
+# and the `.snap` / `.vsc.snap` baselines are generated on LF checkouts. Force
+# LF for both on every platform so the snapshot suites are byte-stable
+# regardless of `core.autocrlf` — without this, a Windows checkout rewrites the
+# fixtures to CRLF and every newline-bearing snapshot diffs (`"\r\n"` vs
+# `"\n"`, span lengths off by one per line). See GRAMMAR.md §17.
+*.sd    text eol=lf
+*.snap  text eol=lf

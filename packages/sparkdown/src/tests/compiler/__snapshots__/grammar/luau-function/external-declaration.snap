@@ -1,0 +1,90 @@
+sparkdown [0..67]
+ ├─ LuauExternalDeclaration [0..19]
+ │   ├─ LuauExternalDeclaration_begin [0..9]
+ │   │   ├─ LuauExternalDeclaration_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauExternalDeclaration_begin_c2 [0..8]
+ │   │   │   └─ LuauExternalKeyword [0..8]: "external"
+ │   │   └─ LuauExternalDeclaration_begin_c3 [8..9]
+ │   │       └─ LuauExternalDeclaration_begin_c3 [8..9]
+ │   │           └─ OptionalWhitespace [8..9]: " "
+ │   ├─ LuauExternalDeclaration_content [9..19]
+ │   │   ├─ LuauFunctionDeclarationName [9..16]
+ │   │   │   ├─ LuauFunctionDeclarationName_c1 [9..16]
+ │   │   │   │   └─ LuauFunctionName [9..16]: "message"
+ │   │   │   └─ LuauFunctionDeclarationName_c2 16
+ │   │   └─ LuauFunctionParameters [16..19]
+ │   │       ├─ LuauFunctionParameters_begin [16..17]
+ │   │       │   └─ LuauFunctionParameters_begin_c1 [16..17]
+ │   │       │       └─ PunctuationParenOpen [16..17]: "("
+ │   │       ├─ LuauFunctionParameters_content [17..18]
+ │   │       │   └─ LuauFunctionParameter [17..18]: "x"
+ │   │       └─ LuauFunctionParameters_end [18..19]
+ │   │           └─ LuauFunctionParameters_end_c1 [18..19]
+ │   │               └─ PunctuationParenClose [18..19]: ")"
+ │   └─ LuauExternalDeclaration_end 19
+ ├─ Newline [19..20]: "\n"
+ ├─ LuauExternalDeclaration [20..43]
+ │   ├─ LuauExternalDeclaration_begin [20..29]
+ │   │   ├─ LuauExternalDeclaration_begin_c1 20
+ │   │   │   └─ OptionalWhitespace 20
+ │   │   ├─ LuauExternalDeclaration_begin_c2 [20..28]
+ │   │   │   └─ LuauExternalKeyword [20..28]: "external"
+ │   │   └─ LuauExternalDeclaration_begin_c3 [28..29]
+ │   │       └─ LuauExternalDeclaration_begin_c3 [28..29]
+ │   │           └─ OptionalWhitespace [28..29]: " "
+ │   ├─ LuauExternalDeclaration_content [29..43]
+ │   │   ├─ LuauFunctionDeclarationName [29..37]
+ │   │   │   ├─ LuauFunctionDeclarationName_c1 [29..37]
+ │   │   │   │   └─ LuauFunctionName [29..37]: "multiply"
+ │   │   │   └─ LuauFunctionDeclarationName_c2 37
+ │   │   └─ LuauFunctionParameters [37..43]
+ │   │       ├─ LuauFunctionParameters_begin [37..38]
+ │   │       │   └─ LuauFunctionParameters_begin_c1 [37..38]
+ │   │       │       └─ PunctuationParenOpen [37..38]: "("
+ │   │       ├─ LuauFunctionParameters_content [38..42]
+ │   │       │   ├─ LuauFunctionParameter [38..39]: "x"
+ │   │       │   ├─ LuauCommaSeparator [39..41]
+ │   │       │   │   ├─ LuauCommaSeparator_c1 39
+ │   │       │   │   ├─ LuauCommaSeparator_c2 [39..40]: ","
+ │   │       │   │   └─ LuauCommaSeparator_c3 [40..41]
+ │   │       │   │       └─ LuauCommaSeparator_c3 [40..41]
+ │   │       │   │           └─ OptionalWhitespace [40..41]: " "
+ │   │       │   └─ LuauFunctionParameter [41..42]: "y"
+ │   │       └─ LuauFunctionParameters_end [42..43]
+ │   │           └─ LuauFunctionParameters_end_c1 [42..43]
+ │   │               └─ PunctuationParenClose [42..43]: ")"
+ │   └─ LuauExternalDeclaration_end 43
+ ├─ Newline [43..44]: "\n"
+ ├─ LuauExternalDeclaration [44..66]
+ │   ├─ LuauExternalDeclaration_begin [44..53]
+ │   │   ├─ LuauExternalDeclaration_begin_c1 44
+ │   │   │   └─ OptionalWhitespace 44
+ │   │   ├─ LuauExternalDeclaration_begin_c2 [44..52]
+ │   │   │   └─ LuauExternalKeyword [44..52]: "external"
+ │   │   └─ LuauExternalDeclaration_begin_c3 [52..53]
+ │   │       └─ LuauExternalDeclaration_begin_c3 [52..53]
+ │   │           └─ OptionalWhitespace [52..53]: " "
+ │   ├─ LuauExternalDeclaration_content [53..66]
+ │   │   ├─ LuauFunctionDeclarationName [53..58]
+ │   │   │   ├─ LuauFunctionDeclarationName_c1 [53..58]
+ │   │   │   │   └─ LuauFunctionName [53..58]: "times"
+ │   │   │   └─ LuauFunctionDeclarationName_c2 58
+ │   │   └─ LuauFunctionParameters [58..66]
+ │   │       ├─ LuauFunctionParameters_begin [58..59]
+ │   │       │   └─ LuauFunctionParameters_begin_c1 [58..59]
+ │   │       │       └─ PunctuationParenOpen [58..59]: "("
+ │   │       ├─ LuauFunctionParameters_content [59..65]
+ │   │       │   ├─ LuauFunctionParameter [59..60]: "i"
+ │   │       │   ├─ LuauCommaSeparator [60..62]
+ │   │       │   │   ├─ LuauCommaSeparator_c1 60
+ │   │       │   │   ├─ LuauCommaSeparator_c2 [60..61]: ","
+ │   │       │   │   └─ LuauCommaSeparator_c3 [61..62]
+ │   │       │   │       └─ LuauCommaSeparator_c3 [61..62]
+ │   │       │   │           └─ OptionalWhitespace [61..62]: " "
+ │   │       │   └─ LuauFunctionParameter [62..65]: "str"
+ │   │       └─ LuauFunctionParameters_end [65..66]
+ │   │           └─ LuauFunctionParameters_end_c1 [65..66]
+ │   │               └─ PunctuationParenClose [65..66]: ")"
+ │   └─ LuauExternalDeclaration_end 66
+ └─ Newline [66..67]: "\n"

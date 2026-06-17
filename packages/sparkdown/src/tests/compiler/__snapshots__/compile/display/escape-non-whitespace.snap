@@ -1,0 +1,33 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Tag",
+          "start": true
+        },
+        {
+          "type": "Text",
+          "text": "dialogue:N"
+        },
+        {
+          "type": "Tag",
+          "start": false
+        },
+        {
+          "type": "Text",
+          "text": "N: "
+        },
+        {
+          "type": "Text",
+          "text": "this is \\*not italic\\* here"
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+function get_thing(x: number): typeof(x)
+  return x
+end

@@ -11,9 +11,15 @@ import {
   Value,
   StringValue,
   IntValue,
+  FloatValue,
+  BoolValue,
   DivertTargetValue,
   VariablePointerValue,
   ListValue,
+  ObjectValue,
+  AbstractValue,
+  MultiValue,
+  NullValue,
 } from "./Value";
 import { Path } from "./Path";
 import { Void } from "./Void";
@@ -21,7 +27,19 @@ import { Tag } from "./Tag";
 import { VariableAssignment } from "./VariableAssignment";
 import { VariableReference } from "./VariableReference";
 import { NativeFunctionCall } from "./NativeFunctionCall";
+import {
+  BUILTIN_ITER_TAG,
+  GLOBALS_PROXY_TAG,
+  isStdLibFunctionName,
+  isStdLibNamespaceName,
+  luauTypeOf,
+  lookupAnyStdLib,
+  lookupStateAwareStdLib,
+  stepBuiltinIterator,
+  unwrapArgsForPureStdLibFn,
+} from "./StdLib";
 import { StoryException } from "./StoryException";
+import { isLuauTruthy } from "./LuauTruthiness";
 import { PRNG } from "./PRNG";
 import { StringBuilder } from "./StringBuilder";
 import { ListDefinitionsOrigin } from "./ListDefinitionsOrigin";
@@ -49,6 +67,633 @@ if (!Number.isInteger) {
       Math.floor(nVal) === nVal
     );
   };
+}
+
+// If `callTarget` is a closure `ObjectValue` (the shape produced by
+// `lowerAnonymousFunction` for closures with captured upvals),
+// reorder the eval stack to put upvals before user args and return
+// the synthetic knot's path. Returns `null` if `callTarget` isn't a
+// closure — caller falls back to plain `DivertTargetValue` handling.
+function extractClosurePath(callTarget: any, story: any): any | null {
+  if (!(callTarget instanceof ObjectValue)) return null;
+  const map = callTarget.value;
+  if (!(map instanceof Map)) return null;
+  const fnVal = map.get("__closure_fn");
+  const upvalsVal = map.get("__closure_upvals");
+  const userArityVal = map.get("__closure_user_arity");
+  if (
+    !(fnVal instanceof DivertTargetValue) ||
+    !(upvalsVal instanceof ObjectValue) ||
+    !(userArityVal instanceof IntValue)
+  ) {
+    return null;
+  }
+  if (fnVal.value === null) return null;
+  const upvalsMap = upvalsVal.value;
+  if (!(upvalsMap instanceof Map)) return null;
+  // `__closure_user_arity` counts FIXED params only. A variadic
+  // target binds one extra slot — the packed `...` MultiValue the
+  // call-site normalization (packVariadicValueCallArgs /
+  // normalizeLuauCallArgs) pushed on top of the fixed args — so the
+  // upval reorder must lift fixed args AND the pack above the upvals.
+  const fnContainer = story.ContentAtPath(fnVal.value).obj;
+  const popCount =
+    (userArityVal.value ?? 0) + (containerIsVariadic(fnContainer) ? 1 : 0);
+  // Pop K user args (they sit on top of the stack — well, ABOVE the
+  // closure value which we already popped).
+  const userArgs: AbstractValue[] = [];
+  for (let i = 0; i < popCount; i++) {
+    userArgs.unshift(story.state.PopEvaluationStack() as AbstractValue);
+  }
+  // Push upvals in numerical-key order (0, 1, 2, ...).
+  let idx = 0;
+  while (upvalsMap.has(String(idx))) {
+    const v = upvalsMap.get(String(idx));
+    if (v) story.state.PushEvaluationStack(v);
+    idx++;
+  }
+  // Re-push user args in original order so the function's parameter
+  // binding reads them last.
+  for (const a of userArgs) story.state.PushEvaluationStack(a);
+  return fnVal.value;
+}
+
+// Lua's index-type rule: only tables (and strings, via their library
+// metatable) are indexable. Returns the "attempt to index a X value"
+// message for non-indexable values, or `null` when `v` may be indexed.
+// Function values include bare DivertTargets, closure-shaped
+// ObjectValues, and `__stdlib_fn` markers (`math.pow.a` indexes a
+// builtin).
+function luauIndexTargetError(v: unknown): string | null {
+  if (v == null || v instanceof NullValue || v instanceof Void) {
+    return "attempt to index a nil value";
+  }
+  if (v instanceof BoolValue) return "attempt to index a boolean value";
+  if (v instanceof IntValue || v instanceof FloatValue) {
+    return "attempt to index a number value";
+  }
+  if (v instanceof DivertTargetValue) {
+    return "attempt to index a function value";
+  }
+  if (
+    v instanceof ObjectValue &&
+    ((v.value as Map<string, unknown>)?.has("__closure_fn") ||
+      (v.value as Map<string, unknown>)?.has("__stdlib_fn"))
+  ) {
+    return "attempt to index a function value";
+  }
+  return null;
+}
+
+// Derive the string map-key for a Lua table index. Sparkdown tables
+// are string-keyed Maps, so non-string Lua keys must stringify — but
+// TABLE keys must use POINTER IDENTITY (Lua semantics): two distinct
+// empty tables are distinct keys, a self-referential `a[a] = a` must
+// not recurse (ObjectValue.toString serializes contents), and the key
+// must stay stable as the table mutates. The WeakMap keys off the
+// underlying value Map — the true shared identity across ObjectValue
+// wrappers. Stdlib markers (`a[print]`) are the exception: each
+// source reference to `print` builds a FRESH marker object, so they
+// key by their tag name instead of identity.
+const TABLE_IDENTITY_IDS = new WeakMap<object, number>();
+let nextTableIdentityId = 1;
+function luauMapKeyString(v: any): string {
+  if (v instanceof ObjectValue && v.value) {
+    const map = v.value as Map<string, AbstractValue>;
+    const stdTag = map.get("__stdlib_fn");
+    if (stdTag instanceof StringValue) return `__stdlibfn:${stdTag.value}`;
+    let id = TABLE_IDENTITY_IDS.get(map);
+    if (id === undefined) {
+      id = nextTableIdentityId++;
+      TABLE_IDENTITY_IDS.set(map, id);
+    }
+    return `__tableid:${id}`;
+  }
+  return v?.toString() ?? "";
+}
+
+// Look up a metamethod on the metatable of `obj` (e.g. `__index`,
+// `__add`, `__call`). Returns the value stored at that key, or `null`
+// if the table has no metatable or the metatable lacks that field
+// (or stores `nil` at it). Does NOT walk the metatable's own metatable
+// — Lua only consults a single level of metatable indirection per
+// metamethod lookup.
+function lookupMetamethod(
+  obj: any,
+  name: string,
+): AbstractValue | null {
+  if (!(obj instanceof ObjectValue)) return null;
+  const mt = obj.metatable;
+  if (!(mt instanceof ObjectValue)) return null;
+  const v = (mt.value as Map<string, AbstractValue>)?.get(name);
+  if (v == null || v instanceof NullValue) return null;
+  return v;
+}
+
+// Resolve `obj[key]` following Lua's `__index` chain. If `obj` has the
+// key directly, return that value. Otherwise consult the metatable's
+// `__index`: function form calls `__index(obj, key)`; table form
+// recurses into the index table (which may itself have a metatable).
+// Cycle-bounded via a depth cap. Returns `null` for a hard miss —
+// caller decides the sentinel (sparkdown today pushes `StringValue("")`
+// at non-metatable index sites; the new path returns `NullValue` to
+// match Lua, but callers may still wrap to keep historical behavior).
+function indexThroughMetatable(
+  story: any,
+  base: any,
+  keyStr: string,
+  depth: number = 0,
+): AbstractValue | null {
+  const MAX_DEPTH = 32;
+  if (depth > MAX_DEPTH) return null;
+  if (!(base instanceof ObjectValue)) return null;
+  const direct = base.value?.get(keyStr);
+  if (direct != null) return direct as AbstractValue;
+  const indexFn = lookupMetamethod(base, "__index");
+  if (indexFn == null) return null;
+  if (indexFn instanceof ObjectValue) {
+    // Treat closure-shaped ObjectValues (`__closure_fn` marker) as
+    // function-form even though they're ObjectValues. Otherwise an
+    // ObjectValue is a plain table — recurse.
+    if (
+      (indexFn.value as Map<string, AbstractValue>)?.get("__closure_fn") !=
+      null
+    ) {
+      const results = story.CallLuauFunction(indexFn, [
+        base,
+        new StringValue(keyStr),
+      ]);
+      return (results[0] as AbstractValue) ?? null;
+    }
+    return indexThroughMetatable(story, indexFn, keyStr, depth + 1);
+  }
+  // DivertTargetValue / bare-knot — function form.
+  if (indexFn instanceof DivertTargetValue) {
+    const results = story.CallLuauFunction(indexFn, [
+      base,
+      new StringValue(keyStr),
+    ]);
+    return (results[0] as AbstractValue) ?? null;
+  }
+  return null;
+}
+
+// Maps a `NativeFunctionCall` operator name to the Luau metamethod
+// that should be consulted when one or both operands carry a
+// metatable. Comparison ops `>` and `>=` are intentionally absent —
+// they're handled by swapping args and calling `__lt` / `__le`
+// (Lua's standard inversion trick), so the symmetric forms below
+// suffice. `!=` likewise inverts `__eq`. Unary `_` (negate) and
+// `LEN` (length) are unary metamethods.
+const BINOP_TO_METAMETHOD: Record<string, string> = {
+  "+": "__add",
+  "-": "__sub",
+  "*": "__mul",
+  "/": "__div",
+  "//": "__idiv",
+  "%": "__mod",
+  POW: "__pow",
+  "..": "__concat",
+  "==": "__eq",
+  "!=": "__eq",
+  "<": "__lt",
+  ">": "__lt",
+  "<=": "__le",
+  ">=": "__le",
+};
+const UNOP_TO_METAMETHOD: Record<string, string> = {
+  _: "__unm",
+  LEN: "__len",
+};
+
+// Attempt to dispatch a binary NativeFunctionCall through a metamethod
+// when one (or both) operands are ObjectValues with a relevant entry.
+// Returns the resulting AbstractValue if a metamethod handled the op;
+// `null` to fall through to the regular type-coerced dispatch.
+//
+// Lua semantics:
+//   - Arithmetic / concat / length: check LHS first, then RHS.
+//   - `__eq` fires ONLY when both operands are tables (matches Lua's
+//     strict-type rule for equality metamethods).
+//   - `>` / `>=` are handled by swapping args and calling `__lt` /
+//     `__le` (the standard Lua inversion).
+//   - `!=` inverts the boolean returned by `__eq` (or the raw `==`
+//     comparison if no metamethod fired).
+// rawequal for function-shaped values, used by the `__eq` same-handler
+// rule. Closure ObjectValues compare by underlying-Map identity (same
+// notion as table `==`); bare DivertTargetValues compare by target
+// path, so the same named function referenced twice matches even if
+// the wrapper instances differ.
+function sameLuauFunctionValue(a: any, b: any): boolean {
+  if (a == null || b == null) return false;
+  if (a === b) return true;
+  if (a instanceof ObjectValue && b instanceof ObjectValue) {
+    return a.value === b.value;
+  }
+  if (a instanceof DivertTargetValue && b instanceof DivertTargetValue) {
+    return a.value?.toString() === b.value?.toString();
+  }
+  return false;
+}
+
+// Direct JS-side dispatch for `__stdlib_fn` marker values — stdlib
+// builtins referenced first-class and invoked through the JS call
+// helpers (e.g. `pcall(rawequal, a, b)`, or a stdlib fn stored in a
+// variable handed to `table.sort`). Returns the wrapped result array,
+// or `null` when `fnValue` isn't a resolvable stdlib marker. Under-
+// application of a fixed-arity entry raises (Lua's C functions check
+// required args via `luaL_checkany`), so `pcall(rawequal, "a")` traps
+// a missing-argument error instead of comparing against nil — EXCEPT
+// for entries marked `validatesArgs`, whose `fn` raises its own
+// Luau-exact message (e.g. `missing argument #1 to 'clear' (table
+// expected)`); the generic raise can't know the expected type.
+function tryInvokeStdLibMarkerValue(
+  story: any,
+  fnValue: any,
+  args: AbstractValue[],
+): AbstractValue[] | null {
+  if (!(fnValue instanceof ObjectValue)) return null;
+  const tag = (fnValue.value as Map<string, AbstractValue>)?.get(
+    "__stdlib_fn",
+  );
+  if (!(tag instanceof StringValue)) return null;
+  const entry = lookupAnyStdLib(tag.value);
+  if (!entry) return null;
+  if (
+    entry.arity >= 0 &&
+    args.length < entry.arity &&
+    !(entry as { validatesArgs?: boolean }).validatesArgs
+  ) {
+    story.Error(`missing argument #${args.length + 1} to '${tag.value}'`);
+  }
+  const callArgs = unwrapArgsForPureStdLibFn(
+    entry,
+    entry.arity >= 0 ? args.slice(0, entry.arity) : [...args],
+    story,
+    tag.value,
+  );
+  const result = entry.fn(story, callArgs);
+  if (result === undefined) return [];
+  const rawResults = Array.isArray(result) ? result : [result];
+  const wrapped: AbstractValue[] = [];
+  for (const r of rawResults) {
+    if (r instanceof InkObject) {
+      wrapped.push(r as AbstractValue);
+    } else {
+      const w = Value.Create(r);
+      if (w !== null) wrapped.push(w as AbstractValue);
+    }
+  }
+  return wrapped;
+}
+
+function tryBinaryMetamethod(
+  story: any,
+  opName: string,
+  lhs: any,
+  rhs: any,
+): AbstractValue | null {
+  const metaName = BINOP_TO_METAMETHOD[opName];
+  if (!metaName) return null;
+  // `__eq` is restricted: Lua only fires it when both operands are
+  // tables (ObjectValue). For sparkdown the equivalent rule keeps
+  // primitive equality (`5 == 5`, `"a" == "a"`) on the regular
+  // numeric / string fast path.
+  if (metaName === "__eq" && !(lhs instanceof ObjectValue && rhs instanceof ObjectValue)) {
+    return null;
+  }
+  if (!(lhs instanceof ObjectValue) && !(rhs instanceof ObjectValue)) {
+    return null;
+  }
+  // Comparison-symmetry: `a > b` → `__lt(b, a)`; `a >= b` → `__le(b, a)`.
+  let callLhs = lhs;
+  let callRhs = rhs;
+  let invertEq = false;
+  if (opName === ">" || opName === ">=") {
+    callLhs = rhs;
+    callRhs = lhs;
+  }
+  if (opName === "!=") {
+    invertEq = true;
+  }
+  let handler: any;
+  if (metaName === "__eq") {
+    // Lua's getequalhandler rule: primitive (reference) equality is
+    // checked FIRST — `a == a` never consults the metamethod. The
+    // handler then fires only when BOTH operands have an `__eq` and
+    // the two handlers are the same value (rawequal). Different
+    // handlers → plain reference equality (which is false here,
+    // since the primitive check above already ruled out identity).
+    if (lhs.value === rhs.value) {
+      return new BoolValue(!invertEq);
+    }
+    // Stdlib markers compare by TAG, not identity — every source
+    // reference to `print` builds a fresh marker object, so
+    // `a[f] == print` (where a[f] holds a previously-stored `print`)
+    // must still be true.
+    {
+      const tagL = (lhs.value as Map<string, AbstractValue>)?.get(
+        "__stdlib_fn",
+      );
+      const tagR = (rhs.value as Map<string, AbstractValue>)?.get(
+        "__stdlib_fn",
+      );
+      if (tagL instanceof StringValue && tagR instanceof StringValue) {
+        const same = tagL.value === tagR.value;
+        return new BoolValue(invertEq ? !same : same);
+      }
+    }
+    const handlerL = lookupMetamethod(callLhs, metaName);
+    const handlerR = lookupMetamethod(callRhs, metaName);
+    if (
+      handlerL == null ||
+      handlerR == null ||
+      handlerL instanceof NullValue ||
+      handlerR instanceof NullValue ||
+      !sameLuauFunctionValue(handlerL, handlerR)
+    ) {
+      return null;
+    }
+    handler = handlerL;
+  } else {
+    handler =
+      lookupMetamethod(callLhs, metaName) ?? lookupMetamethod(callRhs, metaName);
+  }
+  if (handler == null) return null;
+  const results = story.CallLuauFunction(handler, [callLhs, callRhs]) as
+    | AbstractValue[]
+    | null;
+  const first = (results && results[0]) || new NullValue();
+  // Comparison metamethods return any value; Lua then coerces it to
+  // a boolean. Apply the inversion for `!=` after coercion.
+  if (metaName === "__eq" || metaName === "__lt" || metaName === "__le") {
+    const truthy = first instanceof AbstractValue ? first.isTruthy : false;
+    const result = invertEq ? !truthy : truthy;
+    return new BoolValue(result);
+  }
+  return first;
+}
+
+// Unary metamethod dispatch — `-x` (`__unm`) and `#x` (`__len`).
+// `LEN` for ObjectValue falls through to the existing `t.value.size`
+// path when no metamethod is present; that path is in
+// `NativeFunctionCall.CallType`.
+function tryUnaryMetamethod(
+  story: any,
+  opName: string,
+  operand: any,
+): AbstractValue | null {
+  const metaName = UNOP_TO_METAMETHOD[opName];
+  if (!metaName) return null;
+  if (!(operand instanceof ObjectValue)) return null;
+  const handler = lookupMetamethod(operand, metaName);
+  if (handler == null) return null;
+  const results = story.CallLuauFunction(handler, [operand]) as
+    | AbstractValue[]
+    | null;
+  return (results && results[0]) || new NullValue();
+}
+
+// Returns true if the container's first content op is a vararg-slot
+// parameter binding — i.e. the target function declared `...` as a
+// parameter. Used by the multi-return spread logic to skip spreading
+// for variadic targets (whose extras have already been packed into a
+// `MultiValue` by `PackTuple` at the call site).
+function containerIsVariadic(target: any): boolean {
+  if (!target) return false;
+  const content = target._content;
+  if (!Array.isArray(content)) return false;
+  for (const item of content) {
+    const va = item as { isVarargsSlot?: boolean; variableName?: string };
+    if (va && typeof va.isVarargsSlot === "boolean") {
+      return va.isVarargsSlot === true;
+    }
+    // Skip non-VariableAssignment items (the function entry binding
+    // is the first content); bail out if we hit a different kind of
+    // op to keep the scan O(1)-ish.
+    if (item && (item as any).commandType !== undefined) {
+      continue;
+    }
+    break;
+  }
+  return false;
+}
+
+// Count the leading parameter-binding `VariableAssignment` ops in a
+// function container's content — the slots its entry bytecode pops
+// off the eval stack. Skips any leading ControlCommands (mirroring
+// `containerIsVariadic`'s scan) and stops at the first non-VA item
+// after the run starts. For a variadic function the count INCLUDES
+// the `__varargs__` slot.
+function countLeadingParamBindings(target: any): number {
+  if (!target) return 0;
+  const content = target._content;
+  if (!Array.isArray(content)) return 0;
+  let n = 0;
+  for (const item of content) {
+    const va = item as { isVarargsSlot?: boolean };
+    if (va && typeof va.isVarargsSlot === "boolean") {
+      n++;
+      continue;
+    }
+    if (n === 0 && item && (item as any).commandType !== undefined) {
+      continue;
+    }
+    break;
+  }
+  return n;
+}
+
+// Lua value-call argument normalization for a VARIADIC target whose
+// callee was only known at runtime (the static call site never
+// emitted a `PackTuple`): bind the first `fixedCount` args
+// positionally (padding missing ones with nil) and pack the rest
+// into ONE MultiValue for the `...` slot's parameter binding. The
+// callable must already be popped; the user args sit on top of the
+// eval stack. A trailing MultiValue (a `g()` multi-return as the
+// last call-site arg) spreads first, per Lua.
+function packVariadicValueCallArgs(
+  story: any,
+  callSiteArgCount: number,
+  fixedCount: number,
+): void {
+  let effective = callSiteArgCount;
+  if (effective > 0) {
+    const top = story.state.PeekEvaluationStack();
+    if (top instanceof MultiValue) {
+      story.state.PopEvaluationStack();
+      for (const v of top.values) story.state.PushEvaluationStack(v);
+      effective += top.values.length - 1;
+    }
+  }
+  const args: AbstractValue[] = [];
+  for (let i = 0; i < effective; i++) {
+    args.unshift(story.state.PopEvaluationStack() as AbstractValue);
+  }
+  const fixed = args.slice(0, fixedCount);
+  while (fixed.length < fixedCount) fixed.push(new NullValue());
+  const extras = args.slice(fixedCount);
+  for (const a of fixed) story.state.PushEvaluationStack(a);
+  story.state.PushEvaluationStack(new MultiValue(extras));
+}
+
+// Lua argument-count normalization for the JS-driven call paths
+// (`CallLuauFunction` / `CallLuauFunctionProtected`): extra args are
+// DISCARDED and missing args pad with nil, exactly as a Lua call
+// site would. Without the truncation, a surplus arg pushed for a
+// callee that never pops it survives the call on the eval stack and
+// gets mis-collected as a return value — e.g. the `__len` metamethod
+// receives the table operand per Lua, but a zero-param handler
+// (`__len = function() return 42 end`) left the table stranded, and
+// `#t` "returned" the table itself. Variadic callees bind their
+// fixed params positionally and receive the extras packed into one
+// MultiValue (the `__varargs__` slot — same shape a static call
+// site's PackTuple produces); arity comes from the closure's
+// `__closure_user_arity` field, so plain DivertTargetValue functions
+// (top-level knots) pass through unchanged.
+function normalizeLuauCallArgs(
+  story: any,
+  fnValue: AbstractValue,
+  args: AbstractValue[],
+): AbstractValue[] {
+  if (!(fnValue instanceof ObjectValue)) return args;
+  const map = fnValue.value as Map<string, AbstractValue> | null;
+  const arityVal = map?.get("__closure_user_arity");
+  if (!(arityVal instanceof IntValue) || typeof arityVal.value !== "number") {
+    return args;
+  }
+  const arity = arityVal.value;
+  const fnTarget = map?.get("__closure_fn");
+  if (fnTarget instanceof DivertTargetValue && fnTarget.value != null) {
+    const target = story.ContentAtPath(fnTarget.value).obj;
+    if (containerIsVariadic(target)) {
+      // Spread a trailing MultiValue, then pack extras beyond the
+      // fixed arity for the `...` slot.
+      const spread = [...args];
+      const last = spread[spread.length - 1];
+      if (last instanceof MultiValue) {
+        spread.splice(spread.length - 1, 1, ...last.values);
+      }
+      const fixed = spread.slice(0, arity);
+      while (fixed.length < arity) fixed.push(new NullValue());
+      return [...fixed, new MultiValue(spread.slice(arity))];
+    }
+  }
+  const out = args.slice(0, arity);
+  while (out.length < arity) out.push(new NullValue());
+  return out;
+}
+
+// Lua-fidelity multi-return spread: if the syntactically LAST arg of
+// a function call returned multiple values (a `MultiValue`), spread
+// its inner values onto the eval stack so the callee's parameter
+// binding pops them individually. Skipped for variadic targets —
+// their compile-time `PackTuple` already handled the spread and the
+// trailing `MultiValue` is the `__varargs__` slot value.
+function spreadLastMultiIfNonVariadic(story: any, target: any): void {
+  if (containerIsVariadic(target)) return;
+  const stack = story.state.evaluationStack;
+  if (stack.length === 0) return;
+  const top = stack[stack.length - 1];
+  if (!(top instanceof MultiValue)) return;
+  story.state.PopEvaluationStack();
+  for (const v of top.values) story.state.PushEvaluationStack(v);
+}
+
+// `t[k] = v` Lua-fidelity dispatch. If `k` already exists directly on
+// `t`, the raw set fires immediately (Lua only consults `__newindex`
+// on miss). On miss, consult the metatable: function form calls
+// `__newindex(t, k, v)`; table form does the full settable operation
+// on the target (which may itself chain into a further `__newindex`
+// or land in a rawset on the target).
+//
+// Returns `true` if the metatable handled the write — caller should
+// skip its own rawset on the ORIGINAL `base`. `false` means no
+// `__newindex` was found at any level; caller falls through to its
+// own rawset on `base`.
+function newindexThroughMetatable(
+  story: any,
+  base: any,
+  keyStr: string,
+  newVal: AbstractValue,
+  depth: number = 0,
+): boolean {
+  const MAX_DEPTH = 32;
+  if (depth > MAX_DEPTH) return false;
+  if (!(base instanceof ObjectValue)) return false;
+  if (base.value?.has(keyStr)) {
+    // Lua-fidelity edge case: when called RECURSIVELY (depth > 0,
+    // i.e. via a table-form __newindex), the recursion handled the
+    // write by doing a settable on the target — and the key already
+    // existing in the target means a raw set on it. We do the rawset
+    // here so the caller's `return true` short-circuits the outer
+    // base's rawset (which is what we want — the original base
+    // should NOT receive the value).
+    if (depth > 0) {
+      if (base.isFrozen) {
+        throw new StoryException("attempt to modify a readonly table");
+      }
+      const patch = story.state.variablesState.patch;
+      if (patch !== null) {
+        patch.RecordPropertyMutation(
+          base.value,
+          keyStr,
+          base.value.get(keyStr),
+        );
+      }
+      base.value.set(keyStr, newVal);
+      return true;
+    }
+    return false;
+  }
+  const newindexFn = lookupMetamethod(base, "__newindex");
+  if (newindexFn == null) {
+    // No `__newindex` here. If we're in a recursive call (table-form
+    // chain), do the rawset on this table — that's the terminal
+    // step of the table-form chain. If we're at the top, return
+    // false so the caller does its own rawset on the original base.
+    if (depth > 0) {
+      if (base.isFrozen) {
+        throw new StoryException("attempt to modify a readonly table");
+      }
+      const patch = story.state.variablesState.patch;
+      if (patch !== null) {
+        patch.RecordPropertyMutation(base.value, keyStr, undefined);
+      }
+      base.value.set(keyStr, newVal);
+      return true;
+    }
+    return false;
+  }
+  if (newindexFn instanceof ObjectValue) {
+    if (
+      (newindexFn.value as Map<string, AbstractValue>)?.get("__closure_fn") !=
+      null
+    ) {
+      story.CallLuauFunction(newindexFn, [
+        base,
+        new StringValue(keyStr),
+        newVal,
+      ]);
+      return true;
+    }
+    return newindexThroughMetatable(
+      story,
+      newindexFn,
+      keyStr,
+      newVal,
+      depth + 1,
+    );
+  }
+  if (newindexFn instanceof DivertTargetValue) {
+    story.CallLuauFunction(newindexFn, [
+      base,
+      new StringValue(keyStr),
+      newVal,
+    ]);
+    return true;
+  }
+  return false;
 }
 
 export class Story extends InkObject {
@@ -778,6 +1423,19 @@ export class Story extends InkObject {
     if (this._stateSnapshotAtLastNewline === null) {
       throwNullException("_stateSnapshotAtLastNewline");
     }
+    // Roll back any in-place ObjectValue mutations that were recorded by
+    // the runtime's `StoreIndex` handler during the lookahead window.
+    // Variable assignments are already snapshot-safe (they go through
+    // the patch's `SetGlobal` and never touch `_globalVariables` until
+    // `ApplyAnyPatch` runs). Property mutations write directly to a
+    // shared `Map`, so they need an explicit undo step here — otherwise
+    // re-executing the bytecode from the snapshot point would observe
+    // already-mutated state.
+    const livePatch = this._state.variablesState.patch;
+    if (livePatch !== null) {
+      livePatch.UndoPropertyMutations();
+    }
+
     this._stateSnapshotAtLastNewline.RestoreAfterPatch();
 
     this._state = this._stateSnapshotAtLastNewline;
@@ -926,14 +1584,50 @@ export class Story extends InkObject {
       // var varPointer = currentContentObj as VariablePointerValue;
       let varPointer = asOrNull(currentContentObj, VariablePointerValue);
       if (varPointer && varPointer.contextIndex == -1) {
-        // Create new object so we're not overwriting the story's own data
         let contextIdx = this.state.callStack.ContextForVariableNamed(
           varPointer.variableName,
         );
-        currentContentObj = new VariablePointerValue(
-          varPointer.variableName,
-          contextIdx,
-        );
+        // Upvalue flattening (Lua semantics): if the slot we're about
+        // to point at ALREADY holds a VariablePointerValue — i.e. a
+        // captured upval being re-captured by a nested closure
+        // (`local a = 1 function foo() return function() return a
+        // end end`: foo's prepended upval param `a` holds the pointer
+        // to the outer cell) — reuse that pointer directly so every
+        // nesting level shares ONE cell. Without this, the inner
+        // closure points at foo's slot, reads dereference only one
+        // level, and the OUTER pointer leaks out raw (`Can't cast …
+        // from 0 to 5` when the leaked pointer hits a comparison).
+        const slotValue =
+          contextIdx > 0
+            ? this.state.callStack.GetTemporaryVariableWithName(
+                varPointer.variableName,
+                contextIdx,
+              )
+            : null;
+        if (slotValue instanceof VariablePointerValue) {
+          currentContentObj = slotValue;
+        } else {
+          // Lua-style upvalue dedup: if a closure / by-ref arg created
+          // earlier in this frame's lifetime already produced an open
+          // pointer for (contextIdx, varName), reuse it so multiple
+          // closures share the same cell. The shared pointer also makes
+          // the close-on-pop step a single observable event for all
+          // closures that captured this variable.
+          const existing = this.state.callStack.FindOpenUpvalue(
+            contextIdx,
+            varPointer.variableName,
+          );
+          if (existing) {
+            currentContentObj = existing;
+          } else {
+            const newPtr = new VariablePointerValue(
+              varPointer.variableName,
+              contextIdx,
+            );
+            this.state.callStack.RegisterOpenUpvalue(newPtr, contextIdx);
+            currentContentObj = newPtr;
+          }
+        }
       }
 
       // Expression evaluation content
@@ -1173,25 +1867,176 @@ export class Story extends InkObject {
               varName +
               ")",
           );
-        } else if (!(varContents instanceof DivertTargetValue)) {
-          // var intContent = varContents as IntValue;
-          let intContent = asOrNull(varContents, IntValue);
-
-          let errorMessage =
-            "Tried to divert to a target from a variable, but the variable (" +
-            varName +
-            ") didn't contain a divert target, it ";
-          if (intContent instanceof IntValue && intContent.value == 0) {
-            errorMessage += "was empty/null (the value 0).";
-          } else {
-            errorMessage += "contained '" + varContents + "'.";
+        } else {
+          // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
+          // stored in a variable: the call site here is a regular
+          // FunctionCall lowered into a variable-target Divert. The
+          // iterator advances its own cursor in place; we pop the
+          // (state, ctrl) args the call site pushed and replace
+          // them with the next (key, value) MultiValue.
+          if (varContents instanceof ObjectValue) {
+            const tag = (varContents.value as Map<string, AbstractValue>)?.get(
+              BUILTIN_ITER_TAG,
+            );
+            if (tag != null) {
+              // Args were pushed (state, ctrl) — pops reverse that.
+              const iterCtrl = this.state.PopEvaluationStack();
+              const iterState = this.state.PopEvaluationStack();
+              const result = stepBuiltinIterator(
+                varContents,
+                iterState as AbstractValue,
+                iterCtrl as AbstractValue,
+              );
+              this.state.PushEvaluationStack(result);
+              return true;
+            }
+          }
+          // Stdlib-function reference: variable holds an ObjectValue
+          // marked with `__stdlib_fn` (the call-site reference resolved
+          // to a name like `math.abs` whose actual implementation lives
+          // in the STDLIB registry, not as an ink knot). Look up the
+          // entry, pop its args, invoke `entry.fn`, push the result.
+          // Variadic stdlib entries (`arity === -1`) can't be dispatched
+          // here yet — the call site didn't push an arg count — and
+          // fall through to the existing error. Fixed-arity entries
+          // (which covers the common case: `math.abs`, `tostring`,
+          // `type`, etc.) work.
+          if (varContents instanceof ObjectValue) {
+            const stdlibTag = (varContents.value as Map<string, AbstractValue>)?.get(
+              "__stdlib_fn",
+            );
+            if (stdlibTag instanceof StringValue) {
+              const stdlibName = stdlibTag.value;
+              const entry = lookupAnyStdLib(stdlibName);
+              if (entry && entry.arity >= 0) {
+                const args: any[] = [];
+                for (let i = 0; i < entry.arity; i++) {
+                  args.unshift(this.state.PopEvaluationStack());
+                }
+                // Last-arg MultiValue spread (matches RunStdLibFunction
+                // semantics). Earlier args truncate any MultiValue to
+                // its first inner value.
+                for (let k = 0; k < args.length; k++) {
+                  const a = args[k];
+                  if (a instanceof MultiValue) {
+                    if (k === args.length - 1) {
+                      args.splice(k, 1, ...a.values);
+                    } else {
+                      args[k] = a.values[0] ?? new NullValue();
+                    }
+                  }
+                }
+                const result = entry.fn(
+                  this,
+                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName),
+                );
+                if (result !== undefined) {
+                  if (Array.isArray(result)) {
+                    const wrapped: AbstractValue[] = [];
+                    for (const r of result) {
+                      if (r instanceof InkObject) {
+                        wrapped.push(r as AbstractValue);
+                      } else {
+                        const w = Value.Create(r);
+                        if (w !== null) wrapped.push(w);
+                      }
+                    }
+                    this.state.PushEvaluationStack(new MultiValue(wrapped));
+                  } else if (result instanceof InkObject) {
+                    this.state.PushEvaluationStack(result as AbstractValue);
+                  } else {
+                    const w = Value.Create(result);
+                    if (w !== null) this.state.PushEvaluationStack(w);
+                  }
+                } else {
+                  // Void return (`print`, `table.insert`, ...): push
+                  // the Void sentinel so the eval stack stays
+                  // balanced — same contract as RunStdLibFunction.
+                  this.state.PushEvaluationStack(new Void());
+                }
+                return true;
+              }
+            }
           }
 
-          this.Error(errorMessage);
+          // Closure value: variable holds a closure-shaped ObjectValue.
+          // Rearrange the eval stack (push upvals before user args)
+          // and divert to the synthetic knot's path. See
+          // `extractClosurePath` for the shape contract.
+          const closurePath = extractClosurePath(varContents, this);
+          if (closurePath !== null) {
+            this.state.divertedPointer = this.PointerAtPath(closurePath);
+            // Multi-return spread for non-variadic closures: see the
+            // helper. extractClosurePath has already pushed the upvals
+            // and re-pushed user args, so the spread check sees the
+            // syntactically-last user arg on top.
+            const closureTarget = this.ContentAtPath(closurePath).obj;
+            spreadLastMultiIfNonVariadic(this, closureTarget);
+          } else if (varContents instanceof ObjectValue) {
+            // `__call` metamethod: the variable holds a regular table
+            // (not a closure, not a builtin iterator) whose metatable
+            // defines `__call`. Dispatch via the same handler used in
+            // the `CallValueAsFunction` op. Returns true to skip the
+            // normal divert finalize step (CallLuauFunction set up
+            // its own divert + frame).
+            const callHandler = lookupMetamethod(varContents, "__call");
+            if (callHandler != null) {
+              const userArgs: AbstractValue[] = [];
+              if (callHandler instanceof ObjectValue) {
+                const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
+                  "__closure_user_arity",
+                );
+                if (arityVal instanceof IntValue) {
+                  const userArity = arityVal.value ?? 1;
+                  for (let i = 0; i < userArity - 1; i++) {
+                    userArgs.unshift(
+                      this.state.PopEvaluationStack() as AbstractValue,
+                    );
+                  }
+                }
+              }
+              const args = [varContents as AbstractValue, ...userArgs];
+              const results = this.CallLuauFunction(callHandler, args) as
+                | AbstractValue[]
+                | null;
+              if (results && results.length === 1) {
+                this.state.PushEvaluationStack(results[0]!);
+              } else if (results && results.length > 1) {
+                this.state.PushEvaluationStack(new MultiValue(results));
+              } else {
+                this.state.PushEvaluationStack(new NullValue());
+              }
+              return true;
+            }
+            // Plain table with no `__call` — fall through to the error.
+            this.Error(
+              "Tried to divert to a target from a variable, but the variable (" +
+                varName +
+                ") contained '" +
+                varContents +
+                "'.",
+            );
+          } else if (!(varContents instanceof DivertTargetValue)) {
+            let intContent = asOrNull(varContents, IntValue);
+            let errorMessage =
+              "Tried to divert to a target from a variable, but the variable (" +
+              varName +
+              ") didn't contain a divert target, it ";
+            if (intContent instanceof IntValue && intContent.value == 0) {
+              errorMessage += "was empty/null (the value 0).";
+            } else {
+              errorMessage += "contained '" + varContents + "'.";
+            }
+            this.Error(errorMessage);
+          } else {
+            this.state.divertedPointer = this.PointerAtPath(
+              varContents.targetPath,
+            );
+            // Spread last-arg MultiValue for non-variadic targets.
+            const target = this.ContentAtPath(varContents.targetPath).obj;
+            spreadLastMultiIfNonVariadic(this, target);
+          }
         }
-
-        let target = asOrThrows(varContents, DivertTargetValue);
-        this.state.divertedPointer = this.PointerAtPath(target.targetPath);
       } else if (currentDivert.isExternal) {
         this.CallExternalFunction(
           currentDivert.targetPathString,
@@ -1200,6 +2045,17 @@ export class Story extends InkObject {
         return true;
       } else {
         this.state.divertedPointer = currentDivert.targetPointer.copy();
+        // Spread last-arg MultiValue for non-variadic static-dispatch
+        // function calls. Detected via `pushesToStack` +
+        // Function push-type — the same pair that marks a divert as
+        // a Lua-style function call (vs a knot jump / tunnel).
+        if (
+          currentDivert.pushesToStack &&
+          currentDivert.stackPushType === PushPopType.Function
+        ) {
+          const target = currentDivert.targetPointer.container;
+          spreadLastMultiIfNonVariadic(this, target);
+        }
       }
 
       if (currentDivert.pushesToStack) {
@@ -1473,15 +2329,613 @@ export class Story extends InkObject {
           break;
         }
 
-        case ControlCommand.CommandType.ChoiceCount:
-          let choiceCount = this.state.generatedChoices.length;
-          this.state.PushEvaluationStack(new IntValue(choiceCount));
+        case ControlCommand.CommandType.BeginObject:
+          // Marker pushed onto the eval stack — EndObject walks back to it,
+          // collecting each (key, value) pair between, and assembles the
+          // ObjectValue.
+          this.state.PushEvaluationStack(evalCommand);
           break;
 
-        case ControlCommand.CommandType.Turns:
-          this.state.PushEvaluationStack(
-            new IntValue(this.state.currentTurnIndex + 1),
+        case ControlCommand.CommandType.EndObject: {
+          const stack = this.state.evaluationStack;
+          let markerIdx = -1;
+          for (let i = stack.length - 1; i >= 0; --i) {
+            const obj = stack[i];
+            const cmd = asOrNull(obj, ControlCommand);
+            if (
+              cmd &&
+              cmd.commandType === ControlCommand.CommandType.BeginObject
+            ) {
+              markerIdx = i;
+              break;
+            }
+          }
+          if (markerIdx < 0) {
+            throw new StoryException(
+              "Expected BeginObject marker on evaluation stack",
+            );
+          }
+          const between = stack.splice(markerIdx, stack.length - markerIdx);
+          // between[0] is the BeginObject marker; the rest are alternating
+          // key, value, key, value, ... pairs in push order.
+          const entries = new Map<string, AbstractValue>();
+          const pairEnd = between.length - 1; // index of last value
+          for (let i = 1; i + 1 < between.length; i += 2) {
+            // Static keys arrive as StringValues; COMPUTED bracket
+            // keys (`{[1+2] = 4}`) arrive as whatever the expression
+            // produced — stringify to the canonical map-key form
+            // (IntValue 3 → "3", matching how `t[3]` reads index;
+            // table/function keys get identity tokens via
+            // luauMapKeyString).
+            const rawKey = asOrNull(between[i], AbstractValue);
+            const keyObj =
+              rawKey instanceof StringValue
+                ? rawKey
+                : rawKey != null && !(rawKey instanceof NullValue)
+                  ? new StringValue(luauMapKeyString(rawKey))
+                  : null;
+            let valObj = asOrNull(between[i + 1], AbstractValue);
+            if (!keyObj || keyObj.value === null || !valObj) continue;
+            // Lua-style table-spread: if this is the LAST entry, its
+            // key is a positive integer (array-style), AND its value
+            // is a MultiValue, expand into sequential array slots —
+            // `{a, b, f()}` where `f()` returns `(10, 20, 30)` lowers
+            // to a table with keys "1","2","3","4","5". Non-last
+            // MultiValues are truncated to their first inner value
+            // (matches Lua: only the last expression spreads).
+            const isLast = i + 1 === pairEnd;
+            if (
+              isLast &&
+              valObj instanceof MultiValue &&
+              /^[1-9]\d*$/.test(keyObj.value)
+            ) {
+              const startIdx = parseInt(keyObj.value, 10);
+              for (let k = 0; k < valObj.values.length; k++) {
+                const spreadVal = valObj.values[k]!;
+                // nil entries don't exist (see the non-spread branch).
+                if (spreadVal instanceof NullValue) continue;
+                entries.set(String(startIdx + k), spreadVal);
+              }
+            } else {
+              if (valObj instanceof MultiValue) {
+                valObj = valObj.values[0] ?? new NullValue();
+              }
+              // Lua: a nil-valued entry does not EXIST — the key is
+              // simply absent. `{5, 6, 7, nil, 8}` has keys 1,2,3,5
+              // (position counting still advanced past the nil at
+              // lower time), so `pairs` yields "1235" and `t[4]` is
+              // nil (lines 224-240). DELETE rather than skip:
+              // duplicate fields assign left-to-right, so a later
+              // `data = nil` must remove an earlier `data = 4`
+              // (basic.luau line 328).
+              if (valObj instanceof NullValue) {
+                entries.delete(keyObj.value);
+              } else {
+                entries.set(keyObj.value, valObj);
+              }
+            }
+          }
+          this.state.PushEvaluationStack(new ObjectValue(entries));
+          break;
+        }
+
+        case ControlCommand.CommandType.IndexValue: {
+          // Pops key + container off the eval stack; pushes container[key].
+          // For ObjectValue, on a raw miss we consult the metatable's
+          // `__index` (table-form chains lookup; function-form calls
+          // `__index(t, key)` via story.CallLuauFunction). Lua's
+          // `__index` only fires on miss — a present key returns
+          // directly without metamethod consultation.
+          const indexKey = this.state.PopEvaluationStack();
+          const indexBase = this.state.PopEvaluationStack();
+          let resolved: InkObject | null = null;
+          const keyStr = luauMapKeyString(indexKey);
+          // `_G` globals-table proxy: route the read to global
+          // variable storage. Misses push nil (Luau's semantics for
+          // absent globals), NOT the generic empty-string sentinel
+          // below — `_G['nope'] == nil` must hold.
+          if (
+            indexBase instanceof ObjectValue &&
+            indexBase.value?.has(GLOBALS_PROXY_TAG)
+          ) {
+            this.state.PushEvaluationStack(
+              this.state.variablesState.GetGlobalVariableValue(keyStr) ??
+                new NullValue(),
+            );
+            break;
+          }
+          // Lua's index-type rule: indexing nil / a boolean / a
+          // number / a function raises (trappable via pcall) —
+          // `idontexist.a` must NOT silently produce nil.
+          {
+            const idxErr = luauIndexTargetError(indexBase);
+            if (idxErr) {
+              this.Error(idxErr);
+              break;
+            }
+          }
+          if (indexBase instanceof ObjectValue) {
+            const direct = indexBase.value?.get(keyStr) ?? null;
+            if (direct != null) {
+              resolved = direct;
+            } else {
+              resolved = indexThroughMetatable(this, indexBase, keyStr);
+            }
+          } else if (indexBase instanceof StringValue) {
+            // 1-indexed character access, matching Luau's string indexing.
+            const intKey = asOrNull(indexKey, IntValue);
+            if (intKey !== null && indexBase.value !== null) {
+              const i = (intKey.value ?? 0) - 1;
+              const ch =
+                i >= 0 && i < indexBase.value.length ? indexBase.value[i] : "";
+              resolved = new StringValue(ch ?? "");
+            }
+          }
+          if (resolved === null) {
+            // Miss → nil. (Formerly an empty-string sentinel from
+            // before nil was first-class; `t[missing] == nil` must
+            // hold per Lua.)
+            resolved = new NullValue();
+          }
+          this.state.PushEvaluationStack(resolved);
+          break;
+        }
+
+        case ControlCommand.CommandType.StoreIndex: {
+          // Pops value, key, container off the eval stack and mutates
+          // container[key] = value in place. No result is pushed — this is a
+          // statement-level effect. The container must be an ObjectValue
+          // looked up from a variable; mutating its internal Map propagates
+          // through the variable reference (Maps are passed by reference).
+          //
+          // When a state snapshot is active (newline lookahead, background
+          // save), the mutation is also recorded in the patch's undo log
+          // so that `RestoreStateSnapshot` can roll it back. Without the
+          // undo log, mutations to ObjectValue maps survive the rewind
+          // (the snapshot's patch mechanism only tracks `SetGlobal`
+          // writes, not in-place Map edits), which causes the bytecode to
+          // re-run against already-mutated state — e.g. `obj.field =
+          // obj.field + 1` between two outputs would advance the field by 2.
+          const storeValue = this.state.PopEvaluationStack();
+          const storeKey = this.state.PopEvaluationStack();
+          const storeBase = this.state.PopEvaluationStack();
+          // `_G` globals-table proxy: `_G.foo = v` / `_G['foo'] = v`
+          // writes the global directly. `SetGlobal` is patch-aware,
+          // so snapshot/rewind semantics match ordinary global
+          // assignments.
+          if (
+            storeBase instanceof ObjectValue &&
+            storeBase.value?.has(GLOBALS_PROXY_TAG)
+          ) {
+            const globalName = storeKey?.toString() ?? "";
+            const globalVal = asOrNull(storeValue, AbstractValue);
+            if (globalName && globalVal !== null) {
+              this.state.variablesState.SetGlobal(globalName, globalVal);
+            }
+            break;
+          }
+          if (storeBase instanceof ObjectValue) {
+            // Lua rejects nil and NaN as table KEYS on write (reads
+            // just produce nil) — `a[NaN] = 1` raises "table index
+            // is NaN" through pcall (math.luau NaN section).
+            if (storeKey == null || storeKey instanceof NullValue) {
+              throw new StoryException("table index is nil");
+            }
+            {
+              const numKey = (storeKey as { value?: unknown }).value;
+              if (typeof numKey === "number" && Number.isNaN(numKey)) {
+                throw new StoryException("table index is NaN");
+              }
+            }
+            const keyStr = luauMapKeyString(storeKey);
+            const val = asOrNull(storeValue, AbstractValue);
+            if (storeBase.value && val !== null) {
+              // `__newindex`: only consulted on a raw miss (key not
+              // already present). If the metatable handles the write,
+              // skip the direct mutation. Cycle-bounded recursion via
+              // `newindexThroughMetatable`. Frozen tables refuse all
+              // writes including through `__newindex`.
+              if (storeBase.isFrozen) {
+                throw new StoryException(
+                  "attempt to modify a readonly table",
+                );
+              }
+              if (newindexThroughMetatable(this, storeBase, keyStr, val)) {
+                break;
+              }
+              const patch = this.state.variablesState.patch;
+              if (patch !== null) {
+                const oldValue = storeBase.value.has(keyStr)
+                  ? storeBase.value.get(keyStr)
+                  : undefined;
+                patch.RecordPropertyMutation(storeBase.value, keyStr, oldValue);
+              }
+              // Lua: assigning nil REMOVES the key — a nil-valued
+              // entry doesn't exist (`t[k] = nil` is the idiomatic
+              // delete; `pairs` must not see the key afterwards).
+              if (val instanceof NullValue) {
+                storeBase.value.delete(keyStr);
+              } else {
+                storeBase.value.set(keyStr, val);
+              }
+            }
+          } else {
+            throw new StoryException(
+              "Cannot assign to a property of a non-object value",
+            );
+          }
+          break;
+        }
+
+        case ControlCommand.CommandType.CallValueAsFunction: {
+          // Pops a `DivertTargetValue` (regular fn) OR a closure
+          // `ObjectValue` off the eval stack and diverts to the
+          // corresponding path, pushing a Function call-stack frame
+          // so a later `~ret` / `PopFunction` returns control to the
+          // instruction after this one.
+          //
+          // Arguments must already be on the eval stack *below* the target —
+          // they remain there for the function's parameter-binding bytecode
+          // (a sequence of `temp=` assignments at the function's entry) to
+          // pop.
+          //
+          // Closure dispatch: when the target is a closure-shaped
+          // `ObjectValue` (has `__closure_fn` / `__closure_upvals`
+          // entries), the handler pops the K user args (count via
+          // `__closure_user_arity`), pushes the N upvals from
+          // `__closure_upvals` (in index order), then re-pushes the
+          // user args. The synthetic knot's signature was lowered
+          // with upvals prepended to user params, so parameter
+          // binding reads them in the right order. See
+          // `lowerAnonymousFunction` in `lowerExpression.ts`.
+          //
+          // Luau under-supplied args: if the call site pushed fewer
+          // args than the closure's user arity, pad with `NullValue`
+          // BEFORE popping for upval reordering — otherwise
+          // `extractClosurePath` would dig into the caller's eval
+          // context. The call-site arg count is encoded on the
+          // ControlCommand via CallValueExpression's
+          // `CallValueAsFunction(this.args.length)`; -1 means
+          // "untracked" (legacy bytecode).
+          const callSiteArgCount = evalCommand._callValueArgCount;
+          if (callSiteArgCount >= 0) {
+            // Peek the callTarget BEFORE popping to know the closure's
+            // user arity, then normalize the eval-stack args to
+            // exactly `userArity` values so `extractClosurePath` can
+            // pop them cleanly. Two adjustments:
+            //   1. If the LAST positional arg is a MultiValue (from
+            //      `g()` returning multiple values), spread its inner
+            //      values inline. This is what
+            //      `spreadLastMultiIfNonVariadic` does, but we need
+            //      it BEFORE the pop loop so the count is right.
+            //   2. If after spread the effective arg count is still
+            //      less than `userArity`, pad with nil on top so the
+            //      missing trailing params bind to nil rather than
+            //      digging into caller-context.
+            const peeked = this.state.PeekEvaluationStack();
+            if (peeked instanceof ObjectValue) {
+              const peekedMap = peeked.value as Map<string, AbstractValue>;
+              const userArityVal = peekedMap?.get("__closure_user_arity");
+              if (userArityVal instanceof IntValue) {
+                const userArity = userArityVal.value ?? 0;
+                // VARIADIC closure target: `__closure_user_arity`
+                // counts fixed params only; the extras must pack into
+                // one MultiValue for the `...` slot instead of being
+                // dropped by the overflow logic below.
+                const fnTargetVal = peekedMap?.get("__closure_fn");
+                const isVariadicTarget =
+                  fnTargetVal instanceof DivertTargetValue &&
+                  fnTargetVal.value != null &&
+                  containerIsVariadic(this.ContentAtPath(fnTargetVal.value).obj);
+                if (isVariadicTarget) {
+                  const callable = this.state.PopEvaluationStack();
+                  packVariadicValueCallArgs(this, callSiteArgCount, userArity);
+                  this.state.PushEvaluationStack(callable as AbstractValue);
+                } else {
+                  const callable = this.state.PopEvaluationStack();
+                  let effectiveArgCount = callSiteArgCount;
+                  if (callSiteArgCount > 0) {
+                    const lastArg = this.state.PeekEvaluationStack();
+                    if (lastArg instanceof MultiValue) {
+                      this.state.PopEvaluationStack();
+                      for (const v of lastArg.values) {
+                        this.state.PushEvaluationStack(v);
+                      }
+                      effectiveArgCount =
+                        callSiteArgCount - 1 + lastArg.values.length;
+                    }
+                  }
+                  if (effectiveArgCount < userArity) {
+                    for (let i = effectiveArgCount; i < userArity; i++) {
+                      this.state.PushEvaluationStack(new NullValue());
+                    }
+                  } else if (effectiveArgCount > userArity) {
+                    // Lua overflow semantics: extra args at a non-variadic
+                    // call site are dropped. Without this the closure's
+                    // param binding would pop the LAST args instead of
+                    // the first — `foo(1, 2, 3)` against `function
+                    // foo(a, b)` would bind a=2, b=3 (wrong) instead of
+                    // a=1, b=2.
+                    for (let i = userArity; i < effectiveArgCount; i++) {
+                      this.state.PopEvaluationStack();
+                    }
+                  }
+                  this.state.PushEvaluationStack(callable as AbstractValue);
+                }
+              }
+            }
+          }
+          const callTarget = this.state.PopEvaluationStack();
+          // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
+          // returns an ObjectValue marked with `__builtin_iter`. The
+          // iterator advances its own cursor on each call (stored on
+          // the same ObjectValue), so we can't dispatch via the
+          // closure path — there's no underlying knot to divert to.
+          // Instead, pop the (state, ctrl) args that the generic-for
+          // call site pushed, advance the iterator, and push the
+          // resulting (key, value) pair as a MultiValue.
+          if (callTarget instanceof ObjectValue) {
+            const tag = (callTarget.value as Map<string, AbstractValue>)?.get(
+              BUILTIN_ITER_TAG,
+            );
+            if (tag != null) {
+              // Call sites push 2 args (state, ctrl) — both the
+              // generic-for protocol and manual iterator invocation
+              // (`inext(t, 2)`). Pops reverse the push order. The
+              // step honors them when state is non-nil (stateless
+              // Lua protocol); stateful iterators (gmatch,
+              // utf8codes) pass nil state and use the marker's
+              // internal cursor.
+              const iterCtrl = this.state.PopEvaluationStack();
+              const iterState = this.state.PopEvaluationStack();
+              const result = stepBuiltinIterator(
+                callTarget,
+                iterState as AbstractValue,
+                iterCtrl as AbstractValue,
+              );
+              this.state.PushEvaluationStack(result);
+              break;
+            }
+          }
+          const closurePath = extractClosurePath(callTarget, this);
+          if (closurePath !== null) {
+            this.state.divertedPointer = this.PointerAtPath(closurePath);
+            this.state.callStack.Push(
+              PushPopType.Function,
+              undefined,
+              this.state.outputStream.length,
+            );
+            const closureTarget = this.ContentAtPath(closurePath).obj;
+            // ZERO-arg call sites have nothing to spread — the eval
+            // stack's top belongs to the CALLER (`local a,b,c = g(),
+            // g()`: the second g()'s dispatch must not spread the
+            // first g()'s pending multi-return — calls.luau line 207).
+            if (evalCommand._callValueArgCount !== 0) {
+              spreadLastMultiIfNonVariadic(this, closureTarget);
+            }
+            break;
+          }
+          // `__stdlib_fn` marker dispatch: the target is an
+          // ObjectValue tagged with a stdlib function name (created
+          // by the variable-lookup fallback for stdlib references
+          // like `local f = type` / `local abs = math.abs`). Look up
+          // the entry, pop args by its fixed arity, invoke `entry.fn`,
+          // and push the result. Variadic stdlib entries (`arity ===
+          // -1`) dispatch using the CALL-SITE arg count carried on
+          // the CallValueAsFunction command (`_callValueArgCount`,
+          // set by CallValueExpression at lower time) — needed for
+          // `for k in next, t do` where the generic-for protocol
+          // calls the first-class `next` (variadic) with exactly two
+          // args (basic.luau lines 253-258).
+          if (callTarget instanceof ObjectValue) {
+            const stdlibTag = (callTarget.value as Map<string, AbstractValue>)?.get(
+              "__stdlib_fn",
+            );
+            if (stdlibTag instanceof StringValue) {
+              const stdlibName = stdlibTag.value;
+              const entry = lookupAnyStdLib(stdlibName);
+              const callSiteArgCount =
+                evalCommand._callValueArgCount ?? -1;
+              const popCount =
+                entry && entry.arity >= 0
+                  ? entry.arity
+                  : entry && callSiteArgCount >= 0
+                    ? callSiteArgCount
+                    : -1;
+              if (entry && popCount >= 0) {
+                const args: any[] = [];
+                for (let i = 0; i < popCount; i++) {
+                  args.unshift(this.state.PopEvaluationStack());
+                }
+                for (let k = 0; k < args.length; k++) {
+                  const a = args[k];
+                  if (a instanceof MultiValue) {
+                    if (k === args.length - 1) {
+                      args.splice(k, 1, ...a.values);
+                    } else {
+                      args[k] = a.values[0] ?? new NullValue();
+                    }
+                  }
+                }
+                const result = entry.fn(
+                  this,
+                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName),
+                );
+                if (result !== undefined) {
+                  if (Array.isArray(result)) {
+                    const wrapped: AbstractValue[] = [];
+                    for (const r of result) {
+                      if (r instanceof InkObject) {
+                        wrapped.push(r as AbstractValue);
+                      } else {
+                        const w = Value.Create(r);
+                        if (w !== null) wrapped.push(w);
+                      }
+                    }
+                    this.state.PushEvaluationStack(new MultiValue(wrapped));
+                  } else if (result instanceof InkObject) {
+                    this.state.PushEvaluationStack(result as AbstractValue);
+                  } else {
+                    const w = Value.Create(result);
+                    if (w !== null) this.state.PushEvaluationStack(w);
+                  }
+                } else {
+                  // Void return (`print`, `table.insert`, ...): push
+                  // the Void sentinel so the eval stack stays
+                  // balanced — same contract as RunStdLibFunction.
+                  this.state.PushEvaluationStack(new Void());
+                }
+                break;
+              }
+            }
+          }
+          // `__call` metamethod: the target is a plain ObjectValue
+          // (table) that isn't a closure or builtin iterator, but its
+          // metatable defines `__call`. Lua semantics: `t(args...)`
+          // becomes `__call(t, args...)`. Dispatched via
+          // `story.CallLuauFunction` with the table prepended as
+          // `self`. Limitation: closure-form `__call` handlers infer
+          // the user-arg count from `__closure_user_arity`; bare
+          // DivertTarget handlers (no upvalues, no arity metadata)
+          // are called with only `self` as the arg — extra user args
+          // pushed at the call site remain on the eval stack and may
+          // disturb subsequent operations. Authors hitting this can
+          // wrap the handler as a closure (e.g. add a stub upval) to
+          // force the closure path.
+          if (callTarget instanceof ObjectValue) {
+            const callHandler = lookupMetamethod(callTarget, "__call");
+            if (callHandler != null) {
+              const userArgs: AbstractValue[] = [];
+              if (callHandler instanceof ObjectValue) {
+                const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
+                  "__closure_user_arity",
+                );
+                if (arityVal instanceof IntValue) {
+                  const userArity = arityVal.value ?? 1;
+                  // Pop (userArity - 1) user args — the closure's
+                  // signature is `(self, ...userArgs)`, so self
+                  // accounts for one of its slots.
+                  for (let i = 0; i < userArity - 1; i++) {
+                    userArgs.unshift(
+                      this.state.PopEvaluationStack() as AbstractValue,
+                    );
+                  }
+                }
+              }
+              const args = [callTarget as AbstractValue, ...userArgs];
+              const results = this.CallLuauFunction(callHandler, args) as
+                | AbstractValue[]
+                | null;
+              if (results && results.length === 1) {
+                this.state.PushEvaluationStack(results[0]!);
+              } else if (results && results.length > 1) {
+                this.state.PushEvaluationStack(new MultiValue(results));
+              } else {
+                this.state.PushEvaluationStack(new NullValue());
+              }
+              break;
+            }
+          }
+          const targetVal = asOrNull(callTarget, DivertTargetValue);
+          if (targetVal === null || targetVal.value === null) {
+            // `__namecall` fallback (Luau): a colon-call whose method
+            // lookup missed arrives here with a NIL target — the
+            // receiver was threaded as the FIRST pushed arg
+            // (`CallValueExpression(IndexExpression(recv, name),
+            // [recv, ...])`). If that receiver's metatable defines
+            // `__namecall`, dispatch `__namecall(self, args...)`
+            // (basic.luau line 462's userdata namecall). Heuristic:
+            // non-colon nil-target calls whose first arg happens to
+            // carry __namecall would also match, but Lua errors on
+            // those anyway, so the worst case is a more permissive
+            // dispatch than stock Luau.
+            const nmArgCount = evalCommand._callValueArgCount ?? -1;
+            if (callTarget instanceof NullValue && nmArgCount >= 1) {
+              const nmArgs: AbstractValue[] = [];
+              for (let i = 0; i < nmArgCount; i++) {
+                nmArgs.unshift(
+                  this.state.PopEvaluationStack() as AbstractValue,
+                );
+              }
+              const nmReceiver = nmArgs[0];
+              const nmHandler =
+                nmReceiver instanceof ObjectValue
+                  ? lookupMetamethod(nmReceiver, "__namecall")
+                  : null;
+              if (nmHandler != null && !(nmHandler instanceof NullValue)) {
+                const results = this.CallLuauFunction(nmHandler, nmArgs) as
+                  | AbstractValue[]
+                  | null;
+                if (results && results.length === 1) {
+                  this.state.PushEvaluationStack(results[0]!);
+                } else if (results && results.length > 1) {
+                  this.state.PushEvaluationStack(new MultiValue(results));
+                } else {
+                  this.state.PushEvaluationStack(new NullValue());
+                }
+                break;
+              }
+              // No __namecall — restore the popped args so the error
+              // below reports with the stack intact.
+              for (const a of nmArgs) this.state.PushEvaluationStack(a);
+            }
+            // Lua's exact message shape — iter.luau line 174 matches
+            // `attempt to call a nil value` through pcall.
+            throw new StoryException(
+              `attempt to call a ${luauTypeOf(callTarget)} value` +
+                (callTarget ? " (got " + callTarget + ")" : ""),
+            );
+          }
+          this.state.divertedPointer = this.PointerAtPath(targetVal.value);
+          this.state.callStack.Push(
+            PushPopType.Function,
+            undefined,
+            this.state.outputStream.length,
           );
+          const targetContainer = this.ContentAtPath(targetVal.value).obj;
+          if (
+            containerIsVariadic(targetContainer) &&
+            evalCommand._callValueArgCount >= 0
+          ) {
+            // Variadic function reached as a bare DivertTargetValue
+            // (e.g. a sibling variadic subflow passed first-class):
+            // no static PackTuple ran, so bind fixed params
+            // positionally and pack the extras here. Fixed count =
+            // the target's param-binding slots minus the `...` slot.
+            const fixedCount = Math.max(
+              0,
+              countLeadingParamBindings(targetContainer) - 1,
+            );
+            packVariadicValueCallArgs(
+              this,
+              evalCommand._callValueArgCount,
+              fixedCount,
+            );
+          } else if (evalCommand._callValueArgCount !== 0) {
+            // Zero-arg call sites have nothing to spread — don't
+            // touch the caller's pending eval-stack values.
+            spreadLastMultiIfNonVariadic(this, targetContainer);
+          }
+          break;
+        }
+
+        case ControlCommand.CommandType.BeginScope:
+          // Push a new innermost temporary-variable scope on the
+          // current call-stack element. Sparkdown emits this at the
+          // start of every block (`if`/`for`/`while`/`repeat`/`do`)
+          // so `local x` declarations follow Luau's block scoping —
+          // an inner `local x` shadows an outer `x` for the rest of
+          // the inner block, then the outer is visible again after
+          // the matching `EndScope`.
+          this.state.callStack.currentElement.PushScope();
+          break;
+
+        case ControlCommand.CommandType.EndScope:
+          // Pop the innermost temporary-variable scope. Refuses to
+          // pop the outermost (function-level) frame, which would
+          // leave the call-stack element with no scope frames at
+          // all and break subsequent temp-var lookups.
+          this.state.callStack.currentElement.PopScope();
           break;
 
         case ControlCommand.CommandType.TurnsSince:
@@ -1531,81 +2985,6 @@ export class Story extends InkObject {
           }
 
           this.state.PushEvaluationStack(new IntValue(eitherCount));
-          break;
-
-        case ControlCommand.CommandType.Random: {
-          let maxInt = asOrNull(this.state.PopEvaluationStack(), IntValue);
-          let minInt = asOrNull(this.state.PopEvaluationStack(), IntValue);
-
-          if (minInt == null || minInt instanceof IntValue === false)
-            return this.Error(
-              "Invalid value for minimum parameter of RANDOM(min, max)",
-            );
-
-          if (maxInt == null || maxInt instanceof IntValue === false)
-            return this.Error(
-              "Invalid value for maximum parameter of RANDOM(min, max)",
-            );
-
-          // Originally a primitive type, but here, can be null.
-          // TODO: Replace by default value?
-          if (maxInt.value === null) {
-            return throwNullException("maxInt.value");
-          }
-          if (minInt.value === null) {
-            return throwNullException("minInt.value");
-          }
-
-          // This code is differs a bit from the reference implementation, since
-          // JavaScript has no true integers. Hence integer arithmetics and
-          // interger overflows don't apply here. A loss of precision can
-          // happen with big numbers however.
-          //
-          // The case where 'randomRange' is lower than zero is handled below,
-          // so there's no need to test against Number.MIN_SAFE_INTEGER.
-          let randomRange = maxInt.value - minInt.value + 1;
-          if (!isFinite(randomRange) || randomRange > Number.MAX_SAFE_INTEGER) {
-            randomRange = Number.MAX_SAFE_INTEGER;
-            this.Error(
-              "RANDOM was called with a range that exceeds the size that ink numbers can use.",
-            );
-          }
-          if (randomRange <= 0)
-            this.Error(
-              "RANDOM was called with minimum as " +
-                minInt.value +
-                " and maximum as " +
-                maxInt.value +
-                ". The maximum must be larger",
-            );
-
-          let resultSeed = this.state.storySeed + this.state.previousRandom;
-          let random = new PRNG(resultSeed);
-
-          let nextRandom = random.next();
-          let chosenValue = (nextRandom % randomRange) + minInt.value;
-          this.state.PushEvaluationStack(new IntValue(chosenValue));
-
-          // Next random number (rather than keeping the Random object around)
-          this.state.previousRandom = nextRandom;
-          break;
-        }
-
-        case ControlCommand.CommandType.SeedRandom:
-          let seed = asOrNull(this.state.PopEvaluationStack(), IntValue);
-          if (seed == null || seed instanceof IntValue === false)
-            return this.Error("Invalid value passed to SEED_RANDOM");
-
-          // Originally a primitive type, but here, can be null.
-          // TODO: Replace by default value?
-          if (seed.value === null) {
-            return throwNullException("minInt.value");
-          }
-
-          this.state.storySeed = seed.value;
-          this.state.previousRandom = 0;
-
-          this.state.PushEvaluationStack(new Void());
           break;
 
         case ControlCommand.CommandType.VisitIndex:
@@ -1774,6 +3153,263 @@ export class Story extends InkObject {
           break;
         }
 
+        case ControlCommand.CommandType.PackTuple: {
+          // Pop N expression results and pack them into one
+          // `MultiValue`. Lua/Luau "spread the last expression"
+          // semantics applies: the FIRST popped slot (which was
+          // the syntactically LAST expression evaluated) spreads
+          // its inner values if it's a `MultiValue`; all OTHER
+          // popped slots truncate a `MultiValue` to its first
+          // inner value. So `return a, b, f()` where f returns
+          // `(1, 2, 3)` packs as `MultiValue([a, b, 1, 2, 3])`,
+          // while `return f(), b` where f returns `(1, 2, 3)`
+          // packs as `MultiValue([1, b])` (f truncated since
+          // it's no longer in last position).
+          const n = evalCommand._tupleArity;
+          const values: AbstractValue[] = [];
+          for (let i = 0; i < n; i++) {
+            const v = this.state.PopEvaluationStack() as AbstractValue;
+            if (i === 0 && v instanceof MultiValue) {
+              // Last expression spreads: prepend each inner value
+              // in original order.
+              for (let k = v.values.length - 1; k >= 0; k--) {
+                values.unshift(v.values[k]!);
+              }
+            } else if (i === 0 && v instanceof Void) {
+              // Last expression returned NO values (a function that
+              // fell off its end): it spreads to ZERO values, not a
+              // nil — `return t[i], unlpack(t, i+1)` where the
+              // terminal recursion level returns nothing must pack
+              // exactly the collected items (calls.luau line 204
+              // packed one phantom extra per chain).
+            } else if (v instanceof MultiValue) {
+              // Non-last expression truncates to its first value
+              // (or nil if it returned zero values).
+              values.unshift(v.values[0] ?? new NullValue());
+            } else if (v instanceof Void) {
+              // Non-last no-value expression adjusts to nil.
+              values.unshift(new NullValue());
+            } else {
+              values.unshift(v);
+            }
+          }
+          // Variadic call-site spread when extras = 0: the
+          // SYNTACTICALLY LAST expression is the call's last regular
+          // arg (already pushed before this PackTuple). If it's a
+          // MultiValue, spread it so its first inner value stays as
+          // the regular arg and the rest land in the vararg
+          // MultiValue we're building. E.g. `f(pcall(...))` against
+          // `function f(head, ...)`: pcall returns
+          // `MultiValue([true, nil])` → head=true, ...=(nil).
+          if (n === 0 && this.state.evaluationStack.length > 0) {
+            const peeked = this.state.PeekEvaluationStack();
+            if (peeked instanceof MultiValue) {
+              this.state.PopEvaluationStack();
+              if (peeked.values.length > 0) {
+                this.state.PushEvaluationStack(peeked.values[0]!);
+                for (let k = 1; k < peeked.values.length; k++) {
+                  values.push(peeked.values[k]!);
+                }
+              } else {
+                this.state.PushEvaluationStack(new NullValue());
+              }
+            }
+          }
+          this.state.PushEvaluationStack(new MultiValue(values));
+          break;
+        }
+
+        case ControlCommand.CommandType.UnpackTuple: {
+          // Pop the top eval-stack slot. If it's a `MultiValue`,
+          // push the first N inner values in REVERSE order so the
+          // next N pops match the original push order. If it's any
+          // other value, push it as value-0 plus N-1 NullValue
+          // placeholders. Emitted by multi-target assignment
+          // lowering for `local a, b = expr`.
+          //
+          // Void-returning callees (e.g. an iterator function that
+          // falls through without `return`) get coerced to all-nil:
+          // the user sees the same all-nil tuple they'd see from
+          // `return` with no values, matching Luau's iterator-end
+          // semantics. Without this, downstream `x == nil` checks
+          // crash on `Void` (the runtime can't compare Void to any
+          // other type).
+          const n = evalCommand._tupleArity;
+          const top = this.state.PopEvaluationStack();
+          let values: AbstractValue[];
+          if (top instanceof MultiValue) {
+            values = top.values.slice(0, n);
+          } else if (top instanceof Void) {
+            values = [];
+          } else {
+            values = [top as AbstractValue];
+          }
+          while (values.length < n) {
+            values.push(new NullValue());
+          }
+          for (let i = values.length - 1; i >= 0; i--) {
+            this.state.PushEvaluationStack(values[i]!);
+          }
+          break;
+        }
+
+        case ControlCommand.CommandType.ShortCircuit: {
+          // Conditional content-pointer jumps, shared by Lua's
+          // short-circuiting `and`/`or` and the `if-then-else`
+          // EXPRESSION form. Ops:
+          //   - "jump": unconditional skip (no stack interaction) —
+          //     emitted after a ternary's then-container to hop over
+          //     the else-container.
+          //   - "if": pop the condition; falsy skips (over the
+          //     then-container + its trailing jump).
+          //   - "and"/"or": peek the LHS; if it alone decides the
+          //     expression (falsy for `and`, truthy for `or`), leave
+          //     it as the result and skip the RHS container,
+          //     otherwise pop it so the RHS produces the value.
+          // In every case "skip N" means `index += N` here plus
+          // Step's tail-end NextContent advancing one further,
+          // landing just past N content elements.
+          const scOp = evalCommand._shortCircuitOp;
+          const jump = () => {
+            const p = this.state.currentPointer.copy();
+            p.index = (p.index ?? 0) + evalCommand._shortCircuitSkipCount;
+            this.state.currentPointer = p;
+          };
+          if (scOp === "jump") {
+            jump();
+            break;
+          }
+          if (scOp === "if") {
+            let cond = this.state.PopEvaluationStack() as AbstractValue;
+            if (cond instanceof MultiValue) {
+              // Condition position adjusts a multi-value to one value.
+              cond = (cond.values[0] as AbstractValue) ?? new NullValue();
+            }
+            if (!isLuauTruthy(cond)) {
+              jump();
+            }
+            break;
+          }
+          let lhs = this.state.PeekEvaluationStack() as AbstractValue;
+          if (lhs instanceof MultiValue) {
+            // Operator position adjusts a multi-value to one value.
+            this.state.PopEvaluationStack();
+            lhs = (lhs.values[0] as AbstractValue) ?? new NullValue();
+            this.state.PushEvaluationStack(lhs);
+          }
+          const truthy = isLuauTruthy(lhs);
+          const decides = scOp === "and" ? !truthy : truthy;
+          if (decides) {
+            jump();
+          } else {
+            this.state.PopEvaluationStack();
+          }
+          break;
+        }
+
+        case ControlCommand.CommandType.RunStdLibFunction: {
+          // Generic dispatcher for state-aware Luau builtins. Reads
+          // the function name + arity off the ControlCommand instance
+          // (set at lower time and round-tripped through the
+          // `stdlib:<name>:<arity>` JSON token), looks up the registry,
+          // pops `arity` values, and calls the JS implementation
+          // with `(story, args)`. If `fn` returns a non-undefined
+          // value, push it back onto the eval stack (auto-wrapping
+          // JS primitives via `Value.Create`). This replaces the
+          // entire per-function ControlCommand boilerplate —
+          // adding a new state-aware builtin is now one entry in
+          // `STDLIB` in StdLib.ts.
+          const name = evalCommand._stdLibName;
+          const arity = evalCommand._stdLibArity;
+          const entry = lookupStateAwareStdLib(name);
+          if (!entry) {
+            this.Error(`Unknown stdlib function '${name}'`);
+            break;
+          }
+          // Pop args off the stack in LIFO order, then reverse to
+          // hand them to the function in source order (arg 0 first).
+          const args: any[] = [];
+          for (let i = 0; i < arity; i++) {
+            args.unshift(this.state.PopEvaluationStack());
+          }
+          // Lua-style call-arg spread: the syntactically LAST arg
+          // (rightmost) spreads its MultiValue into multiple args;
+          // earlier args truncate any MultiValue to its first inner
+          // value. `print(math.modf(3.7))` → `print(3, 0.7)`;
+          // `f(math.modf(x), 1)` → `f(3, 1)` (modf truncated since
+          // it's not the last arg). Pure stdlib fns (registered with
+          // NativeFunctionCall) don't pass through here and continue
+          // to auto-unwrap via MultiValue's transparent valueObject.
+          //
+          // Void (from `(function() end)()`) is conceptually an
+          // empty MultiValue. As the last arg, it spreads to 0
+          // values — `select('#', (function() end)())` returns 0,
+          // matching Luau's empty-return semantics. As a non-last
+          // arg, it's clamped to nil (same as MultiValue truncation).
+          for (let k = 0; k < args.length; k++) {
+            const a = args[k];
+            if (a instanceof MultiValue) {
+              if (k === args.length - 1) {
+                args.splice(k, 1, ...a.values);
+              } else {
+                args[k] = a.values[0] ?? new NullValue();
+              }
+            } else if (a instanceof Void) {
+              if (k === args.length - 1) {
+                args.splice(k, 1);
+              } else {
+                args[k] = new NullValue();
+              }
+            }
+          }
+          const result = entry.fn(this, args);
+          if (result !== undefined) {
+            // Multi-return: a JS array from the stdlib fn becomes a
+            // `MultiValue` slot. Each element is wrapped via
+            // `Value.Create` (so primitives auto-promote). Used by
+            // `math.modf`, `string.byte`, `utf8.codepoint`,
+            // `table.unpack`, etc. Single-value consumers see the
+            // first inner value via MultiValue's transparent
+            // `valueObject` getter; multi-target assignment uses an
+            // `UnpackTuple` ControlCommand to distribute the slots.
+            if (Array.isArray(result)) {
+              const wrappedValues: AbstractValue[] = [];
+              for (const r of result) {
+                if (r instanceof InkObject) {
+                  wrappedValues.push(r as AbstractValue);
+                } else {
+                  const w = Value.Create(r);
+                  if (w !== null) wrappedValues.push(w);
+                }
+              }
+              this.state.PushEvaluationStack(new MultiValue(wrappedValues));
+            } else {
+              // If `fn` returned an InkObject (Value subclass, Void,
+              // etc.) push it directly. JS primitives get wrapped
+              // via `Value.Create` (number → IntValue/FloatValue,
+              // string → StringValue, boolean → BoolValue).
+              const wrapped =
+                result instanceof InkObject ? result : Value.Create(result);
+              if (wrapped !== null) {
+                this.state.PushEvaluationStack(wrapped);
+              }
+            }
+          } else {
+            // The stdlib fn returned no value (`table.insert`,
+            // `table.sort`, `print`, ...). Push the Void sentinel so
+            // the eval stack stays BALANCED: statement-position call
+            // sites emit a static PopEvaluatedValue, which previously
+            // consumed whatever operand happened to sit beneath
+            // (silently no-opping only when the stack was empty) —
+            // `1 + #pack(7, 8)` lost the `1` to an inner
+            // `table.insert` statement. Void coerces to nil in
+            // single-value contexts and spreads to zero values in
+            // call-arg position, matching Lua's "no return values".
+            this.state.PushEvaluationStack(new Void());
+          }
+          break;
+        }
+
         default:
           this.Error("unhandled ControlCommand: " + evalCommand);
           break;
@@ -1786,6 +3422,19 @@ export class Story extends InkObject {
     else if (contentObj instanceof VariableAssignment) {
       let varAss = contentObj;
       let assignedVal = this.state.PopEvaluationStack();
+
+      // Lua/Luau `local x = f()` where `f` returns multiple values
+      // assigns only the FIRST value to `x` and discards the rest.
+      // Multi-target assignment uses an `UnpackTuple` ControlCommand
+      // upstream, so each `VariableAssignment` in that lowering
+      // already receives an unwrapped value — this guard is for the
+      // single-target case. The synthetic `__varargs__` slot bound at
+      // a variadic function's entry is an exception: it must keep the
+      // MultiValue intact so `...` in the body reads back the full
+      // tuple of extra args.
+      if (assignedVal instanceof MultiValue && !varAss.isVarargsSlot) {
+        assignedVal = assignedVal.values[0] ?? new NullValue();
+      }
 
       this.state.variablesState.Assign(varAss, assignedVal);
 
@@ -1806,15 +3455,214 @@ export class Story extends InkObject {
 
       // Normal variable reference
       else {
+        // `_G` — Luau's global environment table. A bare reference
+        // resolves to a marker-tagged proxy ObjectValue; the
+        // `IndexValue` / `StoreIndex` handlers route reads and writes
+        // through global variable storage when they see the tag.
+        // (`luauTypeOf` reports ObjectValue as "table", matching
+        // `type(_G) == "table"`.)
+        if (varRef.name === "_G") {
+          const proxyMap = new Map<string, AbstractValue>();
+          proxyMap.set(GLOBALS_PROXY_TAG, new BoolValue(true));
+          this.state.PushEvaluationStack(new ObjectValue(proxyMap));
+          return true;
+        }
+
         foundValue = this.state.variablesState.GetVariableWithName(varRef.name);
 
+        // Property-access via dotted name (sparkdown extension). If the
+        // flat-namespace lookup fails AND the name contains dots, try
+        // resolving the FIRST segment as a variable and indexing into
+        // its `ObjectValue` (or chained-ObjectValue) by the remaining
+        // segments as keys. This matches the same pattern used for
+        // `lang.current` lookup elsewhere in this file and lets
+        // sparkdown authors write `result.value` against a stored
+        // table without needing the bracket-indexer form (`result["value"]`).
+        // Falls through to the normal `Variable not found` warning if
+        // either the base variable doesn't exist or some intermediate
+        // segment isn't an ObjectValue / Map.
+        let dottedIndexError: string | null = null;
+        // True when the dotted walk's ROOT resolved and the chain
+        // legitimately produced nil (missing last member, e.g.
+        // `t.data` after a nil-delete) — the read result is nil, not
+        // an index error.
+        let dottedResolvedToNil = false;
+        if (foundValue == null && varRef.name && varRef.name.includes(".")) {
+          const segs = varRef.name.split(".");
+          // `_G.x[.y...]` — strip the `_G` hop and start the walk at
+          // the GLOBAL binding for the next segment. Global-only
+          // lookup (not GetVariableWithName) because reads through
+          // `_G` must not see a same-named local shadowing the
+          // global.
+          let walkStart = 1;
+          let cur: unknown;
+          if (segs[0] === "_G" && segs.length > 1) {
+            cur = this.state.variablesState.GetGlobalVariableValue(segs[1]!);
+            walkStart = 2;
+            if (cur == null) {
+              // `_G.x` of an ABSENT global is nil (Luau: the env
+              // table simply has no member) — but `_G.x.y` indexes
+              // that nil and raises.
+              if (segs.length > 2) {
+                dottedIndexError = "attempt to index a nil value";
+              } else {
+                dottedResolvedToNil = true;
+              }
+            }
+          } else {
+            cur = this.state.variablesState.GetVariableWithName(segs[0]!);
+          }
+          if (cur != null) {
+            for (let i = walkStart; i < segs.length; i++) {
+              const seg = segs[i]!;
+              // Lua's index-type rule applies at each hop — indexing
+              // nil / a number / a function raises rather than
+              // silently producing nil (`local t = nil; t.a` must
+              // trap under pcall). Recorded, not thrown, so the
+              // knot / stdlib-marker fallbacks below keep their shot
+              // at resolving the full dotted name first.
+              const idxErr = luauIndexTargetError(cur);
+              if (idxErr) {
+                dottedIndexError = idxErr;
+                cur = null;
+                break;
+              }
+              // `__index` chain — fold each dotted segment through
+              // the metatable lookup so `t.x` resolves to either
+              // `rawget(t, "x")` (when present) or
+              // `__index(t, "x")` / chained-table lookup. Matches
+              // the IndexValue ControlCommand's metamethod behavior.
+              if (cur instanceof ObjectValue) {
+                const direct = cur.value?.get(seg);
+                if (direct != null) {
+                  cur = direct;
+                  continue;
+                }
+                const viaMt = indexThroughMetatable(this, cur, seg);
+                if (viaMt != null) {
+                  cur = viaMt;
+                  continue;
+                }
+                // Raw miss: nil when this is the last segment;
+                // indexing that nil (more segments remain) raises.
+                if (i < segs.length - 1) {
+                  dottedIndexError = "attempt to index a nil value";
+                }
+                cur = null;
+                break;
+              }
+              const obj = (cur as any)?.value;
+              if (obj instanceof Map) {
+                cur = obj.get(seg) ?? null;
+                if (cur == null) {
+                  if (i < segs.length - 1) {
+                    dottedIndexError = "attempt to index a nil value";
+                  }
+                  break;
+                }
+              } else {
+                // Strings reach here (member reads like `("x").nope`
+                // resolve to nil, matching the string library's
+                // metatable miss); anything else non-indexable was
+                // already classified above.
+                cur = null;
+                break;
+              }
+            }
+            if (cur != null) {
+              foundValue = cur as Value;
+            } else if (dottedIndexError == null) {
+              dottedResolvedToNil = true;
+            }
+          }
+        }
+
+        // Lua-style first-class fn fallback: if no variable named
+        // `<name>` exists but a knot/function `<name>` IS defined,
+        // resolve to a `DivertTargetValue` pointing at the knot.
+        // This makes `local f = double` work as if the user had
+        // written `local f = -> double`. Common authoring pattern.
+        if (foundValue == null && varRef.name) {
+          const knotContainer = this.KnotContainerWithName(varRef.name);
+          if (knotContainer && knotContainer.path) {
+            foundValue = new DivertTargetValue(knotContainer.path);
+          }
+        }
+
+        // Stdlib-function-name fallback: `type`, `assert`, `print`,
+        // etc. are Luau globals that the user can reference as
+        // values (`local f = type; f(x)` / `type(type) == 'function'`).
+        // No real ink variable exists for them, so push a marker
+        // ObjectValue tagged `__stdlib_fn` so `luauTypeOf` reports
+        // "function". Actual call dispatch on the marker (`f(x)`)
+        // is a separate fix — for now the marker covers the
+        // type-inspection cases at least.
+        if (foundValue == null && varRef.name && isStdLibFunctionName(varRef.name)) {
+          const marker = new Map<string, AbstractValue>();
+          marker.set("__stdlib_fn", new StringValue(varRef.name));
+          foundValue = new ObjectValue(marker);
+        }
+
         if (foundValue == null) {
-          this.Warning(
-            "Variable not found: '" +
-              varRef.name +
-              "'. Using default value of 0 (false). This can happen with temporary variables if the declaration hasn't yet been hit. Globals are always given a default value on load if a value doesn't exist in the save state.",
-          );
-          foundValue = new IntValue(0);
+          // A dotted read that dead-ended on a non-indexable hop
+          // raises now that the knot / stdlib fallbacks have also
+          // missed (`local t = nil; t.a` → "attempt to index a nil
+          // value", trappable via pcall).
+          if (dottedIndexError) {
+            this.Error(dottedIndexError);
+            return true;
+          }
+          // Dotted reads whose ROOT never resolved: classify per
+          // Lua's index rule rather than silently producing nil.
+          //   - `math.pow.a`  → a stdlib FUNCTION prefix is being
+          //     indexed → "attempt to index a function value"
+          //   - `math.a.b`    → `math` is a real namespace, `math.a`
+          //     is a nil member, indexing it raises; but plain
+          //     `math.idontexist` (one unknown segment) stays nil
+          //   - `double.a`    → `double` names a knot (a function
+          //     value) → "attempt to index a function value"
+          //   - `idontexist.a` → indexing nil
+          // (Skipped when the walk's root DID resolve and the chain
+          // legitimately read a missing last member — that's nil.)
+          if (
+            !dottedResolvedToNil &&
+            varRef.name &&
+            varRef.name.includes(".")
+          ) {
+            const segs = varRef.name.split(".");
+            let prefixIsStdLibFn = false;
+            for (let cut = segs.length - 1; cut >= 1; cut--) {
+              if (isStdLibFunctionName(segs.slice(0, cut).join("."))) {
+                prefixIsStdLibFn = true;
+                break;
+              }
+            }
+            if (prefixIsStdLibFn) {
+              this.Error("attempt to index a function value");
+              return true;
+            }
+            if (isStdLibNamespaceName(segs[0]!)) {
+              if (segs.length > 2) {
+                this.Error("attempt to index a nil value");
+                return true;
+              }
+            } else if (this.KnotContainerWithName(segs[0]!)) {
+              this.Error("attempt to index a function value");
+              return true;
+            } else {
+              this.Error("attempt to index a nil value");
+              return true;
+            }
+          }
+          // Luau-superset semantics: undefined names resolve to `nil`
+          // (not `0`). The compile-time "Cannot find variable named"
+          // diagnostic is already downgraded to a warning in
+          // `VariableReference.ResolveReferences` — runtime stays
+          // silent so undefined-as-nil is a clean, non-noisy lookup.
+          // Arithmetic on the resulting `NullValue` errors at runtime
+          // via `Cast` (same as Lua), which is the correct trap shape
+          // for typos. Interpolation / `tostring` produce "nil".
+          foundValue = new NullValue();
         }
       }
 
@@ -1827,6 +3675,69 @@ export class Story extends InkObject {
     else if (contentObj instanceof NativeFunctionCall) {
       let func = contentObj;
       let funcParams = this.state.PopEvaluationStack(func.numberOfParameters);
+      // Environment override: `getfenv().math = { abs = ... }` (or a
+      // plain global assignment `math = {...}`) replaces a stdlib
+      // namespace with a user table. Statically-lowered `math.abs(x)`
+      // call sites must then dispatch the REPLACEMENT member
+      // (basic.luau's testgetfenv reassignment block). Only dotted
+      // native names can be overridden, and a global-lookup miss
+      // keeps the fast static path.
+      const nsDotIdx = func.name.indexOf(".");
+      if (nsDotIdx > 0) {
+        const nsOverride = this.state.variablesState.GetGlobalVariableValue(
+          func.name.slice(0, nsDotIdx),
+        ) as AbstractValue | null;
+        if (
+          nsOverride instanceof ObjectValue &&
+          !(nsOverride.value as Map<string, AbstractValue>)?.has(
+            GLOBALS_PROXY_TAG,
+          )
+        ) {
+          const member = (
+            nsOverride.value as Map<string, AbstractValue>
+          )?.get(func.name.slice(nsDotIdx + 1));
+          if (member != null && !(member instanceof NullValue)) {
+            // Padded Void slots represent missing args — drop them;
+            // the Lua-call arg normalization pads nil as needed.
+            const callArgs = funcParams.filter(
+              (p: any) => !(p instanceof Void),
+            ) as AbstractValue[];
+            const results = this.CallLuauFunction(
+              member as AbstractValue,
+              callArgs,
+            ) as AbstractValue[] | null;
+            if (results && results.length === 1) {
+              this.state.PushEvaluationStack(results[0]!);
+            } else if (results && results.length > 1) {
+              this.state.PushEvaluationStack(new MultiValue(results));
+            } else {
+              this.state.PushEvaluationStack(new NullValue());
+            }
+            return true;
+          }
+        }
+      }
+      // Metamethod dispatch: if any operand is an ObjectValue carrying a
+      // metatable with a matching `__add` / `__sub` / `__eq` / etc., the
+      // metamethod handles the op via `story.CallLuauFunction`. Returns
+      // `null` for the common case where no metamethod fires — fall
+      // through to the regular type-coerced dispatch below.
+      const fname = func.name;
+      let mmResult: AbstractValue | null = null;
+      if (funcParams.length === 2) {
+        mmResult = tryBinaryMetamethod(
+          this,
+          fname,
+          funcParams[0],
+          funcParams[1],
+        );
+      } else if (funcParams.length === 1) {
+        mmResult = tryUnaryMetamethod(this, fname, funcParams[0]);
+      }
+      if (mmResult !== null) {
+        this.state.PushEvaluationStack(mmResult);
+        return true;
+      }
       let result = func.Call(funcParams);
       this.state.PushEvaluationStack(result);
       return true;
@@ -1976,6 +3887,366 @@ export class Story extends InkObject {
     return returnTextOutput ? { returned: result, output: textOutput } : result;
   }
 
+  /**
+   * Invoke a sparkdown function value from inside a stdlib JS impl,
+   * synchronously, and return whatever it pushed onto the eval stack.
+   *
+   * Unblocks "stdlib that takes a user function":
+   * - `table.sort(t, cmp)` — comparator
+   * - `string.gsub(s, p, fn)` — replacement
+   * - `pcall` / `xpcall` — protected call (the call half)
+   *
+   * `fnValue` may be:
+   * - An `ObjectValue` carrying a closure marker (`__closure_fn` /
+   *   `__closure_upvals` / `__closure_user_arity`) — anonymous
+   *   function literal with captured upvalues.
+   * - A `DivertTargetValue` — bare knot reference (no upvalues).
+   * - A `VariablePointerValue` — recursively resolved.
+   *
+   * Driving the inner call: this routine snapshots callstack depth,
+   * eval stack depth, currentPointer, and output stream. It sets up
+   * the divert exactly the same way `CallValueAsFunction` does, then
+   * loops `Step()` until the inner Function frame pops (callstack
+   * back to the snapshot). Return values left above the snapshot
+   * eval-stack height are collected and returned. The output stream
+   * is restored on the way out so the callback can't leak narrative
+   * text into the calling story flow.
+   *
+   * Errors inside the callback propagate via `story.Error`; without
+   * a `pcall` trap (#98), they abort the whole story — that's the
+   * same behaviour as any other runtime error today.
+   */
+  public CallLuauFunction(
+    fnValue: AbstractValue,
+    args: AbstractValue[],
+  ): AbstractValue[] {
+    this.IfAsyncWeCant("call a Luau function from stdlib");
+
+    // VariablePointerValue: deref and recurse.
+    if (fnValue instanceof VariablePointerValue) {
+      const resolved = this.state.variablesState.GetVariableWithName(
+        fnValue.variableName,
+      ) as AbstractValue | null;
+      if (resolved == null) {
+        throw new StoryException(
+          "CallLuauFunction: variable pointer references unresolved variable",
+        );
+      }
+      return this.CallLuauFunction(resolved, args);
+    }
+
+    // `__stdlib_fn` marker: stdlib builtin referenced first-class —
+    // dispatch the entry directly (there's no ink frame to drive).
+    const stdlibResults = tryInvokeStdLibMarkerValue(this, fnValue, args);
+    if (stdlibResults != null) return stdlibResults;
+
+    const savedCallStackLen = this.state.callStack.elements.length;
+    const savedEvalLen = this.state.evaluationStack.length;
+    const savedPointer = this.state.currentPointer.copy();
+    const outputStreamBefore: InkObject[] = [...this.state.outputStream];
+    this.state.ResetOutput();
+
+    let path: Path | null = null;
+    try {
+      // Lua call-site semantics: discard extra args / pad missing
+      // with nil (see normalizeLuauCallArgs).
+      const callArgs = normalizeLuauCallArgs(this, fnValue, args);
+      // Closure case: extractClosurePath modifies the eval stack
+      // (pops user args, pushes upvals, re-pushes user args). So push
+      // user args first, then let it rearrange.
+      if (fnValue instanceof ObjectValue) {
+        for (const a of callArgs) this.state.PushEvaluationStack(a);
+        const p = extractClosurePath(fnValue, this);
+        if (p == null) {
+          // Not a closure-shaped ObjectValue. Restore stack + bail.
+          for (let i = 0; i < callArgs.length; i++)
+            this.state.PopEvaluationStack();
+          // `__call` metamethod: a plain table is callable when its
+          // metatable defines `__call`; Lua rewrites `t(args...)` to
+          // `__call(t, args...)`. Recurse with the handler so chained
+          // callables (handler itself a `__call` table) also resolve.
+          const callHandler = lookupMetamethod(fnValue, "__call");
+          if (callHandler != null && !(callHandler instanceof NullValue)) {
+            return this.CallLuauFunction(callHandler, [fnValue, ...args]);
+          }
+          throw new StoryException(
+            "CallLuauFunction: ObjectValue is not a closure (missing `__closure_fn`)",
+          );
+        }
+        path = p as Path;
+      } else if (fnValue instanceof DivertTargetValue) {
+        for (const a of callArgs) this.state.PushEvaluationStack(a);
+        path = fnValue.value;
+      } else {
+        throw new StoryException(
+          `CallLuauFunction: expected a function value, got ${fnValue}`,
+        );
+      }
+
+      if (path == null) {
+        throw new StoryException(
+          "CallLuauFunction: could not resolve function value to a path",
+        );
+      }
+
+      // Set up the divert exactly like the in-bytecode
+      // CallValueAsFunction handler (line ~1755 in this file).
+      this.state.divertedPointer = this.PointerAtPath(path);
+      this.state.callStack.Push(
+        PushPopType.Function,
+        undefined,
+        this.state.outputStream.length,
+      );
+      // CRITICAL: when the in-bytecode CallValueAsFunction sets up
+      // the divert, Step's tail-end `NextContent()` consumes
+      // `divertedPointer` to advance to the function body. Since
+      // we're calling from JS (outside the op-processing path), we
+      // must drive `NextContent()` manually first — otherwise the
+      // next `Step()` will re-process the current op (the
+      // `RunStdLibFunction` for OUR caller), re-entering us with
+      // the wrong eval-stack state.
+      this.NextContent();
+
+      // Drive Step until the inner Function frame pops back. Bound
+      // iterations to avoid hangs on misbehaving callbacks.
+      const MAX_STEPS = 100000;
+      let steps = 0;
+      while (
+        this.state.callStack.elements.length > savedCallStackLen &&
+        !this.state.currentPointer.isNull
+      ) {
+        this.Step();
+        if (++steps > MAX_STEPS) {
+          throw new StoryException(
+            "CallLuauFunction: callback exceeded step limit (possible infinite loop)",
+          );
+        }
+      }
+
+      // Collect return values left above the saved eval-stack height.
+      const results: AbstractValue[] = [];
+      while (this.state.evaluationStack.length > savedEvalLen) {
+        results.unshift(this.state.PopEvaluationStack() as AbstractValue);
+      }
+      return results;
+    } finally {
+      // Restore everything — output stream, currentPointer (in case
+      // the inner ~ret restored it to something unexpected), and
+      // ensure we don't leave the callstack inflated if an exception
+      // unwound mid-call.
+      while (this.state.callStack.elements.length > savedCallStackLen) {
+        this.state.PopCallStack();
+      }
+      this.state.currentPointer = savedPointer;
+      this.state.ResetOutput(outputStreamBefore);
+    }
+  }
+
+  /**
+   * Protected variant of `CallLuauFunction`. Implements `pcall`'s
+   * trap: drive the inner function; if it throws a `StoryException`
+   * (from `story.Error`) or adds a runtime error to
+   * `state.currentErrors`, capture the message and return
+   * `{ ok: false, errorMessage }` instead of letting the error
+   * abort the story.
+   *
+   * The trapped error is REMOVED from `state.currentErrors` — pcall's
+   * contract is "the error doesn't escape the protected block." If
+   * the user wants to surface it, they re-raise or log it via the
+   * second return.
+   */
+  public CallLuauFunctionProtected(
+    fnValue: AbstractValue,
+    args: AbstractValue[],
+  ): {
+    ok: boolean;
+    values: AbstractValue[];
+    errorMessage?: string;
+  } {
+    this.IfAsyncWeCant("call a Luau function from stdlib (protected)");
+
+    if (fnValue instanceof VariablePointerValue) {
+      const resolved = this.state.variablesState.GetVariableWithName(
+        fnValue.variableName,
+      ) as AbstractValue | null;
+      if (resolved == null) {
+        return {
+          ok: false,
+          values: [],
+          errorMessage:
+            "pcall: variable pointer references unresolved variable",
+        };
+      }
+      return this.CallLuauFunctionProtected(resolved, args);
+    }
+
+    // `__stdlib_fn` marker: stdlib builtin referenced first-class
+    // (e.g. `pcall(rawequal, "a", "a")`). Dispatch the entry directly
+    // and trap anything it raises — both `story.Error` throws and
+    // errors recorded on `state.currentErrors`.
+    if (
+      fnValue instanceof ObjectValue &&
+      (fnValue.value as Map<string, AbstractValue>)?.get("__stdlib_fn") != null
+    ) {
+      const errCountBefore = this.state.currentErrors?.length ?? 0;
+      try {
+        const values = tryInvokeStdLibMarkerValue(this, fnValue, args);
+        if (values != null) {
+          const errsNow = this.state.currentErrors;
+          if (errsNow && errsNow.length > errCountBefore) {
+            const msg = errsNow[errCountBefore]!;
+            errsNow.length = errCountBefore;
+            return { ok: false, values: [], errorMessage: msg };
+          }
+          return { ok: true, values };
+        }
+      } catch (e) {
+        if (e instanceof StoryException) {
+          const errsNow = this.state.currentErrors;
+          if (errsNow && errsNow.length > errCountBefore) {
+            errsNow.length = errCountBefore;
+          }
+          return { ok: false, values: [], errorMessage: e.message };
+        }
+        throw e;
+      }
+    }
+
+    const savedCallStackLen = this.state.callStack.elements.length;
+    const savedEvalLen = this.state.evaluationStack.length;
+    const savedPointer = this.state.currentPointer.copy();
+    const outputStreamBefore: InkObject[] = [...this.state.outputStream];
+    const savedErrorCount = this.state.currentErrors?.length ?? 0;
+    this.state.ResetOutput();
+
+    let path: Path | null = null;
+    let trappedError: string | null = null;
+    try {
+      // Lua call-site semantics: discard extra args / pad missing
+      // with nil (see normalizeLuauCallArgs).
+      const callArgs = normalizeLuauCallArgs(this, fnValue, args);
+      if (fnValue instanceof ObjectValue) {
+        for (const a of callArgs) this.state.PushEvaluationStack(a);
+        const p = extractClosurePath(fnValue, this);
+        if (p == null) {
+          for (let i = 0; i < callArgs.length; i++)
+            this.state.PopEvaluationStack();
+          // `__call` metamethod: same callable-table rewrite as
+          // CallLuauFunction — `t(args...)` → `__call(t, args...)`.
+          const callHandler = lookupMetamethod(fnValue, "__call");
+          if (callHandler != null && !(callHandler instanceof NullValue)) {
+            return this.CallLuauFunctionProtected(callHandler, [
+              fnValue,
+              ...args,
+            ]);
+          }
+          return {
+            ok: false,
+            values: [],
+            errorMessage:
+              "pcall: target ObjectValue is not a closure (missing `__closure_fn`)",
+          };
+        }
+        path = p as Path;
+      } else if (fnValue instanceof DivertTargetValue) {
+        for (const a of callArgs) this.state.PushEvaluationStack(a);
+        path = fnValue.value;
+      } else {
+        return {
+          ok: false,
+          values: [],
+          errorMessage: `pcall: expected a function value, got ${fnValue}`,
+        };
+      }
+
+      if (path == null) {
+        return {
+          ok: false,
+          values: [],
+          errorMessage: "pcall: could not resolve function value to a path",
+        };
+      }
+
+      this.state.divertedPointer = this.PointerAtPath(path);
+      this.state.callStack.Push(
+        PushPopType.Function,
+        undefined,
+        this.state.outputStream.length,
+      );
+      this.NextContent();
+
+      const MAX_STEPS = 100000;
+      let steps = 0;
+      while (
+        this.state.callStack.elements.length > savedCallStackLen &&
+        !this.state.currentPointer.isNull
+      ) {
+        try {
+          this.Step();
+        } catch (e) {
+          if (e instanceof StoryException) {
+            trappedError = e.message;
+            break;
+          }
+          throw e;
+        }
+        // Also check the "errors added without throwing" path —
+        // some stdlib impls call `story.AddError` directly rather
+        // than `story.Error`. Truncate any new errors so they don't
+        // surface to the host, and treat the first as our message.
+        const errs = this.state.currentErrors;
+        if (errs && errs.length > savedErrorCount) {
+          trappedError = errs[savedErrorCount]!;
+          // Truncate.
+          errs.length = savedErrorCount;
+          break;
+        }
+        if (++steps > MAX_STEPS) {
+          trappedError =
+            "pcall: callback exceeded step limit (possible infinite loop)";
+          break;
+        }
+      }
+
+      // Truncate any errors added during the call (covers errors
+      // added via story.AddError between the last check and now).
+      const errs2 = this.state.currentErrors;
+      if (errs2 && errs2.length > savedErrorCount) {
+        if (trappedError == null) trappedError = errs2[savedErrorCount]!;
+        errs2.length = savedErrorCount;
+      }
+
+      if (trappedError != null) {
+        return { ok: false, values: [], errorMessage: trappedError };
+      }
+
+      const results: AbstractValue[] = [];
+      while (this.state.evaluationStack.length > savedEvalLen) {
+        results.unshift(this.state.PopEvaluationStack() as AbstractValue);
+      }
+      // Empty-return functions push a `Void` sentinel at PopFunction
+      // time. From pcall's perspective that's "the function returned
+      // zero values" — so `pcall(function() end)` returns just
+      // `(true)` rather than `(true, void)`. Strip leading Voids so
+      // the wrapping `MultiValue([true, ...values])` in `pcall` /
+      // `xpcall` reflects the actual return count Lua sees.
+      while (results.length > 0 && results[0] instanceof Void) {
+        results.shift();
+      }
+      return { ok: true, values: results };
+    } finally {
+      while (this.state.callStack.elements.length > savedCallStackLen) {
+        this.state.PopCallStack();
+      }
+      // Drop any partial eval-stack residue from a failed call.
+      while (this.state.evaluationStack.length > savedEvalLen) {
+        this.state.PopEvaluationStack();
+      }
+      this.state.currentPointer = savedPointer;
+      this.state.ResetOutput(outputStreamBefore);
+    }
+  }
+
   public EvaluateExpression(exprContainer: Container) {
     let startCallStackHeight = this.state.callStack.elements.length;
 
@@ -2011,6 +4282,23 @@ export class Story extends InkObject {
   public collapseWhitespace: boolean = true;
 
   public processEscapes: boolean = true;
+
+  /**
+   * Optional callback that formats the message passed to the `error`
+   * stdlib BEFORE it's thrown. The default behaviour passes the
+   * message through unchanged, matching how an LSP host wants
+   * errors (it shows source/line separately in its own UI).
+   *
+   * The conformance test harness sets this to prepend
+   * `<sourceBasename>:<line>: ` so Luau-spec assertions like
+   * `pcall(function() error("oops") end)` returning
+   * `"<file>:<line>: oops"` can be checked precisely.
+   *
+   * Signature: receives `this` story and the raw message, returns
+   * the formatted string. Implementations typically read
+   * `story.currentDebugMetadata` to look up source/line info.
+   */
+  public errorMessageFormatter?: (story: Story, message: string) => string;
 
   public CallExternalFunction(
     funcName: string | null,
@@ -2359,39 +4647,93 @@ export class Story extends InkObject {
     if (flowContainer === null) {
       return throwNullException("flowContainer");
     }
+    // Descend into the first sub-container as long as it's a structural
+    // wrapper around the real flow body (vanilla ink shape). Stop the
+    // descent if this level already has MULTIPLE consecutive per-line
+    // tag wrapper containers at the front — that's sparkdown's per-line
+    // tag layout, and we need to walk all those siblings to collect
+    // every leading tag, not just the first one. (When there's only a
+    // single leading tag wrapper, descending into it gives identical
+    // results to walking the wrapper's contents from outside.)
+    const isTagWrapper = (obj: InkObject | undefined): boolean => {
+      if (!(obj instanceof Container)) return false;
+      const first = obj.content[0];
+      const cmd = asOrNull(first, ControlCommand);
+      return (
+        cmd != null && cmd.commandType == ControlCommand.CommandType.BeginTag
+      );
+    };
     while (true) {
       let firstContent: InkObject = flowContainer.content[0];
-      if (firstContent instanceof Container) flowContainer = firstContent;
-      else break;
+      if (firstContent instanceof Container) {
+        if (
+          isTagWrapper(firstContent) &&
+          isTagWrapper(flowContainer.content[1])
+        ) {
+          break;
+        }
+        flowContainer = firstContent;
+      } else break;
     }
 
     let inTag = false;
     let tags: string[] | null = null;
 
-    for (let c of flowContainer.content) {
-      // var tag = c as Runtime.Tag;
-      let command = asOrNull(c, ControlCommand);
-
-      if (command != null) {
-        if (command.commandType == ControlCommand.CommandType.BeginTag) {
-          inTag = true;
-        } else if (command.commandType == ControlCommand.CommandType.EndTag) {
-          inTag = false;
+    // Collect every BeginTag/StringValue/EndTag triplet at the start of
+    // the flow. Sparkdown's compile pipeline chunks each top-level
+    // `# tag` line into its own sibling display-line container, so the
+    // walk must descend into those wrapper containers as long as they
+    // hold ONLY tag triplets (no non-tag runtime content). The vanilla
+    // ink form produces a single container with tags as flat children,
+    // which this loop still handles via the non-Container branch.
+    const pushFromSequence = (items: ReadonlyArray<InkObject>): boolean => {
+      // Returns `true` to keep walking later siblings; `false` once a
+      // non-tag, non-control-command item ends the run of leading tags.
+      for (const c of items) {
+        const command = asOrNull(c, ControlCommand);
+        if (command != null) {
+          if (command.commandType == ControlCommand.CommandType.BeginTag) {
+            inTag = true;
+          } else if (
+            command.commandType == ControlCommand.CommandType.EndTag
+          ) {
+            inTag = false;
+          }
+          continue;
         }
-      } else if (inTag) {
-        let str = asOrNull(c, StringValue);
-        if (str !== null) {
-          if (tags === null) tags = [];
-          if (str.value !== null) tags.push(str.value);
-        } else {
-          this.Error(
-            "Tag contained non-text content. Only plain text is allowed when using globalTags or TagsAtContentPath. If you want to evaluate dynamic content, you need to use story.Continue().",
-          );
+        if (inTag) {
+          const str = asOrNull(c, StringValue);
+          if (str !== null) {
+            if (tags === null) tags = [];
+            if (str.value !== null) tags.push(str.value);
+          } else {
+            this.Error(
+              "Tag contained non-text content. Only plain text is allowed when using globalTags or TagsAtContentPath. If you want to evaluate dynamic content, you need to use story.Continue().",
+            );
+          }
+          continue;
         }
-      } else {
-        break;
+        // A wrapper container at the front of the flow: descend if its
+        // first item is a BeginTag (this is sparkdown's per-line tag
+        // wrapper). Otherwise the run of leading tags has ended.
+        const innerContainer = asOrNull(c, Container);
+        if (innerContainer != null) {
+          const innerFirst = innerContainer.content[0];
+          const innerCommand = asOrNull(innerFirst, ControlCommand);
+          if (
+            innerCommand != null &&
+            innerCommand.commandType == ControlCommand.CommandType.BeginTag
+          ) {
+            if (!pushFromSequence(innerContainer.content)) return false;
+            continue;
+          }
+        }
+        return false;
       }
-    }
+      return true;
+    };
+
+    pushFromSequence(flowContainer.content);
 
     return tags;
   }

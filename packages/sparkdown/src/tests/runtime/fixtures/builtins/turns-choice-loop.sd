@@ -1,0 +1,6 @@
+label loop
+{count.turns()}
+choose
+  + [choice]
+end
+-> loop

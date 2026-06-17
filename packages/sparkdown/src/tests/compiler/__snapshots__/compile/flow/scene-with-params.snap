@@ -1,0 +1,14 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "LoseTrust",
+      "args": [
+        "c"
+      ],
+      "isFunction": false
+    }
+  ]
+}
+
+{}

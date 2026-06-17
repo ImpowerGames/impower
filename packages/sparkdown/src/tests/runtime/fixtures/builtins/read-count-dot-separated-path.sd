@@ -1,0 +1,12 @@
+-> hi.stitch_to_count ->
+-> hi.stitch_to_count ->
+-> hi.stitch_to_count ->
+{hi.stitch_to_count}
+done
+
+scene hi
+  branch stitch_to_count
+    hi
+    ->->
+  end
+end

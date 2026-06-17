@@ -1,0 +1,29 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Tag",
+          "start": true
+        },
+        {
+          "type": "Text",
+          "text": "action"
+        },
+        {
+          "type": "Tag",
+          "start": false
+        },
+        {
+          "type": "Text",
+          "text": "They walk forward.\n They look at the sky."
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        }
+      ]
+    }
+  ]
+}

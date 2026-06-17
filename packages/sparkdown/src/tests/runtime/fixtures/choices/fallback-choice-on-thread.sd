@@ -1,0 +1,18 @@
+-> hub
+scene hub
+  <- side
+  done
+
+end
+scene side
+  choose
+    * if false "Unreachable"
+      fin
+    * -> defaulted
+
+  end
+end
+scene defaulted
+  Fallback fired.
+  fin
+end

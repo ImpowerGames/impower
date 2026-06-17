@@ -1,0 +1,9 @@
+A
+& local someTemp = getNumber()
+B
+A
+{getNumber()}
+B
+done
+
+function getNumber() return 3 end

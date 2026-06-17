@@ -1,0 +1,52 @@
+sparkdown [0..24]
+ ├─ LuauVariableDefinition [0..23]
+ │   ├─ LuauVariableDefinition_begin [0..6]
+ │   │   ├─ LuauVariableDefinition_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauVariableDefinition_begin_c2 [0..5]
+ │   │   │   └─ LuauScopeModifier [0..5]: "local"
+ │   │   └─ LuauVariableDefinition_begin_c3 [5..6]
+ │   │       └─ LuauVariableDefinition_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauVariableDefinition_content [6..23]
+ │   │   └─ LuauVariableAssignment [6..23]
+ │   │       ├─ LuauVariableAssignment_begin [6..11]
+ │   │       │   ├─ LuauVariableAssignment_begin_c1 [6..10]
+ │   │       │   │   └─ LuauVariableName [6..10]: "kind"
+ │   │       │   └─ LuauVariableAssignment_begin_c2 [10..11]
+ │   │       │       └─ OptionalWhitespace [10..11]: " "
+ │   │       ├─ LuauVariableAssignment_content [11..23]
+ │   │       │   └─ LuauAssignmentOperation [11..23]
+ │   │       │       ├─ LuauAssignmentOperation_begin 11
+ │   │       │       │   └─ LuauAssignmentOperation_begin_c1 11
+ │   │       │       ├─ LuauAssignmentOperation_content [11..23]
+ │   │       │       │   ├─ LuauAssignmentOperator [11..13]
+ │   │       │       │   │   ├─ LuauAssignmentOperator_begin [11..13]
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 11
+ │   │       │       │   │   │   │   └─ OptionalWhitespace 11
+ │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [11..12]: "="
+ │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [12..13]
+ │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [12..13]
+ │   │       │       │   │   │           └─ OptionalWhitespace [12..13]: " "
+ │   │       │       │   │   └─ LuauAssignmentOperator_end 13
+ │   │       │       │   └─ LuauAccessPath [13..23]
+ │   │       │       │       ├─ LuauAccessPath_begin 13
+ │   │       │       │       ├─ LuauAccessPath_content [13..23]
+ │   │       │       │       │   ├─ LuauAccessPart [13..18]
+ │   │       │       │       │   │   └─ LuauVariable [13..18]
+ │   │       │       │       │   │       └─ LuauVariable_c1 [13..18]
+ │   │       │       │       │   │           └─ LuauVariableName [13..18]: "match"
+ │   │       │       │       │   └─ LuauAccessPart [18..23]
+ │   │       │       │       │       └─ LuauPropertyAccessor [18..23]
+ │   │       │       │       │           ├─ LuauPropertyAccessor_c1 18
+ │   │       │       │       │           ├─ LuauPropertyAccessor_c2 [18..19]
+ │   │       │       │       │           │   └─ LuauAccessorOperator [18..19]: "."
+ │   │       │       │       │           ├─ LuauPropertyAccessor_c3 19
+ │   │       │       │       │           └─ LuauPropertyAccessor_c4 [19..23]
+ │   │       │       │       │               └─ LuauPropertyName [19..23]: "kind"
+ │   │       │       │       └─ LuauAccessPath_end 23
+ │   │       │       │           └─ LuauAccessPath_end_c1 23
+ │   │       │       └─ LuauAssignmentOperation_end 23
+ │   │       └─ LuauVariableAssignment_end 23
+ │   └─ LuauVariableDefinition_end 23
+ └─ Newline [23..24]: "\n"

@@ -1,0 +1,19 @@
+store n = 10
+& n += 5
+{n}
+& n -= 3
+{n}
+& n *= 2
+{n}
+& n /= 4
+{n}
+& n %= 4
+{n}
+& n ^= 3
+{n}
+store m = 7
+& m //= 2
+{m}
+store s = "Hello"
+& s ..= ", World!"
+{s}

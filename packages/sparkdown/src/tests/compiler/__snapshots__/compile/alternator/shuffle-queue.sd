@@ -1,0 +1,5 @@
+shuffle queue
+  | -> A
+  | -> B
+  | -> C
+end

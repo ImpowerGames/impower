@@ -1,0 +1,33 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Tag",
+          "start": true
+        },
+        {
+          "type": "Text",
+          "text": "heading"
+        },
+        {
+          "type": "Tag",
+          "start": false
+        },
+        {
+          "type": "Text",
+          "text": "$: "
+        },
+        {
+          "type": "Text",
+          "text": "A MOONLIT ROOFTOP"
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        }
+      ]
+    }
+  ]
+}

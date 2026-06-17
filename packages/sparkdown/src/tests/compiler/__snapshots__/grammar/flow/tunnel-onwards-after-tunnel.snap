@@ -1,0 +1,40 @@
+sparkdown [0..16]
+ ├─ Divert [0..15]
+ │   ├─ Divert_begin [0..2]
+ │   │   ├─ Divert_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   └─ Divert_begin_c2 [0..2]
+ │   │       └─ DivertMark [0..2]: "->"
+ │   ├─ Divert_content [2..15]
+ │   │   ├─ DivertTarget [2..10]
+ │   │   │   ├─ DivertTarget_begin [2..3]
+ │   │   │   │   └─ DivertTarget_begin_c1 [2..3]
+ │   │   │   │       └─ DivertTarget_begin_c1 [2..3]
+ │   │   │   │           └─ OptionalWhitespace [2..3]: " "
+ │   │   │   ├─ DivertTarget_content [3..10]
+ │   │   │   │   └─ DivertPath [3..10]
+ │   │   │   │       ├─ DivertPath_begin 3
+ │   │   │   │       ├─ DivertPath_content [3..10]
+ │   │   │   │       │   └─ DivertPart [3..10]
+ │   │   │   │       │       └─ DivertPartName [3..10]: "tunnel2"
+ │   │   │   │       └─ DivertPath_end 10
+ │   │   │   └─ DivertTarget_end 10
+ │   │   └─ Tunnel [10..15]
+ │   │       ├─ Tunnel_begin [10..13]
+ │   │       │   ├─ Tunnel_begin_c1 [10..11]
+ │   │       │   │   └─ Tunnel_begin_c1 [10..11]
+ │   │       │   │       └─ OptionalWhitespace [10..11]: " "
+ │   │       │   └─ Tunnel_begin_c2 [11..13]
+ │   │       │       └─ DivertMark [11..13]: "->"
+ │   │       ├─ Tunnel_content [13..15]
+ │   │       │   └─ Tunnel [13..15]
+ │   │       │       ├─ Tunnel_begin [13..15]
+ │   │       │       │   ├─ Tunnel_begin_c1 13
+ │   │       │       │   │   └─ Tunnel_begin_c1 13
+ │   │       │       │   │       └─ OptionalWhitespace 13
+ │   │       │       │   └─ Tunnel_begin_c2 [13..15]
+ │   │       │       │       └─ DivertMark [13..15]: "->"
+ │   │       │       └─ Tunnel_end 15
+ │   │       └─ Tunnel_end 15
+ │   └─ Divert_end 15
+ └─ Newline [15..16]: "\n"

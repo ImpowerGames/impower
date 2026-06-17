@@ -1,0 +1,11 @@
+-> main
+scene main
+  -> f ->
+  .. world
+  done
+
+end
+scene f
+  Hello
+  ->->
+end

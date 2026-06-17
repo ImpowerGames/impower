@@ -1,0 +1,14 @@
+-> main
+scene main
+  choose
+    * opt
+      text
+      choose
+        * if false impossible
+        *
+          done
+      end
+  then
+    gather
+  end
+end

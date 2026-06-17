@@ -1,0 +1,16 @@
+-> main
+scene main
+  choose
+    * -> hello
+  end
+  Unreachable
+  label hello
+  1
+  choose
+    * ->
+  then
+    2
+  end
+  3
+  done
+end

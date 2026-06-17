@@ -1,0 +1,11 @@
+start
+gather should be seen
+choose
+  + if true [go to a stitch] -> a_stitch
+end
+done
+
+scene a_stitch
+  result
+  fin
+end

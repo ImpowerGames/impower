@@ -196,6 +196,39 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     if (this.variableDeclarations.has(varName)) {
       const varab = this.variableDeclarations.get(varName)!;
 
+      // Same-name defines of DIFFERENT engine types coexist — e.g.
+      // `define raffles as character` + `define raffles as synth`. They
+      // register as type-namespaced structs (context.character.raffles /
+      // context.synth.raffles, picked up via FindAll(StructDefinition)),
+      // not a single flat global, so this isn't a real collision. (Two
+      // defines of the SAME type, or a define vs a plain var, still error.)
+      const newType = varDecl.structDefinition?.type?.name;
+      const existingType = varab.structDefinition?.type?.name;
+      if (
+        varDecl.isDefineDeclaration &&
+        varab.isDefineDeclaration &&
+        newType &&
+        existingType &&
+        newType !== existingType
+      ) {
+        // The first define keeps the flat global slot (`raffles`); the
+        // second registers as a type-namespaced singleton instead of
+        // fighting for it — matching how `context` namespaces them
+        // (context.character.raffles / context.synth.raffles). Its runtime
+        // table is stored under a synthetic global key, but `__def(table,
+        // "raffles", "synth")` still registers it into the `synth` type
+        // table, so `synth.raffles` resolves. Critically it stays in
+        // `variableDeclarations`, so its `__def` expression IS generated
+        // (its `-> __def` divert gets a runtimeDivert) and ResolveReferences
+        // doesn't throw and abort the pass. The `$type_name` key can't
+        // collide with a script identifier (`$` is not legal in one).
+        const qualifiedKey = `$${newType}_${varName}`;
+        if (!this.variableDeclarations.has(qualifiedKey)) {
+          this.variableDeclarations.set(qualifiedKey, varDecl);
+        }
+        return;
+      }
+
       if (!varDecl.isPropertyDeclaration) {
         this.Error(
           `Duplicate identifier \`${varName}\`. A ${varab.typeName.toLowerCase()} named \`${varName}\` already exists on ${
@@ -241,6 +274,30 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
           `Return statements can only be used in knots that are declared as functions: == function ${this.identifier} ==`,
           foundReturn,
         );
+      }
+    } else if (this.flowLevel === FlowLevel.Story) {
+      // Top-level: `return` is only valid inside a function body. A
+      // bare `return` at file scope is almost always a mistake — the
+      // `PopFunction` it emits has nothing to pop, since there's no
+      // function-call frame active. InkParser rejected the form at
+      // parse time; sparkdown's textmate grammar accepts `return X`
+      // anywhere a statement is legal, so the validation lands here
+      // at runtime-export time.
+      //
+      // `_rootWeave` holds the Story's free-floating top-level content
+      // (everything outside a `scene` / `branch` / `function`). Inkjs's
+      // `Knot` / `Stitch` checks above use `Find(ReturnType)` which
+      // would recurse into child flows; here we scope to `_rootWeave`
+      // to avoid double-flagging returns inside child functions (which
+      // are nested FlowBases that handle their own checks).
+      if (this._rootWeave !== null) {
+        const rootReturn = this._rootWeave.Find(ReturnType)();
+        if (rootReturn !== null) {
+          this.Error(
+            `Return statements can only be used inside a function body — found one at file scope.`,
+            rootReturn,
+          );
+        }
       }
     }
 
@@ -338,8 +395,13 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     // No need to generate EvalStart and EvalEnd since there's nothing being pushed
     // back onto the evaluation stack.
     for (let ii = this.args.length - 1; ii >= 0; --ii) {
-      const paramName = this.args[ii].identifier?.name || null;
-      const assign = new RuntimeVariableAssignment(paramName, true);
+      const arg = this.args[ii];
+      const paramName = arg.identifier?.name || null;
+      const assign = new RuntimeVariableAssignment(
+        paramName,
+        true,
+        !!arg.isVararg,
+      );
       container.AddContent(assign);
     }
   };
@@ -349,18 +411,30 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     level: FlowLevel | null = null,
     deepSearch: boolean = false,
   ): ParsedObject | null => {
-    // Referencing self?
-    if (level === this.flowLevel || level === null) {
+    // The `level` parameter is interpreted as a *minimum* — i.e. the
+    // matched item's level must be `>= level`. This lets path
+    // resolution descend through an intermediate FlowLevel (e.g.
+    // Function) when looking for something deeper (e.g. a labeled
+    // weave point). Older code treated it as exact-match; with the
+    // introduction of `FlowLevel.Function` between Stitch and
+    // WeavePoint, exact-match would leave WeavePoints unreachable
+    // when the caller asked for "anything below a Stitch" (which
+    // resolves to `Function` via the `+1` rule in Path).
+    const ambiguousLevel = level === null;
+
+    // Referencing self? Self is a candidate iff it's at the asked
+    // level (self is not "deeper" than itself, so exact match here).
+    if (ambiguousLevel || level === this.flowLevel) {
       if (name === this.identifier?.name) {
         return this;
       }
     }
 
-    if (level === FlowLevel.WeavePoint || level === null) {
-      let weavePointResult: ParsedObject | null = null;
-
+    // Weave points live in this._rootWeave and are at level WeavePoint.
+    // They satisfy any `level <= WeavePoint` search.
+    if (ambiguousLevel || level! <= FlowLevel.WeavePoint) {
       if (this._rootWeave) {
-        weavePointResult = this._rootWeave.WeavePointNamed(
+        const weavePointResult = this._rootWeave.WeavePointNamed(
           name,
         ) as ParsedObject;
         if (weavePointResult) {
@@ -368,21 +442,22 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         }
       }
 
-      // Stop now if we only wanted a result if it's a weave point?
+      // If the caller specifically asked for a WeavePoint, give up
+      // here — the only place a WeavePoint could be has been checked.
       if (level === FlowLevel.WeavePoint) {
         return deepSearch ? this.DeepSearchForAnyLevelContent(name) : null;
       }
     }
 
     // If this flow would be incapable of containing the requested level, early out
-    // (e.g. asking for a Knot from a Stitch)
-    if (level !== null && level < this.flowLevel) {
+    // (e.g. asking for a Knot from a Stitch).
+    if (!ambiguousLevel && level! < this.flowLevel) {
       return null;
     }
 
-    let subFlow: FlowBase | null = this._subFlowsByName.get(name) || null;
+    const subFlow: FlowBase | null = this._subFlowsByName.get(name) || null;
 
-    if (subFlow && (level === null || level === subFlow.flowLevel)) {
+    if (subFlow && (ambiguousLevel || subFlow.flowLevel >= level!)) {
       return subFlow;
     }
 
@@ -462,28 +537,52 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   }
 
   public readonly CheckForDisallowedFunctionFlowControl = (): void => {
-    // if (!(this instanceof Knot)) { // cannont use Knot here because of circular dependancy
-    if (this.flowLevel !== FlowLevel.Knot) {
+    // Top-level functions parse as a Knot with `isFunction=true`.
+    // Nested functions parse as a `Function` (which always has
+    // `isFunction=true`). Anything else carrying `isFunction=true` is
+    // a misconfiguration — e.g. a Stitch being treated as a function.
+    if (
+      this.flowLevel !== FlowLevel.Knot &&
+      this.flowLevel !== FlowLevel.Function
+    ) {
       this.Error(
         "Functions cannot be stitches - i.e. they should be defined as '== function myFunc ==' rather than internal to another knot.",
       );
     }
 
-    // Not allowed sub-flows
+    // Non-function subflows aren't allowed in a function. Nested
+    // Functions are, since `Function` is the primitive for inline /
+    // nested callables (anonymous fns, nested function definitions,
+    // class methods).
     for (const [key, value] of this._subFlowsByName) {
+      if (value.flowLevel === FlowLevel.Function) continue;
       this.Error(
         `Functions may not contain stitches, but saw \`${key}\` within the function \`${this.identifier}\``,
         value,
       );
     }
 
+    // Empty function bodies (`function() end`) produce no _rootWeave
+    // — there's no content to construct one from. That's a valid Lua
+    // form (returns nothing, takes no effect), so just skip the
+    // contained-divert / contained-return checks below; there's
+    // nothing to check.
     if (!this._rootWeave) {
-      throw new Error();
+      return;
     }
 
     const allDiverts = this._rootWeave.FindAll<Divert>(Divert)();
     for (const divert of allDiverts) {
       if (!divert.isFunctionCall && !(divert.parent instanceof DivertTarget)) {
+        // Allow non-function-call diverts whose target is a weave point
+        // internal to this function. The runtime divert is a pointer
+        // move within the function's container hierarchy — it does NOT
+        // pop the function frame or leak control outside the function.
+        // Loop lowering emits this shape (e.g. `while` -> labeled
+        // gather).
+        if (this.divertTargetsInternalWeavePoint(divert)) {
+          continue;
+        }
         this.Error(
           `Functions may not contain diverts, but saw \`${divert}\``,
           divert,
@@ -498,6 +597,27 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         choice,
       );
     }
+  };
+
+  // True iff `divert`'s target is a weave point (gather/choice) that
+  // lives inside this function's own rootWeave. Used to allow
+  // back-jumps emitted by loop lowering — those stay within the
+  // function's container hierarchy at runtime, so they don't violate
+  // function purity.
+  public readonly divertTargetsInternalWeavePoint = (
+    divert: Divert,
+  ): boolean => {
+    if (!this._rootWeave) return false;
+    const target = divert.target;
+    if (!target || target.numberOfComponents !== 1) return false;
+    const targetName = target.firstComponent;
+    if (!targetName) return false;
+    if (this._rootWeave.WeavePointNamed(targetName)) return true;
+    const nestedWeaves = this._rootWeave.FindAll<Weave>(Weave)();
+    for (const w of nestedWeaves) {
+      if (w.WeavePointNamed(targetName)) return true;
+    }
+    return false;
   };
 
   public readonly WarningInTermination = (terminatingObject: ParsedObject) => {

@@ -1,0 +1,73 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // Compound task referenced by launch.json. The label is prefixed
+      // "F5:" so it can't be confused with the npm `watch` script in
+      // vscode-sparkdown/package.json (which
+      // runs every parallel watcher and never reports done).
+      "label": "F5: watch",
+      "dependsOn": ["F5: watch:extension", "F5: watch:screenplay-webview"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "F5: watch:extension",
+      "type": "shell",
+      "command": "node",
+      "args": ["scripts/esbuild.ts", "--watch"],
+      "options": {
+        "cwd": "${workspaceFolder}/vscode-sparkdown"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "watch"
+      },
+      "problemMatcher": {
+        "owner": "esbuild",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^✘ \\[ERROR\\] (.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "\\[watch\\] .+: build started",
+          "endsPattern": "\\[watch\\] .+: build finished"
+        }
+      }
+    },
+    {
+      "label": "F5: watch:screenplay-webview",
+      "type": "shell",
+      "command": "node",
+      "args": ["esbuild.js", "--watch"],
+      "options": {
+        "cwd": "${workspaceFolder}/vscode-sparkdown/webviews/screenplay-webview"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "watch"
+      },
+      "problemMatcher": {
+        "owner": "esbuild",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^✘ \\[ERROR\\] (.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "\\[watch\\] .+: build started",
+          "endsPattern": "\\[watch\\] .+: build finished"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Luau in the Browser</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Luau <span class="muted">/ WebAssembly demo</span></h1>
+        <p class="muted">
+          The <a href="https://github.com/luau-lang/luau" target="_blank" rel="noreferrer">Luau</a>
+          compiler and VM, built to WASM via Emscripten and loaded by Vite.
+        </p>
+      </header>
+
+      <section class="editor">
+        <label for="source">Luau source</label>
+        <textarea id="source" spellcheck="false" autocomplete="off"></textarea>
+        <div class="actions">
+          <button id="run" type="button" disabled>Run</button>
+          <button id="check" type="button" disabled>Type-check</button>
+          <span id="status" class="status">Loading WASM…</span>
+        </div>
+      </section>
+
+      <section class="output">
+        <label for="result">Output</label>
+        <pre id="result"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

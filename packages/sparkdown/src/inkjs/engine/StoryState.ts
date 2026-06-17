@@ -1,6 +1,6 @@
 import { CallStack } from "./CallStack";
 import { VariablesState } from "./VariablesState";
-import { ValueType, Value, StringValue, ListValue } from "./Value";
+import { ValueType, Value, StringValue, ListValue, ObjectValue } from "./Value";
 import { PushPopType } from "./PushPop";
 import { Tag } from "./Tag";
 import { Glue } from "./Glue";
@@ -680,6 +680,11 @@ export class StoryState {
   public LoadJsonObj(value: Record<string, any>) {
     let jObject = value;
 
+    // Fresh identity registry for this load — `{"objref": id}` table
+    // references resolve against the tables this load materializes,
+    // never a previous load's.
+    JsonSerialisation.ResetObjectLoadSession();
+
     let jSaveVersion = jObject["inkSaveVersion"];
     if (jSaveVersion == null) {
       throw new Error("ink save format incorrect, can't load.");
@@ -754,6 +759,15 @@ export class StoryState {
     this.variablesState.SetJsonToken(jObject["variablesState"]);
     this.variablesState.callStack = this._currentFlow.callStack;
 
+    // `new`-instance tables saved with a `defref` carry only their store
+    // props + their class NAME. Now that globals are loaded, relink each
+    // one's metatable `__index` to the live (init-reconstructed) class
+    // global, so `getmetatable(inst).__index == TheClass` holds again.
+    JsonSerialisation.RelinkPendingDefineRefs((className) => {
+      const v = this.variablesState.GetVariableWithName(className);
+      return v instanceof ObjectValue ? v : null;
+    });
+
     this._evaluationStack = JsonSerialisation.JArrayToRuntimeObjList(
       jObject["evalStack"],
     );
@@ -789,6 +803,18 @@ export class StoryState {
     // var text = obj as StringValue;
     let text = asOrNull(obj, StringValue);
     if (text !== null) {
+      // Inside a string evaluation (BeginString..EndString) the text
+      // is a VALUE under construction, not display flow — newlines
+      // are literal characters (Lua multiline `[[...]]` strings and
+      // `"\n"` escapes must round-trip; `#"\n"` is 1). Skip the
+      // head/tail whitespace splitting and the newline trimming in
+      // PushToOutputStreamIndividual, which would otherwise drop a
+      // whitespace-only string's content entirely.
+      if (this.inStringEvaluation) {
+        this.outputStream.push(text);
+        this.OutputStreamDirty();
+        return;
+      }
       let listText = this.TrySplittingHeadTailWhitespace(text);
       if (listText !== null) {
         for (let textObj of listText) {

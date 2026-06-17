@@ -1,0 +1,2 @@
+store inventory = {coins=1}
+{plural(inventory.coins) | one="coin" | other="coins" end}

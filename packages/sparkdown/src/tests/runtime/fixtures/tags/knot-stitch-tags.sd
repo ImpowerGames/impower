@@ -1,0 +1,18 @@
+# author: Joe
+# version: 1.0
+This is the content
+done
+
+scene knot
+  # knot tag
+  Knot content
+  # end of knot tag
+  fin
+
+  branch stitch
+    # stitch tag
+    Stitch content
+    # this tag is below some content so isn't included in the static tags for the stitch
+    fin
+  end
+end

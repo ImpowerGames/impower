@@ -1,0 +1,90 @@
+sparkdown [0..15]
+ └─ LuauExplicitStatement [0..15]
+     ├─ LuauExplicitStatement_begin [0..2]
+     │   ├─ LuauExplicitStatement_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
+     │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+     │   │   └─ LuauExplicitStatementMark [0..1]: "&"
+     │   └─ LuauExplicitStatement_begin_c3 [1..2]
+     │       └─ RequiredWhitespace [1..2]: " "
+     ├─ LuauExplicitStatement_content [2..15]
+     │   ├─ LuauAccessPath [2..4]
+     │   │   ├─ LuauAccessPath_begin 2
+     │   │   ├─ LuauAccessPath_content [2..3]
+     │   │   │   └─ LuauAccessPart [2..3]
+     │   │   │       └─ LuauVariable [2..3]
+     │   │   │           └─ LuauVariable_c1 [2..3]
+     │   │   │               └─ LuauVariableName [2..3]: "x"
+     │   │   └─ LuauAccessPath_end [3..4]
+     │   │       └─ LuauAccessPath_end_c1 [3..4]
+     │   │           └─ LuauAccessPath_end_c1 [3..4]
+     │   │               └─ OptionalWhitespace [3..4]: " "
+     │   └─ LuauAssignmentOperation [4..15]
+     │       ├─ LuauAssignmentOperation_begin 4
+     │       │   └─ LuauAssignmentOperation_begin_c1 4
+     │       ├─ LuauAssignmentOperation_content [4..15]
+     │       │   ├─ LuauAssignmentOperator [4..6]
+     │       │   │   ├─ LuauAssignmentOperator_begin [4..6]
+     │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 4
+     │       │   │   │   │   └─ OptionalWhitespace 4
+     │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [4..5]: "="
+     │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [5..6]
+     │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
+     │       │   │   │           └─ OptionalWhitespace [5..6]: " "
+     │       │   │   └─ LuauAssignmentOperator_end 6
+     │       │   ├─ LuauAccessPath [6..8]
+     │       │   │   ├─ LuauAccessPath_begin 6
+     │       │   │   ├─ LuauAccessPath_content [6..7]
+     │       │   │   │   └─ LuauAccessPart [6..7]
+     │       │   │   │       └─ LuauVariable [6..7]
+     │       │   │   │           └─ LuauVariable_c1 [6..7]
+     │       │   │   │               └─ LuauVariableName [6..7]: "a"
+     │       │   │   └─ LuauAccessPath_end [7..8]
+     │       │   │       └─ LuauAccessPath_end_c1 [7..8]
+     │       │   │           └─ LuauAccessPath_end_c1 [7..8]
+     │       │   │               └─ OptionalWhitespace [7..8]: " "
+     │       │   └─ LuauArithmeticOperation [8..15]
+     │       │       ├─ LuauArithmeticOperation_begin 8
+     │       │       │   └─ LuauArithmeticOperation_begin_c1 8
+     │       │       ├─ LuauArithmeticOperation_content [8..15]
+     │       │       │   ├─ LuauArithmeticOperator [8..10]
+     │       │       │   │   ├─ LuauArithmeticOperator_begin [8..10]
+     │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 8
+     │       │       │   │   │   │   └─ OptionalWhitespace 8
+     │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [8..9]: "+"
+     │       │       │   │   │   └─ LuauArithmeticOperator_begin_c3 [9..10]
+     │       │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [9..10]
+     │       │       │   │   │           └─ OptionalWhitespace [9..10]: " "
+     │       │       │   │   └─ LuauArithmeticOperator_end 10
+     │       │       │   ├─ LuauAccessPath [10..12]
+     │       │       │   │   ├─ LuauAccessPath_begin 10
+     │       │       │   │   ├─ LuauAccessPath_content [10..11]
+     │       │       │   │   │   └─ LuauAccessPart [10..11]
+     │       │       │   │   │       └─ LuauVariable [10..11]
+     │       │       │   │   │           └─ LuauVariable_c1 [10..11]
+     │       │       │   │   │               └─ LuauVariableName [10..11]: "b"
+     │       │       │   │   └─ LuauAccessPath_end [11..12]
+     │       │       │   │       └─ LuauAccessPath_end_c1 [11..12]
+     │       │       │   │           └─ LuauAccessPath_end_c1 [11..12]
+     │       │       │   │               └─ OptionalWhitespace [11..12]: " "
+     │       │       │   ├─ LuauArithmeticOperator [12..14]
+     │       │       │   │   ├─ LuauArithmeticOperator_begin [12..14]
+     │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c1 12
+     │       │       │   │   │   │   └─ OptionalWhitespace 12
+     │       │       │   │   │   ├─ LuauArithmeticOperator_begin_c2 [12..13]: "*"
+     │       │       │   │   │   └─ LuauArithmeticOperator_begin_c3 [13..14]
+     │       │       │   │   │       └─ LuauArithmeticOperator_begin_c3 [13..14]
+     │       │       │   │   │           └─ OptionalWhitespace [13..14]: " "
+     │       │       │   │   └─ LuauArithmeticOperator_end 14
+     │       │       │   └─ LuauAccessPath [14..15]
+     │       │       │       ├─ LuauAccessPath_begin 14
+     │       │       │       ├─ LuauAccessPath_content [14..15]
+     │       │       │       │   └─ LuauAccessPart [14..15]
+     │       │       │       │       └─ LuauVariable [14..15]
+     │       │       │       │           └─ LuauVariable_c1 [14..15]
+     │       │       │       │               └─ LuauVariableName [14..15]: "c"
+     │       │       │       └─ LuauAccessPath_end 15
+     │       │       │           └─ LuauAccessPath_end_c1 15
+     │       │       └─ LuauArithmeticOperation_end 15
+     │       └─ LuauAssignmentOperation_end 15
+     └─ LuauExplicitStatement_end 15

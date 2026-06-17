@@ -1,0 +1,120 @@
+sparkdown [0..23]
+ └─ LuauExplicitStatement [0..23]
+     ├─ LuauExplicitStatement_begin [0..2]
+     │   ├─ LuauExplicitStatement_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
+     │   ├─ LuauExplicitStatement_begin_c2 [0..1]
+     │   │   └─ LuauExplicitStatementMark [0..1]: "&"
+     │   └─ LuauExplicitStatement_begin_c3 [1..2]
+     │       └─ RequiredWhitespace [1..2]: " "
+     ├─ LuauExplicitStatement_content [2..23]
+     │   ├─ LuauAccessPath [2..4]
+     │   │   ├─ LuauAccessPath_begin 2
+     │   │   ├─ LuauAccessPath_content [2..3]
+     │   │   │   └─ LuauAccessPart [2..3]
+     │   │   │       └─ LuauVariable [2..3]
+     │   │   │           └─ LuauVariable_c1 [2..3]
+     │   │   │               └─ LuauVariableName [2..3]: "x"
+     │   │   └─ LuauAccessPath_end [3..4]
+     │   │       └─ LuauAccessPath_end_c1 [3..4]
+     │   │           └─ LuauAccessPath_end_c1 [3..4]
+     │   │               └─ OptionalWhitespace [3..4]: " "
+     │   └─ LuauAssignmentOperation [4..23]
+     │       ├─ LuauAssignmentOperation_begin 4
+     │       │   └─ LuauAssignmentOperation_begin_c1 4
+     │       ├─ LuauAssignmentOperation_content [4..23]
+     │       │   ├─ LuauAssignmentOperator [4..6]
+     │       │   │   ├─ LuauAssignmentOperator_begin [4..6]
+     │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 4
+     │       │   │   │   │   └─ OptionalWhitespace 4
+     │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [4..5]: "="
+     │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [5..6]
+     │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [5..6]
+     │       │   │   │           └─ OptionalWhitespace [5..6]: " "
+     │       │   │   └─ LuauAssignmentOperator_end 6
+     │       │   ├─ LuauAccessPath [6..8]
+     │       │   │   ├─ LuauAccessPath_begin 6
+     │       │   │   ├─ LuauAccessPath_content [6..7]
+     │       │   │   │   └─ LuauAccessPart [6..7]
+     │       │   │   │       └─ LuauVariable [6..7]
+     │       │   │   │           └─ LuauVariable_c1 [6..7]
+     │       │   │   │               └─ LuauVariableName [6..7]: "a"
+     │       │   │   └─ LuauAccessPath_end [7..8]
+     │       │   │       └─ LuauAccessPath_end_c1 [7..8]
+     │       │   │           └─ LuauAccessPath_end_c1 [7..8]
+     │       │   │               └─ OptionalWhitespace [7..8]: " "
+     │       │   └─ LuauCompareOperation [8..23]
+     │       │       ├─ LuauCompareOperation_begin 8
+     │       │       │   └─ LuauCompareOperation_begin_c1 8
+     │       │       ├─ LuauCompareOperation_content [8..23]
+     │       │       │   ├─ LuauCompareOperator [8..11]
+     │       │       │   │   ├─ LuauCompareOperator_begin [8..11]
+     │       │       │   │   │   ├─ LuauCompareOperator_begin_c1 8
+     │       │       │   │   │   │   └─ OptionalWhitespace 8
+     │       │       │   │   │   ├─ LuauCompareOperator_begin_c2 [8..10]: "=="
+     │       │       │   │   │   └─ LuauCompareOperator_begin_c3 [10..11]
+     │       │       │   │   │       └─ LuauCompareOperator_begin_c3 [10..11]
+     │       │       │   │   │           └─ OptionalWhitespace [10..11]: " "
+     │       │       │   │   └─ LuauCompareOperator_end 11
+     │       │       │   ├─ LuauAccessPath [11..13]
+     │       │       │   │   ├─ LuauAccessPath_begin 11
+     │       │       │   │   ├─ LuauAccessPath_content [11..12]
+     │       │       │   │   │   └─ LuauAccessPart [11..12]
+     │       │       │   │   │       └─ LuauVariable [11..12]
+     │       │       │   │   │           └─ LuauVariable_c1 [11..12]
+     │       │       │   │   │               └─ LuauVariableName [11..12]: "b"
+     │       │       │   │   └─ LuauAccessPath_end [12..13]
+     │       │       │   │       └─ LuauAccessPath_end_c1 [12..13]
+     │       │       │   │           └─ LuauAccessPath_end_c1 [12..13]
+     │       │       │   │               └─ OptionalWhitespace [12..13]: " "
+     │       │       │   └─ LuauLogicalOperation [13..23]
+     │       │       │       ├─ LuauLogicalOperation_begin 13
+     │       │       │       │   └─ LuauLogicalOperation_begin_c1 13
+     │       │       │       ├─ LuauLogicalOperation_content [13..23]
+     │       │       │       │   ├─ LuauLogicalOperator [13..17]
+     │       │       │       │   │   ├─ LuauLogicalOperator_begin [13..17]
+     │       │       │       │   │   │   ├─ LuauLogicalOperator_begin_c1 13
+     │       │       │       │   │   │   │   └─ OptionalWhitespace 13
+     │       │       │       │   │   │   ├─ LuauLogicalOperator_begin_c2 [13..16]: "and"
+     │       │       │       │   │   │   └─ LuauLogicalOperator_begin_c3 [16..17]
+     │       │       │       │   │   │       └─ LuauLogicalOperator_begin_c3 [16..17]
+     │       │       │       │   │   │           └─ OptionalWhitespace [16..17]: " "
+     │       │       │       │   │   └─ LuauLogicalOperator_end 17
+     │       │       │       │   ├─ LuauAccessPath [17..19]
+     │       │       │       │   │   ├─ LuauAccessPath_begin 17
+     │       │       │       │   │   ├─ LuauAccessPath_content [17..18]
+     │       │       │       │   │   │   └─ LuauAccessPart [17..18]
+     │       │       │       │   │   │       └─ LuauVariable [17..18]
+     │       │       │       │   │   │           └─ LuauVariable_c1 [17..18]
+     │       │       │       │   │   │               └─ LuauVariableName [17..18]: "c"
+     │       │       │       │   │   └─ LuauAccessPath_end [18..19]
+     │       │       │       │   │       └─ LuauAccessPath_end_c1 [18..19]
+     │       │       │       │   │           └─ LuauAccessPath_end_c1 [18..19]
+     │       │       │       │   │               └─ OptionalWhitespace [18..19]: " "
+     │       │       │       │   └─ LuauCompareOperation [19..23]
+     │       │       │       │       ├─ LuauCompareOperation_begin 19
+     │       │       │       │       │   └─ LuauCompareOperation_begin_c1 19
+     │       │       │       │       ├─ LuauCompareOperation_content [19..23]
+     │       │       │       │       │   ├─ LuauCompareOperator [19..22]
+     │       │       │       │       │   │   ├─ LuauCompareOperator_begin [19..22]
+     │       │       │       │       │   │   │   ├─ LuauCompareOperator_begin_c1 19
+     │       │       │       │       │   │   │   │   └─ OptionalWhitespace 19
+     │       │       │       │       │   │   │   ├─ LuauCompareOperator_begin_c2 [19..21]: "=="
+     │       │       │       │       │   │   │   └─ LuauCompareOperator_begin_c3 [21..22]
+     │       │       │       │       │   │   │       └─ LuauCompareOperator_begin_c3 [21..22]
+     │       │       │       │       │   │   │           └─ OptionalWhitespace [21..22]: " "
+     │       │       │       │       │   │   └─ LuauCompareOperator_end 22
+     │       │       │       │       │   └─ LuauAccessPath [22..23]
+     │       │       │       │       │       ├─ LuauAccessPath_begin 22
+     │       │       │       │       │       ├─ LuauAccessPath_content [22..23]
+     │       │       │       │       │       │   └─ LuauAccessPart [22..23]
+     │       │       │       │       │       │       └─ LuauVariable [22..23]
+     │       │       │       │       │       │           └─ LuauVariable_c1 [22..23]
+     │       │       │       │       │       │               └─ LuauVariableName [22..23]: "d"
+     │       │       │       │       │       └─ LuauAccessPath_end 23
+     │       │       │       │       │           └─ LuauAccessPath_end_c1 23
+     │       │       │       │       └─ LuauCompareOperation_end 23
+     │       │       │       └─ LuauLogicalOperation_end 23
+     │       │       └─ LuauCompareOperation_end 23
+     │       └─ LuauAssignmentOperation_end 23
+     └─ LuauExplicitStatement_end 23

@@ -1,0 +1,14 @@
+{six() + two()}
+done
+
+function two()
+  return 2
+end
+
+function four()
+  return two() + two()
+end
+
+function six()
+  return four() + two()
+end

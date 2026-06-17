@@ -1,0 +1,10 @@
+scene Main
+  branch AfterWish
+    if trust >= 1 then
+      N: Let's go.
+      -> Alley
+    else
+      fin
+    end
+  end
+end

@@ -1,0 +1,6 @@
+local x = 1
+if true then
+  x = 99
+end
+{x}
+done

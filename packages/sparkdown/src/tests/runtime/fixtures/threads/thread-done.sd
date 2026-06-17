@@ -1,0 +1,15 @@
+-> main
+scene main
+  Before threading.
+  <- side
+  After threading.
+  choose
+    * "Continue"
+      fin
+
+  end
+end
+scene side
+  In the thread.
+  done
+end

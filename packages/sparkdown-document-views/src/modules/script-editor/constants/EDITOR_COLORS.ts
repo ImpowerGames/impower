@@ -15,7 +15,6 @@ const EDITOR_COLORS = {
   info: "#0da2e7",
 
   bracket: "#FFD700",
-  operator: "#A0A0A0",
 
   panel: "hsl(210.6, 100%, 10%)",
   panelBorder: "hsl(210.6, 70%, 15%)",
@@ -52,14 +51,23 @@ const EDITOR_COLORS = {
   struct: "#79ABFF",
   tag: "#79ABFF",
 
+  title: "#D7BA7D",
+
   keyword: "#569CD6",
-  definitionKeyword: "#FF80BB",
+  operator: "#A0A0A0",
   operatorKeyword: "#FFA8D1",
+  specialOperator: "#A0A0A0",
   typeName: "#4EC9B0",
+  typeNameDefinition: "#4EC9B0",
   propertyName: "#9CDCFE",
-  variableName: "#4FC1FF",
+  variableName: "#9CDCFE",
+  constantVariableName: "#4FC1FF",
   attributeName: "#D7BA7D",
   functionName: "#DCDCAA",
+  builtin: "#FF80BB",
+  standardFunction: "#FAB387",
+  standardType: "#4EC9B0",
+  parameterName: "#9CDCFE",
   className: "#FFB380",
   string: "#CE9178",
   number: "#B5CEA8",

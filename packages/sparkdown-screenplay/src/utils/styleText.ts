@@ -150,31 +150,6 @@ export const styleText = (
             }
             continue;
           }
-          // Flow Tag
-          if (char === "=") {
-            let id = "";
-            const startIndex = i;
-            i += 1;
-            while (chars[i] && chars[i] !== "=") {
-              id += chars[i];
-              i += 1;
-            }
-            const closed = chars[i] === "=";
-            if (closed) {
-              i += 1;
-              // consume trailing whitespace
-              while (i < chars.length) {
-                if (!isSpace(chars[i])) {
-                  break;
-                }
-                i += 1;
-              }
-            } else {
-              i = startIndex;
-              escaped = true;
-            }
-            continue;
-          }
           // Style Tag
           const styleMarker = MARKERS.find(
             (marker) => marker === chars.slice(i, i + marker.length).join(""),

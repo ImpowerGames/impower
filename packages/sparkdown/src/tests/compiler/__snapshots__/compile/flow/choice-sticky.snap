@@ -1,0 +1,33 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Weave",
+          "content": [
+            {
+              "type": "Choice",
+              "label": null,
+              "onceOnly": false,
+              "inner": [
+                {
+                  "type": "Text",
+                  "text": " "
+                },
+                {
+                  "type": "Divert",
+                  "path": [
+                    "WishAnswers"
+                  ],
+                  "isTunnel": false,
+                  "isThread": false
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

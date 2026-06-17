@@ -1,0 +1,2 @@
+function check(x: number, y: number)
+end

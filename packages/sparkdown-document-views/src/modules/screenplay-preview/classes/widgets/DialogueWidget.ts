@@ -31,8 +31,19 @@ export interface DialogueSpec extends DecorationSpec {
 }
 
 export default class DialogueWidget extends BlockWidget<DialogueSpec> {
-  override toDOM(_view: EditorView) {
-    const container = document.createElement("div");
+  // Populate (or repopulate) `container` with the widget's contents
+  // based on the current spec. Used by both toDOM (fresh element) and
+  // updateDOM (reusing the existing element).
+  //
+  // We blank out `style` and `innerHTML` first so updateDOM produces
+  // the same attribute string as a fresh toDOM. Without the reset,
+  // setting a style that already exists keeps its existing order,
+  // and adding new styles (e.g. transitioning a single->dual render)
+  // appends at the end — making the rendered DOM diverge from the
+  // from-scratch render even when both show the same content.
+  renderInto(container: HTMLElement) {
+    container.removeAttribute("style");
+    container.innerHTML = "";
     container.style.pointerEvents = "none";
     container.style.marginLeft = "auto";
     container.style.marginRight = "auto";
@@ -62,7 +73,32 @@ export default class DialogueWidget extends BlockWidget<DialogueSpec> {
         );
       }
     }
+  }
+
+  override toDOM(_view: EditorView) {
+    const container = document.createElement("div");
+    this.renderInto(container);
     return container;
+  }
+
+  // Refresh the existing widget DOM in place when CodeMirror swaps an
+  // old DialogueWidget instance for a new one with different content.
+  // Without this method, CM's WidgetView.sync() falls through to
+  // toDOM() — but only the FIRST time. After that, sync() isn't
+  // triggered again for the same widget position, even when the
+  // decoration set changes. Returning true from updateDOM tells CM
+  // "I handled the swap; don't re-create" and is the only signal
+  // that reliably keeps the widget content in sync during sequential
+  // edits on large docs (where the parser catches up after the
+  // initial paint but the widget DOM otherwise stays stale).
+  //
+  // Pairs with `block: true` on the dual-dialogue decoration in
+  // screenplayFormatting.ts — only BlockWidgetView.sync() actually
+  // calls updateDOM in the post-initial-render path; the inline
+  // WidgetView path skips it.
+  override updateDOM(dom: HTMLElement, _view: EditorView): boolean {
+    this.renderInto(dom);
+    return true;
   }
 
   getEstimatedLineCount(block: MarkupContent[]) {

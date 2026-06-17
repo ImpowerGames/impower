@@ -1,0 +1,45 @@
+sparkdown [0..14]
+ ├─ Divert [0..13]
+ │   ├─ Divert_begin [0..2]
+ │   │   ├─ Divert_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   └─ Divert_begin_c2 [0..2]
+ │   │       └─ DivertMark [0..2]: "->"
+ │   ├─ Divert_content [2..13]
+ │   │   ├─ DivertTarget [2..6]
+ │   │   │   ├─ DivertTarget_begin [2..3]
+ │   │   │   │   └─ DivertTarget_begin_c1 [2..3]
+ │   │   │   │       └─ DivertTarget_begin_c1 [2..3]
+ │   │   │   │           └─ OptionalWhitespace [2..3]: " "
+ │   │   │   ├─ DivertTarget_content [3..6]
+ │   │   │   │   └─ DivertPath [3..6]
+ │   │   │   │       ├─ DivertPath_begin 3
+ │   │   │   │       ├─ DivertPath_content [3..6]
+ │   │   │   │       │   └─ DivertPart [3..6]
+ │   │   │   │       │       └─ DivertPartName [3..6]: "Foo"
+ │   │   │   │       └─ DivertPath_end 6
+ │   │   │   └─ DivertTarget_end 6
+ │   │   └─ Tunnel [6..13]
+ │   │       ├─ Tunnel_begin [6..9]
+ │   │       │   ├─ Tunnel_begin_c1 [6..7]
+ │   │       │   │   └─ Tunnel_begin_c1 [6..7]
+ │   │       │   │       └─ OptionalWhitespace [6..7]: " "
+ │   │       │   └─ Tunnel_begin_c2 [7..9]
+ │   │       │       └─ DivertMark [7..9]: "->"
+ │   │       ├─ Tunnel_content [9..13]
+ │   │       │   └─ DivertTarget [9..13]
+ │   │       │       ├─ DivertTarget_begin [9..10]
+ │   │       │       │   └─ DivertTarget_begin_c1 [9..10]
+ │   │       │       │       └─ DivertTarget_begin_c1 [9..10]
+ │   │       │       │           └─ OptionalWhitespace [9..10]: " "
+ │   │       │       ├─ DivertTarget_content [10..13]
+ │   │       │       │   └─ DivertPath [10..13]
+ │   │       │       │       ├─ DivertPath_begin 10
+ │   │       │       │       ├─ DivertPath_content [10..13]
+ │   │       │       │       │   └─ DivertPart [10..13]
+ │   │       │       │       │       └─ DivertPartName [10..13]: "Bar"
+ │   │       │       │       └─ DivertPath_end 13
+ │   │       │       └─ DivertTarget_end 13
+ │   │       └─ Tunnel_end 13
+ │   └─ Divert_end 13
+ └─ Newline [13..14]: "\n"

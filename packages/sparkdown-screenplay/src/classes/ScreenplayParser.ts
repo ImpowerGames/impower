@@ -27,13 +27,22 @@ export default class ScreenplayParser {
     let choice_suffix = "";
     let character = "";
     let position: "l" | "r" | undefined = undefined;
-    let isBlankLine = true;
+    let lineStart = 0;
     const read = (from: number, to: number) => script.slice(from, to);
 
     const addSeparator = () => {
       if (tokens.at(-1)?.tag !== "separator") {
         tokens.push({ tag: "separator" });
       }
+    };
+
+    // Returns true if the source range contains only spaces/tabs.
+    const isWhitespaceOnly = (start: number, end: number): boolean => {
+      for (let i = start; i < end; i++) {
+        const c = script.charCodeAt(i);
+        if (c !== 0x20 && c !== 0x09) return false;
+      }
+      return true;
     };
 
     tree.iterate({
@@ -73,13 +82,18 @@ export default class ScreenplayParser {
           }
         }
         if (name === "Newline") {
-          if (isBlankLine) {
-            // Add separator for blank lines
+          // A line is "blank" if everything between the previous newline (or
+          // start of script) and this newline is only spaces/tabs. We check
+          // the source directly rather than tracking a flag across node
+          // visits, because the grammar wraps whitespace-only "blank" lines
+          // in `BlockLineBlank > BlockLineBlank_c1 > Indent` (whose `to >
+          // from` would otherwise be mis-read as "this line has content").
+          // The flag-based approach was fragile to changes in the grammar's
+          // wrapper node names.
+          if (isWhitespaceOnly(lineStart, from)) {
             addSeparator();
           }
-          isBlankLine = true;
-        } else if (to > from && name !== "sparkdown" && name !== "Whitespace") {
-          isBlankLine = false;
+          lineStart = to;
         }
 
         // FrontMatter

@@ -1,0 +1,21 @@
+text.source.sparkdown [0..22]
+ ├─ keyword.other.statement.explicit.luau.mark.sd [0..1]: "&"
+ ├─ punctuation.whitespace.required.sd [1..2]: " "
+ ├─ variable.other.readwrite.luau [2..3]: "x"
+ ├─ punctuation.whitespace.optional.sd [3..4]: " "
+ ├─ keyword.operator.assignment.luau [4..5]: "="
+ ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ ├─ keyword.operator.logical.luau [6..9]
+ │   └─ keyword.operator.wordlike.luau [6..9]: "not"
+ ├─ punctuation.whitespace.optional.sd [9..10]: " "
+ ├─ variable.other.readwrite.luau [10..11]: "a"
+ ├─ punctuation.whitespace.optional.sd [11..12]: " "
+ ├─ keyword.operator.logical.luau [12..15]
+ │   └─ keyword.operator.wordlike.luau [12..15]: "and"
+ ├─ punctuation.whitespace.optional.sd [15..16]: " "
+ ├─ variable.other.readwrite.luau [16..17]: "b"
+ ├─ punctuation.whitespace.optional.sd [17..18]: " "
+ ├─ keyword.operator.logical.luau [18..20]
+ │   └─ keyword.operator.wordlike.luau [18..20]: "or"
+ ├─ punctuation.whitespace.optional.sd [20..21]: " "
+ └─ variable.other.readwrite.luau [21..22]: "c"

@@ -1,0 +1,5 @@
+shuffle cycle
+  | -> A
+  | -> B
+  | -> C
+end

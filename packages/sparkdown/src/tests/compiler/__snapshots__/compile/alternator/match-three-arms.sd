@@ -1,0 +1,5 @@
+match (player_class)
+  | warrior = -> Warrior
+  | mage = -> Mage
+  | other = -> Other
+end

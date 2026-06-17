@@ -1,0 +1,10 @@
+text.source.sparkdown [0..12]
+ ├─ keyword.control.divert.mark.sd [0..2]: "->"
+ ├─ keyword.control.divert.path.sd [2..11]
+ │   ├─ punctuation.whitespace.separator.optional.sd [2..3]: " "
+ │   ├─ entity.name.function.luau [3..8]: "place"
+ │   └─ meta.parameter.luau [8..11]
+ │       ├─ punctuation.definition.template-expression.begin.sd [8..9]: "("
+ │       ├─ constant.numeric.decimal.luau [9..10]: "5"
+ │       └─ punctuation.definition.template-expression.end.sd [10..11]: ")"
+ └─ Newline [11..12]: "\n"

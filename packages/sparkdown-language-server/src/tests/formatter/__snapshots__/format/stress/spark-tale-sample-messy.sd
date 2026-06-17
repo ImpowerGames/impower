@@ -1,0 +1,338 @@
+  define   companion   as   character   with
+    store   trust   =   0
+  end
+
+   define   O   as   companion   with
+        name   =   "Orion"  ,
+        color   =   "teal"
+   end
+
+define   N   as   character   with
+        name   =   "Nova"  ,
+        color   =   "violet"
+end
+
+const   TIME_OF_DAY   =   {
+   MORNING   =   1  ,
+       AFTERNOOON   =   2  ,
+  NIGHT   =   3  ,
+}
+
+  store   currentTimeOfDay   =   TIME_OF_DAY.NIGHT
+store   foundTheAlley   =   false
+  store   inventory   =   {
+     stars   =   0  ,
+       coins   =   0
+  }
+
+const   MAX_TRUST   =   10
+
+^:   THE TALE OF THE SPARK
+
+scene   Rooftop
+   [[  show backdrop rooftop_night  ]]
+   ((  play   music   stars  ))
+
+   $:   A MOONLIT ROOFTOP - {format(  currentTimeOfDay  )}
+
+   They walk forward and stand near the edge.
+
+  N:   Do you *see* it? A trail across the clouds.
+
+    O:
+       A meteor.
+       Make a wish.
+
+   +   [Courage.]   ->   WishCourage
+    +   [Answers.]   ->   WishAnswers
+
+   branch   WishCourage
+      [[  show portrait nova_smile over 50ms  ]]
+      N:   Then let's be brave together.
+      ->   AfterWish
+   end
+
+   branch   WishAnswers
+      O:   Answers come with a price.
+      ->   AfterWish
+   end
+
+   branch   AfterWish
+      if   trust   >=   1   then
+         N:   I trust you. Let's follow it.
+         [[  hide stage over 1s  ]]
+         ->   Alley
+      else
+         O:   Stay a while. Watch the sky.
+         ((  stop   music   over 2s  ))
+         ->   END
+      end
+   end
+end
+
+scene   Alley
+
+   [[  show backdrop alley_neon  ]]
+   ((  play   music   stars  ))
+   ((  play   sound   step   looping  ))
+
+   $:   A DARK ALLEYWAY - {format(  currentTimeOfDay  )}
+   They enter the alley.
+
+   &   foundTheAlley   =   true
+
+   O:   Footprints... glowing?
+
+   [[  animate stage with shake over 0.5s  ]]
+   N:   The star fell *here*.
+
+   +   [I'll protect it.]   ->   ProtectStar
+   +   [Let's take it.]   ->   TakeStar
+
+   branch   ProtectStar
+      ->   GainTrust(   companion.O   )   ->
+      ->   PassTime()   ->
+   end
+
+   branch   TakeStar
+      &   inventory.star   +=   1
+      ->   DisplayInventory()   ->
+      ->   LoseTrust(   companion.O   )   ->
+      ->   PassTime()   ->
+   end
+end
+
+scene   LoseTrust(c: companion)
+   if   c.trust   ==   0   then
+      {c.name} doesn't trust you at all.
+   else
+      &   c.trust   -=   1
+      {c.name} trusts you a little less...
+   end
+end
+
+scene   GainTrust(c: companion)
+   if   c.trust   ==   MAX_TRUST   then
+      {c.name} really trusts you.
+   else
+      &   c.trust   +=   1
+      {c.name} trusts you a little more...
+   end
+end
+
+scene   DisplayInventory()
+   You now have {inventory.stars} {plural(inventory.stars){one="star",other="stars"}} and {inventory.coins} {plural(inventory.coins){one="coin",other="coins"}}.
+end
+
+scene   PassTime()
+   %:   A few hours later...
+   &   advance_time()
+end
+
+function   format(   enum  :   {[string]: number}  ,   value  :   number   )
+   for   k  ,   v   in   enum   do
+      if   v   ==   value   then   return   k   end
+   end
+end
+
+function   reset()
+   currentTimeOfDay   =   TIME_OF_DAY.NIGHT
+   foundTheAlley   =   0
+   inventory.stars   =   0
+   inventory.coins   =   0
+   for   k  ,   v   in   pairs(   companion   )   do
+      v.trust   =   0
+      log(`reset companion {key} ({v.name})`)
+   end
+end
+
+function   advance_time(   count  :   number   )
+   currentTimeOfDay   +=   1
+   if   currentTimeOfDay   >   #TIME_OF_DAY   then
+      currentTimeOfDay   =   1
+   end
+end
+
+------------------------------------------------
+-- CONDITIONAL ALTERNATORS --
+------------------------------------------------
+
+-- Matching --
+-- Useful for reacting to distinct, non-linear player states (class, background, faction). --
+The captain inspects your weaponry.
+match   (   player_class   )
+   |   warrior   =   "Ah, a front-line meat shield," she notes.
+   |   mage   =   "Ah, a scholar of the arcane," she notes.
+   |   rogue   =   "Ah, someone who prefers the shadows," she notes.
+   |   other   =   "Ah, a fresh recruit," she notes.
+end
+
+-- Pluralization --
+-- Useful for dynamic inventory or party-size descriptions without awkward "(s)" suffixes. --
+You check your leather pouch.
+plural   (   potion_count   )
+   |   zero   =   It's completely empty.
+   |   one   =   There is only one health potion left.
+   |   other   =   It rattles with {potion_count} health potions.
+end
+
+------------------------------------------------
+-- SEQUENTIAL ALTERNATORS --
+------------------------------------------------
+
+-- Queue: Plays sequentially and stops. --
+-- Useful for progressive, one-time events where repeating the last item wouldn't make sense. --
+-- A, B, C (Then empty/stops) --
+You wind up the toy robot again.
+queue
+   |   It takes a few clunky steps forward then stops.
+   |   It takes another step, sparks flying from its gears.
+   |   With a loud *POP*, the main spring snaps!
+end
+
+-- Cycle: Plays sequentially, then loops. --
+-- Useful for processes that repeat in a specific order across multiple visits. --
+-- A, B, C, A, B, C, A... --
+You continue watching the blacksmith.
+cycle
+   |   He graps a raw iron bar.
+   |   He heats the bar in the blazing coals.
+   |   He strikes the glowing metal rhythmically on the anvil.
+   |   He plunges the shaped blade into a barrel of water with a loud hiss.
+end
+
+-- Chain: Plays sequentially, then repeats the last item. --
+-- Useful for a changing state that reaches a permanent conclusion. --
+-- A, B, C, C, C, C, C... --
+You press the suspect for more information.
+chain
+   |   "I don't know what you're talking about," he sneers.
+   |   "I swear, I wasn't there!" he sweats.
+   |   "Look buddy, I won't say anything else until my lawyer arrives!" he shouts.
+   |   He glares at you silently.
+end
+
+-- Shuffled Queue: Randomizes all, then plays sequentially until empty. --
+-- Useful for drawing from a finite pool where an unpredictable order is essential (like a deck of cards). --
+-- B, C, A (Then empty/stops) --
+You draw another card from the mystic's deck. It reveals ..
+shuffle   queue
+   |   The Fool.
+   |   The Tower.
+   |   The Magician.
+end
+
+-- Shuffled Cycle: Randomizes all, plays them, then loops (often reshuffling). --
+-- Useful for unpredictable, organic background noise that shouldn't feel like a scripted, repeating pattern. --
+-- B, C, A, C, A, B... --
+You tune the broken radio dial to another station and hear ..
+shuffle   cycle
+   |   a few bars of an old jazz song.
+   |   a frantic voice asking for coordinates.
+   |   an automated weather broadcast.
+   |   heavy, distorted breathing.
+end
+
+-- Shuffled Chain: Randomizes all EXCEPT the last item, then repeats the last item forever. --
+-- Useful for taking randomly from a finite pool of items. --
+-- B, A, C, D, D, D... --
+You blindly reach your hand into the murky pond to see what you can find.
+shuffle   chain
+   |   Your fingers brush against a smooth glass bottle.
+   |   You pull up a handful of slimy weeds.
+   |   You snag a rusted silver locket.
+   |   You just grasp handfuls of mud. There's nothing else down there.
+end
+
+------------------------------------------------
+-- USING ALTERNATORS INSIDE FUNCTIONS --
+------------------------------------------------
+
+-- (Remember that functions can only display strings by returning them)
+function   interrogate()
+   return   (
+      chain
+         |   `"I don't know what you're talking about," he sneers.`
+         |   `"I swear, I wasn't there!" he sweats.`
+         |   `"Look buddy, I won't say anything else until my lawyer arrives!" he shouts.`
+         |   `He glares at you silently.`
+      end
+   )
+end
+
+function   check_inventory()
+   return   (
+      plural   (   potion_count   )
+         |   zero   =   `It's completely empty.`
+         |   one   =   `There is only one health potion left.`
+         |   other   =   `It rattles with {potion_count} health potions.`
+      end
+   )
+end
+
+-- Alternators can also be written on a single-line
+function   count_geese(   n  :   number   )
+   return   `There {plural(n)|one="is"|other="are"} {n} {plural(n)|one="goose"|other="geese"}.`
+end
+
+------------------------------------------------
+-- OOP Classes --
+------------------------------------------------
+
+define   Bird   with
+   canFly   =   true
+   isFlying   =   false
+   fly()
+      self.isFlying   =   true
+      print(   "I'm a bird and I'm flying!"   )
+   end
+end
+
+define   Penguin   as   Bird   with
+   canFly   =   false
+   isSwimming   =   false
+   fly()
+      print(   "Penguins can't fly..."   )
+   end
+   swim()
+      self.isSwimming   =   true
+      print(   "I'm a penguin and I'm swimming!"   )
+   end
+end
+
+-- =========================
+-- Usage
+-- =========================
+
+local   bird   =   new   Bird()
+&   bird:fly()
+local   penguin   =   new   Penguin()
+&   penguin:fly()
+&   penguin:swim()
+
+-- =========================
+-- Choose and Then
+-- =========================
+Marcus stands in the doorway. He's not smiling.
+choose
+   *   "What do you want?"
+      "An explanation."
+   *   "How did you find me?"
+      "Wasn't hard."
+   *   [Wait him out.]
+      The silence stretches. He frowns.
+      "Tell me what happened."
+      choose
+         *   "Nothing happened."
+            He laughs once, sharp. "Try again."
+         *   "Everything happened."
+            He goes very still.
+         *   "I can't talk about it."
+            "You can. You just don't want to."
+      then
+         He sits down without being asked.
+      end
+then   (   optional_label   )
+   "Either way, I'm not leaving until I hear it."
+end
+->   DONE

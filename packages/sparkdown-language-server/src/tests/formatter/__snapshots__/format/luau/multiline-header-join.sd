@@ -1,0 +1,50 @@
+function f()
+  if
+    trust >= 1
+  then
+    return 1
+  end
+
+  if
+    a == 1 and
+    b == 2 and
+    c == 3
+  then
+    return 1
+  end
+
+  while
+    cond
+  do
+    body
+  end
+
+  for
+    k, v in pairs(t)
+  do
+    body
+  end
+
+  if cond
+    then
+    body
+  end
+
+  -- Long condition stays multi-line (collapsed would exceed budget)
+  if
+    this_is_a_very_very_long_condition_name and
+    another_long_condition_name_that_just_keeps_going and
+    yet_another_long_condition_name_to_push_us_over_the_budget
+  then
+    body
+  end
+
+  -- User-style: condition starts on if line, then on its own line
+  if this_is_a_long_condition or
+    this_is_another_long_condition or
+    this_is_a_third_long_condition or
+    this_is_a_fourth_long_condition
+  then
+    whatever
+  end
+end

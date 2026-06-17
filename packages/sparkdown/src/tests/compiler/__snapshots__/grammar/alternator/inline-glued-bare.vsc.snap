@@ -1,0 +1,18 @@
+text.source.sparkdown [0..20]
+ ├─ string.display.text.chunk.sd [0..17]
+ │   ├─ markup.raw.text.sd [0..1]: "x"
+ │   ├─ punctuation.whitespace.sd [1..2]: " "
+ │   ├─ meta.glue.sd [2..4]
+ │   │   └─ keyword.other.glue.sd [2..4]: ".."
+ │   ├─ punctuation.whitespace.extra.sd [4..5]: " "
+ │   ├─ keyword.control.luau [5..10]: "queue"
+ │   ├─ keyword.operator.alternator.luau [10..11]: "|"
+ │   ├─ markup.raw.text.sd [11..12]: "a"
+ │   ├─ keyword.operator.alternator.luau [12..13]: "|"
+ │   ├─ markup.raw.text.sd [13..14]: "b"
+ │   ├─ keyword.operator.alternator.luau [14..15]: "|"
+ │   ├─ markup.raw.text.sd [15..16]: "c"
+ │   └─ punctuation.whitespace.extra.sd [16..17]: " "
+ ├─ meta.glue.sd [17..19]
+ │   └─ keyword.other.glue.sd [17..19]: ".."
+ └─ Newline [19..20]: "\n"

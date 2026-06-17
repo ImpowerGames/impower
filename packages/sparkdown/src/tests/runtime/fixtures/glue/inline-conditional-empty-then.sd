@@ -1,0 +1,5 @@
+A {if f() then "B"}
+X
+done
+
+function f() return false end

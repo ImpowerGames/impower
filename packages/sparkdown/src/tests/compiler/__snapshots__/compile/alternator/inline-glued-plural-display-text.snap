@@ -1,0 +1,176 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Divert",
+          "path": [
+            "main"
+          ],
+          "isTunnel": false,
+          "isThread": false
+        }
+      ]
+    }
+  ]
+}
+
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "main",
+      "args": [],
+      "isFunction": false
+    }
+  ]
+}
+
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Tag",
+          "start": true
+        },
+        {
+          "type": "Text",
+          "text": "action"
+        },
+        {
+          "type": "Tag",
+          "start": false
+        },
+        {
+          "type": "Text",
+          "text": "You have "
+        },
+        {
+          "type": "VariableReference",
+          "path": [
+            "n"
+          ]
+        },
+        {
+          "type": "Text",
+          "text": " "
+        },
+        {
+          "type": "Weave",
+          "content": [
+            {
+              "type": "Conditional",
+              "init": {
+                "type": "FunctionCall",
+                "name": "plural.category",
+                "args": [
+                  {
+                    "type": "VariableReference",
+                    "path": [
+                      "n"
+                    ]
+                  }
+                ]
+              },
+              "branches": [
+                {
+                  "type": "ConditionalSingleBranch",
+                  "isElse": false,
+                  "cond": {
+                    "type": "StringExpression",
+                    "content": [
+                      "one"
+                    ]
+                  },
+                  "body": [
+                    {
+                      "type": "Weave",
+                      "content": [
+                        {
+                          "type": "Text",
+                          "text": "apple"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "ConditionalSingleBranch",
+                  "isElse": false,
+                  "cond": {
+                    "type": "StringExpression",
+                    "content": [
+                      "other"
+                    ]
+                  },
+                  "body": [
+                    {
+                      "type": "Weave",
+                      "content": [
+                        {
+                          "type": "Text",
+                          "text": "apples"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Text",
+          "text": " in the basket."
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        }
+      ]
+    }
+  ]
+}
+
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Divert",
+          "path": [
+            "END"
+          ],
+          "isTunnel": false,
+          "isThread": false
+        }
+      ]
+    }
+  ]
+}
+
+{}
+
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "global",
+          "name": "n",
+          "expression": {
+            "type": "NumberExpression",
+            "value": 1,
+            "subtype": "int"
+          }
+        }
+      ]
+    }
+  ]
+}

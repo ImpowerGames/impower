@@ -321,8 +321,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const layeredImage = this.context?.layered_image?.[name];
       if (layeredImage) {
         const images: Image[] = [];
-        for (const image of Object.values(layeredImage.assets)) {
-          images.push(...this.getImageAssets(image.$type, image.$name));
+        // `assets` can be missing/empty for a malformed or not-yet-populated
+        // layered_image — guard so one bad struct doesn't throw
+        // `Object.values(undefined)` and abort the whole UI restore.
+        for (const image of Object.values(layeredImage.assets ?? {})) {
+          if (image && typeof image === "object") {
+            images.push(...this.getImageAssets(image.$type, image.$name));
+          }
         }
         return images;
       }
@@ -809,7 +814,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return {
         $type: animation.$type,
         $name: animation.$name,
-        target: animation.target,
+        // `target` is optional when authoring (e.g. `define pan_left as
+        // animation with keyframes = {...}`), so default it to the animated
+        // element itself — matching `default_animation`.
+        target: animation.target ?? { $type: "layer", $name: "self" },
         keyframes,
         timing,
       };
@@ -822,7 +830,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     animation: Animation,
     animationMap: Map<Element, Animation[]>,
   ) {
-    const selector = animation.target.$name;
+    const selector = animation.target?.$name ?? "self";
     const animateEls =
       selector === "self" || element.isMatch(selector)
         ? [element]

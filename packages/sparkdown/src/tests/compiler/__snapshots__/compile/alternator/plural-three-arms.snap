@@ -1,0 +1,101 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Conditional",
+          "init": {
+            "type": "FunctionCall",
+            "name": "plural.category",
+            "args": [
+              {
+                "type": "VariableReference",
+                "path": [
+                  "potion_count"
+                ]
+              }
+            ]
+          },
+          "branches": [
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": false,
+              "cond": {
+                "type": "StringExpression",
+                "content": [
+                  "zero"
+                ]
+              },
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Divert",
+                      "path": [
+                        "Empty"
+                      ],
+                      "isTunnel": false,
+                      "isThread": false
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": false,
+              "cond": {
+                "type": "StringExpression",
+                "content": [
+                  "one"
+                ]
+              },
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Divert",
+                      "path": [
+                        "One"
+                      ],
+                      "isTunnel": false,
+                      "isThread": false
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "ConditionalSingleBranch",
+              "isElse": false,
+              "cond": {
+                "type": "StringExpression",
+                "content": [
+                  "other"
+                ]
+              },
+              "body": [
+                {
+                  "type": "Weave",
+                  "content": [
+                    {
+                      "type": "Divert",
+                      "path": [
+                        "Many"
+                      ],
+                      "isTunnel": false,
+                      "isThread": false
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

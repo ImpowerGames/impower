@@ -1,0 +1,34 @@
+text.source.sparkdown [0..67]
+ ├─ meta.function.external.sd [0..19]
+ │   ├─ storage.modifier.external.sd [0..8]: "external"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..16]: "message"
+ │   └─ meta.parameter.luau [16..19]
+ │       ├─ punctuation.definition.template-expression.begin.sd [16..17]: "("
+ │       ├─ variable.parameter.function.luau [17..18]: "x"
+ │       └─ punctuation.definition.template-expression.end.sd [18..19]: ")"
+ ├─ Newline [19..20]: "\n"
+ ├─ meta.function.external.sd [20..43]
+ │   ├─ storage.modifier.external.sd [20..28]: "external"
+ │   ├─ punctuation.whitespace.optional.sd [28..29]: " "
+ │   ├─ entity.name.function.luau [29..37]: "multiply"
+ │   └─ meta.parameter.luau [37..43]
+ │       ├─ punctuation.definition.template-expression.begin.sd [37..38]: "("
+ │       ├─ variable.parameter.function.luau [38..39]: "x"
+ │       ├─ keyword.operator.comma.luau [39..40]: ","
+ │       ├─ punctuation.whitespace.optional.sd [40..41]: " "
+ │       ├─ variable.parameter.function.luau [41..42]: "y"
+ │       └─ punctuation.definition.template-expression.end.sd [42..43]: ")"
+ ├─ Newline [43..44]: "\n"
+ ├─ meta.function.external.sd [44..66]
+ │   ├─ storage.modifier.external.sd [44..52]: "external"
+ │   ├─ punctuation.whitespace.optional.sd [52..53]: " "
+ │   ├─ entity.name.function.luau [53..58]: "times"
+ │   └─ meta.parameter.luau [58..66]
+ │       ├─ punctuation.definition.template-expression.begin.sd [58..59]: "("
+ │       ├─ variable.parameter.function.luau [59..60]: "i"
+ │       ├─ keyword.operator.comma.luau [60..61]: ","
+ │       ├─ punctuation.whitespace.optional.sd [61..62]: " "
+ │       ├─ variable.parameter.function.luau [62..65]: "str"
+ │       └─ punctuation.definition.template-expression.end.sd [65..66]: ")"
+ └─ Newline [66..67]: "\n"

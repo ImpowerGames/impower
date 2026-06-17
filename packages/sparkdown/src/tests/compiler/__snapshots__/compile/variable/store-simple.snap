@@ -1,0 +1,19 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "global",
+          "name": "score",
+          "expression": {
+            "type": "NumberExpression",
+            "value": 0,
+            "subtype": "int"
+          }
+        }
+      ]
+    }
+  ]
+}

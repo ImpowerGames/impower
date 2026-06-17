@@ -1,0 +1,32 @@
+text.source.sparkdown [0..52]
+ ├─ string.display.text.chunk.sd [0..33]
+ │   ├─ markup.raw.text.sd [0..4]: "Here"
+ │   ├─ markup.raw.space.sd [4..5]: " "
+ │   ├─ markup.raw.text.sd [5..7]: "is"
+ │   ├─ markup.raw.space.sd [7..8]: " "
+ │   ├─ markup.raw.text.sd [8..12]: "some"
+ │   ├─ markup.raw.space.sd [12..13]: " "
+ │   ├─ markup.raw.text.sd [13..17]: "text"
+ │   ├─ punctuation.whitespace.sd [17..18]: " "
+ │   ├─ meta.glue.sd [18..20]
+ │   │   └─ keyword.other.glue.sd [18..20]: ".."
+ │   ├─ punctuation.whitespace.extra.sd [20..21]: " "
+ │   ├─ keyword.control.luau [21..26]: "queue"
+ │   ├─ keyword.operator.alternator.luau [26..27]: "|"
+ │   ├─ markup.raw.text.sd [27..28]: "a"
+ │   ├─ keyword.operator.alternator.luau [28..29]: "|"
+ │   ├─ markup.raw.text.sd [29..30]: "b"
+ │   ├─ keyword.operator.alternator.luau [30..31]: "|"
+ │   ├─ markup.raw.text.sd [31..32]: "c"
+ │   └─ punctuation.whitespace.extra.sd [32..33]: " "
+ ├─ meta.glue.sd [33..35]
+ │   └─ keyword.other.glue.sd [33..35]: ".."
+ ├─ string.display.text.chunk.sd [35..51]
+ │   ├─ markup.raw.space.sd [35..36]: " "
+ │   ├─ markup.raw.text.sd [36..39]: "and"
+ │   ├─ markup.raw.space.sd [39..40]: " "
+ │   ├─ markup.raw.text.sd [40..44]: "more"
+ │   ├─ markup.raw.space.sd [44..45]: " "
+ │   ├─ markup.raw.text.sd [45..50]: "after"
+ │   └─ markup.raw.punctuation.sd [50..51]: "."
+ └─ Newline [51..52]: "\n"

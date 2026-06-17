@@ -1,0 +1,29 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "name": "companion",
+          "struct": {
+            "type": "StructDefinition",
+            "name": "companion",
+            "parent": "character",
+            "props": [
+              {
+                "type": "StructPropertyDefinition",
+                "name": "trust",
+                "expression": {
+                  "type": "NumberExpression",
+                  "value": 0,
+                  "subtype": "int"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

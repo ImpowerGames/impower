@@ -1,0 +1,5 @@
+plural (potion_count)
+  | zero = -> Empty
+  | one = -> One
+  | other = -> Many
+end

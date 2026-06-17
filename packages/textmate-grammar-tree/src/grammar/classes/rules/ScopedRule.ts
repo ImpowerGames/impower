@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { NodeID } from "../../../core/enums/NodeID";
 import { Wrapping } from "../../enums/Wrapping";
 import {
   MatchRuleDefinition,
@@ -161,6 +162,27 @@ export class ScopedRule implements Rule {
         break;
       }
     }
+    // Final end-pattern check for rules that legitimately close at end-of-
+    // input via a lookahead (e.g. `(?=$)`). Without this, the loop exits
+    // via `pos >= state.str.length` without ever calling `this.end()` on
+    // the final iteration, and the rule appears incomplete even though it
+    // closed correctly.
+    if (!endMatched && pos >= state.str.length) {
+      endMatched = this.end(state, pos);
+    }
+    // If we reached end-of-input without the `end` pattern matching, treat
+    // that as a natural close rather than an incomplete scope. The scope
+    // ran out of source — not necessarily because the grammar is wrong,
+    // just because there's no more text to parse. Suppressing the warning
+    // here saves every author from having to add a redundant `(?=$)` /
+    // `(?![\s\S])` EOF lookalternative to every `end:` pattern, and the
+    // `INCOMPLETE_NODE` marker is also skipped because the tree is fine —
+    // the scope simply truncates at EOF.
+    //
+    // Genuine mid-content failures (loop fell out of patterns at a
+    // position that is NOT end-of-input) still fire the warning + add
+    // the error marker below.
+    const closedAtEof = !endMatched && pos >= state.str.length;
     if (contentChildren.length === 1) {
       const wrapped = contentChildren[0]!.wrap(
         this.contentRule.node,
@@ -190,9 +212,11 @@ export class ScopedRule implements Rule {
       wrappedContentChildren = wrapped;
     }
 
-    if (endMatched) {
-      wrappedEndChildren.push(endMatched.children?.[0]!);
-      totalLength += endMatched.length;
+    if (endMatched || closedAtEof) {
+      if (endMatched) {
+        wrappedEndChildren.push(endMatched.children?.[0]!);
+        totalLength += endMatched.length;
+      }
       state.exit(this.id, from);
       return Matched.create(this.node, from, totalLength, [
         ...wrappedBeginChildren,
@@ -200,11 +224,32 @@ export class ScopedRule implements Rule {
         ...wrappedEndChildren,
       ]);
     } else {
-      // No end matched: incomplete scope
-      // TODO: Mark node as incomplete?
+      // Incomplete scope: the `end` pattern never matched mid-content
+      // (and we're not at end-of-input, which would have been handled
+      // by the `closedAtEof` branch above). This usually means the
+      // rule's `patterns:` list is missing an include for some
+      // construct that appears inside the body — the parser ran the
+      // patterns, ran out, did the forced final end-check, and that
+      // still didn't match. So it had to give up and return without
+      // closing.
+      //
+      // We surface this by appending an `INCOMPLETE_NODE` child (the
+      // prebuilt error-typed node from `Grammar.nodes[NodeID.incomplete]`)
+      // at the end of the scope's children. The error type flows
+      // through `Tree.build` so the resulting tree node is `isError`,
+      // which `printTree` already renders in red — visible in any
+      // snapshot diff or `dumpTree` output without spamming stderr
+      // during every parse.
+      const incompleteMarker = Matched.create(
+        this.repo.grammar.nodes[NodeID.incomplete]!,
+        from + totalLength,
+        0,
+      );
+
       const incompleteNode = Matched.create(this.node, from, totalLength, [
         ...wrappedBeginChildren,
         ...wrappedContentChildren,
+        incompleteMarker,
       ]);
       state.exit(this.id, from);
       return incompleteNode;

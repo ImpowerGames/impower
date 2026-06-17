@@ -1,0 +1,17 @@
+function empty()
+end
+
+function alsoEmpty()
+
+end
+
+function notEmpty()
+  return 1
+end
+
+define EmptyDef with
+end
+
+define HasFields with
+  x = 1
+end

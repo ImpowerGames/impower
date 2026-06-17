@@ -7,6 +7,43 @@ export class ControlCommand extends InkObject {
     return this._commandType;
   }
 
+  // For `RunStdLibFunction` ControlCommands — carry the source-level
+  // builtin name (e.g. `"assert"`, `"plural.category"`) and the call-
+  // site arity. These are populated by `RunStdLib(name, arity)` and
+  // read by both the runtime dispatcher (looks up `STDLIB[name]`
+  // and pops `arity` args) and the JSON serializer (encodes as
+  // `"stdlib:<name>:<arity>"`). Unused for other ControlCommand types.
+  public _stdLibName: string = "";
+  public _stdLibArity: number = 0;
+
+  // For `PackTuple` / `UnpackTuple` ControlCommands — carry the
+  // arity (number of values to pack into a `MultiValue`, or number
+  // of slots to unpack the top `MultiValue` into). Populated by
+  // `PackTuple(n)` / `UnpackTuple(n)` and read by both the runtime
+  // dispatcher and the JSON serializer (encoded as `"pack:<n>"` /
+  // `"unpack:<n>"`).
+  public _tupleArity: number = 0;
+
+  // For `CallValueAsFunction` ControlCommands — carry the call-site
+  // arg count so the runtime closure dispatch can pad missing args
+  // with `nil` when the closure expects more parameters than the
+  // caller supplied (Luau semantics: `local function foo(a, b) return
+  // b end; foo(1)` → b is nil). Without this, `extractClosurePath`
+  // would pop garbage from the caller's eval context. Default is -1
+  // meaning "not set" so we can distinguish "call site provided no
+  // arg count info" (legacy/missing) from "0 args".
+  public _callValueArgCount: number = -1;
+
+  // For `ShortCircuit` ControlCommands — Lua `and`/`or` short-circuit
+  // evaluation. `_shortCircuitOp` is "and" or "or"; `_shortCircuitSkipCount`
+  // is how many content elements (the RHS operand's ops) to jump over
+  // when the LHS alone decides the result. Populated by
+  // `ShortCircuit(op, n)` (the count is patched in by
+  // `BinaryExpression.GenerateIntoContainer` after the RHS is
+  // generated) and encoded as `"sc:<op>:<n>"` in JSON.
+  public _shortCircuitOp: string = "";
+  public _shortCircuitSkipCount: number = 0;
+
   constructor(
     commandType: ControlCommand.CommandType = ControlCommand.CommandType.NotSet,
   ) {
@@ -15,7 +52,14 @@ export class ControlCommand extends InkObject {
   }
 
   public Copy() {
-    return new ControlCommand(this.commandType);
+    const copy = new ControlCommand(this.commandType);
+    copy._stdLibName = this._stdLibName;
+    copy._stdLibArity = this._stdLibArity;
+    copy._tupleArity = this._tupleArity;
+    copy._callValueArgCount = this._callValueArgCount;
+    copy._shortCircuitOp = this._shortCircuitOp;
+    copy._shortCircuitSkipCount = this._shortCircuitSkipCount;
+    return copy;
   }
   public static EvalStart() {
     return new ControlCommand(ControlCommand.CommandType.EvalStart);
@@ -47,23 +91,11 @@ export class ControlCommand extends InkObject {
   public static NoOp() {
     return new ControlCommand(ControlCommand.CommandType.NoOp);
   }
-  public static ChoiceCount() {
-    return new ControlCommand(ControlCommand.CommandType.ChoiceCount);
-  }
-  public static Turns() {
-    return new ControlCommand(ControlCommand.CommandType.Turns);
-  }
   public static TurnsSince() {
     return new ControlCommand(ControlCommand.CommandType.TurnsSince);
   }
   public static ReadCount() {
     return new ControlCommand(ControlCommand.CommandType.ReadCount);
-  }
-  public static Random() {
-    return new ControlCommand(ControlCommand.CommandType.Random);
-  }
-  public static SeedRandom() {
-    return new ControlCommand(ControlCommand.CommandType.SeedRandom);
   }
   public static VisitIndex() {
     return new ControlCommand(ControlCommand.CommandType.VisitIndex);
@@ -95,6 +127,81 @@ export class ControlCommand extends InkObject {
   public static EndTag() {
     return new ControlCommand(ControlCommand.CommandType.EndTag);
   }
+  public static BeginObject() {
+    return new ControlCommand(ControlCommand.CommandType.BeginObject);
+  }
+  public static EndObject() {
+    return new ControlCommand(ControlCommand.CommandType.EndObject);
+  }
+  public static IndexValue() {
+    return new ControlCommand(ControlCommand.CommandType.IndexValue);
+  }
+  public static StoreIndex() {
+    return new ControlCommand(ControlCommand.CommandType.StoreIndex);
+  }
+  public static CallValueAsFunction(argCount: number = -1) {
+    const cmd = new ControlCommand(ControlCommand.CommandType.CallValueAsFunction);
+    cmd._callValueArgCount = argCount;
+    return cmd;
+  }
+  public static BeginScope() {
+    return new ControlCommand(ControlCommand.CommandType.BeginScope);
+  }
+  public static EndScope() {
+    return new ControlCommand(ControlCommand.CommandType.EndScope);
+  }
+  // Generic state-aware stdlib call. Pops `arity` args from the eval
+  // stack and calls `STDLIB[name].fn(story, args)`. The
+  // registered function may push a return value back onto the stack
+  // (for value-returning builtins like `tostring`) or return
+  // undefined (for side-effecting ones like `assert`). See StdLib.ts
+  // for the registry. Adding a new state-aware Luau builtin is a
+  // one-line entry there — no new ControlCommand opcode, no
+  // FunctionCall dispatch branch, no Story.ts runtime case.
+  public static RunStdLib(name: string, arity: number) {
+    const cmd = new ControlCommand(
+      ControlCommand.CommandType.RunStdLibFunction,
+    );
+    cmd._stdLibName = name;
+    cmd._stdLibArity = arity;
+    return cmd;
+  }
+  // `PackTuple(n)` — at runtime: pop `n` values off the eval stack
+  // and push one `MultiValue` wrapping them (in original push-order:
+  // first-pushed value at index 0). Emitted by the multi-return
+  // lowering for `return a, b, c`.
+  public static PackTuple(arity: number) {
+    const cmd = new ControlCommand(ControlCommand.CommandType.PackTuple);
+    cmd._tupleArity = arity;
+    return cmd;
+  }
+  // `UnpackTuple(n)` — at runtime: pop the top eval-stack slot.
+  // If it's a `MultiValue`, push the first `n` inner values in
+  // REVERSE order (so subsequent `Pop`s receive value-0 first).
+  // If it's a regular value, push it as value-0 followed by `n-1`
+  // `NullValue`s. Emitted by the multi-target assignment lowering
+  // for `local a, b = expr`.
+  public static UnpackTuple(arity: number) {
+    const cmd = new ControlCommand(ControlCommand.CommandType.UnpackTuple);
+    cmd._tupleArity = arity;
+    return cmd;
+  }
+  // `ShortCircuit(op, n)` — at runtime: peek the top eval-stack value
+  // (the LHS of a Lua `and`/`or`). If the LHS alone decides the result
+  // (falsy for `and`, truthy for `or` — Lua truthiness), leave it on
+  // the stack as the expression result and jump over the next `n`
+  // content elements (the RHS operand's ops). Otherwise pop it and
+  // fall through into the RHS ops, whose result becomes the
+  // expression's value. Emitted by `BinaryExpression` for `and`/`or`
+  // so the untaken operand is never evaluated (Lua short-circuit —
+  // `t and t.field` must not index a nil `t`, and metamethod-bearing
+  // operands must not dispatch from the untaken branch).
+  public static ShortCircuit(op: string, skipCount: number = 0) {
+    const cmd = new ControlCommand(ControlCommand.CommandType.ShortCircuit);
+    cmd._shortCircuitOp = op;
+    cmd._shortCircuitSkipCount = skipCount;
+    return cmd;
+  }
   public toString() {
     return "ControlCommand " + this.commandType.toString();
   }
@@ -113,22 +220,62 @@ export namespace ControlCommand {
     BeginString, // 7
     EndString, // 8
     NoOp, // 9
-    ChoiceCount, // 10
-    Turns, // 11
-    TurnsSince, // 12
-    ReadCount, // 13
-    Random, // 14
-    SeedRandom, // 15
-    VisitIndex, // 16
-    SequenceShuffleIndex, // 17
-    StartThread, // 18
-    Done, // 19
-    End, // 20
-    ListFromInt, // 21
-    ListRange, // 22
-    ListRandom, // 23
-    BeginTag, // 24
-    EndTag, // 25
+    TurnsSince, // 10
+    ReadCount, // 11
+    VisitIndex, // 12
+    SequenceShuffleIndex, // 13
+    StartThread, // 14
+    Done, // 15
+    End, // 16
+    ListFromInt, // 17
+    ListRange, // 18
+    ListRandom, // 19
+    BeginTag, // 20
+    EndTag, // 21
+    BeginObject, // 22
+    EndObject, // 23
+    IndexValue, // 24
+    StoreIndex, // 25
+    // Pops a `DivertTargetValue` off the eval stack, then pushes a Function
+    // call-stack frame and diverts to the target's path. Args for the call
+    // must already be on the eval stack below the target — they remain there
+    // for the function's parameter-binding bytecode at entry to consume.
+    // Used by the upcoming unified-ObjectValue method-dispatch design:
+    // `obj:method(a, b)` evaluates to "push receiver, push a, push b,
+    // load method as DivertTargetValue, CallValueAsFunction".
+    CallValueAsFunction, // 26
+
+    // Push / pop a temporary-variable scope frame on the current call-
+    // stack element. Sparkdown emits these around block bodies (`if`/
+    // `for`/`while`/`repeat`/`do`) so `local x` declarations follow
+    // Luau's block-scoping rules: an inner `local x` shadows an outer
+    // `x` for the rest of the inner block, and the outer `x` is visible
+    // again after EndScope. Without these markers, sparkdown would
+    // inherit ink's function-scoped `temp` semantics — surprising for
+    // anyone writing luau-style code.
+    BeginScope, // 27
+    EndScope, // 28
+
+    // Generic dispatcher for state-aware Luau builtins. Carries the
+    // function name + arity as instance data (`_stdLibName`,
+    // `_stdLibArity`) — JSON serialization encodes both into a single
+    // `"stdlib:<name>:<arity>"` token. Runtime looks up the name in
+    // `STDLIB` and pops `arity` args. See `RunStdLib()`.
+    RunStdLibFunction, // 29
+
+    // Lua/Luau multi-return support. `PackTuple` pops N values and
+    // pushes one `MultiValue` wrapping them — emitted by
+    // `return a, b, c`. `UnpackTuple` pops the top slot (MultiValue
+    // or single) and pushes N values padded with nil — emitted by
+    // `local a, b = expr` so each target's `VariableAssignment` can
+    // pop one value as usual. Both carry their N as `_tupleArity`.
+    PackTuple, // 30
+    UnpackTuple, // 31
+
+    // Lua `and`/`or` short-circuit jump. Carries the op kind
+    // (`_shortCircuitOp`) and the RHS op count to skip
+    // (`_shortCircuitSkipCount`). See `ShortCircuit()`.
+    ShortCircuit, // 32
 
     TOTAL_VALUES,
   }

@@ -1,0 +1,19 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "VariableAssignment",
+          "kind": "reassign",
+          "name": "x",
+          "expression": {
+            "type": "NumberExpression",
+            "value": 1,
+            "subtype": "int"
+          }
+        }
+      ]
+    }
+  ]
+}

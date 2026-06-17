@@ -44,7 +44,20 @@ const config = {
   outfile: "../../out/webviews/screenplay-webview.js",
   plugins: [esbuildProblemMatcher()],
   alias: {
+    // Force every transitive @codemirror/* import to resolve from THIS build
+    // root so we end up with one copy in the bundle. Without this, esbuild
+    // walks up from each importing file and can pick up multiple copies (one
+    // per package node_modules), and instanceof checks across copies fail.
+    "@codemirror/autocomplete": "@codemirror/autocomplete",
+    "@codemirror/collab": "@codemirror/collab",
+    "@codemirror/commands": "@codemirror/commands",
+    "@codemirror/language": "@codemirror/language",
+    "@codemirror/lint": "@codemirror/lint",
+    "@codemirror/search": "@codemirror/search",
+    "@codemirror/state": "@codemirror/state",
+    "@codemirror/view": "@codemirror/view",
     "@lezer/common": "@lezer/common",
+    "@lezer/highlight": "@lezer/highlight",
   },
 };
 

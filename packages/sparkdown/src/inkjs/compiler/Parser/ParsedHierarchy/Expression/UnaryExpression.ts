@@ -6,11 +6,15 @@ import { asOrNull } from "../../../../engine/TypeAssertion";
 
 export class UnaryExpression extends Expression {
   get nativeNameForOp(): string {
-    // Replace "-" with "_" to make it unique (compared to subtraction)
+    // Unary minus is aliased to `_` so it doesn't collide with binary
+    // subtraction's `-`. The length operator `#` is aliased to `LEN` because
+    // `#` is also a control-command name (BeginTag) in serialized JSON.
+    // Every other source keyword (`not`, etc.) flows through verbatim, so
+    // runtime errors and JSON output match what the user wrote.
     if (this.op === "-") {
       return "_";
-    } else if (this.op === "not") {
-      return "!";
+    } else if (this.op === "#") {
+      return "LEN";
     }
 
     return this.op;
@@ -33,11 +37,15 @@ export class UnaryExpression extends Expression {
         } else if (innerNumber.isFloat()) {
           return new NumberExpression(-innerNumber.value, "float");
         }
-      } else if (op == "!" || op == "not") {
-        if (innerNumber.isInt()) {
-          return new NumberExpression(innerNumber.value == 0, "bool");
-        } else if (innerNumber.isFloat()) {
-          return new NumberExpression(innerNumber.value == 0.0, "bool");
+      } else if (op == "not") {
+        // Lua truthiness: every number is truthy (only nil and false
+        // are falsy), so `not <number literal>` always folds to false.
+        // Folding `not 0` to true here would bake ink truthiness into
+        // the bytecode and contradict the runtime's Lua-correct `not`
+        // (NativeFunctionCall's special case). basic.luau line 86's
+        // section relies on 0 being truthy.
+        if (innerNumber.isInt() || innerNumber.isFloat()) {
+          return new NumberExpression(false, "bool");
         } else if (innerNumber.isBool()) {
           return new NumberExpression(!innerNumber.value, "bool");
         }

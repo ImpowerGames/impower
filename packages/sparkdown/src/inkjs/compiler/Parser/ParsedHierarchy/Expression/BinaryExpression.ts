@@ -1,9 +1,7 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
+import { ControlCommand } from "../../../../engine/ControlCommand";
 import { Expression } from "./Expression";
 import { NativeFunctionCall } from "../../../../engine/NativeFunctionCall";
-import { Story } from "../Story";
-import { UnaryExpression } from "./UnaryExpression";
-import { asOrNull } from "../../../../engine/TypeAssertion";
 
 export class BinaryExpression extends Expression {
   public readonly leftExpression: Expression;
@@ -27,50 +25,68 @@ export class BinaryExpression extends Expression {
   }
 
   public readonly GenerateIntoContainer = (container: RuntimeContainer) => {
+    this.opName = this.NativeNameForOp(this.opName);
+    // Lua `and`/`or` short-circuit: evaluate the LHS, then a
+    // `ShortCircuit` command either keeps it as the result and jumps
+    // over the RHS, or pops it and falls through into the RHS ops.
+    // The RHS is packaged in its own sub-container so the jump is
+    // always exactly ONE content element — counting raw RHS ops would
+    // break when the post-pass `FlattenContainersIn` dissolves
+    // unnamed inner containers and changes element counts. Eager
+    // generation (the non-short-circuit path below) is wrong for
+    // Lua: `t and t.field` must not index a nil `t`, and the untaken
+    // branch of `cond and a or b` must not evaluate at all
+    // (metamethod-bearing operands dispatch `__mul` etc. from the
+    // untaken branch and can recurse forever).
+    if (this.opName === "and" || this.opName === "or") {
+      this.leftExpression.GenerateIntoContainer(container);
+      container.AddContent(ControlCommand.ShortCircuit(this.opName, 1));
+      const rhsContainer = new RuntimeContainer();
+      this.rightExpression.GenerateIntoContainer(rhsContainer);
+      // Operator results adjust to ONE value (Lua): `3 and f()`
+      // where f multi-returns yields only f's FIRST value —
+      // `local a,b = 3 and f()` binds b to nil, not f's second
+      // return (constructs.luau line 137). UnpackTuple(1) truncates
+      // a MultiValue / coerces Void to nil / passes scalars through.
+      // (The LHS-decides path already truncates via the ShortCircuit
+      // handler's peek.)
+      rhsContainer.AddContent(ControlCommand.UnpackTuple(1));
+      container.AddContent(rhsContainer);
+      // Keep the wrapper intact — TryFlattenContainer would inline it
+      // into the parent and break the one-element jump.
+      this.story.DontFlattenContainer(rhsContainer);
+      return;
+    }
     this.leftExpression.GenerateIntoContainer(container);
     this.rightExpression.GenerateIntoContainer(container);
-    this.opName = this.NativeNameForOp(this.opName);
     container.AddContent(NativeFunctionCall.CallWithName(this.opName));
   };
 
-  public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
-
-    // Check for the following case:
-    //
-    //    (not A) ? B
-    //
-    // Since this easy to accidentally do:
-    //
-    //    not A ? B
-    //
-    // when you intend:
-    //
-    //    not (A ? B)
-    if (this.NativeNameForOp(this.opName) === "?") {
-      const leftUnary = asOrNull(this.leftExpression, UnaryExpression);
-      if (
-        leftUnary !== null &&
-        (leftUnary.op === "not" || leftUnary.op === "!")
-      ) {
-        this.Error(
-          `Using \`not\` or \`!\` here negates \`${leftUnary.innerExpression}\` rather than the result of the \`?\` or \`has\` operator. You need to add parentheses around the \`(A ? B)\` expression.`,
-        );
-      }
-    }
-  }
-
   public readonly NativeNameForOp = (opName: string): string => {
-    if (opName === "and") {
-      return "&&";
-    } else if (opName === "or") {
-      return "||";
-    } else if (opName === "mod") {
+    // Source keywords (`and`/`or`/`not`) flow through verbatim — the native
+    // functions are registered under the keyword form so error messages and
+    // JSON output match what the user wrote.
+    //
+    // Symbol aliases that map source-level Luau operators onto the
+    // existing ink runtime native names:
+    //   - `mod` → `%`: keyword form of the modulo symbol.
+    //   - `^`   → `POW`: Luau exponentiation (matching `math.pow`).
+    //   - `..` flows through as its OWN native op (a Lua-semantics
+    //     special case in `NativeFunctionCall.Call`): it stringifies
+    //     number operands (`1 .. 2` is "12", NOT 3 — the old `+`
+    //     alias ADDED numeric operands) and raises Lua's "attempt to
+    //     concatenate <type> with <type>" on nil/boolean/table
+    //     operands (basic.luau line 123 pattern-matches that message
+    //     through pcall).
+    if (opName === "mod") {
       return "%";
-    } else if (opName === "has") {
-      return "?";
-    } else if (opName === "hasnt") {
-      return "!?";
+    }
+    if (opName === "^") {
+      return NativeFunctionCall.Pow;
+    }
+    if (opName === "~=") {
+      // Luau not-equal — the runtime registers the C-style `!=` form.
+      return NativeFunctionCall.NotEquals;
     }
 
     return opName;

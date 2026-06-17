@@ -1,0 +1,7 @@
+function classify(n: number)
+  if n > 0 then
+    return "positive"
+  else
+    return "non-positive"
+  end
+end

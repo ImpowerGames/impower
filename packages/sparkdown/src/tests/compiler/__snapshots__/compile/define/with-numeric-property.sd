@@ -1,0 +1,3 @@
+define companion as character with
+  store trust = 0
+end

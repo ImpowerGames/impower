@@ -1,2 +1,11 @@
 out
 node_modules
+
+# Vendored upstream Luau conformance tests are COMMITTED. Unlike the
+# inkjs tests (which are reference-only), our conformance runner
+# (`UpstreamConformance.test.ts`) reads from `upstream/conformance/`
+# verbatim at every test run — so the files are load-bearing, not
+# just reference material. Committing them keeps tests deterministic
+# across machines and CI, and makes re-vendoring a reviewable commit
+# rather than an environment quirk. See `upstream/VENDORING.md` for
+# the re-vendor procedure.

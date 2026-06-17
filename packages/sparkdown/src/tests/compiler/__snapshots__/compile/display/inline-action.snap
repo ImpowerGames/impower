@@ -1,0 +1,29 @@
+{
+  "content": [
+    {
+      "type": "Weave",
+      "content": [
+        {
+          "type": "Tag",
+          "start": true
+        },
+        {
+          "type": "Text",
+          "text": "action"
+        },
+        {
+          "type": "Tag",
+          "start": false
+        },
+        {
+          "type": "Text",
+          "text": "Some action text."
+        },
+        {
+          "type": "Text",
+          "text": "\n"
+        }
+      ]
+    }
+  ]
+}

@@ -99,5 +99,8 @@
   "files.associations": {
     "*.css": "tailwindcss"
   },
-  "tailwindCSS.classFunctions": ["cn", "clsx", "cva", "twMerge"]
+  "tailwindCSS.classFunctions": ["cn", "clsx", "cva", "twMerge"],
+  "eslint.validate": ["javascript", "typescript", "yaml"],
+  "eslint.experimental.useFlatConfig": true,
+  "eslint.workingDirectories": [{ "pattern": "." }]
 }

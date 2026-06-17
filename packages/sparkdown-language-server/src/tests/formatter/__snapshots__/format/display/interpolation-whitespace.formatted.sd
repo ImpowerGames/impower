@@ -1,0 +1,6 @@
+N: There are {inventory.stars} items.
+M: Count is {count} total.
+A: Sum is {a + b}.
+T: Template `text { x . y }` here
+P: {plural(n)|one="is"|other="are"}
+F: {format(companion.trust)} trust

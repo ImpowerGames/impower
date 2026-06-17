@@ -1,0 +1,26 @@
+-> hub
+scene hub
+  You arrive at the town square.
+  <- merchant
+  <- guard
+  choose
+    * "Leave town"
+      fin
+
+  end
+end
+scene merchant
+  choose
+    * "What do you sell?"
+      fin
+  end
+  done
+
+end
+scene guard
+  choose
+    * "Any news?"
+      fin
+  end
+  done
+end

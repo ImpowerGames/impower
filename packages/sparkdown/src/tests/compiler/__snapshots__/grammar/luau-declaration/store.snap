@@ -1,0 +1,51 @@
+sparkdown [0..42]
+ └─ LuauVariableDefinition [0..42]
+     ├─ LuauVariableDefinition_begin [0..6]
+     │   ├─ LuauVariableDefinition_begin_c1 0
+     │   │   └─ OptionalWhitespace 0
+     │   ├─ LuauVariableDefinition_begin_c2 [0..5]
+     │   │   └─ LuauScopeModifier [0..5]: "store"
+     │   └─ LuauVariableDefinition_begin_c3 [5..6]
+     │       └─ LuauVariableDefinition_begin_c3 [5..6]
+     │           └─ OptionalWhitespace [5..6]: " "
+     ├─ LuauVariableDefinition_content [6..42]
+     │   └─ LuauVariableAssignment [6..42]
+     │       ├─ LuauVariableAssignment_begin [6..23]
+     │       │   ├─ LuauVariableAssignment_begin_c1 [6..22]
+     │       │   │   └─ LuauVariableName [6..22]: "currentTimeOfDay"
+     │       │   └─ LuauVariableAssignment_begin_c2 [22..23]
+     │       │       └─ OptionalWhitespace [22..23]: " "
+     │       ├─ LuauVariableAssignment_content [23..42]
+     │       │   └─ LuauAssignmentOperation [23..42]
+     │       │       ├─ LuauAssignmentOperation_begin 23
+     │       │       │   └─ LuauAssignmentOperation_begin_c1 23
+     │       │       ├─ LuauAssignmentOperation_content [23..42]
+     │       │       │   ├─ LuauAssignmentOperator [23..25]
+     │       │       │   │   ├─ LuauAssignmentOperator_begin [23..25]
+     │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 23
+     │       │       │   │   │   │   └─ OptionalWhitespace 23
+     │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [23..24]: "="
+     │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [24..25]
+     │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [24..25]
+     │       │       │   │   │           └─ OptionalWhitespace [24..25]: " "
+     │       │       │   │   └─ LuauAssignmentOperator_end 25
+     │       │       │   └─ LuauAccessPath [25..42]
+     │       │       │       ├─ LuauAccessPath_begin 25
+     │       │       │       ├─ LuauAccessPath_content [25..42]
+     │       │       │       │   ├─ LuauAccessPart [25..36]
+     │       │       │       │   │   └─ LuauVariable [25..36]
+     │       │       │       │   │       └─ LuauVariable_c1 [25..36]
+     │       │       │       │   │           └─ LuauVariableName [25..36]: "TIME_OF_DAY"
+     │       │       │       │   └─ LuauAccessPart [36..42]
+     │       │       │       │       └─ LuauPropertyAccessor [36..42]
+     │       │       │       │           ├─ LuauPropertyAccessor_c1 36
+     │       │       │       │           ├─ LuauPropertyAccessor_c2 [36..37]
+     │       │       │       │           │   └─ LuauAccessorOperator [36..37]: "."
+     │       │       │       │           ├─ LuauPropertyAccessor_c3 37
+     │       │       │       │           └─ LuauPropertyAccessor_c4 [37..42]
+     │       │       │       │               └─ LuauPropertyName [37..42]: "NIGHT"
+     │       │       │       └─ LuauAccessPath_end 42
+     │       │       │           └─ LuauAccessPath_end_c1 42
+     │       │       └─ LuauAssignmentOperation_end 42
+     │       └─ LuauVariableAssignment_end 42
+     └─ LuauVariableDefinition_end 42

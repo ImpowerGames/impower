@@ -1,0 +1,2 @@
+store x = false
+{not x and "yes" or "no"}

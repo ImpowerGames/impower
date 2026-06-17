@@ -1,0 +1,63 @@
+text.source.sparkdown [0..124]
+ ├─ meta.function.luau [0..26]
+ │   ├─ keyword.control.luau [0..8]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..15]: "plural"
+ │   └─ meta.parameter.luau [15..26]
+ │       ├─ punctuation.definition.template-expression.begin.sd [15..16]: "("
+ │       ├─ variable.parameter.function.luau [16..17]: "n"
+ │       ├─ keyword.operator.type.luau [17..18]: ":"
+ │       ├─ punctuation.whitespace.optional.sd [18..19]: " "
+ │       ├─ support.type.primitive.luau [19..25]: "number"
+ │       └─ punctuation.definition.template-expression.end.sd [25..26]: ")"
+ ├─ Newline [26..27]: "\n"
+ ├─ meta.function.luau [27..81]
+ │   └─ meta.function.body.luau [27..81]
+ │       └─ meta.function.luau [27..81]
+ │           ├─ punctuation.whitespace.optional.sd [27..29]: "  "
+ │           ├─ keyword.control.luau [29..35]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [35..36]: " "
+ │           └─ meta.function.luau [36..81]
+ │               ├─ keyword.control.luau [36..44]: "function"
+ │               ├─ punctuation.whitespace.optional.sd [44..45]: " "
+ │               └─ meta.parameter.luau [45..81]
+ │                   ├─ punctuation.definition.template-expression.begin.sd [45..46]: "("
+ │                   ├─ variable.parameter.function.luau [46..60]: "pluralizations"
+ │                   ├─ keyword.operator.type.luau [60..61]: ":"
+ │                   ├─ punctuation.whitespace.optional.sd [61..62]: " "
+ │                   ├─ punctuation.definition.template-expression.begin.sd [62..63]: "{"
+ │                   ├─ punctuation.definition.template-expression.begin.sd [63..64]: "["
+ │                   ├─ support.type.primitive.luau [64..70]: "string"
+ │                   ├─ punctuation.definition.template-expression.end.sd [70..71]: "]"
+ │                   ├─ keyword.operator.type.luau [71..72]: ":"
+ │                   ├─ punctuation.whitespace.optional.sd [72..73]: " "
+ │                   ├─ support.type.primitive.luau [73..79]: "string"
+ │                   ├─ punctuation.definition.template-expression.end.sd [79..80]: "}"
+ │                   └─ punctuation.definition.template-expression.end.sd [80..81]: ")"
+ ├─ Newline [81..82]: "\n"
+ ├─ meta.function.luau [82..114]
+ │   └─ meta.function.body.luau [82..114]
+ │       └─ meta.function.luau [82..114]
+ │           └─ meta.function.luau [82..114]
+ │               └─ meta.function.body.luau [82..114]
+ │                   └─ meta.function.luau [82..114]
+ │                       ├─ punctuation.whitespace.optional.sd [82..86]: "    "
+ │                       ├─ keyword.control.luau [86..92]: "return"
+ │                       ├─ punctuation.whitespace.optional.sd [92..93]: " "
+ │                       ├─ variable.other.readwrite.luau [93..107]: "pluralizations"
+ │                       ├─ punctuation.definition.template-expression.begin.sd [107..108]: "["
+ │                       ├─ string.quoted.double.luau [108..113]
+ │                       │   ├─ punctuation.definition.string.double.begin.sd [108..109]: "\""
+ │                       │   ├─ markup.raw.text.sd [109..112]: "one"
+ │                       │   └─ punctuation.definition.string.double.end.sd [112..113]: "\""
+ │                       └─ punctuation.definition.template-expression.end.sd [113..114]: "]"
+ ├─ Newline [114..115]: "\n"
+ ├─ meta.function.luau [115..120]
+ │   └─ meta.function.body.luau [115..120]
+ │       └─ meta.function.luau [115..120]
+ │           └─ meta.function.luau [115..120]
+ │               ├─ punctuation.whitespace.optional.sd [115..117]: "  "
+ │               └─ keyword.control.end.luau [117..120]: "end"
+ ├─ Newline [120..121]: "\n"
+ └─ meta.function.luau [121..124]
+     └─ keyword.control.end.luau [121..124]: "end"

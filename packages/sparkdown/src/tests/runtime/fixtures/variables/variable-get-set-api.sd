@@ -1,0 +1,17 @@
+-> main
+scene main
+  label start
+  {x}
+  choose
+    + [choice]
+  then
+    & i = i + 1
+    if i < 4 then
+      -> start
+    end
+  end
+  done
+
+end
+store x = 5
+store i = 0

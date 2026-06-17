@@ -152,7 +152,14 @@ export class Path {
       let minimumExpectedLevel: FlowLevel;
       let foundFlow = asOrNull(foundComponent, FlowBase);
       if (foundFlow !== null) {
-        minimumExpectedLevel = (foundFlow.flowLevel + 1) as FlowLevel;
+        if (foundFlow.flowLevel === FlowLevel.Function) {
+          // Functions are allowed to nest inside other Functions, so
+          // the next component may be at the same level (another
+          // Function) or deeper (a WeavePoint).
+          minimumExpectedLevel = FlowLevel.Function;
+        } else {
+          minimumExpectedLevel = (foundFlow.flowLevel + 1) as FlowLevel;
+        }
       } else {
         minimumExpectedLevel = FlowLevel.WeavePoint;
       }
@@ -184,12 +191,17 @@ export class Path {
     // null childLevel means that we don't know where to find it
     const ambiguousChildLevel: boolean = minimumLevel === null;
 
-    // Search for WeavePoint within Weave
+    // Search for WeavePoint within Weave. The check accepts any
+    // requested level at or shallower than WeavePoint — with the
+    // introduction of `FlowLevel.Function`, the `+1` rule in
+    // `ResolveTailComponents` can hand us `Function` as the minimum
+    // when really we're looking for a labeled gather/choice (a
+    // WeavePoint, which is deeper than Function).
     const weaveContext = asOrNull(context, Weave);
     if (
       childName &&
       weaveContext !== null &&
-      (ambiguousChildLevel || minimumLevel === FlowLevel.WeavePoint)
+      (ambiguousChildLevel || minimumLevel! <= FlowLevel.WeavePoint)
     ) {
       return weaveContext.WeavePointNamed(childName) as ParsedObject;
     }

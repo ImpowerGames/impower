@@ -1,0 +1,25 @@
+{
+  "content": [
+    {
+      "type": "Knot",
+      "name": "Main",
+      "args": [],
+      "isFunction": false
+    }
+  ]
+}
+
+{
+  "content": [
+    {
+      "type": "Stitch",
+      "name": "WishCourage",
+      "args": [],
+      "isFunction": false
+    }
+  ]
+}
+
+{}
+
+{}

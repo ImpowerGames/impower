@@ -1,0 +1,70 @@
+text.source.sparkdown [0..112]
+ ├─ meta.function.luau [0..21]
+ │   ├─ keyword.control.luau [0..8]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..14]: "tally"
+ │   └─ meta.parameter.luau [14..21]
+ │       ├─ punctuation.definition.template-expression.begin.sd [14..15]: "("
+ │       ├─ variable.parameter.function.luau [15..20]: "items"
+ │       └─ punctuation.definition.template-expression.end.sd [20..21]: ")"
+ ├─ Newline [21..22]: "\n"
+ ├─ meta.function.luau [22..33]
+ │   └─ meta.function.body.luau [22..33]
+ │       ├─ punctuation.whitespace.optional.sd [22..24]: "  "
+ │       ├─ variable.other.readwrite.luau [24..29]: "total"
+ │       ├─ punctuation.whitespace.optional.sd [29..30]: " "
+ │       ├─ keyword.operator.assignment.luau [30..31]: "="
+ │       ├─ punctuation.whitespace.optional.sd [31..32]: " "
+ │       └─ constant.numeric.decimal.luau [32..33]: "0"
+ ├─ Newline [33..34]: "\n"
+ ├─ meta.function.luau [34..53]
+ │   └─ meta.function.body.luau [34..53]
+ │       ├─ punctuation.whitespace.optional.sd [34..36]: "  "
+ │       ├─ keyword.control.for.luau [36..39]: "for"
+ │       ├─ punctuation.whitespace.optional.sd [39..40]: " "
+ │       ├─ variable.other.readwrite.luau [40..41]: "i"
+ │       ├─ punctuation.whitespace.required.sd [41..42]: " "
+ │       ├─ keyword.control.end.luau [42..44]: "in"
+ │       ├─ punctuation.whitespace.required.sd [44..45]: " "
+ │       ├─ variable.other.readwrite.luau [45..50]: "items"
+ │       ├─ punctuation.whitespace.optional.sd [50..51]: " "
+ │       └─ keyword.control.do.luau [51..53]: "do"
+ ├─ Newline [53..54]: "\n"
+ ├─ meta.function.luau [54..75]
+ │   └─ meta.function.body.luau [54..75]
+ │       ├─ punctuation.whitespace.optional.sd [54..58]: "    "
+ │       ├─ variable.other.readwrite.luau [58..63]: "total"
+ │       ├─ punctuation.whitespace.optional.sd [63..64]: " "
+ │       ├─ keyword.operator.assignment.luau [64..65]: "="
+ │       ├─ punctuation.whitespace.optional.sd [65..66]: " "
+ │       ├─ variable.other.readwrite.luau [66..71]: "total"
+ │       ├─ punctuation.whitespace.optional.sd [71..72]: " "
+ │       ├─ keyword.operator.arithmetic.luau [72..73]: "+"
+ │       ├─ punctuation.whitespace.optional.sd [73..74]: " "
+ │       └─ variable.other.readwrite.luau [74..75]: "i"
+ ├─ Newline [75..76]: "\n"
+ ├─ meta.function.luau [76..86]
+ │   └─ meta.function.body.luau [76..86]
+ │       ├─ punctuation.whitespace.optional.sd [76..80]: "    "
+ │       ├─ variable.other.readwrite.luau [80..81]: "n"
+ │       ├─ punctuation.whitespace.optional.sd [81..82]: " "
+ │       ├─ keyword.operator.assignment.luau [82..84]: "+="
+ │       ├─ punctuation.whitespace.optional.sd [84..85]: " "
+ │       └─ constant.numeric.decimal.luau [85..86]: "1"
+ ├─ Newline [86..87]: "\n"
+ ├─ meta.function.luau [87..92]
+ │   └─ meta.function.body.luau [87..92]
+ │       ├─ punctuation.whitespace.optional.sd [87..89]: "  "
+ │       └─ keyword.control.end.luau [89..92]: "end"
+ ├─ Newline [92..93]: "\n"
+ ├─ meta.function.luau [93..107]
+ │   └─ meta.function.body.luau [93..107]
+ │       └─ meta.function.luau [93..107]
+ │           ├─ punctuation.whitespace.optional.sd [93..95]: "  "
+ │           ├─ keyword.control.luau [95..101]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [101..102]: " "
+ │           └─ variable.other.readwrite.luau [102..107]: "total"
+ ├─ Newline [107..108]: "\n"
+ ├─ meta.function.luau [108..111]
+ │   └─ keyword.control.end.luau [108..111]: "end"
+ └─ Newline [111..112]: "\n"

@@ -1,0 +1,6 @@
+x = foo()
+y =foo(a)
+z= foo(a,b)
+w = foo( a , b , c )
+nested=foo(bar(a),baz(b,c))
+method = obj.method(arg1,arg2)
