@@ -287,6 +287,12 @@ export class Game<T extends M = {}> {
     if (this._program.styles) {
       this._context["style"] = this._program.styles;
     }
+    // Source file-derived + implicit-def assets from the dedicated channel.
+    if (this._program.assets) {
+      for (const [type, structs] of Object.entries(this._program.assets)) {
+        this._context[type] = structs;
+      }
+    }
 
     // Override default modules with custom ones if specified
     const allModules = {

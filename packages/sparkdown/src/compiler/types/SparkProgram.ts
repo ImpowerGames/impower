@@ -43,6 +43,11 @@ export interface SparkProgram {
   screens?: { [name: string]: any };
   components?: { [name: string]: any };
   styles?: { [name: string]: any };
+  // Dedicated engine-facing channel for file-derived assets (image / audio /
+  // font) and compiler-inferred implicit defs (filtered_image), keyed by type
+  // then name. Lets the Game runtime read assets without the LSP-only
+  // program.context. Derived from `context` after asset population.
+  assets?: { [type: string]: { [name: string]: any } };
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };

@@ -550,7 +550,7 @@ export class SparkdownCompiler {
     this.populateDeclarationLocations(program);
     this.sortPathLocations(program);
     this.buildContext(state, program);
-    this.populateUIChannel(program);
+    this.populateEngineChannels(program);
     if (!this._config.skipValidation) {
       this.validateSyntax(program);
       this.validateReferences(program);
@@ -1421,16 +1421,17 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "buildContext", uri);
   }
 
-  /** Mirror the fully-assembled `context.screen` / `context.component` into the
-   *  dedicated `program.screens` / `program.components` channel the Game runtime
-   *  reads — so the engine can source screens WITHOUT touching the LSP-only
+  /** Mirror the fully-assembled engine-facing context types into dedicated
+   *  channels (`program.screens` / `components` / `styles` / `assets`) the Game
+   *  runtime reads — so the engine can source them WITHOUT touching the LSP-only
    *  `program.context`. Runs after `buildContext` (and the prelude merge), so it
-   *  captures builtin + authored screens with `$extends`/`$default` already
-   *  applied. Deep-cloned so later context mutation can't leak into the engine
-   *  channel. */
-  populateUIChannel(program: SparkProgram) {
+   *  captures builtin + authored entries with `$extends`/`$default` already
+   *  applied. Deep-cloned so later context mutation can't leak into the channel.
+   *  (Define-typed context — animation/character/config/… — comes from the
+   *  runtime instead; see `buildContextFromStory`.) */
+  populateEngineChannels(program: SparkProgram) {
     const uri = program.uri;
-    profile("start", this._profilerId, "populateUIChannel", uri);
+    profile("start", this._profilerId, "populateEngineChannels", uri);
     const screen = program.context?.["screen"];
     const component = program.context?.["component"];
     const style = program.context?.["style"];
@@ -1443,7 +1444,16 @@ export class SparkdownCompiler {
     if (style) {
       program.styles = structuredClone(style);
     }
-    profile("end", this._profilerId, "populateUIChannel", uri);
+    // File-derived + implicit-def asset types (not defines).
+    const ASSET_TYPES = ["image", "audio", "font", "filtered_image"];
+    for (const type of ASSET_TYPES) {
+      const structs = program.context?.[type];
+      if (structs) {
+        program.assets ??= {};
+        program.assets[type] = structuredClone(structs);
+      }
+    }
+    profile("end", this._profilerId, "populateEngineChannels", uri);
   }
 
   /** Merge the once-compiled builtins prelude context into `program.context` as
