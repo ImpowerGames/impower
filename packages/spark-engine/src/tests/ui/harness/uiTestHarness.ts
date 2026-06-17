@@ -254,6 +254,9 @@ export function createHarness(
           ),
         );
       }
+      // Coarse per-turn reactive re-eval, mirroring Coordinator.display()'s
+      // updateUI (no-op unless the reactive render path is active).
+      ui.refreshScreens();
       // Trigger scheduled audio once its loads have settled (the Coordinator
       // does this from its per-frame tick after `audio.isReady(...)`).
       if (audioTriggerIds.length > 0) {

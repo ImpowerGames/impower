@@ -197,6 +197,11 @@ export class Coordinator<G extends Game> {
           game.module.ui.image.write(target, events, instant),
         );
       }
+
+      // Coarse per-turn re-eval of reactive screen bindings (Phase 3 I2). The
+      // story is settled at this point, so binding evaluators are safe to call.
+      // No-op unless the reactive render path is active.
+      game.module.ui.refreshScreens();
     };
 
     // Process audio

@@ -135,6 +135,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override onReset() {
     this._events = {};
+    this._reactiveTexts = [];
   }
 
   override async onConnected() {
@@ -704,11 +705,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   //
   // I1 — static mount: reproduce constructScreen's element tree byte-for-byte
   // (named structural divs; text/stroke → inline span; image/mask → background
-  // span) so flag-ON output matches the static golden. Reactive content/event
-  // wiring lands in later increments (I2 binding eval, I3 if/match, I5 @event).
+  // span) so flag-ON output matches the static golden when no `{expr}` bindings
+  // are present.
+  // I2 — one-way binding eval: `{expr}` content is evaluated to its live value at
+  // mount, the bound span is registered, and `refreshScreens()` re-evaluates +
+  // updates changed spans on the coarse per-turn boundary (Coordinator.display).
+  // Control-flow (I3 if/match, I4 for), @events (I5), and #prop bindings land in
+  // later increments.
   // ---------------------------------------------------------------------------
 
+  /** Spans whose text comes (partly) from a reactive `{expr}` binding, with the
+   *  last resolved value for equality-gated updates. Rebuilt on each mount. */
+  protected _reactiveTexts: {
+    element: Element;
+    content: ContentPart[];
+    last: string;
+  }[] = [];
+
   constructScreensFromAst(...structNames: string[]): void {
+    this._reactiveTexts = [];
     const screens = this._game.program?.sparkle?.screens;
     if (!screens) {
       return;
@@ -762,18 +777,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // Builtin leaf semantics, mirroring constructScreen's class-detection:
     // text/stroke render an inline span; image/mask render a background span.
     if (node.tag === "text" || node.tag === "stroke") {
-      const text = this.staticContentText(node.content);
-      if (text != null) {
-        this.createElement(el, {
-          type: "span",
-          content: { text },
-          style: { display: "inline" },
-        });
-      }
+      this.mountTextContent(el, node.content);
     } else if (node.tag === "image") {
-      this.createImage(el, [this.staticContentText(node.content)], "background_image");
+      this.mountImageContent(el, node.content, "background_image");
     } else if (node.tag === "mask") {
-      this.createImage(el, [this.staticContentText(node.content)], "mask_image");
+      this.mountImageContent(el, node.content, "mask_image");
     }
     for (const child of node.children) {
       this.mountNode(el, child);
@@ -781,26 +789,74 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
-  /** Literal text of an element's content for the static mount. Returns
-   *  `undefined` when there is no literal text to render (no content, or
-   *  binding-only content whose live value is wired at I2), so a content-less
-   *  leaf creates no span — matching constructScreen's `typeof v === "string"`
-   *  guard. */
-  protected staticContentText(content?: ContentPart[]): string | undefined {
+  /** Mount a text/stroke leaf's inline span. A content-less leaf creates no span
+   *  (matching constructScreen's `typeof v === "string"` guard); content with a
+   *  reactive `{expr}` binding registers the span for per-turn re-eval. */
+  protected mountTextContent(parent: Element, content?: ContentPart[]): void {
     if (!content || content.length === 0) {
-      return undefined;
+      return;
     }
-    const hasLiteral = content.some((p) => p.kind === "literal");
-    if (!hasLiteral) {
-      return undefined;
+    const text = this.resolveContent(content);
+    const span = this.createElement(parent, {
+      type: "span",
+      content: { text },
+      style: { display: "inline" },
+    });
+    if (this.contentHasBinding(content)) {
+      this._reactiveTexts.push({ element: span, content, last: text });
     }
+  }
+
+  /** Mount an image/mask leaf's background span. Content (literal or `{expr}`)
+   *  is resolved to the asset value at mount; a content-less leaf yields the
+   *  empty background constructScreen also produces. (Per-turn re-eval of image
+   *  sources is deferred — image rebuild differs from a content update.) */
+  protected mountImageContent(
+    parent: Element,
+    content: ContentPart[] | undefined,
+    property: string,
+  ): void {
+    const value =
+      content && content.length > 0 ? this.resolveContent(content) : undefined;
+    this.createImage(parent, [value], property);
+  }
+
+  protected contentHasBinding(content: ContentPart[]): boolean {
+    return content.some((p) => p.kind === "binding");
+  }
+
+  /** Resolve ordered literal + `{expr}` content to a flat string. Each binding
+   *  is evaluated live via {@link evalBinding}; a nullish result contributes the
+   *  empty string. */
+  protected resolveContent(content: ContentPart[]): string {
     let text = "";
     for (const part of content) {
       if (part.kind === "literal") {
         text += part.text;
+      } else {
+        const value = this.evalBinding(part.binding);
+        text += value == null ? "" : String(value);
       }
     }
     return text;
+  }
+
+  /** Coarse per-turn re-eval: re-resolve every registered reactive span and
+   *  emit an `ui/update` only when its text changed (equality-gated). Called on
+   *  the existing per-beat boundary (Coordinator.display → updateUI), where the
+   *  story is settled so {@link evalBinding}'s EvaluateFunction is safe. No-op
+   *  unless the reactive path is active. */
+  refreshScreens(): void {
+    if (!this._reactive) {
+      return;
+    }
+    for (const entry of this._reactiveTexts) {
+      const text = this.resolveContent(entry.content);
+      if (text !== entry.last) {
+        entry.last = text;
+        this.updateElement(entry.element, { content: { text } });
+      }
+    }
   }
 
   initScreens(): void {
