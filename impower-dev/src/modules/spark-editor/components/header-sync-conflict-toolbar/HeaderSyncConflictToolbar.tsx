@@ -123,7 +123,7 @@ function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="dlg-title"
-        class="w-[90vw] max-w-md rounded-lg bg-[var(--theme-color-popup)] p-6 shadow-xl"
+        class="w-[90vw] max-w-md rounded-lg bg-popup p-6 shadow-xl"
       >
         <h2 id="dlg-title" class="text-lg font-medium text-foreground">
           {title}

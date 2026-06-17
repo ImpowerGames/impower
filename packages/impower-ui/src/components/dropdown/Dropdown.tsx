@@ -17,14 +17,14 @@ export const DropdownPortal = DropdownMenuPrimitive.Portal;
 export const DropdownSub = DropdownMenuPrimitive.Sub;
 export const DropdownSeparator = DropdownMenuPrimitive.Separator;
 
-// Popup surface styling. The `popup` theme color (engine-950, ~rgb(18,18,18))
+// Popup surface styling. `bg-popup` (a fixed dark neutral, ~rgb(18,18,18))
 // is the canonical "floating panel" surface in the design system —
 // distinct from `engine-800` which is for inline surfaces. py-2 / px-0
 // matches the legacy `<s-box p="8 0">`; items provide their own
 // horizontal padding.
 const dropdownContent = cva([
   "z-50 min-w-[120px] overflow-hidden rounded-lg",
-  "py-2 px-0 text-foreground",
+  "bg-popup py-2 px-0 text-foreground",
   "data-[state=open]:animate-in data-[state=closed]:animate-out",
   "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
 ]);
@@ -46,7 +46,6 @@ export function DropdownContent({
       <DropdownMenuPrimitive.Content
         sideOffset={sideOffset}
         align={align}
-        style={{ backgroundColor: "var(--theme-color-popup)" }}
         class={cn(dropdownContent(), className)}
         {...rest}
       >

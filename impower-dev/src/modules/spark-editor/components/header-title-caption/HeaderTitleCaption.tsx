@@ -32,18 +32,9 @@ export default function HeaderTitleCaption(_p: HeaderTitleCaptionProps) {
       class={`-mt-0.5 mb-0.5 flex flex-row items-center text-sm font-medium select-none ${color}`}
     >
       {showSkeleton ? (
-        /* Sparkle's `<s-skeleton>` shape: 9999px (pill) radius + sheen
-           animation; transparent text just sizes the pill. */
-        <span
-          class="text-transparent"
-          style={{
-            borderRadius: "9999px",
-            backgroundSize: "400% 100%",
-            backgroundImage:
-              "linear-gradient(270deg, var(--theme-color-fg-15), var(--theme-color-fg-05), var(--theme-color-fg-05), var(--theme-color-fg-15))",
-            animation: "s-sheen 8s ease-in-out infinite",
-          }}
-        >
+        /* `<s-skeleton>` shape: pill (rounded-full) + `skeleton-sheen`
+           animated gradient; transparent text just sizes the pill. */
+        <span class="skeleton-sheen rounded-full text-transparent">
           Saved in cache
         </span>
       ) : (

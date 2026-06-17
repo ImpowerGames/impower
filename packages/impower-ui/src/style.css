@@ -21,34 +21,6 @@
   --theme-color-bg: rgb(255 255 255);
   --theme-color-fg: rgb(0 0 0);
 
-  /* Foreground opacity scale */
-  --theme-color-fg-05: rgb(0 0 0 / 0.05);
-  --theme-color-fg-10: rgb(0 0 0 / 0.1);
-  --theme-color-fg-15: rgb(0 0 0 / 0.15);
-  --theme-color-fg-20: rgb(0 0 0 / 0.2);
-  --theme-color-fg-25: rgb(0 0 0 / 0.25);
-  --theme-color-fg-30: rgb(0 0 0 / 0.3);
-  --theme-color-fg-40: rgb(0 0 0 / 0.4);
-  --theme-color-fg-50: rgb(0 0 0 / 0.5);
-  --theme-color-fg-60: rgb(0 0 0 / 0.6);
-  --theme-color-fg-70: rgb(0 0 0 / 0.7);
-  --theme-color-fg-80: rgb(0 0 0 / 0.8);
-  --theme-color-fg-90: rgb(0 0 0 / 0.9);
-
-  /* Background opacity scale */
-  --theme-color-bg-05: rgb(255 255 255 / 0.05);
-  --theme-color-bg-10: rgb(255 255 255 / 0.1);
-  --theme-color-bg-15: rgb(255 255 255 / 0.15);
-  --theme-color-bg-20: rgb(255 255 255 / 0.2);
-  --theme-color-bg-25: rgb(255 255 255 / 0.25);
-  --theme-color-bg-30: rgb(255 255 255 / 0.3);
-  --theme-color-bg-40: rgb(255 255 255 / 0.4);
-  --theme-color-bg-50: rgb(255 255 255 / 0.5);
-  --theme-color-bg-60: rgb(255 255 255 / 0.6);
-  --theme-color-bg-70: rgb(255 255 255 / 0.7);
-  --theme-color-bg-80: rgb(255 255 255 / 0.8);
-  --theme-color-bg-90: rgb(255 255 255 / 0.9);
-
   /* Surface composites */
   --theme-color-surface: rgb(247 247 247); /* neutral-100 */
   --theme-color-surface-border: rgb(0 0 0 / 0.12);
@@ -69,34 +41,6 @@
   /* Surface */
   --theme-color-bg: rgb(0 0 0);
   --theme-color-fg: rgb(255 255 255);
-
-  /* Foreground opacity scale */
-  --theme-color-fg-05: rgb(255 255 255 / 0.05);
-  --theme-color-fg-10: rgb(255 255 255 / 0.1);
-  --theme-color-fg-15: rgb(255 255 255 / 0.15);
-  --theme-color-fg-20: rgb(255 255 255 / 0.2);
-  --theme-color-fg-25: rgb(255 255 255 / 0.25);
-  --theme-color-fg-30: rgb(255 255 255 / 0.3);
-  --theme-color-fg-40: rgb(255 255 255 / 0.4);
-  --theme-color-fg-50: rgb(255 255 255 / 0.5);
-  --theme-color-fg-60: rgb(255 255 255 / 0.6);
-  --theme-color-fg-70: rgb(255 255 255 / 0.7);
-  --theme-color-fg-80: rgb(255 255 255 / 0.8);
-  --theme-color-fg-90: rgb(255 255 255 / 0.9);
-
-  /* Background opacity scale */
-  --theme-color-bg-05: rgb(0 0 0 / 0.05);
-  --theme-color-bg-10: rgb(0 0 0 / 0.1);
-  --theme-color-bg-15: rgb(0 0 0 / 0.15);
-  --theme-color-bg-20: rgb(0 0 0 / 0.2);
-  --theme-color-bg-25: rgb(0 0 0 / 0.25);
-  --theme-color-bg-30: rgb(0 0 0 / 0.3);
-  --theme-color-bg-40: rgb(0 0 0 / 0.4);
-  --theme-color-bg-50: rgb(0 0 0 / 0.5);
-  --theme-color-bg-60: rgb(0 0 0 / 0.6);
-  --theme-color-bg-70: rgb(0 0 0 / 0.7);
-  --theme-color-bg-80: rgb(0 0 0 / 0.8);
-  --theme-color-bg-90: rgb(0 0 0 / 0.9);
 
   /* Surface composites */
   --theme-color-surface: rgb(37 37 37); /* neutral-950 */
@@ -177,6 +121,11 @@
   --color-surface: var(--theme-color-surface);
   --color-surface-border: var(--theme-color-surface-border);
   --color-divider: var(--theme-color-divider);
+  /* Floating-panel surface (dropdowns, popovers, modal cards). A fixed dark
+     neutral, NOT theme-switched — matches the legacy `--theme-color-popup`
+     (rgb(18,18,18)). The runtime var is the optional retheme seam; the
+     literal is the default so `bg-popup` works in standalone impower-ui. */
+  --color-popup: var(--theme-color-popup, rgb(18 18 18));
   /* Tab-active foreground — slightly muted off-white instead of pure white.
      Matches sparkle's `--theme-color-tab-active-text` (hsl(0 0% 95%) ≈
      rgb(242 242 242)). Distinguishes tab labels from the pure-white header
@@ -270,6 +219,26 @@
 @keyframes s-sheen {
   0% { background-position-x: 200%; }
   100% { background-position-x: -200%; }
+}
+
+/* Loading-placeholder shimmer (the old `<s-skeleton>` sheen). Drives a
+   4-stop foreground-tinted gradient sliding under the element via the
+   `s-sheen` keyframe. The stops derive from `--color-foreground` at 5% /
+   15% — `color-mix(... transparent)` is the same mechanism Tailwind's
+   `/opacity` modifier uses, so for the editor's pure-white foreground it's
+   bit-identical to the legacy `rgb(255 255 255 / 0.15)` tokens it replaces.
+   Pair with `text-transparent` + a shape (`rounded-full`, sized text) — the
+   consumer just sizes the box; this paints the animated sheen. */
+@utility skeleton-sheen {
+  background-image: linear-gradient(
+    270deg,
+    color-mix(in oklab, var(--color-foreground) 15%, transparent),
+    color-mix(in oklab, var(--color-foreground) 5%, transparent),
+    color-mix(in oklab, var(--color-foreground) 5%, transparent),
+    color-mix(in oklab, var(--color-foreground) 15%, transparent)
+  );
+  background-size: 400% 100%;
+  animation: s-sheen 8s ease-in-out infinite;
 }
 
 /* Material-design ripple animation is driven imperatively by the

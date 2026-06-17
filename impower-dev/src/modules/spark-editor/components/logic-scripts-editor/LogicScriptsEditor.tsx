@@ -97,7 +97,7 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
             // vertically centers its own text natively (no flex — sparkle's
             // `* { flex-flow: column }` reset would flip an inline-flex box to
             // a column and break items-center, top-aligning the text).
-            class={`h-full bg-transparent text-center text-lg font-normal outline-none placeholder:text-[var(--theme-color-fab-bg)] ${
+            class={`h-full bg-transparent text-center text-lg font-normal outline-none placeholder:text-engine-700 ${
               diagnosticColor || "text-foreground"
             }`}
             onInput={(e) =>

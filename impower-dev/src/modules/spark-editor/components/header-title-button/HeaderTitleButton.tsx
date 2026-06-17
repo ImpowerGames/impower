@@ -65,7 +65,7 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
               type="text"
               aria-label="Project Name"
               value={draft}
-              class="w-full bg-transparent text-lg font-medium text-foreground outline-none placeholder:text-[var(--theme-color-fab-bg)]"
+              class="w-full bg-transparent text-lg font-medium text-foreground outline-none placeholder:text-engine-700"
               onInput={(e) =>
                 setDraft((e.target as HTMLInputElement).value)
               }
@@ -85,25 +85,12 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
               }}
             />
           ) : (
-            /* Sparkle's `<s-skeleton>` shape: pill (9999px radius)
-               that fills the parent's full width (sparkle's display:
-               flex + parent-stretches-it behavior). Sheen gradient
-               animates over 8s. The text is transparent and just
-               sizes the pill's height to the eventual label. */
-            <span
-              class="block w-full text-lg font-medium text-transparent"
-              style={{
-                borderRadius: "9999px",
-                backgroundSize: "400% 100%",
-                backgroundImage:
-                  "linear-gradient(270deg, var(--theme-color-fg-15), var(--theme-color-fg-05), var(--theme-color-fg-05), var(--theme-color-fg-15))",
-                animation: "s-sheen 8s ease-in-out infinite",
-                // Override Tailwind's `text-lg` line-height (28px) to
-                // a tighter 1.2 so the pill is 21px tall — matches
-                // sparkle's `<s-skeleton>` rendering exactly.
-                lineHeight: "1.2",
-              }}
-            >
+            /* `<s-skeleton>` shape: a full-width pill (rounded-full) with the
+               `skeleton-sheen` animated gradient. Transparent text sizes the
+               pill's height; `leading-[1.2]` overrides `text-lg`'s 28px
+               line-height to a tighter 1.2 so the pill is 21px tall — matches
+               the legacy `<s-skeleton>` rendering exactly. */
+            <span class="skeleton-sheen block w-full rounded-full text-lg font-medium leading-[1.2] text-transparent">
               Untitled Game
             </span>
           )}

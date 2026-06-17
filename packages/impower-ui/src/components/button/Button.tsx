@@ -73,10 +73,11 @@ export const buttonVariants = cva(
         destructive:
           `bg-danger-500 text-foreground before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12] ${FILLED_SHADOW}`,
         // Floating-action button: the slate-blue rounded-full CTA used
-        // by Upload Files / Add URL / New Script. Sparkle's
-        // `bg-color="fab-bg" text-color="fab-fg"` maps to the theme
-        // tokens (hsl(210.8 44.9% 34.9%) / white).
-        fab: `bg-[var(--theme-color-fab-bg)] text-[var(--theme-color-fab-fg)] before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12] ${FILLED_SHADOW}`,
+        // by Upload Files / Add URL / New Script. The legacy `fab-bg`/
+        // `fab-fg` theme tokens are exactly `engine-700` (the editor's
+        // slate-blue) on always-white text — same as `secondary` but
+        // forced white text rather than theme `foreground`.
+        fab: `bg-engine-700 text-white before:absolute before:inset-0 before:bg-current before:opacity-0 hover:before:opacity-[0.05] active:before:opacity-[0.12] ${FILLED_SHADOW}`,
       },
       size: {
         default: "h-10 px-4 py-2",

@@ -14,15 +14,20 @@ html {
   --theme-size-footer-nav: 60px;
   --theme-size-panel-nav: 48px;
 
+  /* Editor-chrome theme seams still consumed by raw infra CSS:
+     - popup            → impower-ui `--color-popup` override seam
+     - panel            → document.css `.cm-context-menu`, SparkEditor host bg
+     - editor-bg        → sparkdown-document-views script-editor bg
+     - tab-active-text  → impower-ui `--color-tab-foreground` seam
+     - primary-bg       → document.css `html` background
+     Component code now uses Tailwind tokens (`bg-engine-700`, `bg-popup`,
+     `text-white`) instead of these — the former fab-bg/fab-fg/secondary-bg/
+     tab-inactive-text tokens were retired in the sparkle→Tailwind migration. */
   --theme-color-popup: rgb(18, 18, 18);
   --theme-color-panel: hsl(210.6, 100%, 10%);
   --theme-color-editor-bg: hsl(210.6, 100%, 7%);
   --theme-color-tab-active-text: hsl(0, 0%, 95%);
-  --theme-color-tab-inactive-text: hsl(211 26% 48%);
-  --theme-color-fab-fg: white;
-  --theme-color-fab-bg: hsl(210.8, 44.9%, 34.9%);
   --theme-color-primary-bg: hsl(210.7, 89.1%, 18%);
-  --theme-color-secondary-bg: hsl(210.8, 44.9%, 34.9%);
 
   --theme-color-palette-spot-0: #052d57;
   --theme-color-palette-spot-1: #415a89;
