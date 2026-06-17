@@ -193,7 +193,7 @@ export default function FileList({
           changes.length === 1 &&
           firstFilename?.endsWith(".sd")
         ) {
-          Workspace.window.openedFileEditor(firstFilename);
+          Workspace.window.openFileEditor(firstFilename);
           return;
         }
         void reload();

@@ -524,8 +524,8 @@ export default class WorkspaceWindow {
   }
 
   getOpenedDocumentUri() {
-    const openedPane = this.getOpenedPane();
-    const activeEditor = this.getActiveEditorForPane(openedPane);
+    const openPane = this.getOpenedPane();
+    const activeEditor = this.getActiveEditorForPane(openPane);
     if (activeEditor) {
       const uri = activeEditor.uri;
       if (uri) {
@@ -624,7 +624,7 @@ export default class WorkspaceWindow {
     );
   }
 
-  openedPane(pane: PaneType) {
+  openPane(pane: PaneType) {
     this.update({
       ...this.store,
       pane,
@@ -635,7 +635,7 @@ export default class WorkspaceWindow {
     );
   }
 
-  openedPanel(pane: PaneType, panel: PanelType) {
+  openPanel(pane: PaneType, panel: PanelType) {
     this.update({
       ...this.store,
       panes: {
@@ -652,7 +652,7 @@ export default class WorkspaceWindow {
     );
   }
 
-  openedView(pane: PaneType, view: string) {
+  openView(pane: PaneType, view: string) {
     this.update({
       ...this.store,
       panes: {
@@ -669,7 +669,7 @@ export default class WorkspaceWindow {
     );
   }
 
-  openedFileEditor(filename: string, oldFilename?: string) {
+  openFileEditor(filename: string, oldFilename?: string) {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
@@ -716,7 +716,7 @@ export default class WorkspaceWindow {
     }
   }
 
-  closedFileEditor(filename: string) {
+  closeFileEditor(filename: string) {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
@@ -746,7 +746,7 @@ export default class WorkspaceWindow {
     }
   }
 
-  expandedPreviewPane() {
+  expandPreviewPane() {
     this.update({
       ...this.store,
       preview: {
@@ -760,7 +760,7 @@ export default class WorkspaceWindow {
     );
   }
 
-  collapsedPreviewPane() {
+  collapsePreviewPane() {
     this.update({
       ...this.store,
       preview: {
@@ -774,7 +774,7 @@ export default class WorkspaceWindow {
     );
   }
 
-  changedPreviewMode(mode: PreviewMode) {
+  setPreviewMode(mode: PreviewMode) {
     this.update({
       ...this.store,
       preview: {
@@ -784,7 +784,7 @@ export default class WorkspaceWindow {
     });
   }
 
-  startedEditingProjectName() {
+  startEditingProjectName() {
     this.update({
       ...this.store,
       screen: {
@@ -794,7 +794,7 @@ export default class WorkspaceWindow {
     });
   }
 
-  async finishedEditingProjectName(name: string) {
+  async finishEditingProjectName(name: string) {
     const id = this.store.project.id;
     const validName = name || WorkspaceConstants.DEFAULT_PROJECT_NAME;
     if (id) {
@@ -822,7 +822,7 @@ export default class WorkspaceWindow {
     return false;
   }
 
-  startedPickingRemoteProjectResource() {
+  startPickingRemoteProjectResource() {
     this.update({
       ...this.store,
       screen: {
@@ -832,7 +832,7 @@ export default class WorkspaceWindow {
     });
   }
 
-  finishedPickingRemoteProjectResource() {
+  finishPickingRemoteProjectResource() {
     this.update({
       ...this.store,
       screen: {

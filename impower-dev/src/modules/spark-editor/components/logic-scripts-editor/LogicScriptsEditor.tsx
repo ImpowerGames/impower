@@ -50,7 +50,7 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
 
   const handleBack = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.closedFileEditor(filename);
+    Workspace.window.closeFileEditor(filename);
   };
 
   const commitRename = async () => {
@@ -69,7 +69,7 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
     } else {
       await Workspace.window.recordAssetChange();
     }
-    Workspace.window.openedFileEditor(newFilename, filename);
+    Workspace.window.openFileEditor(newFilename, filename);
   };
 
   return (

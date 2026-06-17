@@ -162,13 +162,13 @@ export default function Account(_p: AccountProps) {
       const access = await provider.getAccess();
       const token = access?.token;
       if (!token) return;
-      Workspace.window.startedPickingRemoteProjectResource();
+      Workspace.window.startPickingRemoteProjectResource();
       const fileId = await provider.pickRemoteProjectFile(token);
       if (fileId) {
         Workspace.window.unloadProject();
         Workspace.window.loadNewProject(fileId);
       }
-      Workspace.window.finishedPickingRemoteProjectResource();
+      Workspace.window.finishPickingRemoteProjectResource();
     } catch (err) {
       console.error(err);
     }
@@ -183,12 +183,12 @@ export default function Account(_p: AccountProps) {
       const access = await provider.getAccess();
       const token = access?.token;
       if (!token) return;
-      Workspace.window.startedPickingRemoteProjectResource();
+      Workspace.window.startPickingRemoteProjectResource();
       const folderId = await provider.pickRemoteProjectFolder(token);
       if (folderId) {
         await Workspace.window.saveRemoteProject(folderId);
       }
-      Workspace.window.finishedPickingRemoteProjectResource();
+      Workspace.window.finishPickingRemoteProjectResource();
     } catch (err) {
       console.error(err);
     }

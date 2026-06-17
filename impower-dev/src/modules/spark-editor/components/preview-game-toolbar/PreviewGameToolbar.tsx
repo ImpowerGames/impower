@@ -86,7 +86,7 @@ export default function PreviewGameToolbar(_props: PreviewGameToolbarProps) {
 
   const onModeToggle = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.changedPreviewMode("screenplay");
+    Workspace.window.setPreviewMode("screenplay");
   };
 
   const onPauseToggle = async () => {

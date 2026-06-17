@@ -8,7 +8,7 @@ export type HeaderTitleButtonProps = Partial<typeof propDefaults>;
 
 /**
  * Editable project name in the top header. Controlled input — selects
- * all on focus, commits via `Workspace.window.finishedEditingProjectName`
+ * all on focus, commits via `Workspace.window.finishEditingProjectName`
  * on blur or Enter. Shows a skeleton placeholder until both the project
  * name and sync state have loaded.
  */
@@ -34,7 +34,7 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
   const commit = async (value: string) => {
     const { Workspace } = await import("../../workspace/Workspace");
     if (value != null) {
-      await Workspace.window.finishedEditingProjectName(value);
+      await Workspace.window.finishEditingProjectName(value);
     }
   };
 
@@ -72,7 +72,7 @@ export default function HeaderTitleButton(_p: HeaderTitleButtonProps) {
               onFocus={(e) => {
                 (e.target as HTMLInputElement).select();
                 import("../../workspace/Workspace").then(({ Workspace }) => {
-                  Workspace.window.startedEditingProjectName();
+                  Workspace.window.startEditingProjectName();
                 });
               }}
               onBlur={(e) => {

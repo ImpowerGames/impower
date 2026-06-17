@@ -96,7 +96,7 @@ export default function FileItem({ filename }: FileItemProps) {
     if (renaming) return;
     e.stopPropagation();
     const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.openedFileEditor(filename);
+    Workspace.window.openFileEditor(filename);
   }
 
   // Workspace state derived from signals (re-render on relevant change only).

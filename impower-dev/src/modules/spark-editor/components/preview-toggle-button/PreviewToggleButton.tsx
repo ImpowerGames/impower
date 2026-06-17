@@ -50,8 +50,8 @@ export default function PreviewToggleButton(_props: PreviewToggleButtonProps) {
     const next = !active;
     setActive(next);
     const { Workspace } = await import("../../workspace/Workspace");
-    if (next) Workspace.window.expandedPreviewPane();
-    else Workspace.window.collapsedPreviewPane();
+    if (next) Workspace.window.expandPreviewPane();
+    else Workspace.window.collapsePreviewPane();
   };
 
   const Icon = active ? Edit : Eye;

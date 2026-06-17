@@ -42,7 +42,7 @@ export default function Assets(_props: AssetsProps) {
   const onPanelChange = (next: string) => {
     startTransition(() => {
       void import("../../workspace/Workspace").then(({ Workspace }) => {
-        Workspace.window.openedPanel("assets", next);
+        Workspace.window.openPanel("assets", next);
       });
     });
   };

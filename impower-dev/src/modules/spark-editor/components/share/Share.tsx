@@ -21,7 +21,7 @@ export default function Share(_props: ShareProps) {
   const onPanelChange = (next: string) => {
     startTransition(() => {
       void import("../../workspace/Workspace").then(({ Workspace }) => {
-        Workspace.window.openedPanel("share", next);
+        Workspace.window.openPanel("share", next);
       });
     });
   };

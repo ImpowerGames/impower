@@ -50,7 +50,7 @@ export default function PreviewScreenplayToolbar(
 
   const onMode = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.changedPreviewMode("game");
+    Workspace.window.setPreviewMode("game");
   };
 
   return (

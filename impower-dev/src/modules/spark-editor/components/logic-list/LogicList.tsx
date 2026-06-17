@@ -45,8 +45,8 @@ export default function LogicList(_props: LogicListProps) {
   // The legacy logic-scripts-list rendered just the list and relied on a
   // higher-level router driven by 'changing'/'changed' bubbling events to
   // swap to the editor. Here we read `activeEditor.open` directly — that
-  // flag is set by `Workspace.window.openedFileEditor()` and cleared by
-  // `closedFileEditor()`, so back-button + click flows just work.
+  // flag is set by `Workspace.window.openFileEditor()` and cleared by
+  // `closeFileEditor()`, so back-button + click flows just work.
   const scriptsActiveEditor = state.panes?.logic?.panels?.scripts?.activeEditor;
   const showScriptsEditor =
     !!scriptsActiveEditor?.open && !!scriptsActiveEditor?.filename;
@@ -57,7 +57,7 @@ export default function LogicList(_props: LogicListProps) {
   const onPanelChange = (next: string) => {
     startTransition(() => {
       void import("../../workspace/Workspace").then(({ Workspace }) => {
-        Workspace.window.openedPanel("logic", next);
+        Workspace.window.openPanel("logic", next);
       });
     });
   };

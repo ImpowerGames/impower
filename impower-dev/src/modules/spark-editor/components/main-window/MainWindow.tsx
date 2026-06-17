@@ -74,7 +74,7 @@ export default function MainWindow(_props: MainWindowProps) {
     // potentially-heavy pane DOM is built.
     startTransition(() => {
       void import("../../workspace/Workspace").then(({ Workspace }) => {
-        Workspace.window.openedPane(next as PaneType);
+        Workspace.window.openPane(next as PaneType);
       });
     });
   };

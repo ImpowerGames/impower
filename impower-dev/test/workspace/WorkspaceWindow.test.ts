@@ -21,56 +21,56 @@ describe("WorkspaceWindow store transitions", () => {
     win = new WorkspaceWindow();
   });
 
-  it("openedPane sets the active pane", () => {
-    win.openedPane("assets");
+  it("openPane sets the active pane", () => {
+    win.openPane("assets");
     expect(workspace.current.pane).toBe("assets");
   });
 
-  it("openedPanel sets the active panel for a pane", () => {
-    win.openedPanel("assets", "urls");
+  it("openPanel sets the active panel for a pane", () => {
+    win.openPanel("assets", "urls");
     expect(workspace.current.panes.assets.panel).toBe("urls");
   });
 
-  it("openedView sets the view for a pane", () => {
-    win.openedView("logic", "list");
+  it("openView sets the view for a pane", () => {
+    win.openView("logic", "list");
     expect(workspace.current.panes.logic.view).toBe("list");
   });
 
-  it("openedFileEditor opens the editor in the pane/panel derived from the filename", () => {
-    win.openedFileEditor("dialogue.sd");
+  it("openFileEditor opens the editor in the pane/panel derived from the filename", () => {
+    win.openFileEditor("dialogue.sd");
     const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
     expect(editor?.open).toBe(true);
     expect(editor?.filename).toBe("dialogue.sd");
   });
 
-  it("openedFileEditor routes main.sd to the logic/main panel", () => {
-    win.openedFileEditor("main.sd");
+  it("openFileEditor routes main.sd to the logic/main panel", () => {
+    win.openFileEditor("main.sd");
     expect(workspace.current.panes.logic.panels.main!.activeEditor?.filename).toBe(
       "main.sd",
     );
   });
 
-  it("closedFileEditor marks the editor closed", () => {
-    win.openedFileEditor("dialogue.sd");
-    win.closedFileEditor("dialogue.sd");
+  it("closeFileEditor marks the editor closed", () => {
+    win.openFileEditor("dialogue.sd");
+    win.closeFileEditor("dialogue.sd");
     expect(
       workspace.current.panes.logic.panels.scripts!.activeEditor?.open,
     ).toBe(false);
   });
 
-  it("expandedPreviewPane / collapsedPreviewPane toggle preview.revealed", () => {
-    win.expandedPreviewPane();
+  it("expandPreviewPane / collapsePreviewPane toggle preview.revealed", () => {
+    win.expandPreviewPane();
     expect(workspace.current.preview.revealed).toBe(true);
-    win.collapsedPreviewPane();
+    win.collapsePreviewPane();
     expect(workspace.current.preview.revealed).toBe(false);
   });
 
-  it("changedPreviewMode sets preview.mode", () => {
-    win.changedPreviewMode("screenplay");
+  it("setPreviewMode sets preview.mode", () => {
+    win.setPreviewMode("screenplay");
     expect(workspace.current.preview.mode).toBe("screenplay");
   });
 
-  it("broadcasts a cross-process protocol event on openedPane", () => {
+  it("broadcasts a cross-process protocol event on openPane", () => {
     const received: unknown[] = [];
     const listener = (e: Event) => {
       if (e instanceof CustomEvent && DidOpenPaneMessage.type.is(e.detail)) {
@@ -78,7 +78,7 @@ describe("WorkspaceWindow store transitions", () => {
       }
     };
     window.addEventListener(MessageProtocol.event, listener);
-    win.openedPane("share");
+    win.openPane("share");
     window.removeEventListener(MessageProtocol.event, listener);
     expect(received).toHaveLength(1);
   });
@@ -106,24 +106,24 @@ describe("WorkspaceWindow store transitions", () => {
   });
 
   describe("project name editing", () => {
-    it("startedEditingProjectName flags the screen", () => {
-      win.startedEditingProjectName();
+    it("startEditingProjectName flags the screen", () => {
+      win.startEditingProjectName();
       expect(workspace.current.screen.editingName).toBe(true);
     });
 
-    it("finishedEditingProjectName with an unchanged name clears the flag without persisting", async () => {
+    it("finishEditingProjectName with an unchanged name clears the flag without persisting", async () => {
       const id = workspace.current.project.id;
       // Seed a known name.
       workspace.current = {
         ...workspace.current,
         project: { ...workspace.current.project, id, name: "Same" },
       };
-      const changed = await win.finishedEditingProjectName("Same");
+      const changed = await win.finishEditingProjectName("Same");
       expect(changed).toBe(false);
       expect(workspace.current.screen.editingName).toBe(false);
     });
 
-    it("finishedEditingProjectName persists a changed name (regression: previousName captured before update)", async () => {
+    it("finishEditingProjectName persists a changed name (regression: previousName captured before update)", async () => {
       const id = workspace.current.project.id;
       vi.spyOn(
         WorkspaceWindow.prototype,
@@ -133,7 +133,7 @@ describe("WorkspaceWindow store transitions", () => {
         ...workspace.current,
         project: { ...workspace.current.project, id, name: "Old" },
       };
-      const changed = await win.finishedEditingProjectName("New");
+      const changed = await win.finishEditingProjectName("New");
       expect(changed).toBe(true);
       expect(workspace.current.project.name).toBe("New");
     });
