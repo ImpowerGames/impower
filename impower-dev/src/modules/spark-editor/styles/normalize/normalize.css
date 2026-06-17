@@ -8,18 +8,24 @@
    annotated.
 
    What stays:
-   - The sparkle-era universal flex defaults (`flex-direction: column`,
-     `min-width: 0`, `max-width: 100%`, etc.) — these are wrapped in
-     `@layer normalize` so Tailwind's layered utilities win against them,
-     but they remain in effect for everything that doesn't get a layered
-     opinion (notably the internals of `<sparkdown-script-editor>` and
-     `<sparkdown-screenplay-preview>`, whose component CSS was authored
-     against them). Removing these collapses the screenplay preview into
-     a single 181000px-tall column.
+   - The sparkle-era flex defaults (`flex-direction: column`, `min-width: 0`,
+     `max-width: 100%`, etc.) — but SCOPED to the two embedded sparkdown-
+     document-views subtrees, whose component CSS was authored against them
+     (removing them collapses the screenplay preview into a single
+     181000px-tall column). Previously these were a global `*` rule, which
+     leaked into the Tailwind-styled editor chrome and occasionally fought
+     utilities (e.g. needing inline `max-width` overrides). Scoping confines
+     the blast radius to exactly the packages that need it; the rest of the
+     app relies purely on Tailwind + Preflight. Still wrapped in
+     `@layer normalize` so a document-view's own Tailwind utilities (if any)
+     win over these.
    - Scrollbar styling, focus-outline suppression, `[hidden]`, `[popover]`. */
 
 @layer normalize {
-  * {
+  .sparkdown-script-editor-root,
+  .sparkdown-script-editor-root *,
+  .sparkdown-screenplay-preview-root,
+  .sparkdown-screenplay-preview-root * {
     flex-direction: column;
     flex-wrap: nowrap;
     flex-shrink: 0;
