@@ -1,6 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import { LowerContext } from "../context";
 import { ErrorType } from "../../../inkjs/engine/Error";
+import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ReturnType } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
@@ -268,6 +269,10 @@ function lowerBinding(interpNode: SyntaxNode, ctx: LowerContext): Binding {
     from: interpNode.from,
     to: interpNode.to,
   };
+  // Enclosing `for`-loop variables become the evaluator's parameters so the
+  // body can read per-iteration values the runtime passes as args (loop locals
+  // aren't globals — see LowerContext.sparkleLoopVars).
+  const loopVars = ctx.sparkleLoopVars ?? [];
   // Hoist the evaluator once per source position (the same expression node can
   // be lowered more than once; first registration wins). Snapshot-only callers
   // without a hoist buffer skip it — the handle is still produced.
@@ -282,11 +287,16 @@ function lowerBinding(interpNode: SyntaxNode, ctx: LowerContext): Binding {
     const fn = new Function(
       new Identifier(exprId),
       [new ReturnType(expr ?? null)],
-      [],
+      loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
     ctx.hoistedKnots.push(fn);
   }
-  return { exprId, source, span };
+  return {
+    exprId,
+    source,
+    span,
+    ...(loopVars.length > 0 ? { params: [...loopVars] } : {}),
+  };
 }
 
 const EVENT_ATTR = new Set(["LuauEventAttribute"]);
@@ -755,16 +765,26 @@ function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding 
     from: first.from,
     to: last.to,
   };
+  const loopVars = ctx.sparkleLoopVars ?? [];
   const already = ctx.hoistedKnots?.some(
     (o) => o instanceof Function && o.identifier?.name === exprId,
   );
   if (!already && ctx.hoistedKnots) {
     const expr = lowerExpressionFromNodes(nodes, ctx);
     ctx.hoistedKnots.push(
-      new Function(new Identifier(exprId), [new ReturnType(expr ?? null)], []),
+      new Function(
+        new Identifier(exprId),
+        [new ReturnType(expr ?? null)],
+        loopVars.map((n) => new Argument(new Identifier(n), false, false)),
+      ),
     );
   }
-  return { exprId, source, span };
+  return {
+    exprId,
+    source,
+    span,
+    ...(loopVars.length > 0 ? { params: [...loopVars] } : {}),
+  };
 }
 
 /** `LuauSparkleForLoop` → ForNode (spec §4.6). `for <bindings> in <expr> do …
@@ -805,11 +825,19 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
   const elseBlock = content
     ? childrenByName(content, new Set(["LuauSparkleElseBlock"]))[0]
     : undefined;
+  // Lower the body WITH the loop variables in scope, so body bindings emit them
+  // as evaluator params; the iterable (lowered above) and `else` (below) stay
+  // OUTSIDE the loop scope (the loop var is undefined when the iterable is empty).
+  ctx.sparkleLoopVars ??= [];
+  const restoreLen = ctx.sparkleLoopVars.length;
+  ctx.sparkleLoopVars.push(...bindings);
+  const children = buildBranchChildren(content, ctx);
+  ctx.sparkleLoopVars.length = restoreLen;
   const forNode: ForNode = {
     kind: "for",
     bindings,
     ...(each ? { each } : {}),
-    children: buildBranchChildren(content, ctx),
+    children,
   };
   if (elseBlock) {
     const elseContent = firstDescendant(

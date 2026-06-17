@@ -7,6 +7,7 @@ import type {
   ContentPart,
   ElementNode,
   EventBinding,
+  ForNode,
   IfNode,
   MatchNode,
   ScreenNode,
@@ -77,6 +78,13 @@ export interface UIState {
   attributes?: Record<string, Record<string, string | null>>;
 }
 
+/** Loop-variable bindings in effect for a scope: each enclosing `for` loop's
+ *  variable name → its current iteration value. Empty at the screen root.
+ *  Passed as args to a binding evaluator via {@link Binding.params}. The object
+ *  reference is stable per for-iteration and mutated in place on re-eval, so
+ *  event-handler closures read the latest values. */
+type ReactiveEnv = Record<string, unknown>;
+
 /** A reactive span: an inline element whose text comes (partly) from a `{expr}`
  *  binding, with the last resolved value for equality-gated updates. */
 interface ReactiveText {
@@ -88,16 +96,41 @@ interface ReactiveText {
 /** An if/match conditional: a persistent wrapper element + the currently-active
  *  branch index (`-1` = else/no-match, `-2` = not yet mounted) + the child scope
  *  holding that branch's registrations (dropped when the branch switches). */
-interface ReactiveRegion {
+interface CondRegion {
+  kind: "cond";
   wrapper: Element;
   node: IfNode | MatchNode;
   active: number;
   scope: ReactiveScope;
 }
 
+/** One rendered item of a reactive `for`: its key (positional id for now —
+ *  keyed reconcile is Phase 4), the body-root elements it created inside the
+ *  loop wrapper (destroyed when the item is dropped), and its child scope
+ *  (whose `env` carries the loop var values, mutated in place on re-eval). */
+interface ForIteration {
+  key: unknown;
+  elements: Element[];
+  scope: ReactiveScope;
+}
+
+/** A reactive `for`: a persistent wrapper element + the current iterations (in
+ *  order), or — when the iterable is empty — the mounted `else` scope. */
+interface ForRegion {
+  kind: "for";
+  wrapper: Element;
+  node: ForNode;
+  iterations: ForIteration[];
+  elseScope?: ReactiveScope;
+}
+
+type ReactiveRegion = CondRegion | ForRegion;
+
 /** Reactive registrations produced by one mount pass, mirroring the mount tree
- *  so a subtree's spans + nested regions can be torn down together. */
+ *  so a subtree's spans + nested regions can be torn down together. `env` holds
+ *  the loop-var bindings in effect for everything registered in this scope. */
 interface ReactiveScope {
+  env: ReactiveEnv;
   texts: ReactiveText[];
   regions: ReactiveRegion[];
 }
@@ -141,7 +174,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    * already saves/restores its output stream around the call, so a pure binding
    * read can't leak narrative text.
    */
-  protected evalBinding(binding: Binding): unknown {
+  protected evalBinding(binding: Binding, env?: ReactiveEnv): unknown {
     const exprId = binding?.exprId;
     if (!exprId) {
       return undefined;
@@ -150,7 +183,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!story.HasFunction(exprId)) {
       return undefined;
     }
-    return story.EvaluateFunction(exprId, []);
+    // For a binding inside a `for` loop, the evaluator takes the enclosing loop
+    // variables as parameters; pass their current values (raw runtime InkObjects
+    // for table elements are accepted directly — see StoryState
+    // .PassArgumentsToEvaluationStack). Non-loop bindings are nullary.
+    const args = (binding.params ?? []).map((name) => env?.[name]);
+    return story.EvaluateFunction(exprId, args);
   }
 
   override getBuiltins() {
@@ -745,7 +783,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   // so ordering survives even though ui/create is append-only. Reactive
   // registrations are kept in a scope TREE that mirrors the mount tree, so a
   // branch's spans/nested-regions are dropped together on unmount.
-  // for/slot/fill (I4+), @events (I5), and #prop bindings land later.
+  // I4 — for: a persistent wrapper holds one rendered item per iterable element.
+  // Loop-body bindings can't read loop vars as globals, so the compiler emits
+  // them as evaluator PARAMETERS (Binding.params) and each iteration's scope
+  // carries an `env` (loop var → value) passed as eval args. Reconcile is
+  // POSITIONAL for now (slot i renders element i; reorder = in-place content
+  // update, grow = append, shrink = drop tail) — keyed reconcile + MoveElement
+  // are Phase 4. slot/fill and #prop bindings land later.
   // ---------------------------------------------------------------------------
 
   /** One {@link ReactiveScope} per mounted screen — the roots of the scope tree
@@ -784,7 +828,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    const scope: ReactiveScope = { texts: [], regions: [] };
+    const scope: ReactiveScope = { env: {}, texts: [], regions: [] };
     this._rootScopes.push(scope);
     for (const child of screen.children) {
       this.mountNode(uiEl, child, scope);
@@ -800,9 +844,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (node.kind === "element") {
       this.mountElement(parent, node, scope);
     } else if (node.kind === "if" || node.kind === "match") {
-      this.mountRegion(parent, node, scope);
+      this.mountCondRegion(parent, node, scope);
+    } else if (node.kind === "for") {
+      this.mountForRegion(parent, node, scope);
     }
-    // for/slot/fill are mounted in later increments (I4 for; component slot/fill).
+    // slot/fill are mounted in a later increment (component slot/fill).
   }
 
   protected mountElement(
@@ -819,12 +865,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (node.tag === "text" || node.tag === "stroke") {
       this.mountTextContent(el, node.content, scope);
     } else if (node.tag === "image") {
-      this.mountImageContent(el, node.content, "background_image");
+      this.mountImageContent(el, node.content, "background_image", scope.env);
     } else if (node.tag === "mask") {
-      this.mountImageContent(el, node.content, "mask_image");
+      this.mountImageContent(el, node.content, "mask_image", scope.env);
     }
     for (const ev of node.events) {
-      this.mountEvent(el, ev);
+      this.mountEvent(el, ev, scope);
     }
     for (const child of node.children) {
       this.mountNode(el, child, scope);
@@ -837,15 +883,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  named Luau function; `@e=expr(args)` evaluates the call expression (its
    *  side effects persist). Inline closures (`@e={ … }`) are a follow-up. The
    *  callback is keyed by element id in `_events`, the same registry the static
-   *  `observe()` path and `onReceiveNotification` use. */
-  protected mountEvent(el: Element, ev: EventBinding): void {
+   *  `observe()` path and `onReceiveNotification` use. The handler reads
+   *  `scope.env` at fire time (mutated in place per for-iteration), so a handler
+   *  inside a `for` uses that row's current loop values. */
+  protected mountEvent(el: Element, ev: EventBinding, scope: ReactiveScope): void {
     const handler = ev.handler;
     const callback = (): void => {
       if (handler.kind === "ref") {
         this.runHandlerFunction(handler.name);
       } else {
         // call / closure: evaluate the hoisted handler binding for its effects.
-        this.evalBinding(handler.binding);
+        this.evalBinding(handler.binding, scope.env);
       }
       this.refreshScreens();
     };
@@ -886,7 +934,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!content || content.length === 0) {
       return;
     }
-    const text = this.resolveContent(content);
+    const text = this.resolveContent(content, scope.env);
     const span = this.createElement(parent, {
       type: "span",
       content: { text },
@@ -905,30 +953,33 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     parent: Element,
     content: ContentPart[] | undefined,
     property: string,
+    env: ReactiveEnv,
   ): void {
     const value =
-      content && content.length > 0 ? this.resolveContent(content) : undefined;
+      content && content.length > 0
+        ? this.resolveContent(content, env)
+        : undefined;
     this.createImage(parent, [value], property);
   }
 
+  // --- if / match -----------------------------------------------------------
+
   /** Mount an if/match conditional. A persistent `display: contents` wrapper
    *  reserves the sibling position; the active branch's children are mounted
-   *  into it via a child scope, recorded as a region of the parent scope. */
-  protected mountRegion(
+   *  into it via a child scope (inheriting the parent's loop env), recorded as a
+   *  region of the parent scope. */
+  protected mountCondRegion(
     parent: Element,
     node: IfNode | MatchNode,
     scope: ReactiveScope,
   ): void {
-    const wrapper = this.createElement(parent, {
-      type: "div",
-      name: "",
-      style: { display: "contents" },
-    });
-    const region: ReactiveRegion = {
+    const wrapper = this.createWrapper(parent);
+    const region: CondRegion = {
+      kind: "cond",
       wrapper,
       node,
       active: -2, // nothing mounted yet
-      scope: { texts: [], regions: [] },
+      scope: { env: scope.env, texts: [], regions: [] },
     };
     scope.regions.push(region);
     this.activateBranch(region);
@@ -937,8 +988,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   /** Mount the currently-selected branch of a region into its wrapper, recording
    *  `active` so refresh can detect a change. `-1` = else/no-match (renders
    *  `else` children, or nothing). */
-  protected activateBranch(region: ReactiveRegion): void {
-    const selected = this.selectBranch(region.node);
+  protected activateBranch(region: CondRegion): void {
+    const selected = this.selectBranch(region.node, region.scope.env);
     region.active = selected;
     const children = this.branchChildren(region.node, selected);
     for (const child of children) {
@@ -948,18 +999,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** Index of the active branch: the first truthy `if`/`elseif` condition, the
    *  first matching `match` case, or `-1` for else/no-match. */
-  protected selectBranch(node: IfNode | MatchNode): number {
+  protected selectBranch(node: IfNode | MatchNode, env: ReactiveEnv): number {
     if (node.kind === "if") {
       for (let i = 0; i < node.branches.length; i += 1) {
-        if (this.isTruthy(this.evalBinding(node.branches[i]!.condition))) {
+        if (this.isTruthy(this.evalBinding(node.branches[i]!.condition, env))) {
           return i;
         }
       }
       return -1;
     }
-    const value = this.evalBinding(node.expr);
+    const value = this.evalBinding(node.expr, env);
     for (let i = 0; i < node.cases.length; i += 1) {
-      if (this.evalBinding(node.cases[i]!.value) === value) {
+      if (this.evalBinding(node.cases[i]!.value, env) === value) {
         return i;
       }
     }
@@ -979,6 +1030,117 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       : node.cases[selected]!.children;
   }
 
+  // --- for ------------------------------------------------------------------
+
+  /** Mount a reactive `for`: a persistent wrapper holding one rendered item per
+   *  iterable element, recorded as a region of the parent scope. Numeric `for`
+   *  (no `each`) is a follow-up. */
+  protected mountForRegion(
+    parent: Element,
+    node: ForNode,
+    scope: ReactiveScope,
+  ): void {
+    const wrapper = this.createWrapper(parent);
+    const region: ForRegion = { kind: "for", wrapper, node, iterations: [] };
+    scope.regions.push(region);
+    this.populateFor(region, scope.env);
+  }
+
+  /** Initial mount of every iteration (or the `else` arm if the iterable is
+   *  empty), using the enclosing `parentEnv`. */
+  protected populateFor(region: ForRegion, parentEnv: ReactiveEnv): void {
+    if (!region.node.each) {
+      return; // numeric `for i = a, b` is a follow-up
+    }
+    const entries = this.iterableEntries(
+      this.evalBinding(region.node.each, parentEnv),
+    );
+    if (entries.length === 0) {
+      this.mountForElse(region, parentEnv);
+      return;
+    }
+    for (const [key, value] of entries) {
+      this.mountIteration(region, parentEnv, key, value);
+    }
+  }
+
+  /** Mount the `for`'s `else` arm into its wrapper (when the iterable is empty). */
+  protected mountForElse(region: ForRegion, parentEnv: ReactiveEnv): void {
+    const elseChildren = region.node.else;
+    if (!elseChildren || elseChildren.length === 0) {
+      return;
+    }
+    region.elseScope = { env: parentEnv, texts: [], regions: [] };
+    for (const child of elseChildren) {
+      this.mountNode(region.wrapper, child, region.elseScope);
+    }
+  }
+
+  /** Mount one iteration's body into the wrapper, binding the loop variable(s)
+   *  in a fresh per-iteration scope env. The new wrapper children are recorded
+   *  as the iteration's roots so it can be torn down independently. */
+  protected mountIteration(
+    region: ForRegion,
+    parentEnv: ReactiveEnv,
+    key: unknown,
+    value: unknown,
+  ): void {
+    const env: ReactiveEnv = { ...parentEnv };
+    this.bindLoopVars(region.node.bindings, env, key, value);
+    const scope: ReactiveScope = { env, texts: [], regions: [] };
+    const before = region.wrapper.children.length;
+    for (const child of region.node.children) {
+      this.mountNode(region.wrapper, child, scope);
+    }
+    const elements = [...region.wrapper.children].slice(before);
+    region.iterations.push({ key, elements, scope });
+  }
+
+  /** Bind a `for`'s loop variable(s) into `env`: `[v]` → value; `[k, v]` → key +
+   *  value (Luau pairs/ipairs style). Mutates `env` in place. */
+  protected bindLoopVars(
+    bindings: string[],
+    env: ReactiveEnv,
+    key: unknown,
+    value: unknown,
+  ): void {
+    if (bindings.length === 1) {
+      env[bindings[0]!] = value;
+    } else if (bindings.length >= 2) {
+      env[bindings[0]!] = key;
+      env[bindings[1]!] = value;
+    }
+  }
+
+  /** Normalize a `for` iterable's evaluated value to ordered `[key, value]`
+   *  entries. Luau tables come back as a `Map`; arrays are 1-indexed; plain
+   *  objects use their entries; anything else iterates as empty. */
+  protected iterableEntries(collection: unknown): [unknown, unknown][] {
+    if (collection instanceof Map) {
+      return [...collection.entries()];
+    }
+    if (Array.isArray(collection)) {
+      return collection.map((v, i) => [i + 1, v]);
+    }
+    if (collection && typeof collection === "object") {
+      return Object.entries(collection as Record<string, unknown>);
+    }
+    return [];
+  }
+
+  // --- shared ---------------------------------------------------------------
+
+  /** A persistent, layout-transparent (`display: contents`) wrapper that
+   *  reserves a control-flow region's sibling position; its contents swap as the
+   *  region reconciles, but the wrapper itself never moves. */
+  protected createWrapper(parent: Element): Element {
+    return this.createElement(parent, {
+      type: "div",
+      name: "",
+      style: { display: "contents" },
+    });
+  }
+
   /** Luau truthiness: everything except `nil` and `false` is truthy (0 and ""
    *  are truthy). */
   protected isTruthy(value: unknown): boolean {
@@ -990,26 +1152,29 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   /** Resolve ordered literal + `{expr}` content to a flat string. Each binding
-   *  is evaluated live via {@link evalBinding}; a nullish result contributes the
-   *  empty string. */
-  protected resolveContent(content: ContentPart[]): string {
+   *  is evaluated live via {@link evalBinding} with the scope's loop `env`; a
+   *  nullish result contributes the empty string. */
+  protected resolveContent(content: ContentPart[], env: ReactiveEnv): string {
     let text = "";
     for (const part of content) {
       if (part.kind === "literal") {
         text += part.text;
       } else {
-        const value = this.evalBinding(part.binding);
+        const value = this.evalBinding(part.binding, env);
         text += value == null ? "" : String(value);
       }
     }
     return text;
   }
 
+  // --- per-turn refresh -----------------------------------------------------
+
   /** Coarse per-turn re-eval over the scope tree: re-resolve reactive spans
-   *  (equality-gated ui/update) and switch any conditional whose active branch
-   *  changed. Called on the existing per-beat boundary (Coordinator.display →
-   *  updateUI), where the story is settled so {@link evalBinding}'s
-   *  EvaluateFunction is safe. No-op unless the reactive path is active. */
+   *  (equality-gated ui/update), switch any conditional whose branch changed,
+   *  and reconcile `for` lists. Called on the existing per-beat boundary
+   *  (Coordinator.display → updateUI), where the story is settled so
+   *  {@link evalBinding}'s EvaluateFunction is safe. No-op unless the reactive
+   *  path is active. */
   refreshScreens(): void {
     if (!this._reactive) {
       return;
@@ -1021,36 +1186,103 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected refreshScope(scope: ReactiveScope): void {
     for (const entry of scope.texts) {
-      const text = this.resolveContent(entry.content);
+      const text = this.resolveContent(entry.content, scope.env);
       if (text !== entry.last) {
         entry.last = text;
         this.updateElement(entry.element, { content: { text } });
       }
     }
     for (const region of scope.regions) {
-      this.refreshRegion(region);
+      if (region.kind === "for") {
+        this.refreshForRegion(region, scope.env);
+      } else {
+        this.refreshCondRegion(region);
+      }
     }
   }
 
-  protected refreshRegion(region: ReactiveRegion): void {
-    const next = this.selectBranch(region.node);
+  protected refreshCondRegion(region: CondRegion): void {
+    const next = this.selectBranch(region.node, region.scope.env);
     if (next === region.active) {
       // Same branch still active — recurse to refresh its inner scope.
       this.refreshScope(region.scope);
       return;
     }
     // Branch switched: tear down the old subtree + its registrations, then
-    // mount the new branch into the same persistent wrapper (position preserved).
-    this.teardownRegion(region);
-    region.scope = { texts: [], regions: [] };
+    // mount the new branch into the same persistent wrapper (position preserved,
+    // env reference reused so an enclosing for-iteration's values stay live).
+    this.clearWrapper(region.wrapper);
+    region.scope = { env: region.scope.env, texts: [], regions: [] };
     this.activateBranch(region);
   }
 
-  /** Destroy a region's mounted subtree (everything inside its wrapper). The
-   *  wrapper itself persists; dropping `region.scope` discards all the span /
-   *  nested-region registrations that subtree owned. */
-  protected teardownRegion(region: ReactiveRegion): void {
-    for (const child of [...region.wrapper.children]) {
+  /** Positional `for` reconcile (Phase 3): re-evaluate the iterable, then update
+   *  slot i in place (loop env mutated → spans/handlers see the new value),
+   *  append new tail items, and drop removed tail items. Keyed reconciliation +
+   *  MoveElement (so reorders move retained nodes) are Phase 4. */
+  protected refreshForRegion(region: ForRegion, parentEnv: ReactiveEnv): void {
+    if (!region.node.each) {
+      return;
+    }
+    const entries = this.iterableEntries(
+      this.evalBinding(region.node.each, parentEnv),
+    );
+
+    if (entries.length === 0) {
+      // Becoming empty: drop all iterations, then show the `else` arm.
+      for (const it of region.iterations) {
+        this.destroyIteration(it);
+      }
+      region.iterations = [];
+      if (region.elseScope) {
+        this.refreshScope(region.elseScope);
+      } else {
+        this.mountForElse(region, parentEnv);
+      }
+      return;
+    }
+
+    // Non-empty: drop the `else` arm if it was showing.
+    if (region.elseScope) {
+      this.clearWrapper(region.wrapper);
+      region.elseScope = undefined;
+    }
+
+    const next = entries.length;
+    const prev = region.iterations.length;
+    // Update retained slots in place (positional).
+    for (let i = 0; i < Math.min(next, prev); i += 1) {
+      const [key, value] = entries[i]!;
+      const it = region.iterations[i]!;
+      it.key = key;
+      this.bindLoopVars(region.node.bindings, it.scope.env, key, value);
+      this.refreshScope(it.scope);
+    }
+    // Append new tail items.
+    for (let i = prev; i < next; i += 1) {
+      const [key, value] = entries[i]!;
+      this.mountIteration(region, parentEnv, key, value);
+    }
+    // Drop removed tail items (from the end, keeping the wrapper append-only).
+    for (let i = prev - 1; i >= next; i -= 1) {
+      this.destroyIteration(region.iterations[i]!);
+    }
+    if (next < prev) {
+      region.iterations.length = next;
+    }
+  }
+
+  /** Destroy one for-iteration's body roots (its wrapper subtree). Dropping the
+   *  iteration from `region.iterations` discards its scope registrations. */
+  protected destroyIteration(it: ForIteration): void {
+    for (const el of it.elements) {
+      this.destroyElement(el);
+    }
+  }
+
+  /** Destroy everything inside a control-flow wrapper (the wrapper persists). */
+  protected clearWrapper(wrapper: Element): void {
+    for (const child of [...wrapper.children]) {
       this.destroyElement(child);
     }
   }

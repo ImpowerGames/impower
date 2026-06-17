@@ -21,6 +21,15 @@ export interface Binding {
   exprId: string;
   source: string;
   span: SparkRange;
+  /**
+   * Enclosing `for`-loop variable names (outermost-first) the evaluator takes as
+   * parameters, present only for bindings lowered inside a `for` loop. The
+   * evaluator is `__binding_N(<params…>) return <expr> end`; the reactive runtime
+   * passes each iteration's loop values as args (loop locals can't be read as
+   * globals — see {@link LowerContext.sparkleLoopVars}). Omitted (nullary) for
+   * top-level bindings.
+   */
+  params?: string[];
 }
 
 /** Text/content = ordered literal + binding spans (`"Lv {a} of {b}"`). */

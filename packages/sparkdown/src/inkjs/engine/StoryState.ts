@@ -1197,6 +1197,15 @@ export class StoryState {
   public PassArgumentsToEvaluationStack(args: any[] | null) {
     if (args !== null) {
       for (let i = 0; i < args.length; i++) {
+        // Already-runtime values (an InkObject, e.g. a Luau table element a
+        // reactive `for`-loop binding evaluator receives as an arg) are pushed
+        // through directly — `Value.Create` only marshals raw JS primitives +
+        // InkList. This is additive: InkList extends Map (not InkObject), so its
+        // existing path is unchanged; primitives still go through Value.Create.
+        if (args[i] instanceof InkObject) {
+          this.PushEvaluationStack(args[i]);
+          continue;
+        }
         if (
           !(
             typeof args[i] === "number" ||
