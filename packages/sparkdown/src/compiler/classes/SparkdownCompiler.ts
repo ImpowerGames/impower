@@ -87,12 +87,16 @@ const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
 //     every program.compiled, which would also bloat unrelated compiled output).
 // The prelude is NOT included in any program's parsed story — keeping the cache
 // the single point where it is compiled and keeping program.compiled clean.
-let _cachedPrelude: { context: Record<string, any>; compiled: unknown } | null =
-  null;
+let _cachedPrelude: {
+  context: Record<string, any>;
+  compiled: unknown;
+  sparkle: Record<string, any>;
+} | null = null;
 
 function getCompiledPrelude(): {
   context: Record<string, any>;
   compiled: unknown;
+  sparkle: Record<string, any>;
 } {
   if (_cachedPrelude) {
     return _cachedPrelude;
@@ -125,6 +129,7 @@ function getCompiledPrelude(): {
   _cachedPrelude = {
     context: result.program.context ?? {},
     compiled: result.program.compiled,
+    sparkle: result.program.sparkle ?? {},
   };
   return _cachedPrelude;
 }
@@ -496,6 +501,7 @@ export class SparkdownCompiler {
     // context; otherwise use the legacy JS populateBuiltins.
     if (this._config.useBuiltinsPrelude) {
       this.mergePreludeContext(program);
+      this.mergePreludeSparkle(program);
     } else {
       this.populateBuiltins(program);
     }
@@ -1447,6 +1453,32 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "mergePreludeContext", uri);
+  }
+
+  /** Merge the once-compiled builtins prelude's reactive Sparkle AST into
+   *  `program.sparkle` as the base layer, mirroring {@link mergePreludeContext}.
+   *  Runs before this file's own chunks populate `program.sparkle`, so an
+   *  authored `screen main` overrides the builtin `main` in place (Object.assign
+   *  on the same key keeps the builtin's earlier insertion order: loading, main,
+   *  …). Trees are deep-cloned so the shared cache can't be mutated by later
+   *  per-program work. Keeps the reactive AST channel a faithful superset of the
+   *  static `context.screen`/`context.component` channels (it must carry the
+   *  builtin `loading`/`main` screens the reactive runtime renders). */
+  mergePreludeSparkle(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "mergePreludeSparkle", uri);
+    const { sparkle } = getCompiledPrelude();
+    for (const kind of ["screens", "components"] as const) {
+      const trees = sparkle[kind];
+      if (trees) {
+        program.sparkle ??= {};
+        program.sparkle[kind] ??= {};
+        for (const [name, tree] of Object.entries(trees)) {
+          program.sparkle[kind]![name] = structuredClone(tree) as any;
+        }
+      }
+    }
+    profile("end", this._profilerId, "mergePreludeSparkle", uri);
   }
 
   populateBuiltins(program: SparkProgram) {

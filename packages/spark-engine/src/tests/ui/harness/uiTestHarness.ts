@@ -123,7 +123,11 @@ function resultForMethod(method: string): unknown {
   }
 }
 
-export function createHarness(source: string, startLine = 0): UIHarness {
+export function createHarness(
+  source: string,
+  startLine = 0,
+  opts?: { reactive?: boolean },
+): UIHarness {
   const { program } = compileUI(source);
   const messages: any[] = [];
 
@@ -138,6 +142,13 @@ export function createHarness(source: string, startLine = 0): UIHarness {
       return 0;
     }) as any,
   } as any);
+
+  // Enable the reactive (AST-driven) render path BEFORE connect()'s eager
+  // onConnected runs. The UIModule is constructed in the Game ctor, so its flag
+  // is settable here; the static golden path stays the default (flag off).
+  if (opts?.reactive) {
+    (game.module.ui as any)._reactive = true;
+  }
 
   const respond = (msg: any) => {
     messages.push(msg);

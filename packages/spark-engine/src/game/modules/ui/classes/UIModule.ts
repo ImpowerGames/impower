@@ -1,7 +1,13 @@
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
-import type { Binding } from "@impower/sparkdown/src/compiler/types/SparkleNode";
+import type {
+  Binding,
+  BodyNode,
+  ContentPart,
+  ElementNode,
+  ScreenNode,
+} from "@impower/sparkdown/src/compiler/types/SparkleNode";
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { Module } from "../../../core/classes/Module";
@@ -135,7 +141,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
     this.constructStyles();
-    this.constructScreens();
+    if (this._reactive && this._game.program?.sparkle?.screens) {
+      this.constructScreensFromAst();
+    } else {
+      this.constructScreens();
+    }
     this.loadTheme();
     const transientTargets = this.getTransientTargets();
     await Promise.all([
@@ -686,6 +696,111 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     return uiEl;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reactive runtime (Phase 3): mount screens from the typed Sparkle AST
+  // (program.sparkle.screens) instead of the flattened context.screen struct.
+  //
+  // I1 — static mount: reproduce constructScreen's element tree byte-for-byte
+  // (named structural divs; text/stroke → inline span; image/mask → background
+  // span) so flag-ON output matches the static golden. Reactive content/event
+  // wiring lands in later increments (I2 binding eval, I3 if/match, I5 @event).
+  // ---------------------------------------------------------------------------
+
+  constructScreensFromAst(...structNames: string[]): void {
+    const screens = this._game.program?.sparkle?.screens;
+    if (!screens) {
+      return;
+    }
+    const targetAllScreens = !structNames || structNames.length === 0;
+    const validScreenNames = targetAllScreens
+      ? Object.keys(screens)
+      : structNames;
+    for (const screenName of validScreenNames) {
+      if (screenName && !screenName.startsWith("$")) {
+        const screen = screens[screenName];
+        if (screen) {
+          this.constructScreenFromAst(screen);
+        }
+      }
+    }
+  }
+
+  protected constructScreenFromAst(screen: ScreenNode): Element {
+    const parent = this.getOrCreateRootScreenElement();
+    const uiEl = this.createElement(parent, {
+      type: "div",
+      name: screen.name,
+      style: {
+        position: "absolute",
+        inset: "0",
+        display: "flex",
+        flex_direction: "column",
+      },
+    });
+    for (const child of screen.children) {
+      this.mountNode(uiEl, child);
+    }
+    return uiEl;
+  }
+
+  protected mountNode(parent: Element, node: BodyNode): void {
+    if (node.kind === "element") {
+      this.mountElement(parent, node);
+    }
+    // Control-flow + slot/fill nodes (if/for/match/slot/fill) are mounted in
+    // later increments (I3 if/match, I4 for, plus component slot/fill); they do
+    // not appear in the static screen golden, so I1 skips them.
+  }
+
+  protected mountElement(parent: Element, node: ElementNode): Element {
+    // Element name = builtin tag joined with its bare-word classes, matching the
+    // static path's dotted-segment naming ("mask shadow_1", "text", "stage").
+    const name = [node.tag, ...node.classes].join(" ");
+    const el = this.createElement(parent, { type: "div", name });
+    // Builtin leaf semantics, mirroring constructScreen's class-detection:
+    // text/stroke render an inline span; image/mask render a background span.
+    if (node.tag === "text" || node.tag === "stroke") {
+      const text = this.staticContentText(node.content);
+      if (text != null) {
+        this.createElement(el, {
+          type: "span",
+          content: { text },
+          style: { display: "inline" },
+        });
+      }
+    } else if (node.tag === "image") {
+      this.createImage(el, [this.staticContentText(node.content)], "background_image");
+    } else if (node.tag === "mask") {
+      this.createImage(el, [this.staticContentText(node.content)], "mask_image");
+    }
+    for (const child of node.children) {
+      this.mountNode(el, child);
+    }
+    return el;
+  }
+
+  /** Literal text of an element's content for the static mount. Returns
+   *  `undefined` when there is no literal text to render (no content, or
+   *  binding-only content whose live value is wired at I2), so a content-less
+   *  leaf creates no span — matching constructScreen's `typeof v === "string"`
+   *  guard. */
+  protected staticContentText(content?: ContentPart[]): string | undefined {
+    if (!content || content.length === 0) {
+      return undefined;
+    }
+    const hasLiteral = content.some((p) => p.kind === "literal");
+    if (!hasLiteral) {
+      return undefined;
+    }
+    let text = "";
+    for (const part of content) {
+      if (part.kind === "literal") {
+        text += part.text;
+      }
+    }
+    return text;
   }
 
   initScreens(): void {
