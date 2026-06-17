@@ -31,16 +31,35 @@ export default class UIManager extends Manager {
 
   protected _listeners: Record<string, (event: Event) => void> = {};
 
+  /**
+   * id → element cache (spec D13). The reactive runtime addresses elements by id
+   * for every create-parent / update / destroy / observe; resolving each through
+   * a `querySelector` is O(messages) DOM work. Elements register here on
+   * `ui/create` and are dropped (with their subtree) on `ui/destroy`. Ids are
+   * unique uuids and never reused, so a miss falls back to a query (e.g. the
+   * overlay root) and re-caches.
+   */
+  protected _elements = new Map<string, HTMLElement>();
+
   override onDispose() {
     this._overlayRoots.forEach((el) => el.remove());
     this._listeners = {};
+    this._elements.clear();
   }
 
   getElement(id: string | null | undefined) {
     if (!id) {
       return this.app.overlay;
     }
-    return this.app.overlay?.querySelector(`#${id}`) as HTMLElement;
+    const cached = this._elements.get(id);
+    if (cached) {
+      return cached;
+    }
+    const found = this.app.overlay?.querySelector(`#${id}`) as HTMLElement;
+    if (found) {
+      this._elements.set(id, found);
+    }
+    return found;
   }
 
   override async onReceiveRequest(msg: RequestMessage) {
@@ -54,6 +73,7 @@ export default class UIManager extends Manager {
       const el = document.createElement(params.type);
       if (params.element) {
         el.id = params.element;
+        this._elements.set(params.element, el);
       }
       if (params.name) {
         el.className = params.name;
@@ -139,6 +159,11 @@ export default class UIManager extends Manager {
       const params = msg.params;
       const element = this.getElement(params.element);
       if (element) {
+        // Drop the destroyed subtree from the id cache before removing it.
+        this._elements.delete(params.element);
+        element
+          .querySelectorAll("[id]")
+          .forEach((d) => this._elements.delete(d.id));
         element.remove();
       }
       return DestroyElementMessage.type.result(params.element);
