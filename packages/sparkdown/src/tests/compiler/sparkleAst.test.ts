@@ -258,6 +258,51 @@ end
     });
   });
 
+  test("if/elseif/else lowers to an IfNode (branches + else, grammar children)", () => {
+    const ast = screenAst(`screen hud with
+  stage:
+    if player.dead then
+      text "GAME OVER"
+    elseif player.hp < 10 then
+      text "Low"
+    else
+      text "OK"
+    end
+end
+`);
+    const stage = ast.hud.children[0];
+    expect(stage.tag).toBe("stage");
+    const ifNode = stage.children[0];
+    expect(ifNode.kind).toBe("if");
+    expect(ifNode.branches).toHaveLength(2);
+    expect(ifNode.branches[0].condition.source).toContain("player.dead");
+    expect(ifNode.branches[0].children[0]).toMatchObject({
+      tag: "text",
+      content: [{ kind: "literal", text: "GAME OVER" }],
+    });
+    expect(ifNode.branches[1].condition.source).toContain("player.hp");
+    expect(ifNode.branches[1].children[0].content).toEqual([
+      { kind: "literal", text: "Low" },
+    ]);
+    expect(ifNode.else[0].content).toEqual([{ kind: "literal", text: "OK" }]);
+  });
+
+  test("`if` with no else omits the else branch", () => {
+    const ast = screenAst(`screen hud with
+  if ready then
+    text "Go"
+  end
+end
+`);
+    const ifNode = ast.hud.children[0];
+    expect(ifNode.kind).toBe("if");
+    expect(ifNode.branches).toHaveLength(1);
+    expect(ifNode.else).toBeUndefined();
+    expect(ifNode.branches[0].children[0].content).toEqual([
+      { kind: "literal", text: "Go" },
+    ]);
+  });
+
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
     const ast = screenAst(`screen hud with
   text = "literal {{braces}} kept"

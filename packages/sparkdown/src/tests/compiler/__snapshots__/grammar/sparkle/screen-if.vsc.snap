@@ -1,0 +1,59 @@
+text.source.sparkdown [0..186]
+ ├─ meta.screen.luau [0..15]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..10]: "hud"
+ │   ├─ punctuation.whitespace.optional.sd [10..11]: " "
+ │   └─ keyword.control.as.luau [11..15]: "with"
+ ├─ Newline [15..16]: "\n"
+ ├─ meta.screen.luau [16..24]
+ │   ├─ punctuation.whitespace.optional.sd [16..18]: "  "
+ │   └─ meta.struct.body.luau [18..24]: "stage:"
+ ├─ Newline [24..25]: "\n"
+ ├─ meta.screen.luau [25..48]
+ │   ├─ punctuation.whitespace.optional.sd [25..29]: "    "
+ │   ├─ keyword.control.if.luau [29..31]: "if"
+ │   ├─ punctuation.whitespace.optional.sd [31..32]: " "
+ │   ├─ variable.other.readwrite.luau [32..38]: "player"
+ │   ├─ meta.template.expression.accessor.sd [38..39]: "."
+ │   ├─ variable.other.property.luau [39..43]: "dead"
+ │   ├─ punctuation.whitespace.optional.sd [43..44]: " "
+ │   └─ keyword.control.then.luau [44..48]: "then"
+ ├─ Newline [48..49]: "\n"
+ ├─ meta.screen.luau [49..71]
+ │   ├─ punctuation.whitespace.optional.sd [49..55]: "      "
+ │   └─ meta.struct.body.luau [55..71]: "text \"GAME OVER\""
+ ├─ Newline [71..72]: "\n"
+ ├─ meta.screen.luau [72..102]
+ │   ├─ punctuation.whitespace.optional.sd [72..76]: "    "
+ │   ├─ keyword.control.elseif.luau [76..82]: "elseif"
+ │   ├─ punctuation.whitespace.optional.sd [82..83]: " "
+ │   ├─ variable.other.readwrite.luau [83..89]: "player"
+ │   ├─ meta.template.expression.accessor.sd [89..90]: "."
+ │   ├─ variable.other.property.luau [90..92]: "hp"
+ │   ├─ punctuation.whitespace.optional.sd [92..93]: " "
+ │   ├─ keyword.operator.comparison.luau [93..94]: "<"
+ │   ├─ punctuation.whitespace.optional.sd [94..95]: " "
+ │   ├─ constant.numeric.decimal.luau [95..97]: "10"
+ │   ├─ punctuation.whitespace.optional.sd [97..98]: " "
+ │   └─ keyword.control.then.luau [98..102]: "then"
+ ├─ Newline [102..103]: "\n"
+ ├─ meta.screen.luau [103..135]
+ │   ├─ punctuation.whitespace.optional.sd [103..109]: "      "
+ │   └─ meta.struct.body.luau [109..135]: "text warning \"Low health!\""
+ ├─ Newline [135..136]: "\n"
+ ├─ meta.screen.luau [136..144]
+ │   ├─ punctuation.whitespace.optional.sd [136..140]: "    "
+ │   └─ keyword.control.else.luau [140..144]: "else"
+ ├─ Newline [144..145]: "\n"
+ ├─ meta.screen.luau [145..173]
+ │   ├─ punctuation.whitespace.optional.sd [145..151]: "      "
+ │   └─ meta.struct.body.luau [151..173]: "text \"HP: {player.hp}\""
+ ├─ Newline [173..174]: "\n"
+ ├─ meta.screen.luau [174..181]
+ │   ├─ punctuation.whitespace.optional.sd [174..178]: "    "
+ │   └─ keyword.control.end.luau [178..181]: "end"
+ ├─ Newline [181..182]: "\n"
+ ├─ meta.screen.luau [182..185]
+ │   └─ keyword.control.end.luau [182..185]: "end"
+ └─ Newline [185..186]: "\n"

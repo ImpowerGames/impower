@@ -7491,6 +7491,168 @@
       "name": "meta.struct.body.fallback.luau",
       "match": "^(.+)$"
     },
+    "LuauSparkleControlBlock": {
+      "patterns": [
+        {
+          "include": "#LuauSparkleIfBlock"
+        }
+      ]
+    },
+    "LuauSparkleIfBlock": {
+      "begin": "((?:[^\\S\\n\\r])*)(if)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauIfKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauIfBlockCondition"
+        },
+        {
+          "include": "#LuauSparkleElseifBlock"
+        },
+        {
+          "include": "#LuauSparkleElseBlock"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauSparkleElseifBlock": {
+      "begin": "((?:[^\\S\\n\\r])*)(elseif)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauElseifKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauElseifBlockCondition"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*\\b(?:end|elseif|else)\\b)"
+    },
+    "LuauSparkleElseBlock": {
+      "begin": "((?:[^\\S\\n\\r])*)(else)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauElseKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:end)\\b)"
+    },
     "LuauScreen": {
       "tag": "meta",
       "name": "meta.screen.luau",
@@ -7525,6 +7687,9 @@
         },
         {
           "include": "#LuauUINameAndInheritance"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
         },
         {
           "include": "#LuauStructBodyLine"
@@ -7589,6 +7754,9 @@
         },
         {
           "include": "#LuauUINameAndInheritance"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
         },
         {
           "include": "#LuauStructBodyLine"

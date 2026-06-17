@@ -1,0 +1,10 @@
+screen hud with
+  stage:
+    if player.dead then
+      text "GAME OVER"
+    elseif player.hp < 10 then
+      text warning "Low health!"
+    else
+      text "HP: {player.hp}"
+    end
+end

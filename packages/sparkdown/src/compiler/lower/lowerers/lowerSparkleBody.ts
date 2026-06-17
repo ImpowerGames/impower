@@ -11,6 +11,7 @@ import {
   type ContentPart,
   type ElementNode,
   type EventBinding,
+  type IfNode,
   type PropValue,
 } from "../../types/SparkleNode";
 import { type SparkRange } from "../../types/SparkRange";
@@ -37,11 +38,24 @@ import { type SparkRange } from "../../types/SparkRange";
 
 interface NodeLine {
   indent: number;
-  /** The `LuauStructBodyContent` node for this body line. */
+  /** A `LuauStructBodyContent` element line, or a `LuauSparkleIfBlock` control
+   *  block (when `control` is set). */
   node: SyntaxNode;
+  control?: boolean;
 }
 
-/** Collect each body line's `LuauStructBodyContent` node + its indent column. */
+const CONTROL_BLOCK_NAMES = new Set(["LuauSparkleIfBlock"]);
+// Clause sub-blocks of a control block — collected explicitly by the control
+// builder, so the generic item walk must NOT descend into or emit them.
+const CONTROL_CLAUSE_NAMES = new Set([
+  "LuauSparkleElseifBlock",
+  "LuauSparkleElseBlock",
+]);
+
+/** Collect a body's items (element lines + control blocks) with their indent
+ *  column, in source order. Element nesting is later reconstructed from indent
+ *  (`buildBlock`); control blocks carry their own grammar structure, so they're
+ *  emitted opaque (not descended into) and built recursively by `buildControl`. */
 function collectNodeLines(
   contentNode: SyntaxNode | null,
   ctx: LowerContext,
@@ -57,6 +71,19 @@ function collectNodeLines(
         if (text && !text.startsWith("--")) {
           lines.push({ indent: ctx.characterNumber(child.from), node: child });
         }
+      } else if (CONTROL_BLOCK_NAMES.has(child.name)) {
+        // The block's `.from` is the line start (its `begin` captures the
+        // leading indent), so derive the indent from the first non-whitespace
+        // column (the `if`/`for`/… keyword) for correct tree placement.
+        const text = ctx.read(child.from, child.to);
+        const lead = text.length - text.replace(/^[ \t]*/, "").length;
+        lines.push({
+          indent: ctx.characterNumber(child.from + lead),
+          node: child,
+          control: true,
+        });
+      } else if (CONTROL_CLAUSE_NAMES.has(child.name)) {
+        // Belongs to the enclosing control block — handled by buildControl.
       } else {
         walk(child);
       }
@@ -465,6 +492,14 @@ function buildBlock(
       i += 1; // defensive: over-indented orphan
       continue;
     }
+    // Control block (`if … end`) — a self-contained grammar node; build it
+    // recursively and place it at this indent level (its branch children carry
+    // their own indentation). It consumes only its own line.
+    if (lines[i]!.control) {
+      children.push(buildControl(lines[i]!.node, ctx));
+      i += 1;
+      continue;
+    }
     const content = lines[i]!.node;
     const kind = lineKindNode(content);
     const childIndent = nextChildIndent(lines, i, indent);
@@ -546,6 +581,104 @@ function buildBlock(
     children.push(element);
   }
   return { children, props, next: i };
+}
+
+/** Direct children of `node` whose name is in `names`, in source order. */
+function childrenByName(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
+  const out: SyntaxNode[] = [];
+  let c = node.firstChild;
+  while (c) {
+    if (names.has(c.name)) out.push(c);
+    c = c.nextSibling;
+  }
+  return out;
+}
+
+/** Build the element-tree children of a control-flow branch body (a `_content`
+ *  node), reconstructing element nesting from indentation. */
+function buildBranchChildren(
+  content: SyntaxNode | null,
+  ctx: LowerContext,
+): BodyNode[] {
+  if (!content) return [];
+  const items = collectNodeLines(content, ctx);
+  if (items.length === 0) return [];
+  return buildBlock(items, 0, items[0]!.indent, ctx).children;
+}
+
+const IF_CONDITION = new Set(["LuauIfBlockCondition"]);
+const IF_CONDITION_CONTENT = new Set(["LuauIfBlockCondition_content"]);
+const ELSEIF_CONDITION_CONTENT = new Set(["LuauElseifBlockCondition_content"]);
+
+/** Compile a control-block condition node (the expression up to `then`) into a
+ *  Binding the reactive runtime evaluates. Prefers the `_content` wrapper so the
+ *  `then` keyword isn't included in the binding source. */
+function lowerCondition(
+  conditionNode: SyntaxNode,
+  contentNames: Set<string>,
+  ctx: LowerContext,
+): Binding {
+  return lowerBinding(
+    firstDescendant(conditionNode, contentNames) ?? conditionNode,
+    ctx,
+  );
+}
+
+/** Build a control-flow BodyNode. Currently `if`/`elseif`/`else` (IfNode);
+ *  `for`/`match`/`slot`/`fill` follow. */
+function buildControl(node: SyntaxNode, ctx: LowerContext): BodyNode {
+  return buildIfNode(node, ctx);
+}
+
+/** `LuauSparkleIfBlock` → IfNode: the `if` + each `elseif` are branches
+ *  (condition + children), `else` is the default. Branch bodies are the element
+ *  lines inside each clause (grammar children — no sibling-index walking). */
+function buildIfNode(ifBlock: SyntaxNode, ctx: LowerContext): IfNode {
+  const ifContent = firstDescendant(
+    ifBlock,
+    new Set(["LuauSparkleIfBlock_content"]),
+  );
+  const branches: IfNode["branches"] = [];
+  if (ifContent) {
+    const ifCond = firstDescendant(ifContent, IF_CONDITION);
+    if (ifCond) {
+      branches.push({
+        condition: lowerCondition(ifCond, IF_CONDITION_CONTENT, ctx),
+        children: buildBranchChildren(ifContent, ctx),
+      });
+    }
+    for (const elseif of childrenByName(
+      ifContent,
+      new Set(["LuauSparkleElseifBlock"]),
+    )) {
+      const elseifContent = firstDescendant(
+        elseif,
+        new Set(["LuauSparkleElseifBlock_content"]),
+      );
+      const cond = firstDescendant(
+        elseif,
+        new Set(["LuauElseifBlockCondition"]),
+      );
+      if (cond) {
+        branches.push({
+          condition: lowerCondition(cond, ELSEIF_CONDITION_CONTENT, ctx),
+          children: buildBranchChildren(elseifContent, ctx),
+        });
+      }
+    }
+    const elseBlock = childrenByName(
+      ifContent,
+      new Set(["LuauSparkleElseBlock"]),
+    )[0];
+    if (elseBlock) {
+      const elseContent = firstDescendant(
+        elseBlock,
+        new Set(["LuauSparkleElseBlock_content"]),
+      );
+      return { kind: "if", branches, else: buildBranchChildren(elseContent, ctx) };
+    }
+  }
+  return { kind: "if", branches };
 }
 
 /** If line i has an indented child block, recurse and assign the block's

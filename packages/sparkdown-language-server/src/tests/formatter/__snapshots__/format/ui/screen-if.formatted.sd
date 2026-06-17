@@ -1,0 +1,10 @@
+screen hud with
+  stage:
+    if dead then
+      text "over"
+    elseif low then
+      text "low"
+    else
+      text "ok"
+    end
+end

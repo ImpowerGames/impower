@@ -204,6 +204,27 @@ end
   });
 });
 
+describe("screen · control flow", () => {
+  test("if/elseif/else compiles cleanly (condition evaluators hoisted)", () => {
+    const r = compileUI(`store dead = false
+store hp = 100
+screen hud with
+  if dead then
+    text "over"
+  elseif hp < 10 then
+    text "low"
+  else
+    text "ok"
+  end
+end
+`);
+    // The branch conditions lower to hoisted nullary binding functions; the full
+    // pipeline must compile them with no errors (nested `end`s balance against
+    // the screen's `end`).
+    expect(r.errors).toEqual([]);
+  });
+});
+
 describe("component", () => {
   test("component produces $type component", () => {
     const r = compileUI(`component card with

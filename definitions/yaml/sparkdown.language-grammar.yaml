@@ -4634,6 +4634,91 @@ repository:
     name: meta.struct.body.fallback.luau
     match: ^(.+)$
 
+  # ----------------------------------------------------------------------------
+  # Sparkle control flow (spec §4.6): `if/elseif/else`, `for`, `match` inside a
+  # screen/component body. Luau-keyword delimited (`then`/`do`/`end`). These are
+  # GRAMMAR BLOCKS (begin/end) — required so a nested `end` is consumed by its
+  # own block and the screen's terminating `end` still balances. Their bodies are
+  # the same sparkle element lines (LuauStructBodyLine) + nested control blocks,
+  # so the lowerer reads if/for/match as IfNode/ForNode/MatchNode grammar
+  # children. `if`-condition rules are reused from the Luau side (they end at
+  # `then`); only the BODY differs (element lines, not Luau statements).
+  LuauSparkleControlBlock:
+    patterns:
+      - { include: "#LuauSparkleIfBlock" }
+
+  LuauSparkleIfBlock:
+    begin: ({{WS}}*)(if)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauIfKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauIfBlockCondition" }
+      - { include: "#LuauSparkleElseifBlock" }
+      - { include: "#LuauSparkleElseBlock" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauSparkleElseifBlock:
+    begin: ({{WS}}*)(elseif)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauElseifKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauElseifBlockCondition" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})
+
+  LuauSparkleElseBlock:
+    begin: ({{WS}}*)(else)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauElseKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
+
 
   # ----------------------------------------------------------------------------
   # Screen / Component (structured UI element trees, struct-registry only)
@@ -4666,6 +4751,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauUINameAndInheritance" }
+      - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -4697,6 +4783,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauUINameAndInheritance" }
+      - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
