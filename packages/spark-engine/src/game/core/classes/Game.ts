@@ -284,6 +284,9 @@ export class Game<T extends M = {}> {
     if (this._program.components) {
       this._context["component"] = this._program.components;
     }
+    if (this._program.styles) {
+      this._context["style"] = this._program.styles;
+    }
 
     // Override default modules with custom ones if specified
     const allModules = {

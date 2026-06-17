@@ -1433,11 +1433,15 @@ export class SparkdownCompiler {
     profile("start", this._profilerId, "populateUIChannel", uri);
     const screen = program.context?.["screen"];
     const component = program.context?.["component"];
+    const style = program.context?.["style"];
     if (screen) {
       program.screens = structuredClone(screen);
     }
     if (component) {
       program.components = structuredClone(component);
+    }
+    if (style) {
+      program.styles = structuredClone(style);
     }
     profile("end", this._profilerId, "populateUIChannel", uri);
   }

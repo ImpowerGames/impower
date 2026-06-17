@@ -42,6 +42,7 @@ export interface SparkProgram {
   // SparkleNode channel above.)
   screens?: { [name: string]: any };
   components?: { [name: string]: any };
+  styles?: { [name: string]: any };
   diagnostics?: {
     [uri: string]: SparkDiagnostic[];
   };
