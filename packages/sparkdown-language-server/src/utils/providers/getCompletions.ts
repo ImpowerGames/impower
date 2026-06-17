@@ -25,7 +25,6 @@ import {
   type Position,
 } from "vscode-languageserver";
 import { getDeclarationScopes } from "../annotations/getDeclarationScopes";
-import { getParentPropertyPath } from "../syntax/getParentPropertyPath";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
 
 const IMAGE_CONTROL_KEYWORDS =
@@ -75,6 +74,47 @@ const FLOW_KEYWORDS = ["DONE", "END"];
 const INSERT_TEXT_CURSOR_REGEX = /[$]\d+/g;
 
 const isPrefilteredName = (name: string) => name.includes("~");
+
+// Top-level structural-define keyword node → the engine type it declares.
+const STRUCTURAL_DEFINE_TYPE: Record<string, string> = {
+  LuauStyle: "style",
+  LuauScreen: "screen",
+  LuauComponent: "component",
+  LuauAnimation: "animation",
+  LuauTheme: "theme",
+};
+
+// Resolve the engine `type` + instance `name` of the define enclosing the
+// cursor, in the Luau-port inverted model:
+//   - OOP `define <name> as <parent>` → type = parent, name = name.
+//   - OOP root `define <name> with …`  → type = name, name = "$default".
+//   - structural `<keyword> <name> …`  → type = keyword, name = name.
+// Returns null when the cursor is not inside a define body. Used to drive
+// struct property-name/value completions against `program.context[type]`.
+const getDefineContext = (
+  leftStack: GrammarSyntaxNode<SparkdownNodeName>[],
+  read: (from: number, to: number) => string,
+): { type: string; name: string } | null => {
+  const structuralNode = leftStack.find((n) => STRUCTURAL_DEFINE_TYPE[n.name]);
+  if (structuralNode) {
+    const nameNode = getDescendent("LuauDefineName", structuralNode);
+    return {
+      type: STRUCTURAL_DEFINE_TYPE[structuralNode.name]!,
+      name: nameNode ? read(nameNode.from, nameNode.to).trim() : "$default",
+    };
+  }
+  const defineNode = leftStack.find((n) => n.name === "LuauDefine");
+  if (defineNode) {
+    const parentNode = getDescendent("LuauDefineParentName", defineNode);
+    const nameNode = getDescendent("LuauDefineName", defineNode);
+    const parent = parentNode
+      ? read(parentNode.from, parentNode.to).trim()
+      : "";
+    const name = nameNode ? read(nameNode.from, nameNode.to).trim() : "";
+    return { type: parent || name, name: parent ? name : "$default" };
+  }
+  return null;
+};
 
 const isWhitespaceNode = (name?: SparkdownNodeName) =>
   name === "RequiredWhitespace" ||
@@ -326,28 +366,6 @@ const addStructTypeNameCompletions = (
           label: type,
           labelDetails: { description: "type" },
           kind: CompletionItemKind.TypeParameter,
-        };
-        if (completion.label && !completions.has(completion.label)) {
-          completions.set(completion.label, completion);
-        }
-      }
-    }
-  }
-};
-
-const addStructVariableNameCompletions = (
-  completions: Map<string, CompletionItem>,
-  program: SparkProgram | undefined,
-  type: string,
-  currentText: string,
-) => {
-  if (program?.context?.[type]) {
-    for (const name of Object.keys(program?.context?.[type]).sort()) {
-      if (!name.startsWith("$") && currentText != name) {
-        const completion: CompletionItem = {
-          label: name,
-          labelDetails: { description: "name" },
-          kind: CompletionItemKind.Variable,
         };
         if (completion.label && !completions.has(completion.label)) {
           completions.set(completion.label, completion);
@@ -1314,10 +1332,7 @@ export const getCompletions = (
   // ImageCommand
   if (leftStack.some((n) => n.type.name === "ImageCommand")) {
     const beforeImageNode = leftStack.find(
-      (n) =>
-        n.type.name === "ImageBeginMark" ||
-        n.type.name === "ImageCommand_begin_c1" ||
-        n.type.name === "ImageCommand_begin_c2",
+      (n) => n.type.name === "ImageBeginMark",
     );
     if (beforeImageNode) {
       if (isCursorAfterNodeText(beforeImageNode)) {
@@ -1495,10 +1510,7 @@ export const getCompletions = (
   // AudioCommand
   if (leftStack.some((n) => n.type.name === "AudioCommand")) {
     const beforeAudioNode = leftStack.find(
-      (n) =>
-        n.type.name === "AudioBeginMark" ||
-        n.type.name === "AudioCommand_begin_c1" ||
-        n.type.name === "AudioCommand_begin_c2",
+      (n) => n.type.name === "AudioBeginMark",
     );
     if (beforeAudioNode) {
       if (isCursorAfterNodeText(beforeAudioNode)) {
@@ -1619,265 +1631,151 @@ export const getCompletions = (
     }
   }
 
-  // Define
+  // Define / structural (style/screen/component/animation/theme).
+  //
+  // The Luau port inverted the model (`define <name> as <TYPE>`) and flattened
+  // the struct body into indentation-nested LuauStructScalarProperty /
+  // ObjectHeader / ArrayItem lines, so the pre-port node names this section
+  // keyed on (DefineTypeName / DefineVariableName / *DeclarationScalarPropertyName
+  // / ViewStructField …) are all gone. Re-derive against the current grammar.
+
+  // Type completion: in the inverted model the engine type is the PARENT, so
+  // offer type names after `as`.
   if (
-    leftStack.some(
-      (n) =>
-        (isWhitespaceNode(n.name) &&
-          (prevNode.name === "DefineKeyword" ||
-            prevNode.name === "DefineModifierName")) ||
-        n.name === "DefineTypeName",
-    )
+    (isWhitespaceNode(leftStack[0]?.name) &&
+      prevNode.name === "LuauAsKeyword") ||
+    leftStack.some((n) => n.name === "LuauDefineParentName")
   ) {
-    if (
-      isCursorAfterNodeText(
-        leftStack.find((n) => n.type.name === "DefineTypeName"),
-      )
-    ) {
-      const defineTypeNameNode = leftStack.find(
-        (n) => n.type.name === "DefineTypeName",
-      );
-      const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
+    const parentNode = leftStack.find(
+      (n) => n.type.name === "LuauDefineParentName",
+    );
+    if (isCursorAfterNodeText(parentNode)) {
+      const type = parentNode ? getNodeText(parentNode) : "";
       addStructTypeNameCompletions(completions, program, type);
     }
     return buildCompletions();
   }
-  if (
-    leftStack.some(
-      (n) =>
-        n.type.name === "DefinePunctuationAccessor" ||
-        n.type.name === "DefineVariableName",
-    )
-  ) {
-    const variableNameNode = leftStack.find(
-      (n) => n.type.name === "DefineVariableName",
-    );
-    const currentText = getNodeText(variableNameNode);
-    if (isCursorAfterNodeText(variableNameNode)) {
-      const defineTypeNameNode = getDescendentInsideParent(
-        "DefineTypeName",
-        [
-          "DefineViewDeclaration",
-          "DefineStylingDeclaration",
-          "DefinePlainDeclaration",
-        ],
-        leftStack,
-      );
-      const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
-      addStructVariableNameCompletions(completions, program, type, currentText);
-    }
-    return buildCompletions();
-  }
-  const propertyNameNode = leftStack.find(
+
+  // Struct property NAME completion: cursor editing a struct key. The engine
+  // type + instance name come from the enclosing define (getDefineContext).
+  // NOTE: the nested property PATH (deep keys) is not yet recovered — the
+  // pre-port wrapper-node path tracker (getParentPropertyPath) is dead under the
+  // flat indentation grammar; top-level property names are offered (path ""),
+  // which covers the common case. Deep-path completion is a follow-up tied to
+  // the reactive-sparkle struct grammar.
+  const structKeyNode = leftStack.find(
     (n) =>
-      n.type.name === "BlankProperty" ||
-      n.type.name === "ViewDeclarationObjectPropertyName" ||
-      n.type.name === "StylingDeclarationObjectPropertyName" ||
-      n.type.name === "PlainDeclarationObjectPropertyName" ||
-      n.type.name === "ViewStructObjectItemBlock" ||
-      n.type.name === "StylingStructObjectItemBlock" ||
-      n.type.name === "PlainStructObjectItemBlock" ||
-      n.type.name === "ViewDeclarationScalarPropertyName" ||
       n.type.name === "StylingDeclarationScalarPropertyName" ||
-      n.type.name === "PlainDeclarationScalarPropertyName",
+      n.type.name === "DeclarationScalarPropertyKey" ||
+      n.type.name === "BuiltinComponentName" ||
+      n.type.name === "CustomComponentName" ||
+      n.type.name === "ComponentName" ||
+      n.type.name === "PropertyName" ||
+      n.type.name === "SelectorPropertyNamePart",
   );
   if (
-    propertyNameNode &&
-    document.positionAt(propertyNameNode.from).line === position.line
+    structKeyNode &&
+    document.positionAt(structKeyNode.from).line === position.line
   ) {
-    if (isCursorAfterNodeText(propertyNameNode)) {
-      const defineModifierNameNode = getDescendentInsideParent(
-        "DefineModifierName",
-        [
-          "DefineViewDeclaration",
-          "DefineStylingDeclaration",
-          "DefinePlainDeclaration",
-        ],
-        leftStack,
-      );
-      const defineTypeNameNode = getDescendentInsideParent(
-        "DefineTypeName",
-        [
-          "DefineViewDeclaration",
-          "DefineStylingDeclaration",
-          "DefinePlainDeclaration",
-        ],
-        leftStack,
-      );
-      const defineVariableNameNode = getDescendentInsideParent(
-        "DefineVariableName",
-        [
-          "DefineViewDeclaration",
-          "DefineStylingDeclaration",
-          "DefinePlainDeclaration",
-        ],
-        leftStack,
-      );
-      const modifier = defineModifierNameNode
-        ? getNodeText(defineModifierNameNode)
-        : "";
-      const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
-      const name = defineVariableNameNode
-        ? getNodeText(defineVariableNameNode)
-        : "$default";
-      const path = getParentPropertyPath(propertyNameNode, read);
-      const lineText = document.getLineText(position.line);
-      const exclude = getOtherNodesInsideParent(
-        ["ViewStructField", "StylingStructField", "PlainStructField"],
-        [
-          "DefineViewDeclaration_content",
-          "DefineStylingDeclaration_content",
-          "DefinePlainDeclaration_content",
-          "ViewStructObjectProperty_content",
-          "StylingStructObjectProperty_content",
-          "PlainStructObjectProperty_content",
-        ],
-        leftStack,
-      ).map((n) =>
-        getNodeText(
-          getDescendent(
-            [
-              "ViewDeclarationScalarPropertyName",
-              "StylingDeclarationScalarPropertyName",
-              "PlainDeclarationScalarPropertyName",
-              "ViewDeclarationObjectPropertyName",
-              "StylingDeclarationObjectPropertyName",
-              "PlainDeclarationObjectPropertyName",
-            ],
-            n,
-          ),
-        ),
-      );
-      addStructPropertyNameCompletions(
-        completions,
-        program,
-        config,
-        modifier,
-        type,
-        name,
-        path.join("."),
-        " = ",
-        true,
-        lineText,
-        position,
-        exclude,
-      );
+    if (isCursorAfterNodeText(structKeyNode)) {
+      const defineContext = getDefineContext(leftStack, read);
+      if (defineContext) {
+        const lineText = document.getLineText(position.line);
+        addStructPropertyNameCompletions(
+          completions,
+          program,
+          config,
+          "",
+          defineContext.type,
+          defineContext.name,
+          "",
+          " = ",
+          true,
+          lineText,
+          position,
+          [],
+        );
+      }
     }
     return buildCompletions();
   }
+
+  // Struct property VALUE completion: cursor after `=` in a scalar property
+  // line (but not inside a `type.name` struct-reference access path, handled
+  // below). Offers the property's schema/option values for the top-level key.
+  const scalarPropertyNode = leftStack.find(
+    (n) => n.type.name === "LuauStructScalarProperty",
+  );
   if (
-    leftStack.some(
+    scalarPropertyNode &&
+    ((isWhitespaceNode(leftStack[0]?.name) &&
+      prevNode.name === "AssignEqualOperator") ||
+      leftStack.some(
+        (n) =>
+          n.type.name === "AssignEqualOperator" ||
+          n.type.name === "StylingValue" ||
+          n.type.name === "StringFieldValue" ||
+          n.type.name === "NumericFieldValue" ||
+          n.type.name === "BooleanFieldValue" ||
+          n.type.name === "UnquotedStringFieldValue",
+      )) &&
+    !leftStack.some(
       (n) =>
-        (isWhitespaceNode(n.name) &&
-          (prevNode.name === "AssignEqualOperator" ||
-            prevNode.name === "ArrayItemMark") &&
-          leftStack.some(
-            (x) =>
-              x.name === "DefineViewDeclaration" ||
-              x.name === "DefineStylingDeclaration" ||
-              x.name === "DefinePlainDeclaration",
-          )) ||
-        (n.type.name === "AssignEqualOperator" &&
-          leftStack.some(
-            (x) =>
-              x.name === "DefineViewDeclaration" ||
-              x.name === "DefineStylingDeclaration" ||
-              x.name === "DefinePlainDeclaration",
-          )) ||
-        n.name === "ViewStructFieldValue" ||
-        n.name === "StylingStructFieldValue" ||
-        n.name === "PlainStructFieldValue",
-    ) &&
-    !leftStack.some((n) => n.type.name === "AccessPath")
+        n.type.name === "LuauAccessPath" || n.type.name === "StylingAccessPath",
+    )
   ) {
-    const defineModifierNameNode = getDescendentInsideParent(
-      "DefineModifierName",
+    const defineContext = getDefineContext(leftStack, read);
+    const keyNode = getDescendent(
       [
-        "DefineViewDeclaration",
-        "DefineStylingDeclaration",
-        "DefinePlainDeclaration",
-      ],
-      leftStack,
-    );
-    const defineTypeNameNode = getDescendentInsideParent(
-      "DefineTypeName",
-      [
-        "DefineViewDeclaration",
-        "DefineStylingDeclaration",
-        "DefinePlainDeclaration",
-      ],
-      leftStack,
-    );
-    const defineVariableNameNode = getDescendentInsideParent(
-      "DefineVariableName",
-      [
-        "DefineViewDeclaration",
-        "DefineStylingDeclaration",
-        "DefinePlainDeclaration",
-      ],
-      leftStack,
-    );
-    const modifier = defineModifierNameNode
-      ? getNodeText(defineModifierNameNode)
-      : "";
-    const type = defineTypeNameNode ? getNodeText(defineTypeNameNode) : "";
-    const name = defineVariableNameNode
-      ? getNodeText(defineVariableNameNode)
-      : "";
-    const propertyNameNode = getDescendentInsideParent(
-      [
-        "ViewDeclarationScalarPropertyName",
         "StylingDeclarationScalarPropertyName",
-        "PlainDeclarationScalarPropertyName",
+        "DeclarationScalarPropertyKey",
+        "BuiltinComponentName",
       ],
-      ["ViewStructField", "StylingStructField", "PlainStructField"],
-      leftStack,
+      scalarPropertyNode,
     );
-    const propertyValueNode = getDescendentInsideParent(
-      [
-        "ViewStructFieldValue",
-        "StylingStructFieldValue",
-        "PlainStructFieldValue",
-      ],
-      ["ViewStructField", "StylingStructField", "PlainStructField"],
-      leftStack,
-    );
-    const valueText = propertyValueNode ? getNodeText(propertyValueNode) : "";
-    const valueCursorOffset = getCursorOffset(propertyValueNode);
-    if (propertyNameNode) {
-      const path =
-        getParentPropertyPath(propertyNameNode, read) +
-        "." +
-        getNodeText(propertyNameNode);
+    if (defineContext && keyNode) {
+      const propertyName = getNodeText(keyNode).trim();
+      const valueNode = getDescendent(
+        [
+          "StylingValue",
+          "StringFieldValue",
+          "NumericFieldValue",
+          "BooleanFieldValue",
+          "UnquotedStringFieldValue",
+        ],
+        scalarPropertyNode,
+      );
+      const valueText = valueNode ? getNodeText(valueNode) : "";
+      const valueCursorOffset = getCursorOffset(valueNode ?? undefined);
       addStructPropertyValueCompletions(
         completions,
         program,
         config,
-        modifier,
-        type,
-        name,
-        path,
+        "",
+        defineContext.type,
+        defineContext.name,
+        "." + propertyName,
         valueText,
         valueCursorOffset,
         context,
       );
-      return buildCompletions();
     }
+    return buildCompletions();
   }
 
-  // Access Path
-  const accessPathNode = leftStack.find((n) => n.type.name === "AccessPath");
-  if (accessPathNode || leftStack[0]?.name === "ConditionalBlockOpenBrace") {
+  // Access Path. The Luau port split the single pre-port `AccessPath` into
+  // `StylingAccessPath` (a `type.name` struct-reference inside a struct value)
+  // and `LuauAccessPath` (a Luau-code / `{interpolation}` identifier path), so
+  // the access-path kind itself now selects struct-reference vs scope
+  // completions — no `ViewStructField` wrapper lookup needed.
+  const accessPathNode = leftStack.find(
+    (n) =>
+      n.type.name === "LuauAccessPath" || n.type.name === "StylingAccessPath",
+  );
+  if (accessPathNode) {
     const valueText = getNodeText(accessPathNode);
     const valueCursorOffset = getCursorOffset(accessPathNode);
-    if (
-      leftStack.find(
-        (n) =>
-          n.type.name === "ViewStructField" ||
-          n.type.name === "StylingStructField" ||
-          n.type.name === "PlainStructField",
-      )
-    ) {
+    if (accessPathNode.type.name === "StylingAccessPath") {
       addStructAccessPathCompletions(
         completions,
         program,
