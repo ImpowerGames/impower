@@ -108,10 +108,12 @@ function getOffsetSource(
  *     MessageProtocol event stream, plus special-case Game lifecycle
  *     events (Started/Executed/Exited/ToggledFullscreenMode), file-read
  *     proxies, and ExecuteCommand RPC.
- *   - Pin pointer-events on the iframe so the SplitPane drag still works
- *     while resizing (legacy listened for "resizing"/"resized" events on
- *     window).
  *   - PageUp/PageDown traverse program source positions.
+ *
+ * (The legacy "resizing"/"resized" window listeners that pinned iframe
+ * pointer-events during a split-pane drag are gone: the port's SplitPane
+ * captures the pointer on its divider (`setPointerCapture`), so a drag over
+ * the iframe is no longer swallowed and no pinning is needed.)
  *
  * Renders the (Preact) PreviewGameToolbar above the iframe via the
  * <se-preview-game-toolbar> custom-element tag — that's now backed by
@@ -455,17 +457,8 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
         };
 
-        const onResizing = () => {
-          if (iframeRef.current) iframeRef.current.style.pointerEvents = "none";
-        };
-        const onResized = () => {
-          if (iframeRef.current) iframeRef.current.style.pointerEvents = "auto";
-        };
-
         window.addEventListener(MessageProtocol.event, onProtocol);
         window.addEventListener("keydown", onKeyDown);
-        window.addEventListener("resizing", onResizing);
-        window.addEventListener("resized", onResized);
         document.addEventListener("fullscreenchange", onFullscreenChange);
 
         // Wire the onLoad handler. Also catch the case where the
@@ -481,8 +474,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
         cleanup = () => {
           window.removeEventListener(MessageProtocol.event, onProtocol);
           window.removeEventListener("keydown", onKeyDown);
-          window.removeEventListener("resizing", onResizing);
-          window.removeEventListener("resized", onResized);
           document.removeEventListener("fullscreenchange", onFullscreenChange);
           iframeRef.current?.removeEventListener("load", onLoad);
           onLoadRef.current = null;

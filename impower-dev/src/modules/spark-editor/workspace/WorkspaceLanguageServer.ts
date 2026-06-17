@@ -5,7 +5,7 @@ import {
   InitializeResult,
 } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import {
   ClientCapabilities,
@@ -153,10 +153,6 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
   },
 };
 
-export type LanguageServerEvents = {
-  "compiler/didCompile": (params: CompiledProgramParams) => void;
-};
-
 export default class WorkspaceLanguageServer {
   protected _worker: Worker;
   get worker() {
@@ -187,12 +183,6 @@ export default class WorkspaceLanguageServer {
   get connection() {
     return this._connection;
   }
-
-  protected _events: {
-    [K in keyof LanguageServerEvents]: Set<LanguageServerEvents[K]>;
-  } = {
-    "compiler/didCompile": new Set(),
-  };
 
   protected _program?: SparkProgram;
 
@@ -243,13 +233,7 @@ export default class WorkspaceLanguageServer {
       (params: CompiledProgramParams) => {
         performance.mark(`CompiledProgramMessage start`);
         this.updateProgram(params.program);
-        this._events[CompiledProgramMessage.method].forEach((l) => {
-          l?.(params);
-        });
-        this.emit(
-          MessageProtocol.event,
-          CompiledProgramMessage.type.notification(params),
-        );
+        sendProtocolMessage(CompiledProgramMessage.type.notification(params));
         performance.mark(`CompiledProgramMessage end`);
         performance.measure(
           `CompiledProgramMessage`,
@@ -346,30 +330,5 @@ export default class WorkspaceLanguageServer {
 
   updateProgram(program: SparkProgram | undefined) {
     this._program = program;
-  }
-
-  addEventListener<K extends keyof LanguageServerEvents>(
-    event: K,
-    listener: LanguageServerEvents[K],
-  ) {
-    this._events[event].add(listener);
-  }
-
-  removeEventListener<K extends keyof LanguageServerEvents>(
-    event: K,
-    listener: LanguageServerEvents[K],
-  ) {
-    this._events[event].delete(listener);
-  }
-
-  protected emit<T>(eventName: string, detail?: T): boolean {
-    return window.dispatchEvent(
-      new CustomEvent(eventName, {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail,
-      }),
-    );
   }
 }
