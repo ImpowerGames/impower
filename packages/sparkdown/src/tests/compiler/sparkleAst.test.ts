@@ -7,6 +7,12 @@ function screenAst(source: string): any {
   return screen?.block?.sparkle?.screens;
 }
 
+function componentAst(source: string): any {
+  const entries = compileSource(source);
+  const c = entries.find((e) => e.block?.sparkle?.components);
+  return c?.block?.sparkle?.components;
+}
+
 describe("reactive sparkle AST", () => {
   test("screen body lowers to a typed element tree (read from grammar tokens)", () => {
     const ast = screenAst(`screen main with
@@ -362,6 +368,31 @@ end
     expect(matchNode.else[0].content).toEqual([
       { kind: "literal", text: "Other" },
     ]);
+  });
+
+  test("slot lowers to SlotNode (default + named)", () => {
+    const ast = componentAst(`component card with
+  box:
+    slot
+    slot footer
+end
+`);
+    const box = ast.card.children[0];
+    expect(box.tag).toBe("box");
+    expect(box.children[0]).toEqual({ kind: "slot" });
+    expect(box.children[1]).toEqual({ kind: "slot", name: "footer" });
+  });
+
+  test("fill lowers to FillNode with a name + children", () => {
+    const ast = screenAst(`screen s with
+  fill footer:
+    button "Sort"
+end
+`);
+    const fill = ast.s.children[0];
+    expect(fill.kind).toBe("fill");
+    expect(fill.name).toBe("footer");
+    expect(fill.children[0]).toMatchObject({ tag: "button" });
   });
 
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {

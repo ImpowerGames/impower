@@ -14,10 +14,12 @@ import {
   type ContentPart,
   type ElementNode,
   type EventBinding,
+  type FillNode,
   type ForNode,
   type IfNode,
   type MatchNode,
   type PropValue,
+  type SlotNode,
 } from "../../types/SparkleNode";
 import { type SparkRange } from "../../types/SparkRange";
 
@@ -577,6 +579,34 @@ function buildBlock(
     // classes, plus optional adjacency content + inline props/events.
     const { tag: parsedTag, classes } = tagAndClasses(kind, ctx);
     const tag = parsedTag ?? ctx.read(content.from, content.to).trim();
+    // Component slots (spec §4.7): `slot [name]` is a leaf placeholder for
+    // caller children; `fill [name]:` (caller side) targets a named slot and
+    // carries children. The optional name is the trailing bare word (class slot).
+    if (tag === "slot") {
+      const slot: SlotNode = {
+        kind: "slot",
+        ...(classes[0] ? { name: classes[0] } : {}),
+      };
+      children.push(slot);
+      i += 1;
+      continue;
+    }
+    if (tag === "fill") {
+      const fill: FillNode = {
+        kind: "fill",
+        ...(classes[0] ? { name: classes[0] } : {}),
+        children: [],
+      };
+      if (childIndent != null) {
+        const sub = buildBlock(lines, i + 1, childIndent, ctx);
+        fill.children = sub.children;
+        i = sub.next;
+      } else {
+        i += 1;
+      }
+      children.push(fill);
+      continue;
+    }
     const contentNode = firstDescendant(kind, FIELD_VALUE_NAMES);
     const element: ElementNode = {
       kind: "element",
