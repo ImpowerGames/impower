@@ -6,6 +6,7 @@ import type {
   BodyNode,
   ContentPart,
   ElementNode,
+  EventBinding,
   IfNode,
   MatchNode,
   ScreenNode,
@@ -822,10 +823,55 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     } else if (node.tag === "mask") {
       this.mountImageContent(el, node.content, "mask_image");
     }
+    for (const ev of node.events) {
+      this.mountEvent(el, ev);
+    }
     for (const child of node.children) {
       this.mountNode(el, child, scope);
     }
     return el;
+  }
+
+  /** Wire a `@event=handler` on a mounted element: observe the DOM event and run
+   *  the handler when it fires, then flush reactive screens. `@e=name` calls the
+   *  named Luau function; `@e=expr(args)` evaluates the call expression (its
+   *  side effects persist). Inline closures (`@e={ … }`) are a follow-up. The
+   *  callback is keyed by element id in `_events`, the same registry the static
+   *  `observe()` path and `onReceiveNotification` use. */
+  protected mountEvent(el: Element, ev: EventBinding): void {
+    const handler = ev.handler;
+    const callback = (): void => {
+      if (handler.kind === "ref") {
+        this.runHandlerFunction(handler.name);
+      } else {
+        // call / closure: evaluate the hoisted handler binding for its effects.
+        this.evalBinding(handler.binding);
+      }
+      this.refreshScreens();
+    };
+    this._events[ev.event] ??= {};
+    this._events[ev.event]![el.id] = callback;
+    // Make the element clickable + ask the renderer to forward the DOM event
+    // (mirrors setEventListener's observe).
+    this.updateElement(el, { style: { pointer_events: "auto" } });
+    this.emit(
+      ObserveElementMessage.type.request({
+        element: el.id,
+        event: ev.event as keyof EventMap,
+        stopPropagation: true,
+        once: false,
+      }),
+    );
+  }
+
+  /** Run a named Luau function (an `@event` `ref` handler) for its side effects,
+   *  guarded by HasFunction. Safe between turns (EvaluateFunction asserts
+   *  IfAsyncWeCant); events fire when the story is idle. */
+  protected runHandlerFunction(name: string): void {
+    const story = this._game.story;
+    if (story.HasFunction(name)) {
+      story.EvaluateFunction(name, []);
+    }
   }
 
   /** Mount a text/stroke leaf's inline span. A content-less leaf creates no span
