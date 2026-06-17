@@ -1,6 +1,7 @@
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { getDescendentInsideParent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendentInsideParent";
 import { SparkDeclaration } from "../../types/SparkDeclaration";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -15,13 +16,9 @@ export interface Reference {
     | "function"
     | "scene"
     | "branch"
-    | "knot"
-    | "stitch"
     | "label"
     | "const"
     | "var"
-    | "temp"
-    | "list"
     | "define"
     | "define_type_name"
     | "define_variable_name"
@@ -38,6 +35,25 @@ export interface Reference {
   linkable?: boolean;
   stylingStringIdentifier?: boolean;
 }
+
+// Bounded parent walk: nearest ancestor whose name is in `names`, else null.
+function ancestorMatching(
+  node: { parent?: any } | undefined,
+  names: Set<string>,
+  max = 10,
+): any {
+  let cur = node?.parent;
+  for (let depth = 0; depth < max && cur; depth++) {
+    if (names.has(cur.name)) return cur;
+    cur = cur.parent;
+  }
+  return null;
+}
+
+const FUNCTION_DECL_NAME = new Set(["LuauFunctionDeclarationName"]);
+const FUNCTION_DEFINITION = new Set(["LuauFunctionDefinition"]);
+const VARIABLE_DECL_SITE = new Set(["LuauVariableAssignment_begin"]);
+const VARIABLE_DEFINITION = new Set(["LuauVariableDefinition"]);
 
 export class ReferenceAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Reference>
@@ -67,12 +83,18 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Reference>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Reference>>[] {
-    if (nodeRef.name === "FunctionDeclarationName") {
+    if (nodeRef.name === "LuauFunctionName") {
+      // `LuauFunctionName` fires at both the declaration (`function NAME(...)`,
+      // under LuauFunctionDeclarationName) and call/read sites (`& NAME()`).
+      const isDeclaration = !!ancestorMatching(
+        nodeRef.node,
+        FUNCTION_DECL_NAME,
+      );
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
-          declaration: "function",
+          ...(isDeclaration ? { declaration: "function" } : {}),
           symbolIds: [this.read(nodeRef.from, nodeRef.to)],
-          kind: "write",
+          kind: isDeclaration ? "write" : "read",
         }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
@@ -97,26 +119,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    if (nodeRef.name === "KnotDeclarationName") {
-      annotations.push(
-        SparkdownAnnotation.mark<Reference>({
-          declaration: "knot",
-          symbolIds: [this.read(nodeRef.from, nodeRef.to)],
-          kind: "write",
-        }).range(nodeRef.from, nodeRef.to),
-      );
-      return annotations;
-    }
-    if (nodeRef.name === "StitchDeclarationName") {
-      annotations.push(
-        SparkdownAnnotation.mark<Reference>({
-          declaration: "stitch",
-          symbolIds: ["." + this.read(nodeRef.from, nodeRef.to)],
-          kind: "write",
-        }).range(nodeRef.from, nodeRef.to),
-      );
-      return annotations;
-    }
     if (nodeRef.name === "LabelDeclarationName") {
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
@@ -126,52 +128,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
-    }
-    if (nodeRef.name === "VariableDeclarationName") {
-      const context = getContextNames(nodeRef.node);
-      if (context.includes("ConstDeclaration")) {
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            declaration: "const",
-            symbolIds: [this.read(nodeRef.from, nodeRef.to)],
-            kind: "write",
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-      if (context.includes("VarDeclaration")) {
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            declaration: "var",
-            symbolIds: [this.read(nodeRef.from, nodeRef.to)],
-            kind: "write",
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-      if (context.includes("TempDeclaration")) {
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            declaration: "temp",
-            symbolIds: ["." + this.read(nodeRef.from, nodeRef.to)],
-            kind: "write",
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-    }
-    if (nodeRef.name === "ListTypeDeclarationName") {
-      const context = getContextNames(nodeRef.node);
-      if (context.includes("ListDeclaration")) {
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            declaration: "list",
-            symbolIds: [this.read(nodeRef.from, nodeRef.to)],
-            kind: "write",
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
     }
     if (nodeRef.name === "DefineIdentifier") {
       const context = getContextNames(nodeRef.node);
@@ -189,35 +145,29 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    if (nodeRef.name === "Parameter") {
-      const context = getContextNames(nodeRef.node);
-      if (context.includes("FunctionDeclarationParameters")) {
-        const functionNameNode = getDescendentInsideParent(
-          "FunctionDeclarationName",
-          "FunctionDeclaration",
-          getContextStack(nodeRef.node),
-        );
-        if (functionNameNode) {
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              declaration: "param",
-              symbolIds: [
-                this.read(functionNameNode.from, functionNameNode.to) +
-                  "." +
-                  this.read(nodeRef.from, nodeRef.to),
-              ],
-              kind: "write",
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        }
-      }
-    }
-    if (nodeRef.name === "FunctionName") {
+    if (nodeRef.name === "LuauFunctionParameter") {
+      // Scope the param symbol under its enclosing function's name, matching
+      // the pre-port `funcName.param` id. The name lives at
+      // LuauFunctionDefinition > LuauFunctionDeclarationName > LuauFunctionName.
+      const definition = ancestorMatching(nodeRef.node, FUNCTION_DEFINITION);
+      const declName = definition
+        ? getDescendent("LuauFunctionDeclarationName", definition)
+        : null;
+      const functionNameNode = declName
+        ? getDescendent("LuauFunctionName", declName)
+        : null;
+      const fnName = functionNameNode
+        ? this.read(functionNameNode.from, functionNameNode.to).trim()
+        : "";
       annotations.push(
         SparkdownAnnotation.mark<Reference>({
-          symbolIds: [this.read(nodeRef.from, nodeRef.to)],
-          kind: "read",
+          declaration: "param",
+          symbolIds: [
+            fnName
+              ? `${fnName}.${this.read(nodeRef.from, nodeRef.to).trim()}`
+              : this.read(nodeRef.from, nodeRef.to).trim(),
+          ],
+          kind: "write",
         }).range(nodeRef.from, nodeRef.to),
       );
       return annotations;
@@ -404,12 +354,34 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         }).range(nodeRef.from, nodeRef.to),
       );
     }
-    if (nodeRef.name === "VariableName") {
+    if (nodeRef.name === "LuauVariableName") {
       const name = this.read(nodeRef.from, nodeRef.to);
+      // Declaration site: the LHS of a `store`/`local`/`const` definition
+      // (nested in LuauVariableAssignment_begin AND a LuauVariableDefinition;
+      // a bare reassignment has the former but not the latter). const vs var
+      // comes from the definition's LuauScopeModifier.
+      if (
+        ancestorMatching(nodeRef.node, VARIABLE_DECL_SITE, 6) &&
+        ancestorMatching(nodeRef.node, VARIABLE_DEFINITION)
+      ) {
+        const definition = ancestorMatching(nodeRef.node, VARIABLE_DEFINITION);
+        const scopeNode = getDescendent("LuauScopeModifier", definition);
+        const scope = scopeNode
+          ? this.read(scopeNode.from, scopeNode.to).trim()
+          : "";
+        annotations.push(
+          SparkdownAnnotation.mark<Reference>({
+            declaration: scope === "const" ? "const" : "var",
+            symbolIds: [name],
+            kind: "write",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
       const context = getContextStack(nodeRef.node);
       const typeNameNode = getDescendentInsideParent(
         ["TypeName"],
-        ["AccessPath", "ListTypeAssignment"],
+        ["LuauAccessPath", "StylingAccessPath"],
         context,
       );
       const types = typeNameNode
