@@ -1298,7 +1298,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "action": {
             "$name": "action",
-            "$recursive": true,
             "$type": "style",
             "align_self": "center",
             "display": "flex",
@@ -1312,7 +1311,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "backdrop": {
             "$name": "backdrop",
-            "$recursive": true,
             "$type": "style",
             "background_position": "center",
             "background_size": "cover",
@@ -1321,7 +1319,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "button": {
             "$name": "button",
-            "$recursive": true,
             "$type": "style",
             "@hovered": {
               "background_color": "rgb(69 69 69)",
@@ -1342,7 +1339,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "character_info": {
             "$name": "character_info",
-            "$recursive": true,
             "$type": "style",
             "@screen_size(sm)": {
               "font_size": "1.5rem",
@@ -1357,14 +1353,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "character_name": {
             "$name": "character_name",
-            "$recursive": true,
             "$type": "style",
             "font_weight": "600px",
             "padding_bottom": "8px",
           },
           "character_parenthetical": {
             "$name": "character_parenthetical",
-            "$recursive": true,
             "$type": "style",
             "@screen_size(sm)": {
               "font_size": "0.875rem",
@@ -1375,7 +1369,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "choice": {
             "$name": "choice",
-            "$recursive": true,
             "$type": "style",
             "@hovered": {
               "background_color": "black",
@@ -1396,7 +1389,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "choices": {
             "$name": "choices",
-            "$recursive": true,
             "$type": "style",
             "@screen_size(sm)": {
               "margin_bottom": "120px",
@@ -1413,14 +1405,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "column": {
             "$name": "column",
-            "$recursive": true,
             "$type": "style",
             "display": "flex",
             "flex_direction": "column",
           },
           "continue_indicator": {
             "$name": "continue_indicator",
-            "$recursive": true,
             "$type": "style",
             "animation": "0.5s infinite bounce",
             "animation_play_state": "paused",
@@ -1436,7 +1426,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "dialogue": {
             "$name": "dialogue",
-            "$recursive": true,
             "$type": "style",
             "@screen_size(sm)": {
               "width": "80%",
@@ -1446,7 +1435,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "heading": {
             "$name": "heading",
-            "$recursive": true,
             "$type": "style",
             "align_self": "center",
             "display": "flex",
@@ -1461,7 +1449,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "image": {
             "$name": "image",
-            "$recursive": true,
             "$type": "style",
             "> *": {
               "background_position": "center",
@@ -1485,7 +1472,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "loading_bar": {
             "$name": "loading_bar",
-            "$recursive": true,
             "$type": "style",
             "height": "4px",
             "position": "relative",
@@ -1494,7 +1480,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "loading_fill": {
             "$name": "loading_fill",
-            "$recursive": true,
             "$type": "style",
             "background_color": "cyan50",
             "height": "100%",
@@ -1504,7 +1489,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "main": {
             "$name": "main",
-            "$recursive": true,
             "$type": "style",
             "@screen_size(sm)": {
               "font_size": "1.125rem",
@@ -1518,7 +1502,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "mask": {
             "$name": "mask",
-            "$recursive": true,
             "$type": "style",
             "> *": {
               "inset": "0",
@@ -1538,7 +1521,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "object": {
             "$name": "object",
-            "$recursive": true,
             "$type": "style",
             "height": "100%",
             "object_fit": "cover",
@@ -1546,14 +1528,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "overlay": {
             "$name": "overlay",
-            "$recursive": true,
             "$type": "style",
             "inset": "0",
             "position": "absolute",
           },
           "portrait": {
             "$name": "portrait",
-            "$recursive": true,
             "$type": "style",
             "> image >> *": {
               "mix_blend_mode": "plus-lighter",
@@ -1570,14 +1550,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "row": {
             "$name": "row",
-            "$recursive": true,
             "$type": "style",
             "display": "flex",
             "flex_direction": "row",
           },
           "screen": {
             "$name": "screen",
-            "$recursive": true,
             "$type": "style",
             ">> *": {
               "pointer_events": "none",
@@ -1588,7 +1566,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "stack": {
             "$name": "stack",
-            "$recursive": true,
             "$type": "style",
             "> *": {
               "inset": "0",
@@ -1597,7 +1574,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "stage": {
             "$name": "stage",
-            "$recursive": true,
             "$type": "style",
             "display": "flex",
             "flex_direction": "column",
@@ -1606,7 +1582,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "stroke": {
             "$name": "stroke",
-            "$recursive": true,
             "$type": "style",
             ">> *": {
               "display": "inline",
@@ -1623,7 +1598,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "text": {
             "$name": "text",
-            "$recursive": true,
             "$type": "style",
             ">> *": {
               "display": "inline",
@@ -1636,31 +1610,26 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "text_letter": {
             "$name": "text_letter",
-            "$recursive": true,
             "$type": "style",
           },
           "text_line": {
             "$name": "text_line",
-            "$recursive": true,
             "$type": "style",
             "display": "block",
             "text_wrap": "wrap",
           },
           "text_space": {
             "$name": "text_space",
-            "$recursive": true,
             "$type": "style",
             "display": "inline",
           },
           "text_word": {
             "$name": "text_word",
-            "$recursive": true,
             "$type": "style",
             "display": "inline-block",
           },
           "textbox": {
             "$name": "textbox",
-            "$recursive": true,
             "$type": "style",
             "align_items": "center",
             "bottom": "0",
@@ -1674,7 +1643,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "textbox_background": {
             "$name": "textbox_background",
-            "$recursive": true,
             "$type": "style",
             "background_image": "linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)",
             "inset": "0",
@@ -1682,7 +1650,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "textbox_content": {
             "$name": "textbox_content",
-            "$recursive": true,
             "$type": "style",
             "@screen_size(sm)": {
               "min_height": "240px",
@@ -1700,7 +1667,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "title": {
             "$name": "title",
-            "$recursive": true,
             "$type": "style",
             "align_self": "center",
             "display": "flex",
@@ -1715,7 +1681,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
           },
           "transitional": {
             "$name": "transitional",
-            "$recursive": true,
             "$type": "style",
             "align_self": "flex-end",
             "display": "flex",

@@ -225,6 +225,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override async onConnected() {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
+    // Reactive render path: opt in via `config.ui.reactive = true`, OR via the
+    // flag set directly before connect (the test harness). OR-in so an explicit
+    // harness flag isn't clobbered and the static path stays the default.
+    this._reactive = this._reactive || !!this.context.config?.ui?.reactive;
     this.constructStyles();
     if (this._reactive && this._game.program?.sparkle?.screens) {
       this.constructScreensFromAst();
@@ -902,14 +906,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // static path's dotted-segment naming ("mask shadow_1", "text", "stage").
     const name = [node.tag, ...node.classes].join(" ");
     const el = this.createElement(parent, { type: "div", name });
-    // Builtin leaf semantics, mirroring constructScreen's class-detection:
-    // text/stroke render an inline span; image/mask render a background span.
-    if (node.tag === "text" || node.tag === "stroke") {
-      this.mountTextContent(el, node.content, scope);
-    } else if (node.tag === "image") {
+    // Builtin leaf semantics: image/mask render a background span; everything
+    // else with adjacency content (text/stroke, but also button/label/…) renders
+    // it as an inline span. Content-less structural elements get no span
+    // (mountTextContent no-ops), preserving constructScreen parity.
+    if (node.tag === "image") {
       this.mountImageContent(el, node.content, "background_image", scope.env);
     } else if (node.tag === "mask") {
       this.mountImageContent(el, node.content, "mask_image", scope.env);
+    } else {
+      this.mountTextContent(el, node.content, scope);
     }
     for (const ev of node.events) {
       this.mountEvent(el, ev, scope);

@@ -1,0 +1,57 @@
+// Reactive Sparkle UI — live smoke test.
+//
+// Exercises the whole reactive stack in the real player: a {hp} content
+// binding, an if/else, a keyed `for` over objects, and @click buttons that
+// mutate state. Paste this whole file into the editor (it compiles + pushes to
+// the player iframe). Opt into the reactive render path via `config.ui.reactive`.
+
+define ui as config with
+  styles_element_name = "styles"
+  screens_element_name = "screens"
+  breakpoints = { xs = 400, sm = 640, md = 768, lg = 1024, xl = 1280 }
+  reactive = true
+end
+
+store hp = 100
+store alive = true
+store items = { {name = "Sword"}, {name = "Shield"}, {name = "Potion"} }
+
+function hurt()
+  hp = hp - 25
+  if hp <= 0 then
+    hp = 0
+    alive = false
+  end
+end
+
+function heal()
+  hp = 100
+  alive = true
+end
+
+function shuffle()
+  items = { items[3], items[1], items[2] }
+end
+
+screen main with
+  column:
+    text "HP: {hp}"
+    if alive then
+      text "Status: Alive"
+    else
+      text "Status: GAME OVER"
+    end
+    text "Inventory:"
+    for it in items do
+      text "- {it.name}"
+    end
+    row:
+      button "Hurt" @click=hurt
+      button "Heal" @click=heal
+      button "Shuffle" @click=shuffle
+
+-> start
+
+scene start
+  Reactive smoke test — click the buttons to mutate state.
+end
