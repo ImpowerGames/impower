@@ -11,6 +11,7 @@ import { Animation } from "../../../../spark-engine/src/game/modules/ui/types/An
 import { AnimateElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
 import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
+import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
 import { SetThemeMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/SetThemeMessage";
 import { UnobserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/UnobserveElementMessage";
@@ -167,6 +168,18 @@ export default class UIManager extends Manager {
         element.remove();
       }
       return DestroyElementMessage.type.result(params.element);
+    }
+    if (MoveElementMessage.type.isRequest(msg)) {
+      const params = msg.params;
+      const element = this.getElement(params.element);
+      const parent = element?.parentElement;
+      if (element && parent) {
+        // Insert before the reference sibling (or append when null) — keyed
+        // `for` reconciliation relocating a retained item's subtree.
+        const before = params.before ? this.getElement(params.before) : null;
+        parent.insertBefore(element, before ?? null);
+      }
+      return MoveElementMessage.type.result(params.element);
     }
     if (UpdateElementMessage.type.isRequest(msg)) {
       const params = msg.params;

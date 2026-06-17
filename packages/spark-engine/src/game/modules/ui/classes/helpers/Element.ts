@@ -79,4 +79,22 @@ export class Element {
     this._children.splice(childIndex, 1);
     return true;
   }
+
+  /** Reorder an existing child to sit immediately before `before` (or to the end
+   *  when `before` is null). No-op if `child` isn't a child here. Used by keyed
+   *  `for` reconciliation to move a retained item's subtree. */
+  moveChildBefore(child: Element, before: Element | null): boolean {
+    const from = this._children.indexOf(child);
+    if (from < 0) {
+      return false;
+    }
+    this._children.splice(from, 1);
+    const insertAt = before ? this._children.indexOf(before) : -1;
+    if (insertAt < 0) {
+      this._children.push(child);
+    } else {
+      this._children.splice(insertAt, 0, child);
+    }
+    return true;
+  }
 }

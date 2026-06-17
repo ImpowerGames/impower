@@ -75,15 +75,15 @@ end
     expect(texts).toEqual(expect.arrayContaining(["alice=10", "bob=20"]));
   });
 
-  test("positional update: changed element re-renders its slot in place", async () => {
+  test("reordering the same objects moves their subtrees (keyed, no rebuild)", async () => {
     const h = createHarness(
-      `store items = {10, 20, 30}
-function change()
-  items = {99, 20, 30}
+      `store items = { {n = 1}, {n = 2}, {n = 3} }
+function reverse()
+  items = { items[3], items[2], items[1] }
 end
 screen bag with
-  for n in items do
-    text "n={n}"
+  for it in items do
+    text "n={it.n}"
   end
 end
 `,
@@ -92,9 +92,34 @@ end
     );
     await h.ready;
     h.reset();
-    run(h, "change");
+    run(h, "reverse"); // same table objects, reordered
     refresh(h);
-    // Slot 0 updates in place (no create/destroy churn for an in-place change).
+    // Retained items move (ui/move), nothing is created or destroyed, and their
+    // unchanged content emits no update.
+    expect(h.snapshotFiltered("ui/move").length).toBeGreaterThan(0);
+    expect(h.snapshotFiltered("ui/create")).toEqual([]);
+    expect(h.snapshotFiltered("ui/destroy")).toEqual([]);
+  });
+
+  test("changing an object's field reuses its iteration for an in-place update", async () => {
+    const h = createHarness(
+      `store items = { {n = 1}, {n = 2} }
+function bump()
+  items[1].n = 99
+end
+screen bag with
+  for it in items do
+    text "n={it.n}"
+  end
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    h.reset();
+    run(h, "bump"); // a field write on the first item's table
+    refresh(h);
     const update = h
       .snapshotFiltered("ui/update")
       .find(
@@ -103,6 +128,7 @@ end
           m.params.content.text === "n=99",
       );
     expect(update).toBeTruthy();
+    // Identity-stable → reused, not rebuilt.
     expect(h.snapshotFiltered("ui/create")).toEqual([]);
     expect(h.snapshotFiltered("ui/destroy")).toEqual([]);
   });

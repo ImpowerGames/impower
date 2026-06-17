@@ -46,6 +46,10 @@ import {
   DestroyElementMessageMap,
 } from "./messages/DestroyElementMessage";
 import {
+  MoveElementMessage,
+  MoveElementMessageMap,
+} from "./messages/MoveElementMessage";
+import {
   ObserveElementMessage,
   ObserveElementMessageMap,
 } from "./messages/ObserveElementMessage";
@@ -116,13 +120,14 @@ interface CondRegion {
   deps: ReactiveDeps;
 }
 
-/** One rendered item of a reactive `for`: its key (positional id for now —
- *  keyed reconcile is Phase 4), the body-root elements it created inside the
- *  loop wrapper (destroyed when the item is dropped), and its child scope
+/** One rendered item of a reactive `for`: its reconciliation key (table identity
+ *  for objects, scalar value for primitives, or the entry key for `k,v` loops),
+ *  the per-iteration `display:contents` sub-wrapper holding its body (moved as a
+ *  unit on reorder, destroyed when the item is dropped), and its child scope
  *  (whose `env` carries the loop var values, mutated in place on re-eval). */
 interface ForIteration {
   key: unknown;
-  elements: Element[];
+  wrapper: Element;
   scope: ReactiveScope;
 }
 
@@ -150,6 +155,7 @@ interface ReactiveScope {
 export type UIMessageMap = AnimateElementsMessageMap &
   CreateElementMessageMap &
   DestroyElementMessageMap &
+  MoveElementMessageMap &
   ObserveElementMessageMap &
   SetThemeMessageMap &
   UnobserveElementMessageMap &
@@ -341,6 +347,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const child of element.children) {
       this.destroyElement(child);
     }
+  }
+
+  /** Move an existing element to sit immediately before `before` among its
+   *  siblings (or to the end when `before` is null), emitting `ui/move`. Used by
+   *  keyed `for` reconciliation to relocate a retained item's subtree instead of
+   *  rebuilding it (preserving focus / scroll / in-flight animation). */
+  protected moveElement(element: Element, before: Element | null): void {
+    const parent = element.parent;
+    if (!parent) {
+      return;
+    }
+    parent.moveChildBefore(element, before);
+    this.emit(
+      MoveElementMessage.type.request({
+        element: element.id,
+        before: before?.id ?? null,
+      }),
+    );
   }
 
   protected updateElement(element: Element, state?: ElementState): void {
@@ -1095,8 +1119,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.mountForElse(region, parentEnv);
       return;
     }
-    for (const [key, value] of entries) {
-      this.mountIteration(region, parentEnv, key, value);
+    for (const [entryKey, value] of entries) {
+      region.iterations.push(
+        this.mountIteration(region, parentEnv, entryKey, value),
+      );
     }
   }
 
@@ -1112,24 +1138,45 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Mount one iteration's body into the wrapper, binding the loop variable(s)
-   *  in a fresh per-iteration scope env. The new wrapper children are recorded
-   *  as the iteration's roots so it can be torn down independently. */
+  /** Mount one iteration's body into its own `display:contents` sub-wrapper
+   *  (appended to the loop wrapper), binding the loop variable(s) in a fresh
+   *  per-iteration scope env. Returns the iteration (caller positions/records
+   *  it) — one wrapper element so keyed reconcile can move it as a unit. */
   protected mountIteration(
     region: ForRegion,
     parentEnv: ReactiveEnv,
-    key: unknown,
+    entryKey: unknown,
     value: unknown,
-  ): void {
+  ): ForIteration {
     const env: ReactiveEnv = { ...parentEnv };
-    this.bindLoopVars(region.node.bindings, env, key, value);
+    this.bindLoopVars(region.node.bindings, env, entryKey, value);
     const scope: ReactiveScope = { env, texts: [], regions: [] };
-    const before = region.wrapper.children.length;
+    const wrapper = this.createWrapper(region.wrapper);
     for (const child of region.node.children) {
-      this.mountNode(region.wrapper, child, scope);
+      this.mountNode(wrapper, child, scope);
     }
-    const elements = [...region.wrapper.children].slice(before);
-    region.iterations.push({ key, elements, scope });
+    return {
+      key: this.keyForEntry(region.node, entryKey, value),
+      wrapper,
+      scope,
+    };
+  }
+
+  /** Reconciliation key for one iterable entry: the explicit `key` clause is a
+   *  follow-up, so default to the entry KEY for `k, v` loops (stable map key),
+   *  else the value's identity — a table by its backing Map (so reordering the
+   *  SAME objects reuses+moves their elements), a scalar by its value (so a
+   *  reordered `{a, b}` of equal scalars still matches). */
+  protected keyForEntry(
+    node: ForNode,
+    entryKey: unknown,
+    value: unknown,
+  ): unknown {
+    if (node.bindings.length >= 2) {
+      return entryKey;
+    }
+    const payload = (value as { value?: unknown } | null)?.value;
+    return payload !== undefined ? payload : value;
   }
 
   /** Bind a `for`'s loop variable(s) into `env`: `[v]` → value; `[k, v]` → key +
@@ -1280,10 +1327,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.refreshScope(region.scope, changes);
   }
 
-  /** Positional `for` reconcile (Phase 3): re-evaluate the iterable, then update
-   *  slot i in place (loop env mutated → spans/handlers see the new value),
-   *  append new tail items, and drop removed tail items. Keyed reconciliation +
-   *  MoveElement (so reorders move retained nodes) are Phase 4 I9. */
+  /** Keyed `for` reconcile (Phase 4 I9): re-evaluate the iterable and match new
+   *  entries to existing iterations BY KEY — reuse a matched iteration (update
+   *  its env + refresh its scope), create for new keys, destroy unmatched ones —
+   *  then move retained sub-wrappers into the new order (only the displaced ones)
+   *  via `ui/move`. So reordering the same objects preserves their element
+   *  subtrees (focus / scroll / in-flight animation), and changing an object's
+   *  field reuses its iteration (identity-stable) for an in-place update. */
   protected refreshForRegion(
     region: ForRegion,
     parentEnv: ReactiveEnv,
@@ -1316,28 +1366,53 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       region.elseScope = undefined;
     }
 
-    const next = entries.length;
-    const prev = region.iterations.length;
-    // Update retained slots in place (positional).
-    for (let i = 0; i < Math.min(next, prev); i += 1) {
-      const [key, value] = entries[i]!;
-      const it = region.iterations[i]!;
-      it.key = key;
-      this.bindLoopVars(region.node.bindings, it.scope.env, key, value);
-      this.refreshScope(it.scope, changes);
+    // Index existing iterations by key (FIFO queues handle duplicate keys).
+    const oldByKey = new Map<unknown, ForIteration[]>();
+    for (const it of region.iterations) {
+      const q = oldByKey.get(it.key);
+      if (q) {
+        q.push(it);
+      } else {
+        oldByKey.set(it.key, [it]);
+      }
     }
-    // Append new tail items.
-    for (let i = prev; i < next; i += 1) {
-      const [key, value] = entries[i]!;
-      this.mountIteration(region, parentEnv, key, value);
+
+    // Build the new ordered list, reusing matched keys + creating the rest.
+    const next: ForIteration[] = [];
+    for (const [entryKey, value] of entries) {
+      const key = this.keyForEntry(region.node, entryKey, value);
+      const q = oldByKey.get(key);
+      const reused = q && q.length > 0 ? q.shift() : undefined;
+      if (reused) {
+        this.bindLoopVars(
+          region.node.bindings,
+          reused.scope.env,
+          entryKey,
+          value,
+        );
+        this.refreshScope(reused.scope, changes);
+        next.push(reused);
+      } else {
+        next.push(this.mountIteration(region, parentEnv, entryKey, value));
+      }
     }
-    // Drop removed tail items (from the end, keeping the wrapper append-only).
-    for (let i = prev - 1; i >= next; i -= 1) {
-      this.destroyIteration(region.iterations[i]!);
+
+    // Destroy iterations whose keys are gone.
+    for (const q of oldByKey.values()) {
+      for (const it of q) {
+        this.destroyIteration(it);
+      }
     }
-    if (next < prev) {
-      region.iterations.length = next;
+
+    // Reorder sub-wrappers into `next` order, moving only displaced ones.
+    for (let i = 0; i < next.length; i += 1) {
+      const it = next[i]!;
+      if (region.wrapper.children[i] !== it.wrapper) {
+        this.moveElement(it.wrapper, region.wrapper.children[i] ?? null);
+      }
     }
+
+    region.iterations = next;
   }
 
   /** Does any global/table dep intersect the turn's change-set? */
@@ -1363,12 +1438,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return false;
   }
 
-  /** Destroy one for-iteration's body roots (its wrapper subtree). Dropping the
-   *  iteration from `region.iterations` discards its scope registrations. */
+  /** Destroy one for-iteration's sub-wrapper (cascading its body subtree).
+   *  Dropping the iteration from `region.iterations` discards its scope. */
   protected destroyIteration(it: ForIteration): void {
-    for (const el of it.elements) {
-      this.destroyElement(el);
-    }
+    this.destroyElement(it.wrapper);
   }
 
   /** Destroy everything inside a control-flow wrapper (the wrapper persists). */
