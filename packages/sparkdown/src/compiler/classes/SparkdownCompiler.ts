@@ -6,8 +6,6 @@
 // implicitly via the (now-removed) `inkjs/compiler/Compiler` import; keep it
 // explicit so consumers of SparkdownCompiler don't hit a TDZ crash.
 import "../../inkjs/engine/Container";
-import { parseSparkle } from "@impower/sparkle-screen-renderer/src/parser/parser";
-import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
 import { BUILTINS_PRELUDE } from "../builtins/builtins";
 import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
@@ -42,7 +40,6 @@ import { SparkDeclaration } from "../types/SparkDeclaration";
 import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
-import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { SparkProgram } from "../types/SparkProgram";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { formatList } from "../utils/formatList";
@@ -132,9 +129,6 @@ function getCompiledPrelude(): {
   return _cachedPrelude;
 }
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
-const VIEW_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.VIEW_DEFINE_TYPES || [];
-const STYLING_DEFINE_TYPES =
-  GRAMMAR_DEFINITION.variables.STYLING_DEFINE_TYPES || [];
 
 export type SparkdownCompilerEvents = {
   "compiler/didCompile": (
@@ -546,7 +540,6 @@ export class SparkdownCompiler {
     }
 
     this.populateFiles(program);
-    this.populateUI(program);
     this.populateDeclarationLocations(program);
     this.sortPathLocations(program);
     this.buildContext(state, program);
@@ -1198,54 +1191,6 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "populateFiles", uri);
-  }
-
-  populateUI(program: SparkProgram) {
-    const uri = program.uri;
-    profile("start", this._profilerId, "populateUI", uri);
-    const scripts = Object.keys(program.scripts);
-    for (const uri of scripts) {
-      const doc = this.documents.get(uri);
-      if (doc) {
-        const annotations = this.documents.annotations(uri);
-        const tree = this.documents.tree(uri);
-        const cur = annotations.declarations.iter();
-        if (tree) {
-          if (cur) {
-            while (cur.value) {
-              const type = cur.value.type;
-              if (
-                VIEW_DEFINE_TYPES.includes(type) ||
-                STYLING_DEFINE_TYPES.includes(type)
-              ) {
-                const stack = getStack<SparkdownNodeName>(tree, cur.from, -1);
-                const declarationNode = stack.find(
-                  (n) =>
-                    n.name === "DefineViewDeclaration" ||
-                    n.name === "DefineStylingDeclaration",
-                );
-                if (declarationNode) {
-                  const name = doc.read(cur.from, cur.to);
-                  const declaration = doc.read(
-                    declarationNode.from,
-                    declarationNode.to,
-                  );
-                  const node = parseSparkle(declaration)[0];
-                  if (node) {
-                    program.ui ??= {};
-                    const key = type as keyof typeof program.ui;
-                    program.ui![key] ??= {};
-                    program.ui[key]![name] = node;
-                  }
-                }
-              }
-              cur.next();
-            }
-          }
-        }
-      }
-    }
-    profile("end", this._profilerId, "populateUI", uri);
   }
 
   sortPathLocations(program: SparkProgram) {
@@ -2048,13 +1993,7 @@ export class SparkdownCompiler {
                             typeof v !== "object" &&
                             typeof v === typeof definedPropertyValue,
                         );
-                      const isStylingFieldValue = STYLING_DEFINE_TYPES.includes(
-                        declaration.type,
-                      );
-                      if (
-                        !isSchemaSupportedScalarType &&
-                        !isStylingFieldValue
-                      ) {
+                      if (!isSchemaSupportedScalarType) {
                         const message = `Cannot assign '${typeof definedPropertyValue}' to '${typeof expectedPropertyValue === "object" && "$type" in expectedPropertyValue ? expectedPropertyValue.$type : typeof expectedPropertyValue}' property`;
                         const range = doc.range(cur.from, cur.to);
                         program.diagnostics ??= {};

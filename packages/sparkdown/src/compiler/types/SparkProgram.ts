@@ -1,4 +1,3 @@
-import { SparkleNode } from "@impower/sparkle-screen-renderer/src/parser/parser";
 import { type File } from "./File";
 import { Range, type SparkDiagnostic } from "./SparkDiagnostic";
 
@@ -24,13 +23,6 @@ export interface SparkProgram {
       favoredChoices?: (number | undefined)[];
     }
   >;
-  ui?: {
-    screen?: Record<string, SparkleNode>;
-    component?: Record<string, SparkleNode>;
-    style?: Record<string, SparkleNode>;
-    animation?: Record<string, SparkleNode>;
-    theme?: Record<string, SparkleNode>;
-  };
   context?: {
     [type: string]: { [name: string]: any };
   };
@@ -38,8 +30,8 @@ export interface SparkProgram {
   // UIModule consumes (element trees keyed by name). Derived from `context`
   // after full assembly (prelude builtins + authored + `$extends`/`$default`
   // merges) so the Game runtime can read screens WITHOUT depending on the
-  // LSP-only `program.context`. (Distinct from the future reactive `ui`
-  // SparkleNode channel above.)
+  // LSP-only `program.context`. (The reactive Sparkle AST will later add its own
+  // channel here; see docs/sparkle/reactive-sparkle-spec.md.)
   screens?: { [name: string]: any };
   components?: { [name: string]: any };
   styles?: { [name: string]: any };
