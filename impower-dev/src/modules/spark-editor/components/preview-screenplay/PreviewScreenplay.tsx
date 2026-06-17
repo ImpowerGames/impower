@@ -36,7 +36,7 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       const {
         default: workspaceStore,
       } = await import("../../workspace/WorkspaceStore");
-      const { MessageProtocol } = await import(
+      const { sendProtocolMessage } = await import(
         "@impower/spark-editor-protocol/src/protocols/MessageProtocol"
       );
       const { LoadPreviewMessage } = await import(
@@ -65,15 +65,13 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       lastUri.current = uri;
       lastVersion.current = version;
       lastText.current = text;
-      window.dispatchEvent(
-        new CustomEvent(MessageProtocol.event, {
-          detail: LoadPreviewMessage.type.request({
-            type: "screenplay",
-            textDocument: { uri, languageId, version, text },
-            visibleRange,
-            selectedRange,
-            preserveEditor,
-          }),
+      sendProtocolMessage(
+        LoadPreviewMessage.type.request({
+          type: "screenplay",
+          textDocument: { uri, languageId, version, text },
+          visibleRange,
+          selectedRange,
+          preserveEditor,
         }),
       );
     };
@@ -94,7 +92,7 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       ),
     ]).then(
       async ([
-        { MessageProtocol },
+        { onProtocolMessage },
         { ConnectedPreviewMessage },
         { DidOpenTextDocumentMessage },
         { DidWriteFilesMessage },
@@ -102,12 +100,11 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       ]) => {
         if (cancelled) return;
         const { Workspace } = await import("../../workspace/Workspace");
-        const onProtocol = (e: Event) => {
-          if (!(e instanceof CustomEvent)) return;
-          const m = e.detail;
-          if (DidOpenTextDocumentMessage.type.is(m)) {
+        const disposers = [
+          onProtocolMessage(DidOpenTextDocumentMessage.type, () => {
             loadFile();
-          } else if (DidWriteFilesMessage.type.is(m)) {
+          }),
+          onProtocolMessage(DidWriteFilesMessage.type, (m) => {
             const editor = Workspace.window.getActiveEditorForPane("logic");
             if (
               m.params.remote &&
@@ -115,12 +112,14 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
             ) {
               loadFile();
             }
-          } else if (DidDeleteFilesMessage.type.is(m)) {
+          }),
+          onProtocolMessage(DidDeleteFilesMessage.type, (m) => {
             const editor = Workspace.window.getActiveEditorForPane("logic");
             if (m.params.files.find((f) => f.uri === editor?.uri)) {
               loadFile();
             }
-          } else if (ConnectedPreviewMessage.type.is(m)) {
+          }),
+          onProtocolMessage(ConnectedPreviewMessage.type, () => {
             // The inner screenplay-preview attaches its window listener
             // asynchronously (Preact mount + dynamic import), so it may
             // miss our startup LoadPreviewMessage. Replay on ready —
@@ -129,11 +128,9 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
             lastVersion.current = undefined;
             lastText.current = undefined;
             loadFile();
-          }
-        };
-        window.addEventListener(MessageProtocol.event, onProtocol);
-        disposeProtocol = () =>
-          window.removeEventListener(MessageProtocol.event, onProtocol);
+          }),
+        ];
+        disposeProtocol = () => disposers.forEach((d) => d());
         // Initial load
         loadFile();
       },
@@ -156,7 +153,7 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
     // already wired.
     queueMicrotask(async () => {
       const { Workspace } = await import("../../workspace/Workspace");
-      const { MessageProtocol } = await import(
+      const { sendProtocolMessage } = await import(
         "@impower/spark-editor-protocol/src/protocols/MessageProtocol"
       );
       const { LoadPreviewMessage } = await import(
@@ -178,15 +175,13 @@ export default function PreviewScreenplay(_props: PreviewScreenplayProps) {
       lastUri.current = editor.uri;
       lastVersion.current = version;
       lastText.current = text;
-      window.dispatchEvent(
-        new CustomEvent(MessageProtocol.event, {
-          detail: LoadPreviewMessage.type.request({
-            type: "screenplay",
-            textDocument: { uri: editor.uri, languageId, version, text },
-            visibleRange: editor.visibleRange,
-            selectedRange: editor.selectedRange,
-            preserveEditor: Boolean(editor.originalFilename),
-          }),
+      sendProtocolMessage(
+        LoadPreviewMessage.type.request({
+          type: "screenplay",
+          textDocument: { uri: editor.uri, languageId, version, text },
+          visibleRange: editor.visibleRange,
+          selectedRange: editor.selectedRange,
+          preserveEditor: Boolean(editor.originalFilename),
         }),
       );
     });

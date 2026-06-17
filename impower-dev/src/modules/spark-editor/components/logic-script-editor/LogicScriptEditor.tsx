@@ -76,7 +76,7 @@ export default function LogicScriptEditor({
       const [
         { ConnectedEditorMessage },
         { LoadEditorMessage },
-        { MessageProtocol },
+        { onProtocolMessage, sendProtocolMessage },
         { DidChangeTextDocumentMessage },
         { DidSaveTextDocumentMessage },
         { DidDeleteFilesMessage },
@@ -143,13 +143,7 @@ export default function LogicScriptEditor({
           languageServerInitializeResult,
           preserveEditor: Boolean(editor.originalFilename),
         });
-        window.dispatchEvent(
-          new CustomEvent(MessageProtocol.event, {
-            detail,
-            bubbles: true,
-            composed: true,
-          }),
-        );
+        sendProtocolMessage(detail);
       };
       loadFileRef.current = loadFile;
 
@@ -168,51 +162,50 @@ export default function LogicScriptEditor({
         }
       }, AUTOSAVE_DELAY);
 
-      const handleProtocol = (e: Event) => {
-        if (!(e instanceof CustomEvent)) return;
-        const detail = e.detail;
-        if (DidChangeTextDocumentMessage.type.is(detail)) {
-          const params = detail.params;
+      const disposers = [
+        onProtocolMessage(DidChangeTextDocumentMessage.type, (message) => {
+          const params = message.params;
           if (
             uriRef.current != null &&
             uriRef.current === params.textDocument.uri
           ) {
             versionRef.current = params.textDocument.version;
           }
-        } else if (DidWriteFilesMessage.type.is(detail)) {
-          const params = detail.params;
+        }),
+        onProtocolMessage(DidWriteFilesMessage.type, (message) => {
+          const params = message.params;
           if (
             params.remote &&
             params.files.find((f) => f.uri === uriRef.current)
           ) {
             loadFile();
           }
-        } else if (DidDeleteFilesMessage.type.is(detail)) {
-          const params = detail.params;
+        }),
+        onProtocolMessage(DidDeleteFilesMessage.type, (message) => {
+          const params = message.params;
           if (params.files.find((f) => f.uri === uriRef.current)) {
             loadFile();
           }
-        } else if (DidSaveTextDocumentMessage.type.is(detail)) {
-          const params = detail.params;
+        }),
+        onProtocolMessage(DidSaveTextDocumentMessage.type, (message) => {
+          const params = message.params;
           if (
             uriRef.current != null &&
             uriRef.current === params.textDocument.uri &&
-            versionRef.current != null
+            versionRef.current != null &&
+            params.text != null
           ) {
-            if (params.text != null) {
-              textRef.current = params.text;
-              debouncedSave();
-            }
+            textRef.current = params.text;
+            debouncedSave();
           }
-        } else if (ConnectedEditorMessage.type.is(detail)) {
+        }),
+        onProtocolMessage(ConnectedEditorMessage.type, () => {
           // Inner editor signals it's mounted and ready — initial load.
           loadFile();
-        }
-      };
+        }),
+      ];
 
-      window.addEventListener(MessageProtocol.event, handleProtocol);
-      detach = () =>
-        window.removeEventListener(MessageProtocol.event, handleProtocol);
+      detach = () => disposers.forEach((d) => d());
 
       // Initial load — don't rely solely on ConnectedEditorMessage. The inner
       // SparkdownScriptEditor mounts as a direct child, and its controller can

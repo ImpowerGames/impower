@@ -1,6 +1,6 @@
 import {
-  onMessage,
-  sendMessage,
+  onProtocolMessage,
+  sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
   ChangedEditorBreakpointsMessage,
@@ -64,7 +64,7 @@ import createZipFile from "./utils/createZipFile";
  *   in-page UI. Intents below (openPane, openFileEditor, setPreviewMode, …)
  *   update it via `this.update()`; Preact components read the signals and
  *   re-render. They do NOT broadcast events for in-page consumption.
- * - `sendMessage()` dispatches `spark-editor-protocol` messages on a window
+ * - `sendProtocolMessage()` dispatches `spark-editor-protocol` messages on a window
  *   CustomEvent bus — strictly the boundary to peers that can't read the
  *   in-page signal: the OPFS/LSP/PDF workers, the game-player & screenplay
  *   iframes, and the framework-agnostic CodeMirror editor-view controllers
@@ -99,36 +99,36 @@ export default class WorkspaceWindow {
   // Inbound protocol → store. One typed listener per message kind; each
   // handler receives the fully-typed message (no instanceof/`.is()` guards).
   protected registerProtocolHandlers() {
-    onMessage(ShowDocumentMessage.type, async (message) => {
+    onProtocolMessage(ShowDocumentMessage.type, async (message) => {
       const response = await this.handleShowDocument(
         ShowDocumentMessage.type,
         message,
       );
       if (response) {
-        sendMessage(response);
+        sendProtocolMessage(response);
       }
     });
-    onMessage(ApplyWorkspaceEditMessage.type, async (message) => {
+    onProtocolMessage(ApplyWorkspaceEditMessage.type, async (message) => {
       const response = await this.handleApplyWorkspaceEdit(
         ApplyWorkspaceEditMessage.type,
         message,
       );
       if (response) {
-        sendMessage(response);
+        sendProtocolMessage(response);
       }
     });
-    onMessage(ScrolledEditorMessage.type, (m) => this.handleScrolledEditor(m));
-    onMessage(SelectedEditorMessage.type, (m) => this.handleSelectedEditor(m));
-    onMessage(ChangedEditorBreakpointsMessage.type, (m) =>
+    onProtocolMessage(ScrolledEditorMessage.type, (m) => this.handleScrolledEditor(m));
+    onProtocolMessage(SelectedEditorMessage.type, (m) => this.handleSelectedEditor(m));
+    onProtocolMessage(ChangedEditorBreakpointsMessage.type, (m) =>
       this.handleChangedEditorBreakpoints(m),
     );
-    onMessage(ChangedEditorPinpointsMessage.type, (m) =>
+    onProtocolMessage(ChangedEditorPinpointsMessage.type, (m) =>
       this.handleChangedEditorPinpoints(m),
     );
-    onMessage(ChangedEditorHighlightsMessage.type, (m) =>
+    onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
       this.handleChangedEditorHighlights(m),
     );
-    onMessage(CompiledProgramMessage.type, (m) => this.handleCompiledProgram(m));
+    onProtocolMessage(CompiledProgramMessage.type, (m) => this.handleCompiledProgram(m));
   }
 
   get store() {
@@ -361,7 +361,7 @@ export default class WorkspaceWindow {
         range: { start: { line, character: 0 }, end: { line, character: 0 } },
       })),
     );
-    sendMessage(SetEditorHighlightsMessage.type.request({ locations }),
+    sendProtocolMessage(SetEditorHighlightsMessage.type.request({ locations }),
     );
   }
 
@@ -379,7 +379,7 @@ export default class WorkspaceWindow {
         range: { start: { line, character: 0 }, end: { line, character: 0 } },
       })),
     );
-    sendMessage(SetEditorPinpointsMessage.type.request({ locations }),
+    sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }),
     );
   }
 
@@ -579,7 +579,7 @@ export default class WorkspaceWindow {
         });
       }
       if (range) {
-        sendMessage(SelectEditorMessage.type.request({
+        sendProtocolMessage(SelectEditorMessage.type.request({
             textDocument: { uri },
             range,
             scrollIntoView: "center",
@@ -614,11 +614,11 @@ export default class WorkspaceWindow {
         },
       });
     }
-    sendMessage(UnfocusWindowMessage.type.request({}));
+    sendProtocolMessage(UnfocusWindowMessage.type.request({}));
   }
 
   search(uri: string) {
-    sendMessage(SearchEditorMessage.type.request({ textDocument: { uri } }),
+    sendProtocolMessage(SearchEditorMessage.type.request({ textDocument: { uri } }),
     );
   }
 
@@ -741,7 +741,7 @@ export default class WorkspaceWindow {
         revealed: true,
       },
     });
-    sendMessage(DidExpandPreviewPaneMessage.type.notification({}),
+    sendProtocolMessage(DidExpandPreviewPaneMessage.type.notification({}),
     );
   }
 
@@ -753,7 +753,7 @@ export default class WorkspaceWindow {
         revealed: false,
       },
     });
-    sendMessage(DidCollapsePreviewPaneMessage.type.notification({}),
+    sendProtocolMessage(DidCollapsePreviewPaneMessage.type.notification({}),
     );
   }
 
@@ -849,7 +849,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      sendMessage(StartGameMessage.type.request({}));
+      sendProtocolMessage(StartGameMessage.type.request({}));
       if (this.store.preview.modes.game.paused) {
         this.unpauseGame();
       }
@@ -872,7 +872,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      sendMessage(StopGameMessage.type.request({}));
+      sendProtocolMessage(StopGameMessage.type.request({}));
     }
   }
 
@@ -891,7 +891,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      sendMessage(PauseGameMessage.type.request({}));
+      sendProtocolMessage(PauseGameMessage.type.request({}));
     }
   }
 
@@ -910,7 +910,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      sendMessage(UnpauseGameMessage.type.request({}));
+      sendProtocolMessage(UnpauseGameMessage.type.request({}));
     }
   }
 
@@ -921,7 +921,7 @@ export default class WorkspaceWindow {
         this.pauseGame();
       }
     }
-    sendMessage(StepGameClockMessage.type.request({ seconds }),
+    sendProtocolMessage(StepGameClockMessage.type.request({ seconds }),
     );
   }
 
@@ -956,7 +956,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      sendMessage(EnableGameDebugMessage.type.request({}));
+      sendProtocolMessage(EnableGameDebugMessage.type.request({}));
     }
   }
 
@@ -975,7 +975,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      sendMessage(DisableGameDebugMessage.type.request({}),
+      sendProtocolMessage(DisableGameDebugMessage.type.request({}),
       );
     }
   }

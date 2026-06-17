@@ -203,7 +203,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { ChangedEditorBreakpointsMessage },
         { ChangedEditorPinpointsMessage },
         { InitializeMessage },
-        { MessageProtocol },
+        { MessageProtocol, sendProtocolMessage },
         { ExecuteCommandMessage },
         { EnterGameFullscreenModeMessage },
         { ExitGameFullscreenModeMessage },
@@ -250,9 +250,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
             );
           }
           // Forward messages from iframe → editor's global event stream.
-          window.dispatchEvent(
-            new CustomEvent(MessageProtocol.event, { detail: message }),
-          );
+          sendProtocolMessage(message);
         };
 
         let setupInFlight = false;
@@ -316,6 +314,12 @@ export default function PreviewGame(_props: PreviewGameProps) {
           setupInFlight = false;
         };
 
+        // Stays a raw bus listener (not the typed `onProtocolMessage` helper): its
+        // primary job is a generic method-prefix relay — forward ANY
+        // game/preview/workspace/textDocument message to the iframe — which
+        // a type-keyed handler can't express. The specific lifecycle checks
+        // below share this one handler so they stay sequenced after the
+        // (awaited) forward.
         const onProtocol = async (e: Event) => {
           if (!(e instanceof CustomEvent)) return;
           const message = e.detail;

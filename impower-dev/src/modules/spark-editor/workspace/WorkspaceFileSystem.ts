@@ -1,4 +1,4 @@
-import { sendMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import {
   ApplyWorkspaceEditMessage,
@@ -210,17 +210,17 @@ export default class WorkspaceFileSystem {
         this._files[file.uri] = { ...file };
         this.preloadFile(file);
       });
-      sendMessage(message);
+      sendProtocolMessage(message);
     } else if (DidCreateFilesMessage.type.isNotification(message)) {
       Workspace.ls.connection.sendNotification(message.method, message.params);
-      sendMessage(message);
+      sendProtocolMessage(message);
     } else if (DidDeleteFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
         delete this._files?.[file.uri];
         delete this._preloaded[file.uri];
       });
       Workspace.ls.connection.sendNotification(message.method, message.params);
-      sendMessage(message);
+      sendProtocolMessage(message);
     } else if (DidRenameFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
         this._files ??= {};
@@ -231,10 +231,10 @@ export default class WorkspaceFileSystem {
         }
       });
       Workspace.ls.connection.sendNotification(message.method, message.params);
-      sendMessage(message);
+      sendProtocolMessage(message);
     } else if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
       Workspace.ls.connection.sendNotification(message.method, message.params);
-      sendMessage(message);
+      sendProtocolMessage(message);
     } else if (message.error) {
       const handler = this._messageQueue[message.id];
       if (handler) {

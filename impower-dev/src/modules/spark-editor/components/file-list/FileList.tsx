@@ -142,7 +142,7 @@ export default function FileList({
     (async () => {
       const [
         { FileChangeType },
-        { onMessage },
+        { onProtocolMessage },
         { DidChangeWatchedFilesMessage },
         { Workspace },
       ] = await Promise.all([
@@ -154,7 +154,7 @@ export default function FileList({
         import("../../workspace/Workspace"),
       ]);
       if (cancelled) return;
-      detach = onMessage(DidChangeWatchedFilesMessage.type, (message) => {
+      detach = onProtocolMessage(DidChangeWatchedFilesMessage.type, (message) => {
         const params = message.params;
         const changes = params.changes;
         const includeRegex = include ? globToRegex(include) : /.*/;

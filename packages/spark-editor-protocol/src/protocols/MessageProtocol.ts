@@ -9,10 +9,14 @@ export class MessageProtocol {
  * editor ↔ worker/iframe/editor-view communication. Replaces the boilerplate
  * `target.dispatchEvent(new CustomEvent(MessageProtocol.event, { detail }))`.
  *
+ * Named `sendProtocolMessage` (not `sendMessage`) to stay distinct from a
+ * Worker's `postMessage` / `onmessage` — this is the in-page CustomEvent bus,
+ * not the worker/port channel.
+ *
  * `target` defaults to `window` (the shared bus). Pass an element to dispatch
  * somewhere that bubbles up to window instead (e.g. a shadow host).
  */
-export const sendMessage = (
+export const sendProtocolMessage = (
   message: Message,
   target: EventTarget = window,
 ): boolean =>
@@ -30,10 +34,13 @@ export const sendMessage = (
  * message's `.type` (e.g. `DidChangeWatchedFilesMessage.type`); the handler is
  * called only for that message, with the message fully typed — no
  * `instanceof CustomEvent` / `.type.is(...)` boilerplate. For a listener that
- * handles several message types, register one `onMessage` per type. Returns a
- * disposer that removes the listener. `target` defaults to `window`.
+ * handles several message types, register one `onProtocolMessage` per type.
+ * Returns a disposer that removes the listener. `target` defaults to `window`.
+ *
+ * Named `onProtocolMessage` (not `onMessage`) to stay distinct from a Worker's
+ * `onmessage` — this is the in-page CustomEvent bus, not the worker channel.
  */
-export const onMessage = <M>(
+export const onProtocolMessage = <M>(
   type: { is: (value: any) => value is M },
   handler: (message: M) => void,
   target: EventTarget = window,
