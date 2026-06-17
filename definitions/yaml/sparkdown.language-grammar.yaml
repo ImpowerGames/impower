@@ -3198,6 +3198,12 @@ repository:
     captures:
       1:
         patterns:
+          # Whole-line comment. Struct bodies live inside Luau `with … end`
+          # blocks, so `--` (and `---`, block) is the canonical marker; `//`
+          # is also accepted for parity with pre-Luau-port struct bodies.
+          # First so a comment line isn't swallowed by scalar/marker/fallback.
+          - { include: "#LuauComment" }
+          - { include: "#SparkdownLineComment" }
           - { include: "#LuauStructScalarProperty" }
           - { include: "#LuauStructArrayItem" }
           - { include: "#LuauStructObjectHeader" }
@@ -3599,7 +3605,10 @@ repository:
     end: (?=$|.)
 
   StylingFunctionName:
-    tag: function(variableName)
+    # function(name) → functionName color (yellow), matching pre-Luau-port.
+    # NOT function(variableName): that tag is mapped to the parameterName color
+    # for Luau function parameters, which would recolor `calc(…)` etc.
+    tag: function(name)
     name: entity.name.function.sd
     match: ({{IDENTIFIER}})
 
@@ -3637,6 +3646,11 @@ repository:
       - { include: "#NumericLiteral" }
       - { include: "#PunctuationComma" }
       - { include: "#StylingFunction" }
+      # `image.foo` / `font.foo` define-references: color the namespace as a
+      # type and the member as a variable (matches pre-Luau-port styling
+      # values). Must come before StylingStringIdentifier swallows it as a
+      # plain unquoted string. StylingFunction above still wins for `calc(…)`.
+      - { include: "#StylingAccessPath" }
 
   StylingStringIdentifier:
     tag: string
@@ -3647,6 +3661,64 @@ repository:
     tag: string
     name: string.unquoted.char.sd
     match: (.)
+
+  # Access-path coloring for styling values (`image.foo`, `font.foo`,
+  # `theme.colors.bg`). Ported from the pre-Luau-port grammar so define
+  # references keep their typeName/variableName/propertyName coloring inside
+  # struct-body values. Begin requires `IDENT.` so bare identifiers fall
+  # through to StylingStringIdentifier instead.
+  StylingAccessPath:
+    begin: (?={{IDENTIFIER}}[.])
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#StylingAccessPart" }
+    end: (?=$)|(?!{{IDENTIFIER}}|[.])
+
+  StylingAccessPart:
+    emit: true
+    patterns:
+      - { include: "#PropertyAccessor" }
+      - { include: "#NamespaceAccessor" }
+      - { include: "#VariableName" }
+      - { include: "#PunctuationAccessor" }
+
+  NamespaceAccessor:
+    match: ({{IDENTIFIER}})([.])($|{{IDENTIFIER}})(?![(])
+    captures:
+      1:
+        patterns:
+          - { include: "#TypeName" }
+      2:
+        patterns:
+          - { include: "#PunctuationAccessor" }
+      3:
+        patterns:
+          - { include: "#VariableName" }
+
+  PropertyAccessor:
+    match: ([.])({{IDENTIFIER}})(?![(])
+    captures:
+      1:
+        patterns:
+          - { include: "#PunctuationAccessor" }
+      2:
+        patterns:
+          - { include: "#PropertyName" }
+
+  TypeName:
+    tag: typeName
+    name: support.type.sd
+    match: ({{IDENTIFIER}})
+
+  VariableName:
+    # constant(variableName) → constantVariableName color (#4FC1FF cyan),
+    # matching pre-Luau-port styling access-path members. The plain
+    # `variableName` color was repurposed to #9CDCFE during the port (with
+    # #4FC1FF moved to constantVariableName); this keeps UI refs cyan without
+    # reverting the global var/const palette split.
+    tag: constant(variableName)
+    name: variable.other.constant.sd
+    match: ({{IDENTIFIER}})(?![(])
 
   NumericLiteral:
     patterns:
@@ -3844,12 +3916,12 @@ repository:
     match: (.)
 
   EventAttributeOperator:
-    tag: function(variableName)
+    tag: function(name)
     name: entity.name.function.attribute.name.view.sd
     match: ([@])
 
   EventAttributeName:
-    tag: function(variableName)
+    tag: function(name)
     name: entity.name.function.attribute.name.view.sd
     match: (.+)
 
@@ -4108,12 +4180,13 @@ repository:
     match: "{{BEFORE_KEYWORD}}NaN{{AFTER_KEYWORD}}"
 
   StyleAttributeOperator:
-    tag: variableName
+    # constant(variableName) → #4FC1FF cyan, matching pre-Luau-port (see VariableName).
+    tag: constant(variableName)
     name: variable.other.constant.attribute.style.sd
     match: ([#])
 
   StyleAttributeName:
-    tag: variableName
+    tag: constant(variableName)
     name: variable.other.constant.attribute.style.sd
     match: (.+)
 
@@ -4155,6 +4228,13 @@ repository:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
+          # In screen/component bodies a builtin element name used as a key
+          # (`image = "black"`) colors pink, matching pre-port. The builtin set
+          # is fixed + word-bounded, so CSS property keys in style bodies
+          # (`background_image`, `position`, …) fall through to the declaration
+          # key below. Custom names stay declaration keys (not className) so
+          # style-body props keep their propertyName color.
+          - { include: "#BuiltinComponentName" }
           - { include: "#StylingDeclarationScalarPropertyName" }
       3:
         patterns:
@@ -4200,8 +4280,11 @@ repository:
           - { include: "#LuauStructObjectColon" }
 
   LuauStructObjectColon:
-    tag: separator
-    name: punctuation.separator.key-value.struct.luau
+    # tag logicOperator → CodeMirror operator color (#A0A0A0). The `name` scope
+    # mirrors the pre-port `ColonOperator` so VSCode's
+    # `meta.template.expression.operator` override (#A0A0A0) applies too.
+    tag: logicOperator
+    name: meta.template.expression.operator.colon.sd
     match: ([:])
 
   LuauStructBareMarker:

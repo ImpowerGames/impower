@@ -5026,6 +5026,12 @@
         "1": {
           "patterns": [
             {
+              "include": "#LuauComment"
+            },
+            {
+              "include": "#SparkdownLineComment"
+            },
+            {
               "include": "#LuauStructScalarProperty"
             },
             {
@@ -5763,7 +5769,7 @@
       "end": "(?=$|.)"
     },
     "StylingFunctionName": {
-      "tag": "function(variableName)",
+      "tag": "function(name)",
       "name": "entity.name.function.sd",
       "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))"
     },
@@ -5843,6 +5849,9 @@
         },
         {
           "include": "#StylingFunction"
+        },
+        {
+          "include": "#StylingAccessPath"
         }
       ]
     },
@@ -5855,6 +5864,90 @@
       "tag": "string",
       "name": "string.unquoted.char.sd",
       "match": "(.)"
+    },
+    "StylingAccessPath": {
+      "begin": "(?=(?:[_\\p{L}][0-9_\\p{L}-]*\\b)[.])",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#StylingAccessPart"
+        }
+      ],
+      "end": "(?=$)|(?!(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|[.])"
+    },
+    "StylingAccessPart": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#PropertyAccessor"
+        },
+        {
+          "include": "#NamespaceAccessor"
+        },
+        {
+          "include": "#VariableName"
+        },
+        {
+          "include": "#PunctuationAccessor"
+        }
+      ]
+    },
+    "NamespaceAccessor": {
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))([.])($|(?:[_\\p{L}][0-9_\\p{L}-]*\\b))(?![(])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#TypeName"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationAccessor"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#VariableName"
+            }
+          ]
+        }
+      }
+    },
+    "PropertyAccessor": {
+      "match": "([.])((?:[_\\p{L}][0-9_\\p{L}-]*\\b))(?![(])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationAccessor"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PropertyName"
+            }
+          ]
+        }
+      }
+    },
+    "TypeName": {
+      "tag": "typeName",
+      "name": "support.type.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))"
+    },
+    "VariableName": {
+      "tag": "constant(variableName)",
+      "name": "variable.other.constant.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}-]*\\b))(?![(])"
     },
     "NumericLiteral": {
       "patterns": [
@@ -6158,12 +6251,12 @@
       "match": "(.)"
     },
     "EventAttributeOperator": {
-      "tag": "function(variableName)",
+      "tag": "function(name)",
       "name": "entity.name.function.attribute.name.view.sd",
       "match": "([@])"
     },
     "EventAttributeName": {
-      "tag": "function(variableName)",
+      "tag": "function(name)",
       "name": "entity.name.function.attribute.name.view.sd",
       "match": "(.+)"
     },
@@ -6678,12 +6771,12 @@
       "match": "(?<![0-9_\\p{L}-])(?:(?<=\\.\\.\\.)|(?<!\\.))NaN(?![0-9_\\p{L}-])(?:(?=\\.\\.\\.)|(?!\\.))"
     },
     "StyleAttributeOperator": {
-      "tag": "variableName",
+      "tag": "constant(variableName)",
       "name": "variable.other.constant.attribute.style.sd",
       "match": "([#])"
     },
     "StyleAttributeName": {
-      "tag": "variableName",
+      "tag": "constant(variableName)",
       "name": "variable.other.constant.attribute.style.sd",
       "match": "(.+)"
     },
@@ -6739,6 +6832,9 @@
         },
         "2": {
           "patterns": [
+            {
+              "include": "#BuiltinComponentName"
+            },
             {
               "include": "#StylingDeclarationScalarPropertyName"
             }
@@ -6843,8 +6939,8 @@
       }
     },
     "LuauStructObjectColon": {
-      "tag": "separator",
-      "name": "punctuation.separator.key-value.struct.luau",
+      "tag": "logicOperator",
+      "name": "meta.template.expression.operator.colon.sd",
       "match": "([:])"
     },
     "LuauStructBareMarker": {
