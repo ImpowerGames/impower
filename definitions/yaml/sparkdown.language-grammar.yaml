@@ -3283,6 +3283,7 @@ repository:
           - { include: "#LuauStructScalarProperty" }
           - { include: "#LuauStructArrayItem" }
           - { include: "#LuauStructObjectHeader" }
+          - { include: "#LuauStructAdjacencyContent" }
           - { include: "#LuauStructBareMarker" }
           - { include: "#LuauStructBodyFallback" }
 
@@ -4439,6 +4440,32 @@ repository:
     tag: logicOperator
     name: meta.template.expression.operator.colon.sd
     match: ([:])
+
+  # Adjacency content (spec §4.2/D2): `<tag> "content {interp}"` — a builtin/
+  # component tag followed by a quoted (interpolation-aware) display string,
+  # e.g. `image "black"`, `text "HP: {hp}"`, `button "Use"`. Listed BEFORE
+  # LuauStructBareMarker; cap 4 must START with a quote, so `mask shadow_1`
+  # (trailing class names, no quote) still falls through to the bare marker, and
+  # `image = "black"` (a scalar) is matched earlier. The lowerer reads the tag
+  # (cap 2) + the content value (cap 4); the static context builder maps it to
+  # `{ tag: content }`, identical to the `tag = "content"` scalar form.
+  LuauStructAdjacencyContent:
+    match: ^({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}+)(["].*)$
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#ComponentName" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#StringFieldValueInterpolated" }
+          - { include: "#StringFieldValue" }
 
   LuauStructBareMarker:
     match: ^({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}*)([^\n]*)$

@@ -74,6 +74,7 @@ function lineKindNode(content: SyntaxNode): SyntaxNode | null {
 
 const LINE_KIND_NAMES = new Set([
   "LuauStructScalarProperty",
+  "LuauStructAdjacencyContent",
   "LuauStructObjectHeader",
   "LuauStructBareMarker",
   "LuauStructArrayItem",
@@ -307,6 +308,29 @@ function buildBlock(
     const childIndent = nextChildIndent(lines, i, indent);
     if (!kind) {
       i += 1;
+      continue;
+    }
+
+    if (kind.name === "LuauStructAdjacencyContent") {
+      // `image "black"` / `text "HP: {hp}"` — tag + adjacency display content
+      // (literal + `{expr}` reactive bindings). Spec §4.2/D2.
+      const tagNode = firstDescendant(kind, NAME_TOKEN_NAMES);
+      const tag = tagNode ? ctx.read(tagNode.from, tagNode.to).trim() : "";
+      const content = readContentParts(
+        firstDescendant(kind, FIELD_VALUE_NAMES),
+        ctx,
+      );
+      const element: ElementNode = {
+        kind: "element",
+        tag,
+        classes: [],
+        content,
+        props: {},
+        events: [],
+        children: [],
+      };
+      i = attachBlock(element, lines, i, childIndent, ctx);
+      children.push(element);
       continue;
     }
 

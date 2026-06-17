@@ -1,0 +1,31 @@
+text.source.sparkdown [0..155]
+ ├─ meta.screen.luau [0..15]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..10]: "hud"
+ │   ├─ punctuation.whitespace.optional.sd [10..11]: " "
+ │   └─ keyword.control.as.luau [11..15]: "with"
+ ├─ Newline [15..16]: "\n"
+ ├─ meta.screen.luau [16..24]
+ │   ├─ punctuation.whitespace.optional.sd [16..18]: "  "
+ │   └─ meta.struct.body.luau [18..24]: "stage:"
+ ├─ Newline [24..25]: "\n"
+ ├─ meta.screen.luau [25..57]
+ │   ├─ punctuation.whitespace.optional.sd [25..29]: "    "
+ │   └─ meta.struct.body.luau [29..57]: "text = \"HP: {hp} / {max_hp}\""
+ ├─ Newline [57..58]: "\n"
+ ├─ meta.screen.luau [58..93]
+ │   ├─ punctuation.whitespace.optional.sd [58..62]: "    "
+ │   └─ meta.struct.body.luau [62..93]: "label = \"score {score + bonus}\""
+ ├─ Newline [93..94]: "\n"
+ ├─ meta.screen.luau [94..130]
+ │   ├─ punctuation.whitespace.optional.sd [94..98]: "    "
+ │   └─ meta.struct.body.luau [98..130]: "note = \"literal {{braces}} only\""
+ ├─ Newline [130..131]: "\n"
+ ├─ meta.screen.luau [131..150]
+ │   ├─ punctuation.whitespace.optional.sd [131..135]: "    "
+ │   └─ meta.struct.body.luau [135..150]: "color = \"white\""
+ ├─ Newline [150..151]: "\n"
+ ├─ meta.screen.luau [151..154]
+ │   └─ keyword.control.end.luau [151..154]: "end"
+ └─ Newline [154..155]: "\n"

@@ -98,6 +98,21 @@ end
   });
 });
 
+describe("screen · adjacency content", () => {
+  test("`tag \"content\"` produces the same context struct as `tag = \"content\"`", () => {
+    const r = compileUI(`screen main with
+  stage:
+    backdrop:
+      image "black"
+end
+`);
+    expect(r.errors).toEqual([]);
+    // Adjacency `image "black"` lowers to { image: "black" } — identical to the
+    // scalar `image = "black"` form (engine static path unchanged).
+    expect(r.screen["main"]["stage"]).toEqual({ backdrop: { image: "black" } });
+  });
+});
+
 describe("component", () => {
   test("component produces $type component", () => {
     const r = compileUI(`component card with

@@ -132,6 +132,32 @@ end
     );
   });
 
+  test("adjacency content `tag \"...\"` lowers to an element with content", () => {
+    const ast = screenAst(`screen main with
+  stage:
+    image "black"
+    text "HP: {hp}"
+end
+`);
+    const stage = ast.main.children[0];
+    expect(stage.tag).toBe("stage");
+    const [img, txt] = stage.children;
+    expect(img.tag).toBe("image");
+    expect(img.content).toEqual([{ kind: "literal", text: "black" }]);
+    expect(txt.tag).toBe("text");
+    expect(txt.content).toEqual([
+      { kind: "literal", text: "HP: " },
+      {
+        kind: "binding",
+        binding: {
+          exprId: expect.stringMatching(/^__binding_\d+$/),
+          source: "{hp}",
+          span: expect.objectContaining({ from: expect.any(Number) }),
+        },
+      },
+    ]);
+  });
+
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
     const ast = screenAst(`screen hud with
   text = "literal {{braces}} kept"

@@ -105,9 +105,15 @@ function parseBlock(
       }
     } else {
       const eq = text.indexOf("=");
+      const adjacency = eq < 0 ? ADJACENCY_CONTENT_RE.exec(text) : null;
       if (eq >= 0) {
         const key = text.slice(0, eq).trim();
         obj[key] = parseScalar(text.slice(eq + 1).trim());
+      } else if (adjacency) {
+        // Adjacency content `tag "content"` (spec §4.2) → { tag: content },
+        // identical to the `tag = "content"` scalar form. Bare markers
+        // (`image`, `mask shadow_1`) have no quoted content and fall through.
+        obj[adjacency[1]!] = parseScalar(adjacency[2]!);
       } else {
         // bare marker (image / text / mask shadow_1)
         obj[text] = {};
@@ -136,6 +142,11 @@ function nextChildIndent(
 // (`0.5cqh`), ratios (`1341/381`), or CSS functions (`translateY(-100%)`).
 const STRUCT_REFERENCE_RE =
   /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)$/;
+
+// Adjacency element content: `<tag> "quoted content"` (spec §4.2/D2). The tag
+// is a bare identifier; the value is a double-quoted string (which may contain
+// `{interp}` — kept as raw text in the static struct, like the scalar form).
+const ADJACENCY_CONTENT_RE = /^([A-Za-z_][A-Za-z0-9_]*)\s+(".*")$/;
 
 // Scalar value: strip surrounding quotes for strings; resolve a bare
 // `<type>.<name>` reference to a `{ $type, $name }` struct reference

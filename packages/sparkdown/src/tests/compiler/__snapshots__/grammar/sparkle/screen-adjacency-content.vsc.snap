@@ -1,0 +1,43 @@
+text.source.sparkdown [0..143]
+ ├─ meta.screen.luau [0..16]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..11]: "main"
+ │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
+ │   └─ keyword.control.as.luau [12..16]: "with"
+ ├─ Newline [16..17]: "\n"
+ ├─ meta.screen.luau [17..25]
+ │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
+ │   └─ meta.struct.body.luau [19..25]: "stage:"
+ ├─ Newline [25..26]: "\n"
+ ├─ meta.screen.luau [26..39]
+ │   ├─ punctuation.whitespace.optional.sd [26..30]: "    "
+ │   └─ meta.struct.body.luau [30..39]: "backdrop:"
+ ├─ Newline [39..40]: "\n"
+ ├─ meta.screen.luau [40..59]
+ │   ├─ punctuation.whitespace.optional.sd [40..46]: "      "
+ │   └─ meta.struct.body.luau [46..59]: "image \"black\""
+ ├─ Newline [59..60]: "\n"
+ ├─ meta.screen.luau [60..73]
+ │   ├─ punctuation.whitespace.optional.sd [60..64]: "    "
+ │   └─ meta.struct.body.luau [64..73]: "portrait:"
+ ├─ Newline [73..74]: "\n"
+ ├─ meta.screen.luau [74..93]
+ │   ├─ punctuation.whitespace.optional.sd [74..80]: "      "
+ │   └─ meta.struct.body.luau [80..93]: "mask shadow_1"
+ ├─ Newline [93..94]: "\n"
+ ├─ meta.screen.luau [94..105]
+ │   ├─ punctuation.whitespace.optional.sd [94..100]: "      "
+ │   └─ meta.struct.body.luau [100..105]: "image"
+ ├─ Newline [105..106]: "\n"
+ ├─ meta.screen.luau [106..116]
+ │   ├─ punctuation.whitespace.optional.sd [106..110]: "    "
+ │   └─ meta.struct.body.luau [110..116]: "label:"
+ ├─ Newline [116..117]: "\n"
+ ├─ meta.screen.luau [117..138]
+ │   ├─ punctuation.whitespace.optional.sd [117..123]: "      "
+ │   └─ meta.struct.body.luau [123..138]: "text \"HP: {hp}\""
+ ├─ Newline [138..139]: "\n"
+ ├─ meta.screen.luau [139..142]
+ │   └─ keyword.control.end.luau [139..142]: "end"
+ └─ Newline [142..143]: "\n"

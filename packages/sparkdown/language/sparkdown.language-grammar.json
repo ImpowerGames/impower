@@ -5175,6 +5175,9 @@
               "include": "#LuauStructObjectHeader"
             },
             {
+              "include": "#LuauStructAdjacencyContent"
+            },
+            {
               "include": "#LuauStructBareMarker"
             },
             {
@@ -7183,6 +7186,43 @@
       "tag": "logicOperator",
       "name": "meta.template.expression.operator.colon.sd",
       "match": "([:])"
+    },
+    "LuauStructAdjacencyContent": {
+      "match": "^((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_-]*))((?:[^\\S\\n\\r])+)([\"].*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ComponentName"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#StringFieldValueInterpolated"
+            },
+            {
+              "include": "#StringFieldValue"
+            }
+          ]
+        }
+      }
     },
     "LuauStructBareMarker": {
       "match": "^((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_-]*))((?:[^\\S\\n\\r])*)([^\\n]*)$",
