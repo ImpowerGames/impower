@@ -10,6 +10,7 @@ import {
   alias,
   apiInDir,
   apiOutDir,
+  browserEnvDefine,
   dedupe,
   externalWorkerPaths,
   getServiceWorkerProcessEnvBanner,
@@ -19,7 +20,6 @@ import {
   outdir,
   pagesInDir,
   PATH_RESOLUTION_BANNER,
-  PROCESS_ENV_BANNER_JS,
   PRODUCTION,
   publicInDir,
   publicOutDir,
@@ -27,7 +27,6 @@ import {
   serviceWorkerPaths,
   staticallyStylePage,
   viteBannerPlugin,
-  viteDefineProcessPlugin,
   viteStaticallyRenderedPagesPlugin,
   WATCH,
 } from "./vite.config.js";
@@ -129,11 +128,8 @@ const buildPages = async () => {
   await build({
     configFile: false,
     resolve: { alias, dedupe },
-    plugins: [
-      viteDefineProcessPlugin(),
-      viteBannerPlugin(PROCESS_ENV_BANNER_JS),
-      tailwindcss(),
-    ],
+    define: browserEnvDefine,
+    plugins: [tailwindcss()],
     build: {
       outDir: publicOutDir,
       emptyOutDir: false,
@@ -352,6 +348,7 @@ const serve = async () => {
       watch: { ignored: ["**/out/**", "**/.dev/**"] },
     },
     resolve: { alias, dedupe },
+    define: browserEnvDefine,
     // Point the dependency scanner at the real client entry (the page JS).
     // Otherwise Vite auto-globs the project's *.html files as scan entries —
     // but the HTML shells carry no <script> (the SSG injects the page module at
@@ -394,7 +391,6 @@ const serve = async () => {
       ],
     },
     plugins: [
-      viteDefineProcessPlugin(),
       preact(),
       viteStaticallyRenderedPagesPlugin(),
       tailwindcss(),

@@ -147,6 +147,17 @@ Object.entries(process.env).forEach(([key, value]) => {
   }
 });
 
+// Build-time replacement of the browser env the app reads (`import.meta.env.
+// VITE_*` / `BROWSER_*`). Vite's standard `define` — applied to the page build
+// and the dev server — supersedes the old per-module `var process = {...}`
+// banner. (Bundled libraries get `process.env.NODE_ENV` from Vite natively.)
+const browserEnvDefine: Record<string, string> = Object.fromEntries(
+  Object.entries(BROWSER_VARIABLES_ENV).map(([key, value]) => [
+    `import.meta.env.${key}`,
+    JSON.stringify(value),
+  ]),
+);
+
 const PATH_RESOLUTION_BANNER = `
 import { createRequire } from 'module';
 import path from 'path';
@@ -155,11 +166,6 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 process.env.NODE_ENV = process.env.NODE_ENV || '${PRODUCTION ? "production" : "development"}';
-`.trim();
-
-const PROCESS_ENV_BANNER_JS = `
-var process = { env: ${JSON.stringify(BROWSER_VARIABLES_ENV)} };
-import.meta.env = ${JSON.stringify(BROWSER_VARIABLES_ENV)};
 `.trim();
 
 const getServiceWorkerProcessEnvBanner = (options?: {
@@ -203,19 +209,6 @@ const readEditorGlobalCss = (): string =>
 // Vite Plugins
 // ----------------------------------------------------------------------------
 
-const viteDefineProcessPlugin = (): Plugin => ({
-  name: "vite-define-process",
-  apply: "serve",
-  transform(code, id) {
-    if (
-      /\.(ts|js|mjs)$/.test(id) &&
-      !id.includes("node_modules") &&
-      !id.includes(apiInDir)
-    ) {
-      return { code: PROCESS_ENV_BANNER_JS + "\n" + code, map: null };
-    }
-  },
-});
 
 const viteBannerPlugin = (banner: string): Plugin => ({
   name: "vite-banner-plugin",
@@ -520,12 +513,11 @@ export {
   PRODUCTION,
   WATCH,
   MINIFY,
-  PROCESS_ENV_BANNER_JS,
+  browserEnvDefine,
   PATH_RESOLUTION_BANNER,
   getServiceWorkerProcessEnvBanner,
   staticallyStylePage,
   readEditorGlobalCss,
-  viteDefineProcessPlugin,
   viteBannerPlugin,
   viteStaticallyRenderedPagesPlugin,
 };
