@@ -1,6 +1,7 @@
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
+import type { Binding } from "@impower/sparkdown/src/compiler/types/SparkleNode";
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { Module } from "../../../core/classes/Module";
@@ -86,9 +87,36 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _clearOnContinue: Set<string> = new Set();
 
+  // Phase 3 reactive runtime: render screens from program.sparkle (the typed AST)
+  // instead of the static context.screen struct, with coarse per-turn binding
+  // re-eval. OFF by default — the static path stays the golden-master fallback
+  // until the AST path reaches parity. Flipped per-increment / via config.
+  protected _reactive = false;
+
   constructor(game: Game) {
     super(game);
     this.initScreens();
+  }
+
+  /**
+   * Evaluate a reactive {@link Binding} to its live value by calling the hoisted
+   * nullary evaluator the compiler emitted (`__binding_<offset>() return <expr>
+   * end`, lowerSparkleBody.ts). Guarded by HasFunction so a snapshot-only /
+   * never-hoisted binding returns `undefined` instead of throwing. MUST only be
+   * called between turns (EvaluateFunction asserts IfAsyncWeCant). The story
+   * already saves/restores its output stream around the call, so a pure binding
+   * read can't leak narrative text.
+   */
+  protected evalBinding(binding: Binding): unknown {
+    const exprId = binding?.exprId;
+    if (!exprId) {
+      return undefined;
+    }
+    const story = this._game.story;
+    if (!story.HasFunction(exprId)) {
+      return undefined;
+    }
+    return story.EvaluateFunction(exprId, []);
   }
 
   override getBuiltins() {
