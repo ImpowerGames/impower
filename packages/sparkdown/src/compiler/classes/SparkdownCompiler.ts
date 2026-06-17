@@ -76,9 +76,59 @@ import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
-// Synthetic URI for the bundled builtins prelude (registered as a document so
-// it can be parsed + auto-included; see config.useBuiltinsPrelude).
+// Synthetic URI for the bundled builtins prelude (used as the file URI when the
+// prelude is compiled once to seed the builtins cache; see getCompiledPrelude).
 const BUILTINS_PRELUDE_URI = "file:///__builtins__.sd";
+
+// The builtins prelude (builtins.sd) compiles to the same context + runtime
+// every time — its source is a constant. Compiling it as part of EVERY program
+// added ~110ms per compile (untenable for live LSP keystrokes). So compile it
+// exactly ONCE, process-wide, and reuse:
+//   - `context`  is merged into each program as the builtins base layer (the
+//     role the legacy JS `populateBuiltins` played), so authored defines that
+//     reuse a builtin name override it in place.
+//   - `compiled` is the prelude's runtime story JSON, kept for the engine to
+//     instantiate the builtin __def tables once (rather than baking them into
+//     every program.compiled, which would also bloat unrelated compiled output).
+// The prelude is NOT included in any program's parsed story — keeping the cache
+// the single point where it is compiled and keeping program.compiled clean.
+let _cachedPrelude: { context: Record<string, any>; compiled: unknown } | null =
+  null;
+
+function getCompiledPrelude(): {
+  context: Record<string, any>;
+  compiled: unknown;
+} {
+  if (_cachedPrelude) {
+    return _cachedPrelude;
+  }
+  // Compile the prelude in isolation. `useBuiltinsPrelude` stays false here so
+  // this compile doesn't recurse into itself; the prelude defines every builtin
+  // it needs, so no JS builtins are required.
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    definitions: { builtins: {} as any },
+    files: [
+      {
+        uri: BUILTINS_PRELUDE_URI,
+        type: "script",
+        name: "__builtins__",
+        ext: "sd",
+        text: BUILTINS_PRELUDE,
+        version: 0,
+        languageId: LANGUAGE_NAME,
+      } as any,
+    ],
+  });
+  const result = compiler.compile({
+    textDocument: { uri: BUILTINS_PRELUDE_URI },
+  });
+  _cachedPrelude = {
+    context: result.program.context ?? {},
+    compiled: result.program.compiled,
+  };
+  return _cachedPrelude;
+}
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 const VIEW_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.VIEW_DEFINE_TYPES || [];
 const STYLING_DEFINE_TYPES =
@@ -280,21 +330,6 @@ export class SparkdownCompiler {
         this.addFile({ file });
       }
     }
-    // Register the bundled builtins prelude as a document so it can be parsed +
-    // auto-included into every program (see parseIncrementally).
-    if (
-      this._config.useBuiltinsPrelude &&
-      !this.documents.has(BUILTINS_PRELUDE_URI)
-    ) {
-      this.documents.add({
-        textDocument: {
-          uri: BUILTINS_PRELUDE_URI,
-          languageId: LANGUAGE_NAME,
-          version: 0,
-          text: BUILTINS_PRELUDE,
-        },
-      });
-    }
     return LANGUAGE_NAME;
   }
 
@@ -488,10 +523,13 @@ export class SparkdownCompiler {
     // `currentParentUri` before each include descent.
     state.fileResolutionState = fileResolutionState;
 
-    // The builtins prelude (config.useBuiltinsPrelude) supplies builtins as
-    // real defines compiled into the program (context + runtime), so the JS
-    // populateBuiltins path is skipped in that mode.
-    if (!this._config.useBuiltinsPrelude) {
+    // Seed builtins as the base layer BEFORE parsing this file's chunks (so an
+    // authored define reusing a builtin name overrides it in place, preserving
+    // the builtin key order). In prelude mode, merge the once-compiled prelude
+    // context; otherwise use the legacy JS populateBuiltins.
+    if (this._config.useBuiltinsPrelude) {
+      this.mergePreludeContext(program);
+    } else {
       this.populateBuiltins(state, program);
     }
 
@@ -651,32 +689,6 @@ export class SparkdownCompiler {
     const topLevelFlowBaseObjs: FlowBase[] = [];
     const topLevelWeaveObjs: ParsedObject[] = [];
     const topLevelContent: (FlowBase | Weave)[] = [];
-
-    // Implicitly include the builtins prelude at the TOP of the entry program,
-    // BEFORE this file's own chunks are processed. This mirrors how the legacy
-    // `populateBuiltins` seeded `program.context` first: the prelude's `define`s
-    // populate context (and the runtime __def tables) as the base layer, so
-    // authored content that reuses a builtin name (e.g. an authored
-    // `screen main`) OVERRIDES the builtin in place — preserving both the
-    // override semantics and the builtin key order. (Parsing the prelude after
-    // this file's chunk loop instead let the builtin clobber the authored
-    // define and reversed the key order.) Guarded so the prelude doesn't
-    // include itself and includes don't double-add it.
-    if (
-      this._config.useBuiltinsPrelude &&
-      !isInclude &&
-      uri !== BUILTINS_PRELUDE_URI
-    ) {
-      const preludeStory = this.parseIncrementally(
-        BUILTINS_PRELUDE_URI,
-        fileHandler,
-        true,
-        state,
-        program,
-        onDiagnostic,
-      );
-      topLevelIncludedFileObjs.unshift(new IncludedFile(preludeStory));
-    }
 
     while (cur.value) {
       const {
@@ -1457,6 +1469,26 @@ export class SparkdownCompiler {
     this.populateImplicitDefs(state, program);
     this.populateDefinedDefaultProperties(state, program);
     profile("end", this._profilerId, "buildContext", uri);
+  }
+
+  /** Merge the once-compiled builtins prelude context into `program.context` as
+   *  the base layer (the role the legacy JS `populateBuiltins` filled). Runs
+   *  before this file's own chunks populate context, so an authored define
+   *  reusing a builtin name overrides it in place. Structs are deep-cloned so
+   *  the shared cache can't be mutated by the per-program `$default` merge or
+   *  asset inference. */
+  mergePreludeContext(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "mergePreludeContext", uri);
+    const { context } = getCompiledPrelude();
+    program.context ??= {};
+    for (const [type, structs] of Object.entries(context)) {
+      program.context[type] ??= {};
+      for (const [name, struct] of Object.entries(structs)) {
+        program.context[type][name] = structuredClone(struct);
+      }
+    }
+    profile("end", this._profilerId, "mergePreludeContext", uri);
   }
 
   populateBuiltins(state: SparkdownCompilerState, program: SparkProgram) {
