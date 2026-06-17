@@ -1,5 +1,6 @@
 import { type File } from "./File";
 import { Range, type SparkDiagnostic } from "./SparkDiagnostic";
+import { type ComponentNode, type ScreenNode } from "./SparkleNode";
 
 export type ScriptLocation = [
   scriptIndex: number,
@@ -35,6 +36,16 @@ export interface SparkProgram {
   screens?: { [name: string]: any };
   components?: { [name: string]: any };
   styles?: { [name: string]: any };
+  // Reactive Sparkle UI AST channel (docs/sparkle/reactive-sparkle-spec.md §6).
+  // The typed element-tree the reactive runtime will consume, produced by the
+  // lowerer alongside the static `screens`/`components` channels above. Carries
+  // compiled-Luau `Binding` handles for every dynamic value. Additive in
+  // Phase 1 — not yet consumed by the engine (the static channels still drive
+  // rendering until Phase 3), so the golden-master stays byte-identical.
+  sparkle?: {
+    screens?: { [name: string]: ScreenNode };
+    components?: { [name: string]: ComponentNode };
+  };
   // Dedicated engine-facing channel for file-derived assets (image / audio /
   // font) and compiler-inferred implicit defs (filtered_image), keyed by type
   // then name. Lets the Game runtime read assets without the LSP-only
