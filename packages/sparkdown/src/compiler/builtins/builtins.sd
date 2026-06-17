@@ -1150,7 +1150,6 @@ define style with
 end
 
 style main with
-  $recursive = true
   font_family = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto,\n    Helvetica, Arial, system-ui, sans-serif, \"Apple Color Emoji\",\n    \"Segoe UI Emoji\", \"Segoe UI Symbol\""
   font_size = 1.25rem
   line_height = 1.5
@@ -1160,32 +1159,27 @@ style main with
 end
 
 style row with
-  $recursive = true
   display = flex
   flex_direction = row
 end
 
 style column with
-  $recursive = true
   display = flex
   flex_direction = column
 end
 
 style stack with
-  $recursive = true
   > *:
     position = absolute
     inset = 0
 end
 
 style overlay with
-  $recursive = true
   position = absolute
   inset = 0
 end
 
 style text with
-  $recursive = true
   display = block
   pointer_events = auto
   user_select = none
@@ -1196,7 +1190,6 @@ style text with
 end
 
 style stroke with
-  $recursive = true
   display = block
   pointer_events = none
   user_select = none
@@ -1211,27 +1204,22 @@ style stroke with
 end
 
 style text_line with
-  $recursive = true
   display = block
   text_wrap = wrap
 end
 
 style text_word with
-  $recursive = true
   display = inline-block
 end
 
 style text_space with
-  $recursive = true
   display = inline
 end
 
 style text_letter with
-  $recursive = true
 end
 
 style image with
-  $recursive = true
   display = block
   pointer_events = auto
   position = absolute
@@ -1253,14 +1241,12 @@ style image with
 end
 
 style object with
-  $recursive = true
   height = 100%
   object_fit = cover
   visibility = hidden
 end
 
 style mask with
-  $recursive = true
   display = block
   pointer_events = auto
   position = absolute
@@ -1278,7 +1264,6 @@ style mask with
 end
 
 style loading_bar with
-  $recursive = true
   z_index = 1000
   position = relative
   width = 100%
@@ -1286,7 +1271,6 @@ style loading_bar with
 end
 
 style loading_fill with
-  $recursive = true
   width = 100%
   height = 100%
   background_color = cyan50
@@ -1295,7 +1279,6 @@ style loading_fill with
 end
 
 style screen with
-  $recursive = true
   position = absolute
   inset = 0
   pointer_events = none
@@ -1304,7 +1287,6 @@ style screen with
 end
 
 style stage with
-  $recursive = true
   position = absolute
   inset = 0
   display = flex
@@ -1312,7 +1294,6 @@ style stage with
 end
 
 style backdrop with
-  $recursive = true
   position = absolute
   inset = 0
   background_position = center
@@ -1320,7 +1301,6 @@ style backdrop with
 end
 
 style portrait with
-  $recursive = true
   position = absolute
   top = 10%
   right = 0
@@ -1335,7 +1315,6 @@ style portrait with
 end
 
 style choices with
-  $recursive = true
   position = relative
   flex = 1
   display = flex
@@ -1350,7 +1329,6 @@ style choices with
 end
 
 style choice with
-  $recursive = true
   display = flex
   flex_direction = row
   width = 90%
@@ -1368,8 +1346,25 @@ style choice with
     transition = all 0.15s linear
 end
 
+style button with
+  display = flex
+  flex_direction = row
+  align_items = center
+  justify_content = center
+  text_align = center
+  padding = 8px 20px
+  border_radius = 8px
+  border = 1px solid rgb(95 95 95)
+  background_color = rgb(52 52 52)
+  color = white
+  font_weight = 600
+  cursor = pointer
+  transition = background-color 0.15s linear
+  @hovered:
+    background_color = rgb(69 69 69)
+end
+
 style textbox with
-  $recursive = true
   position = absolute
   bottom = 0
   left = 0
@@ -1382,14 +1377,12 @@ style textbox with
 end
 
 style textbox_background with
-  $recursive = true
   position = absolute
   inset = 0
   background_image = linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)
 end
 
 style textbox_content with
-  $recursive = true
   position = relative
   flex = 1
   display = flex
@@ -1405,7 +1398,6 @@ style textbox_content with
 end
 
 style character_info with
-  $recursive = true
   display = flex
   flex_direction = row
   justify_content = center
@@ -1418,13 +1410,11 @@ style character_info with
 end
 
 style character_name with
-  $recursive = true
   padding_bottom = 8px
   font_weight = 600px
 end
 
 style character_parenthetical with
-  $recursive = true
   padding_bottom = 8px
   font_weight = 400px
   font_size = 1rem
@@ -1433,7 +1423,6 @@ style character_parenthetical with
 end
 
 style title with
-  $recursive = true
   position = absolute
   inset = 0
   padding_left = 40px
@@ -1447,7 +1436,6 @@ style title with
 end
 
 style heading with
-  $recursive = true
   position = absolute
   inset = 0
   padding_left = 40px
@@ -1461,7 +1449,6 @@ style heading with
 end
 
 style transitional with
-  $recursive = true
   position = absolute
   inset = 0
   padding_left = 40px
@@ -1476,7 +1463,6 @@ style transitional with
 end
 
 style dialogue with
-  $recursive = true
   margin = 0 auto
   width = 68%
   @screen_size(sm):
@@ -1484,7 +1470,6 @@ style dialogue with
 end
 
 style action with
-  $recursive = true
   position = absolute
   inset = 0
   padding_left = 40px
@@ -1497,7 +1482,6 @@ style action with
 end
 
 style continue_indicator with
-  $recursive = true
   opacity = 0
   line_height = 1
   width = 16px
@@ -1516,13 +1500,11 @@ define screen with
 end
 
 screen loading with
-  $recursive = true
   loading_bar:
     loading_fill:
 end
 
 screen main with
-  $recursive = true
   stage:
     animation:
     backdrop:

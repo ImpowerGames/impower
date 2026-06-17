@@ -654,6 +654,24 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     transition: all 0.15s linear;
   }
 }
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
+  }
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -1583,6 +1601,24 @@ exports[`dom render > image show renders background span + img 1`] = `
     transition: all 0.15s linear;
   }
 }
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
+  }
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -2472,6 +2508,24 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   &:hover {
     background-color: black;
     transition: all 0.15s linear;
+  }
+}
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
   }
 }
 :host #game .textbox {
@@ -3487,6 +3541,24 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     transition: all 0.15s linear;
   }
 }
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
+  }
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -4359,6 +4431,24 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     transition: all 0.15s linear;
   }
 }
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
+  }
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -5211,6 +5301,24 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   &:hover {
     background-color: black;
     transition: all 0.15s linear;
+  }
+}
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
   }
 }
 :host #game .textbox {
@@ -6117,6 +6225,24 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     transition: all 0.15s linear;
   }
 }
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
+  }
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -6986,6 +7112,24 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   &:hover {
     background-color: black;
     transition: all 0.15s linear;
+  }
+}
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
   }
 }
 :host #game .textbox {
@@ -7859,6 +8003,24 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     transition: all 0.15s linear;
   }
 }
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
+  }
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -8730,6 +8892,24 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     transition: all 0.15s linear;
   }
 }
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
+  }
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -9599,6 +9779,24 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   &:hover {
     background-color: black;
     transition: all 0.15s linear;
+  }
+}
+:host #game .button {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(52 52 52);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s linear;
+  &:hover {
+    background-color: rgb(69 69 69);
   }
 }
 :host #game .textbox {
