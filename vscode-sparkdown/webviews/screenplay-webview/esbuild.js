@@ -1,8 +1,30 @@
 import { context } from "esbuild";
+import fs from "fs";
 import path from "path";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
+
+/**
+ * Honor Vite's `?raw` query in esbuild: import the file's contents as a text
+ * string. Lets packages shared with the Vite-built editor (notably
+ * @impower/sparkdown-document-views) import CSS as a string portably across
+ * both bundlers — `import cssText from "./foo.css?raw"`.
+ * @type {import('esbuild').Plugin}
+ */
+const rawLoader = () => ({
+  name: "raw-loader",
+  setup(build) {
+    build.onResolve({ filter: /\?raw$/ }, (args) => ({
+      path: path.resolve(args.resolveDir, args.path.replace(/\?raw$/, "")),
+      namespace: "raw-loader",
+    }));
+    build.onLoad({ filter: /.*/, namespace: "raw-loader" }, async (args) => ({
+      contents: await fs.promises.readFile(args.path, "utf8"),
+      loader: "text",
+    }));
+  },
+});
 
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
@@ -42,7 +64,7 @@ const config = {
   format: "esm",
   entryPoints: ["./screenplay-webview.ts"],
   outfile: "../../out/webviews/screenplay-webview.js",
-  plugins: [esbuildProblemMatcher()],
+  plugins: [rawLoader(), esbuildProblemMatcher()],
   alias: {
     // Force every transitive @codemirror/* import to resolve from THIS build
     // root so we end up with one copy in the bundle. Without this, esbuild

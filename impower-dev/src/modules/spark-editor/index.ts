@@ -1,7 +1,7 @@
 import { h, hydrate } from "preact";
 import SparkEditorComponent from "./main/SparkEditor";
-import editorIcons from "./styles/icons/icons.css";
-import editorTheme from "./styles/theme/theme.css";
+import editorIcons from "./styles/icons/icons.css?raw";
+import editorTheme from "./styles/theme/theme.css?raw";
 
 // Global stylesheets adopted document-wide as constructable stylesheets: the
 // editor theme tokens + icon definitions.

@@ -4,7 +4,7 @@ import type {
   ScriptEditorController as ScriptEditorControllerType,
   ScriptEditorOptions,
 } from "./ScriptEditorController";
-import cssText from "./sparkdown-script-editor.css";
+import cssText from "./sparkdown-script-editor.css?raw";
 
 export const propDefaults = {
   readonly: false,

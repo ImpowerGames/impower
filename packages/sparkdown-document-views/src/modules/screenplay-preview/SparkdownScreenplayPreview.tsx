@@ -1,7 +1,7 @@
 import { LoadingBar } from "@impower/impower-ui/components";
 import { useEffect, useRef } from "preact/hooks";
 import type { ScreenplayPreviewController as ScreenplayPreviewControllerType } from "./ScreenplayPreviewController";
-import cssText from "./sparkdown-screenplay-preview.css";
+import cssText from "./sparkdown-screenplay-preview.css?raw";
 
 export const propDefaults = {
   scrollMargin: null as string | null,
