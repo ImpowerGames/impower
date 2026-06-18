@@ -47,13 +47,7 @@ import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
 import getTextBuffer from "./utils/getTextBuffer";
-
-const FILE_SEPARATOR_PREFIX = "//// ";
-const FILE_SEPARATOR_SUFFIX = " ////";
-const FILE_SPLITTER_REGEX = /^([/]{4,})(\s*)([^/\s]+)(\s*)([/]{4,})(\s*)$/gmu;
-const FILE_SEPARATOR_REGEX =
-  /^((?:[/]{4,})(?:\s*)(?:[^/\s]+)(?:\s*)(?:[/]{4,})(?:\s*))$/;
-const FILE_NAME_CAPTURE_INDEX = 3;
+import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
 
 const cmp = (a: any, b: any) => {
   if (a > b) return +1;
@@ -365,23 +359,9 @@ export default class WorkspaceFileSystem {
 
   async bundleProjectText(projectId: string): Promise<string> {
     const files = await this.getFiles(projectId);
-    const mainScriptUri = this.getFileUri(projectId, "main.sd");
-    const mainFile = files[mainScriptUri];
-    let content = "";
-    if (mainFile?.text != null) {
-      content += `${mainFile.text}`;
-    }
-    Object.values(files)
-      .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
-      .forEach((file) => {
-        if (file.uri !== mainScriptUri) {
-          if (file.text != null && file.name) {
-            content += `\n\n${FILE_SEPARATOR_PREFIX}${file.name}.${file.ext}${FILE_SEPARATOR_SUFFIX}`;
-            content += `\n\n${file.text}`;
-          }
-        }
-      });
-    return content.trim();
+    return bundleScripts(Object.values(files), "main.sd", (uri) =>
+      this.getRelativePath(projectId, uri),
+    );
   }
 
   async readProjectAssetBundle(projectId: string): Promise<ArrayBuffer> {
@@ -457,21 +437,21 @@ export default class WorkspaceFileSystem {
     projectId: string,
     text: string,
   ): Record<string, string> {
+    const byRelativePath = splitScriptBundle(text, "main.sd");
     const chunks: Record<string, string> = {};
-    let filename = "";
-    text.split(FILE_SPLITTER_REGEX).forEach((content, index) => {
-      const isEvenIndex = index % 2 === 0;
-      if (isEvenIndex) {
-        const uri = filename
-          ? this.getFileUri(projectId, filename)
-          : this.getFileUri(projectId, "main.sd");
-        chunks[uri] = content.trim();
-      } else if (FILE_SEPARATOR_REGEX) {
-        const match = content.trim().match(FILE_SEPARATOR_REGEX);
-        filename = match?.[FILE_NAME_CAPTURE_INDEX]?.trim() || "";
-      }
-    });
+    for (const [relativePath, body] of Object.entries(byRelativePath)) {
+      chunks[this.getFileUri(projectId, relativePath)] = body;
+    }
     return chunks;
+  }
+
+  /**
+   * Project-relative path for a file URI (the path after `file://<projectId>/`).
+   * Falls back to the bare filename for URIs outside the project directory.
+   */
+  getRelativePath(projectId: string, uri: string): string {
+    const prefix = `${this.getDirectoryUri(projectId)}/`;
+    return uri.startsWith(prefix) ? uri.slice(prefix.length) : this.getFilename(uri);
   }
 
   async zipFiles(params: { files: { uri: string }[] }) {
