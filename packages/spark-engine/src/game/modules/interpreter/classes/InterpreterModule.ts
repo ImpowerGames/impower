@@ -1,5 +1,6 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
 import { parseDisplayRoutingTag } from "@impower/sparkdown/src/compiler/utils/displayRoutingTag";
+import { ObjectValue } from "@impower/sparkdown/src/inkjs/engine/Value";
 import { Module } from "../../../core/classes/Module";
 import {
   AudioInstruction,
@@ -378,6 +379,56 @@ export class InterpreterModule extends Module<
           });
           this.merge(lastTextbox, choiceInstructions);
         }
+      }
+    }
+  }
+
+  /**
+   * Queue a beat handed over as PRE-PARSED display instructions — one
+   * {@link ObjectValue} table per `display(<table>)` call the runtime made this
+   * beat (collected via `story.currentDisplayInstructions`). This is the
+   * structured-transport counterpart to {@link queue}: instead of a flat text
+   * string the interpreter re-scans char-by-char (`parse()` / `CHARACTER_REGEX`
+   * / `BREAK_BOX_REGEX`), the compiler-built template arrives as a live table
+   * whose `{interp}` holes are already evaluated to real values.
+   *
+   * MINIMAL FIRST INCREMENT: a flat `{ target, text }` table becomes one
+   * `show` {@link TextInstruction}. The full template→Instructions conversion
+   * (emphasis spans, per-character timing/synth/prosody, the character cue,
+   * `[[asset]]`/box-split chunks, choices carried in the table) plugs in HERE —
+   * this is the seam. Until then the legacy {@link queue} path stays the
+   * fallback for every text beat that doesn't call `display()`.
+   */
+  queueInstructions(tables: ObjectValue[], choices: string[] = []): void {
+    this._state.buffer ??= [];
+    const defaultTarget = this._targetPrefixMap?.[""] || "";
+    for (const table of tables) {
+      const read = (key: string): unknown => table?.value?.get(key)?.value;
+      const target = (read("target") as string) || defaultTarget;
+      const text = (read("text") as string) ?? "";
+      const instructions: Instructions = { end: 0 };
+      if (text) {
+        const event: TextInstruction = { control: "show", text };
+        instructions.text = { [target]: [event] };
+      }
+      this._state.buffer.push(instructions);
+    }
+    // Choices still arrive as plain strings (`currentChoices`) until the
+    // template carries them; attach them to the last textbox exactly as
+    // `queue()` does so a display beat that offers choices isn't dropped.
+    if (choices.length > 0) {
+      let lastTextbox = this._state.buffer.at(-1);
+      if (!lastTextbox) {
+        lastTextbox = { end: 0 };
+        this._state.buffer.push(lastTextbox);
+      }
+      for (let i = 0; i < choices.length; i += 1) {
+        const choice = choices[i]!;
+        const choiceInstructions = this.parse(choice, `choice ${i}`, {
+          delay: lastTextbox.end,
+          choice: true,
+        });
+        this.merge(lastTextbox, choiceInstructions);
       }
     }
   }

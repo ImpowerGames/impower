@@ -202,12 +202,21 @@ export function createHarness(
       while (story.canContinue && !interpreter.shouldFlush() && guard < 1000) {
         story.ContinueAsync(Infinity);
         if (story.asyncContinueComplete) {
-          interpreter.queue(
-            story.currentText || "",
-            story.currentChoices.map((c: any) => c.text),
-            // Pass the beat's routing tags, exactly as Game's continue loop does.
-            story.currentTags || [],
-          );
+          const choices = story.currentChoices.map((c: any) => c.text);
+          // Mirror Game's continue loop: a `display(<table>)` beat routes its
+          // pre-parsed instructions via queueInstructions; a normal text beat
+          // takes the legacy queue() path.
+          const displayInstructions = story.currentDisplayInstructions;
+          if (displayInstructions.length > 0) {
+            interpreter.queueInstructions(displayInstructions, choices);
+          } else {
+            interpreter.queue(
+              story.currentText || "",
+              choices,
+              // Pass the beat's routing tags, exactly as Game's continue loop does.
+              story.currentTags || [],
+            );
+          }
         }
         guard++;
       }
