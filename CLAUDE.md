@@ -67,9 +67,12 @@ assumptions.
   thousands of `WebSocket closed without opened` exceptions that also EVICT real
   logs from the console buffer (making console debugging useless). With a unique
   `HMR_PORT`, HMR works and the console stays clean.
-- **Worker bundle staleness:** `sparkdown-player-app` builds its engine/compiler
-  worker once and ignores dependency changes. After editing `packages/*` engine/
-  compiler code, **fully restart** the player server — a reload / `--force` won't
-  pick it up. (App-level files like `main.ts` and `UIManager` DO reload.)
+- **Worker bundle hot-reload (since `90fefc737`):** `sparkdown-player-app`'s
+  `viteInlineWorkerPlugin` now watches the worker's transitively-bundled dep
+  graph (esbuild metafile → `addWatchFile`), so editing `packages/*` engine/
+  compiler code hot-reloads the player worker on a normal reload — **no full
+  restart needed**. (Historically this required a full player-server restart;
+  a reload / `--force` would not pick it up.) The `sw.ts` service worker still
+  rebuilds only when `sw.ts` itself changes.
 - The `?raw` "Failed to scan for dependencies" errors in the editor startup log
   are benign on this setup; the server still comes up (`Server ready at ...`).
