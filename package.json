@@ -7,7 +7,6 @@
     "!packages/concept-generator",
     "impower-dev",
     "sparkdown-player-app",
-    "e2e-visual-parity",
     "definitions",
     "vscode-sparkdown",
     "vscode-sparkdown/scripts",
