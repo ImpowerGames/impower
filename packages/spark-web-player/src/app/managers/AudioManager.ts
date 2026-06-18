@@ -80,7 +80,13 @@ export default class AudioManager extends Manager {
         synthBuffer.soundBuffer.length,
         audioContext.sampleRate,
       );
-      audioBuffer.copyToChannel(synthBuffer.soundBuffer, 0);
+      // `soundBuffer` is a bare `Float32Array` (TS 5.7+ widens this to
+      // `Float32Array<ArrayBufferLike>`), but `copyToChannel` wants the
+      // `<ArrayBuffer>` form; the runtime buffer is always a plain ArrayBuffer.
+      audioBuffer.copyToChannel(
+        synthBuffer.soundBuffer as Float32Array<ArrayBuffer>,
+        0,
+      );
       return audioBuffer;
     }
     return audioContext.createBuffer(1, 1, audioContext.sampleRate);
