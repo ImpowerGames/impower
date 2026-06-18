@@ -166,9 +166,11 @@ export default function FileItem({
         {/* Disclosure column: a rotating chevron for folders-with-children,
             an equal-width spacer otherwise so names stay aligned. */}
         <span class="flex w-5 flex-none items-center justify-center text-foreground/50">
-          {isDirectory && hasChildren ? (
+          {isDirectory ? (
             <ChevronRight
-              class={`size-4 transition-transform ${expanded ? "rotate-90" : ""}`}
+              class={`size-4 transition-transform ${expanded ? "rotate-90" : ""} ${
+                hasChildren ? "" : "opacity-40"
+              }`}
             />
           ) : null}
         </span>

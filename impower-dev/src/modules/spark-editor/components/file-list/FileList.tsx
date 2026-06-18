@@ -277,6 +277,27 @@ export default function FileList({
     }
   };
 
+  // Dropping on the list BACKGROUND (not on a folder row) moves the dragged
+  // item to the project ROOT — the way to pull a file/folder back OUT of a
+  // folder. Folder rows stopPropagation on drop, so they don't reach here.
+  const handleDropToRoot = async () => {
+    const src = draggedPathRef.current;
+    draggedPathRef.current = null;
+    setDropTarget(null);
+    if (!src || !projectId || !src.includes("/")) return; // already at root
+    const destPath = src.split("/").pop() ?? src;
+    const srcRow = rows.find((r) => r.path === src);
+    const { Workspace } = await import("../../workspace/Workspace");
+    const result = srcRow?.isDirectory
+      ? await Workspace.fs.moveFolder(projectId, src, destPath)
+      : await Workspace.fs.moveFile(projectId, src, destPath);
+    if (result.some((d) => d.type === "script")) {
+      await Workspace.window.recordScriptChange();
+    } else {
+      await Workspace.window.recordAssetChange();
+    }
+  };
+
   return (
     <div class="relative flex h-full w-full flex-col">
       {/* Toolbar: New Folder (search/sort/filter will join here later). */}
@@ -293,6 +314,11 @@ export default function FileList({
       <div
         ref={scrollRef}
         class="relative flex-1 overflow-auto [scrollbar-gutter:stable] pt-2 pb-24"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => {
+          e.preventDefault();
+          void handleDropToRoot();
+        }}
       >
         {isEmpty ? (
           <div class="flex h-full flex-col">{emptyState}</div>
@@ -343,6 +369,7 @@ export default function FileList({
                     row.isDirectory
                       ? (e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           void handleDropInto(row.path);
                         }
                       : undefined

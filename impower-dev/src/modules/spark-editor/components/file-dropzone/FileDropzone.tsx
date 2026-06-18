@@ -56,22 +56,32 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       }
     };
 
+    // Only react to drags carrying OS files. An INTERNAL element drag (e.g.
+    // dragging a row to move it within the file tree) advertises `text/plain`,
+    // not `Files`, so it must not trigger the import overlay or steal the drop.
+    const hasFiles = (e: DragEvent) =>
+      Array.from(e.dataTransfer?.types ?? []).includes("Files");
+
     const onDragEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
       e.preventDefault();
       e.stopPropagation();
       dragEnter();
     };
     const onDragLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
       e.preventDefault();
       e.stopPropagation();
       dragLeave();
     };
     const onDragOver = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
       e.preventDefault();
       e.stopPropagation();
       dragOver();
     };
     const onDrop = async (e: DragEvent) => {
+      if (!hasFiles(e)) return;
       e.preventDefault();
       e.stopPropagation();
       const files = Array.from(e.dataTransfer?.files || []);
