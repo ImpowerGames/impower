@@ -6,7 +6,13 @@ import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileOptionsButton from "./FileOptionsButton";
 
 export type FileItemProps = {
-  filename: string;
+  /**
+   * Project-relative path of the file (e.g. `chapters/intro.sd`). This is the
+   * row's identity — rename/delete/open and diagnostics all key off the full
+   * path so two files sharing a basename in different folders never collide.
+   * The row displays only the basename.
+   */
+  path: string;
 };
 
 /**
@@ -15,16 +21,23 @@ export type FileItemProps = {
  * label for an inline text input — Enter / blur / click-outside commits;
  * Escape (or no-change) cancels.
  *
- * Diagnostics-aware: the filename is wrapped in `<DiagnosticsLabel>` so
+ * Diagnostics-aware: the path is wrapped in `<DiagnosticsLabel>` so
  * rows for scripts with errors paint red / warnings paint yellow.
  */
-export default function FileItem({ filename }: FileItemProps) {
+export default function FileItem({ path }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLButtonElement | null>(null);
 
-  const [name, ext] = filename.split(".");
+  // Display the basename (folder-stripped). Split name/ext on the FINAL dot so
+  // multi-dot names (`sprite.idle.png`) keep their interior dots. `dir` is the
+  // directory portion, preserved across rename.
+  const basename = path.split("/").slice(-1)[0] ?? path;
+  const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  const dotIndex = basename.lastIndexOf(".");
+  const name = dotIndex > 0 ? basename.slice(0, dotIndex) : basename;
+  const ext = dotIndex > 0 ? basename.slice(dotIndex + 1) : "";
   const showExt = ext && ext !== "sd";
 
   // Auto-focus + select the basename when entering rename mode. Match the
@@ -57,18 +70,20 @@ export default function FileItem({ filename }: FileItemProps) {
   function commit() {
     const newName = inputValue.trim();
     if (newName && newName !== name) {
-      const newFilename = ext ? `${newName}.${ext}` : newName;
-      void rename(filename, newFilename);
+      const newBasename = ext ? `${newName}.${ext}` : newName;
+      // Keep the file in its folder — only the basename is editable.
+      const newPath = dir ? `${dir}/${newBasename}` : newBasename;
+      void rename(path, newPath);
     }
     setRenaming(false);
   }
 
-  async function rename(oldFilename: string, newFilename: string) {
+  async function rename(oldPath: string, newPath: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    const oldUri = Workspace.fs.getFileUri(projectId, oldFilename);
-    const newUri = Workspace.fs.getFileUri(projectId, newFilename);
+    const oldUri = Workspace.fs.getFileUri(projectId, oldPath);
+    const newUri = Workspace.fs.getFileUri(projectId, newPath);
     const renamed = await Workspace.fs.renameFiles({
       files: [{ oldUri, newUri }],
     });
@@ -83,7 +98,7 @@ export default function FileItem({ filename }: FileItemProps) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    const uri = Workspace.fs.getFileUri(projectId, filename);
+    const uri = Workspace.fs.getFileUri(projectId, path);
     const deleted = await Workspace.fs.deleteFiles({ files: [{ uri }] });
     if (deleted.some((d) => d.type === "script")) {
       await Workspace.window.recordScriptChange();
@@ -96,7 +111,7 @@ export default function FileItem({ filename }: FileItemProps) {
     if (renaming) return;
     e.stopPropagation();
     const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.openFileEditor(filename);
+    Workspace.window.openFileEditor(path);
   }
 
   // Workspace state derived from signals (re-render on relevant change only).
@@ -111,7 +126,7 @@ export default function FileItem({ filename }: FileItemProps) {
       onClick={onRowClick}
     >
       <div class="flex flex-1 flex-row items-center overflow-hidden pl-8">
-        <DiagnosticsLabel filename={filename}>
+        <DiagnosticsLabel filename={path}>
           <div class="flex flex-1 flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
             {renaming ? (
               // Ripple wrapper mirrors main's <s-input> tap ripple. stopPropagation

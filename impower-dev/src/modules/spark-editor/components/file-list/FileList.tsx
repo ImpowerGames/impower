@@ -15,6 +15,20 @@ import FileItem from "./FileItem";
 // to be the source of truth, but it's literally `uri.split('/').pop()`).
 const getFilenameFromUri = (uri: string) => uri.split("/").pop() ?? "";
 
+// Project-relative path of a file uri (`file://<projectId>/<path>` -> `<path>`).
+// Falls back to the basename for uris outside the project dir. This path is the
+// row identity threaded into FileItem so nested files sharing a basename never
+// collide (on React keys or on rename/delete/open).
+const relativePathFromUri = (
+  uri: string,
+  projectId: string | null | undefined,
+) => {
+  const prefix = `file://${projectId}/`;
+  return projectId && uri.startsWith(prefix)
+    ? uri.slice(prefix.length)
+    : (uri.split("/").pop() ?? "");
+};
+
 export type FileListProps = {
   /** Glob of filenames to INCLUDE in this list. Defaults to `*`. */
   include?: string;
@@ -185,13 +199,18 @@ export default function FileList({
         );
         if (!(params.remote || isCreate || isDelete || !isRename)) return;
 
-        const firstFilename = getFilenameFromUri(changes[0]?.uri || "");
+        const firstUri = changes[0]?.uri || "";
+        const firstFilename = getFilenameFromUri(firstUri);
         if (
           isCreate &&
           changes.length === 1 &&
           firstFilename?.endsWith(".sd")
         ) {
-          Workspace.window.openFileEditor(firstFilename);
+          // Open by project-relative path so a newly-created nested script
+          // routes to the right editor identity (not just its basename).
+          Workspace.window.openFileEditor(
+            relativePathFromUri(firstUri, projectId),
+          );
           return;
         }
         void reload();
@@ -204,10 +223,13 @@ export default function FileList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, include, exclude]);
 
-  const filenames = (uris ?? []).map((uri) => getFilenameFromUri(uri));
+  const rowUris = uris ?? [];
+  const relativePaths = rowUris.map((uri) =>
+    relativePathFromUri(uri, projectId),
+  );
 
   const rowVirtualizer = useVirtualizer({
-    count: filenames.length,
+    count: rowUris.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ITEM_HEIGHT,
     overscan: 6,
@@ -229,18 +251,19 @@ export default function FileList({
             style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
           >
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const filename = filenames[virtualRow.index];
-              if (!filename) return null;
+              const uri = rowUris[virtualRow.index];
+              const path = relativePaths[virtualRow.index];
+              if (uri == null || path == null) return null;
               return (
                 <div
-                  key={filename}
+                  key={uri}
                   class="absolute left-0 top-0 w-full"
                   style={{
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
-                  <FileItem filename={filename} />
+                  <FileItem path={path} />
                 </div>
               );
             })}
