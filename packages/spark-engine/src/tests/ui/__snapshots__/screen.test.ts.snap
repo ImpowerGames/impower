@@ -1367,6 +1367,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             "font_weight": "400px",
             "padding_bottom": "8px",
           },
+          "checkbox": {
+            "$name": "checkbox",
+            "$type": "style",
+            "accent_color": "rgb(96 165 250)",
+            "cursor": "pointer",
+            "height": "20px",
+            "width": "20px",
+          },
           "choice": {
             "$name": "choice",
             "$type": "style",
@@ -1432,6 +1440,15 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             },
             "margin": "0 auto",
             "width": "68%",
+          },
+          "field": {
+            "$name": "field",
+            "$type": "style",
+            "background_color": "rgb(37 37 37)",
+            "border": "1px solid rgb(95 95 95)",
+            "border_radius": "6px",
+            "color": "white",
+            "padding": "8px 12px",
           },
           "heading": {
             "$name": "heading",
@@ -1563,6 +1580,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             "inset": "0",
             "pointer_events": "none",
             "position": "absolute",
+          },
+          "slider": {
+            "$name": "slider",
+            "$type": "style",
+            "accent_color": "rgb(96 165 250)",
+            "cursor": "pointer",
+            "width": "200px",
           },
           "stack": {
             "$name": "stack",

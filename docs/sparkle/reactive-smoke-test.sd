@@ -14,6 +14,8 @@ end
 
 store hp = 100
 store alive = true
+store hero = "Hero"
+store loud = false
 store items = { {name = "Sword"}, {name = "Shield"}, {name = "Potion"} }
 
 function hurt()
@@ -33,8 +35,17 @@ function shuffle()
   items = { items[3], items[1], items[2] }
 end
 
+function rename(event)
+  hero = event.value
+end
+
+function set_loud(event)
+  loud = event.checked
+end
+
 screen main with
   column:
+    text "Welcome, {hero}!"
     text "HP: {hp}"
     if alive then
       text "Status: Alive"
@@ -49,9 +60,14 @@ screen main with
       button "Hurt" @click=hurt
       button "Heal" @click=heal
       button "Shuffle" @click=shuffle
+    text "Rename hero (type to see {hero} update live):"
+    field #value={hero} @input=rename
+    row:
+      checkbox #checked={loud} @change=set_loud
+      text "Loud mode is {loud}"
 
 -> start
 
 scene start
-  Reactive smoke test — click the buttons to mutate state.
+  Reactive smoke test — click buttons, type in the field, toggle the checkbox.
 end
