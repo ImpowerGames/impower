@@ -143,17 +143,13 @@ export function createHarness(
     }) as any,
   } as any);
 
-  // Enable the reactive (AST-driven) render path BEFORE connect()'s eager
-  // onConnected runs. The UIModule is constructed in the Game ctor, so its flag
-  // is settable here; the static golden path stays the default (flag off).
-  if (opts?.reactive) {
-    (game.module.ui as any)._reactive = true;
-    // Test convenience: by default the reactive path auto-mounts EVERY screen at
-    // connect (instant), so existing tests keep their "screen is mounted at
-    // connect" assumption. Production only auto-opens `main`; a test exercising
-    // the real [[open/close]] lifecycle passes `autoOpenAll: false`.
-    (game.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
-  }
+  // Reactive screens are the only render path now (set in onConnected), so the
+  // `reactive` opt is accepted for back-compat but no longer needed. Test
+  // convenience: auto-mount EVERY screen at connect (instant) so tests keep their
+  // "screen is mounted at connect" assumption — production only auto-opens
+  // `main`; a test exercising the real [[open/close]] lifecycle passes
+  // `autoOpenAll: false`.
+  (game.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
 
   const respond = (msg: any) => {
     messages.push(msg);

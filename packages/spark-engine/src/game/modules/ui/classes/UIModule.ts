@@ -298,12 +298,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override async onConnected() {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
-    // Reactive render path: opt in via `config.ui.reactive = true`, OR via the
-    // flag set directly before connect (the test harness). OR-in so an explicit
-    // harness flag isn't clobbered and the static path stays the default.
-    this._reactive = this._reactive || !!this.context.config?.ui?.reactive;
+    // Reactive screens are the ONLY render path now (the `config.ui.reactive`
+    // opt-in was retired once `main` auto-opens and `[[open/close]]` mount the
+    // rest). The static `constructScreens` path remains only as a fallback when a
+    // program somehow ships no Sparkle AST (program.sparkle.screens) at all.
+    this._reactive = true;
     this.constructStyles();
-    if (this._reactive && this._game.program?.sparkle?.screens) {
+    if (this._game.program?.sparkle?.screens) {
       this.constructScreensFromAst();
     } else {
       this.constructScreens();

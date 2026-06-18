@@ -103,7 +103,10 @@ end
     expect(intersects).toBe(true);
   });
 
-  test("tracking is off by default (no accumulation for non-reactive games)", async () => {
+  test("dep tracking is enabled once reactive screens mount", async () => {
+    // Reactive screens are the only render path now, so mounting them turns on
+    // dep tracking. (The flag still defaults off at VariablesState construction —
+    // zero-cost until a mount — but a connected game always mounts.)
     const h = createHarness(
       `store hp = 100
 screen hud with
@@ -113,9 +116,9 @@ end
     );
     await h.ready;
     const vs = (h.game.story as any).variablesState;
-    expect(vs.reactiveDepsEnabled).toBe(false);
+    expect(vs.reactiveDepsEnabled).toBe(true);
     vs.$("hp", 7);
     const changes = vs.takeReactiveChanges();
-    expect(changes.globals.size).toBe(0);
+    expect(changes.globals.has("hp")).toBe(true);
   });
 });
