@@ -1,8 +1,36 @@
 import * as esbuild from "esbuild";
+import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
 
 const PRODUCTION = process.env.NODE_ENV === "production";
+
+/**
+ * Honor Vite's `?raw` query inside the nested esbuild builds (the inline-worker
+ * and dev-service-worker bundles). Vite itself supports `?raw` for the app
+ * graph, but the *.worker.ts / sw.ts bundles are produced by standalone esbuild
+ * calls that don't inherit Vite's loaders — without this plugin a `?raw` import
+ * reachable from a worker would fail to resolve. Resolves a `*?raw` import to
+ * the real file in a dedicated namespace, then loads it with the text loader.
+ */
+const rawPlugin = (): esbuild.Plugin => ({
+  name: "raw",
+  setup(build) {
+    build.onResolve({ filter: /\?raw$/ }, (args) => {
+      const target = args.path.slice(0, -4);
+      return {
+        path: path.isAbsolute(target)
+          ? target
+          : path.join(args.resolveDir, target),
+        namespace: "raw-loader",
+      };
+    });
+    build.onLoad({ filter: /.*/, namespace: "raw-loader" }, (args) => ({
+      contents: fs.readFileSync(args.path, "utf8"),
+      loader: "text",
+    }));
+  },
+});
 
 function viteInlineWorkerPlugin(extraConfig?: esbuild.BuildOptions): Plugin {
   return {
@@ -16,6 +44,7 @@ function viteInlineWorkerPlugin(extraConfig?: esbuild.BuildOptions): Plugin {
           minify: PRODUCTION,
           format: "esm",
           target: "esnext",
+          plugins: [rawPlugin()],
           ...(extraConfig || {}),
           // Emit a metafile so we can watch the worker's transitively-bundled
           // deps. esbuild bundles them opaquely, so without this Vite only
@@ -75,6 +104,7 @@ function devServiceWorkerPlugin(options: {
         platform: "browser",
         sourcemap: "inline",
         write: false,
+        plugins: [rawPlugin()],
       });
       let result = await ctx.rebuild();
       code = result.outputFiles?.[0]?.text ?? "";
