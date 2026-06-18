@@ -26,7 +26,6 @@ import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/pr
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
-import { UnfocusWindowMessage } from "@impower/spark-editor-protocol/src/protocols/window/UnfocusWindowMessage";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
   EditorState,
@@ -118,8 +117,12 @@ export default class WorkspaceWindow {
         sendProtocolMessage(response);
       }
     });
-    onProtocolMessage(ScrolledEditorMessage.type, (m) => this.handleScrolledEditor(m));
-    onProtocolMessage(SelectedEditorMessage.type, (m) => this.handleSelectedEditor(m));
+    onProtocolMessage(ScrolledEditorMessage.type, (m) =>
+      this.handleScrolledEditor(m),
+    );
+    onProtocolMessage(SelectedEditorMessage.type, (m) =>
+      this.handleSelectedEditor(m),
+    );
     onProtocolMessage(ChangedEditorBreakpointsMessage.type, (m) =>
       this.handleChangedEditorBreakpoints(m),
     );
@@ -129,7 +132,9 @@ export default class WorkspaceWindow {
     onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
       this.handleChangedEditorHighlights(m),
     );
-    onProtocolMessage(CompiledProgramMessage.type, (m) => this.handleCompiledProgram(m));
+    onProtocolMessage(CompiledProgramMessage.type, (m) =>
+      this.handleCompiledProgram(m),
+    );
   }
 
   get store() {
@@ -366,7 +371,7 @@ export default class WorkspaceWindow {
 
   // ===========================================================================
   // Editor state & layout queries (highlights/pinpoints, pane/panel/editor
-  // lookups, showDocument/search/unfocus)
+  // lookups, showDocument/search)
   // ===========================================================================
 
   setHighlights(highlights: Record<string, number[]>) {
@@ -383,8 +388,7 @@ export default class WorkspaceWindow {
         range: { start: { line, character: 0 }, end: { line, character: 0 } },
       })),
     );
-    sendProtocolMessage(SetEditorHighlightsMessage.type.request({ locations }),
-    );
+    sendProtocolMessage(SetEditorHighlightsMessage.type.request({ locations }));
   }
 
   setPinpoints(pinpoints: Record<string, number[]>) {
@@ -401,8 +405,7 @@ export default class WorkspaceWindow {
         range: { start: { line, character: 0 }, end: { line, character: 0 } },
       })),
     );
-    sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }),
-    );
+    sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }));
   }
 
   setSimulationOptions(
@@ -601,7 +604,8 @@ export default class WorkspaceWindow {
         });
       }
       if (range) {
-        sendProtocolMessage(SelectEditorMessage.type.request({
+        sendProtocolMessage(
+          SelectEditorMessage.type.notification({
             textDocument: { uri },
             range,
             scrollIntoView: "center",
@@ -612,35 +616,9 @@ export default class WorkspaceWindow {
     });
   }
 
-  unfocus() {
-    const pane = this.store.pane;
-    const panel = this.getOpenedPanel(pane);
-    if (pane && panel) {
-      this.update({
-        ...this.store,
-        panes: {
-          ...this.store.panes,
-          [pane]: {
-            ...this.store.panes[pane],
-            panels: {
-              ...this.store.panes[pane].panels,
-              [panel]: {
-                ...this.store.panes[pane].panels[panel],
-                activeEditor: {
-                  ...this.store.panes[pane].panels[panel]?.activeEditor,
-                  focused: false,
-                },
-              },
-            },
-          },
-        },
-      });
-    }
-    sendProtocolMessage(UnfocusWindowMessage.type.request({}));
-  }
-
   search(uri: string) {
-    sendProtocolMessage(SearchEditorMessage.type.request({ textDocument: { uri } }),
+    sendProtocolMessage(
+      SearchEditorMessage.type.request({ textDocument: { uri } }),
     );
   }
 
@@ -763,8 +741,7 @@ export default class WorkspaceWindow {
         revealed: true,
       },
     });
-    sendProtocolMessage(DidExpandPreviewPaneMessage.type.notification({}),
-    );
+    sendProtocolMessage(DidExpandPreviewPaneMessage.type.notification({}));
   }
 
   collapsePreviewPane() {
@@ -775,8 +752,7 @@ export default class WorkspaceWindow {
         revealed: false,
       },
     });
-    sendProtocolMessage(DidCollapsePreviewPaneMessage.type.notification({}),
-    );
+    sendProtocolMessage(DidCollapsePreviewPaneMessage.type.notification({}));
   }
 
   setPreviewMode(mode: PreviewMode) {
@@ -943,8 +919,7 @@ export default class WorkspaceWindow {
         this.pauseGame();
       }
     }
-    sendProtocolMessage(StepGameClockMessage.type.request({ seconds }),
-    );
+    sendProtocolMessage(StepGameClockMessage.type.request({ seconds }));
   }
 
   toggleGameRunning() {
@@ -997,8 +972,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      sendProtocolMessage(DisableGameDebugMessage.type.request({}),
-      );
+      sendProtocolMessage(DisableGameDebugMessage.type.request({}));
     }
   }
 

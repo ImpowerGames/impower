@@ -13,7 +13,7 @@ export type FileDropzoneProps = Partial<typeof propDefaults>;
  *
  * Two event sources funnel into the same state machine:
  *   1. Native HTML5 DnD on `window`
- *   2. DragFilesEnter / Over / Leave / DropFiles protocol messages
+ *   2. DraggedFilesIn / Over / Out / DroppedFiles protocol messages
  *      (used when the parent VS Code host or similar relays drags)
  */
 export default function FileDropzone(_props: FileDropzoneProps) {
@@ -35,9 +35,8 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     ) => {
       setDragging(false);
       const { Workspace } = await import("../../workspace/Workspace");
-      const store = (
-        await import("../../workspace/WorkspaceStore")
-      ).default.state.value;
+      const store = (await import("../../workspace/WorkspaceStore")).default
+        .state.value;
       const projectId = store?.project?.id;
       if (!projectId) return;
       if (!files || files.length === 0) return;
@@ -94,31 +93,25 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     // hosting parent (e.g. an embedding window) relays drag state to us.
     Promise.all([
       import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
-      import(
-        "@impower/spark-editor-protocol/src/protocols/window/DragFilesEnterMessage"
-      ),
-      import(
-        "@impower/spark-editor-protocol/src/protocols/window/DragFilesLeaveMessage"
-      ),
-      import(
-        "@impower/spark-editor-protocol/src/protocols/window/DragFilesOverMessage"
-      ),
-      import(
-        "@impower/spark-editor-protocol/src/protocols/window/DropFilesMessage"
-      ),
+      import("@impower/spark-editor-protocol/src/protocols/window/DraggedFilesInMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/window/DraggedFilesOutMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/window/DraggedFilesOverMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/window/DroppedFilesMessage"),
     ]).then(
       ([
         { onProtocolMessage },
-        { DragFilesEnterMessage },
-        { DragFilesLeaveMessage },
-        { DragFilesOverMessage },
-        { DropFilesMessage },
+        { DraggedFilesInMessage },
+        { DraggedFilesOutMessage },
+        { DraggedFilesOverMessage },
+        { DroppedFilesMessage },
       ]) => {
         const disposers = [
-          onProtocolMessage(DragFilesEnterMessage.type, () => dragEnter()),
-          onProtocolMessage(DragFilesLeaveMessage.type, () => dragLeave()),
-          onProtocolMessage(DragFilesOverMessage.type, () => dragOver()),
-          onProtocolMessage(DropFilesMessage.type, (m) => handleDrop(m.params.files)),
+          onProtocolMessage(DraggedFilesInMessage.type, () => dragEnter()),
+          onProtocolMessage(DraggedFilesOutMessage.type, () => dragLeave()),
+          onProtocolMessage(DraggedFilesOverMessage.type, () => dragOver()),
+          onProtocolMessage(DroppedFilesMessage.type, (m) =>
+            handleDrop(m.params.files),
+          ),
         ];
         disposeProtocol = () => disposers.forEach((d) => d());
       },

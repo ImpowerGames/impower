@@ -4,10 +4,10 @@ import {
   MessageProtocol,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { DragFilesEnterMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesEnterMessage";
-import { DragFilesLeaveMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesLeaveMessage";
-import { DragFilesOverMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesOverMessage";
-import { DropFilesMessage } from "@impower/spark-editor-protocol/src/protocols/window/DropFilesMessage";
+import { DraggedFilesInMessage } from "@impower/spark-editor-protocol/src/protocols/window/DraggedFilesInMessage";
+import { DraggedFilesOutMessage } from "@impower/spark-editor-protocol/src/protocols/window/DraggedFilesOutMessage";
+import { DraggedFilesOverMessage } from "@impower/spark-editor-protocol/src/protocols/window/DraggedFilesOverMessage";
+import { DroppedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/window/DroppedFilesMessage";
 import {
   SparkWebPlayerElement,
   setWorkspace,
@@ -58,17 +58,17 @@ window.addEventListener(MessageProtocol.event, (e) => {
 window.addEventListener("dragenter", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  connection.postMessage(DragFilesEnterMessage.type.request({}));
+  connection.postMessage(DraggedFilesInMessage.type.notification({}));
 });
 window.addEventListener("dragleave", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  connection.postMessage(DragFilesLeaveMessage.type.request({}));
+  connection.postMessage(DraggedFilesOutMessage.type.notification({}));
 });
 window.addEventListener("dragover", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  connection.postMessage(DragFilesOverMessage.type.request({}));
+  connection.postMessage(DraggedFilesOverMessage.type.notification({}));
 });
 window.addEventListener("drop", async (e) => {
   e.preventDefault();
@@ -84,7 +84,7 @@ window.addEventListener("drop", async (e) => {
     }),
   );
   connection.postMessage(
-    DropFilesMessage.type.request({ files }),
+    DroppedFilesMessage.type.notification({ files }),
     files.map((f) => f.buffer),
   );
 });

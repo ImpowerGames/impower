@@ -28,11 +28,6 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import {
-  ScrollEditorMessage,
-  ScrollEditorMethod,
-  ScrollEditorParams,
-} from "@impower/spark-editor-protocol/src/protocols/editor/ScrollEditorMessage";
-import {
   SearchEditorMessage,
   SearchEditorMethod,
   SearchEditorParams,
@@ -53,7 +48,7 @@ import {
 import { UnfocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
 import {
   MessageProtocol,
-  onProtocolMessage,
+  ProtocolObserver,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
@@ -90,7 +85,6 @@ import {
   Range,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
-import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { RequestMessage } from "@impower/spark-editor-protocol/src/types/base/RequestMessage";
 import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
@@ -161,7 +155,8 @@ export class ScriptEditorController {
   protected _top: number = 0;
   protected _bottom: number = 0;
   protected _focusIntervalTimeout = 0;
-  protected _protocolDisposers: (() => void)[] = [];
+  // Owns every protocol-bus subscription; `dispose()` detaches them all.
+  protected _protocols = new ProtocolObserver();
 
   constructor(
     host: HTMLElement,
@@ -206,8 +201,7 @@ export class ScriptEditorController {
       "mouseleave",
       this.handlePointerLeaveScroller,
     );
-    this._protocolDisposers.forEach((d) => d());
-    this._protocolDisposers = [];
+    this._protocols.dispose();
     if (this._textDocument) {
       if (this._editing) {
         sendProtocolMessage(
@@ -231,64 +225,72 @@ export class ScriptEditorController {
     this.allowEditing(!readonly);
   }
 
-  // One typed listener per protocol message we react to (replaces the old
-  // `handleProtocol` window router). Each `onProtocolMessage` returns a
-  // disposer, collected so `dispose()` can detach them all.
+  // Wire every protocol message to its handler through the ProtocolObserver:
+  // `onNotification` for notifications, `onRequest` for requests (the handler's
+  // return type is the message's Response, so a forgotten `return` is a compile
+  // error). Replies dispatch on `this.host` so they bubble out of the shadow
+  // host / are forwarded by the VS Code webview relay.
   protected registerProtocolHandlers(): void {
-    const respond = async <R>(handler: Promise<R> | R) => {
-      const response = await handler;
-      if (response) {
-        sendProtocolMessage(response as unknown as Message, this.host);
-      }
-    };
-    this._protocolDisposers.push(
-      onProtocolMessage(ScrollEditorMessage.type, (m) =>
-        this.handleScrollEditor(m),
-      ),
-      onProtocolMessage(SelectEditorMessage.type, (m) =>
-        this.handleSelectEditor(m),
-      ),
-      onProtocolMessage(LoadEditorMessage.type, (m) =>
-        respond(this.handleLoadEditor(m)),
-      ),
-      onProtocolMessage(SearchEditorMessage.type, (m) =>
-        respond(this.handleSearchEditor(m)),
-      ),
-      onProtocolMessage(ShowEditorStatusBarMessage.type, (m) =>
-        respond(this.handleShowEditorStatusBar(m)),
-      ),
-      onProtocolMessage(HideEditorStatusBarMessage.type, (m) =>
-        respond(this.handleHideEditorStatusBar(m)),
-      ),
-      onProtocolMessage(HoveredOnPreviewMessage.type, () =>
-        this.handlePointerLeaveScroller(),
-      ),
-      onProtocolMessage(DidExpandPreviewPaneMessage.type, (m) =>
-        this.handleDidExpandPreviewPane(m),
-      ),
-      onProtocolMessage(DidCollapsePreviewPaneMessage.type, (m) =>
-        this.handleDidCollapsePreviewPane(m),
-      ),
-      onProtocolMessage(ScrolledPreviewMessage.type, (m) =>
-        this.handleScrolledPreview(m),
-      ),
-      onProtocolMessage(SelectedPreviewMessage.type, (m) =>
-        this.handleSelectedPreview(m),
-      ),
-      onProtocolMessage(SetEditorHighlightsMessage.type, (m) =>
-        respond(this.handleSetEditorHighlights(m)),
-      ),
-      onProtocolMessage(SetEditorPinpointsMessage.type, (m) =>
-        respond(this.handleSetEditorPinpoints(m)),
-      ),
-      onProtocolMessage(DidChangeWatchedFilesMessage.type, (m) => {
-        if (this._view) {
-          const plugin = LSPPlugin.get(this._view);
-          if (plugin) {
-            plugin.client.workspace.changeWatchedFiles(m.params);
-          }
+    const p = this._protocols;
+
+    // Notifications.
+    p.onNotification(SelectEditorMessage.type, (m) =>
+      this.handleSelectEditor(m),
+    );
+    p.onNotification(HoveredOnPreviewMessage.type, () =>
+      this.handlePointerLeaveScroller(),
+    );
+    p.onNotification(DidExpandPreviewPaneMessage.type, (m) =>
+      this.handleDidExpandPreviewPane(m),
+    );
+    p.onNotification(DidCollapsePreviewPaneMessage.type, (m) =>
+      this.handleDidCollapsePreviewPane(m),
+    );
+    p.onNotification(ScrolledPreviewMessage.type, (m) =>
+      this.handleScrolledPreview(m),
+    );
+    p.onNotification(SelectedPreviewMessage.type, (m) =>
+      this.handleSelectedPreview(m),
+    );
+    p.onNotification(DidChangeWatchedFilesMessage.type, (m) => {
+      if (this._view) {
+        const plugin = LSPPlugin.get(this._view);
+        if (plugin) {
+          plugin.client.workspace.changeWatchedFiles(m.params);
         }
-      }),
+      }
+    });
+
+    // Requests (handler must return the message's Response; replied on host).
+    p.onRequest(
+      LoadEditorMessage.type,
+      (m) => this.handleLoadEditor(m),
+      this.host,
+    );
+    p.onRequest(
+      SearchEditorMessage.type,
+      (m) => this.handleSearchEditor(m),
+      this.host,
+    );
+    p.onRequest(
+      ShowEditorStatusBarMessage.type,
+      (m) => this.handleShowEditorStatusBar(m),
+      this.host,
+    );
+    p.onRequest(
+      HideEditorStatusBarMessage.type,
+      (m) => this.handleHideEditorStatusBar(m),
+      this.host,
+    );
+    p.onRequest(
+      SetEditorHighlightsMessage.type,
+      (m) => this.handleSetEditorHighlights(m),
+      this.host,
+    );
+    p.onRequest(
+      SetEditorPinpointsMessage.type,
+      (m) => this.handleSetEditorPinpoints(m),
+      this.host,
     );
   }
 
@@ -334,20 +336,8 @@ export class ScriptEditorController {
     this.scrollToRange(this._visibleRange);
   };
 
-  protected handleScrollEditor = (
-    message: RequestMessage<ScrollEditorMethod, ScrollEditorParams>,
-  ) => {
-    const params = message.params;
-    const textDocument = params.textDocument;
-    const range = params.range;
-    const scrollStrategy = params.scrollStrategy;
-    if (textDocument.uri === this._textDocument?.uri) {
-      this.scrollToRange(range, scrollStrategy);
-    }
-  };
-
   protected handleSelectEditor = (
-    message: RequestMessage<SelectEditorMethod, SelectEditorParams>,
+    message: NotificationMessage<SelectEditorMethod, SelectEditorParams>,
   ) => {
     const params = message.params;
     const textDocument = params.textDocument;

@@ -20,7 +20,7 @@ import {
   SelectedEditorParams,
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import {
-  onProtocolMessage,
+  ProtocolObserver,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
@@ -58,7 +58,6 @@ import {
   TextDocumentIdentifier,
   TextDocumentItem,
 } from "@impower/spark-editor-protocol/src/types";
-import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
 import debounce from "../../utils/debounce.js";
 import { getScrollableParent } from "../../utils/getScrollableParent.js";
@@ -107,7 +106,8 @@ export class ScreenplayPreviewController {
     right?: number;
   } = { top: 0, bottom: 0, left: 0, right: 0 };
   protected _scrollTarget?: Range;
-  protected _protocolDisposers: (() => void)[] = [];
+  // Owns every protocol-bus subscription; `dispose()` detaches them all.
+  protected _protocols = new ProtocolObserver();
 
   constructor(
     host: HTMLElement,
@@ -149,49 +149,50 @@ export class ScreenplayPreviewController {
       "mouseleave",
       this.handlePointerLeaveScroller,
     );
-    this._protocolDisposers.forEach((d) => d());
-    this._protocolDisposers = [];
+    this._protocols.dispose();
     const view = this._view;
     if (view) {
       this.unbindView(view);
     }
   }
 
-  // One typed listener per protocol message we react to (replaces the old
-  // `handleProtocol` window router). Each `onProtocolMessage` returns a
-  // disposer, collected so `dispose()` can detach them all.
+  // Wire every protocol message to its handler through the ProtocolObserver:
+  // `onNotification` for notifications, `onRequest` for requests (the handler's
+  // return type is the message's Response, so a forgotten `return` is a compile
+  // error). Replies dispatch on `this.host`.
   protected registerProtocolHandlers(): void {
-    const respond = async <R>(handler: Promise<R> | R) => {
-      const response = await handler;
-      if (response) {
-        sendProtocolMessage(response as unknown as Message, this.host);
-      }
-    };
-    this._protocolDisposers.push(
-      onProtocolMessage(LoadPreviewMessage.type, (m) =>
-        respond(this.handleLoadPreview(m)),
-      ),
-      onProtocolMessage(RevealPreviewRangeMessage.type, (m) =>
-        respond(this.handleRevealPreviewRange(m)),
-      ),
-      onProtocolMessage(DidChangeTextDocumentMessage.type, (m) =>
-        this.handleDidChangeTextDocument(m),
-      ),
-      onProtocolMessage(HoveredOnEditorMessage.type, () =>
-        this.handlePointerLeaveScroller(),
-      ),
-      onProtocolMessage(DidExpandPreviewPaneMessage.type, (m) =>
-        this.handleDidExpandPreviewPane(m),
-      ),
-      onProtocolMessage(DidCollapsePreviewPaneMessage.type, (m) =>
-        this.handleDidCollapsePreviewPane(m),
-      ),
-      onProtocolMessage(ScrolledEditorMessage.type, (m) =>
-        this.handleScrolledEditor(m),
-      ),
-      onProtocolMessage(SelectedEditorMessage.type, (m) =>
-        this.handleSelectedEditor(m),
-      ),
+    const p = this._protocols;
+
+    // Handled without a reply.
+    p.onNotification(DidChangeTextDocumentMessage.type, (m) =>
+      this.handleDidChangeTextDocument(m),
+    );
+    p.onNotification(HoveredOnEditorMessage.type, () =>
+      this.handlePointerLeaveScroller(),
+    );
+    p.onNotification(DidExpandPreviewPaneMessage.type, (m) =>
+      this.handleDidExpandPreviewPane(m),
+    );
+    p.onNotification(DidCollapsePreviewPaneMessage.type, (m) =>
+      this.handleDidCollapsePreviewPane(m),
+    );
+    p.onNotification(ScrolledEditorMessage.type, (m) =>
+      this.handleScrolledEditor(m),
+    );
+    p.onNotification(SelectedEditorMessage.type, (m) =>
+      this.handleSelectedEditor(m),
+    );
+
+    // Requests (handler must return the message's Response; replied on host).
+    p.onRequest(
+      LoadPreviewMessage.type,
+      (m) => this.handleLoadPreview(m),
+      this.host,
+    );
+    p.onRequest(
+      RevealPreviewRangeMessage.type,
+      (m) => this.handleRevealPreviewRange(m),
+      this.host,
     );
   }
 

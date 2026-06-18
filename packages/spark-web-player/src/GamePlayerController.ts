@@ -1,9 +1,8 @@
 import {
-  onProtocolMessage,
+  ProtocolObserver,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
-import { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
@@ -70,6 +69,19 @@ const COMMON_ASPECT_RATIOS = [
 ] as const;
 
 const MIN_HEIGHT = 100;
+
+// Middleware for the controller's ProtocolObserver: bracket every protocol
+// handler with performance marks so message-handling time shows up in the
+// profiler. Async so the "end" mark lands after the handler actually settles.
+const profileMessageHandling =
+  (handler: (message: any) => any) => async (message: { method: string }) => {
+    profile("start", message.method);
+    try {
+      return await handler(message);
+    } finally {
+      profile("end", message.method);
+    }
+  };
 
 // Module-level singleton. Set via setWorkspace() before any controller is
 // constructed. Replaces SparkWebPlayer.workspace (the static field on the
@@ -147,7 +159,9 @@ export class GamePlayerController {
   _resizeStartHeight = 0;
   _gameResizeObserver?: ResizeObserver;
 
-  protected _protocolDisposers: (() => void)[] = [];
+  // Owns every protocol-bus subscription; `dispose()` detaches them all. The
+  // profiling middleware instruments each handler.
+  protected _protocols = new ProtocolObserver(profileMessageHandling);
 
   constructor(host: HTMLElement, refs: GamePlayerRefs) {
     this.host = host;
@@ -194,8 +208,7 @@ export class GamePlayerController {
   }
 
   dispose(): void {
-    this._protocolDisposers.forEach((d) => d());
-    this._protocolDisposers = [];
+    this._protocols.dispose();
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
     window.removeEventListener("resize", this.handleResize);
@@ -514,98 +527,101 @@ export class GamePlayerController {
     );
   };
 
-  // One typed listener per protocol message we handle (replaces the old
-  // `handleProtocol` window router). `route` wires a message type to its
-  // handler: it wraps the call in the profile("start"/"end") instrumentation,
-  // forwards any returned response back onto the bus, and collects the
-  // disposer so `dispose()` can detach them all. Because handlers are bound
-  // arrow-properties, each registration is a single `route(type, handler)`.
+  // Wire every protocol message to its handler through the ProtocolObserver:
+  // `onNotification` for notifications and `onRequest` for requests. `onRequest`
+  // infers the required return type from the message type's own `response()`,
+  // so forgetting to `return` the response is a compile error rather than a
+  // silently-dropped reply; replies are dispatched on `this.host` so the
+  // player-iframe relay (which keys on `event.target !== window`) forwards them
+  // to the editor.
   protected registerProtocolHandlers(): void {
-    // `respond` wires a REQUEST type to its handler: the handler's return type
-    // is inferred from the message type's own `response()` (i.e. it MUST return
-    // that message's `Response`), so forgetting to `return` it is a compile
-    // error rather than a silently-dropped response. `notify` wires a
-    // NOTIFICATION type (handler returns void); its `response?: never` rejects
-    // request types, so the request/notification split is type-checked both
-    // ways. Both wrap the profile() instrumentation, send any response on the
-    // bus, and collect the disposer for `dispose()`.
-    const respond = <Req extends { method: string }, Res>(
-      type: {
-        is: (value: any) => value is Req;
-        response: (...args: any[]) => Res;
-      },
-      handler: (message: Req) => Res | Promise<Res>,
-    ) => {
-      this._protocolDisposers.push(
-        onProtocolMessage(type, async (message) => {
-          profile("start", message.method);
-          const response = await handler(message);
-          sendProtocolMessage(response as unknown as Message, this.host);
-          profile("end", message.method);
-        }),
-      );
-    };
-    const notify = <Msg extends { method: string }>(
-      type: { is: (value: any) => value is Msg; response?: never },
-      handler: (message: Msg) => void | Promise<void>,
-    ) => {
-      this._protocolDisposers.push(
-        onProtocolMessage(type, async (message) => {
-          profile("start", message.method);
-          await handler(message);
-          profile("end", message.method);
-        }),
-      );
-    };
+    const p = this._protocols;
 
     // Notifications (fire-and-forget, no response).
-    notify(
+    p.onNotification(
       SelectedCompilerDocumentMessage.type,
       this.handleSelectedCompilerDocument,
     );
-    notify(RemovedCompilerFileMessage.type, this.handleRemovedCompilerFile);
-    notify(CompiledProgramMessage.type, this.handleCompiledProgram);
+    p.onNotification(
+      RemovedCompilerFileMessage.type,
+      this.handleRemovedCompilerFile,
+    );
+    p.onNotification(CompiledProgramMessage.type, this.handleCompiledProgram);
 
-    // Requests (handler must return the message's Response).
-    respond(ResizeGameMessage.type, this.handleResizeGame);
-    respond(SetGameBreakpointsMessage.type, this.handleSetGameBreakpoints);
-    respond(
+    // Requests (handler must return the message's Response; replied on host).
+    p.onRequest(ResizeGameMessage.type, this.handleResizeGame, this.host);
+    p.onRequest(
+      SetGameBreakpointsMessage.type,
+      this.handleSetGameBreakpoints,
+      this.host,
+    );
+    p.onRequest(
       SetGameFunctionBreakpointsMessage.type,
       this.handleSetGameFunctionBreakpoints,
+      this.host,
     );
-    respond(
+    p.onRequest(
       SetGameDataBreakpointsMessage.type,
       this.handleSetGameDataBreakpoints,
+      this.host,
     );
-    respond(EnableGameDebugMessage.type, this.handleEnableGameDebug);
-    respond(DisableGameDebugMessage.type, this.handleDisableGameDebug);
-    respond(StartGameMessage.type, this.handleStartGame);
-    respond(StopGameMessage.type, this.handleStopGame);
-    respond(RestartGameMessage.type, this.handleRestartGame);
-    respond(PauseGameMessage.type, this.handlePauseGame);
-    respond(UnpauseGameMessage.type, this.handleUnpauseGame);
-    respond(StepGameClockMessage.type, this.handleStepGameClock);
-    respond(StepGameMessage.type, this.handleStepGame);
-    respond(ContinueGameMessage.type, this.handleContinueGame);
-    respond(GetGameScriptsMessage.type, this.handleGetGameScripts);
-    respond(
+    p.onRequest(
+      EnableGameDebugMessage.type,
+      this.handleEnableGameDebug,
+      this.host,
+    );
+    p.onRequest(
+      DisableGameDebugMessage.type,
+      this.handleDisableGameDebug,
+      this.host,
+    );
+    p.onRequest(StartGameMessage.type, this.handleStartGame, this.host);
+    p.onRequest(StopGameMessage.type, this.handleStopGame, this.host);
+    p.onRequest(RestartGameMessage.type, this.handleRestartGame, this.host);
+    p.onRequest(PauseGameMessage.type, this.handlePauseGame, this.host);
+    p.onRequest(UnpauseGameMessage.type, this.handleUnpauseGame, this.host);
+    p.onRequest(StepGameClockMessage.type, this.handleStepGameClock, this.host);
+    p.onRequest(StepGameMessage.type, this.handleStepGame, this.host);
+    p.onRequest(ContinueGameMessage.type, this.handleContinueGame, this.host);
+    p.onRequest(
+      GetGameScriptsMessage.type,
+      this.handleGetGameScripts,
+      this.host,
+    );
+    p.onRequest(
       GetGamePossibleBreakpointLocationsMessage.type,
       this.handleGetGamePossibleBreakpointLocations,
+      this.host,
     );
-    respond(GetGameStackTraceMessage.type, this.handleGetGameStackTrace);
-    respond(
+    p.onRequest(
+      GetGameStackTraceMessage.type,
+      this.handleGetGameStackTrace,
+      this.host,
+    );
+    p.onRequest(
       GetGameEvaluationContextMessage.type,
       this.handleGetGameEvaluationContext,
+      this.host,
     );
-    respond(GetGameVariablesMessage.type, this.handleGetGameVariables);
-    respond(GetGameThreadsMessage.type, this.handleGetGameThreads);
-    respond(
+    p.onRequest(
+      GetGameVariablesMessage.type,
+      this.handleGetGameVariables,
+      this.host,
+    );
+    p.onRequest(
+      GetGameThreadsMessage.type,
+      this.handleGetGameThreads,
+      this.host,
+    );
+    p.onRequest(
       EnterGameFullscreenModeMessage.type,
       this.handleEnterGameFullscreenMode,
+      this.host,
     );
-    respond(
+    p.onRequest(
       ExitGameFullscreenModeMessage.type,
       this.handleExitGameFullscreenMode,
+      this.host,
     );
   }
 
