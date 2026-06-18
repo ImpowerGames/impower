@@ -62,10 +62,35 @@ const config = {
   target: "es2020",
   platform: "browser",
   format: "esm",
+  // Compile JSX with Preact's automatic runtime for EVERY bundled file, not
+  // just those whose nearest tsconfig opts in. impower-ui's .tsx (e.g.
+  // LoadingBar) use the automatic runtime with no `React`/`h` import, so
+  // without this esbuild falls back to classic `React.createElement` and the
+  // component throws `ReferenceError: React is not defined` at render. Mirrors
+  // impower-dev's @preact/preset-vite (jsxImportSource: "preact").
+  jsx: "automatic",
+  jsxImportSource: "preact",
+  // Resolve workspace packages' `development` export condition to their TS
+  // source, matching how impower-dev's Vite consumes them. Without this,
+  // `@impower/impower-ui/components` (pulled in via @impower/sparkdown-document-views)
+  // falls through to the `import` condition's built `dist/impower-ui.js`, which
+  // is gitignored and never produced by this build chain — so the bundle would
+  // fail to resolve it. Tree-shaking keeps only what's used (e.g. LoadingBar).
+  conditions: ["development"],
   entryPoints: ["./screenplay-webview.ts"],
   outfile: "../../out/webviews/screenplay-webview.js",
   plugins: [rawLoader(), esbuildProblemMatcher()],
   alias: {
+    // impower-ui's components barrel re-exports Radix primitives, which import
+    // `react`. We bundle impower-ui from source (see `conditions` above), so —
+    // exactly like impower-dev's @preact/preset-vite — point React at
+    // preact/compat so those resolve. (esbuild can't tree-shake the unused
+    // Radix re-exports away: its `sideEffects` honoring is node_modules-only,
+    // and our workspace package resolves to its real path under packages/.)
+    react: "preact/compat",
+    "react-dom": "preact/compat",
+    "react-dom/client": "preact/compat",
+    "react/jsx-runtime": "preact/jsx-runtime",
     // Force every transitive @codemirror/* import to resolve from THIS build
     // root so we end up with one copy in the bundle. Without this, esbuild
     // walks up from each importing file and can pick up multiple copies (one
