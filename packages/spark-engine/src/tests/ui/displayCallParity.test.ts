@@ -44,9 +44,14 @@ async function beatStream(body: string, experimentalDisplayCalls: boolean) {
   await harness.ready;
   harness.jumpTo("start");
   harness.reset();
-  const beat = harness.nextBeat();
-  await harness.display(beat!, true);
-  await flushMicrotasks();
+  // Drive every beat of the scene (a chained `>` line produces several), so the
+  // captured stream covers multi-beat content too.
+  let beat = harness.nextBeat();
+  while (beat) {
+    await harness.display(beat, true);
+    await flushMicrotasks();
+    beat = harness.nextBeat();
+  }
   return harness.snapshotFiltered("ui/");
 }
 
@@ -99,5 +104,17 @@ describe("display() ↔ legacy parity (message stream)", () => {
 
   test("block dialogue (multi-line)", async () => {
     await assertParity(`  HERO:\n    First line.\n    Second line.`);
+  });
+
+  test("chained dialogue (mid-line > break)", async () => {
+    await assertParity(`  HERO: First part. > Second part.`);
+  });
+
+  test("chained action (mid-line > break)", async () => {
+    await assertParity(`  The door creaks. > Then slams.`);
+  });
+
+  test("line-end > break (block dialogue, two beats)", async () => {
+    await assertParity(`  HERO:\n    First part. >\n    Second part.`);
   });
 });

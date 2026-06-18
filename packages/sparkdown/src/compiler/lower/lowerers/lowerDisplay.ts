@@ -157,9 +157,11 @@ function buildDisplayContent(
 // string at call time. The engine then runs the identical `parse()` pipeline.
 //
 // Falls back (returns null) for content the flat `text` string can't represent
-// faithfully yet: leading `..` glue (continuation), multi-beat `>` splits, and
-// any body part that isn't plain Text or a value-producing interpolation
-// Expression (mid-line diverts, inline conditionals/alternators, `# tag`s).
+// faithfully yet: leading `..` glue (continuation), mid-line diverts, inline
+// conditionals/alternators, and `# tag`s (anything in the body that isn't plain
+// Text or a value-producing interpolation Expression). A mid-line `>` split is
+// supported: each beat range emits its own display() call (separate beats via
+// the engine's display-instruction-count boundary).
 function tryBuildSimpleDisplayCall(
   parent: SyntaxNode,
   bodyStart: number,
@@ -188,24 +190,27 @@ function tryBuildSimpleDisplayCall(
     character = undefined;
   }
 
-  // Single beat only — a mid-line `>` makes multiple beats (handled later).
-  if (splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx).length !== 1) {
-    return null;
-  }
-
-  // Reuse the legacy body walker so trimming/escapes match exactly, then require
-  // every produced object to be plain Text or a value-producing interpolation
-  // Expression — anything else (Conditional, alternator Sequence, Divert, Tag,
-  // Glue) can't be string-captured faithfully, so fall back.
-  const body = processDisplayBody(parent, bodyStart, bodyEnd, ctx, mode);
-  if (body.length === 0) return null;
-  for (const obj of body) {
-    if (!(obj instanceof Text) && !(obj instanceof Expression)) {
-      return null;
+  // A mid-line `>` BREAK splits the body into beats; each beat re-emits the same
+  // routing (matching the legacy per-beat routing tag) as its own display()
+  // call. The engine renders each as a separate Continue beat.
+  const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx);
+  const calls: ParsedObject[] = [];
+  for (const range of ranges) {
+    // Reuse the legacy body walker so trimming/escapes match exactly, then
+    // require every produced object to be plain Text or a value-producing
+    // interpolation Expression — anything else (Conditional, alternator
+    // Sequence, Divert, Tag, Glue) can't be string-captured faithfully, so
+    // fall the WHOLE statement back to the legacy path.
+    const body = processDisplayBody(parent, range.from, range.to, ctx, mode);
+    if (body.length === 0) return null;
+    for (const obj of body) {
+      if (!(obj instanceof Text) && !(obj instanceof Expression)) {
+        return null;
+      }
     }
+    calls.push(buildDisplayCall(target, character, body));
   }
-
-  return [buildDisplayCall(target, character, body)];
+  return calls.length > 0 ? calls : null;
 }
 
 // `display({ target, character?, text })` with `shouldPopReturnedValue` — a

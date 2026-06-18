@@ -100,6 +100,30 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect(field(instructions[0]!, "text")).toBe("Hello there.");
   });
 
+  test("a line-end `>` split emits one display() call per beat", () => {
+    // A `>` at END of a body line (followed by more content) splits BEATS —
+    // each beat re-emits the cue as its own display() call (separate Continues
+    // via the display-count boundary). A MID-line `>` instead stays one beat
+    // with two boxes (parse()'s BREAK_BOX_REGEX), covered by the parity suite.
+    const { story, errors } = run(
+      `HERO:\n  First part. >\n  Second part.\ndone\n`,
+      { experimentalDisplayCalls: true },
+    );
+    expect(errors).toEqual([]);
+    // Beat 1.
+    let instructions = story.currentDisplayInstructions;
+    expect(instructions).toHaveLength(1);
+    expect(field(instructions[0]!, "character")).toBe("HERO");
+    expect(field(instructions[0]!, "text")).toBe("First part.");
+    // Beat 2 (separate Continue — the display-count boundary split them).
+    expect(story.canContinue).toBe(true);
+    story.Continue();
+    instructions = story.currentDisplayInstructions;
+    expect(instructions).toHaveLength(1);
+    expect(field(instructions[0]!, "character")).toBe("HERO");
+    expect(field(instructions[0]!, "text")).toBe("Second part.");
+  });
+
   test("emphasis markers ride as literal text in the table", () => {
     // `**`/`*` are not structured at compile time — they stay literal chars in
     // the table's `text` and the engine's parse() turns them into styled spans
