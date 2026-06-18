@@ -134,7 +134,7 @@ function installWAAPIStub(win: any) {
 export function createDOMHarness(
   source: string,
   startLine = 0,
-  opts?: { reactive?: boolean },
+  opts?: { reactive?: boolean; autoOpenAll?: boolean },
 ): DOMHarness {
   const program = compile(source);
 
@@ -193,9 +193,16 @@ export function createDOMHarness(
   };
   // Enable the reactive (AST-driven) render path before connect()'s eager
   // onConnected runs (mirrors uiTestHarness) — required to render screen widgets.
+  // `onConnected` now always sets `_reactive`, so the `reactive` opt is only kept
+  // for back-compat with existing call sites.
   if (opts?.reactive) {
     (game.module.ui as any)._reactive = true;
   }
+  // Auto-mount EVERY screen at connect (instant) so tests keep their "screen is
+  // mounted at connect" assumption — production only auto-opens `main`, so a test
+  // exercising the real [[open/close]] lifecycle passes `autoOpenAll: false`.
+  // Mirrors the Layer-2 uiTestHarness default.
+  (game.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
 
   const ui = new UIManager(stubApp);
 
