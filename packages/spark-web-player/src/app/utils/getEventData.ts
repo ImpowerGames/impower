@@ -193,10 +193,20 @@ export const getEventData = <T extends keyof EventMap>(event: Event) => {
     // Two-way binding: surface the control's current value/checked so an
     // @input/@change handler can write it back into Luau state.
     const inputTarget = event.target as HTMLInputElement | null;
+    // A range/number control's DOM `.value` is a string ("42"); send it as a
+    // NUMBER (valueAsNumber) so the write-back keeps a numeric store numeric.
+    // (A blank numeric field is NaN — fall back to the raw string then.)
+    const isNumericInput =
+      inputTarget?.type === "range" || inputTarget?.type === "number";
+    const numeric = inputTarget?.valueAsNumber;
+    const value =
+      isNumericInput && numeric != null && !Number.isNaN(numeric)
+        ? numeric
+        : inputTarget?.value;
     return {
       type: event.type,
       timeStamp: event.timeStamp,
-      value: inputTarget?.value,
+      value,
       checked: inputTarget?.checked,
       targetId: (event.target as HTMLElement)?.id,
       currentTargetId: (event.currentTarget as HTMLElement)?.id,

@@ -121,6 +121,60 @@ end
     expect(evalGlobal(h, "combo")).toBe(0);
   });
 
+  test("a numeric input writes a NUMBER back (store keeps its type)", async () => {
+    // A range/number control sends a JS number (getEventData), so the write-back
+    // must keep `volume` numeric — not flip it to the string "80", which would
+    // make `volume > 100` lexicographic.
+    const h = createHarness(
+      `store volume = 50
+screen form with
+  slider #value={volume} #min=0 #max=100 @input={ volume = event.value }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const id = h.observedElementIds()[0];
+    expect(id).toBeTruthy();
+    h.emitEvent("input", id!, { value: 80 });
+    expect(evalGlobal(h, "volume")).toBe(80);
+    expect(typeof evalGlobal(h, "volume")).toBe("number");
+  });
+
+  test("a fractional numeric input writes a float", async () => {
+    const h = createHarness(
+      `store rate = 1
+screen form with
+  slider #value={rate} #min=0 #max=2 @input={ rate = event.value }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const id = h.observedElementIds()[0];
+    h.emitEvent("input", id!, { value: 0.5 });
+    expect(evalGlobal(h, "rate")).toBe(0.5);
+  });
+
+  test("a text input still writes a string", async () => {
+    const h = createHarness(
+      `store name = "Zelda"
+screen form with
+  field #value={name} @input={ name = event.value }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const id = h.observedElementIds()[0];
+    h.emitEvent("input", id!, { value: "Link" });
+    expect(evalGlobal(h, "name")).toBe("Link");
+    expect(typeof evalGlobal(h, "name")).toBe("string");
+  });
+
   test("@click inline-closure can call a function (bare call fires, no `&`)", async () => {
     const h = createHarness(
       `store score = 7

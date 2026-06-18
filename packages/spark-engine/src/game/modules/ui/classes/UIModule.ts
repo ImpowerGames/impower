@@ -16,6 +16,8 @@ import type {
 import {
   AbstractValue,
   BoolValue,
+  FloatValue,
+  IntValue,
   ObjectValue,
   StringValue,
 } from "@impower/sparkdown/src/inkjs/engine/Value";
@@ -1083,7 +1085,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
     const map = new Map<string, AbstractValue>();
     if (payload.value != null) {
-      map.set("value", new StringValue(String(payload.value)));
+      // Preserve the control's value TYPE: a range/number input sends a JS
+      // number (getEventData), so `value = event.value` keeps a numeric store
+      // numeric instead of flipping it to a string (which would make ordered
+      // comparisons lexicographic). Text inputs send a string.
+      map.set("value", this.toLuauValue(payload.value));
     }
     if (payload.checked != null) {
       map.set("checked", new BoolValue(Boolean(payload.checked)));
@@ -1095,6 +1101,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       map.set("type", new StringValue(String(payload.type)));
     }
     return new ObjectValue(map);
+  }
+
+  /** Wrap a DOM-payload scalar in the matching Luau value, preserving type:
+   *  number → Int/Float, boolean → Bool, everything else → String. */
+  protected toLuauValue(value: unknown): AbstractValue {
+    if (typeof value === "number") {
+      return Number.isInteger(value) ? new IntValue(value) : new FloatValue(value);
+    }
+    if (typeof value === "boolean") {
+      return new BoolValue(value);
+    }
+    return new StringValue(String(value));
   }
 
   /** Mount a text/stroke leaf's inline span. A content-less leaf creates no span
