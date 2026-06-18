@@ -1435,9 +1435,42 @@ export class SparkdownCompiler {
     program.context ??= {};
     const files = this.files.all();
     if (files) {
+      // Track the first file to claim each (type, name) so we can flag basename
+      // collisions among non-script assets. Asset names are a FLAT namespace —
+      // scripts reference an asset by its bare name (`[[show image forest]]` ->
+      // context.image.forest) — so two assets sharing a (type, name) in
+      // different folders are ambiguous and one would silently win. Scripts are
+      // exempt: they're keyed/bundled by full path, not by a flat basename.
+      const claimedBy = new Map<string, string>();
+      const flaggedCollision = new Set<string>();
       for (const file of files) {
         const type = file.type;
         const name = file.name;
+        if (name && type !== "script") {
+          const key = `${type}/${name}`;
+          const firstUri = claimedBy.get(key);
+          if (firstUri === undefined) {
+            claimedBy.set(key, file.uri);
+          } else if (firstUri !== file.uri) {
+            this.pushAssetCollisionDiagnostic(
+              program,
+              file.uri,
+              firstUri,
+              type,
+              name,
+            );
+            if (!flaggedCollision.has(key)) {
+              this.pushAssetCollisionDiagnostic(
+                program,
+                firstUri,
+                file.uri,
+                type,
+                name,
+              );
+              flaggedCollision.add(key);
+            }
+          }
+        }
         program.context[type] ??= {};
         program.context[type][name] ??= { $type: type, $name: name };
         const definedFile = state.story?.structDefinitions?.[type]?.[name];
@@ -1504,6 +1537,41 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "populateAssets", uri);
+  }
+
+  /**
+   * Emit a basename-collision warning on `targetUri` (an asset file), pointing
+   * at `otherUri` which provides the same flat asset name. Keyed by the asset's
+   * own uri so the file manager can flag the offending files.
+   */
+  protected pushAssetCollisionDiagnostic(
+    program: SparkProgram,
+    targetUri: string,
+    otherUri: string,
+    type: string,
+    name: string,
+  ) {
+    const range = {
+      start: { line: 0, character: 0 },
+      end: { line: 0, character: 0 },
+    };
+    program.diagnostics ??= {};
+    program.diagnostics[targetUri] ??= [];
+    program.diagnostics[targetUri].push({
+      range,
+      severity: DiagnosticSeverity.Warning,
+      message: {
+        value: `Asset name collision: \`${name}\` (${type}) is provided by more than one file. Asset names are global, so a script that references \`${name}\` is ambiguous — rename or remove one of the files.`,
+        kind: "markdown",
+      },
+      relatedInformation: [
+        {
+          location: { uri: otherUri, range },
+          message: `also provides \`${name}\``,
+        },
+      ],
+      source: LANGUAGE_NAME,
+    });
   }
 
   populateImplicitDefs(state: SparkdownCompilerState, program: SparkProgram) {
