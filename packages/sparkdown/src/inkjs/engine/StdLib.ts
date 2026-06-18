@@ -2967,6 +2967,36 @@ export const STDLIB: Record<string, StdLibEntry> = {
       story.state.PushToOutputStream(new StringValue(text + "\n"));
     },
   },
+  // `display(<instructions table>)` — SPIKE (display-as-Luau-call
+  // transport). The end-state for the double-parse elimination: the
+  // compiler lowers a display statement to `display({…})` carrying a
+  // pre-parsed instruction TEMPLATE as a table literal, whose `{interp}`
+  // holes are already evaluated to LIVE values by the time this runs
+  // (table literals lower to a live ObjectValue via EndObject). Instead
+  // of flattening to a text string the runtime must re-scan, the live
+  // ObjectValue rides the output stream directly — `currentText` skips
+  // it (it only concatenates StringValues), and the new
+  // `currentDisplayInstructions` getter collects it. A trailing `\n`
+  // closes the Continue beat exactly like `print` does, so the engine's
+  // existing per-beat / checkpoint loop fires unchanged.
+  //
+  // This proves the gating unknown: a no-text stdlib call can carry
+  // STRUCTURED data to the engine and still drive the beat loop. The
+  // legacy text path is untouched (only fires when `display()` is
+  // actually called), so goldens stay green.
+  display: {
+    arity: -1, // variadic — actual count comes from compile-site capture
+    fn: (story, args) => {
+      const payload = args[0];
+      if (payload) {
+        // The live instruction table rides the output stream as a
+        // non-string object (currentText/currentTags both skip it).
+        story.state.PushToOutputStream(payload);
+      }
+      // Close the beat so Continue completes here (mirrors print's `\n`).
+      story.state.PushToOutputStream(new StringValue("\n"));
+    },
+  },
   // `log(...)` — DEVELOPER console logging, NOT story display (that's
   // `print`). Routes to the host console so it flows through ink's
   // debug-log handling rather than the player-visible output stream.

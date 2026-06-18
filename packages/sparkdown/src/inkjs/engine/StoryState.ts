@@ -404,6 +404,40 @@ export class StoryState {
   }
   private _currentTags: string[] | null = null;
 
+  /** SPIKE (display-as-Luau-call transport): the live instruction tables a
+   *  `display(<table>)` stdlib call pushed onto the output stream this beat.
+   *  Walks the stream collecting top-level `ObjectValue`s (skipping anything
+   *  inside a BeginTag…EndTag span, so routing tags don't leak in). Empty for
+   *  every beat that didn't call `display()` — the legacy text path is
+   *  unaffected. The engine reads this alongside `currentText` after each
+   *  Continue and feeds the structured payload straight to the interpreter,
+   *  bypassing the char-by-char re-parse. */
+  get currentDisplayInstructions(): ObjectValue[] {
+    const result: ObjectValue[] = [];
+    let inTag = false;
+    for (const outputObj of this.outputStream) {
+      const controlCommand = asOrNull(outputObj, ControlCommand);
+      if (controlCommand != null) {
+        if (controlCommand.commandType == ControlCommand.CommandType.BeginTag) {
+          inTag = true;
+        } else if (
+          controlCommand.commandType == ControlCommand.CommandType.EndTag
+        ) {
+          inTag = false;
+        }
+        continue;
+      }
+      if (inTag) {
+        continue;
+      }
+      const objVal = asOrNull(outputObj, ObjectValue);
+      if (objVal != null) {
+        result.push(objVal);
+      }
+    }
+    return result;
+  }
+
   get currentFlowName() {
     return this._currentFlow.name;
   }
@@ -1046,6 +1080,13 @@ export class StoryState {
   get outputStreamContainsContent() {
     for (let content of this.outputStream) {
       if (content instanceof StringValue) return true;
+      // SPIKE (display-as-Luau-call transport): a `display(<table>)` call
+      // emits its live instruction table as an ObjectValue (no text). That IS
+      // beat content — without counting it, the trailing boundary newline is
+      // dropped as a spurious leading newline and the beat never closes. In
+      // normal flow ObjectValues never reach the content output stream, so
+      // this only affects display beats.
+      if (content instanceof ObjectValue) return true;
     }
     return false;
   }

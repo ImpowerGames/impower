@@ -733,6 +733,16 @@ export class Story extends InkObject {
     return this.state.currentTags;
   }
 
+  /** SPIKE (display-as-Luau-call transport): the live instruction tables a
+   *  `display(<table>)` call emitted this beat (empty otherwise). See
+   *  {@link StoryState.currentDisplayInstructions}. */
+  get currentDisplayInstructions() {
+    this.IfAsyncWeCant(
+      "call currentDisplayInstructions since it's a work in progress",
+    );
+    return this.state.currentDisplayInstructions;
+  }
+
   get currentErrors() {
     return this.state.currentErrors;
   }
@@ -1262,6 +1272,8 @@ export class Story extends InkObject {
           this.state.currentText,
           this._stateSnapshotAtLastNewline.currentTags.length,
           this.state.currentTags.length,
+          this._stateSnapshotAtLastNewline.currentDisplayInstructions.length,
+          this.state.currentDisplayInstructions.length,
         );
 
         if (
@@ -1295,6 +1307,13 @@ export class Story extends InkObject {
     currText: string | null,
     prevTagCount: number,
     currTagCount: number,
+    // SPIKE (display-as-Luau-call transport): a `display(<table>)` beat emits
+    // structured instructions but NO text, so the text/tag deltas below can't
+    // see it. Thread the display-instruction count through the same look-ahead
+    // so an extra instruction past the newline counts as "extended beyond the
+    // newline" — exactly like an extra tag does.
+    prevDisplayCount = 0,
+    currDisplayCount = 0,
   ) {
     if (prevText === null) {
       return throwNullException("prevText");
@@ -1309,6 +1328,7 @@ export class Story extends InkObject {
       currText.charAt(prevText.length - 1) == "\n";
     if (
       prevTagCount == currTagCount &&
+      prevDisplayCount == currDisplayCount &&
       prevText.length == currText.length &&
       newlineStillExists
     )
@@ -1318,7 +1338,7 @@ export class Story extends InkObject {
       return Story.OutputStateChange.NewlineRemoved;
     }
 
-    if (currTagCount > prevTagCount)
+    if (currTagCount > prevTagCount || currDisplayCount > prevDisplayCount)
       return Story.OutputStateChange.ExtendedBeyondNewline;
 
     for (let i = prevText.length; i < currText.length; i++) {
