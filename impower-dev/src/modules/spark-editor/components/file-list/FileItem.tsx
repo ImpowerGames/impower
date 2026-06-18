@@ -36,12 +36,6 @@ export type FileItemProps = {
    */
   src?: string;
   /**
-   * While true (the list is actively scrolling), image rows show their type
-   * glyph instead of mounting the thumbnail `<img>` — avoids decoding/fetching
-   * thumbnails for rows scrolled past. Swaps to the thumbnail once it clears.
-   */
-  deferThumb?: boolean;
-  /**
    * Folder rows: toggle expand/collapse. Receives the row's own path so the
    * parent can pass a single STABLE callback (not a per-row closure), which
    * keeps {@link FileItem}'s props referentially stable for `memo`.
@@ -64,7 +58,6 @@ function FileItem({
   expanded = false,
   selected = false,
   src,
-  deferThumb = false,
   onToggle,
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
@@ -89,10 +82,11 @@ function FileItem({
   // not content. The icon sits inside DiagnosticsLabel so it inherits the
   // danger/warning color (via currentColor) when the row has a diagnostic.
   const FileIcon = iconForPath(path, isDirectory, expanded);
-  // Show a live thumbnail for image assets, but only once we actually have a
-  // url, it hasn't failed to load, and the list isn't actively scrolling.
-  const showThumb =
-    !isDirectory && !!src && !thumbFailed && !deferThumb && isImagePath(path);
+  // Show a live thumbnail for image assets once we have a url and it hasn't
+  // failed to load. Thumbnails are pre-generated at import time (and the
+  // <img> decodes async), so they can stay mounted while scrolling — no
+  // deferral burst on settle, which used to wedge the next scroll.
+  const showThumb = !isDirectory && !!src && !thumbFailed && isImagePath(path);
   // Google-Drive convention: files sit in a rounded tile (glyph or thumbnail);
   // folders are a bare, prominent icon with no tile. Mute only file *glyphs*
   // (not thumbnails, not folders) to /50 so they read as quiet chrome.
@@ -110,6 +104,14 @@ function FileItem({
   useEffect(() => {
     setThumbFailed(false);
   }, [src]);
+
+  // The virtualized list RECYCLES this component across rows (keyed by window
+  // slot, not path), so when the underlying file changes — e.g. the user
+  // scrolls while a rename is open — drop the stale rename rather than letting
+  // the input jump to a different file.
+  useEffect(() => {
+    setRenaming(false);
+  }, [path]);
 
   // Auto-focus + select the editable name when entering rename mode.
   useEffect(() => {
