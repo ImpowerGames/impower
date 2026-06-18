@@ -70,10 +70,14 @@ export interface UIHarness {
 // The golden-master compiles the builtins .sd PRELUDE into the program (which
 // populates both program.context and the runtime __def tables) — the production
 // engine path.
-export function compileUI(source: string) {
+export function compileUI(
+  source: string,
+  opts?: { experimentalDisplayCalls?: boolean },
+) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
+    experimentalDisplayCalls: opts?.experimentalDisplayCalls ?? false,
     files: [
       {
         uri: MAIN_URI,
@@ -126,9 +130,15 @@ function resultForMethod(method: string): unknown {
 export function createHarness(
   source: string,
   startLine = 0,
-  opts?: { reactive?: boolean; autoOpenAll?: boolean },
+  opts?: {
+    reactive?: boolean;
+    autoOpenAll?: boolean;
+    experimentalDisplayCalls?: boolean;
+  },
 ): UIHarness {
-  const { program } = compileUI(source);
+  const { program } = compileUI(source, {
+    experimentalDisplayCalls: opts?.experimentalDisplayCalls,
+  });
   const messages: any[] = [];
 
   const game = new Game({

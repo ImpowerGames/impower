@@ -72,16 +72,44 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect((story.currentText ?? "").trim()).toBe("The room is quiet.");
   });
 
-  test("interpolated content falls back to the legacy path even with the flag", () => {
-    // `{score}` is dynamic structure the minimal { target, text } table can't
-    // carry yet, so the lowerer must fall back rather than drop the value.
-    // (Plain action line — no leading `NAME:` that would read as a dialogue cue.)
+  test("interpolation rides the table as a live-value string", () => {
+    // `{score}` is evaluated at call time and concatenated into the table's
+    // `text` (a StringExpression over the body), so the table carries the final
+    // string — no flat-string re-parse, value carried live (we beat Ren'Py).
     const { story, errors } = run(
       `store score = 5\nYou have {score} gold.\ndone\n`,
       { experimentalDisplayCalls: true },
     );
     expect(errors).toEqual([]);
-    expect(story.currentDisplayInstructions).toHaveLength(0);
-    expect((story.currentText ?? "").trim()).toBe("You have 5 gold.");
+    const instructions = story.currentDisplayInstructions;
+    expect(instructions).toHaveLength(1);
+    expect(field(instructions[0]!, "target")).toBe("action");
+    expect(field(instructions[0]!, "text")).toBe("You have 5 gold.");
+    expect((story.currentText ?? "").trim()).toBe("");
+  });
+
+  test("a dialogue line carries target=dialogue + the character cue", () => {
+    const { story, errors } = run(`HERO: Hello there.\ndone\n`, {
+      experimentalDisplayCalls: true,
+    });
+    expect(errors).toEqual([]);
+    const instructions = story.currentDisplayInstructions;
+    expect(instructions).toHaveLength(1);
+    expect(field(instructions[0]!, "target")).toBe("dialogue");
+    expect(field(instructions[0]!, "character")).toBe("HERO");
+    expect(field(instructions[0]!, "text")).toBe("Hello there.");
+  });
+
+  test("emphasis markers ride as literal text in the table", () => {
+    // `**`/`*` are not structured at compile time — they stay literal chars in
+    // the table's `text` and the engine's parse() turns them into styled spans
+    // at render (same as legacy).
+    const { story, errors } = run(`This is **bold** here.\ndone\n`, {
+      experimentalDisplayCalls: true,
+    });
+    expect(errors).toEqual([]);
+    const instructions = story.currentDisplayInstructions;
+    expect(instructions).toHaveLength(1);
+    expect(field(instructions[0]!, "text")).toBe("This is **bold** here.");
   });
 });

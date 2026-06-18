@@ -37,10 +37,11 @@ describe("display() call → rendered beat (engine wiring)", () => {
     const { harness, beat } = await beatFor(
       `  & display({ target = "action", text = "Hello." })`,
     );
-    // The interpreter built Instructions DIRECTLY from the live table — the
-    // char-by-char parse() path is bypassed entirely.
+    // The beat routed via the table (target from the call, not a regex/tag);
+    // the body text renders through the same per-glyph parse() as legacy, so the
+    // events concatenate back to the body.
     expect(Object.keys(beat?.text ?? {})).toEqual(["action"]);
-    expect(beat?.text?.action?.[0]?.text).toBe("Hello.");
+    expect(textOf(beat, "action")).toBe("Hello.");
     // And the Coordinator fanned the flushed beat out to the renderer.
     const writes = harness.messages.filter(
       (m) => m.method === WriteTextMessage.method,
@@ -62,9 +63,20 @@ describe("display() call → rendered beat (engine wiring)", () => {
     harness.reset();
 
     const first = harness.nextBeat();
-    expect(first?.text?.action?.[0]?.text).toBe("first");
+    expect(textOf(first, "action")).toBe("first");
 
     const second = harness.nextBeat();
-    expect(second?.text?.action?.[0]?.text).toBe("second");
+    expect(textOf(second, "action")).toBe("second");
   });
 });
+
+/** Concatenate a target's text events back into the rendered string (parse()
+ *  emits one event per glyph/chunk for the typewriter). */
+function textOf(
+  beat: { text?: Record<string, { text?: string }[]> } | undefined,
+  target: string,
+): string {
+  return (beat?.text?.[target] ?? [])
+    .map((e) => e.text ?? "")
+    .join("");
+}

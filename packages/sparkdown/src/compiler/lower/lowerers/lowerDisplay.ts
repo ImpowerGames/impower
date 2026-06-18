@@ -148,23 +148,18 @@ function buildDisplayContent(
   return content;
 }
 
-// Line types whose target is just the line type itself (no character cue, no
-// write layer) — the only ones the minimal `{ target, text }` display table can
-// represent today. `dialogue` (needs cue resolution) and `write` (needs the
-// layer identifier) stay on the legacy path until the table carries them.
-const SIMPLE_DISPLAY_LINE_TYPES = new Set([
-  "action",
-  "title",
-  "heading",
-  "transitional",
-]);
-
-// EXPERIMENTAL: build a `display({ target, text })` FunctionCall for a SIMPLE
-// display statement, or return null to fall back to the legacy routing-tag +
-// text form. "Simple" = the experimental flag is on, no leading `..` glue, a
-// known cue-less/layer-less line type, a single beat (no mid-line `>` split),
-// and a body that is PURE TEXT (no `{interp}` / divert / alternator / `# tag` /
-// comment) resolving to exactly one Text run. Anything else returns null.
+// EXPERIMENTAL: build a `display({ target, character?, text })` FunctionCall for
+// a display statement, or return null to fall back to the legacy routing-tag +
+// visible-text form. The table carries the routing (target + dialogue cue)
+// resolved at compile time plus the body as a STRING-CAPTURE expression — the
+// SAME body ParsedObjects the legacy path emits, wrapped in a StringExpression
+// so ink evaluates them (interpolation → live values, markup preserved) into one
+// string at call time. The engine then runs the identical `parse()` pipeline.
+//
+// Falls back (returns null) for content the flat `text` string can't represent
+// faithfully yet: leading `..` glue (continuation), multi-beat `>` splits, and
+// any body part that isn't plain Text or a value-producing interpolation
+// Expression (mid-line diverts, inline conditionals/alternators, `# tag`s).
 function tryBuildSimpleDisplayCall(
   parent: SyntaxNode,
   bodyStart: number,
@@ -175,40 +170,75 @@ function tryBuildSimpleDisplayCall(
   identifier: string | null,
 ): ParsedObject[] | null {
   if (!ctx.config?.experimentalDisplayCalls) return null;
-  // A character cue / write layer can't ride the minimal table yet.
-  if (identifier !== null) return null;
-  if (!SIMPLE_DISPLAY_LINE_TYPES.has(lineType)) return null;
-  // Single beat only — a `>` break makes multiple beats.
+
+  // Resolve the routing exactly as the engine's tag path does, but at compile
+  // time: dialogue → target "dialogue" + the cue; write → the layer is the
+  // target; everything else → the line type IS the target.
+  let target: string;
+  let character: string | undefined;
+  if (lineType === "dialogue") {
+    target = "dialogue";
+    character = identifier ?? undefined;
+  } else if (lineType === "write") {
+    if (!identifier) return null; // need the layer name
+    target = identifier;
+    character = undefined;
+  } else {
+    target = lineType;
+    character = undefined;
+  }
+
+  // Single beat only — a mid-line `>` makes multiple beats (handled later).
   if (splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx).length !== 1) {
     return null;
   }
-  // Any dynamic injection means the body carries structure the flat `text`
-  // string can't hold (interpolation values, diverts, alternators, tags).
-  if (collectTopLevelInjections(parent, bodyStart, bodyEnd).length > 0) {
-    return null;
-  }
-  // Reuse the legacy body walker so trimming/escapes match exactly, then
-  // require it to have collapsed to a single Text run (no trailing-break
-  // newline, no empty body).
+
+  // Reuse the legacy body walker so trimming/escapes match exactly, then require
+  // every produced object to be plain Text or a value-producing interpolation
+  // Expression — anything else (Conditional, alternator Sequence, Divert, Tag,
+  // Glue) can't be string-captured faithfully, so fall back.
   const body = processDisplayBody(parent, bodyStart, bodyEnd, ctx, mode);
-  if (body.length !== 1) return null;
-  const only = body[0]!;
-  if (!(only instanceof Text)) return null;
-  const text = only.text;
-  if (!text) return null;
-  return [buildDisplayCall(lineType, text)];
+  if (body.length === 0) return null;
+  for (const obj of body) {
+    if (!(obj instanceof Text) && !(obj instanceof Expression)) {
+      return null;
+    }
+  }
+
+  return [buildDisplayCall(target, character, body)];
 }
 
-// `display({ target = <lineType>, text = <body> })` with `shouldPopReturnedValue`
-// — a synthesized bare-call statement (no author `&` needed). `display` is a
+// `display({ target, character?, text })` with `shouldPopReturnedValue` — a
+// synthesized bare-call statement (no author `&` needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
 // live ObjectValue arg the engine reads via `story.currentDisplayInstructions`.
-function buildDisplayCall(target: string, text: string): FunctionCall {
-  const table = new ObjectExpression([
-    new ObjectExpressionEntry("target", new StringExpression([new Text(target)])),
-    new ObjectExpressionEntry("text", new StringExpression([new Text(text)])),
+// `text` is a StringExpression over the body's own ParsedObjects, so ink
+// evaluates interpolation to live values and concatenates the run at call time.
+function buildDisplayCall(
+  target: string,
+  character: string | undefined,
+  body: ParsedObject[],
+): FunctionCall {
+  const entries = [
+    new ObjectExpressionEntry(
+      "target",
+      new StringExpression([new Text(target)]),
+    ),
+  ];
+  if (character) {
+    entries.push(
+      new ObjectExpressionEntry(
+        "character",
+        new StringExpression([new Text(character)]),
+      ),
+    );
+  }
+  entries.push(
+    new ObjectExpressionEntry("text", new StringExpression(body)),
+  );
+  const call = new FunctionCall(new Identifier("display"), [
+    new ObjectExpression(entries),
   ]);
-  const call = new FunctionCall(new Identifier("display"), [table]);
   call.shouldPopReturnedValue = true;
   return call;
 }

@@ -223,7 +223,6 @@ export class InterpreterModule extends Module<
    */
   queue(content: string, choices: string[], tags: string[] = []): void {
     this._state.buffer ??= [];
-    const options: InstructionOptions = {};
     // Trim away indent.
     content = content.trimStart();
 
@@ -261,9 +260,7 @@ export class InterpreterModule extends Module<
     }
 
     let target = defaultTarget;
-    let characterNameInstructions: Instructions | undefined = undefined;
-    let characterParentheticalInstructions: Instructions | undefined =
-      undefined;
+    let characterDeclaration: string | undefined = undefined;
     if (routing) {
       const { lineType, identifier } = routing;
       if (lineType === "write") {
@@ -273,60 +270,83 @@ export class InterpreterModule extends Module<
       } else if (lineType === "dialogue") {
         target = "dialogue";
         // The identifier is the full character cue (name + optional
-        // parenthetical + optional `<`/`>` position). Resolve it exactly as
-        // before — only the INPUT changed (was the regex-extracted visible
-        // prefix, now the tag's identifier).
-        const characterDeclaration = identifier;
-        if (characterDeclaration) {
-          // Character declaration can include name, parenthetical, and position.
-          // @ CHARACTER NAME (parenthetical) [>]
-          const match = characterDeclaration.match(this.CHARACTER_REGEX);
-          const characterNameMatch = match?.[1] || "";
-          const characterParentheticalMatch = match?.[3] || "";
-          const characterPositionMatch = match?.[7] || "";
-          const characterMap = this.context?.["character"] as any;
-          const characterId = this._characterNameMap[characterNameMatch] || "";
-          const characterObj =
-            characterMap?.[characterNameMatch] || characterMap?.[characterId];
-          const character = characterObj?.$name;
-          // Fall back to the cue text when the character has no NON-EMPTY name:
-          // a character defined without a `name` inherits `name = ""` from the
-          // type default, so an empty string must be treated as absent (the same
-          // as an undefined character) rather than rendered as a blank speaker.
-          const characterName =
-            typeof characterObj?.name === "string" && characterObj.name
-              ? characterObj.name
-              : characterNameMatch;
-          const characterParenthetical = characterParentheticalMatch;
-          const position =
-            characterPositionMatch === "<"
-              ? "left"
-              : characterPositionMatch === ">"
-                ? "right"
-                : characterPositionMatch;
-          options.character = character;
-          options.position = position;
-          if (characterName) {
-            characterNameInstructions = this.parse(
-              characterName,
-              "character_name",
-              options,
-            );
-          }
-          if (characterParenthetical) {
-            characterParentheticalInstructions = this.parse(
-              characterParenthetical,
-              "character_parenthetical",
-              options,
-            );
-          }
-        }
+        // parenthetical + optional `<`/`>` position); resolved in appendBeat.
+        characterDeclaration = identifier || undefined;
       } else {
         // title / heading / transitional / action (and any unknown line type):
         // the line type IS the target name (matches the directives config,
         // where the directive key — e.g. `heading` — names the target). An
         // empty / unknown type falls back to the default target.
         target = lineType || defaultTarget;
+      }
+    }
+    this.appendBeat(target, characterDeclaration, content, choices);
+  }
+
+  /**
+   * Build a beat's instructions from an already-resolved target + optional
+   * dialogue cue + a final body string, and append them to the buffer. Shared
+   * by {@link queue} (routing resolved from the line-type tag, body from the
+   * flat `currentText`) and {@link queueInstructions} (routing + body carried in
+   * the `display(<table>)` table), so BOTH transports produce byte-identical
+   * instructions: the cue resolution (name / parenthetical / position via
+   * `CHARACTER_REGEX`), the `>` box split, the per-character `parse()`, the cue
+   * prefixing, and the empty-textbox fold are all the same code path.
+   */
+  protected appendBeat(
+    target: string,
+    characterDeclaration: string | undefined,
+    content: string,
+    choices: string[],
+  ): void {
+    this._state.buffer ??= [];
+    const defaultTarget = this._targetPrefixMap?.[""] || "";
+    const options: InstructionOptions = {};
+    let characterNameInstructions: Instructions | undefined = undefined;
+    let characterParentheticalInstructions: Instructions | undefined =
+      undefined;
+    if (characterDeclaration) {
+      // Character declaration can include name, parenthetical, and position.
+      // @ CHARACTER NAME (parenthetical) [>]
+      const match = characterDeclaration.match(this.CHARACTER_REGEX);
+      const characterNameMatch = match?.[1] || "";
+      const characterParentheticalMatch = match?.[3] || "";
+      const characterPositionMatch = match?.[7] || "";
+      const characterMap = this.context?.["character"] as any;
+      const characterId = this._characterNameMap[characterNameMatch] || "";
+      const characterObj =
+        characterMap?.[characterNameMatch] || characterMap?.[characterId];
+      const character = characterObj?.$name;
+      // Fall back to the cue text when the character has no NON-EMPTY name:
+      // a character defined without a `name` inherits `name = ""` from the
+      // type default, so an empty string must be treated as absent (the same
+      // as an undefined character) rather than rendered as a blank speaker.
+      const characterName =
+        typeof characterObj?.name === "string" && characterObj.name
+          ? characterObj.name
+          : characterNameMatch;
+      const characterParenthetical = characterParentheticalMatch;
+      const position =
+        characterPositionMatch === "<"
+          ? "left"
+          : characterPositionMatch === ">"
+            ? "right"
+            : characterPositionMatch;
+      options.character = character;
+      options.position = position;
+      if (characterName) {
+        characterNameInstructions = this.parse(
+          characterName,
+          "character_name",
+          options,
+        );
+      }
+      if (characterParenthetical) {
+        characterParentheticalInstructions = this.parse(
+          characterParenthetical,
+          "character_parenthetical",
+          options,
+        );
       }
     }
     // Queue content
@@ -369,67 +389,55 @@ export class InterpreterModule extends Module<
         lastTextbox = { end: 0 };
         this._state.buffer.push(lastTextbox);
       }
-      if (choices) {
-        for (let i = 0; i < choices.length; i += 1) {
-          const choice = choices[i]!;
-          const choiceInstructions = this.parse(choice, `choice ${i}`, {
-            ...options,
-            delay: lastTextbox.end,
-            choice: true,
-          });
-          this.merge(lastTextbox, choiceInstructions);
-        }
-      }
-    }
-  }
-
-  /**
-   * Queue a beat handed over as PRE-PARSED display instructions — one
-   * {@link ObjectValue} table per `display(<table>)` call the runtime made this
-   * beat (collected via `story.currentDisplayInstructions`). This is the
-   * structured-transport counterpart to {@link queue}: instead of a flat text
-   * string the interpreter re-scans char-by-char (`parse()` / `CHARACTER_REGEX`
-   * / `BREAK_BOX_REGEX`), the compiler-built template arrives as a live table
-   * whose `{interp}` holes are already evaluated to real values.
-   *
-   * MINIMAL FIRST INCREMENT: a flat `{ target, text }` table becomes one
-   * `show` {@link TextInstruction}. The full template→Instructions conversion
-   * (emphasis spans, per-character timing/synth/prosody, the character cue,
-   * `[[asset]]`/box-split chunks, choices carried in the table) plugs in HERE —
-   * this is the seam. Until then the legacy {@link queue} path stays the
-   * fallback for every text beat that doesn't call `display()`.
-   */
-  queueInstructions(tables: ObjectValue[], choices: string[] = []): void {
-    this._state.buffer ??= [];
-    const defaultTarget = this._targetPrefixMap?.[""] || "";
-    for (const table of tables) {
-      const read = (key: string): unknown => table?.value?.get(key)?.value;
-      const target = (read("target") as string) || defaultTarget;
-      const text = (read("text") as string) ?? "";
-      const instructions: Instructions = { end: 0 };
-      if (text) {
-        const event: TextInstruction = { control: "show", text };
-        instructions.text = { [target]: [event] };
-      }
-      this._state.buffer.push(instructions);
-    }
-    // Choices still arrive as plain strings (`currentChoices`) until the
-    // template carries them; attach them to the last textbox exactly as
-    // `queue()` does so a display beat that offers choices isn't dropped.
-    if (choices.length > 0) {
-      let lastTextbox = this._state.buffer.at(-1);
-      if (!lastTextbox) {
-        lastTextbox = { end: 0 };
-        this._state.buffer.push(lastTextbox);
-      }
       for (let i = 0; i < choices.length; i += 1) {
         const choice = choices[i]!;
         const choiceInstructions = this.parse(choice, `choice ${i}`, {
+          ...options,
           delay: lastTextbox.end,
           choice: true,
         });
         this.merge(lastTextbox, choiceInstructions);
       }
+    }
+  }
+
+  /**
+   * Queue a beat handed over as a `display(<table>)` call — one
+   * {@link ObjectValue} table per call the runtime made this beat (collected via
+   * `story.currentDisplayInstructions`). The structured-transport counterpart to
+   * {@link queue}: routing (`target`) and the dialogue cue (`character`) arrive
+   * as table FIELDS resolved at compile time instead of a line-type tag, and the
+   * body (`text`) arrives as a string whose `{interp}` holes were already
+   * evaluated to live values at call time. Both paths converge on
+   * {@link appendBeat}, so the cue resolution, `>` box split, per-character
+   * `parse()`, cue prefixing and buffer fold are byte-identical to the legacy
+   * path — only the source of target/cue/text differs.
+   *
+   * Table shape: `{ target: string, character?: string, text: string }`.
+   * Multiple tables (consecutive `display()` calls in one Continue) each become
+   * their own beat; choices attach to the LAST one (matching `queue()`).
+   */
+  queueInstructions(tables: ObjectValue[], choices: string[] = []): void {
+    this._state.buffer ??= [];
+    const defaultTarget = this._targetPrefixMap?.[""] || "";
+    for (let i = 0; i < tables.length; i++) {
+      const table = tables[i]!;
+      const read = (key: string): unknown => table?.value?.get(key)?.value;
+      const target = (read("target") as string) || defaultTarget;
+      const characterRaw = read("character");
+      const character =
+        typeof characterRaw === "string" && characterRaw
+          ? characterRaw
+          : undefined;
+      const text = (read("text") as string) ?? "";
+      // Choices show after the LAST beat of the Continue (mirrors queue()).
+      const beatChoices = i === tables.length - 1 ? choices : [];
+      this.appendBeat(target, character, text, beatChoices);
+    }
+    // Defensive: a choice-only beat with no display table still surfaces its
+    // choices (no real display() emission produces this today).
+    if (tables.length === 0 && choices.length > 0) {
+      this.appendBeat(defaultTarget, undefined, "", choices);
     }
   }
 
