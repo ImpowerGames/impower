@@ -124,6 +124,18 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect(field(instructions[0]!, "text")).toBe("Second part.");
   });
 
+  test("an inline conditional rides the table (evaluated at call time)", () => {
+    const { story, errors } = run(
+      `You feel {if 2 > 1 then "great" else "bad"} today.\ndone\n`,
+      { experimentalDisplayCalls: true },
+    );
+    expect(errors).toEqual([]);
+    const instructions = story.currentDisplayInstructions;
+    expect(instructions).toHaveLength(1);
+    // The chosen branch was string-captured into the table's text at call time.
+    expect(field(instructions[0]!, "text")).toBe("You feel great today.");
+  });
+
   test("emphasis markers ride as literal text in the table", () => {
     // `**`/`*` are not structured at compile time — they stay literal chars in
     // the table's `text` and the engine's parse() turns them into styled spans

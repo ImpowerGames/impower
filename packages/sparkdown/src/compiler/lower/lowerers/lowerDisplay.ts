@@ -14,6 +14,7 @@ import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Ident
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -204,7 +205,18 @@ function tryBuildSimpleDisplayCall(
     const body = processDisplayBody(parent, range.from, range.to, ctx, mode);
     if (body.length === 0) return null;
     for (const obj of body) {
-      if (!(obj instanceof Text) && !(obj instanceof Expression)) {
+      // Value-producing content that string-captures faithfully: plain Text,
+      // interpolation Expressions, inline Conditionals (`{if …}`), and inline
+      // alternators (a Weave wrapping a Sequence). Anything else — a mid-line
+      // Divert (changes flow), a `# tag` (metadata), or Glue (whitespace
+      // control) — can't ride a captured string, so fall the whole statement
+      // back to the legacy path.
+      if (
+        !(obj instanceof Text) &&
+        !(obj instanceof Expression) &&
+        !(obj instanceof Conditional) &&
+        !(obj instanceof Weave)
+      ) {
         return null;
       }
     }

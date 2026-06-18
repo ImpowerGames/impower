@@ -117,4 +117,12 @@ describe("display() ↔ legacy parity (message stream)", () => {
   test("line-end > break (block dialogue, two beats)", async () => {
     await assertParity(`  HERO:\n    First part. >\n    Second part.`);
   });
+
+  test("inline conditional", async () => {
+    await assertParity(`  You feel {if 2 > 1 then "great" else "bad"} today.`);
+  });
+
+  test("inline sequence alternator", async () => {
+    await assertParity(`  The light {queue|"flickers"|"steadies"|"dies"} now.`);
+  });
 });
