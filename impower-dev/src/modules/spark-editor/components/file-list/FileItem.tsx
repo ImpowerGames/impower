@@ -1,63 +1,81 @@
-import { Button, Ripple } from "@impower/impower-ui/components";
+import { Button, ChevronRight, Ripple } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileOptionsButton from "./FileOptionsButton";
 
+// Per-depth indentation (px). The base padding + the fixed chevron column keep
+// a depth-0 file's name at the same x it sat at in the old flat list.
+const INDENT_PER_DEPTH = 16;
+const BASE_INDENT = 12;
+
 export type FileItemProps = {
   /**
-   * Project-relative path of the file (e.g. `chapters/intro.sd`). This is the
-   * row's identity — rename/delete/open and diagnostics all key off the full
-   * path so two files sharing a basename in different folders never collide.
-   * The row displays only the basename.
+   * Project-relative path — `chapters/intro.sd` for a file, `chapters` for a
+   * folder. The row's identity: rename/delete/open/diagnostics all key off the
+   * full path so same-basename files in different folders never collide.
    */
   path: string;
+  /** True for a folder row (click toggles expand instead of opening an editor). */
+  isDirectory?: boolean;
+  /** Tree depth (0 = top level) — drives indentation. */
+  depth?: number;
+  /** Folder has ≥1 child (renders a disclosure chevron). */
+  hasChildren?: boolean;
+  /** Folder is expanded (chevron points down). */
+  expanded?: boolean;
+  /** Folder rows: toggle expand/collapse. */
+  onToggle?: () => void;
 };
 
 /**
- * A single row in FileList. Clicking the row body opens the file in the
- * Logic editor. The 3-dots menu offers Rename + Delete. Rename swaps the
- * label for an inline text input — Enter / blur / click-outside commits;
- * Escape (or no-change) cancels.
- *
- * Diagnostics-aware: the path is wrapped in `<DiagnosticsLabel>` so
- * rows for scripts with errors paint red / warnings paint yellow.
+ * A single row in the file tree. Files open in the editor on click and offer
+ * Rename + Delete; folders expand/collapse on click and Rename (moves the
+ * folder) / Delete (removes the folder and its contents). The 3-dots menu's
+ * Rename swaps the label for an inline input — Enter / blur / click-outside
+ * commits, Escape cancels.
  */
-export default function FileItem({ path }: FileItemProps) {
+export default function FileItem({
+  path,
+  isDirectory = false,
+  depth = 0,
+  hasChildren = false,
+  expanded = false,
+  onToggle,
+}: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLButtonElement | null>(null);
 
-  // Display the basename (folder-stripped). Split name/ext on the FINAL dot so
-  // multi-dot names (`sprite.idle.png`) keep their interior dots. `dir` is the
-  // directory portion, preserved across rename.
   const basename = path.split("/").slice(-1)[0] ?? path;
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  // Folders display the whole segment; files split name/ext on the FINAL dot
+  // (so multi-dot names keep interior dots).
   const dotIndex = basename.lastIndexOf(".");
-  const name = dotIndex > 0 ? basename.slice(0, dotIndex) : basename;
-  const ext = dotIndex > 0 ? basename.slice(dotIndex + 1) : "";
+  const name =
+    isDirectory || dotIndex <= 0 ? basename : basename.slice(0, dotIndex);
+  const ext = !isDirectory && dotIndex > 0 ? basename.slice(dotIndex + 1) : "";
   const showExt = ext && ext !== "sd";
 
-  // Auto-focus + select the basename when entering rename mode. Match the
-  // legacy behavior: select up to (but not including) the extension.
+  // Auto-focus + select the editable name when entering rename mode.
   useEffect(() => {
     if (!renaming) return;
     setInputValue(name ?? "");
     const el = inputRef.current;
     if (el) {
       el.focus();
-      const sel = (name ?? "").length;
-      el.setSelectionRange(0, sel);
+      el.setSelectionRange(0, (name ?? "").length);
     }
   }, [renaming, name]);
 
-  // Click-outside cancels (commits if changed).
+  // Click-outside commits (if changed) and exits rename mode.
   useEffect(() => {
     if (!renaming) return;
     const onDoc = (e: MouseEvent) => {
-      const composed = typeof e.composedPath === "function" ? e.composedPath() : [];
+      const composed =
+        typeof e.composedPath === "function" ? e.composedPath() : [];
       if (rowRef.current && !composed.includes(rowRef.current)) {
         commit();
       }
@@ -70,23 +88,22 @@ export default function FileItem({ path }: FileItemProps) {
   function commit() {
     const newName = inputValue.trim();
     if (newName && newName !== name) {
-      const newBasename = ext ? `${newName}.${ext}` : newName;
-      // Keep the file in its folder — only the basename is editable.
-      const newPath = dir ? `${dir}/${newBasename}` : newBasename;
-      void rename(path, newPath);
+      if (isDirectory) {
+        // Folder: rename in place (same parent), moving everything beneath it.
+        void renameFolder(path, dir ? `${dir}/${newName}` : newName);
+      } else {
+        const newBasename = ext ? `${newName}.${ext}` : newName;
+        void renameFile(path, dir ? `${dir}/${newBasename}` : newBasename);
+      }
     }
     setRenaming(false);
   }
 
-  async function rename(oldPath: string, newPath: string) {
+  async function renameFile(oldPath: string, newPath: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    const oldUri = Workspace.fs.getFileUri(projectId, oldPath);
-    const newUri = Workspace.fs.getFileUri(projectId, newPath);
-    const renamed = await Workspace.fs.renameFiles({
-      files: [{ oldUri, newUri }],
-    });
+    const renamed = await Workspace.fs.moveFile(projectId, oldPath, newPath);
     if (renamed.some((d) => d.type === "script")) {
       await Workspace.window.recordScriptChange();
     } else {
@@ -94,10 +111,23 @@ export default function FileItem({ path }: FileItemProps) {
     }
   }
 
-  async function deleteFile() {
+  async function renameFolder(oldPath: string, newPath: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
+    await Workspace.fs.moveFolder(projectId, oldPath, newPath);
+    await Workspace.window.recordAssetChange();
+  }
+
+  async function deleteEntry() {
+    const projectId = workspace.signals.projectId.value;
+    if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    if (isDirectory) {
+      await Workspace.fs.deleteFolder(projectId, path);
+      await Workspace.window.recordAssetChange();
+      return;
+    }
     const uri = Workspace.fs.getFileUri(projectId, path);
     const deleted = await Workspace.fs.deleteFiles({ files: [{ uri }] });
     if (deleted.some((d) => d.type === "script")) {
@@ -110,11 +140,15 @@ export default function FileItem({ path }: FileItemProps) {
   async function onRowClick(e: MouseEvent) {
     if (renaming) return;
     e.stopPropagation();
+    if (isDirectory) {
+      onToggle?.();
+      return;
+    }
     const { Workspace } = await import("../../workspace/Workspace");
     Workspace.window.openFileEditor(path);
   }
 
-  // Workspace state derived from signals (re-render on relevant change only).
+  // Re-render on diagnostics change (DiagnosticsLabel reads the same signal).
   const _ = useComputed(() => workspace.state.value.debug?.diagnostics).value;
   void _;
 
@@ -125,15 +159,22 @@ export default function FileItem({ path }: FileItemProps) {
       class="h-14 w-full justify-start gap-0 rounded-none px-5 text-left text-base font-normal text-foreground/80"
       onClick={onRowClick}
     >
-      <div class="flex flex-1 flex-row items-center overflow-hidden pl-8">
+      <div
+        class="flex flex-1 flex-row items-center overflow-hidden"
+        style={{ paddingLeft: `${BASE_INDENT + depth * INDENT_PER_DEPTH}px` }}
+      >
+        {/* Disclosure column: a rotating chevron for folders-with-children,
+            an equal-width spacer otherwise so names stay aligned. */}
+        <span class="flex w-5 flex-none items-center justify-center text-foreground/50">
+          {isDirectory && hasChildren ? (
+            <ChevronRight
+              class={`size-4 transition-transform ${expanded ? "rotate-90" : ""}`}
+            />
+          ) : null}
+        </span>
         <DiagnosticsLabel filename={path}>
           <div class="flex flex-1 flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
             {renaming ? (
-              // Ripple wrapper mirrors main's <s-input> tap ripple. stopPropagation
-              // on pointerDown so the wave fires here (not on the enclosing row
-              // Button, which would otherwise double-ripple); text-foreground
-              // (white) pins the wave white like main. The row already supplies
-              // the hover tint underneath, so no hover:bg here.
               <div
                 class="relative w-full overflow-hidden rounded text-foreground"
                 onPointerDown={(e) => e.stopPropagation()}
@@ -160,7 +201,7 @@ export default function FileItem({ path }: FileItemProps) {
               </div>
             ) : (
               <>
-                <span>{name}</span>
+                <span class={isDirectory ? "font-medium" : ""}>{name}</span>
                 {showExt && <span class="opacity-30">.{ext}</span>}
               </>
             )}
@@ -169,7 +210,7 @@ export default function FileItem({ path }: FileItemProps) {
       </div>
       <FileOptionsButton
         onRename={() => setRenaming(true)}
-        onDelete={() => void deleteFile()}
+        onDelete={() => void deleteEntry()}
       />
     </Button>
   );

@@ -548,6 +548,19 @@ export default class WorkspaceFileSystem {
     });
   }
 
+  /** Delete a folder and everything beneath it (the empty dir then disappears). */
+  async deleteFolder(projectId: string, folderPath: string) {
+    const files = await this.getFiles(projectId);
+    const prefix = `${folderPath.replace(/\/+$/, "")}/`;
+    const toDelete = Object.keys(files)
+      .filter((uri) => this.getRelativePath(projectId, uri).startsWith(prefix))
+      .map((uri) => ({ uri }));
+    if (toDelete.length === 0) {
+      return [];
+    }
+    return this.deleteFiles({ files: toDelete });
+  }
+
   async writeTextDocument(params: {
     textDocument: { uri: string; version: number; text: string };
   }) {
