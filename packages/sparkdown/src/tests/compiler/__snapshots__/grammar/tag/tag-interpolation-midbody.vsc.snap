@@ -1,0 +1,17 @@
+text.source.sparkdown [0..19]
+ ├─ comment.line.sd [0..18]
+ │   └─ entity.tag.sd [0..18]
+ │       └─ comment.line.sd [0..18]
+ │           └─ entity.tag.sd [0..18]
+ │               ├─ punctuation.definition.comment.sd [0..1]
+ │               │   └─ comment.line.sd [0..1]
+ │               │       └─ entity.tag.begin.sd [0..1]: "#"
+ │               └─ punctuation.definition.comment.content.sd [1..18]
+ │                   ├─ punctuation.definition.comment.content.sd [1..8]: " a tag "
+ │                   ├─ meta.template.expression.luau [8..13]
+ │                   │   ├─ punctuation.definition.template-expression.begin.sd [8..9]: "{"
+ │                   │   ├─ meta.embedded.line.luau [9..12]
+ │                   │   │   └─ variable.other.readwrite.luau [9..12]: "var"
+ │                   │   └─ punctuation.definition.template-expression.end.sd [12..13]: "}"
+ │                   └─ punctuation.definition.comment.content.sd [13..18]: " more"
+ └─ Newline [18..19]: "\n"

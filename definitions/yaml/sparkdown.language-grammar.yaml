@@ -354,10 +354,27 @@ repository:
         patterns:
           - { include: "#TagContent" }
 
+  # A tag body. `{...}` interpolations become their own
+  # `LuauInterpolatedStringExpression` nodes (the same display-text
+  # interpolation rule) so the lowerer reads them as structure instead of
+  # re-scanning the raw text for braces (GRAMMAR.md §5). The interleaved
+  # literal runs are `TagText`. No `^` anchors and the text run always
+  # consumes from the body's first character, so vscode-textmate and the
+  # tree agree per character (GRAMMAR.md §17). Bounded by end-of-line or the
+  # next `#` tag start, exactly like the old flat match.
   TagContent:
     tag: definition(docComment)
     name: punctuation.definition.comment.content.sd
-    match: (.+?)(?=$|{{TAG_START}})
+    begin: (?=.)
+    patterns:
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#TagText" }
+    end: (?=$|{{TAG_START}})
+
+  TagText:
+    tag: definition(docComment)
+    name: punctuation.definition.comment.content.sd
+    match: ([^\n{]+?)(?=$|[{]|{{TAG_START}})
 
   ########## Include ##########
 

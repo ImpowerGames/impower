@@ -4,11 +4,9 @@ import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Cond
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
 import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
-import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -19,6 +17,7 @@ import {
 } from "../expression/lowerExpression";
 import { buildDivert } from "../utils/buildDivert";
 import { stampDebugMetadata } from "../utils/debugMetadata";
+import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
@@ -581,49 +580,13 @@ function appendDisplayTags(
       // wrapper, so `getDescendent` is required to reach it.
       const tagContent = getDescendent("TagContent", child);
       if (tagContent) {
-        appendInterpolatedTagText(
-          ctx.read(tagContent.from, tagContent.to),
-          out,
-        );
+        for (const obj of lowerTagContent(tagContent, ctx)) {
+          out.push(obj);
+        }
       }
       out.push(new Tag(false));
     }
     child = child.nextSibling;
-  }
-}
-
-// Splits a raw tag-body string on `{...}` interpolations. Single-
-// identifier references (`{name}`) emit a `VariableReference`;
-// complex expressions emit as literal text so the author sees an
-// un-resolved form rather than silent failure. Plain text spans
-// between brace pairs emit as `Text` nodes.
-function appendInterpolatedTagText(raw: string, out: ParsedObject[]): void {
-  const trimmed = raw.trim();
-  if (trimmed.length === 0) return;
-  let i = 0;
-  while (i < trimmed.length) {
-    const open = trimmed.indexOf("{", i);
-    if (open === -1) {
-      out.push(new Text(trimmed.slice(i)));
-      break;
-    }
-    if (open > i) {
-      out.push(new Text(trimmed.slice(i, open)));
-    }
-    const close = trimmed.indexOf("}", open);
-    if (close === -1) {
-      out.push(new Text(trimmed.slice(open)));
-      break;
-    }
-    const exprText = trimmed.slice(open + 1, close).trim();
-    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(exprText)) {
-      const ref = new VariableReference([new Identifier(exprText)]);
-      ref.outputWhenComplete = true;
-      out.push(ref);
-    } else {
-      out.push(new Text(trimmed.slice(open, close + 1)));
-    }
-    i = close + 1;
   }
 }
 

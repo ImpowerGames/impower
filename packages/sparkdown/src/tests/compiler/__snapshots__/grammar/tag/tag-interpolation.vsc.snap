@@ -1,0 +1,21 @@
+text.source.sparkdown [0..25]
+ ├─ comment.line.sd [0..24]
+ │   └─ entity.tag.sd [0..24]
+ │       └─ comment.line.sd [0..24]
+ │           └─ entity.tag.sd [0..24]
+ │               ├─ punctuation.definition.comment.sd [0..1]
+ │               │   └─ comment.line.sd [0..1]
+ │               │       └─ entity.tag.begin.sd [0..1]: "#"
+ │               └─ punctuation.definition.comment.content.sd [1..24]
+ │                   ├─ punctuation.definition.comment.content.sd [1..5]: " pic"
+ │                   ├─ meta.template.expression.luau [5..20]
+ │                   │   ├─ punctuation.definition.template-expression.begin.sd [5..6]: "{"
+ │                   │   ├─ meta.embedded.line.luau [6..12]
+ │                   │   │   └─ variable.other.readwrite.luau [6..12]: "amount"
+ │                   │   ├─ punctuation.definition.template-expression.end.sd [12..13]: "}"
+ │                   │   ├─ punctuation.definition.template-expression.begin.sd [13..14]: "{"
+ │                   │   ├─ meta.embedded.line.luau [14..19]
+ │                   │   │   └─ variable.other.readwrite.luau [14..19]: "color"
+ │                   │   └─ punctuation.definition.template-expression.end.sd [19..20]: "}"
+ │                   └─ punctuation.definition.comment.content.sd [20..24]: ".jpg"
+ └─ Newline [24..25]: "\n"

@@ -90,6 +90,19 @@ const TARGETED: Record<string, string> = {
     "style list with\n  items:\n    - first\n    - second\nend\n",
   "struct-comment-line":
     "style panel with\n  position = absolute\n  -- background_color = rgba(0,0,0,0.8)\n  font_size = 3.4cqh\nend\n",
+
+  // --- tag body `{...}` interpolations (now their own
+  // `LuauInterpolatedStringExpression` nodes inside `TagContent`). Adjacent
+  // interpolations + literal runs (`# pic{a}{b}.jpg`), an interpolation
+  // mid-body, and a multi-tag line all exercise the no-`^` `TagText` /
+  // interpolation interleaving in `TagContent`. Line-start `#` is used so
+  // these don't trip a PRE-EXISTING `Tag` capture-1 leading-whitespace
+  // divergence (the space before a mid-line `#` already diverges on the
+  // unchanged grammar — out of scope for this fix).
+  "tag-interpolation": "# pic{amount}{color}.jpg\n",
+  "tag-interpolation-midbody": "# a tag {var} more\n",
+  "tag-plain-no-interp": "# plain tag no interp\n",
+  "tag-multi-with-interp": "# a # b {x}\n",
 };
 
 interface Fixture {
