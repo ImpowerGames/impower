@@ -17,6 +17,7 @@ import {
 import globToRegex from "../../utils/globToRegex";
 import workspace from "../../workspace/WorkspaceStore";
 import FileItem from "./FileItem";
+import { useTreeDrag } from "./useTreeDrag";
 
 // Pure helper that doesn't need Workspace (Workspace.fs.getFilename used
 // to be the source of truth, but it's literally `uri.split('/').pop()`).
@@ -85,8 +86,6 @@ export default function FileList({
   // thumbnails in the rows. Kept beside `uris` so a reload refreshes both.
   const [srcByUri, setSrcByUri] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const [dropTarget, setDropTarget] = useState<string | null>(null);
-  const draggedPathRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // Report scroll-off-top so the parent can collapse the FAB.
@@ -296,10 +295,7 @@ export default function FileList({
     await reload();
   };
 
-  const handleDropInto = async (folderPath: string) => {
-    const src = draggedPathRef.current;
-    draggedPathRef.current = null;
-    setDropTarget(null);
+  const handleDropInto = async (folderPath: string, src: string) => {
     if (!src || !projectId) return;
     // Don't drop a folder onto itself or its own descendant.
     if (src === folderPath || folderPath.startsWith(`${src}/`)) return;
@@ -318,13 +314,9 @@ export default function FileList({
     }
   };
 
-  // Dropping on the list BACKGROUND (not on a folder row) moves the dragged
-  // item to the project ROOT — the way to pull a file/folder back OUT of a
-  // folder. Folder rows stopPropagation on drop, so they don't reach here.
-  const handleDropToRoot = async () => {
-    const src = draggedPathRef.current;
-    draggedPathRef.current = null;
-    setDropTarget(null);
+  // Dropping on the list BACKGROUND (or a file row) moves the dragged item to
+  // the project ROOT — the way to pull a file/folder back OUT of a folder.
+  const handleDropToRoot = async (src: string) => {
     if (!src || !projectId || !src.includes("/")) return; // already at root
     const destPath = src.split("/").pop() ?? src;
     const srcRow = rows.find((r) => r.path === src);
@@ -338,6 +330,12 @@ export default function FileList({
       await Workspace.window.recordAssetChange();
     }
   };
+
+  const drag = useTreeDrag({
+    scrollRef,
+    onDropInto: (folderPath, src) => void handleDropInto(folderPath, src),
+    onDropToRoot: (src) => void handleDropToRoot(src),
+  });
 
   return (
     <div class="relative flex h-full w-full flex-col">
@@ -354,12 +352,9 @@ export default function FileList({
       </div>
       <div
         ref={scrollRef}
-        class="relative flex-1 overflow-auto [scrollbar-gutter:stable] pt-2 pb-24"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          void handleDropToRoot();
-        }}
+        class={`relative flex-1 overflow-auto [scrollbar-gutter:stable] pt-2 pb-24 ${
+          drag.draggingPath ? "select-none [touch-action:none]" : ""
+        }`}
       >
         {isEmpty ? (
           <div class="flex h-full flex-col">{emptyState}</div>
@@ -374,46 +369,24 @@ export default function FileList({
               return (
                 <div
                   key={row.path}
+                  data-tree-row
+                  data-path={row.path}
+                  data-dir={row.isDirectory ? "1" : "0"}
                   class={`absolute left-0 top-0 w-full ${
-                    dropTarget === row.path
+                    drag.dropTarget === row.path
                       ? "rounded bg-foreground/10 ring-1 ring-inset ring-foreground/40"
                       : ""
-                  }`}
+                  } ${drag.draggingPath === row.path ? "opacity-50" : ""}`}
                   style={{
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
-                  draggable
-                  onDragStart={(e) => {
-                    draggedPathRef.current = row.path;
-                    e.dataTransfer?.setData("text/plain", row.path);
-                  }}
-                  onDragEnd={() => {
-                    draggedPathRef.current = null;
-                    setDropTarget(null);
-                  }}
-                  onDragOver={
-                    row.isDirectory
-                      ? (e) => {
-                          e.preventDefault();
-                          if (dropTarget !== row.path) setDropTarget(row.path);
-                        }
-                      : undefined
-                  }
-                  onDragLeave={
-                    row.isDirectory
-                      ? () =>
-                          setDropTarget((t) => (t === row.path ? null : t))
-                      : undefined
-                  }
-                  onDrop={
-                    row.isDirectory
-                      ? (e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          void handleDropInto(row.path);
-                        }
-                      : undefined
+                  onPointerDown={(e) =>
+                    drag.onRowPointerDown(e, {
+                      path: row.path,
+                      isDirectory: row.isDirectory,
+                      label: row.path.split("/").pop() ?? row.path,
+                    })
                   }
                 >
                   <FileItem
@@ -437,6 +410,17 @@ export default function FileList({
       {action && (
         <div class="pointer-events-none absolute inset-x-0 bottom-0 [&>*]:pointer-events-auto">
           {action}
+        </div>
+      )}
+      {/* Drag proxy — our own floating label that follows the pointer (replaces
+          the browser's native drag ghost). Offset down-right of the pointer so
+          a finger/cursor doesn't cover it. */}
+      {drag.proxy && (
+        <div
+          class="pointer-events-none fixed z-50 max-w-[16rem] truncate rounded-md bg-popup px-3 py-1.5 text-sm text-foreground shadow-lg ring-1 ring-foreground/15"
+          style={{ left: `${drag.proxy.x + 14}px`, top: `${drag.proxy.y + 12}px` }}
+        >
+          {drag.proxy.label}
         </div>
       )}
     </div>
