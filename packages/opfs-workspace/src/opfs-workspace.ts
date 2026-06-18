@@ -27,11 +27,12 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
-import { Zippable, unzipSync, zipSync } from "fflate";
+import { unzipSync, zipSync } from "fflate";
 import {
   TextDocument,
   TextDocumentContentChangeEvent,
 } from "vscode-languageserver-textdocument";
+import { buildZippable, parseUnzipEntries } from "./utils/assetArchive";
 import debounce from "./utils/debounce";
 import { getAllFilesRecursive } from "./utils/getAllFilesRecursive";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
@@ -532,21 +533,19 @@ const readFile = async (fileUri: string) => {
   return buffer;
 };
 
-const zipFiles = async (files: { uri: string }[]) => {
+const zipFiles = async (files: { uri: string; path?: string }[]) => {
   const root = await navigator.storage.getDirectory();
   const refs = await Promise.all(
-    files.map(async ({ uri }) => {
+    files.map(async ({ uri, path }) => {
       const fileHandle = await getFileHandleFromUri(root, uri, false);
       const fileRef = await fileHandle.getFile();
       const arrayBuffer = await fileRef.arrayBuffer();
-      return { uri, name: fileRef.name, arrayBuffer };
+      // Key by the caller-provided project-relative path so folders survive;
+      // fall back to the bare filename for path-less (legacy) callers.
+      return { path: path || fileRef.name, arrayBuffer };
     }),
   );
-  const zippable: Zippable = {};
-  refs.forEach((ref) => {
-    zippable[ref.name] = new Uint8Array(ref.arrayBuffer);
-  });
-  const zipped = zipSync(zippable, {
+  const zipped = zipSync(buildZippable(refs), {
     level: 0,
   });
   console.log(
@@ -559,15 +558,10 @@ const zipFiles = async (files: { uri: string }[]) => {
 
 const unzipFiles = async (data: ArrayBuffer) => {
   const unzipped = unzipSync(new Uint8Array(data));
-  const files = Object.entries(unzipped)
-    // Drop directory entries (`somedir/`) — `getFileName` returns "" for
-    // them, and an empty filename downstream makes `getFileHandle("")`
-    // throw "Name is not allowed" when the entry is written.
-    .filter(([filename]) => Boolean(getFileName(filename)))
-    .map(([filename, data]) => ({
-      filename: getFileName(filename),
-      data: data.buffer as ArrayBuffer,
-    }));
+  // Keep the full archive path as `filename` so nested folders survive (callers
+  // rebuild the uri via getFileUri(projectId, filename)); pure-directory entries
+  // are dropped inside parseUnzipEntries.
+  const files = parseUnzipEntries(unzipped);
   console.log(MAGENTA, "UNZIPPED", `${files.length} files`);
   return files;
 };

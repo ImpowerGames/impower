@@ -321,7 +321,7 @@ export default class WorkspaceFileSystem {
     const files = Object.values(allFiles)
       .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
       .filter((file) => file.name)
-      .map(({ uri }) => ({ uri }));
+      .map(({ uri }) => ({ uri, path: this.getRelativePath(projectId, uri) }));
     return this.zipFiles({ files });
   }
 
@@ -369,7 +369,7 @@ export default class WorkspaceFileSystem {
     const files = Object.values(allFiles)
       .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
       .filter((file) => file.text == null && file.name)
-      .map(({ uri }) => ({ uri }));
+      .map(({ uri }) => ({ uri, path: this.getRelativePath(projectId, uri) }));
     return this.zipFiles({ files });
   }
 
@@ -454,7 +454,7 @@ export default class WorkspaceFileSystem {
     return uri.startsWith(prefix) ? uri.slice(prefix.length) : this.getFilename(uri);
   }
 
-  async zipFiles(params: { files: { uri: string }[] }) {
+  async zipFiles(params: { files: { uri: string; path?: string }[] }) {
     const { files } = params;
     const result = await this.sendRequest(ZipFilesMessage.type, { files });
     return result;
