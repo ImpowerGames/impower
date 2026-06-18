@@ -690,6 +690,23 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -1655,6 +1672,23 @@ exports[`dom render > image show renders background span + img 1`] = `
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -2581,6 +2615,23 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
+}
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
 }
 :host #game .textbox {
   position: absolute;
@@ -3631,6 +3682,23 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -4539,6 +4607,23 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -5428,6 +5513,23 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
+}
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
 }
 :host #game .textbox {
   position: absolute;
@@ -6369,6 +6471,23 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -7275,6 +7394,23 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
+}
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
 }
 :host #game .textbox {
   position: absolute;
@@ -8183,6 +8319,23 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -9090,6 +9243,23 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
+}
 :host #game .textbox {
   position: absolute;
   bottom: 0px;
@@ -9996,6 +10166,23 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
+}
+:host #game .link {
+  color: rgb(96 165 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
+:host #game .dropdown {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid rgb(95 95 95);
+  background-color: rgb(37 37 37);
+  color: white;
+  cursor: pointer;
+}
+:host #game .option {
+  background-color: rgb(37 37 37);
+  color: white;
 }
 :host #game .textbox {
   position: absolute;

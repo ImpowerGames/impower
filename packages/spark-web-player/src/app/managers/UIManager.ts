@@ -194,17 +194,25 @@ export default class UIManager extends Manager {
         if (params.attributes != undefined) {
           if (params.attributes) {
             Object.entries(params.attributes).forEach(([k, v]) => {
-              // Input value/checked are live PROPERTIES (the attribute only sets
-              // the initial default) — set them on the element so a one-way
-              // reactive update reflects after the user has interacted. Don't
-              // clobber `value` while the field is focused (preserve the caret).
+              // Form-control value/checked are live PROPERTIES (the attribute
+              // only sets the initial default) — set them on the element so a
+              // one-way reactive update reflects after the user has interacted.
+              // `<select>.value` selects the matching option (a `value`
+              // attribute would not). Don't clobber `value` while the control is
+              // focused (preserve the caret / open dropdown).
               if (
-                element instanceof HTMLInputElement &&
-                (k === "value" || k === "checked")
+                k === "checked" &&
+                element instanceof HTMLInputElement
               ) {
-                if (k === "checked") {
-                  element.checked = v != null;
-                } else if (document.activeElement !== element) {
+                element.checked = v != null;
+                return;
+              }
+              if (
+                k === "value" &&
+                (element instanceof HTMLInputElement ||
+                  element instanceof HTMLSelectElement)
+              ) {
+                if (document.activeElement !== element) {
                   element.value = v ?? "";
                 }
                 return;

@@ -127,6 +127,19 @@ interface ReactiveAttr {
   deps: ReactiveDeps;
 }
 
+/** A slider's engine-computed `--_fill-percentage` (spec §10.1): the filled
+ *  fraction derived from its value/min/max props, re-applied when any of those
+ *  change (so a custom track gradient can follow the value without an inline
+ *  `oninput`). Registered only when at least one of value/min/max is bound. */
+interface ReactiveSliderFill {
+  element: Element;
+  value: PropValue;
+  min: PropValue;
+  max: PropValue;
+  last: string;
+  deps: ReactiveDeps;
+}
+
 /** An if/match conditional: a persistent wrapper element + the currently-active
  *  branch index (`-1` = else/no-match, `-2` = not yet mounted) + the child scope
  *  holding that branch's registrations (dropped when the branch switches). */
@@ -172,6 +185,7 @@ interface ReactiveScope {
   texts: ReactiveText[];
   regions: ReactiveRegion[];
   attrs: ReactiveAttr[];
+  sliderFills: ReactiveSliderFill[];
 }
 
 /** Builtin form-control tags → the `<input>` type they render as. Their props
@@ -916,7 +930,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** A fresh reactive scope with the given loop env. */
   protected makeScope(env: ReactiveEnv): ReactiveScope {
-    return { env, texts: [], regions: [], attrs: [] };
+    return { env, texts: [], regions: [], attrs: [], sliderFills: [] };
   }
 
   protected mountNode(
@@ -947,6 +961,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const widget = INPUT_WIDGETS[node.tag];
     if (widget) {
       return this.mountInputWidget(parent, node, scope, name, widget);
+    }
+    // dropdown/option render as a real <select>/<option> (not void inputs):
+    // the dropdown carries option children and a selected `value`.
+    if (node.tag === "dropdown") {
+      return this.mountDropdown(parent, node, scope, name);
+    }
+    if (node.tag === "option") {
+      return this.mountOption(parent, node, scope, name);
     }
     const el = this.createElement(parent, { type: "div", name });
     // Builtin leaf semantics: image/mask render a background span; everything
@@ -995,6 +1017,178 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
     }
     const el = this.createElement(parent, { type: "input", name, attributes });
+    for (const r of reactive) {
+      scope.attrs.push({ element: el, ...r });
+    }
+    // A range control also exposes `--_fill-percentage` (value/min/max → filled
+    // fraction), computed engine-side so a custom track can follow the value.
+    if (widget.inputType === "range") {
+      this.mountSliderFill(el, node, scope);
+    }
+    for (const ev of node.events) {
+      this.mountEvent(el, ev, scope);
+    }
+    return el;
+  }
+
+  /** Compute a slider's `--_fill-percentage` from its value/min/max and set it
+   *  as a style; register a reactive entry when any of those is bound so the
+   *  fill follows the value (spec §10.1 — engine-computed, not inline oninput). */
+  protected mountSliderFill(
+    el: Element,
+    node: ElementNode,
+    scope: ReactiveScope,
+  ): void {
+    const value = node.props["value"];
+    const min = node.props["min"];
+    const max = node.props["max"];
+    if (!value) return; // no value surface → nothing to fill
+    const minP: PropValue = min ?? { kind: "literal", value: 0 };
+    const maxP: PropValue = max ?? { kind: "literal", value: 100 };
+    const vs = this._game.story.variablesState;
+    vs.beginReactiveRead();
+    const pct = this.computeFillPercentage(value, minP, maxP, scope.env);
+    const deps = vs.endReactiveRead();
+    this.updateElement(el, { style: { "--_fill-percentage": pct } });
+    if (
+      value.kind === "binding" ||
+      minP.kind === "binding" ||
+      maxP.kind === "binding"
+    ) {
+      scope.sliderFills.push({
+        element: el,
+        value,
+        min: minP,
+        max: maxP,
+        last: pct,
+        deps,
+      });
+    }
+  }
+
+  /** `((value - min) / (max - min)) * 100`, clamped to 0–100, as a `%` string.
+   *  A zero range (or non-numeric input) yields `0%`. */
+  protected computeFillPercentage(
+    value: PropValue,
+    min: PropValue,
+    max: PropValue,
+    env: ReactiveEnv,
+  ): string {
+    const num = (p: PropValue): number => {
+      const n = Number(this.resolveProp(p, env));
+      return Number.isNaN(n) ? 0 : n;
+    };
+    const v = num(value);
+    const lo = num(min);
+    const hi = num(max);
+    const pct = hi === lo ? 0 : ((v - lo) / (hi - lo)) * 100;
+    return `${Math.max(0, Math.min(100, pct))}%`;
+  }
+
+  /** Mount a `dropdown` as a real `<select>`: non-value props become initial
+   *  attributes (reactive if bound), the `<option>` children are mounted, and
+   *  THEN the selected `value` is applied (a `<select>`'s value only selects an
+   *  option once its children exist) — one-way bound + written back via
+   *  `@change`. */
+  protected mountDropdown(
+    parent: Element,
+    node: ElementNode,
+    scope: ReactiveScope,
+    name: string,
+  ): Element {
+    const vs = this._game.story.variablesState;
+    const attributes: Record<string, string | null> = {};
+    const reactive: Omit<ReactiveAttr, "element">[] = [];
+    let selected: { binding?: Binding; last: string | null; deps: ReactiveDeps } | null = null;
+    for (const [prop, propValue] of Object.entries(node.props)) {
+      vs.beginReactiveRead();
+      const resolved = this.resolveProp(propValue, scope.env);
+      const deps = vs.endReactiveRead();
+      const attrVal = this.propToAttr(resolved, false);
+      if (prop === "value") {
+        // Defer until options are mounted (a <select>.value can't select an
+        // option that doesn't exist yet).
+        selected = {
+          ...(propValue.kind === "binding" ? { binding: propValue.binding } : {}),
+          last: attrVal,
+          deps,
+        };
+        continue;
+      }
+      attributes[prop] = attrVal;
+      if (propValue.kind === "binding") {
+        reactive.push({ prop, binding: propValue.binding, boolean: false, last: attrVal, deps });
+      }
+    }
+    const el = this.createElement(parent, { type: "select", name, attributes });
+    for (const child of node.children) {
+      this.mountNode(el, child, scope);
+    }
+    if (selected) {
+      this.updateElement(el, { attributes: { value: selected.last } });
+      if (selected.binding) {
+        scope.attrs.push({
+          element: el,
+          prop: "value",
+          binding: selected.binding,
+          boolean: false,
+          last: selected.last,
+          deps: selected.deps,
+        });
+      }
+    }
+    for (const r of reactive) {
+      scope.attrs.push({ element: el, ...r });
+    }
+    for (const ev of node.events) {
+      this.mountEvent(el, ev, scope);
+    }
+    return el;
+  }
+
+  /** Mount an `<option>` (a `dropdown` child). Its `value` attribute defaults to
+   *  the visible label text (so `dropdown #value={x}` matches `option "Easy"` by
+   *  text) unless an explicit `#value` is given; the label renders as content. */
+  protected mountOption(
+    parent: Element,
+    node: ElementNode,
+    scope: ReactiveScope,
+    name: string,
+  ): Element {
+    const vs = this._game.story.variablesState;
+    const attributes: Record<string, string | null> = {};
+    const reactive: Omit<ReactiveAttr, "element">[] = [];
+    let hasValue = false;
+    for (const [prop, propValue] of Object.entries(node.props)) {
+      const boolean = prop === "selected" || prop === "disabled";
+      vs.beginReactiveRead();
+      const resolved = this.resolveProp(propValue, scope.env);
+      const deps = vs.endReactiveRead();
+      const attrVal = this.propToAttr(resolved, boolean);
+      attributes[prop] = attrVal;
+      if (prop === "value") hasValue = true;
+      if (propValue.kind === "binding") {
+        reactive.push({ prop, binding: propValue.binding, boolean, last: attrVal, deps });
+      }
+    }
+    if (!hasValue && node.content) {
+      // Default the value to the visible label. When the label is a single
+      // reactive `{expr}`, keep the value in lock-step with it (reuse the attr
+      // reactive path) so the selected value never desyncs from the shown text.
+      const only = node.content.length === 1 ? node.content[0] : undefined;
+      if (only && only.kind === "binding") {
+        vs.beginReactiveRead();
+        const resolved = this.resolveProp({ kind: "binding", binding: only.binding }, scope.env);
+        const deps = vs.endReactiveRead();
+        const attrVal = this.propToAttr(resolved, false);
+        attributes["value"] = attrVal;
+        reactive.push({ prop: "value", binding: only.binding, boolean: false, last: attrVal, deps });
+      } else {
+        attributes["value"] = this.resolveContent(node.content, scope.env);
+      }
+    }
+    const el = this.createElement(parent, { type: "option", name, attributes });
+    this.mountTextContent(el, node.content, scope);
     for (const r of reactive) {
       scope.attrs.push({ element: el, ...r });
     }
@@ -1453,6 +1647,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           entry.last = next;
           this.updateElement(entry.element, {
             attributes: { [entry.prop]: next },
+          });
+        }
+      }
+    }
+    for (const entry of scope.sliderFills) {
+      if (envScope || this.depsChanged(entry.deps, changes)) {
+        const vs = this._game.story.variablesState;
+        vs.beginReactiveRead();
+        const pct = this.computeFillPercentage(
+          entry.value,
+          entry.min,
+          entry.max,
+          scope.env,
+        );
+        entry.deps = vs.endReactiveRead();
+        if (pct !== entry.last) {
+          entry.last = pct;
+          this.updateElement(entry.element, {
+            style: { "--_fill-percentage": pct },
           });
         }
       }

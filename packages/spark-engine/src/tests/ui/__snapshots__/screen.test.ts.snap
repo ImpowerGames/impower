@@ -1441,6 +1441,16 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             "margin": "0 auto",
             "width": "68%",
           },
+          "dropdown": {
+            "$name": "dropdown",
+            "$type": "style",
+            "background_color": "rgb(37 37 37)",
+            "border": "1px solid rgb(95 95 95)",
+            "border_radius": "6px",
+            "color": "white",
+            "cursor": "pointer",
+            "padding": "8px 12px",
+          },
           "field": {
             "$name": "field",
             "$type": "style",
@@ -1486,6 +1496,13 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             "pointer_events": "auto",
             "position": "absolute",
             "will_change": "transform",
+          },
+          "link": {
+            "$name": "link",
+            "$type": "style",
+            "color": "rgb(96 165 250)",
+            "cursor": "pointer",
+            "text_decoration": "underline",
           },
           "loading_bar": {
             "$name": "loading_bar",
@@ -1542,6 +1559,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
             "height": "100%",
             "object_fit": "cover",
             "visibility": "hidden",
+          },
+          "option": {
+            "$name": "option",
+            "$type": "style",
+            "background_color": "rgb(37 37 37)",
+            "color": "white",
           },
           "overlay": {
             "$name": "overlay",

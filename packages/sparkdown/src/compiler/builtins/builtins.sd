@@ -1386,6 +1386,26 @@ style slider with
   accent_color = rgb(96 165 250)
 end
 
+style link with
+  color = rgb(96 165 250)
+  text_decoration = underline
+  cursor = pointer
+end
+
+style dropdown with
+  padding = 8px 12px
+  border_radius = 6px
+  border = 1px solid rgb(95 95 95)
+  background_color = rgb(37 37 37)
+  color = white
+  cursor = pointer
+end
+
+style option with
+  background_color = rgb(37 37 37)
+  color = white
+end
+
 style textbox with
   position = absolute
   bottom = 0

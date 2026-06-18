@@ -131,7 +131,11 @@ function installWAAPIStub(win: any) {
   }
 }
 
-export function createDOMHarness(source: string, startLine = 0): DOMHarness {
+export function createDOMHarness(
+  source: string,
+  startLine = 0,
+  opts?: { reactive?: boolean },
+): DOMHarness {
   const program = compile(source);
 
   // Fresh jsdom per harness for isolation. Bind its globals (document,
@@ -152,6 +156,12 @@ export function createDOMHarness(source: string, startLine = 0): DOMHarness {
   g.window = win;
   g.document = win.document;
   g.HTMLElement = win.HTMLElement;
+  // The renderer gates live value/checked on `instanceof HTMLInputElement` /
+  // `HTMLSelectElement`. Those constructors must come from THIS jsdom realm (the
+  // one that created the elements), or the instanceof is false and the
+  // value-property path (e.g. selecting a <select> option) silently no-ops.
+  g.HTMLInputElement = win.HTMLInputElement;
+  g.HTMLSelectElement = win.HTMLSelectElement;
   g.Element = win.Element;
   g.Node = win.Node;
   g.Animation = win.Animation;
@@ -181,6 +191,12 @@ export function createDOMHarness(source: string, startLine = 0): DOMHarness {
       game.connection.receive(message);
     },
   };
+  // Enable the reactive (AST-driven) render path before connect()'s eager
+  // onConnected runs (mirrors uiTestHarness) — required to render screen widgets.
+  if (opts?.reactive) {
+    (game.module.ui as any)._reactive = true;
+  }
+
   const ui = new UIManager(stubApp);
 
   // Wire the engine's output straight into the real consumer: every emitted
