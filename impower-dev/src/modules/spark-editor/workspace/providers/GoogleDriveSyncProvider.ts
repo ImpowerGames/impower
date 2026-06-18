@@ -12,9 +12,16 @@ type DocsView = google.picker.DocsView & {
   setQuery(query: string): google.picker.DocsView;
 };
 
-const BROWSER_GOOGLE_API_KEY = process?.env?.["BROWSER_GOOGLE_API_KEY"]!;
+// Browser env is injected at build time via Vite's `define` (see impower-dev/
+// vite.config.ts `browserEnvDefine`, which replaces `import.meta.env.BROWSER_*`).
+// `process` is NOT defined in regular browser page modules — the old per-module
+// `var process = {...}` banner was retired in favor of this — so reading
+// `process.env` here throws `ReferenceError: process is not defined` at import
+// time (optional chaining can't guard an *undeclared* identifier). Falls back to
+// undefined when the var isn't set (fine for local dev without Google sync).
+const BROWSER_GOOGLE_API_KEY = import.meta.env.BROWSER_GOOGLE_API_KEY!;
 const BROWSER_GOOGLE_OAUTH_CLIENT_ID =
-  process?.env?.["BROWSER_GOOGLE_OAUTH_CLIENT_ID"]!;
+  import.meta.env.BROWSER_GOOGLE_OAUTH_CLIENT_ID!;
 
 // App Id must match first part of OAuth Client Id
 // https://stackoverflow.com/a/17204637

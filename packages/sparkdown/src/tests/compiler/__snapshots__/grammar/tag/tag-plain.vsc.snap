@@ -1,0 +1,11 @@
+text.source.sparkdown [0..22]
+ ├─ comment.line.sd [0..21]
+ │   └─ entity.tag.sd [0..21]
+ │       └─ comment.line.sd [0..21]
+ │           └─ entity.tag.sd [0..21]
+ │               ├─ punctuation.definition.comment.sd [0..1]
+ │               │   └─ comment.line.sd [0..1]
+ │               │       └─ entity.tag.begin.sd [0..1]: "#"
+ │               └─ punctuation.definition.comment.content.sd [1..21]
+ │                   └─ punctuation.definition.comment.content.sd [1..21]: " plain tag no interp"
+ └─ Newline [21..22]: "\n"

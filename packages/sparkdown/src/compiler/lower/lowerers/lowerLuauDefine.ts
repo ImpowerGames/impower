@@ -495,6 +495,38 @@ function lowerDefineMethod(
 // Property parsing (shared by both flavors).
 // ----------------------------------------------------------------------------
 
+// Find the value node of a `LuauAssignmentOperation` (the RHS of a
+// property's `name = value`). The operation wraps a `LuauAssignmentOperator`
+// marker (`= `) followed by the value node(s); descend into the generated
+// `_content` wrapper if present and return the first child past the operator
+// and any leading whitespace.
+const ASSIGNMENT_RHS_SKIP: ReadonlySet<string> = new Set([
+  "LuauAssignmentOperator",
+  "ExtraWhitespace",
+  "Whitespace",
+  "OptionalWhitespace",
+  "RequiredWhitespace",
+  "Newline",
+  "LuauComment",
+]);
+
+function findAssignmentValueNode(
+  opNode: SyntaxNode | null,
+): SyntaxNode | null {
+  if (!opNode) return null;
+  let content = opNode.firstChild;
+  while (content) {
+    if (content.name === "LuauAssignmentOperation_content") break;
+    content = content.nextSibling;
+  }
+  let child = (content ?? opNode).firstChild;
+  while (child) {
+    if (!ASSIGNMENT_RHS_SKIP.has(child.name)) return child;
+    child = child.nextSibling;
+  }
+  return null;
+}
+
 function readPropertyDefinition(
   propNode: SyntaxNode,
   ctx: LowerContext,
@@ -511,10 +543,13 @@ function readPropertyDefinition(
   if (!expr) return null;
 
   // Raw value source (everything after the assignment operator), for the
-  // compile-time struct registry. Strip the leading `... =` token.
-  const rawValue = opNode
-    ? ctx.read(opNode.from, opNode.to).replace(/^[^=]*=\s*/, "")
-    : "";
+  // compile-time struct registry. The grammar already isolates the RHS as
+  // its own value node(s) inside `LuauAssignmentOperation` — the first
+  // significant child following the `LuauAssignmentOperator` marker. Read
+  // from that node's start to the operation's end (covers multi-node
+  // expressions) instead of re-deriving the RHS by string-scanning for `=`.
+  const valueNode = findAssignmentValueNode(opNode);
+  const rawValue = valueNode ? ctx.read(valueNode.from, opNode!.to) : "";
 
   // Modifiers live in the property's begin captures, OUTSIDE the
   // variable assignment.

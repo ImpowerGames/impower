@@ -7,7 +7,6 @@ import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expre
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { SourceMetadata } from "../../../inkjs/engine/Error";
 import {
   CompiledBlock,
@@ -17,6 +16,7 @@ import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { buildDivert } from "../utils/buildDivert";
+import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Lowers a single `*` (once-only) or `+` (sticky) choice. Captures the
@@ -401,54 +401,21 @@ function appendNodeContent(
   return appended;
 }
 
-// Tag bodies support `{var}` interpolations (`# tag {var}`). The grammar's
-// `TagContent` is a flat text-only match (adding patterns to it inside
-// captures.1 caused textmate-grammar-tree to collapse the captured range),
-// so we re-scan the raw text here, splitting on `{...}` and emitting each
-// brace pair as a `VariableReference` (single-identifier expressions only;
-// `{math.floor(x)}`-style nested calls would need a proper sub-parse, which
-// is left as a deferred extension).
+// Tag bodies support `{var}` interpolations (`# tag {var}`). The grammar
+// classifies the `TagContent` body into `TagText` literal runs +
+// `LuauInterpolatedStringExpression` nodes; the shared `lowerTagContent`
+// reads those (single-identifier `{var}` → `VariableReference`, other
+// `{expr}` → literal text) instead of re-scanning the raw text for braces
+// (GRAMMAR.md §5).
 function appendTagContent(
-  c3Node: SyntaxNode,
+  tagContent: SyntaxNode,
   ctx: LowerContext,
   list: ContentList,
 ): boolean {
-  const raw = ctx.read(c3Node.from, c3Node.to);
-  const trimmed = raw.trim();
-  if (trimmed.length === 0) return false;
   let appended = false;
-  let i = 0;
-  while (i < trimmed.length) {
-    const open = trimmed.indexOf("{", i);
-    if (open === -1) {
-      list.AddContent(new Text(trimmed.slice(i)));
-      appended = true;
-      break;
-    }
-    if (open > i) {
-      list.AddContent(new Text(trimmed.slice(i, open)));
-      appended = true;
-    }
-    const close = trimmed.indexOf("}", open);
-    if (close === -1) {
-      list.AddContent(new Text(trimmed.slice(open)));
-      appended = true;
-      break;
-    }
-    const exprText = trimmed.slice(open + 1, close).trim();
-    // Only simple identifier references for now. Complex expressions
-    // (`{a.b}`, `{math.floor(x)}`, `{a + b}`) emit as literal text so
-    // the user sees the un-resolved form rather than a silent failure.
-    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(exprText)) {
-      const ref = new VariableReference([new Identifier(exprText)]);
-      ref.outputWhenComplete = true;
-      list.AddContent(ref);
-      appended = true;
-    } else {
-      list.AddContent(new Text(trimmed.slice(open, close + 1)));
-      appended = true;
-    }
-    i = close + 1;
+  for (const obj of lowerTagContent(tagContent, ctx)) {
+    list.AddContent(obj);
+    appended = true;
   }
   return appended;
 }

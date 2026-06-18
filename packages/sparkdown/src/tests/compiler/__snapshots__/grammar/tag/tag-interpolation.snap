@@ -1,0 +1,50 @@
+sparkdown [0..25]
+ ├─ Tags [0..24]
+ │   ├─ Tags_begin 0
+ │   ├─ Tags_content [0..24]
+ │   │   └─ Tag [0..24]
+ │   │       ├─ Tag_c1 0
+ │   │       ├─ Tag_c2 [0..1]: "#"
+ │   │       └─ Tag_c3 [1..24]
+ │   │           └─ TagContent [1..24]
+ │   │               ├─ TagContent_begin 1
+ │   │               ├─ TagContent_content [1..24]
+ │   │               │   ├─ TagText [1..5]: " pic"
+ │   │               │   ├─ LuauInterpolatedStringExpression [5..13]
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [5..6]
+ │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [5..6]
+ │   │               │   │   │       └─ PunctuationBraceOpen [5..6]: "{"
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_content [6..12]
+ │   │               │   │   │   └─ LuauAccessPath [6..12]
+ │   │               │   │   │       ├─ LuauAccessPath_begin 6
+ │   │               │   │   │       ├─ LuauAccessPath_content [6..12]
+ │   │               │   │   │       │   └─ LuauAccessPart [6..12]
+ │   │               │   │   │       │       └─ LuauVariable [6..12]
+ │   │               │   │   │       │           └─ LuauVariable_c1 [6..12]
+ │   │               │   │   │       │               └─ LuauVariableName [6..12]: "amount"
+ │   │               │   │   │       └─ LuauAccessPath_end 12
+ │   │               │   │   │           └─ LuauAccessPath_end_c1 12
+ │   │               │   │   └─ LuauInterpolatedStringExpression_end [12..13]
+ │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [12..13]
+ │   │               │   │           └─ PunctuationBraceClose [12..13]: "}"
+ │   │               │   ├─ LuauInterpolatedStringExpression [13..20]
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [13..14]
+ │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [13..14]
+ │   │               │   │   │       └─ PunctuationBraceOpen [13..14]: "{"
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_content [14..19]
+ │   │               │   │   │   └─ LuauAccessPath [14..19]
+ │   │               │   │   │       ├─ LuauAccessPath_begin 14
+ │   │               │   │   │       ├─ LuauAccessPath_content [14..19]
+ │   │               │   │   │       │   └─ LuauAccessPart [14..19]
+ │   │               │   │   │       │       └─ LuauVariable [14..19]
+ │   │               │   │   │       │           └─ LuauVariable_c1 [14..19]
+ │   │               │   │   │       │               └─ LuauVariableName [14..19]: "color"
+ │   │               │   │   │       └─ LuauAccessPath_end 19
+ │   │               │   │   │           └─ LuauAccessPath_end_c1 19
+ │   │               │   │   └─ LuauInterpolatedStringExpression_end [19..20]
+ │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [19..20]
+ │   │               │   │           └─ PunctuationBraceClose [19..20]: "}"
+ │   │               │   └─ TagText [20..24]: ".jpg"
+ │   │               └─ TagContent_end 24
+ │   └─ Tags_end 24
+ └─ Newline [24..25]: "\n"

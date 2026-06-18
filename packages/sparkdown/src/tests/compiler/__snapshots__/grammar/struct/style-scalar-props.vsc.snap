@@ -1,0 +1,27 @@
+text.source.sparkdown [0..64]
+ ├─ meta.style.luau [0..16]
+ │   ├─ keyword.control.style.luau [0..5]: "style"
+ │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ │   ├─ entity.name.type.define.luau [6..11]: "panel"
+ │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
+ │   └─ keyword.control.as.luau [12..16]: "with"
+ ├─ Newline [16..17]: "\n"
+ ├─ meta.style.luau [17..38]
+ │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
+ │   ├─ entity.other.attribute-name.struct.luau [19..27]: "position"
+ │   ├─ punctuation.whitespace.optional.sd [27..28]: " "
+ │   ├─ keyword.operator.assignment.struct.luau [28..29]: "="
+ │   ├─ punctuation.whitespace.optional.sd [29..30]: " "
+ │   └─ string.unquoted.struct.luau [30..38]: "absolute"
+ ├─ Newline [38..39]: "\n"
+ ├─ meta.style.luau [39..59]
+ │   ├─ punctuation.whitespace.optional.sd [39..41]: "  "
+ │   ├─ entity.other.attribute-name.struct.luau [41..50]: "font_size"
+ │   ├─ punctuation.whitespace.optional.sd [50..51]: " "
+ │   ├─ keyword.operator.assignment.struct.luau [51..52]: "="
+ │   ├─ punctuation.whitespace.optional.sd [52..53]: " "
+ │   └─ string.unquoted.struct.luau [53..59]: "3.4cqh"
+ ├─ Newline [59..60]: "\n"
+ ├─ meta.style.luau [60..63]
+ │   └─ keyword.control.end.luau [60..63]: "end"
+ └─ Newline [63..64]: "\n"

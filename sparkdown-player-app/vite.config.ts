@@ -17,7 +17,26 @@ function viteInlineWorkerPlugin(extraConfig?: esbuild.BuildOptions): Plugin {
           format: "esm",
           target: "esnext",
           ...(extraConfig || {}),
+          // Emit a metafile so we can watch the worker's transitively-bundled
+          // deps. esbuild bundles them opaquely, so without this Vite only
+          // tracks the .worker.ts entry and serves a stale bundle when
+          // engine/compiler code changes — forcing a full dev-server restart.
+          metafile: true,
         });
+
+        // Register every bundled SOURCE input as a watch dependency. Editing
+        // any of them then invalidates + re-transforms this worker module, and
+        // since nothing accepts the HMR update Vite falls back to a full reload
+        // that re-instantiates the Worker with the fresh bundle. node_modules
+        // inputs are skipped (they don't change in dev, and workspace packages
+        // resolve to real packages/* paths via esbuild's symlink resolution, so
+        // they're kept and stay watched).
+        for (const input of Object.keys(result.metafile?.inputs ?? {})) {
+          if (input.includes("node_modules")) {
+            continue;
+          }
+          this.addWatchFile(path.resolve(input));
+        }
 
         let code = result.outputFiles?.[0]?.text || "";
         const exportIndex = code.lastIndexOf("export");

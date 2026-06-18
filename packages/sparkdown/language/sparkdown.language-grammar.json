@@ -450,7 +450,21 @@
     "TagContent": {
       "tag": "definition(docComment)",
       "name": "punctuation.definition.comment.content.sd",
-      "match": "(.+?)(?=$|(?:[#]+(?=$|(?:[^\\S\\n\\r]))))"
+      "begin": "(?=.)",
+      "patterns": [
+        {
+          "include": "#LuauInterpolatedStringExpression"
+        },
+        {
+          "include": "#TagText"
+        }
+      ],
+      "end": "(?=$|(?:[#]+(?=$|(?:[^\\S\\n\\r]))))"
+    },
+    "TagText": {
+      "tag": "definition(docComment)",
+      "name": "punctuation.definition.comment.content.sd",
+      "match": "([^\\n{]+?)(?=$|[{]|(?:[#]+(?=$|(?:[^\\S\\n\\r]))))"
     },
     "Include": {
       "tag": "meta",
@@ -5005,7 +5019,184 @@
     "LuauStructBodyContent": {
       "tag": "content",
       "name": "meta.struct.body.luau",
+      "patterns": [
+        {
+          "include": "#LuauStructArrayItem"
+        },
+        {
+          "include": "#LuauStructObjectHeader"
+        },
+        {
+          "include": "#LuauStructScalarProperty"
+        },
+        {
+          "include": "#LuauStructBareMarker"
+        }
+      ]
+    },
+    "LuauStructArrayItem": {
+      "match": "(-)(?![-])((?:[^\\S\\n\\r])*)([^\\n]*?)((?:[^\\S\\n\\r])*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauStructArrayItemMark"
+            }
+          ]
+        },
+        "2": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauStructItemValue"
+            }
+          ]
+        },
+        "4": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructObjectHeader": {
+      "match": "(.*\\S)((?:[^\\S\\n\\r])*)(:)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauStructObjectKey"
+            }
+          ]
+        },
+        "2": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauStructObjectColon"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructScalarProperty": {
+      "match": "(\\S[^=]*?)((?:[^\\S\\n\\r])*)(=)((?:[^\\S\\n\\r])*)([^\\n]*?)((?:[^\\S\\n\\r])*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauStructPropertyName"
+            }
+          ]
+        },
+        "2": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauStructAssignmentMark"
+            }
+          ]
+        },
+        "4": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#LuauStructPropertyValue"
+            }
+          ]
+        },
+        "6": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructBareMarker": {
+      "match": "([^\\n]+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauStructMarkerName"
+            }
+          ]
+        }
+      }
+    },
+    "LuauStructArrayItemMark": {
+      "tag": "punctuation",
+      "name": "punctuation.definition.struct.array.luau",
+      "match": "(-)"
+    },
+    "LuauStructItemValue": {
+      "tag": "content",
+      "name": "meta.struct.array.item.luau",
       "match": "([^\\n]*)"
+    },
+    "LuauStructObjectKey": {
+      "tag": "propertyName",
+      "name": "entity.name.tag.struct.luau",
+      "match": "([^\\n]+)"
+    },
+    "LuauStructObjectColon": {
+      "tag": "separator",
+      "name": "punctuation.separator.struct.colon.luau",
+      "match": "(:)"
+    },
+    "LuauStructPropertyName": {
+      "tag": "attributeName",
+      "name": "entity.other.attribute-name.struct.luau",
+      "match": "([^\\n]+)"
+    },
+    "LuauStructAssignmentMark": {
+      "tag": "separator",
+      "name": "keyword.operator.assignment.struct.luau",
+      "match": "(=)"
+    },
+    "LuauStructPropertyValue": {
+      "tag": "string",
+      "name": "string.unquoted.struct.luau",
+      "match": "([^\\n]*)"
+    },
+    "LuauStructMarkerName": {
+      "tag": "content",
+      "name": "meta.struct.body.luau",
+      "match": "([^\\n]+)"
     },
     "LuauStyleNameAndInheritance": {
       "begin": "(?<=style\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",

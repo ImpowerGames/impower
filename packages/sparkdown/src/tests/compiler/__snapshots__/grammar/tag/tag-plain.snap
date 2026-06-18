@@ -1,0 +1,15 @@
+sparkdown [0..22]
+ ├─ Tags [0..21]
+ │   ├─ Tags_begin 0
+ │   ├─ Tags_content [0..21]
+ │   │   └─ Tag [0..21]
+ │   │       ├─ Tag_c1 0
+ │   │       ├─ Tag_c2 [0..1]: "#"
+ │   │       └─ Tag_c3 [1..21]
+ │   │           └─ TagContent [1..21]
+ │   │               ├─ TagContent_begin 1
+ │   │               ├─ TagContent_content [1..21]
+ │   │               │   └─ TagText [1..21]: " plain tag no interp"
+ │   │               └─ TagContent_end 21
+ │   └─ Tags_end 21
+ └─ Newline [21..22]: "\n"
