@@ -220,7 +220,7 @@ function tryBuildSimpleDisplayCall(
         return null;
       }
     }
-    calls.push(buildDisplayCall(target, character, body));
+    calls.push(buildDisplayCall(target, character, body, range, ctx));
   }
   return calls.length > 0 ? calls : null;
 }
@@ -235,6 +235,8 @@ function buildDisplayCall(
   target: string,
   character: string | undefined,
   body: ParsedObject[],
+  range: { from: number; to: number },
+  ctx: LowerContext,
 ): FunctionCall {
   const entries = [
     new ObjectExpressionEntry(
@@ -257,6 +259,11 @@ function buildDisplayCall(
     new ObjectExpression(entries),
   ]);
   call.shouldPopReturnedValue = true;
+  // Stamp the call with its source range so each display beat surfaces a
+  // pathLocation (the screenplay preview's click-to-line routing depends on
+  // it). Without this the synthesized node has no metadata of its own and
+  // collapses to the enclosing scene's line.
+  stampDebugMetadata([call], range.from, range.to, ctx);
   return call;
 }
 
