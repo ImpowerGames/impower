@@ -84,7 +84,7 @@ function buildDisplayContent(
   // handled inside `processDisplayBody` (`detectTrailingBreak`) as an extra
   // newline, matching the legacy compiler.
   const prefix = computeRoutingPrefix(lineType, identifier);
-  const ranges = splitBodyRangeAtBreaks(bodyStart, bodyEnd, ctx);
+  const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx);
   const content: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
     const range = ranges[i]!;
@@ -167,29 +167,63 @@ function clampTrailingWhitespace(
 
 // Split a display body's source range into beat sub-ranges at each mid-line
 // `>` BREAK marker (` >` at end of a line that is FOLLOWED by a newline —
-// i.e. there is more content after it). The marker itself and the trailing
-// whitespace before it are dropped (per-segment trimming in
-// `processDisplayBody` would otherwise leave a stray space). A break with no
-// following newline (trailing `>` at end of body) is left in-range and
-// handled by `detectTrailingBreak`. When there are no mid-line breaks this
-// returns a single range identical to the input, so non-chained display
-// content is unaffected.
+// i.e. there is more content after it). The grammar names this marker as a
+// `Break` node (`{{WS}}+[>]{{WS}}*`), so we read those nodes within the body
+// instead of re-scanning the source for `[ \t]+>[ \t]*\n` (GRAMMAR.md §5).
+// The marker itself and the trailing whitespace before it are dropped (per-
+// segment trimming in `processDisplayBody` would otherwise leave a stray
+// space). A break with no following newline inside the body (a trailing `>`
+// at end of body) is NOT a split point — it's left in-range and handled by
+// `detectTrailingBreak`. When there are no mid-line breaks this returns a
+// single range identical to the input, so non-chained display content is
+// unaffected.
 function splitBodyRangeAtBreaks(
+  parent: SyntaxNode,
   bodyStart: number,
   bodyEnd: number,
   ctx: LowerContext,
 ): { from: number; to: number }[] {
-  const text = ctx.read(bodyStart, bodyEnd);
   const ranges: { from: number; to: number }[] = [];
-  const re = /[ \t]+>[ \t]*\n/g;
-  let segStart = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    ranges.push({ from: bodyStart + segStart, to: bodyStart + m.index });
-    segStart = re.lastIndex;
+  let segStart = bodyStart;
+  for (const brk of collectBreaksInRange(parent, bodyStart, bodyEnd)) {
+    // A `Break` is a split point only when a newline immediately follows it
+    // inside the body (content after the break). `Break` consumes the marker
+    // plus its trailing whitespace, so `brk.to` is exactly where the newline
+    // sits; a trailing break has its newline at/after `bodyEnd`.
+    if (brk.to < bodyEnd && ctx.read(brk.to, brk.to + 1) === "\n") {
+      ranges.push({ from: segStart, to: brk.from });
+      segStart = brk.to + 1; // skip the newline
+    }
   }
-  ranges.push({ from: bodyStart + segStart, to: bodyEnd });
+  ranges.push({ from: segStart, to: bodyEnd });
   return ranges;
+}
+
+// Collect `Break` nodes that fall within [from, to), in source order. Skips
+// any `Break` nested inside a deeper display construct whose own lowerer owns
+// it — only top-of-body breaks split beats. (In practice block-display bodies
+// hold their breaks directly; this guard just keeps the walk total.)
+function collectBreaksInRange(
+  parent: SyntaxNode,
+  from: number,
+  to: number,
+): SyntaxNode[] {
+  const out: SyntaxNode[] = [];
+  const visit = (node: SyntaxNode): void => {
+    if (node.to <= from || node.from >= to) return;
+    if (node !== parent && node.name === "Break") {
+      out.push(node);
+      return;
+    }
+    let child = node.firstChild;
+    while (child) {
+      visit(child);
+      child = child.nextSibling;
+    }
+  };
+  visit(parent);
+  out.sort((a, b) => a.from - b.from);
+  return out;
 }
 
 // ----- Body walking with interpolation splicing -----
