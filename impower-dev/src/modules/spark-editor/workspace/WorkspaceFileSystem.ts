@@ -277,7 +277,14 @@ export default class WorkspaceFileSystem {
 
   getDisplayName(uri: string) {
     const fileName = this.getFilename(uri);
-    return fileName.split(".")[0] ?? "";
+    // Drop only the FINAL extension so multi-dot names keep interior dots
+    // (`sprite.idle.001.png` -> `sprite.idle.001`); a leading-dot dotfile has an
+    // empty display name (matches getName).
+    const dot = fileName.lastIndexOf(".");
+    if (dot <= 0) {
+      return dot === 0 ? "" : fileName;
+    }
+    return fileName.slice(0, dot);
   }
 
   async getFiles(projectId: string) {
