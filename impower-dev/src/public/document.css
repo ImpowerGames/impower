@@ -98,7 +98,11 @@ body {
   padding: 0;
   margin: 0;
 
-  font-family: var(--theme-font-sans);
+  /* System font stack — used to come from sparkle's `--theme-font-sans`
+     but we no longer adopt sparkle's stylesheets. */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol";
 }
 
 html {

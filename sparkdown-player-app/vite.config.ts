@@ -97,6 +97,15 @@ export default defineConfig({
   server: {
     host: true,
   },
+  // Use Preact's automatic JSX runtime for the .tsx in spark-web-player.
+  esbuild: {
+    jsx: "automatic",
+    jsxImportSource: "preact",
+  },
+  resolve: {
+    // Single preact instance across the workspace.
+    dedupe: ["preact", "preact-custom-element"],
+  },
   plugins: [
     viteInlineWorkerPlugin(),
     devServiceWorkerPlugin({

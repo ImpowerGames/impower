@@ -1,9 +1,15 @@
 import { WindowMessageConnection } from "@impower/jsonrpc/src/browser/classes/WindowMessageConnection";
 import { isMessage } from "@impower/jsonrpc/src/common/utils/isMessage";
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  MessageProtocol,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { GamePreviewedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GamePreviewedMessage";
 import { GameResizedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameResizedMessage";
-import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
+import {
+  SparkWebPlayerElement,
+  setWorkspace,
+} from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
 
 console.log("running game-webview");
@@ -31,17 +37,13 @@ connection.addEventListener("message", async (e: MessageEvent) => {
   const message = e.data;
   if (isMessage(message)) {
     // Forward protocol messages from vscode extension to window
-    window.dispatchEvent(
-      new CustomEvent(MessageProtocol.event, {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: message,
-      }),
-    );
+    sendProtocolMessage(message);
   }
 });
 
+// Stays a raw bus listener (not the typed `onProtocolMessage` helper): it
+// relays every message bubbling up from the player (`e.target !== window`) to
+// the vscode extension, discriminating on target rather than message type.
 window.addEventListener(MessageProtocol.event, (e) => {
   if (e instanceof CustomEvent) {
     const message = e.detail;
@@ -64,9 +66,8 @@ window.addEventListener(MessageProtocol.event, (e) => {
 });
 
 const load = async () => {
-  await Promise.allSettled([
-    SparkWebPlayer.init({ workspace: workspaceState.workspace }),
-  ]);
+  setWorkspace(workspaceState.workspace);
+  await Promise.allSettled([SparkWebPlayerElement.register()]);
   // Post an empty message to let vscode know the webview is ready
   vscode.postMessage({});
 };

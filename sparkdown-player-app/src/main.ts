@@ -1,11 +1,17 @@
 import { Port2MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port2MessageConnection";
 import { isMessage } from "@impower/jsonrpc/src/common/utils/isMessage";
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
-import { DragFilesEnterMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesEnterMessage";
-import { DragFilesLeaveMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesLeaveMessage";
-import { DragFilesOverMessage } from "@impower/spark-editor-protocol/src/protocols/window/DragFilesOverMessage";
-import { DropFilesMessage } from "@impower/spark-editor-protocol/src/protocols/window/DropFilesMessage";
-import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
+import {
+  MessageProtocol,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { DraggedFilesInMessage } from "@impower/spark-editor-protocol/src/protocols/window/DraggedFilesInMessage";
+import { DraggedFilesOutMessage } from "@impower/spark-editor-protocol/src/protocols/window/DraggedFilesOutMessage";
+import { DraggedFilesOverMessage } from "@impower/spark-editor-protocol/src/protocols/window/DraggedFilesOverMessage";
+import { DroppedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/window/DroppedFilesMessage";
+import {
+  SparkWebPlayerElement,
+  setWorkspace,
+} from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
 import "./style.css";
 
@@ -38,14 +44,7 @@ connection.addEventListener("message", async (e) => {
   const message = e.data;
   if (isMessage(message)) {
     // Forward protocol messages from editor to player
-    window.dispatchEvent(
-      new CustomEvent(MessageProtocol.event, {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail: message,
-      }),
-    );
+    sendProtocolMessage(message);
     // Forward protocol responses and notifications from editor to service worker
     navigator.serviceWorker.controller?.postMessage(
       message,
@@ -56,6 +55,10 @@ connection.addEventListener("message", async (e) => {
 
 const workspaceState = installWorkspaceWorker(connection);
 
+// Stays a raw bus listener (not the typed `onProtocolMessage` helper): it's a
+// generic relay that forwards EVERY message bubbling up from the player
+// (`e.target !== window`) to the editor, discriminating on target rather than
+// message type — which a type-keyed handler can't express.
 window.addEventListener(MessageProtocol.event, (e) => {
   if (e instanceof CustomEvent) {
     const message = e.detail;
@@ -71,17 +74,17 @@ window.addEventListener(MessageProtocol.event, (e) => {
 window.addEventListener("dragenter", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  connection.postMessage(DragFilesEnterMessage.type.request({}));
+  connection.postMessage(DraggedFilesInMessage.type.notification({}));
 });
 window.addEventListener("dragleave", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  connection.postMessage(DragFilesLeaveMessage.type.request({}));
+  connection.postMessage(DraggedFilesOutMessage.type.notification({}));
 });
 window.addEventListener("dragover", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  connection.postMessage(DragFilesOverMessage.type.request({}));
+  connection.postMessage(DraggedFilesOverMessage.type.notification({}));
 });
 window.addEventListener("drop", async (e) => {
   e.preventDefault();
@@ -97,7 +100,7 @@ window.addEventListener("drop", async (e) => {
     }),
   );
   connection.postMessage(
-    DropFilesMessage.type.request({ files }),
+    DroppedFilesMessage.type.notification({ files }),
     files.map((f) => f.buffer),
   );
 });
@@ -118,9 +121,9 @@ if ("serviceWorker" in navigator) {
 }
 
 const load = async () => {
-  await Promise.allSettled([
-    SparkWebPlayer.init({ workspace: workspaceState.workspace }),
-  ]);
+  // Workspace singleton must be set before the controller instantiates.
+  setWorkspace(workspaceState.workspace);
+  await Promise.allSettled([SparkWebPlayerElement.register()]);
 };
 
 load();

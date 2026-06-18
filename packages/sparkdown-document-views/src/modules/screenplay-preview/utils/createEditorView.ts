@@ -52,9 +52,16 @@ const createEditorView = (
         { y: "start" },
       )
     : undefined;
+  // Pin the EditorView's `root` to the parent's actual root at construction
+  // time. CodeMirror's style-mod uses this to decide where to mount theme
+  // stylesheets via adoptedStyleSheets. If left to default, it can resolve
+  // to `document` (so theme styles land in document.adoptedStyleSheets and
+  // never reach the editor when it lives inside a shadow root).
+  const root = parent.getRootNode() as Document | ShadowRoot;
   const view = new EditorView({
     state: startState,
     parent,
+    root,
     scrollTo,
   });
   return view;

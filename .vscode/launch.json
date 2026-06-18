@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch vscode-sparkdown",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/vscode-sparkdown"
+      ],
+      "outFiles": ["${workspaceFolder}/vscode-sparkdown/out/**/*.js"],
+      "preLaunchTask": "F5: watch"
+    }
+  ]
+}

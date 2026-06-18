@@ -1,7 +1,0 @@
-:host {
-  display: contents;
-}
-
-:host > .root {
-  display: none;
-}

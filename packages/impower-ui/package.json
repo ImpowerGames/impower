@@ -1,0 +1,63 @@
+{
+  "name": "@impower/impower-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/impower-ui.js",
+  "module": "./dist/impower-ui.js",
+  "types": "./dist/impower-ui.d.ts",
+  "exports": {
+    "./components": {
+      "development": "./src/components/index.ts",
+      "types": "./src/components/index.ts",
+      "import": "./dist/impower-ui.js"
+    },
+    "./loading-bar": {
+      "development": "./src/components/loading-bar/LoadingBar.tsx",
+      "types": "./src/components/loading-bar/LoadingBar.tsx",
+      "import": "./dist/impower-ui.js"
+    },
+    "./preact": {
+      "development": "./src/preact/PreactComponent.ts",
+      "types": "./src/preact/PreactComponent.ts",
+      "default": "./src/preact/PreactComponent.ts"
+    },
+    "./style.css": {
+      "development": "./src/style.css",
+      "default": "./dist/impower-ui.css"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "gen:icons": "node --disable-warning=ExperimentalWarning src/icons/generate.ts"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.0.0",
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@radix-ui/react-dropdown-menu": "^2.1.6",
+    "@radix-ui/react-select": "^2.1.6",
+    "@radix-ui/react-tabs": "^1.1.13",
+    "@radix-ui/react-tooltip": "^1.1.8",
+    "@tailwindcss/vite": "^4.2.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.5.5",
+    "tailwindcss": "^4.2.2"
+  },
+  "devDependencies": {
+    "@microsoft/api-extractor": "^7.58.7",
+    "@preact/preset-vite": "^2.10.5",
+    "@types/node": "^24.12.2",
+    "preact-render-to-string": "^6.5.0",
+    "tailwind-scrollbar": "^4.0.2",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.9",
+    "vite-plugin-dts": "^5.0.0"
+  },
+  "peerDependencies": {
+    "preact": "^10.29.1",
+    "preact-custom-element": "^4.6.0"
+  }
+}

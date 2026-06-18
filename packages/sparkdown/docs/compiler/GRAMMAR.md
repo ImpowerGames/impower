@@ -1007,7 +1007,7 @@ When picking a shape for a new region-shaped construct, ask: **would a user ever
 - **No** (a parenthesized expression, a quoted string, a single declaration line) → `Scoped` rule is fine.
 - **Yes** (a scene, a branch, a top-level document section) → don't `Scoped`-wrap it. Capture the _boundary_ (the declaration line, the marker keyword) and let the body live at root. The lowerer can reconstruct the logical hierarchy after the fact.
 
-`Scene` and `Branch` are the canonical examples. Both are `Scoped` rules, but they're scoped only over the **declaration line** (`scene Name(...):` / `branch Name:`) — the body lives at root and the lowerer reconstructs the hierarchy. Concretely, `Scene`'s definition looks like:
+`Scene` and `Branch` are the canonical examples. Both are `Scoped` rules, but they're scoped only over the **declaration line** (`scene Name(...)` / `branch Name`) — the body lives at root and the lowerer reconstructs the hierarchy. Concretely, `Scene`'s definition looks like:
 
 ```yaml
 Scene:
@@ -1016,11 +1016,18 @@ Scene:
   patterns:
     - { include: "#SceneWithParametersDeclaration" }
     - { include: "#SceneWithoutParametersDeclaration" }
-  end: $|([:]) # closes at end-of-line OR `:`
-  endCaptures: { ... }
+    # Tile the REST of the declaration line so the rule always reaches
+    # `end: $` instead of closing ERROR_INCOMPLETE mid-line. This is a
+    # hard engine-equality requirement — see §17.
+    - { include: "#SparkdownLineComment" } # trailing `// comment`
+    - { include: "#Annotation" } #            trailing `# annotation`
+    - { include: "#Unknown" } #               anything else → invalid
+  end: $ # closes at end-of-line
 ```
 
-Note the `end` pattern: end-of-line **or** a colon. Either way, the scope closes after the declaration. The next line — the actual scene body — is parsed at root level. The way the parser identifies the _next_ scene's boundary (so this scene's body knows where to stop logically) is the `BEAT` lookahead mechanism shown in §11.
+Note the `end` pattern: end-of-line. The scope closes after the declaration; the body — the actual scene content — is parsed at root level. The way the parser identifies the _next_ scene's boundary (so this scene's body knows where to stop logically) is the `BEAT` lookahead mechanism shown in §11.
+
+The content `patterns:` deliberately **tile the entire declaration line** — any trailing comment, annotation, or stray text is consumed — so the rule reaches `end: $` cleanly instead of closing `ERROR_INCOMPLETE` partway across the line. (An earlier `Scene` accepted a trailing `:` as a declaration terminator via `end: ([:])|(?=$)`; the Luau-syntax port dropped that, and the un-consumed `:` is what exposed the engine-divergence bug that §17 exists to prevent.)
 
 ### 16.4 The compromise: `LuauFunctionDefinition`
 
@@ -1032,9 +1039,74 @@ So we accept the bill: a 200-line function re-parses on every keystroke inside i
 
 ---
 
+## 17. Engine equality: the grammar must parse identically in both engines
+
+**The TL;DR:** the same grammar JSON drives two engines, and they must produce the **same scope at every character**. The most common way they silently drift is a `Scoped` rule that closes `ERROR_INCOMPLETE` partway across a line. The fix is always to **fully tile the line** so the rule reaches its `end` at a clean line boundary. A CI test (`scopeEquality.test.ts`) fails the build on any per-character divergence.
+
+### 17.1 Two engines, one grammar
+
+We ship **one** generated grammar JSON to two consumers (see §1.3):
+
+- **vscode-textmate** (+ vscode-oniguruma) — VS Code's editor highlighter. We do **not** control this engine; it is the reference implementation and cannot be patched.
+- **textmate-grammar-tree** — our re-implementation, used by the language server, the screenplay-preview decorator, and the PDF exporter.
+
+The entire point of sharing a grammar is that the TextMate scope stack VS Code computes at column _N_ must match the node ancestry textmate-grammar-tree builds at column _N_. When they disagree, semantic features (preview, export, diagnostics) silently drift behind plausible-looking editor highlighting. **Because vscode-textmate is the engine we ship to users and cannot change, every divergence is a grammar bug to fix in the grammar** — never a "patch the tree to compensate."
+
+### 17.2 Why they diverge — and the one rule that prevents it
+
+The two engines walk a line differently:
+
+- **vscode-textmate is line-oriented.** It tokenizes one line at a time. `^` matches only at true column 0, and within a line it can _skip_ un-matched text as a gap (assigning it the enclosing scope) to find a later `end` match.
+- **textmate-grammar-tree is contiguous + sticky.** Patterns must match back-to-back. When nothing in a `Scoped` rule's `patterns:` (nor its `end`) matches the next character, the rule closes `ERROR_INCOMPLETE` _at that character_ and the parser re-enters root matching **mid-line** — where a sticky, multiline `^` happily matches, so an `^`-anchored `begin` rule can fire at a position that is **not** a real line start.
+
+That asymmetry is the whole bug class. The reported case:
+
+```
+scene TEASER:
+```
+
+`Scene` matched `scene TEASER`, then its content could not consume the trailing `:` and `end: $` could not match before it, so `Scene` closed `ERROR_INCOMPLETE` at the `:`. The parser re-entered root **at the colon**, and `BlockAction`'s `^({{WS}}*)([:])…` begin matched there (sticky `^` at a re-fed mid-line chunk), opening a phantom action block that swallowed the rest of the document. VS Code never opened one — its `^` cannot match mid-line, and it absorbed the `:` as a gap on the way to `end: $`.
+
+**The rule that prevents the entire class:**
+
+> A `Scoped` rule must **fully tile** every line it covers, so it always closes at a clean line boundary (its `end`) and **never** closes `ERROR_INCOMPLETE` mid-line. Do not rely on vscode-textmate's gap-skipping, and do not rely on textmate-grammar-tree's mid-line permissiveness — neither is portable.
+
+For boundary rules (`Scene`, `Branch`, and any future `end: $` declaration rule), "fully tile" means: after the declaration patterns, include the trailing-content rules so nothing is ever left un-consumed — comments, annotations, and finally `Unknown` (the `invalid.illegal.unknown-statement.sd` catch-all) for stray junk. See the `Scene` example in §16.3.
+
+This is the engine-facing complement to §3.2 ("the biggest gotcha: incomplete scope") — §3.2 explains the symptom inside one engine; this section explains why an incomplete close in the _tree_ produces a _divergence_ from VS Code.
+
+### 17.3 Blank lines and comment lines do NOT break a legitimately-open scope
+
+A separate worry worth retiring: the indentation-block rules use `end: (?=^(?!$|//|\1{{WS}}))` (§11.1), which is a negative lookahead that holds the scope across blank and comment lines until a line de-dents. There is **no** divergence here. Per the TextMate spec, an open `begin`/`end` scope persists unchanged across an intervening blank line when neither the `end` lookahead nor any content pattern matches on it — vscode-textmate carries its `StateStack` forward untouched, and textmate-grammar-tree does the same. Both engines hold a legitimately-opened `^:`-style block across blank/comment lines identically (verified by the `blockaction-blank-lines` / `blockaction-comment-lines` fixtures). The original "vscode pops at the blank line, the tree holds to EOF" theory was a misread: the real bug was that the tree _opened_ a block VS Code never opened (§17.2), not that it held one too long.
+
+### 17.4 The gate: `scopeEquality.test.ts`
+
+`packages/sparkdown/src/tests/compiler/scopeEquality.{ts,test.ts}` runs a fixture through **both** engines and asserts the scope stack at **every character** is identical, failing the build on any divergence. It covers a set of hand-written targeted fixtures (each top-level construct; nesting under `scene NAME` with and without a trailing colon; blank-line- and comment-line-separated content) plus every `.sd` fixture in the snapshot corpus. Run it after any grammar change:
+
+```
+cd packages/sparkdown && npx vitest run src/tests/compiler/scopeEquality.test.ts
+```
+
+The comparison maps each tree node back to the TextMate scope it contributes (`name` on the rule's whole span, `contentName` on its `<Rule>_content` sub-span — read from the live grammar nodes, not by parsing node-name suffixes) and ignores `tag` (a CodeMirror-only highlight hint vscode-textmate never sees). Newlines are excluded from the comparison: vscode-textmate strips the trailing `\n` per line and structurally never scopes a line break, so requiring equality there would test an impossible condition without reflecting any real highlighting difference.
+
+### 17.5 Audit: every multiline `begin`/`end` rule
+
+All 151 `begin`/`end` rules were audited for this class. Grouped by `end`-pattern shape:
+
+| `end` shape | count | examples | verdict |
+| --- | --- | --- | --- |
+| `(?=^(?!$\|//\|\1{{WS}}))` (indentation block) | 14 | `BlockAction`, `BlockDialogue`, `BlockTitle`, `BlockHeading`, `BlockTransitional`, `BlockWrite`, `ImplicitAction`, `FrontMatterField`, the `Inline*` variants | **Ambiguity-free.** Both engines hold the scope across blank/indented/comment lines identically (§17.3). |
+| `end: $` (boundary line) | 5 | `Scene`, `Branch`, `ImageCommand`, `AudioCommand`, `LuauSparkdownSingleLineConditionalAlternatorBlock` | **Ambiguity-free after this fix.** `Scene`/`Branch` now tile their line (§16.3). `ImageCommand`/`AudioCommand` already close at `$` _or_ their `]]`/`))` terminator, so an unterminated marker is line-bounded, not run-on. |
+| `(?=…)` lookahead | 96 | expression / operator / declaration / loop / `if`-block rules | **Ambiguity-free for valid input.** Verified across the full snapshot corpus. |
+| other (`$\|…`, explicit `\n`, bracket-balanced) | 36 | strings, tables, parentheticals, `LuauIfBlockCondition`, interpolation | **Ambiguity-free for valid input.** Verified across the corpus. |
+
+**Known residual (invalid/incomplete input only, not gated):** an `if` / `for` / `while` header written _without_ its `then` / `do` terminator (a transient mid-edit state) leaves the condition/header expression — which legitimately includes `Newline` so multi-line conditions can parse — running across lines until it hits a `{{BEAT}}` or `end`. The two engines scope that run-on region differently. This is invalid syntax and a separate, deeper concern than the boundary-tiling class; it is characterized here rather than fixed, because bounding the condition to one line would break valid multi-line conditions.
+
+---
+
 # Part VIII — Reference
 
-## 17. Common pitfalls
+## 18. Common pitfalls
 
 A condensed list of the things that bite hardest in practice. Each line links back to the section that explains it in depth.
 
@@ -1055,9 +1127,10 @@ A condensed list of the things that bite hardest in practice. Each line links ba
 - **Don't extend a `begin:`, `end:`, or `match:` pattern past the trailing `\n`.** Matching the `\n` itself is fine; consuming into the _next line's_ content (or referencing it via a cross-line lookbehind/lookahead) is not. VS Code tokenizes one line at a time and won't follow the pattern across; textmate-grammar-tree silently will, so the highlighting and the runtime tree diverge. To span newlines, open the scope on a single line and let `Newline` + a whitespace class inside the `patterns:` array consume the intervening whitespace. (§11.5)
 - **Don't have the child rule consume what belongs to the parent.** Use `(?=...)` lookaheads in child end patterns when the terminator is part of the parent's structure. (§11.3)
 - **Don't ship without checking VS Code.** Always add a matching `.vsc.snap` for new fixtures so engine divergence shows up as a diff at fixture-add time. If the diff shows divergence, restructure the rule until both engines agree. (§15.3)
+- **Don't let a `Scoped` rule close `ERROR_INCOMPLETE` mid-line.** Fully tile every line a rule covers (trailing comments, annotations, then `Unknown`) so it always reaches its `end` at a line boundary. A mid-line incomplete close makes the tree re-enter root matching where an `^`-anchored `begin` can fire — a position VS Code never reaches. This is the most common source of editor-vs-tree divergence; the `scopeEquality` gate catches it. (§17)
 - **Don't forget to rebuild.** `cd definitions && npm run build`. (§15.4)
 
-## 18. Useful files to read
+## 19. Useful files to read
 
 - `definitions/yaml/sparkdown.language-grammar.yaml` — the grammar itself.
 - `definitions/src/language.ts` — the build pipeline (YAML → JSON, variable substitution, capturing-variable check).
@@ -1066,4 +1139,5 @@ A condensed list of the things that bite hardest in practice. Each line links ba
 - `packages/textmate-grammar-tree/src/tree/utils/printTree.ts` — the tree printer.
 - `packages/sparkdown/src/tests/compiler/grammarSnapshot.test.ts` — the textmate-grammar-tree snapshot harness.
 - `packages/sparkdown/src/tests/compiler/vscodeGrammarSnapshot.test.ts` — the VS Code engine snapshot harness.
+- `packages/sparkdown/src/tests/compiler/scopeEquality.ts` / `scopeEquality.test.ts` — the per-character engine-equality comparison and the CI gate that fails on any divergence (§17).
 - `packages/sparkdown/src/compiler/classes/annotators/FormattingAnnotator.ts` — what node names the formatter looks for.

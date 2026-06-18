@@ -111,20 +111,26 @@ const config: esbuild.BuildOptions = {
       paths: [
         { from: "./data/*", to: "./data" },
         { from: "../packages/spark-web-player/types/*", to: "./data" },
+        // After the npm-workspaces migration these deps are hoisted to the
+        // monorepo ROOT node_modules, so the old `./node_modules/...` (local)
+        // paths resolve to nothing and silently copy zero files. Read the
+        // workspace package dists straight from `../packages/<pkg>/dist`
+        // (deterministic regardless of hoisting, like the spark-web-player
+        // entry above) and the external codicons from the root node_modules.
         {
-          from: "./node_modules/@vscode/codicons/dist/*",
+          from: "../node_modules/@vscode/codicons/dist/*",
           to: "./data",
         },
         {
-          from: "./node_modules/@impower/sparkdown/dist/*",
+          from: "../packages/sparkdown/dist/*",
           to: "./workers",
         },
         {
-          from: "./node_modules/@impower/sparkdown-language-server/dist/*",
+          from: "../packages/sparkdown-language-server/dist/*",
           to: "./workers",
         },
         {
-          from: "./node_modules/@impower/sparkdown-screenplay-pdf/dist/*",
+          from: "../packages/sparkdown-screenplay-pdf/dist/*",
           to: "./workers",
         },
       ],

@@ -92,7 +92,16 @@ function bundleTypes() {
     if (stdout) console.log(stdout.trim());
     if (stderr) console.error(stderr.trim());
     if (err) console.error(LOG_PREFIX + "Failed:", err.message);
-    removeShadowingInterfaces(outputPath);
+    // The bundled .d.ts is best-effort editor intellisense, not a build input.
+    // If dts-bundle-generator failed (e.g. on TS-version type noise) it writes
+    // no file, so only post-process when one exists — otherwise the unguarded
+    // read below would throw ENOENT and crash the whole extension build (and,
+    // in watch mode, take the parallel worker-copy task down with it).
+    if (fs.existsSync(outputPath)) {
+      removeShadowingInterfaces(outputPath);
+    } else {
+      console.warn(LOG_PREFIX + "no type bundle produced; skipping post-process");
+    }
     console.log(LOG_PREFIX + "build finished");
   });
 }

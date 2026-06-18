@@ -4,13 +4,6 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "postinstall:textmate-grammar-tree": "cd ../packages/textmate-grammar-tree && npm ci && cd ../../impower-dev",
-    "postinstall:sparkdown": "cd ../packages/sparkdown && npm ci && cd ../../sparkdown-player-app",
-    "postinstall:spark-engine": "cd ../packages/spark-engine && npm ci && cd ../../impower-dev",
-    "postinstall:spark-dom": "cd ../packages/spark-dom && npm ci && cd ../../impower-dev",
-    "postinstall:spark-editor-protocol": "cd ../packages/spark-editor-protocol && npm ci && cd ../../sparkdown-player-app",
-    "postinstall:spark-web-player": "cd ../packages/spark-web-player && npm ci && cd ../../sparkdown-player-app",
-    "postinstall": "npm-run-all -p postinstall:*",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
@@ -22,10 +15,13 @@
     "vite": "^7.1.5"
   },
   "dependencies": {
+    "@impower/impower-ui": "file:../packages/impower-ui",
     "@impower/jsonrpc": "file:../packages/jsonrpc",
     "@impower/spark-editor-protocol": "file:../packages/spark-editor-protocol",
     "@impower/spark-engine": "file:../packages/spark-engine",
     "@impower/spark-web-player": "file:../packages/spark-web-player",
-    "@impower/sparkdown": "file:../packages/sparkdown"
+    "@impower/sparkdown": "file:../packages/sparkdown",
+    "preact": "^10.29.1",
+    "preact-custom-element": "^4.6.0"
   }
 }

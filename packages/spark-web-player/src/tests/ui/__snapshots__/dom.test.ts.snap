@@ -11,7 +11,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-image-BG: url("https://example.com/bg.png");
   --theme-color-red: rgb(220,38,38);
   --theme-color-red_10: rgb(76,5,5);
@@ -466,7 +466,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -477,25 +477,25 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -505,7 +505,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -520,17 +520,17 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -551,12 +551,12 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -573,20 +573,20 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -596,19 +596,19 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -622,7 +622,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -636,7 +636,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -654,7 +654,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -672,30 +672,30 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -703,11 +703,11 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -718,12 +718,12 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -738,7 +738,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -750,11 +750,11 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -762,7 +762,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -774,7 +774,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -786,7 +786,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -799,14 +799,14 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -817,7 +817,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;
@@ -993,7 +993,7 @@ exports[`dom render > image show renders background span + img 1`] = `
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-image-BG: url("https://example.com/bg.png");
   --theme-color-red: rgb(220,38,38);
   --theme-color-red_10: rgb(76,5,5);
@@ -1448,7 +1448,7 @@ exports[`dom render > image show renders background span + img 1`] = `
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -1459,25 +1459,25 @@ exports[`dom render > image show renders background span + img 1`] = `
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -1487,7 +1487,7 @@ exports[`dom render > image show renders background span + img 1`] = `
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -1502,17 +1502,17 @@ exports[`dom render > image show renders background span + img 1`] = `
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -1533,12 +1533,12 @@ exports[`dom render > image show renders background span + img 1`] = `
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -1555,20 +1555,20 @@ exports[`dom render > image show renders background span + img 1`] = `
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -1578,19 +1578,19 @@ exports[`dom render > image show renders background span + img 1`] = `
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -1604,7 +1604,7 @@ exports[`dom render > image show renders background span + img 1`] = `
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -1618,7 +1618,7 @@ exports[`dom render > image show renders background span + img 1`] = `
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -1636,7 +1636,7 @@ exports[`dom render > image show renders background span + img 1`] = `
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -1654,30 +1654,30 @@ exports[`dom render > image show renders background span + img 1`] = `
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -1685,11 +1685,11 @@ exports[`dom render > image show renders background span + img 1`] = `
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -1700,12 +1700,12 @@ exports[`dom render > image show renders background span + img 1`] = `
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -1720,7 +1720,7 @@ exports[`dom render > image show renders background span + img 1`] = `
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -1732,11 +1732,11 @@ exports[`dom render > image show renders background span + img 1`] = `
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -1744,7 +1744,7 @@ exports[`dom render > image show renders background span + img 1`] = `
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -1756,7 +1756,7 @@ exports[`dom render > image show renders background span + img 1`] = `
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -1768,7 +1768,7 @@ exports[`dom render > image show renders background span + img 1`] = `
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -1781,14 +1781,14 @@ exports[`dom render > image show renders background span + img 1`] = `
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -1799,7 +1799,7 @@ exports[`dom render > image show renders background span + img 1`] = `
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;
@@ -1937,7 +1937,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-image-BG: url("https://example.com/bg.png");
   --theme-color-red: rgb(220,38,38);
   --theme-color-red_10: rgb(76,5,5);
@@ -2392,7 +2392,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -2403,25 +2403,25 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -2431,7 +2431,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -2446,17 +2446,17 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -2477,12 +2477,12 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -2499,20 +2499,20 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -2522,19 +2522,19 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -2548,7 +2548,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -2562,7 +2562,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -2580,7 +2580,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -2598,30 +2598,30 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -2629,11 +2629,11 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -2644,12 +2644,12 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -2664,7 +2664,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -2676,11 +2676,11 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -2688,7 +2688,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -2700,7 +2700,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -2712,7 +2712,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -2725,14 +2725,14 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -2743,7 +2743,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;
@@ -3003,7 +3003,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-image-BG: url("https://example.com/bg.png");
   --theme-color-red: rgb(220,38,38);
   --theme-color-red_10: rgb(76,5,5);
@@ -3458,7 +3458,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -3469,25 +3469,25 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -3497,7 +3497,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -3512,17 +3512,17 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -3543,12 +3543,12 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -3565,20 +3565,20 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -3588,19 +3588,19 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -3614,7 +3614,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -3628,7 +3628,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -3646,7 +3646,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -3664,30 +3664,30 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -3695,11 +3695,11 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -3710,12 +3710,12 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -3730,7 +3730,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -3742,11 +3742,11 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -3754,7 +3754,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -3766,7 +3766,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -3778,7 +3778,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -3791,14 +3791,14 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -3809,7 +3809,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;
@@ -3929,7 +3929,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-color-red: rgb(220,38,38);
   --theme-color-red_10: rgb(76,5,5);
   --theme-color-red_20: rgb(127,29,29);
@@ -4383,7 +4383,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -4394,25 +4394,25 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -4422,7 +4422,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -4437,17 +4437,17 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -4468,12 +4468,12 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -4490,20 +4490,20 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -4513,19 +4513,19 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -4539,7 +4539,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -4553,7 +4553,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -4571,7 +4571,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -4589,30 +4589,30 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -4620,11 +4620,11 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -4635,12 +4635,12 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -4655,7 +4655,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -4667,11 +4667,11 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -4679,7 +4679,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -4691,7 +4691,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -4703,7 +4703,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -4716,14 +4716,14 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -4734,7 +4734,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;
@@ -4836,7 +4836,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-color-red: rgb(220,38,38);
   --theme-color-red_10: rgb(76,5,5);
   --theme-color-red_20: rgb(127,29,29);
@@ -5290,7 +5290,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -5301,25 +5301,25 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -5329,7 +5329,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -5344,17 +5344,17 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -5375,12 +5375,12 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -5397,20 +5397,20 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -5420,19 +5420,19 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -5446,7 +5446,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -5460,7 +5460,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -5478,7 +5478,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -5496,30 +5496,30 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -5527,11 +5527,11 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -5542,12 +5542,12 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -5562,7 +5562,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -5574,11 +5574,11 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -5586,7 +5586,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -5598,7 +5598,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -5610,7 +5610,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -5623,14 +5623,14 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -5641,7 +5641,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;
@@ -5789,7 +5789,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-image-BG: url("https://example.com/bg.png");
   --theme-image-BG2: url("https://example.com/bg2.png");
   --theme-image-SPRITE: url("https://example.com/hero.png");
@@ -6247,7 +6247,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -6258,25 +6258,25 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -6286,7 +6286,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -6301,17 +6301,17 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -6332,12 +6332,12 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -6354,20 +6354,20 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -6377,19 +6377,19 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -6403,7 +6403,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -6417,7 +6417,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -6435,7 +6435,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -6453,30 +6453,30 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -6484,11 +6484,11 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -6499,12 +6499,12 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -6519,7 +6519,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -6531,11 +6531,11 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -6543,7 +6543,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -6555,7 +6555,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -6567,7 +6567,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -6580,14 +6580,14 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -6598,7 +6598,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;
@@ -6713,7 +6713,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-image-BG: url("https://example.com/bg.png");
   --theme-image-BG2: url("https://example.com/bg2.png");
   --theme-image-SPRITE: url("https://example.com/hero.png");
@@ -7171,7 +7171,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -7182,25 +7182,25 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -7210,7 +7210,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -7225,17 +7225,17 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -7256,12 +7256,12 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -7278,20 +7278,20 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -7301,19 +7301,19 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -7327,7 +7327,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -7341,7 +7341,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -7359,7 +7359,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -7377,30 +7377,30 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -7408,11 +7408,11 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -7423,12 +7423,12 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -7443,7 +7443,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -7455,11 +7455,11 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -7467,7 +7467,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -7479,7 +7479,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -7491,7 +7491,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -7504,14 +7504,14 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -7522,7 +7522,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;
@@ -7637,7 +7637,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-image-BG: url("https://example.com/bg.png");
   --theme-image-BG2: url("https://example.com/bg2.png");
   --theme-image-SPRITE: url("https://example.com/hero.png");
@@ -8095,7 +8095,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -8106,25 +8106,25 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -8134,7 +8134,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -8149,17 +8149,17 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -8180,12 +8180,12 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -8202,20 +8202,20 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -8225,19 +8225,19 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -8251,7 +8251,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -8265,7 +8265,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -8283,7 +8283,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -8301,30 +8301,30 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -8332,11 +8332,11 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -8347,12 +8347,12 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -8367,7 +8367,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -8379,11 +8379,11 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -8391,7 +8391,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -8403,7 +8403,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -8415,7 +8415,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -8428,14 +8428,14 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -8446,7 +8446,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;
@@ -8561,7 +8561,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-image-BG: url("https://example.com/bg.png");
   --theme-image-BG2: url("https://example.com/bg2.png");
   --theme-image-SPRITE: url("https://example.com/hero.png");
@@ -9019,7 +9019,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -9030,25 +9030,25 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -9058,7 +9058,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -9073,17 +9073,17 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -9104,12 +9104,12 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -9126,20 +9126,20 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -9149,19 +9149,19 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -9175,7 +9175,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -9189,7 +9189,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -9207,7 +9207,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -9225,30 +9225,30 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -9256,11 +9256,11 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -9271,12 +9271,12 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -9291,7 +9291,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -9303,11 +9303,11 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -9315,7 +9315,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -9327,7 +9327,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -9339,7 +9339,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -9352,14 +9352,14 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -9370,7 +9370,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;
@@ -9485,7 +9485,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
               "class": "style-variables",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game  {
+              "text": "spark-web-player #game  {
   --theme-image-BG: url("https://example.com/bg.png");
   --theme-image-BG2: url("https://example.com/bg2.png");
   --theme-image-SPRITE: url("https://example.com/hero.png");
@@ -9943,7 +9943,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
               "class": "style-styles",
               "style": "display: none;",
               "tag": "style",
-              "text": ":host #game .main {
+              "text": "spark-web-player #game .main {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
@@ -9954,25 +9954,25 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     font-size: 1.125rem;
   }
 }
-:host #game .row {
+spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
-:host #game .column {
+spark-web-player #game .column {
   display: flex;
   flex-direction: column;
 }
-:host #game .stack {
+spark-web-player #game .stack {
   >* {
     position: absolute;
     inset: 0px;
   }
 }
-:host #game .overlay {
+spark-web-player #game .overlay {
   position: absolute;
   inset: 0px;
 }
-:host #game .text {
+spark-web-player #game .text {
   display: block;
   pointer-events: auto;
   user-select: none;
@@ -9982,7 +9982,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     display: inline;
   }
 }
-:host #game .stroke {
+spark-web-player #game .stroke {
   display: block;
   pointer-events: none;
   cursor: default;
@@ -9997,17 +9997,17 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     display: inline;
   }
 }
-:host #game .text_line {
+spark-web-player #game .text_line {
   display: block;
   text-wrap: wrap;
 }
-:host #game .text_word {
+spark-web-player #game .text_word {
   display: inline-block;
 }
-:host #game .text_space {
+spark-web-player #game .text_space {
   display: inline;
 }
-:host #game .image {
+spark-web-player #game .image {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -10028,12 +10028,12 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     translate: calc(0.5 * (100cqw - 100%)) 0px;
   }
 }
-:host #game .object {
+spark-web-player #game .object {
   height: 100%;
   object-fit: cover;
   visibility: hidden;
 }
-:host #game .mask {
+spark-web-player #game .mask {
   display: block;
   pointer-events: auto;
   position: absolute;
@@ -10050,20 +10050,20 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     will-change: transform;
   }
 }
-:host #game .loading_bar {
+spark-web-player #game .loading_bar {
   z-index: 1000;
   position: relative;
   width: 100%;
   height: 4px;
 }
-:host #game .loading_fill {
+spark-web-player #game .loading_fill {
   width: 100%;
   height: 100%;
   background-color: var(--theme-color-cyan50);
   transform: scaleX(var(--loading_progress));
   transform-origin: left;
 }
-:host #game .screen {
+spark-web-player #game .screen {
   position: absolute;
   inset: 0px;
   pointer-events: none;
@@ -10073,19 +10073,19 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     cursor: default;
   }
 }
-:host #game .stage {
+spark-web-player #game .stage {
   position: absolute;
   inset: 0px;
   display: flex;
   flex-direction: column;
 }
-:host #game .backdrop {
+spark-web-player #game .backdrop {
   position: absolute;
   inset: 0px;
   background-position: center;
   background-size: cover;
 }
-:host #game .portrait {
+spark-web-player #game .portrait {
   position: absolute;
   top: 10%;
   right: 0px;
@@ -10099,7 +10099,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     mix-blend-mode: plus-lighter;
   }
 }
-:host #game .choices {
+spark-web-player #game .choices {
   position: relative;
   flex: 1;
   display: flex;
@@ -10113,7 +10113,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     margin-bottom: 120px;
   }
 }
-:host #game .choice {
+spark-web-player #game .choice {
   display: flex;
   flex-direction: row;
   width: 90%;
@@ -10131,7 +10131,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     transition: all 0.15s linear;
   }
 }
-:host #game .button {
+spark-web-player #game .button {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -10149,30 +10149,30 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     background-color: rgb(69 69 69);
   }
 }
-:host #game .field {
+spark-web-player #game .field {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .checkbox {
+spark-web-player #game .checkbox {
   width: 20px;
   height: 20px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .slider {
+spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
   accent-color: rgb(96 165 250);
 }
-:host #game .link {
+spark-web-player #game .link {
   color: rgb(96 165 250);
   text-decoration: underline;
   cursor: pointer;
 }
-:host #game .dropdown {
+spark-web-player #game .dropdown {
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgb(95 95 95);
@@ -10180,11 +10180,11 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   color: white;
   cursor: pointer;
 }
-:host #game .option {
+spark-web-player #game .option {
   background-color: rgb(37 37 37);
   color: white;
 }
-:host #game .textbox {
+spark-web-player #game .textbox {
   position: absolute;
   bottom: 0px;
   left: 0px;
@@ -10195,12 +10195,12 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   color: white;
   flex: 1;
 }
-:host #game .textbox_background {
+spark-web-player #game .textbox_background {
   position: absolute;
   inset: 0px;
   background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%);
 }
-:host #game .textbox_content {
+spark-web-player #game .textbox_content {
   position: relative;
   flex: 1;
   display: flex;
@@ -10215,7 +10215,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     padding: 16px;
   }
 }
-:host #game .character_info {
+spark-web-player #game .character_info {
   display: flex;
   flex-direction: row;
   justify-content: center;
@@ -10227,11 +10227,11 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     font-size: 1.5rem;
   }
 }
-:host #game .character_name {
+spark-web-player #game .character_name {
   padding-bottom: 8px;
   font-weight: 600px;
 }
-:host #game .character_parenthetical {
+spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
   font-weight: 400px;
   font-size: 1rem;
@@ -10239,7 +10239,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
     font-size: 0.875rem;
   }
 }
-:host #game .title {
+spark-web-player #game .title {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -10251,7 +10251,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   text-align: center;
   font-weight: 700;
 }
-:host #game .heading {
+spark-web-player #game .heading {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -10263,7 +10263,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   text-align: center;
   font-weight: 700;
 }
-:host #game .transitional {
+spark-web-player #game .transitional {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -10276,14 +10276,14 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   text-align: right;
   width: 100%;
 }
-:host #game .dialogue {
+spark-web-player #game .dialogue {
   margin: 0px auto;
   width: 68%;
   @container screen (max-width:640px) {
     width: 80%;
   }
 }
-:host #game .action {
+spark-web-player #game .action {
   position: absolute;
   inset: 0px;
   padding-left: 40px;
@@ -10294,7 +10294,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   align-self: center;
   text-align: center;
 }
-:host #game .continue_indicator {
+spark-web-player #game .continue_indicator {
   opacity: 0;
   line-height: 1;
   width: 16px;

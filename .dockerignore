@@ -1,17 +1,33 @@
-# The .dockerignore file excludes files from the container build process
-# when building with the Docker CLI.
+# Excludes files from the Docker build context.
+#
+# The build context is the MONOREPO ROOT (both impower-dev and
+# sparkdown-player-app build from here so `npm ci` can install the workspace
+# from the single root package-lock.json).
 #
 # https://docs.docker.com/engine/reference/builder/#dockerignore-file
 
+# VCS, editor and CI metadata
 .git/
 .github/
 .vercel/
 .vscode/
-node_modules/
+.claude/
 
+# Dependencies and build outputs are (re)produced inside the builder stage.
+# NOTE: only node_modules / build outputs may be pruned — every workspace's
+# package.json must remain in the context or `npm ci` fails on the lockfile.
+**/node_modules/
+**/out/
+**/dist/
+**/.dev/
+
+# Legacy / experimental — NOT npm-workspace members (not needed by any build).
+admin/
+impower-app/
+packages/concept-generator/
+
+# Meta files
 .gitignore
-README.md
-
 .gcloudignore
 .dockerignore
-Dockerfile
+**/Dockerfile

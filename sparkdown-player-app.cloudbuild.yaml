@@ -1,32 +1,21 @@
 steps:
-  # 1) Install deps and build Vite
-  - name: node:20-slim
+  # 1) Build the container image. The multi-stage Dockerfile installs the npm
+  #    workspace, builds the Vite app inside Docker, then serves /dist via nginx.
+  #    Context is the monorepo root so `npm ci` can use the root lockfile.
+  - name: gcr.io/cloud-builders/docker
     entrypoint: bash
     args:
       - -lc
       - |
-        cd ./sparkdown-player-app
-        npm ci
-        npm run postinstall
-        npm run build
-        cd ../
-    env:
-      - VITE_SPARKDOWN_EDITOR_ORIGIN=$_VITE_SPARKDOWN_EDITOR_ORIGIN
-
-  # 2) Build container image
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - build
-      - "--no-cache"
-      - "-t"
-      - >-
-        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
-      - sparkdown-player-app
-      - "-f"
-      - sparkdown-player-app/Dockerfile
+        docker build \
+          --no-cache \
+          -t "$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA" \
+          -f sparkdown-player-app/Dockerfile \
+          --build-arg VITE_SPARKDOWN_EDITOR_ORIGIN="$_VITE_SPARKDOWN_EDITOR_ORIGIN" \
+          .
     id: Build
 
-  # 3) Push image to Artifact Registry
+  # 2) Push image to Artifact Registry
   - name: gcr.io/cloud-builders/docker
     args:
       - push
@@ -34,7 +23,7 @@ steps:
         $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
     id: Push
 
-  # 4) Deploy to Google Cloud Run
+  # 3) Deploy to Google Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     args:
       - run

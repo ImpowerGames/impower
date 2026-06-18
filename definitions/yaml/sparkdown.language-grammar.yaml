@@ -910,6 +910,18 @@ repository:
     patterns:
       - { include: "#SceneWithParametersDeclaration" }
       - { include: "#SceneWithoutParametersDeclaration" }
+      # A boundary rule MUST consume its entire declaration line so it
+      # always closes at `end: $` rather than `ERROR_INCOMPLETE`. The tree
+      # parser matches contiguously and cannot skip over un-tiled trailing
+      # text the way vscode-textmate's per-line scanner does; if a stray
+      # `:` / `//` / `#` were left un-consumed here the rule would close
+      # incomplete, the tree would re-enter root matching MID-LINE, and an
+      # `^`-anchored `begin` rule (e.g. `BlockAction`) would spuriously fire
+      # where vscode never opens one. Tiling the rest of the line keeps both
+      # engines in lock-step. See GRAMMAR.md §17.
+      - { include: "#SparkdownLineComment" }
+      - { include: "#Annotation" }
+      - { include: "#Unknown" }
     end: $
 
   SceneWithParametersDeclaration:
@@ -961,9 +973,14 @@ repository:
         patterns:
           - { include: "#RequiredWhitespace" }
     patterns:
+      - { include: "#SparkdownLineComment" }
       - { include: "#Annotation" }
       - { include: "#BranchWithParametersDeclaration" }
       - { include: "#BranchWithoutParametersDeclaration" }
+      # Tile the rest of the line so the rule always closes at `end: $`
+      # rather than `ERROR_INCOMPLETE` (see the matching note on `Scene`
+      # and GRAMMAR.md §17).
+      - { include: "#Unknown" }
     end: $
 
   BranchWithParametersDeclaration:

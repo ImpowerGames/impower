@@ -1,0 +1,558 @@
+import { syntaxParserRunning } from "@codemirror/language";
+import { EditorSelection, Transaction } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import {
+  convertFromPosition,
+  convertFromServerChangeEvents,
+  convertToPosition,
+} from "@impower/codemirror-vscode-lsp-client/src";
+import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import { HoveredOnEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
+import {
+  ScrolledEditorMessage,
+  ScrolledEditorMethod,
+  ScrolledEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import {
+  SelectedEditorMessage,
+  SelectedEditorMethod,
+  SelectedEditorParams,
+} from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import {
+  ProtocolObserver,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
+import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
+import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
+import {
+  LoadPreviewMessage,
+  LoadPreviewMethod,
+  LoadPreviewParams,
+} from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
+import {
+  RevealPreviewRangeMessage,
+  RevealPreviewRangeMethod,
+  RevealPreviewRangeParams,
+} from "@impower/spark-editor-protocol/src/protocols/preview/RevealPreviewRangeMessage";
+import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
+import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage";
+import {
+  DidChangeTextDocumentMessage,
+  DidChangeTextDocumentMethod,
+  DidChangeTextDocumentParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
+import {
+  DidCollapsePreviewPaneMessage,
+  DidCollapsePreviewPaneMethod,
+  DidCollapsePreviewPaneParams,
+} from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
+import {
+  DidExpandPreviewPaneMessage,
+  DidExpandPreviewPaneMethod,
+  DidExpandPreviewPaneParams,
+} from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
+import {
+  Range,
+  TextDocumentIdentifier,
+  TextDocumentItem,
+} from "@impower/spark-editor-protocol/src/types";
+import { getBoxValues } from "../../../../spec-component/src/utils/getBoxValues";
+import debounce from "../../utils/debounce.js";
+import { getScrollableParent } from "../../utils/getScrollableParent.js";
+import { getScrollClientHeight } from "../../utils/getScrollClientHeight.js";
+import { getScrollTop } from "../../utils/getScrollTop.js";
+import { getVisibleRange } from "../../utils/getVisibleRange.js";
+import { scrollY } from "../../utils/scrollY";
+import createEditorView from "./utils/createEditorView";
+
+const CONTENT_PADDING_TOP = 68;
+
+export interface ScreenplayPreviewRefs {
+  preview: HTMLElement;
+  loading: HTMLElement;
+}
+
+export interface ScreenplayPreviewOptions {
+  scrollMargin?: string;
+}
+
+export class ScreenplayPreviewController {
+  protected host: HTMLElement;
+  protected refs: ScreenplayPreviewRefs;
+  protected options: ScreenplayPreviewOptions;
+
+  protected _loadingRequest?: number | string;
+  protected _initialFocused?: boolean;
+  protected _initialVisibleRange?:
+    | Range
+    | "nearest"
+    | "start"
+    | "end"
+    | "center";
+  protected _initialSelectedRange?: Range;
+  protected _loaded = false;
+  protected _textDocument?: TextDocumentIdentifier;
+  protected _view?: EditorView;
+  protected _scroller?: Window | Element | null;
+  protected _visibleRange?: Range;
+  protected _domClientY = 0;
+  protected _userInitiatedScroll = false;
+  protected _scrollMargin: {
+    top?: number;
+    bottom?: number;
+    left?: number;
+    right?: number;
+  } = { top: 0, bottom: 0, left: 0, right: 0 };
+  protected _scrollTarget?: Range;
+  // Owns every protocol-bus subscription; `dispose()` detaches them all.
+  protected _protocols = new ProtocolObserver();
+
+  constructor(
+    host: HTMLElement,
+    refs: ScreenplayPreviewRefs,
+    options: ScreenplayPreviewOptions = {},
+  ) {
+    this.host = host;
+    this.refs = refs;
+    this.options = options;
+  }
+
+  setup(): void {
+    this.host.addEventListener("touchstart", this.handlePointerEnterScroller, {
+      passive: true,
+    });
+    this.host.addEventListener("mouseenter", this.handlePointerEnterScroller, {
+      passive: true,
+    });
+    this.host.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
+      passive: true,
+    });
+    this.registerProtocolHandlers();
+    sendProtocolMessage(
+      ConnectedPreviewMessage.type.notification({ type: "screenplay" }),
+      this.host,
+    );
+  }
+
+  dispose(): void {
+    this.host.removeEventListener(
+      "touchstart",
+      this.handlePointerEnterScroller,
+    );
+    this.host.removeEventListener(
+      "mouseenter",
+      this.handlePointerEnterScroller,
+    );
+    this.host.removeEventListener(
+      "mouseleave",
+      this.handlePointerLeaveScroller,
+    );
+    this._protocols.dispose();
+    const view = this._view;
+    if (view) {
+      this.unbindView(view);
+    }
+  }
+
+  // Wire every protocol message to its handler through the ProtocolObserver:
+  // `onNotification` for notifications, `onRequest` for requests (the handler's
+  // return type is the message's Response, so a forgotten `return` is a compile
+  // error). Replies dispatch on `this.host`.
+  protected registerProtocolHandlers(): void {
+    const p = this._protocols;
+
+    // Handled without a reply.
+    p.onNotification(DidChangeTextDocumentMessage.type, (m) =>
+      this.handleDidChangeTextDocument(m),
+    );
+    p.onNotification(HoveredOnEditorMessage.type, () =>
+      this.handlePointerLeaveScroller(),
+    );
+    p.onNotification(DidExpandPreviewPaneMessage.type, (m) =>
+      this.handleDidExpandPreviewPane(m),
+    );
+    p.onNotification(DidCollapsePreviewPaneMessage.type, (m) =>
+      this.handleDidCollapsePreviewPane(m),
+    );
+    p.onNotification(ScrolledEditorMessage.type, (m) =>
+      this.handleScrolledEditor(m),
+    );
+    p.onNotification(SelectedEditorMessage.type, (m) =>
+      this.handleSelectedEditor(m),
+    );
+
+    // Requests (handler must return the message's Response; replied on host).
+    p.onRequest(
+      LoadPreviewMessage.type,
+      (m) => this.handleLoadPreview(m),
+      this.host,
+    );
+    p.onRequest(
+      RevealPreviewRangeMessage.type,
+      (m) => this.handleRevealPreviewRange(m),
+      this.host,
+    );
+  }
+
+  protected bindView(view: EditorView) {
+    this._domClientY = view.dom.offsetTop;
+    this._scroller = getScrollableParent(view.scrollDOM);
+    this._scroller?.addEventListener("scroll", this.handlePointerScroll);
+  }
+
+  protected unbindView(view: EditorView) {
+    this._scroller?.removeEventListener("scroll", this.handlePointerScroll);
+    view.destroy();
+  }
+
+  protected handleLoadPreview = (
+    message: RequestMessage<LoadPreviewMethod, LoadPreviewParams>,
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const focused = params.focused;
+    const visibleRange = params.visibleRange;
+    const selectedRange = params.selectedRange;
+    const preserveEditor = params.preserveEditor;
+    this._loadingRequest = message.id;
+    this.loadTextDocument(
+      textDocument,
+      focused,
+      visibleRange,
+      selectedRange,
+      preserveEditor,
+    );
+    return LoadPreviewMessage.type.response(message.id, {});
+  };
+
+  protected handleDidExpandPreviewPane = (
+    _message: NotificationMessage<
+      DidExpandPreviewPaneMethod,
+      DidExpandPreviewPaneParams
+    >,
+  ) => {
+    this.scrollToRange(this._visibleRange);
+  };
+
+  protected handleDidCollapsePreviewPane = (
+    _message: NotificationMessage<
+      DidCollapsePreviewPaneMethod,
+      DidCollapsePreviewPaneParams
+    >,
+  ) => {
+    this._userInitiatedScroll = false;
+  };
+
+  protected handleRevealPreviewRange = (
+    message: RequestMessage<RevealPreviewRangeMethod, RevealPreviewRangeParams>,
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const range = params.range;
+    if (textDocument.uri !== this._textDocument?.uri) {
+      this.scrollToRange(range);
+    }
+    return RevealPreviewRangeMessage.type.response(message.id, {});
+  };
+
+  protected handleDidChangeTextDocument = (
+    message: NotificationMessage<
+      DidChangeTextDocumentMethod,
+      DidChangeTextDocumentParams
+    >,
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    if (textDocument.uri === this._textDocument?.uri) {
+      const contentChanges = params.contentChanges;
+      const view = this._view;
+      if (view) {
+        this._scrollTarget = undefined;
+        const changes = convertFromServerChangeEvents(
+          view.state,
+          contentChanges,
+        );
+        for (const change of changes) {
+          // Apply each change individually — positions are relative to the
+          // previous change, not the start document.
+          view.dispatch({ changes: [change] });
+        }
+      }
+    }
+  };
+
+  protected handleScrolledEditor = (
+    message: NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams>,
+  ) => {
+    if (this._loaded) {
+      this._userInitiatedScroll = false;
+      const params = message.params;
+      const textDocument = params.textDocument;
+      const range = params.visibleRange;
+      const target = params.target;
+      if (textDocument.uri === this._textDocument?.uri) {
+        // Always cache the editor's visible range so handleDidExpandPreviewPane
+        // can restore it when the preview is revealed on mobile toggle. When
+        // the preview pane is currently hidden (display:none), the immediate
+        // scrollToRange below has no visual effect — without the cache, the
+        // range would be lost and the reveal would land at scrollTop=0.
+        this.cacheVisibleRange(range);
+        if (target === "element") {
+          this.scrollToRange(range);
+        }
+      }
+    }
+  };
+
+  protected handleSelectedEditor = (
+    message: NotificationMessage<SelectedEditorMethod, SelectedEditorParams>,
+  ) => {
+    const params = message.params;
+    const textDocument = params.textDocument;
+    const selectedRange = params.selectedRange;
+    const docChanged = params.docChanged;
+    const userEvent = params.userEvent;
+    if (textDocument.uri === this._textDocument?.uri) {
+      if (!docChanged && userEvent) {
+        this.selectRange(selectedRange, false);
+      }
+    }
+  };
+
+  protected loadTextDocument(
+    textDocument: TextDocumentItem,
+    focused: boolean | undefined,
+    visibleRange: Range | "nearest" | "start" | "end" | "center" | undefined,
+    selectedRange: Range | undefined,
+    preserveEditor: boolean | undefined,
+  ) {
+    if (preserveEditor && this._view) {
+      // Loading a new text document but the editor is preserved (used when
+      // renaming a file).
+      this._textDocument = textDocument;
+    } else {
+      this.refs.preview.style.visibility = "hidden";
+      this.refs.loading.style.opacity = "1";
+      if (this._view) {
+        this.unbindView(this._view);
+        this._view.destroy();
+      }
+      this._scrollTarget = undefined;
+      this._initialFocused = focused;
+      this._initialVisibleRange = visibleRange;
+      this._initialSelectedRange = selectedRange;
+      this._loaded = false;
+      this._textDocument = textDocument;
+      this._scrollMargin = getBoxValues(this.options.scrollMargin ?? "");
+      this._view = createEditorView(this.refs.preview, {
+        textDocument,
+        scrollMargin: this._scrollMargin,
+        scrollToLineNumber:
+          visibleRange && typeof visibleRange !== "string"
+            ? (visibleRange?.start.line ?? 0) + 1
+            : undefined,
+        onUpdate: (u) => {
+          if (!syntaxParserRunning(u.view)) {
+            this.onIdle();
+          }
+          if (u.heightChanged) {
+            if (u.viewportChanged && !u.docChanged) {
+              if (this._scrollTarget) {
+                this.scrollToRange(this._scrollTarget);
+              }
+            }
+            const visibleRange = this.measureVisibleRange();
+            if (visibleRange) {
+              this.cacheVisibleRange(visibleRange);
+            }
+          }
+          if (u.selectionSet) {
+            const cursorRange = u.state.selection.main;
+            const anchor = cursorRange?.anchor;
+            const head = cursorRange?.head;
+            const uri = this._textDocument?.uri;
+            if (uri) {
+              sendProtocolMessage(
+                SelectedPreviewMessage.type.notification({
+                  type: "screenplay",
+                  textDocument: { uri },
+                  selectedRange: {
+                    start: convertToPosition(u.state.doc, anchor),
+                    end: convertToPosition(u.state.doc, head),
+                  },
+                  docChanged: u.docChanged,
+                  userEvent: u.transactions.some((tr) =>
+                    tr.annotation(Transaction.userEvent),
+                  ),
+                }),
+                this.host,
+              );
+            }
+          }
+        },
+      });
+    }
+  }
+
+  protected cacheVisibleRange(range: Range) {
+    this._visibleRange = range;
+  }
+
+  protected scrollToRange(
+    range: Range | undefined,
+    strategy: "nearest" | "start" | "end" | "center" = "start",
+  ) {
+    const view = this._view;
+    if (view) {
+      if (range) {
+        const doc = view.state.doc;
+        const startLineNumber = range.start.line + 1;
+        if (startLineNumber <= 1) {
+          this._scrollTarget = undefined;
+          scrollY(0, this._scroller);
+        } else {
+          this._scrollTarget = range;
+          const line = doc.line(
+            Math.min(Math.max(1, startLineNumber), doc.lines),
+          );
+          view.dispatch({
+            effects: EditorView.scrollIntoView(
+              EditorSelection.range(line.from, line.to),
+              {
+                y: strategy,
+              },
+            ),
+          });
+        }
+      }
+    }
+  }
+
+  protected selectRange(
+    range: Range,
+    scrollIntoView: "nearest" | "start" | "end" | "center" | false,
+    takeFocus?: boolean,
+  ) {
+    const view = this._view;
+    if (view) {
+      const doc = view.state.doc;
+      const anchor = convertFromPosition(doc, range.start);
+      const head = convertFromPosition(doc, range.end);
+      if (takeFocus) {
+        this.host.focus({ preventScroll: true });
+        view.focus();
+      }
+      view.dispatch({
+        selection: EditorSelection.create([
+          EditorSelection.range(anchor, head),
+        ]),
+        effects: !scrollIntoView
+          ? undefined
+          : EditorView.scrollIntoView(EditorSelection.range(anchor, head), {
+              y: scrollIntoView,
+            }),
+      });
+    }
+  }
+
+  protected onIdle = debounce(() => {
+    if (!this._loaded) {
+      const initialSelectedRange = this._initialSelectedRange;
+      const initialVisibleRange =
+        this._initialVisibleRange == null ||
+        typeof this._initialVisibleRange === "string"
+          ? initialSelectedRange
+          : this._initialVisibleRange;
+      const scrollStrategy =
+        typeof this._initialVisibleRange === "string"
+          ? this._initialVisibleRange
+          : undefined;
+      if (initialVisibleRange) {
+        this.scrollToRange(initialVisibleRange, scrollStrategy);
+      }
+      if (initialSelectedRange) {
+        this.selectRange(initialSelectedRange, scrollStrategy ?? false);
+      }
+      if (this._textDocument && this._loadingRequest != null) {
+        // Fade in once formatting is applied and height is stable.
+        this.refs.loading.style.opacity = "0";
+        this.refs.preview.style.visibility = "visible";
+        this.refs.preview.style.opacity = "1";
+        this._loadingRequest = undefined;
+      }
+      if (this._view) {
+        this.bindView(this._view);
+      }
+      this._loaded = true;
+    }
+  }, 50);
+
+  protected handlePointerEnterScroller = () => {
+    this._userInitiatedScroll = true;
+    if (this._textDocument) {
+      sendProtocolMessage(
+        HoveredOnPreviewMessage.type.notification({
+          type: "screenplay",
+          textDocument: this._textDocument,
+        }),
+        this.host,
+      );
+    }
+  };
+
+  protected handlePointerLeaveScroller = () => {
+    this._userInitiatedScroll = false;
+    if (this._textDocument) {
+      sendProtocolMessage(
+        HoveredOffPreviewMessage.type.notification({
+          type: "screenplay",
+          textDocument: this._textDocument,
+        }),
+        this.host,
+      );
+    }
+  };
+
+  protected handlePointerScroll = (e: Event) => {
+    const visibleRange = this.measureVisibleRange();
+    if (visibleRange) {
+      if (
+        visibleRange.start.line !== this._visibleRange?.start?.line ||
+        visibleRange.end.line !== this._visibleRange?.end?.line
+      ) {
+        if (this._textDocument) {
+          if (this._userInitiatedScroll) {
+            this.cacheVisibleRange(visibleRange);
+            this._scrollTarget = undefined;
+            sendProtocolMessage(
+              ScrolledPreviewMessage.type.notification({
+                type: "screenplay",
+                textDocument: this._textDocument,
+                visibleRange: visibleRange,
+                target: e.target instanceof HTMLElement ? "element" : "window",
+              }),
+              this.host,
+            );
+          }
+        }
+      }
+    }
+  };
+
+  protected measureVisibleRange() {
+    const scrollTarget = this._scroller;
+    const view = this._view;
+    if (view && scrollTarget) {
+      const scrollClientHeight = getScrollClientHeight(scrollTarget);
+      const insetBottom = this._scrollMargin.bottom ?? 0;
+      const scrollTop = getScrollTop(scrollTarget) - CONTENT_PADDING_TOP;
+      const scrollBottom =
+        scrollTop + scrollClientHeight - this._domClientY - insetBottom;
+      const visibleRange = getVisibleRange(view, scrollTop, scrollBottom);
+      return visibleRange;
+    }
+    return undefined;
+  }
+}

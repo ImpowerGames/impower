@@ -1,0 +1,31 @@
+/* Custom-element host box — only present when this component is consumed
+   via its <sparkdown-screenplay-preview> custom-element wrapper (e.g.
+   vscode-sparkdown). When rendered directly as a Preact component (e.g.
+   impower-dev), the `.sparkdown-screenplay-preview-root` element below is
+   the box instead, so every other rule is keyed on that class. */
+sparkdown-screenplay-preview {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+.sparkdown-screenplay-preview-root {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+.sparkdown-screenplay-preview-root * {
+  touch-action: pan-y;
+}
+
+.sparkdown-screenplay-preview-root > .preview-pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: auto;
+}

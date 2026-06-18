@@ -1,0 +1,163 @@
+@import "tailwindcss";
+@plugin 'tailwind-scrollbar';
+@source ".";
+
+/* ----------------------------------------------------------------------------
+ * Tailwind theme tokens.
+ *
+ * The editor is DARK-ONLY (`<html class="theme-dark">`, `color-scheme: dark`),
+ * so colors are defined as flat dark literals directly in `@theme` — no
+ * `--theme-color-*` runtime layer and no `.theme-light`/`.theme-dark` switch.
+ * If runtime light/dark theming is ever needed, reintroduce the canonical
+ * Tailwind v4 pattern: per-theme `--token` vars in `:root`/`.dark` selectors
+ * aliased here via `var()` (you can't switch a `@theme` token directly — it's
+ * emitted once to `:root` at build time).
+ * --------------------------------------------------------------------------*/
+
+@theme {
+  /* Fonts */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol";
+  --font-mono:
+    "Courier Prime Sans", SFMono-Regular, Consolas, "Liberation Mono", Menlo,
+    monospace;
+  --font-serif: Georgia, "Times New Roman", serif;
+
+  /* Radius (matches Tailwind v4's stock sm/md/lg; kept explicit for intent).
+     Ported components use stock numeric spacing/sizing/duration/z utilities
+     (`p-4`, `size-5`, `duration-150`, `z-50`) — see
+     [[feedback_full_tailwind_token_direction]] — so the old named
+     `--spacing-*`/`--size-*`/`--duration-*`/`--z-index-*` scales were dropped. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Surface colors (dark-only literals). shadcn-style naming
+     (`bg-background`, `text-foreground`) so the utility prefix and color name
+     don't collide visually like `bg-bg`. */
+  --color-background: rgb(0 0 0);
+  --color-foreground: rgb(255 255 255);
+  --color-surface: rgb(37 37 37); /* neutral-950 */
+  --color-surface-border: rgb(255 255 255 / 0.12);
+  --color-divider: rgb(255 255 255 / 0.12);
+  /* Floating-panel surface (dropdowns, popovers, modal cards) — a fixed dark
+     neutral, distinct from `engine-*`. Use `bg-popup`. */
+  --color-popup: rgb(18 18 18);
+  /* Tab-active foreground — slightly muted off-white (not pure white) so tab
+     labels read softer than the pure-white header title at large sizes. */
+  --color-tab-foreground: rgb(242 242 242);
+
+  /* Opacity variants use Tailwind v4's slash modifier — no opacity ladder:
+       text-foreground/60   →  color-mix(in oklab, var(--color-foreground) 60%, transparent)
+       bg-background/10     →  same pattern for backgrounds */
+
+  /* Engine palette — the deep navy/slate ramp the editor chrome and
+     bottom-nav use. Consolidates sparkle's scattered editor theme tokens
+     (--theme-color-primary-bg, --theme-color-panel, --theme-color-editor-bg,
+     --theme-color-tab-inactive-text, etc.) into one named scale so
+     components can write `bg-engine-800` instead of arbitrary-value
+     lookups. Uses Tailwind v4's stock 50..950 convention. */
+  --color-engine-50: hsl(210.6 20% 96%);
+  --color-engine-100: hsl(210.6 22% 90%);
+  --color-engine-200: hsl(210.6 24% 80%);
+  --color-engine-300: hsl(210.6 25% 70%);
+  --color-engine-400: hsl(210.6 25% 60%);
+  --color-engine-500: hsl(211 26% 48%);      /* sparkle: tab-inactive-text */
+  --color-engine-600: hsl(210.7 35% 41%);
+  --color-engine-700: hsl(210.8 44.9% 34.9%); /* sparkle: fab-bg / secondary-bg */
+  --color-engine-800: hsl(210.7 89.1% 18%);  /* sparkle: primary-bg */
+  --color-engine-900: hsl(210.6 100% 10%);   /* sparkle: panel */
+  --color-engine-950: hsl(210.6 100% 7%);    /* sparkle: editor-bg */
+
+  /* Semantic color aliases — use Tailwind's stock 50..950 palette scale
+     directly. `bg-primary-500` instead of the legacy `bg-primary-60`. */
+  --color-primary-50: var(--color-sky-50);
+  --color-primary-100: var(--color-sky-100);
+  --color-primary-200: var(--color-sky-200);
+  --color-primary-300: var(--color-sky-300);
+  --color-primary-400: var(--color-sky-400);
+  --color-primary-500: var(--color-sky-500);
+  --color-primary-600: var(--color-sky-600);
+  --color-primary-700: var(--color-sky-700);
+  --color-primary-800: var(--color-sky-800);
+  --color-primary-900: var(--color-sky-900);
+  --color-primary-950: var(--color-sky-950);
+  --color-primary: var(--color-sky-400);
+
+  --color-success-50: var(--color-green-50);
+  --color-success-100: var(--color-green-100);
+  --color-success-200: var(--color-green-200);
+  --color-success-300: var(--color-green-300);
+  --color-success-400: var(--color-green-400);
+  --color-success-500: var(--color-green-500);
+  --color-success-600: var(--color-green-600);
+  --color-success-700: var(--color-green-700);
+  --color-success-800: var(--color-green-800);
+  --color-success-900: var(--color-green-900);
+  --color-success-950: var(--color-green-950);
+  --color-success: var(--color-green-400);
+
+  --color-warning-50: var(--color-amber-50);
+  --color-warning-100: var(--color-amber-100);
+  --color-warning-200: var(--color-amber-200);
+  --color-warning-300: var(--color-amber-300);
+  --color-warning-400: var(--color-amber-400);
+  --color-warning-500: var(--color-amber-500);
+  --color-warning-600: var(--color-amber-600);
+  --color-warning-700: var(--color-amber-700);
+  --color-warning-800: var(--color-amber-800);
+  --color-warning-900: var(--color-amber-900);
+  --color-warning-950: var(--color-amber-950);
+  --color-warning: var(--color-amber-400);
+
+  --color-danger-50: var(--color-red-50);
+  --color-danger-100: var(--color-red-100);
+  --color-danger-200: var(--color-red-200);
+  --color-danger-300: var(--color-red-300);
+  --color-danger-400: var(--color-red-400);
+  --color-danger-500: var(--color-red-500);
+  --color-danger-600: var(--color-red-600);
+  --color-danger-700: var(--color-red-700);
+  --color-danger-800: var(--color-red-800);
+  --color-danger-900: var(--color-red-900);
+  --color-danger-950: var(--color-red-950);
+  --color-danger: var(--color-red-400);
+}
+
+/* ----------------------------------------------------------------------------
+ * Animation keyframes for shimmer-style placeholders.
+ * --------------------------------------------------------------------------*/
+
+@keyframes s-sheen {
+  0% { background-position-x: 200%; }
+  100% { background-position-x: -200%; }
+}
+
+/* Loading-placeholder shimmer (the old `<s-skeleton>` sheen). Drives a
+   4-stop foreground-tinted gradient sliding under the element via the
+   `s-sheen` keyframe. The stops derive from `--color-foreground` at 5% /
+   15% — `color-mix(... transparent)` is the same mechanism Tailwind's
+   `/opacity` modifier uses, so for the editor's pure-white foreground it's
+   bit-identical to the legacy `rgb(255 255 255 / 0.15)` tokens it replaces.
+   Pair with `text-transparent` + a shape (`rounded-full`, sized text) — the
+   consumer just sizes the box; this paints the animated sheen. */
+@utility skeleton-sheen {
+  background-image: linear-gradient(
+    270deg,
+    color-mix(in oklab, var(--color-foreground) 15%, transparent),
+    color-mix(in oklab, var(--color-foreground) 5%, transparent),
+    color-mix(in oklab, var(--color-foreground) 5%, transparent),
+    color-mix(in oklab, var(--color-foreground) 15%, transparent)
+  );
+  background-size: 400% 100%;
+  animation: s-sheen 8s ease-in-out infinite;
+}
+
+/* Material-design ripple animation is driven imperatively by the
+   <Ripple /> component via element.animate() (Web Animations API) — see
+   `components/ripple/Ripple.tsx`. The translate + scale interpolation
+   needs runtime pointer coordinates so it doesn't live as a static
+   keyframe here. */
+

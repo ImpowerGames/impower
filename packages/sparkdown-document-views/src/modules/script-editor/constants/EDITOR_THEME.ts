@@ -55,6 +55,12 @@ const EDITOR_THEME: {
   },
   "*, *::before, *::after": {
     boxSizing: "border-box",
+    // When this editor is rendered in light DOM inside a spec-component
+    // shadow (e.g. <spark-editor>), spec-component's normalize.css applies
+    // `background-size: cover` to every element, stretching the search
+    // panel SVG icons to fill their containers. Restore the intrinsic
+    // SVG size here so icons render at the size the SVG declares.
+    backgroundSize: "auto",
   },
   ".indent": {
     display: "inline-block",

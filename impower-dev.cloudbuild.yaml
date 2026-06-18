@@ -6,42 +6,35 @@ availableSecrets:
       env: BROWSER_GOOGLE_OAUTH_CLIENT_ID
 
 steps:
-  # 1) Install & build with secrets available to the process.env of Node
-  - name: node:20-slim
+  # 1) Build the runtime image. The multi-stage Dockerfile installs the npm
+  #    workspace and builds inside Docker, then assembles a slim runtime image.
+  #    Context is the monorepo root so `npm ci` can use the root lockfile.
+  #    Build args bake the public client-side config into the browser bundle.
+  - name: gcr.io/cloud-builders/docker
     entrypoint: bash
-    args:
-      - -lc
-      - |
-        cd ./impower-dev
-        npm ci
-        npm run postinstall
-        npm run build
-        cd ../
     secretEnv:
       - BROWSER_GOOGLE_API_KEY
       - BROWSER_GOOGLE_OAUTH_CLIENT_ID
-    env:
-      - VITE_SPARKDOWN_PLAYER_ORIGIN=$_VITE_SPARKDOWN_PLAYER_ORIGIN
-  # 2) Build a small runtime image from the compiled output
-  - name: gcr.io/cloud-builders/docker
     args:
-      - build
-      - "--no-cache"
-      - "-t"
-      - >-
-        $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
-      - impower-dev
-      - "-f"
-      - impower-dev/Dockerfile
+      - -lc
+      - |
+        docker build \
+          --no-cache \
+          -t "$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA" \
+          -f impower-dev/Dockerfile \
+          --build-arg VITE_SPARKDOWN_PLAYER_ORIGIN="$_VITE_SPARKDOWN_PLAYER_ORIGIN" \
+          --build-arg BROWSER_GOOGLE_API_KEY="$$BROWSER_GOOGLE_API_KEY" \
+          --build-arg BROWSER_GOOGLE_OAUTH_CLIENT_ID="$$BROWSER_GOOGLE_OAUTH_CLIENT_ID" \
+          .
     id: Build
-  # 3) Push image to Artifact Registry
+  # 2) Push image to Artifact Registry
   - name: gcr.io/cloud-builders/docker
     args:
       - push
       - >-
         $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
     id: Push
-  # 4) Deploy to Google Cloud Run
+  # 3) Deploy to Google Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     args:
       - run

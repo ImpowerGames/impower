@@ -1,4 +1,8 @@
-import { MessageProtocol } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
+import {
+  onProtocolMessage,
+  onProtocolRequest,
+  sendProtocolMessage,
+} from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
   ChangedEditorBreakpointsMessage,
   ChangedEditorBreakpointsMethod,
@@ -20,15 +24,9 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { SetEditorHighlightsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorHighlightsMessage";
 import { SetEditorPinpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SetEditorPinpointsMessage";
-import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCloseFileEditorMessage";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
-import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
-import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
-import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
-import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
 import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
-import { UnfocusWindowMessage } from "@impower/spark-editor-protocol/src/protocols/window/UnfocusWindowMessage";
 import { ApplyWorkspaceEditMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import {
   EditorState,
@@ -54,10 +52,33 @@ import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
+import type { AccountInfo } from "./types/AccountInfo";
 import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
 
+/**
+ * Owns the editor's window/UI state and bridges it to out-of-process peers.
+ *
+ * Data flow:
+ * - The reactive `WorkspaceStore` (signals) is the single source of truth for
+ *   in-page UI. Intents below (openPane, openFileEditor, setPreviewMode, …)
+ *   update it via `this.update()`; Preact components read the signals and
+ *   re-render. They do NOT broadcast events for in-page consumption.
+ * - `sendProtocolMessage()` dispatches `spark-editor-protocol` messages on a window
+ *   CustomEvent bus — strictly the boundary to peers that can't read the
+ *   in-page signal: the OPFS/LSP/PDF workers, the game-player & screenplay
+ *   iframes, and the framework-agnostic CodeMirror editor-view controllers
+ *   (a reusable package that must stay decoupled from this app's store).
+ * - `handleProtocol()` is the inbound half: it folds peer-originated events
+ *   (editor scroll/selection/highlights, compiled program, …) back into the
+ *   store.
+ *
+ * The class is large; the sections below group it by concern. A future split
+ * into per-concern modules behind this facade is viable once a shared "core"
+ * (store/update/cache/getPaneType) is extracted and the project
+ * lifecycle/sync methods gain test coverage.
+ */
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
     this._loadProject.bind(this),
@@ -70,54 +91,43 @@ export default class WorkspaceWindow {
     const id = cachedProjectId || WorkspaceConstants.LOCAL_PROJECT_ID;
     this.restoreProjectWorkspace(id);
     this.cacheProjectId(id);
-    window.addEventListener(MessageProtocol.event, this.handleProtocol);
+    this.registerProtocolHandlers();
     const mediaQuery = window.matchMedia("(min-width: 960px)");
     mediaQuery.addEventListener("change", this.handleScreenSizeChange);
     this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
   }
 
-  protected handleProtocol = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      if (ShowDocumentMessage.type.is(e.detail)) {
-        const response = await this.handleShowDocument(
-          ShowDocumentMessage.type,
-          e.detail,
-        );
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-        return;
-      }
-      if (ApplyWorkspaceEditMessage.type.is(e.detail)) {
-        const response = await this.handleApplyWorkspaceEdit(
-          ApplyWorkspaceEditMessage.type,
-          e.detail,
-        );
-        if (response) {
-          this.emit(MessageProtocol.event, response);
-        }
-        return;
-      }
-      if (ScrolledEditorMessage.type.is(e.detail)) {
-        this.handleScrolledEditor(e.detail);
-      }
-      if (SelectedEditorMessage.type.is(e.detail)) {
-        this.handleSelectedEditor(e.detail);
-      }
-      if (ChangedEditorBreakpointsMessage.type.is(e.detail)) {
-        this.handleChangedEditorBreakpoints(e.detail);
-      }
-      if (ChangedEditorPinpointsMessage.type.is(e.detail)) {
-        this.handleChangedEditorPinpoints(e.detail);
-      }
-      if (ChangedEditorHighlightsMessage.type.is(e.detail)) {
-        this.handleChangedEditorHighlights(e.detail);
-      }
-      if (CompiledProgramMessage.type.is(e.detail)) {
-        this.handleCompiledProgram(e.detail);
-      }
-    }
-  };
+  // Inbound protocol → store. One typed listener per message kind; each
+  // handler receives the fully-typed message (no instanceof/`.is()` guards).
+  // `onProtocolRequest` for requests (the handler must return the message's
+  // Response — a forgotten `return` is a compile error — and the reply is sent
+  // automatically), `onProtocolMessage` for notifications.
+  protected registerProtocolHandlers() {
+    onProtocolRequest(ShowDocumentMessage.type, (m) =>
+      this.handleShowDocument(m),
+    );
+    onProtocolRequest(ApplyWorkspaceEditMessage.type, (m) =>
+      this.handleApplyWorkspaceEdit(m),
+    );
+    onProtocolMessage(ScrolledEditorMessage.type, (m) =>
+      this.handleScrolledEditor(m),
+    );
+    onProtocolMessage(SelectedEditorMessage.type, (m) =>
+      this.handleSelectedEditor(m),
+    );
+    onProtocolMessage(ChangedEditorBreakpointsMessage.type, (m) =>
+      this.handleChangedEditorBreakpoints(m),
+    );
+    onProtocolMessage(ChangedEditorPinpointsMessage.type, (m) =>
+      this.handleChangedEditorPinpoints(m),
+    );
+    onProtocolMessage(ChangedEditorHighlightsMessage.type, (m) =>
+      this.handleChangedEditorHighlights(m),
+    );
+    onProtocolMessage(CompiledProgramMessage.type, (m) =>
+      this.handleCompiledProgram(m),
+    );
+  }
 
   get store() {
     return workspace.current;
@@ -172,33 +182,41 @@ export default class WorkspaceWindow {
     localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, id);
   }
 
-  protected emit<T>(eventName: string, detail?: T): boolean {
-    return window.dispatchEvent(
-      new CustomEvent(eventName, {
-        bubbles: true,
-        cancelable: true,
-        composed: true,
-        detail,
-      }),
-    );
+  // ===========================================================================
+  // Account state
+  //
+  // The signed-in Google account lives in a dedicated `workspace.account`
+  // signal (NOT the persisted cache — see WorkspaceStore for why). These
+  // intents are the single write path; the sync provider calls `clearAccount`
+  // on an out-of-band revocation (invalid_grant), and Account.tsx calls
+  // `setAccount` after sign-in / initial fetch. Components react via the
+  // derived `workspace.signals.account` / `signinLabel` computeds.
+  // ===========================================================================
+
+  /** Record the current Google account (or null when signed out). */
+  setAccount(info: AccountInfo | null) {
+    workspace.account.value = info ?? null;
+  }
+
+  /** Clear the signed-in account — used on sign-out and on revocation. */
+  clearAccount() {
+    workspace.account.value = null;
   }
 
   protected handleShowDocument = async (
-    messageType: typeof ShowDocumentMessage.type,
     message: ShowDocumentMessage.Request,
   ) => {
     const { uri, selection, takeFocus } = message.params;
     const result = await this.showDocument(uri, selection, takeFocus);
-    return messageType.response(message.id, result);
+    return ShowDocumentMessage.type.response(message.id, result);
   };
 
   protected handleApplyWorkspaceEdit = async (
-    messageType: typeof ApplyWorkspaceEditMessage.type,
     message: ApplyWorkspaceEditMessage.Request,
   ) => {
     const { label, edit, metadata } = message.params;
     const result = await Workspace.fs.applyWorkspaceEdit(edit, label, metadata);
-    return messageType.response(message.id, result);
+    return ApplyWorkspaceEditMessage.type.response(message.id, result);
   };
 
   protected handleScrolledEditor = (
@@ -341,6 +359,11 @@ export default class WorkspaceWindow {
     });
   };
 
+  // ===========================================================================
+  // Editor state & layout queries (highlights/pinpoints, pane/panel/editor
+  // lookups, showDocument/search)
+  // ===========================================================================
+
   setHighlights(highlights: Record<string, number[]>) {
     this.update({
       ...this.store,
@@ -355,10 +378,7 @@ export default class WorkspaceWindow {
         range: { start: { line, character: 0 }, end: { line, character: 0 } },
       })),
     );
-    this.emit(
-      MessageProtocol.event,
-      SetEditorHighlightsMessage.type.request({ locations }),
-    );
+    sendProtocolMessage(SetEditorHighlightsMessage.type.request({ locations }));
   }
 
   setPinpoints(pinpoints: Record<string, number[]>) {
@@ -375,10 +395,7 @@ export default class WorkspaceWindow {
         range: { start: { line, character: 0 }, end: { line, character: 0 } },
       })),
     );
-    this.emit(
-      MessageProtocol.event,
-      SetEditorPinpointsMessage.type.request({ locations }),
-    );
+    sendProtocolMessage(SetEditorPinpointsMessage.type.request({ locations }));
   }
 
   setSimulationOptions(
@@ -524,8 +541,8 @@ export default class WorkspaceWindow {
   }
 
   getOpenedDocumentUri() {
-    const openedPane = this.getOpenedPane();
-    const activeEditor = this.getActiveEditorForPane(openedPane);
+    const openPane = this.getOpenedPane();
+    const activeEditor = this.getActiveEditorForPane(openPane);
     if (activeEditor) {
       const uri = activeEditor.uri;
       if (uri) {
@@ -577,9 +594,8 @@ export default class WorkspaceWindow {
         });
       }
       if (range) {
-        this.emit(
-          MessageProtocol.event,
-          SelectEditorMessage.type.request({
+        sendProtocolMessage(
+          SelectEditorMessage.type.notification({
             textDocument: { uri },
             range,
             scrollIntoView: "center",
@@ -590,52 +606,24 @@ export default class WorkspaceWindow {
     });
   }
 
-  unfocus() {
-    const pane = this.store.pane;
-    const panel = this.getOpenedPanel(pane);
-    if (pane && panel) {
-      this.update({
-        ...this.store,
-        panes: {
-          ...this.store.panes,
-          [pane]: {
-            ...this.store.panes[pane],
-            panels: {
-              ...this.store.panes[pane].panels,
-              [panel]: {
-                ...this.store.panes[pane].panels[panel],
-                activeEditor: {
-                  ...this.store.panes[pane].panels[panel]?.activeEditor,
-                  focused: false,
-                },
-              },
-            },
-          },
-        },
-      });
-    }
-    this.emit(MessageProtocol.event, UnfocusWindowMessage.type.request({}));
-  }
-
   search(uri: string) {
-    this.emit(
-      MessageProtocol.event,
+    sendProtocolMessage(
       SearchEditorMessage.type.request({ textDocument: { uri } }),
     );
   }
 
-  openedPane(pane: PaneType) {
+  // ===========================================================================
+  // Panes, panels, views & file editors (store-only intents)
+  // ===========================================================================
+
+  openPane(pane: PaneType) {
     this.update({
       ...this.store,
       pane,
     });
-    this.emit(
-      MessageProtocol.event,
-      DidOpenPaneMessage.type.notification({ pane }),
-    );
   }
 
-  openedPanel(pane: PaneType, panel: PanelType) {
+  openPanel(pane: PaneType, panel: PanelType) {
     this.update({
       ...this.store,
       panes: {
@@ -646,13 +634,9 @@ export default class WorkspaceWindow {
         },
       },
     });
-    this.emit(
-      MessageProtocol.event,
-      DidOpenPanelMessage.type.notification({ pane, panel }),
-    );
   }
 
-  openedView(pane: PaneType, view: string) {
+  openView(pane: PaneType, view: string) {
     this.update({
       ...this.store,
       panes: {
@@ -663,13 +647,9 @@ export default class WorkspaceWindow {
         },
       },
     });
-    this.emit(
-      MessageProtocol.event,
-      DidOpenViewMessage.type.notification({ pane, view }),
-    );
   }
 
-  openedFileEditor(filename: string, oldFilename?: string) {
+  openFileEditor(filename: string, oldFilename?: string) {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
@@ -709,14 +689,10 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(
-        MessageProtocol.event,
-        DidOpenFileEditorMessage.type.notification({ pane, panel, filename }),
-      );
     }
   }
 
-  closedFileEditor(filename: string) {
+  closeFileEditor(filename: string) {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
@@ -739,14 +715,15 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(
-        MessageProtocol.event,
-        DidCloseFileEditorMessage.type.notification({ pane, panel }),
-      );
     }
   }
 
-  expandedPreviewPane() {
+  // ===========================================================================
+  // Preview pane (store-only intents; the Did*PreviewPane broadcasts notify the
+  // out-of-process editor-view controllers)
+  // ===========================================================================
+
+  expandPreviewPane() {
     this.update({
       ...this.store,
       preview: {
@@ -754,13 +731,10 @@ export default class WorkspaceWindow {
         revealed: true,
       },
     });
-    this.emit(
-      MessageProtocol.event,
-      DidExpandPreviewPaneMessage.type.notification({}),
-    );
+    sendProtocolMessage(DidExpandPreviewPaneMessage.type.notification({}));
   }
 
-  collapsedPreviewPane() {
+  collapsePreviewPane() {
     this.update({
       ...this.store,
       preview: {
@@ -768,13 +742,10 @@ export default class WorkspaceWindow {
         revealed: false,
       },
     });
-    this.emit(
-      MessageProtocol.event,
-      DidCollapsePreviewPaneMessage.type.notification({}),
-    );
+    sendProtocolMessage(DidCollapsePreviewPaneMessage.type.notification({}));
   }
 
-  changedPreviewMode(mode: PreviewMode) {
+  setPreviewMode(mode: PreviewMode) {
     this.update({
       ...this.store,
       preview: {
@@ -784,7 +755,11 @@ export default class WorkspaceWindow {
     });
   }
 
-  startedEditingProjectName() {
+  // ===========================================================================
+  // Project name editing & remote-resource picking
+  // ===========================================================================
+
+  startEditingProjectName() {
     this.update({
       ...this.store,
       screen: {
@@ -794,10 +769,13 @@ export default class WorkspaceWindow {
     });
   }
 
-  async finishedEditingProjectName(name: string) {
+  async finishEditingProjectName(name: string) {
     const id = this.store.project.id;
     const validName = name || WorkspaceConstants.DEFAULT_PROJECT_NAME;
     if (id) {
+      // Capture the previous name BEFORE the optimistic update; otherwise
+      // the comparison below always sees the new value and never persists.
+      const previousName = this.store.project.name;
       this.update({
         ...this.store,
         project: {
@@ -809,16 +787,9 @@ export default class WorkspaceWindow {
           editingName: false,
         },
       });
-      let changedName = validName !== this.store.project.name;
+      const changedName = validName !== previousName;
       if (changedName) {
         await Workspace.fs.writeProjectMetadata(id, "name", validName);
-        this.update({
-          ...this.store,
-          project: {
-            ...this.store.project,
-            name: validName,
-          },
-        });
         await this.recordScriptChange();
       }
       return changedName;
@@ -826,7 +797,7 @@ export default class WorkspaceWindow {
     return false;
   }
 
-  startedPickingRemoteProjectResource() {
+  startPickingRemoteProjectResource() {
     this.update({
       ...this.store,
       screen: {
@@ -836,7 +807,7 @@ export default class WorkspaceWindow {
     });
   }
 
-  finishedPickingRemoteProjectResource() {
+  finishPickingRemoteProjectResource() {
     this.update({
       ...this.store,
       screen: {
@@ -845,6 +816,10 @@ export default class WorkspaceWindow {
       },
     });
   }
+
+  // ===========================================================================
+  // Game control (JSON-RPC requests to the game-player iframe)
+  // ===========================================================================
 
   startGame() {
     if (!this.store.preview.modes.game.running) {
@@ -862,7 +837,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(MessageProtocol.event, StartGameMessage.type.request({}));
+      sendProtocolMessage(StartGameMessage.type.request({}));
       if (this.store.preview.modes.game.paused) {
         this.unpauseGame();
       }
@@ -885,7 +860,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(MessageProtocol.event, StopGameMessage.type.request({}));
+      sendProtocolMessage(StopGameMessage.type.request({}));
     }
   }
 
@@ -904,7 +879,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(MessageProtocol.event, PauseGameMessage.type.request({}));
+      sendProtocolMessage(PauseGameMessage.type.request({}));
     }
   }
 
@@ -923,7 +898,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(MessageProtocol.event, UnpauseGameMessage.type.request({}));
+      sendProtocolMessage(UnpauseGameMessage.type.request({}));
     }
   }
 
@@ -934,10 +909,7 @@ export default class WorkspaceWindow {
         this.pauseGame();
       }
     }
-    this.emit(
-      MessageProtocol.event,
-      StepGameClockMessage.type.request({ seconds }),
-    );
+    sendProtocolMessage(StepGameClockMessage.type.request({ seconds }));
   }
 
   toggleGameRunning() {
@@ -971,7 +943,7 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(MessageProtocol.event, EnableGameDebugMessage.type.request({}));
+      sendProtocolMessage(EnableGameDebugMessage.type.request({}));
     }
   }
 
@@ -990,12 +962,14 @@ export default class WorkspaceWindow {
           },
         },
       });
-      this.emit(
-        MessageProtocol.event,
-        DisableGameDebugMessage.type.request({}),
-      );
+      sendProtocolMessage(DisableGameDebugMessage.type.request({}));
     }
   }
+
+  // ===========================================================================
+  // Project lifecycle & remote sync (load/unload, Google Drive sync, conflict
+  // resolution, import/export). Heavily Workspace.fs/sync-coupled.
+  // ===========================================================================
 
   unloadProject() {
     const id = WorkspaceConstants.LOCAL_PROJECT_ID;

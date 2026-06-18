@@ -3,6 +3,8 @@
     "module": "esnext",
     "target": "es2020",
     "lib": ["esnext", "dom"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "declaration": true,
     "skipLibCheck": true,
     "sourceMap": true,

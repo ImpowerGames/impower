@@ -12,6 +12,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@impower/impower-ui": "file:../impower-ui",
     "@impower/spark-dom": "file:../spark-dom",
     "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
     "@impower/spark-engine": "file:../spark-engine",
@@ -27,5 +28,9 @@
     "jsdom": "^25.0.1",
     "ts-morph": "^25.0.1",
     "vitest": "^2.1.8"
+  },
+  "peerDependencies": {
+    "preact": "^10.29.1",
+    "preact-custom-element": "^4.6.0"
   }
 }
