@@ -60,7 +60,7 @@ async function handleLocalAssetRequest(url: URL) {
   const isRaster =
     contentType.startsWith("image/") && contentType !== "image/svg+xml";
   if (thumbParam && isRaster) {
-    const thumb = await getOrCreateThumbnail(url.href, file, thumbParam);
+    const thumb = await getOrCreateThumbnail(path, file, thumbParam);
     if (thumb) {
       return thumb;
     }
@@ -81,12 +81,17 @@ async function handleLocalAssetRequest(url: URL) {
 
 /**
  * Return a cached or freshly-generated downscaled webp thumbnail for an image
- * file, or `undefined` if generation fails (caller serves the original). Keyed
- * by the full request url (which carries the file's `?v=` cache-bust), so a
- * changed file regenerates its thumbnail.
+ * file, or `undefined` if generation fails (caller serves the original).
+ *
+ * Keyed by the file's STABLE signature — `path` + `lastModified` + `size` + the
+ * requested width — NOT the request url. The request url carries a
+ * `?v=${Date.now()}` cache-bust that the workspace re-stamps on every load, so
+ * keying on it would regenerate every thumbnail on every page load (and leak
+ * orphaned cache entries). The signature changes only when the file's bytes
+ * actually change, so a real edit still invalidates the thumbnail.
  */
 async function getOrCreateThumbnail(
-  cacheKey: string,
+  path: string,
   file: File,
   thumbParam: string,
 ): Promise<Response | undefined> {
@@ -97,23 +102,29 @@ async function getOrCreateThumbnail(
   if (!Number.isFinite(maxWidth) || maxWidth < THUMB_MIN_WIDTH) {
     return undefined;
   }
+  const cacheKey = `${RESOURCE_PROTOCOL}${path}?thumb=${maxWidth}&sig=${file.lastModified}-${file.size}`;
   try {
     const cache = await caches.open(SW_THUMB_CACHE_NAME);
     const cached = await cache.match(cacheKey);
     if (cached) {
       return cached;
     }
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxWidth / bitmap.width);
-    const w = Math.max(1, Math.round(bitmap.width * scale));
-    const h = Math.max(1, Math.round(bitmap.height * scale));
-    const canvas = new OffscreenCanvas(w, h);
+    // Decode AND downscale in one pass: `resizeWidth` makes the decoder emit a
+    // small bitmap directly (preserving aspect) instead of allocating the full
+    // multi-megapixel image and scaling it on a canvas afterwards — much less
+    // memory + CPU per thumbnail. (Sources narrower than maxWidth upscale
+    // slightly, which is harmless at thumbnail size.)
+    const bitmap = await createImageBitmap(file, {
+      resizeWidth: maxWidth,
+      resizeQuality: "low",
+    });
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       bitmap.close();
       return undefined;
     }
-    ctx.drawImage(bitmap, 0, 0, w, h);
+    ctx.drawImage(bitmap, 0, 0);
     bitmap.close();
     const blob = await canvas.convertToBlob({
       type: "image/webp",
