@@ -1,5 +1,6 @@
 import { Button, ChevronRight, Ripple } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
+import { memo } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { iconForPath, isImagePath } from "../../utils/fileIcon";
 import workspace from "../../workspace/WorkspaceStore";
@@ -34,8 +35,18 @@ export type FileItemProps = {
    * everything else.
    */
   src?: string;
-  /** Folder rows: toggle expand/collapse. */
-  onToggle?: () => void;
+  /**
+   * While true (the list is actively scrolling), image rows show their type
+   * glyph instead of mounting the thumbnail `<img>` — avoids decoding/fetching
+   * thumbnails for rows scrolled past. Swaps to the thumbnail once it clears.
+   */
+  deferThumb?: boolean;
+  /**
+   * Folder rows: toggle expand/collapse. Receives the row's own path so the
+   * parent can pass a single STABLE callback (not a per-row closure), which
+   * keeps {@link FileItem}'s props referentially stable for `memo`.
+   */
+  onToggle?: (path: string) => void;
 };
 
 /**
@@ -45,7 +56,7 @@ export type FileItemProps = {
  * Rename swaps the label for an inline input — Enter / blur / click-outside
  * commits, Escape cancels.
  */
-export default function FileItem({
+function FileItem({
   path,
   isDirectory = false,
   depth = 0,
@@ -53,6 +64,7 @@ export default function FileItem({
   expanded = false,
   selected = false,
   src,
+  deferThumb = false,
   onToggle,
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
@@ -78,8 +90,9 @@ export default function FileItem({
   // danger/warning color (via currentColor) when the row has a diagnostic.
   const FileIcon = iconForPath(path, isDirectory, expanded);
   // Show a live thumbnail for image assets, but only once we actually have a
-  // url and it hasn't failed to load.
-  const showThumb = !isDirectory && !!src && !thumbFailed && isImagePath(path);
+  // url, it hasn't failed to load, and the list isn't actively scrolling.
+  const showThumb =
+    !isDirectory && !!src && !thumbFailed && !deferThumb && isImagePath(path);
   // Google-Drive convention: files sit in a rounded tile (glyph or thumbnail);
   // folders are a bare, prominent icon with no tile. Mute only file *glyphs*
   // (not thumbnails, not folders) to /50 so they read as quiet chrome.
@@ -180,7 +193,7 @@ export default function FileItem({
     if (renaming) return;
     e.stopPropagation();
     if (isDirectory) {
-      onToggle?.();
+      onToggle?.(path);
       return;
     }
     const { Workspace } = await import("../../workspace/Workspace");
@@ -298,3 +311,9 @@ export default function FileItem({
     </Button>
   );
 }
+
+// Memoized so a re-render of the (virtualized) FileList — which fires on every
+// scroll frame — only re-renders rows whose props actually changed, instead of
+// re-running all ~24 visible rows. Relies on FileList passing referentially
+// stable props (notably a single `onToggle`, not a per-row closure).
+export default memo(FileItem);

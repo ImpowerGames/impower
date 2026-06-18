@@ -8,7 +8,7 @@ import { Button, Plus } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ComponentChildren } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import {
   buildFileTree,
   flattenVisibleRows,
@@ -86,6 +86,11 @@ export default function FileList({
   // thumbnails in the rows. Kept beside `uris` so a reload refreshes both.
   const [srcByUri, setSrcByUri] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  // True while the list is actively scrolling. Image rows defer their thumbnail
+  // (showing the type glyph) until scrolling settles, so we never decode/fetch
+  // thumbnails for rows the user is merely flinging past — that churn was the
+  // source of the Assets-pane scroll jank.
+  const [scrolling, setScrolling] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // Report scroll-off-top so the parent can collapse the FAB.
@@ -97,6 +102,25 @@ export default function FileList({
     el.addEventListener("scroll", update, { passive: true });
     return () => el.removeEventListener("scroll", update);
   }, [onScrolledChange]);
+
+  // Mark scrolling on each scroll event; clear it ~140ms after the last one.
+  // `setScrolling(true)` is a no-op when already true (preact bails on an equal
+  // value), so this re-renders at most twice per fling — not per frame.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let idle: ReturnType<typeof setTimeout>;
+    const onScroll = () => {
+      setScrolling(true);
+      clearTimeout(idle);
+      idle = setTimeout(() => setScrolling(false), 140);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      clearTimeout(idle);
+    };
+  }, []);
 
   // Make the active project id reactive so the list reloads when the user
   // switches projects.
@@ -226,13 +250,18 @@ export default function FileList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, include, exclude]);
 
-  const toggle = (folderPath: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(folderPath)) next.delete(folderPath);
-      else next.add(folderPath);
-      return next;
-    });
+  // Stable across renders (setExpanded is stable) so FileItem's `onToggle` prop
+  // stays referentially equal — a precondition for FileItem's `memo`.
+  const toggle = useCallback(
+    (folderPath: string) =>
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        if (next.has(folderPath)) next.delete(folderPath);
+        else next.add(folderPath);
+        return next;
+      }),
+    [],
+  );
 
   // Build the tree from the filtered relative paths (sentinels materialize empty
   // folders and are hidden), then flatten the EXPANDED tree for the virtualizer.
@@ -397,7 +426,8 @@ export default function FileList({
                     expanded={row.expanded}
                     selected={openFilenames.has(row.path)}
                     src={srcByPath.get(row.path)}
-                    onToggle={() => toggle(row.path)}
+                    deferThumb={scrolling}
+                    onToggle={toggle}
                   />
                 </div>
               );
