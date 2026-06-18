@@ -34,7 +34,13 @@ const KEYFRAMES = `
 }
 `;
 
-export default function LoadingBar({
+// Exported both ways: the `./components` barrel re-exports the `default` as a
+// named `LoadingBar` (so `dist/impower-ui.js` exposes a named export), while
+// the `./loading-bar` subpath resolves to this source in dev/webview builds.
+// Consumers import `{ LoadingBar }` (named) so the same import works whether it
+// resolves to the dist barrel (prod) or this source (dev) — see the `exports`
+// map in impower-ui's package.json.
+export function LoadingBar({
   containerRef,
   class: className,
   style,
@@ -58,3 +64,7 @@ export default function LoadingBar({
     </div>
   );
 }
+
+// Kept so the `./components` barrel's `export { default as LoadingBar }` and
+// any default importers continue to resolve.
+export default LoadingBar;
