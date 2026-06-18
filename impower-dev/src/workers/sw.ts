@@ -4,10 +4,20 @@ declare var self: ServiceWorkerGlobalScope;
 const SW_VERSION: string = process?.env?.["SW_VERSION"] || "v1";
 const SW_CACHE_NAME: string =
   process?.env?.["SW_CACHE_NAME"] || `cache-${SW_VERSION}`;
+// Separate, version-scoped bucket for generated image thumbnails so they
+// survive `activate`'s cache sweep (which deletes every other cache) yet still
+// get cleared on a SW version bump.
+const SW_THUMB_CACHE_NAME: string = `thumbs-${SW_VERSION}`;
 const SW_RESOURCES: string[] = JSON.parse(
   process?.env?.["SW_RESOURCES"] || "[]",
 );
 const RESOURCE_PROTOCOL: string = "/file:/";
+
+// Thumbnail max-width bounds (px). A request for ?thumb=144 yields a webp no
+// wider than 144px; clamped so a hostile/garbage value can't ask for a huge
+// canvas. Images are never upscaled past their natural width.
+const THUMB_MIN_WIDTH = 16;
+const THUMB_MAX_WIDTH = 512;
 
 const RESOURCE_URL_REGEX =
   /.*[.](?:css|html|js|mjs|ico|svg|png|ttf|woff|woff2)$/;
@@ -40,6 +50,22 @@ async function handleLocalAssetRequest(url: URL) {
   const contentType = file.type;
   const contentLength = file.size;
 
+  // Image rows can ask for a downscaled thumbnail via `?thumb=<maxWidthPx>`.
+  // We decode + resize here in the SW (its own thread) and cache the tiny webp,
+  // so the page never decodes multi-megapixel art just to paint a ~36px tile —
+  // that full-res decode is what janks the virtualized scroll. SVG is already
+  // vector/small, so it's served as-is. On any decode failure we fall through
+  // to the original bytes (the row's <img> still works or its onError fires).
+  const thumbParam = url.searchParams.get("thumb");
+  const isRaster =
+    contentType.startsWith("image/") && contentType !== "image/svg+xml";
+  if (thumbParam && isRaster) {
+    const thumb = await getOrCreateThumbnail(url.href, file, thumbParam);
+    if (thumb) {
+      return thumb;
+    }
+  }
+
   const headers = new Headers({
     "Content-Type": contentType,
     "Content-Length": String(contentLength),
@@ -51,6 +77,61 @@ async function handleLocalAssetRequest(url: URL) {
   });
 
   return new Response(file.stream(), { status: 200, headers });
+}
+
+/**
+ * Return a cached or freshly-generated downscaled webp thumbnail for an image
+ * file, or `undefined` if generation fails (caller serves the original). Keyed
+ * by the full request url (which carries the file's `?v=` cache-bust), so a
+ * changed file regenerates its thumbnail.
+ */
+async function getOrCreateThumbnail(
+  cacheKey: string,
+  file: File,
+  thumbParam: string,
+): Promise<Response | undefined> {
+  const maxWidth = Math.max(
+    THUMB_MIN_WIDTH,
+    Math.min(THUMB_MAX_WIDTH, Math.floor(Number(thumbParam)) || 0),
+  );
+  if (!Number.isFinite(maxWidth) || maxWidth < THUMB_MIN_WIDTH) {
+    return undefined;
+  }
+  try {
+    const cache = await caches.open(SW_THUMB_CACHE_NAME);
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      return cached;
+    }
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxWidth / bitmap.width);
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = new OffscreenCanvas(w, h);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return undefined;
+    }
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    const blob = await canvas.convertToBlob({
+      type: "image/webp",
+      quality: 0.75,
+    });
+    const response = new Response(blob, {
+      status: 200,
+      headers: new Headers({
+        "Content-Type": "image/webp",
+        "Content-Length": String(blob.size),
+        "Cache-Control": "max-age=31536000, immutable",
+      }),
+    });
+    await cache.put(cacheKey, response.clone());
+    return response;
+  } catch {
+    return undefined;
+  }
 }
 
 function splitPath(path: string) {
@@ -102,7 +183,7 @@ self.addEventListener("activate", (e) => {
       const names = await caches.keys();
       await Promise.all(
         names.map((name) => {
-          if (name !== SW_CACHE_NAME) {
+          if (name !== SW_CACHE_NAME && name !== SW_THUMB_CACHE_NAME) {
             return caches.delete(name);
           }
           return false;

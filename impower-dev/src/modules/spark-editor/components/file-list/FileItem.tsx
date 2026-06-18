@@ -78,9 +78,16 @@ export default function FileItem({
   // danger/warning color (via currentColor) when the row has a diagnostic.
   const FileIcon = iconForPath(path, isDirectory);
   const iconMuted = isDirectory && expanded ? "" : "opacity-50";
-  // Show a live thumbnail for image assets (the SW serves `src` directly), but
-  // only once we actually have a url and it hasn't failed to load.
+  // Show a live thumbnail for image assets, but only once we actually have a
+  // url and it hasn't failed to load.
   const showThumb = !isDirectory && !!src && !thumbFailed && isImagePath(path);
+  // Ask the service worker for a downscaled thumbnail (max 144px wide ≈ 4× the
+  // 36px box for retina) so the page never decodes full-res art. The SW falls
+  // back to the original bytes if it can't resize, so this is always safe.
+  const thumbSrc =
+    showThumb && src
+      ? `${src}${src.includes("?") ? "&" : "?"}thumb=144`
+      : undefined;
 
   // Re-arm the thumbnail when the row's url changes (e.g. after a cache-bust or
   // a move) so a previously-broken image gets another chance.
@@ -232,9 +239,12 @@ export default function FileItem({
             }`}
           >
             {showThumb ? (
+              // No loading="lazy": the virtualizer already mounts only
+              // visible+overscan rows (its own windowing), and native lazy
+              // loading fails to trigger inside its transformed rows — leaving
+              // visible thumbnails unloaded. Eager + async decode is correct.
               <img
-                src={src}
-                loading="lazy"
+                src={thumbSrc}
                 decoding="async"
                 alt=""
                 class="size-full object-cover"
