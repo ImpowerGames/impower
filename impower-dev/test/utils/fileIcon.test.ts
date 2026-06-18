@@ -2,8 +2,13 @@ import {
   Binder,
   FileCode,
   FileText,
+  FileTypeCsv,
   FileTypeHtml,
+  FileTypeJs,
+  FileTypeJsx,
   FileTypePdf,
+  FileTypeTs,
+  FileTypeXml,
   FileZip,
   Link,
   Music,
@@ -36,11 +41,14 @@ describe("iconForPath", () => {
     expect(iconForPath("credits.name", false)).toBe(FileText);
   });
 
-  it("maps code/data extensions to FileCode", () => {
+  it("maps code/data extensions to their specific glyphs (json → generic)", () => {
     expect(iconForPath("data.json", false)).toBe(FileCode);
-    expect(iconForPath("script.js", false)).toBe(FileCode);
-    expect(iconForPath("module.ts", false)).toBe(FileCode);
-    expect(iconForPath("table.csv", false)).toBe(FileCode);
+    expect(iconForPath("script.js", false)).toBe(FileTypeJs);
+    expect(iconForPath("module.ts", false)).toBe(FileTypeTs);
+    expect(iconForPath("view.jsx", false)).toBe(FileTypeJsx);
+    expect(iconForPath("view.tsx", false)).toBe(FileTypeJsx);
+    expect(iconForPath("table.csv", false)).toBe(FileTypeCsv);
+    expect(iconForPath("data.xml", false)).toBe(FileTypeXml);
   });
 
   it("maps image extensions to Photo", () => {

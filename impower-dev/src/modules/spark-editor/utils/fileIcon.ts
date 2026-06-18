@@ -2,8 +2,13 @@ import {
   Binder,
   FileCode,
   FileText,
+  FileTypeCsv,
   FileTypeHtml,
+  FileTypeJs,
+  FileTypeJsx,
   FileTypePdf,
+  FileTypeTs,
+  FileTypeXml,
   FileZip,
   type IconComponent,
   Link,
@@ -32,11 +37,15 @@ const ICON_BY_EXT: Record<string, IconComponent> = {
   md: FileText,
   name: FileText,
 
-  // Code / structured data
+  // Code / structured data (distinct file-type glyphs where Tabler has one;
+  // `.json` has no Tabler file-type icon, so it keeps the generic code glyph).
   json: FileCode,
-  js: FileCode,
-  ts: FileCode,
-  csv: FileCode,
+  js: FileTypeJs,
+  ts: FileTypeTs,
+  jsx: FileTypeJsx,
+  tsx: FileTypeJsx,
+  csv: FileTypeCsv,
+  xml: FileTypeXml,
 
   // Images
   png: Photo,
