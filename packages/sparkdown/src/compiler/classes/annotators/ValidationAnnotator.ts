@@ -11,6 +11,14 @@ const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
 const AUDIO_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.AUDIO_CONTROL_KEYWORDS || [];
+const SCREEN_CONTROL_KEYWORDS =
+  GRAMMAR_DEFINITION.variables.SCREEN_CONTROL_KEYWORDS || [];
+// `[[...]]` brackets carry both visual (show/hide/animate) and screen-lifecycle
+// (open/close) verbs — see SCREEN_CONTROL_KEYWORDS in the grammar.
+const BRACKET_CONTROL_KEYWORDS = [
+  ...IMAGE_CONTROL_KEYWORDS,
+  ...SCREEN_CONTROL_KEYWORDS,
+];
 
 // NOTE: This annotator previously also validated property selectors
 // (`PropertySelectorSimpleConditionName`/`...FunctionConditionName`/
@@ -47,13 +55,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "AssetCommandControl") {
       const context = getContextNames(nodeRef.node);
-      // Report invalid image control
+      // Report invalid image/screen control
       if (
         context.includes("ImageCommand") &&
-        !IMAGE_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
+        !BRACKET_CONTROL_KEYWORDS.includes(this.read(nodeRef.from, nodeRef.to))
       ) {
-        const message = `Unrecognized visual control: Visual commands only support ${formatList(
-          IMAGE_CONTROL_KEYWORDS,
+        const message = `Unrecognized command: \`[[ ]]\` commands only support ${formatList(
+          BRACKET_CONTROL_KEYWORDS,
         )}`;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({ message }).range(

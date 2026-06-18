@@ -1,6 +1,7 @@
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import { SparkDeclaration } from "../../types/SparkDeclaration";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkSelector } from "../../types/SparkSelector";
@@ -64,6 +65,8 @@ const FUNCTION_DECL_NAME = new Set(["LuauFunctionDeclarationName"]);
 const FUNCTION_DEFINITION = new Set(["LuauFunctionDefinition"]);
 const VARIABLE_DECL_SITE = new Set(["LuauVariableAssignment_begin"]);
 const VARIABLE_DEFINITION = new Set(["LuauVariableDefinition"]);
+const ASSET_COMMAND_INSTRUCTION = new Set(["AssetCommandInstruction"]);
+const ASSET_COMMAND_CONTROL = new Set(["AssetCommandControl"]);
 
 // The OOP define property line (`store trust = 0`, `name = "RAFFLES"`). Its LHS
 // name LuauVariableName must be claimed as a `property` declaration by the
@@ -99,6 +102,12 @@ const STRUCTURAL_TYPE_BY_NODE: Record<string, string> = {
   LuauAnimation: "animation",
   LuauTheme: "theme",
 };
+
+// `[[open hud]]` / `[[close hud]]` — the directive's target is a SCREEN name, so
+// it references the `screen <name>` define (symbolId `screen.<name>`) rather than
+// an image layer.
+const SCREEN_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.SCREEN_CONTROL_KEYWORDS || [];
 
 export class ReferenceAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Reference>
@@ -521,8 +530,33 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const context = getContextNames(nodeRef.node);
       // Record image target reference
       if (context.includes("ImageCommand")) {
-        const types: string[] = ["layer"];
         const name = this.read(nodeRef.from, nodeRef.to);
+        // Screen-lifecycle directive (`[[open/close <screen>]]`): the target is a
+        // screen name, so reference the `screen <name>` define (symbolId
+        // `screen.<name>`) — links to the definition and warns only when the
+        // screen is undefined, instead of validating it as an image layer.
+        const instruction = ancestorMatching(
+          nodeRef.node,
+          ASSET_COMMAND_INSTRUCTION,
+        );
+        const controlNode = instruction
+          ? firstDescendant(instruction, ASSET_COMMAND_CONTROL)
+          : null;
+        const control = controlNode
+          ? this.read(controlNode.from, controlNode.to).trim()
+          : "";
+        if (SCREEN_CONTROL_KEYWORDS.includes(control)) {
+          annotations.push(
+            SparkdownAnnotation.mark<Reference>({
+              selectors: [{ types: ["screen"], name, displayType: "screen" }],
+              symbolIds: [`screen.${name}`],
+              kind: "read",
+              linkable: true,
+            }).range(nodeRef.from, nodeRef.to),
+          );
+          return annotations;
+        }
+        const types: string[] = ["layer"];
         const displayType = `layer`;
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
