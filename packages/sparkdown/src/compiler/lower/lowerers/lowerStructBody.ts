@@ -1,11 +1,16 @@
 import { type SyntaxNode } from "@lezer/common";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { LowerContext } from "../context";
 
 // Shared parser for the colon/indent struct body inside a structural
-// `style`/`screen`/`component … with … end` block. The grammar captures
-// each body line opaquely as `LuauStructBodyContent`; here we read those
-// lines (with their indentation column) and reconstruct the nested
-// struct the engine consumes:
+// `style`/`screen`/`component … with … end` block. The grammar classifies
+// each body line's content into a named SHAPE node — `LuauStructScalarProperty`
+// (`key = value`), `LuauStructObjectHeader` (`key:` / `> selector:` /
+// `@breakpoint:`), `LuauStructArrayItem` (`- item`), or `LuauStructBareMarker`
+// (`image` / `mask shadow_1`). This lowerer reads those nodes directly and
+// reconstructs the nested struct the engine consumes from each line's
+// indentation column — it does NOT re-tokenize the raw line text to decide
+// what shape it is (GRAMMAR.md §5):
 //
 //   position = absolute        → { position: "absolute",
 //   @screen-size(sm):              "@screen-size(sm)": { width: "100%" },
@@ -13,16 +18,26 @@ import { LowerContext } from "../context";
 //   > text:                        "stage": { backdrop: { image: "black" } } }
 //     color = black
 //   stage:                     Line shapes:
-//     backdrop:                  - `key = value`        → scalar (value raw, quotes stripped)
-//       image = "black"          - `<anything>:`        → nested block (key = text sans `:`);
-//   image                          covers named elements, `> selectors`, `@breakpoints`
-//   mask shadow_1                - bare `marker`        → `{}` leaf (image / text / mask …)
-//                                - `- item`             → array element
+//     backdrop:                  - LuauStructScalarProperty → scalar (value coerced)
+//       image = "black"          - LuauStructObjectHeader   → nested block (keyed by the key node)
+//   image                        - LuauStructBareMarker     → `{}` leaf (image / text / mask …)
+//   mask shadow_1                - LuauStructArrayItem      → array element
 
 interface BodyLine {
   indent: number;
-  text: string;
+  // The classified shape node (LuauStructScalarProperty / ObjectHeader /
+  // ArrayItem / BareMarker) captured by the grammar for this body line.
+  shape: SyntaxNode;
+  ctx: LowerContext;
 }
+
+// The grammar classifies a body line's content into exactly one of these.
+const SHAPE_NAMES: ReadonlySet<string> = new Set([
+  "LuauStructScalarProperty",
+  "LuauStructObjectHeader",
+  "LuauStructArrayItem",
+  "LuauStructBareMarker",
+]);
 
 export function collectStructBodyLines(
   contentNode: SyntaxNode | null,
@@ -33,19 +48,25 @@ export function collectStructBodyLines(
   const walk = (node: SyntaxNode | null) => {
     let child = node?.firstChild ?? null;
     while (child) {
-      if (child.name === "LuauStructBodyContent") {
-        const text = ctx.read(child.from, child.to).trim();
+      if (SHAPE_NAMES.has(child.name)) {
         // Skip whole-line `--` Luau comments. `style`/`screen`/`component`
         // bodies are Luau contexts (where `//` is floor division, NOT a
         // comment — so `//` is intentionally not treated as a comment here);
-        // `--` is the comment marker. The grammar captures each body line
-        // opaquely, so a comment line like `-- background_color = rgba(...)`
-        // would otherwise parse as a bogus `"-- background_color"` property and
-        // leak an invalid declaration into the generated CSS. Only WHOLE-LINE
-        // comments are skipped — a mid-line `--` can be part of a value
-        // (`var(--theme-…)`), so it is left intact.
-        if (text && !text.startsWith("--")) {
-          lines.push({ indent: ctx.characterNumber(child.from), text });
+        // `--` is the comment marker. A commented-out line classifies as a
+        // `LuauStructBareMarker` (the array-item rule rejects `--`), so it
+        // would otherwise leak as a bogus `"-- background_color"` leaf in the
+        // generated struct. Only WHOLE-LINE comments are skipped — a mid-line
+        // `--` can be part of a value (`var(--theme-…)`), which lives inside a
+        // scalar's value node and is left intact.
+        const isWholeLineComment =
+          child.name === "LuauStructBareMarker" &&
+          ctx.read(child.from, child.to).trimStart().startsWith("--");
+        if (!isWholeLineComment) {
+          lines.push({
+            indent: ctx.characterNumber(child.from),
+            shape: child,
+            ctx,
+          });
         }
       } else {
         walk(child);
@@ -78,10 +99,15 @@ function parseBlock(
       i += 1; // defensive: skip over-indented orphan
       continue;
     }
-    const text = lines[i]!.text;
-    if (text === "-" || text.startsWith("- ")) {
+    const line = lines[i]!;
+    const shape = line.shape;
+    const ctx = line.ctx;
+    if (shape.name === "LuauStructArrayItem") {
       arr = arr ?? [];
-      const itemText = text === "-" ? "" : text.slice(2).trim();
+      const valueNode = getDescendent("LuauStructItemValue", shape);
+      const itemText = valueNode
+        ? ctx.read(valueNode.from, valueNode.to).trim()
+        : "";
       const childIndent = nextChildIndent(lines, i, indent);
       if (childIndent != null) {
         const sub = parseBlock(lines, i + 1, childIndent);
@@ -91,9 +117,10 @@ function parseBlock(
         if (itemText) arr.push(parseScalar(itemText));
         i += 1;
       }
-    } else if (text.endsWith(":")) {
+    } else if (shape.name === "LuauStructObjectHeader") {
       // Nested block — covers `key:`, `> selector:`, `@breakpoint:`.
-      const key = text.slice(0, -1).trim();
+      const keyNode = getDescendent("LuauStructObjectKey", shape);
+      const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
       const childIndent = nextChildIndent(lines, i, indent);
       if (childIndent != null) {
         const sub = parseBlock(lines, i + 1, childIndent);
@@ -103,15 +130,20 @@ function parseBlock(
         obj[key] = {};
         i += 1;
       }
+    } else if (shape.name === "LuauStructScalarProperty") {
+      const keyNode = getDescendent("LuauStructPropertyName", shape);
+      const valueNode = getDescendent("LuauStructPropertyValue", shape);
+      const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
+      const value = valueNode ? ctx.read(valueNode.from, valueNode.to).trim() : "";
+      obj[key] = parseScalar(value);
+      i += 1;
     } else {
-      const eq = text.indexOf("=");
-      if (eq >= 0) {
-        const key = text.slice(0, eq).trim();
-        obj[key] = parseScalar(text.slice(eq + 1).trim());
-      } else {
-        // bare marker (image / text / mask shadow_1)
-        obj[text] = {};
-      }
+      // LuauStructBareMarker — a `{}` leaf (image / text / mask shadow_1).
+      const markerNode = getDescendent("LuauStructMarkerName", shape);
+      const marker = markerNode
+        ? ctx.read(markerNode.from, markerNode.to).trim()
+        : ctx.read(shape.from, shape.to).trim();
+      obj[marker] = {};
       i += 1;
     }
   }
@@ -137,7 +169,8 @@ function nextChildIndent(
 const STRUCT_REFERENCE_RE =
   /^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)$/;
 
-// Scalar value: strip surrounding quotes for strings; resolve a bare
+// Scalar VALUE coercion (operates on an already-isolated value string the
+// grammar captured): strip surrounding quotes for strings; resolve a bare
 // `<type>.<name>` reference to a `{ $type, $name }` struct reference
 // (mirroring the legacy colon-form's `StructPropertyDefinition.GetValue` and
 // the OOP-define path). The style→CSS transformer turns `{ $type, $name }`

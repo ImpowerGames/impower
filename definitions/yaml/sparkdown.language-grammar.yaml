@@ -3147,9 +3147,13 @@ repository:
 
   # One body line inside a structural-define block (`style`/`screen`/
   # `component`). Matched opaquely (indent + content) so the block spans
-  # to its `end`; the lowerer parses the colon/indent struct from the raw
-  # text. The leading indent is its own capture so the formatter can
-  # PRESERVE it (these bodies are indentation-significant).
+  # to its `end`; the lowerer reconstructs the colon/indent struct from
+  # each line's indentation column. The leading indent is its own capture
+  # so the formatter can PRESERVE it (these bodies are
+  # indentation-significant). The content capture classifies the line's
+  # SHAPE into a named node (array item / object header / scalar property /
+  # bare marker) so the lowerer reads the shape from the grammar instead of
+  # re-tokenizing the raw line — see lowerStructBody / GRAMMAR.md §5.
   LuauStructBodyLine:
     match: ^({{WS}}+)([^\n]*?)({{WS}}*)$
     captures:
@@ -3165,10 +3169,139 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
 
+  # The classified body-line content. Ordered most-specific first; the
+  # final bare-marker alternative is a catch-all that always matches at the
+  # content's first character, so neither engine ever has to advance past
+  # offset 0 to find a match (keeps vscode-textmate and the tree in scope
+  # agreement — see GRAMMAR.md §17). No `^` anchors: capture sub-patterns
+  # are re-tokenized from the capture's mid-line absolute offset in
+  # vscode-textmate but from offset 0 in the tree, so a `^` would match in
+  # one engine and not the other.
   LuauStructBodyContent:
     tag: content
     name: meta.struct.body.luau
+    patterns:
+      - { include: "#LuauStructArrayItem" }
+      - { include: "#LuauStructObjectHeader" }
+      - { include: "#LuauStructScalarProperty" }
+      - { include: "#LuauStructBareMarker" }
+
+  # `- value` or a bare `-` (array element). Must not swallow a `--` Luau
+  # comment line (those are skipped by the lowerer); the negative class
+  # after the dash keeps `--…` from matching here so it falls through to
+  # the bare-marker catch-all and the lowerer's comment skip handles it.
+  LuauStructArrayItem:
+    match: (-)(?![-])({{WS}}*)([^\n]*?)({{WS}}*)$
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauStructArrayItemMark" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#LuauStructItemValue" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  # `key:` (nested block header — named element, `> selector`,
+  # `@breakpoint`). Greedy key so only the LAST `:` terminates the header
+  # (`a:b:` → key `a:b`), matching the lowerer's `slice(0, -1)`.
+  LuauStructObjectHeader:
+    match: (.*\S)({{WS}}*)(:)$
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauStructObjectKey" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#LuauStructObjectColon" }
+
+  # `key = value` (scalar property). The value is captured raw (a CSS-like
+  # token, not a Luau expression); the lowerer applies value-level coercion
+  # (quote strip, `<type>.<name>` reference).
+  LuauStructScalarProperty:
+    match: (\S[^=]*?)({{WS}}*)(=)({{WS}}*)([^\n]*?)({{WS}}*)$
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauStructPropertyName" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#LuauStructAssignmentMark" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      5:
+        patterns:
+          - { include: "#LuauStructPropertyValue" }
+      6:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  # Catch-all: a bare marker (`image`, `text`, `mask shadow_1`) or any line
+  # the more-specific shapes didn't claim. Always matches the content from
+  # its first character.
+  LuauStructBareMarker:
+    match: ([^\n]+)
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauStructMarkerName" }
+
+  LuauStructArrayItemMark:
+    tag: punctuation
+    name: punctuation.definition.struct.array.luau
+    match: (-)
+
+  LuauStructItemValue:
+    tag: content
+    name: meta.struct.array.item.luau
     match: ([^\n]*)
+
+  LuauStructObjectKey:
+    tag: propertyName
+    name: entity.name.tag.struct.luau
+    match: ([^\n]+)
+
+  LuauStructObjectColon:
+    tag: separator
+    name: punctuation.separator.struct.colon.luau
+    match: (:)
+
+  LuauStructPropertyName:
+    tag: attributeName
+    name: entity.other.attribute-name.struct.luau
+    match: ([^\n]+)
+
+  LuauStructAssignmentMark:
+    tag: separator
+    name: keyword.operator.assignment.struct.luau
+    match: (=)
+
+  LuauStructPropertyValue:
+    tag: string
+    name: string.unquoted.struct.luau
+    match: ([^\n]*)
+
+  LuauStructMarkerName:
+    tag: content
+    name: meta.struct.body.luau
+    match: ([^\n]+)
 
   # Name + optional `as PARENT`, ending at the `with` block opener.
   # Reuses LuauDefineName / LuauInheritanceOperation (→ LuauDefineParentName)

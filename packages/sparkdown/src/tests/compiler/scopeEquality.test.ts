@@ -69,6 +69,27 @@ const TARGETED: Record<string, string> = {
   "interpolation": "The value is {x.name} today.\n",
   "knot": "= start\n  Hello.\n  -> END\n",
   "plain-action": "Just a line of action.\n\nAnother paragraph.\n",
+
+  // --- structural-define (style/screen/component) body lines: the
+  // classified line-shape rules (scalar / object header / array item /
+  // bare marker). Object headers that contain `=` (`> #image^=raffles_:`)
+  // must classify as headers, not scalars; scalar values that contain `-`
+  // (`= -3px`) must NOT classify as array items. Both are engine-equality
+  // hazards for the no-`^` capture sub-rules.
+  "struct-scalar-props":
+    "style panel with\n  position = absolute\n  font_size = 3.4cqh\nend\n",
+  "struct-scalar-dash-value":
+    "style panel with\n  margin = -3px\n  aspect_ratio = 4/3\nend\n",
+  "struct-object-headers":
+    "style dialogue with\n  @screen-size(sm):\n    width = 100%\n  > text:\n    color = black\nend\n",
+  "struct-attr-selector-with-equals":
+    "style shadow with\n  > #image^=raffles_:\n    background_color = #E5323E\nend\n",
+  "struct-bare-markers":
+    "screen main with\n  portrait:\n    mask shadow_1\n    image\nend\n",
+  "struct-array-items":
+    "style list with\n  items:\n    - first\n    - second\nend\n",
+  "struct-comment-line":
+    "style panel with\n  position = absolute\n  -- background_color = rgba(0,0,0,0.8)\n  font_size = 3.4cqh\nend\n",
 };
 
 interface Fixture {
