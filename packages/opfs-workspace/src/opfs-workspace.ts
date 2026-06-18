@@ -55,6 +55,21 @@ const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
 const LANGUAGE_ID = "sparkdown";
 
+// Import-time thumbnail generation. When an image is written we decode + resize
+// it here (off the page's main thread) and stash a webp in the shared
+// `asset-thumbnails` Cache Storage bucket, under the SAME key the service worker
+// computes when it serves `?thumb=<w>` — so the file list never has to decode
+// art while the user scrolls. Keep these in sync with `impower-dev/src/workers/
+// sw.ts` (cache name, width, tv, key format).
+const THUMB_CACHE_NAME = "asset-thumbnails";
+const THUMB_WIDTH = 144;
+const THUMB_VERSION = 1;
+const RASTER_IMAGE_REGEX = /[.](png|jpe?g|gif|webp)$/i;
+const THUMBNAILS_SUPPORTED =
+  typeof createImageBitmap === "function" &&
+  typeof OffscreenCanvas === "function" &&
+  typeof caches !== "undefined";
+
 const globToRegex = (glob: string) => {
   return RegExp(
     glob
@@ -659,6 +674,75 @@ const enqueueWrite = async (
   });
 };
 
+// Generation runs one image at a time so a bulk import (hundreds of files at
+// once) doesn't fire hundreds of concurrent decodes.
+let thumbnailChain: Promise<unknown> = Promise.resolve();
+
+const enqueueThumbnail = (fileUri: string): void => {
+  if (!THUMBNAILS_SUPPORTED || !RASTER_IMAGE_REGEX.test(fileUri)) {
+    return;
+  }
+  thumbnailChain = thumbnailChain
+    .then(() => generateThumbnail(fileUri))
+    .catch(() => undefined);
+};
+
+const generateThumbnail = async (fileUri: string): Promise<void> => {
+  const root = await navigator.storage.getDirectory();
+  const relativePath = getPathFromUri(fileUri);
+  const directoryPath = getParentPath(relativePath);
+  const filename = getFileName(relativePath);
+  // Re-read the just-written file (its write lock is already released) rather
+  // than holding the import buffer around — and read its actual lastModified/
+  // size for the cache key so it matches what the SW computes.
+  let file: File;
+  try {
+    const directoryHandle = await getDirectoryHandleFromPath(
+      root,
+      directoryPath,
+    );
+    const fileHandle = await directoryHandle.getFileHandle(filename, {
+      create: false,
+    });
+    file = await fileHandle.getFile();
+  } catch {
+    return;
+  }
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, {
+      resizeWidth: THUMB_WIDTH,
+      resizeQuality: "low",
+    });
+  } catch {
+    return; // not a decodable raster image
+  }
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return;
+  }
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  const webp = await canvas.convertToBlob({
+    type: "image/webp",
+    quality: 0.75,
+  });
+  const key = `/file:/${relativePath}?thumb=${THUMB_WIDTH}&sig=${file.lastModified}-${file.size}&tv=${THUMB_VERSION}`;
+  const cache = await caches.open(THUMB_CACHE_NAME);
+  await cache.put(
+    key,
+    new Response(webp, {
+      headers: {
+        "Content-Type": "image/webp",
+        "Content-Length": String(webp.size),
+        "Cache-Control": "max-age=31536000, immutable",
+      },
+    }),
+  );
+};
+
 const writeFiles = async (
   files: { uri: string; version: number; data: ArrayBuffer }[],
 ) => {
@@ -704,6 +788,9 @@ const write = async (fileUri: string) => {
       l({ file, created });
     });
     queued.listeners = [];
+    // Warm this image's thumbnail in the background (fire-and-forget) so the
+    // file list never decodes art at scroll time.
+    enqueueThumbnail(fileUri);
   } catch (err: any) {
     console.error(err, filename, fileUri, err.stack);
   }

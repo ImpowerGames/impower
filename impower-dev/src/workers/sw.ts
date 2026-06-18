@@ -4,10 +4,14 @@ declare var self: ServiceWorkerGlobalScope;
 const SW_VERSION: string = process?.env?.["SW_VERSION"] || "v1";
 const SW_CACHE_NAME: string =
   process?.env?.["SW_CACHE_NAME"] || `cache-${SW_VERSION}`;
-// Separate, version-scoped bucket for generated image thumbnails so they
-// survive `activate`'s cache sweep (which deletes every other cache) yet still
-// get cleared on a SW version bump.
-const SW_THUMB_CACHE_NAME: string = `thumbs-${SW_VERSION}`;
+// Generated image thumbnails. A FIXED (not version-scoped) cache name so the
+// opfs-workspace worker can write into the same bucket at import time without
+// knowing the SW version, and so thumbnails survive SW updates (they're keyed
+// by file signature, so they stay valid until the file itself changes). Bump
+// THUMB_VERSION to invalidate every thumbnail when the generation logic
+// changes. Kept across `activate`'s cache sweep.
+const SW_THUMB_CACHE_NAME: string = "asset-thumbnails";
+const THUMB_VERSION = 1;
 const SW_RESOURCES: string[] = JSON.parse(
   process?.env?.["SW_RESOURCES"] || "[]",
 );
@@ -102,7 +106,7 @@ async function getOrCreateThumbnail(
   if (!Number.isFinite(maxWidth) || maxWidth < THUMB_MIN_WIDTH) {
     return undefined;
   }
-  const cacheKey = `${RESOURCE_PROTOCOL}${path}?thumb=${maxWidth}&sig=${file.lastModified}-${file.size}`;
+  const cacheKey = `${RESOURCE_PROTOCOL}${path}?thumb=${maxWidth}&sig=${file.lastModified}-${file.size}&tv=${THUMB_VERSION}`;
   try {
     const cache = await caches.open(SW_THUMB_CACHE_NAME);
     const cached = await cache.match(cacheKey);
