@@ -1,9 +1,36 @@
 import * as chokidar from "chokidar";
 import * as esbuild from "esbuild";
+import fs from "fs";
 import path from "path";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
+
+/**
+ * Honor Vite's `?raw` query in esbuild: resolve a `*?raw` import to the real
+ * file in a dedicated namespace, then load its contents as a text string.
+ * Gives esbuild parity with Vite/vitest (which support `?raw` natively) so the
+ * same `import text from "./some.file?raw"` works in code bundled by either.
+ * @type {import('esbuild').Plugin}
+ */
+const rawPlugin = {
+  name: "raw",
+  setup(build) {
+    build.onResolve({ filter: /\?raw$/ }, (args) => {
+      const target = args.path.slice(0, -4);
+      return {
+        path: path.isAbsolute(target)
+          ? target
+          : path.join(args.resolveDir, target),
+        namespace: "raw-loader",
+      };
+    });
+    build.onLoad({ filter: /.*/, namespace: "raw-loader" }, (args) => ({
+      contents: fs.readFileSync(args.path, "utf8"),
+      loader: "text",
+    }));
+  },
+};
 
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
@@ -26,6 +53,7 @@ const esbuildInlineWorkerPlugin = (extraConfig) => ({
         define: {
           global: "globalThis",
         },
+        plugins: [rawPlugin],
         ...(extraConfig || {}),
       });
       let bundledText = result.outputFiles?.[0]?.text || "";
@@ -79,7 +107,7 @@ const config = {
   format: "esm",
   entryPoints: ["./inspector-webview.ts"],
   outfile: "../../out/webviews/inspector-webview.js",
-  plugins: [esbuildInlineWorkerPlugin(), esbuildProblemMatcher()],
+  plugins: [rawPlugin, esbuildInlineWorkerPlugin(), esbuildProblemMatcher()],
 };
 
 async function main() {
