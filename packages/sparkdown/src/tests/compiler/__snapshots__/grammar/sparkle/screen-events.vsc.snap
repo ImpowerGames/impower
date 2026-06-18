@@ -8,19 +8,61 @@ text.source.sparkdown [0..118]
  ├─ Newline [15..16]: "\n"
  ├─ meta.screen.luau [16..22]
  │   ├─ punctuation.whitespace.optional.sd [16..18]: "  "
- │   └─ meta.struct.body.luau [18..22]: "row:"
+ │   └─ meta.struct.body.luau [18..22]
+ │       ├─ entity.name.type.class.view.sd [18..21]: "row"
+ │       └─ meta.template.expression.operator.colon.sd [21..22]: ":"
  ├─ Newline [22..23]: "\n"
  ├─ meta.screen.luau [23..55]
  │   ├─ punctuation.whitespace.optional.sd [23..27]: "    "
- │   └─ meta.struct.body.luau [27..55]: "button \"Use\" @click=use_item"
+ │   └─ meta.struct.body.luau [27..55]
+ │       ├─ keyword.other.component.builtin.name.sd [27..33]: "button"
+ │       ├─ punctuation.whitespace.optional.sd [33..34]: " "
+ │       ├─ string.quoted.double.sd [34..39]
+ │       │   ├─ punctuation.definition.string.begin.sd [34..35]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [35..36]: "U"
+ │       │   ├─ markup.raw.whitespace.sd [36..37]: "s"
+ │       │   ├─ markup.raw.whitespace.sd [37..38]: "e"
+ │       │   └─ punctuation.definition.string.end.sd [38..39]: "\""
+ │       ├─ punctuation.whitespace.optional.sd [39..40]: " "
+ │       ├─ entity.name.function.attribute.name.view.sd [40..41]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [41..46]: "click"
+ │       ├─ keyword.operator.assignment.sd [46..47]: "="
+ │       └─ variable.other.readwrite.luau [47..55]: "use_item"
  ├─ Newline [55..56]: "\n"
  ├─ meta.screen.luau [56..95]
  │   ├─ punctuation.whitespace.optional.sd [56..60]: "    "
- │   └─ meta.struct.body.luau [60..95]: "button \"Hit\" @click=take_damage(10)"
+ │   └─ meta.struct.body.luau [60..95]
+ │       ├─ keyword.other.component.builtin.name.sd [60..66]: "button"
+ │       ├─ punctuation.whitespace.optional.sd [66..67]: " "
+ │       ├─ string.quoted.double.sd [67..72]
+ │       │   ├─ punctuation.definition.string.begin.sd [67..68]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [68..69]: "H"
+ │       │   ├─ markup.raw.whitespace.sd [69..70]: "i"
+ │       │   ├─ markup.raw.whitespace.sd [70..71]: "t"
+ │       │   └─ punctuation.definition.string.end.sd [71..72]: "\""
+ │       ├─ punctuation.whitespace.optional.sd [72..73]: " "
+ │       ├─ entity.name.function.attribute.name.view.sd [73..74]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [74..79]: "click"
+ │       ├─ keyword.operator.assignment.sd [79..80]: "="
+ │       ├─ entity.name.function.luau [80..91]: "take_damage"
+ │       └─ meta.parameter.luau [91..95]
+ │           ├─ punctuation.definition.template-expression.begin.sd [91..92]: "("
+ │           ├─ constant.numeric.decimal.luau [92..94]: "10"
+ │           └─ punctuation.definition.template-expression.end.sd [94..95]: ")"
  ├─ Newline [95..96]: "\n"
  ├─ meta.screen.luau [96..113]
  │   ├─ punctuation.whitespace.optional.sd [96..100]: "    "
- │   └─ meta.struct.body.luau [100..113]: "image \"black\""
+ │   └─ meta.struct.body.luau [100..113]
+ │       ├─ keyword.other.component.builtin.name.sd [100..105]: "image"
+ │       ├─ punctuation.whitespace.optional.sd [105..106]: " "
+ │       └─ string.quoted.double.sd [106..113]
+ │           ├─ punctuation.definition.string.begin.sd [106..107]: "\""
+ │           ├─ markup.raw.whitespace.sd [107..108]: "b"
+ │           ├─ markup.raw.whitespace.sd [108..109]: "l"
+ │           ├─ markup.raw.whitespace.sd [109..110]: "a"
+ │           ├─ markup.raw.whitespace.sd [110..111]: "c"
+ │           ├─ markup.raw.whitespace.sd [111..112]: "k"
+ │           └─ punctuation.definition.string.end.sd [112..113]: "\""
  ├─ Newline [113..114]: "\n"
  ├─ meta.screen.luau [114..117]
  │   └─ keyword.control.end.luau [114..117]: "end"

@@ -20,15 +20,42 @@ text.source.sparkdown [0..159]
  ├─ Newline [42..43]: "\n"
  ├─ meta.screen.luau [43..51]
  │   ├─ punctuation.whitespace.optional.sd [43..47]: "    "
- │   └─ meta.struct.body.luau [47..51]: "row:"
+ │   └─ meta.struct.body.luau [47..51]
+ │       ├─ entity.name.type.class.view.sd [47..50]: "row"
+ │       └─ meta.template.expression.operator.colon.sd [50..51]: ":"
  ├─ Newline [51..52]: "\n"
  ├─ meta.screen.luau [52..76]
  │   ├─ punctuation.whitespace.optional.sd [52..58]: "      "
- │   └─ meta.struct.body.luau [58..76]: "text \"{item.name}\""
+ │   └─ meta.struct.body.luau [58..76]
+ │       ├─ keyword.other.component.builtin.name.sd [58..62]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [62..63]: " "
+ │       └─ string.quoted.double.sd [63..76]
+ │           ├─ punctuation.definition.string.begin.sd [63..64]: "\""
+ │           ├─ meta.template.expression.luau [64..75]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [64..65]: "{"
+ │           │   ├─ meta.embedded.line.luau [65..74]
+ │           │   │   ├─ variable.other.readwrite.luau [65..69]: "item"
+ │           │   │   ├─ meta.template.expression.accessor.sd [69..70]: "."
+ │           │   │   └─ variable.other.property.luau [70..74]: "name"
+ │           │   └─ punctuation.definition.template-expression.end.sd [74..75]: "}"
+ │           └─ punctuation.definition.string.end.sd [75..76]: "\""
  ├─ Newline [76..77]: "\n"
  ├─ meta.screen.luau [77..111]
  │   ├─ punctuation.whitespace.optional.sd [77..83]: "      "
- │   └─ meta.struct.body.luau [83..111]: "button \"Use\" @click=use_item"
+ │   └─ meta.struct.body.luau [83..111]
+ │       ├─ keyword.other.component.builtin.name.sd [83..89]: "button"
+ │       ├─ punctuation.whitespace.optional.sd [89..90]: " "
+ │       ├─ string.quoted.double.sd [90..95]
+ │       │   ├─ punctuation.definition.string.begin.sd [90..91]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [91..92]: "U"
+ │       │   ├─ markup.raw.whitespace.sd [92..93]: "s"
+ │       │   ├─ markup.raw.whitespace.sd [93..94]: "e"
+ │       │   └─ punctuation.definition.string.end.sd [94..95]: "\""
+ │       ├─ punctuation.whitespace.optional.sd [95..96]: " "
+ │       ├─ entity.name.function.attribute.name.view.sd [96..97]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [97..102]: "click"
+ │       ├─ keyword.operator.assignment.sd [102..103]: "="
+ │       └─ variable.other.readwrite.luau [103..111]: "use_item"
  ├─ Newline [111..112]: "\n"
  ├─ meta.screen.luau [112..118]
  │   ├─ punctuation.whitespace.optional.sd [112..114]: "  "
@@ -36,7 +63,30 @@ text.source.sparkdown [0..159]
  ├─ Newline [118..119]: "\n"
  ├─ meta.screen.luau [119..148]
  │   ├─ punctuation.whitespace.optional.sd [119..123]: "    "
- │   └─ meta.struct.body.luau [123..148]: "text \"Your bag is empty.\""
+ │   └─ meta.struct.body.luau [123..148]
+ │       ├─ keyword.other.component.builtin.name.sd [123..127]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [127..128]: " "
+ │       └─ string.quoted.double.sd [128..148]
+ │           ├─ punctuation.definition.string.begin.sd [128..129]: "\""
+ │           ├─ markup.raw.whitespace.sd [129..130]: "Y"
+ │           ├─ markup.raw.whitespace.sd [130..131]: "o"
+ │           ├─ markup.raw.whitespace.sd [131..132]: "u"
+ │           ├─ markup.raw.whitespace.sd [132..133]: "r"
+ │           ├─ markup.raw.whitespace.sd [133..134]: " "
+ │           ├─ markup.raw.whitespace.sd [134..135]: "b"
+ │           ├─ markup.raw.whitespace.sd [135..136]: "a"
+ │           ├─ markup.raw.whitespace.sd [136..137]: "g"
+ │           ├─ markup.raw.whitespace.sd [137..138]: " "
+ │           ├─ markup.raw.whitespace.sd [138..139]: "i"
+ │           ├─ markup.raw.whitespace.sd [139..140]: "s"
+ │           ├─ markup.raw.whitespace.sd [140..141]: " "
+ │           ├─ markup.raw.whitespace.sd [141..142]: "e"
+ │           ├─ markup.raw.whitespace.sd [142..143]: "m"
+ │           ├─ markup.raw.whitespace.sd [143..144]: "p"
+ │           ├─ markup.raw.whitespace.sd [144..145]: "t"
+ │           ├─ markup.raw.whitespace.sd [145..146]: "y"
+ │           ├─ markup.raw.whitespace.sd [146..147]: "."
+ │           └─ punctuation.definition.string.end.sd [147..148]: "\""
  ├─ Newline [148..149]: "\n"
  ├─ meta.screen.luau [149..154]
  │   ├─ punctuation.whitespace.optional.sd [149..151]: "  "

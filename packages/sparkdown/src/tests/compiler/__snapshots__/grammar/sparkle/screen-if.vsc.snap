@@ -8,7 +8,9 @@ text.source.sparkdown [0..186]
  ├─ Newline [15..16]: "\n"
  ├─ meta.screen.luau [16..24]
  │   ├─ punctuation.whitespace.optional.sd [16..18]: "  "
- │   └─ meta.struct.body.luau [18..24]: "stage:"
+ │   └─ meta.struct.body.luau [18..24]
+ │       ├─ entity.name.type.class.view.sd [18..23]: "stage"
+ │       └─ meta.template.expression.operator.colon.sd [23..24]: ":"
  ├─ Newline [24..25]: "\n"
  ├─ meta.screen.luau [25..48]
  │   ├─ punctuation.whitespace.optional.sd [25..29]: "    "
@@ -22,7 +24,21 @@ text.source.sparkdown [0..186]
  ├─ Newline [48..49]: "\n"
  ├─ meta.screen.luau [49..71]
  │   ├─ punctuation.whitespace.optional.sd [49..55]: "      "
- │   └─ meta.struct.body.luau [55..71]: "text \"GAME OVER\""
+ │   └─ meta.struct.body.luau [55..71]
+ │       ├─ keyword.other.component.builtin.name.sd [55..59]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [59..60]: " "
+ │       └─ string.quoted.double.sd [60..71]
+ │           ├─ punctuation.definition.string.begin.sd [60..61]: "\""
+ │           ├─ markup.raw.whitespace.sd [61..62]: "G"
+ │           ├─ markup.raw.whitespace.sd [62..63]: "A"
+ │           ├─ markup.raw.whitespace.sd [63..64]: "M"
+ │           ├─ markup.raw.whitespace.sd [64..65]: "E"
+ │           ├─ markup.raw.whitespace.sd [65..66]: " "
+ │           ├─ markup.raw.whitespace.sd [66..67]: "O"
+ │           ├─ markup.raw.whitespace.sd [67..68]: "V"
+ │           ├─ markup.raw.whitespace.sd [68..69]: "E"
+ │           ├─ markup.raw.whitespace.sd [69..70]: "R"
+ │           └─ punctuation.definition.string.end.sd [70..71]: "\""
  ├─ Newline [71..72]: "\n"
  ├─ meta.screen.luau [72..102]
  │   ├─ punctuation.whitespace.optional.sd [72..76]: "    "
@@ -40,7 +56,25 @@ text.source.sparkdown [0..186]
  ├─ Newline [102..103]: "\n"
  ├─ meta.screen.luau [103..135]
  │   ├─ punctuation.whitespace.optional.sd [103..109]: "      "
- │   └─ meta.struct.body.luau [109..135]: "text warning \"Low health!\""
+ │   └─ meta.struct.body.luau [109..135]
+ │       ├─ keyword.other.component.builtin.name.sd [109..113]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [113..114]: " "
+ │       ├─ entity.name.type.class.view.sd [114..121]: "warning"
+ │       ├─ punctuation.whitespace.required.sd [121..122]: " "
+ │       └─ string.quoted.double.sd [122..135]
+ │           ├─ punctuation.definition.string.begin.sd [122..123]: "\""
+ │           ├─ markup.raw.whitespace.sd [123..124]: "L"
+ │           ├─ markup.raw.whitespace.sd [124..125]: "o"
+ │           ├─ markup.raw.whitespace.sd [125..126]: "w"
+ │           ├─ markup.raw.whitespace.sd [126..127]: " "
+ │           ├─ markup.raw.whitespace.sd [127..128]: "h"
+ │           ├─ markup.raw.whitespace.sd [128..129]: "e"
+ │           ├─ markup.raw.whitespace.sd [129..130]: "a"
+ │           ├─ markup.raw.whitespace.sd [130..131]: "l"
+ │           ├─ markup.raw.whitespace.sd [131..132]: "t"
+ │           ├─ markup.raw.whitespace.sd [132..133]: "h"
+ │           ├─ markup.raw.whitespace.sd [133..134]: "!"
+ │           └─ punctuation.definition.string.end.sd [134..135]: "\""
  ├─ Newline [135..136]: "\n"
  ├─ meta.screen.luau [136..144]
  │   ├─ punctuation.whitespace.optional.sd [136..140]: "    "
@@ -48,7 +82,23 @@ text.source.sparkdown [0..186]
  ├─ Newline [144..145]: "\n"
  ├─ meta.screen.luau [145..173]
  │   ├─ punctuation.whitespace.optional.sd [145..151]: "      "
- │   └─ meta.struct.body.luau [151..173]: "text \"HP: {player.hp}\""
+ │   └─ meta.struct.body.luau [151..173]
+ │       ├─ keyword.other.component.builtin.name.sd [151..155]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [155..156]: " "
+ │       └─ string.quoted.double.sd [156..173]
+ │           ├─ punctuation.definition.string.begin.sd [156..157]: "\""
+ │           ├─ markup.raw.whitespace.sd [157..158]: "H"
+ │           ├─ markup.raw.whitespace.sd [158..159]: "P"
+ │           ├─ markup.raw.whitespace.sd [159..160]: ":"
+ │           ├─ markup.raw.whitespace.sd [160..161]: " "
+ │           ├─ meta.template.expression.luau [161..172]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [161..162]: "{"
+ │           │   ├─ meta.embedded.line.luau [162..171]
+ │           │   │   ├─ variable.other.readwrite.luau [162..168]: "player"
+ │           │   │   ├─ meta.template.expression.accessor.sd [168..169]: "."
+ │           │   │   └─ variable.other.property.luau [169..171]: "hp"
+ │           │   └─ punctuation.definition.template-expression.end.sd [171..172]: "}"
+ │           └─ punctuation.definition.string.end.sd [172..173]: "\""
  ├─ Newline [173..174]: "\n"
  ├─ meta.screen.luau [174..181]
  │   ├─ punctuation.whitespace.optional.sd [174..178]: "    "

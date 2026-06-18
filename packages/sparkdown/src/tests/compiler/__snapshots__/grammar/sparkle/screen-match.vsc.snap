@@ -27,7 +27,18 @@ text.source.sparkdown [0..145]
  ├─ Newline [57..58]: "\n"
  ├─ meta.screen.luau [58..75]
  │   ├─ punctuation.whitespace.optional.sd [58..62]: "    "
- │   └─ meta.struct.body.luau [62..75]: "text \"Knight\""
+ │   └─ meta.struct.body.luau [62..75]
+ │       ├─ keyword.other.component.builtin.name.sd [62..66]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [66..67]: " "
+ │       └─ string.quoted.double.sd [67..75]
+ │           ├─ punctuation.definition.string.begin.sd [67..68]: "\""
+ │           ├─ markup.raw.whitespace.sd [68..69]: "K"
+ │           ├─ markup.raw.whitespace.sd [69..70]: "n"
+ │           ├─ markup.raw.whitespace.sd [70..71]: "i"
+ │           ├─ markup.raw.whitespace.sd [71..72]: "g"
+ │           ├─ markup.raw.whitespace.sd [72..73]: "h"
+ │           ├─ markup.raw.whitespace.sd [73..74]: "t"
+ │           └─ punctuation.definition.string.end.sd [74..75]: "\""
  ├─ Newline [75..76]: "\n"
  ├─ meta.screen.luau [76..89]
  │   ├─ punctuation.whitespace.optional.sd [76..78]: "  "
@@ -40,7 +51,16 @@ text.source.sparkdown [0..145]
  ├─ Newline [89..90]: "\n"
  ├─ meta.screen.luau [90..105]
  │   ├─ punctuation.whitespace.optional.sd [90..94]: "    "
- │   └─ meta.struct.body.luau [94..105]: "text \"Mage\""
+ │   └─ meta.struct.body.luau [94..105]
+ │       ├─ keyword.other.component.builtin.name.sd [94..98]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [98..99]: " "
+ │       └─ string.quoted.double.sd [99..105]
+ │           ├─ punctuation.definition.string.begin.sd [99..100]: "\""
+ │           ├─ markup.raw.whitespace.sd [100..101]: "M"
+ │           ├─ markup.raw.whitespace.sd [101..102]: "a"
+ │           ├─ markup.raw.whitespace.sd [102..103]: "g"
+ │           ├─ markup.raw.whitespace.sd [103..104]: "e"
+ │           └─ punctuation.definition.string.end.sd [104..105]: "\""
  ├─ Newline [105..106]: "\n"
  ├─ meta.screen.luau [106..112]
  │   ├─ punctuation.whitespace.optional.sd [106..108]: "  "
@@ -48,7 +68,22 @@ text.source.sparkdown [0..145]
  ├─ Newline [112..113]: "\n"
  ├─ meta.screen.luau [113..134]
  │   ├─ punctuation.whitespace.optional.sd [113..117]: "    "
- │   └─ meta.struct.body.luau [117..134]: "text \"Adventurer\""
+ │   └─ meta.struct.body.luau [117..134]
+ │       ├─ keyword.other.component.builtin.name.sd [117..121]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [121..122]: " "
+ │       └─ string.quoted.double.sd [122..134]
+ │           ├─ punctuation.definition.string.begin.sd [122..123]: "\""
+ │           ├─ markup.raw.whitespace.sd [123..124]: "A"
+ │           ├─ markup.raw.whitespace.sd [124..125]: "d"
+ │           ├─ markup.raw.whitespace.sd [125..126]: "v"
+ │           ├─ markup.raw.whitespace.sd [126..127]: "e"
+ │           ├─ markup.raw.whitespace.sd [127..128]: "n"
+ │           ├─ markup.raw.whitespace.sd [128..129]: "t"
+ │           ├─ markup.raw.whitespace.sd [129..130]: "u"
+ │           ├─ markup.raw.whitespace.sd [130..131]: "r"
+ │           ├─ markup.raw.whitespace.sd [131..132]: "e"
+ │           ├─ markup.raw.whitespace.sd [132..133]: "r"
+ │           └─ punctuation.definition.string.end.sd [133..134]: "\""
  ├─ Newline [134..135]: "\n"
  ├─ meta.screen.luau [135..140]
  │   ├─ punctuation.whitespace.optional.sd [135..137]: "  "

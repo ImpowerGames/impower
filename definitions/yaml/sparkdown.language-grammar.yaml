@@ -4400,8 +4400,23 @@ repository:
   # Restored per-line wrapper rules for struct-body highlighting. Referenced
   # from `LuauStructBodyContent`'s captures (the lowerer still reads that node's
   # raw text by range — these only add highlighting children within it).
+  #
+  # ENGINE EQUALITY (GRAMMAR.md §17): these rules are reached ONLY via
+  # `LuauStructBodyContent`'s capture re-tokenization, which both engines run
+  # over the body line's CONTENT (the leading indent is already consumed by
+  # `LuauStructBodyLine` capture 1). vscode-textmate retokenizes a capture from
+  # the capture's absolute mid-line offset, so a `^` anchor here would NEVER
+  # match in vscode (its `^` is true-column-0 only) — vscode would stay flat at
+  # `meta.struct.body.luau` while the tree (which retokenizes an isolated
+  # substring, position 0) descended into these children, diverging at every
+  # body character. Anchoring with `({{WS}}*)` at the start (instead of `^`)
+  # makes BOTH engines descend identically: the capture content always begins at
+  # the line's first non-indent char, so the `({{WS}}*)` matches zero-width and
+  # the rest of the rule lines up the same in both engines. (Each rule consumes
+  # to end-of-line, so exactly one fires per body line — no spurious mid-line
+  # re-match.)
   LuauStructScalarProperty:
-    match: ^({{WS}}*)(\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
+    match: ({{WS}}*)(\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
     captures:
       1:
         patterns:
@@ -4428,8 +4443,9 @@ repository:
           - { include: "#StylingValue" }
           - { include: "#UnquotedStringFieldValue" }
 
+  # `^` dropped for engine equality — see LuauStructScalarProperty.
   LuauStructArrayItem:
-    match: ^({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
+    match: ({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
     captures:
       1:
         patterns:
@@ -4446,8 +4462,9 @@ repository:
           - { include: "#StylingValue" }
           - { include: "#UnquotedStringFieldValue" }
 
+  # `^` dropped for engine equality — see LuauStructScalarProperty.
   LuauStructObjectHeader:
-    match: ^({{WS}}*)(.+?)({{WS}}*)([:])({{WS}}*)$
+    match: ({{WS}}*)(.+?)({{WS}}*)([:])({{WS}}*)$
     captures:
       1:
         patterns:
@@ -4482,8 +4499,9 @@ repository:
   # `image = "black"` (a scalar) is matched earlier. The lowerer reads the tag
   # (cap 2) + the content value (cap 4); the static context builder maps it to
   # `{ tag: content }`, identical to the `tag = "content"` scalar form.
+  # `^` dropped for engine equality — see LuauStructScalarProperty.
   LuauStructAdjacencyContent:
-    match: ^({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}+)("(?:\\.|[^"])*")({{WS}}*)([^\n]*)$
+    match: ({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}+)("(?:\\.|[^"])*")({{WS}}*)([^\n]*)$
     captures:
       1:
         patterns:
@@ -4657,8 +4675,9 @@ repository:
         patterns:
           - { include: "#PunctuationStringClose" }
 
+  # `^` dropped for engine equality — see LuauStructScalarProperty.
   LuauStructBareMarker:
-    match: ^({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}*)([^\n]*)$
+    match: ({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}*)([^\n]*)$
     captures:
       1:
         patterns:
@@ -4688,10 +4707,12 @@ repository:
   # a child that spans the WHOLE line. Without it the LuauStructBodyContent node
   # truncates to the last tokenized child and the lowerer (which reads the node's
   # raw text by range) sees a partial line. Must be LAST.
+  # `^` dropped for engine equality — see LuauStructScalarProperty. (`.+` still
+  # requires at least one non-newline char, so an empty line produces no node.)
   LuauStructBodyFallback:
     tag: content
     name: meta.struct.body.fallback.luau
-    match: ^(.+)$
+    match: (.+)$
 
   # ----------------------------------------------------------------------------
   # Sparkle control flow (spec §4.6): `if/elseif/else`, `for`, `match` inside a

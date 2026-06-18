@@ -8,23 +8,84 @@ text.source.sparkdown [0..161]
  ├─ Newline [16..17]: "\n"
  ├─ meta.screen.luau [17..25]
  │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
- │   └─ meta.struct.body.luau [19..25]: "stage:"
+ │   └─ meta.struct.body.luau [19..25]
+ │       ├─ entity.name.type.class.view.sd [19..24]: "stage"
+ │       └─ meta.template.expression.operator.colon.sd [24..25]: ":"
  ├─ Newline [25..26]: "\n"
  ├─ meta.screen.luau [26..43]
  │   ├─ punctuation.whitespace.optional.sd [26..30]: "    "
- │   └─ meta.struct.body.luau [30..43]: "mask shadow_1"
+ │   └─ meta.struct.body.luau [30..43]
+ │       ├─ keyword.other.component.builtin.name.sd [30..34]: "mask"
+ │       ├─ punctuation.whitespace.optional.sd [34..35]: " "
+ │       └─ entity.name.type.class.view.sd [35..43]: "shadow_1"
  ├─ Newline [43..44]: "\n"
  ├─ meta.screen.luau [44..70]
  │   ├─ punctuation.whitespace.optional.sd [44..48]: "    "
- │   └─ meta.struct.body.luau [48..70]: "text title \"Inventory\""
+ │   └─ meta.struct.body.luau [48..70]
+ │       ├─ keyword.other.component.builtin.name.sd [48..52]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [52..53]: " "
+ │       ├─ entity.name.type.class.view.sd [53..58]: "title"
+ │       ├─ punctuation.whitespace.required.sd [58..59]: " "
+ │       └─ string.quoted.double.sd [59..70]
+ │           ├─ punctuation.definition.string.begin.sd [59..60]: "\""
+ │           ├─ markup.raw.whitespace.sd [60..61]: "I"
+ │           ├─ markup.raw.whitespace.sd [61..62]: "n"
+ │           ├─ markup.raw.whitespace.sd [62..63]: "v"
+ │           ├─ markup.raw.whitespace.sd [63..64]: "e"
+ │           ├─ markup.raw.whitespace.sd [64..65]: "n"
+ │           ├─ markup.raw.whitespace.sd [65..66]: "t"
+ │           ├─ markup.raw.whitespace.sd [66..67]: "o"
+ │           ├─ markup.raw.whitespace.sd [67..68]: "r"
+ │           ├─ markup.raw.whitespace.sd [68..69]: "y"
+ │           └─ punctuation.definition.string.end.sd [69..70]: "\""
  ├─ Newline [70..71]: "\n"
  ├─ meta.screen.luau [71..111]
  │   ├─ punctuation.whitespace.optional.sd [71..75]: "    "
- │   └─ meta.struct.body.luau [75..111]: "button primary \"Use\" @click=use_item"
+ │   └─ meta.struct.body.luau [75..111]
+ │       ├─ keyword.other.component.builtin.name.sd [75..81]: "button"
+ │       ├─ punctuation.whitespace.optional.sd [81..82]: " "
+ │       ├─ entity.name.type.class.view.sd [82..89]: "primary"
+ │       ├─ punctuation.whitespace.required.sd [89..90]: " "
+ │       ├─ string.quoted.double.sd [90..95]
+ │       │   ├─ punctuation.definition.string.begin.sd [90..91]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [91..92]: "U"
+ │       │   ├─ markup.raw.whitespace.sd [92..93]: "s"
+ │       │   ├─ markup.raw.whitespace.sd [93..94]: "e"
+ │       │   └─ punctuation.definition.string.end.sd [94..95]: "\""
+ │       ├─ punctuation.whitespace.required.sd [95..96]: " "
+ │       ├─ entity.name.function.attribute.name.view.sd [96..97]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [97..102]: "click"
+ │       ├─ keyword.operator.assignment.sd [102..103]: "="
+ │       └─ variable.other.readwrite.luau [103..111]: "use_item"
  ├─ Newline [111..112]: "\n"
  ├─ meta.screen.luau [112..156]
  │   ├─ punctuation.whitespace.optional.sd [112..116]: "    "
- │   └─ meta.struct.body.luau [116..156]: "label big \"HP: {hp}\" #color={team_color}"
+ │   └─ meta.struct.body.luau [116..156]
+ │       ├─ keyword.other.component.builtin.name.sd [116..121]: "label"
+ │       ├─ punctuation.whitespace.optional.sd [121..122]: " "
+ │       ├─ entity.name.type.class.view.sd [122..125]: "big"
+ │       ├─ punctuation.whitespace.required.sd [125..126]: " "
+ │       ├─ string.quoted.double.sd [126..136]
+ │       │   ├─ punctuation.definition.string.begin.sd [126..127]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [127..128]: "H"
+ │       │   ├─ markup.raw.whitespace.sd [128..129]: "P"
+ │       │   ├─ markup.raw.whitespace.sd [129..130]: ":"
+ │       │   ├─ markup.raw.whitespace.sd [130..131]: " "
+ │       │   ├─ meta.template.expression.luau [131..135]
+ │       │   │   ├─ punctuation.definition.template-expression.begin.sd [131..132]: "{"
+ │       │   │   ├─ meta.embedded.line.luau [132..134]
+ │       │   │   │   └─ variable.other.readwrite.luau [132..134]: "hp"
+ │       │   │   └─ punctuation.definition.template-expression.end.sd [134..135]: "}"
+ │       │   └─ punctuation.definition.string.end.sd [135..136]: "\""
+ │       ├─ punctuation.whitespace.required.sd [136..137]: " "
+ │       ├─ variable.other.constant.attribute.style.sd [137..138]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [138..143]: "color"
+ │       ├─ keyword.operator.assignment.sd [143..144]: "="
+ │       └─ meta.template.expression.luau [144..156]
+ │           ├─ punctuation.definition.template-expression.begin.sd [144..145]: "{"
+ │           ├─ meta.embedded.line.luau [145..155]
+ │           │   └─ variable.other.readwrite.luau [145..155]: "team_color"
+ │           └─ punctuation.definition.template-expression.end.sd [155..156]: "}"
  ├─ Newline [156..157]: "\n"
  ├─ meta.screen.luau [157..160]
  │   └─ keyword.control.end.luau [157..160]: "end"
