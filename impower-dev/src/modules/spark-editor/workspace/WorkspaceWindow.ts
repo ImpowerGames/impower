@@ -1,5 +1,6 @@
 import {
   onProtocolMessage,
+  onProtocolRequest,
   sendProtocolMessage,
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import {
@@ -98,25 +99,16 @@ export default class WorkspaceWindow {
 
   // Inbound protocol → store. One typed listener per message kind; each
   // handler receives the fully-typed message (no instanceof/`.is()` guards).
+  // `onProtocolRequest` for requests (the handler must return the message's
+  // Response — a forgotten `return` is a compile error — and the reply is sent
+  // automatically), `onProtocolMessage` for notifications.
   protected registerProtocolHandlers() {
-    onProtocolMessage(ShowDocumentMessage.type, async (message) => {
-      const response = await this.handleShowDocument(
-        ShowDocumentMessage.type,
-        message,
-      );
-      if (response) {
-        sendProtocolMessage(response);
-      }
-    });
-    onProtocolMessage(ApplyWorkspaceEditMessage.type, async (message) => {
-      const response = await this.handleApplyWorkspaceEdit(
-        ApplyWorkspaceEditMessage.type,
-        message,
-      );
-      if (response) {
-        sendProtocolMessage(response);
-      }
-    });
+    onProtocolRequest(ShowDocumentMessage.type, (m) =>
+      this.handleShowDocument(m),
+    );
+    onProtocolRequest(ApplyWorkspaceEditMessage.type, (m) =>
+      this.handleApplyWorkspaceEdit(m),
+    );
     onProtocolMessage(ScrolledEditorMessage.type, (m) =>
       this.handleScrolledEditor(m),
     );
@@ -212,21 +204,19 @@ export default class WorkspaceWindow {
   }
 
   protected handleShowDocument = async (
-    messageType: typeof ShowDocumentMessage.type,
     message: ShowDocumentMessage.Request,
   ) => {
     const { uri, selection, takeFocus } = message.params;
     const result = await this.showDocument(uri, selection, takeFocus);
-    return messageType.response(message.id, result);
+    return ShowDocumentMessage.type.response(message.id, result);
   };
 
   protected handleApplyWorkspaceEdit = async (
-    messageType: typeof ApplyWorkspaceEditMessage.type,
     message: ApplyWorkspaceEditMessage.Request,
   ) => {
     const { label, edit, metadata } = message.params;
     const result = await Workspace.fs.applyWorkspaceEdit(edit, label, metadata);
-    return messageType.response(message.id, result);
+    return ApplyWorkspaceEditMessage.type.response(message.id, result);
   };
 
   protected handleScrolledEditor = (
