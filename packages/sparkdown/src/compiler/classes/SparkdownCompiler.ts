@@ -7,7 +7,11 @@
 // explicit so consumers of SparkdownCompiler don't hit a TDZ crash.
 import "../../inkjs/engine/Container";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
-import { BUILTINS_PRELUDE } from "../builtins/builtins";
+// The builtins prelude is the raw `builtins.sd` text, imported directly via
+// `?raw` (Vite/vitest native; the repo's esbuild bundles add a `?raw` plugin).
+// No generated wrapper / codegen step — `builtins.sd` is the single source of
+// truth.
+import BUILTINS_PRELUDE from "../builtins/builtins.sd?raw";
 import { IFileHandler } from "../../inkjs/compiler/IFileHandler";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { Choice } from "../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
