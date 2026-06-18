@@ -1,4 +1,3 @@
-import * as chokidar from "chokidar";
 import * as esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
@@ -40,8 +39,6 @@ const WATCH = process.argv.includes("--watch");
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
-const OPFS_WORKSPACE_SRC_PATH = "../opfs-workspace/src";
-
 /** @type {import('esbuild').Plugin} **/
 const esbuildProblemMatcher = () => ({
   name: "esbuildProblemMatcher",
@@ -77,23 +74,12 @@ const config = {
 async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
+    // esbuild's native watch already tracks this worker's full input graph —
+    // its own src AND its @impower deps (imported via /src/ subpaths, so they
+    // resolve to source). The old extra chokidar on its OWN src was redundant
+    // and, lacking error handling, crashed the whole watcher on any build error
+    // (e.g. a syntax error mid-edit) — silently ending hot-reload.
     await ctx.watch();
-
-    const rebuild = async () => {
-      console.log(
-        LOG_PREFIX +
-          `detected change in ${OPFS_WORKSPACE_SRC_PATH}, rebuilding...`,
-      );
-      await ctx.rebuild();
-    };
-
-    chokidar
-      .watch(OPFS_WORKSPACE_SRC_PATH, {
-        ignoreInitial: true,
-        persistent: true,
-        depth: 99,
-      })
-      .on("all", rebuild);
   } else {
     await ctx.rebuild();
     await ctx.dispose();
