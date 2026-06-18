@@ -96,6 +96,42 @@ own `esbuild.js` (with esbuild's `--watch` for dev). The app loads them as
 they're reusable packages with their own build, also consumed by the VS Code
 extension.
 
+## Sharing UI with the VS Code webviews
+
+`@impower/sparkdown-document-views` (the CodeMirror editor + screenplay
+preview) is consumed by **both** this app (Vite, via `@preact/preset-vite`) and
+**vscode-sparkdown's webviews** (plain esbuild). When a shared component imports
+`@impower/impower-ui`, the webview's esbuild has to reproduce four things Vite's
+preset does for free — see `vscode-sparkdown/webviews/screenplay-webview/esbuild.js`:
+
+1. **Resolve to source.** `conditions: ["development"]` so the package's
+   `development` export condition points at TS source. Otherwise esbuild falls
+   through to the `import` condition's built `dist/impower-ui.js`, which is
+   gitignored and never produced by this chain.
+2. **Preact JSX, build-wide.** `jsx: "automatic"` + `jsxImportSource: "preact"`.
+   impower-ui `.tsx` use the automatic runtime with no `React`/`h` import; without
+   this esbuild emits classic `React.createElement` and the component throws
+   `ReferenceError: React is not defined` at render. Set it at the build level —
+   esbuild's per-file tsconfig discovery is unreliable for this.
+3. **Import via a subpath, not the barrel.** Use a per-component export
+   (`@impower/impower-ui/loading-bar`), not `@impower/impower-ui/components`.
+   esbuild can't tree-shake the barrel's Radix-based re-exports (its
+   `sideEffects` honoring is node_modules-only, and the workspace package
+   resolves to its real path under `packages/`), so the barrel would drag all of
+   Radix — and its `react` imports — into the bundle.
+4. **Inject scoped, preflight-free CSS.** The webview has no global Tailwind
+   stylesheet. Do **not** inject `dist/impower-ui.css` — it includes Tailwind
+   preflight (a global reset) that fights the CodeMirror preview's styling. A
+   `?tw` esbuild loader compiles a tiny entry (`impower-ui-utilities.css` — only
+   `tailwindcss/theme` + `tailwindcss/utilities`, no preflight, `@source`ing the
+   rendered components) via `@tailwindcss/node`, and the webview entry injects
+   the result into `<head>`.
+
+Worker delivery in vscode-sparkdown has a related workspace gotcha: its esbuild
+copy plugin must read worker/codicons dists from `../packages/<pkg>/dist` and
+`../node_modules/@vscode/...` (the npm-workspaces migration hoists those deps to
+the monorepo root, so the old local `./node_modules/...` paths copy nothing).
+
 ## Deployment (Cloud Run)
 
 A **multi-stage `Dockerfile`** built from the **monorepo root** (so `npm ci`
@@ -110,3 +146,14 @@ uses the single root lockfile):
 and deploys to Cloud Run. The build-time public config (`VITE_SPARKDOWN_PLAYER_ORIGIN`,
 the public `BROWSER_GOOGLE_*` keys) is passed as `--build-arg`s; the player app
 deploys the same way (static `dist/` served by nginx).
+
+> **Traffic must serve "latest".** The deploy step is `gcloud run services
+> update --image=…`, which creates a new revision but only migrates traffic if
+> the service is set to serve the latest revision. If traffic is ever *pinned*
+> to a specific revision (`spec.traffic[].revisionName` instead of
+> `latestRevision: true`), new deploys build and report "deployed" but sit at
+> **0% traffic** with no "Routing traffic" phase in the log — the old revision
+> keeps serving. Fix and prevent recurrence with a one-time
+> `gcloud run services update-traffic <service> --to-latest --region=us-central1`
+> (sets `latestRevision: true`). Diagnose with
+> `gcloud run services describe <service> --format="json(spec.traffic,status.latestReadyRevisionName)"`.
