@@ -28,6 +28,7 @@ import { Event } from "../../../core/types/Event";
 import { EventMap } from "../../../core/types/EventMap";
 import {
   ImageInstruction,
+  ScreenInstruction,
   TextInstruction,
 } from "../../../core/types/Instruction";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
@@ -291,7 +292,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override onReset() {
     this._events = {};
-    this._rootScopes = [];
+    this._mountedScreens = new Map();
   }
 
   override async onConnected() {
@@ -915,12 +916,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   // are Phase 4. slot/fill and #prop bindings land later.
   // ---------------------------------------------------------------------------
 
-  /** One {@link ReactiveScope} per mounted screen — the roots of the scope tree
-   *  walked each turn by {@link refreshScreens}. Rebuilt on every mount. */
-  protected _rootScopes: ReactiveScope[] = [];
+  /** Screens that are currently MOUNTED (have live DOM + a reactive scope),
+   *  keyed by name. This is the source of truth for the reactive lifecycle:
+   *  `main` is mounted by default (auto-open); every other screen is mounted by
+   *  `[[open X]]` and removed by `[[close X]]` (true spawn/destroy). The roots of
+   *  the scope tree walked each turn by {@link refreshScreens} are the `scope`s
+   *  of every entry. Designed to hold >1 screen so a future goto/navigate can
+   *  layer screens. */
+  protected _mountedScreens: Map<string, { element: Element; scope: ReactiveScope }> =
+    new Map();
+
+  /** Test/preview convenience: when set, {@link constructScreensFromAst} mounts
+   *  EVERY screen at connect (instant, no transition) instead of just `main`.
+   *  Off in production — only `main` auto-opens; everything else needs `[[open]]`.
+   *  The harness sets this so existing reactive tests keep their "screen is
+   *  mounted at connect" assumption. */
+  _autoOpenAll = false;
 
   constructScreensFromAst(...structNames: string[]): void {
-    this._rootScopes = [];
+    this._mountedScreens = new Map();
     const screens = this._game.program?.sparkle?.screens;
     if (!screens) {
       return;
@@ -929,9 +943,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // mount captures each binding's read deps (Phase 4).
     this._game.story.variablesState.reactiveDepsEnabled = true;
     const targetAllScreens = !structNames || structNames.length === 0;
-    const validScreenNames = targetAllScreens
-      ? Object.keys(screens)
-      : structNames;
+    // Default: ONLY `main` is mounted/visible from the start (implicit auto-open).
+    // Every other screen stays unmounted (zero DOM / zero binding cost) until an
+    // explicit `[[open X]]`. The `_autoOpenAll` test flag mounts them all.
+    const validScreenNames = !targetAllScreens
+      ? structNames
+      : this._autoOpenAll
+        ? Object.keys(screens)
+        : Object.keys(screens).filter((name) => name === "main");
     for (const screenName of validScreenNames) {
       if (screenName && !screenName.startsWith("$")) {
         const screen = screens[screenName];
@@ -958,7 +977,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
     });
     const scope = this.makeScope({});
-    this._rootScopes.push(scope);
+    this._mountedScreens.set(screen.name, { element: uiEl, scope });
     this.mountChildren(uiEl, screen.children, scope, null);
     return uiEl;
   }
@@ -1777,7 +1796,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const changes = this._game.story.variablesState.takeReactiveChanges();
-    for (const scope of this._rootScopes) {
+    for (const { scope } of this._mountedScreens.values()) {
       this.refreshScope(scope, changes);
     }
   }
@@ -2092,6 +2111,146 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Screen lifecycle ([[open SCREEN]] / [[close SCREEN]])
+  //
+  // True spawn/destroy on the reactive render path: `[[open X]]` MOUNTS screen X
+  // (constructs its element tree, captures its reactive deps, registers its scope
+  // for per-turn refresh) and plays an enter transition; `[[close X]]` plays an
+  // exit transition then DESTROYS X's whole element subtree and drops its scope
+  // (so refreshScreens stops touching it — zero binding cost while closed). `main`
+  // is auto-opened at connect; openScreen/closeScreen stay independent primitives
+  // (multiple screens can be open) to leave room for a future goto/navigate.
+  // ---------------------------------------------------------------------------
+
+  /** Resolve a screen's enter (`open`) or exit (`close`) animation from the
+   *  directive clauses, exactly like the image path: a `with` that names a
+   *  `transition` uses its `on_show`/`on_hide`; a `with` that names an `animation`
+   *  (or a bare directive defaulting to the builtin `show`/`hide`) uses it
+   *  directly. Returns the resolved {@link Animation} (with after/over/ease
+   *  overrides applied) or undefined when nothing animatable resolves. */
+  protected resolveScreenAnimation(
+    direction: "enter" | "exit",
+    clauses: { with?: string; after?: number; over?: number; ease?: string },
+    instant: boolean,
+  ): Animation | undefined {
+    const withName = clauses.with || "";
+    const transition = this.context?.transition?.[withName];
+    let name: string;
+    if (transition) {
+      const arm = direction === "enter" ? transition.on_show : transition.on_hide;
+      name =
+        (typeof arm === "string" ? arm : arm?.$name) ||
+        (direction === "enter" ? "show" : "hide");
+    } else {
+      // A bare `with X` names an animation directly; with no `with`, fall back to
+      // the builtin `show`/`hide` reveal animations.
+      name = withName || (direction === "enter" ? "show" : "hide");
+    }
+    return this.getAnimationDefinition(
+      {
+        name,
+        after: clauses.after,
+        over: clauses.over,
+        ease: clauses.ease,
+      },
+      instant,
+    );
+  }
+
+  /** Mount + reveal a screen (`[[open X]]`). No-op if already mounted. With
+   *  clauses, plays the resolved enter transition on the screen root; a bare
+   *  `[[open X]]` (or `instant`) just mounts + shows. The screen root is revealed
+   *  through the normal `reveal()` flow (root opacity). Returns once the enter
+   *  transition has settled, so a `wait` directive can block story advance. */
+  async openScreen(
+    name: string,
+    clauses?: { with?: string; after?: number; over?: number; ease?: string },
+    instant = false,
+  ): Promise<void> {
+    if (!this._reactive) {
+      // Static path: screens are all constructed at connect; just toggle hidden.
+      this.showScreen(name);
+      return;
+    }
+    if (!name) {
+      return;
+    }
+    if (this._mountedScreens.has(name)) {
+      // Already open — no-op (a future goto/navigate may re-run the transition).
+      return;
+    }
+    const screens = this._game.program?.sparkle?.screens;
+    const screen = screens?.[name];
+    if (!screen) {
+      return;
+    }
+    // Mount captures the screen's reactive deps; settle the load-time change
+    // residue afterwards so the first per-turn refresh only sees post-mount
+    // changes (mirrors constructScreensFromAst).
+    const element = this.constructScreenFromAst(screen);
+    this._game.story.variablesState.takeReactiveChanges();
+    // The screens layer's root opacity is revealed on the first beat anyway, but
+    // open it here too so a screen opened before any dialogue is visible.
+    this.reveal();
+    const enter = this.resolveScreenAnimation("enter", clauses ?? {}, instant);
+    if (enter && !instant) {
+      await this.animateElements([{ element, animations: [enter] }]);
+    }
+  }
+
+  /** Play the exit transition then DESTROY a screen (`[[close X]]`): tears down
+   *  its whole DOM subtree (one `ui/destroy` on the root removes the children)
+   *  and drops its reactive scope so refreshScreens no longer touches it. No-op
+   *  if not mounted. A bare `[[close X]]` (or `instant`) destroys immediately.
+   *  Returns once the exit transition has settled, so `wait` can block advance. */
+  async closeScreen(
+    name: string,
+    clauses?: { with?: string; after?: number; over?: number; ease?: string },
+    instant = false,
+  ): Promise<void> {
+    if (!this._reactive) {
+      // Static path: screens are never torn down; just toggle hidden.
+      this.hideScreen(name);
+      return;
+    }
+    const entry = name ? this._mountedScreens.get(name) : undefined;
+    if (!entry) {
+      return;
+    }
+    const exit = this.resolveScreenAnimation("exit", clauses ?? {}, instant);
+    if (exit && !instant) {
+      await this.animateElements([{ element: entry.element, animations: [exit] }]);
+    }
+    // Destroy the whole subtree (root destroy drops children) + drop the scope so
+    // refreshScreens stops walking it. Closed = zero DOM + zero binding cost.
+    this.destroyElement(entry.element);
+    this._mountedScreens.delete(name);
+  }
+
+  /** Apply a beat's `[[open/close SCREEN]]` directives (Coordinator fan-out),
+   *  mirroring `image.write`/`audio.schedule`. Awaits all transitions so a beat
+   *  with a `wait` directive can hold advance until they settle. */
+  async applyScreenInstructions(
+    instructions: ScreenInstruction[],
+    instant: boolean,
+  ): Promise<void> {
+    await Promise.all(
+      instructions.map((e) => {
+        const clauses = {
+          with: e.with,
+          after: e.after,
+          over: e.over,
+          ease: e.ease,
+        };
+        if (e.control === "close") {
+          return this.closeScreen(e.name, clauses, instant);
+        }
+        return this.openScreen(e.name, clauses, instant);
+      }),
+    );
   }
 
   protected findElements(target: string): Element[] {

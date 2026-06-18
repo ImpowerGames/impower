@@ -126,7 +126,7 @@ function resultForMethod(method: string): unknown {
 export function createHarness(
   source: string,
   startLine = 0,
-  opts?: { reactive?: boolean },
+  opts?: { reactive?: boolean; autoOpenAll?: boolean },
 ): UIHarness {
   const { program } = compileUI(source);
   const messages: any[] = [];
@@ -148,6 +148,11 @@ export function createHarness(
   // is settable here; the static golden path stays the default (flag off).
   if (opts?.reactive) {
     (game.module.ui as any)._reactive = true;
+    // Test convenience: by default the reactive path auto-mounts EVERY screen at
+    // connect (instant), so existing tests keep their "screen is mounted at
+    // connect" assumption. Production only auto-opens `main`; a test exercising
+    // the real [[open/close]] lifecycle passes `autoOpenAll: false`.
+    (game.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
   }
 
   const respond = (msg: any) => {
@@ -251,6 +256,15 @@ export function createHarness(
         await Promise.all(
           Object.entries(instructions.image).map(([target, events]) =>
             ui.image.write(target, events as any, instant),
+          ),
+        );
+      }
+      // Apply [[open/close SCREEN]] lifecycle directives, mirroring
+      // Coordinator.display()'s fan-out (mount/destroy + enter/exit transitions).
+      if (instructions.screen) {
+        await Promise.all(
+          Object.values(instructions.screen).map((events) =>
+            ui.applyScreenInstructions(events as any, instant),
           ),
         );
       }

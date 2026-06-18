@@ -4,6 +4,7 @@ import {
   AudioInstruction,
   ImageInstruction,
   LoadInstruction,
+  ScreenInstruction,
   TextInstruction,
 } from "../../../core/types/Instruction";
 import type { Instructions } from "../../../core/types/Instructions";
@@ -44,7 +45,14 @@ export class InterpreterModule extends Module<
     "queue",
     "await",
     "write",
+    "open",
+    "close",
   ];
+
+  // Control verbs that route a `[[...]]` directive to the screen-lifecycle path
+  // (openScreen/closeScreen) instead of the image path. They reuse the asset
+  // clause parser (with/over/after/ease/wait) verbatim.
+  SCREEN_CONTROL_KEYWORDS = ["open", "close"];
 
   ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
 
@@ -164,6 +172,19 @@ export class InterpreterModule extends Module<
             a.image[k]!.unshift(...v);
           } else {
             a.image[k]!.push(...v);
+          }
+        }
+      }
+    }
+    if (a.screen || b.screen) {
+      a.screen ??= {};
+      if (b.screen) {
+        for (const [k, v] of Object.entries(b.screen)) {
+          a.screen[k] ??= [];
+          if (prefix) {
+            a.screen[k]!.unshift(...v);
+          } else {
+            a.screen[k]!.push(...v);
           }
         }
       }
@@ -345,10 +366,12 @@ export class InterpreterModule extends Module<
   shouldFlush(): boolean {
     // There are worlds to load.
     // Or there is text to display.
+    // Or a screen-lifecycle directive ([[open/close SCREEN]]) to apply.
     // Or an event takes up time.
     return Boolean(
       this._state.buffer?.[0]?.load ||
       this._state.buffer?.[0]?.text ||
+      this._state.buffer?.[0]?.screen ||
       Number(this._state.buffer?.[0]?.end) > 0,
     );
   }
@@ -505,6 +528,61 @@ export class InterpreterModule extends Module<
       imageChunk.duration += overDuration ?? maxAnimationDuration ?? 0;
     }
     return imageChunk;
+  }
+
+  protected createScreenChunk(screenTagContent: string): Chunk {
+    // `open`/`close` come in through the same `[[...]]` brackets as images, so
+    // they share the asset clause parser. The screen NAME plays the role of the
+    // asset's `target` (e.g. `[[open hud with fade over 1s]]` → control="open",
+    // target="hud", clauses={with:"fade", over:1}). There is no default target —
+    // a screen directive without a name is a no-op downstream.
+    const screenChunk = this.createAssetChunk(
+      screenTagContent,
+      "screen",
+      "open",
+      "",
+    );
+    // Mirror the image chunk's `wait` handling: when the author asks to block
+    // story advance until the enter/exit transition finishes, inflate the chunk
+    // duration (which becomes `result.end`, the Coordinator's auto-advance gate)
+    // by the start delay + the transition duration.
+    const withEffectName =
+      screenChunk.clauses?.["with"] || screenChunk.target || "";
+    const afterDuration = screenChunk.clauses?.["after"];
+    const overDuration = screenChunk.clauses?.["over"];
+    const transition = (this.context as any)?.["transition"]?.[withEffectName];
+    const animation = (this.context as any)?.["animation"]?.[withEffectName];
+    const animationNames: string[] = [];
+    if (transition) {
+      for (const [k, v] of Object.entries(transition)) {
+        if (!k.startsWith("$") && v) {
+          if (typeof v === "string") {
+            animationNames.push(v);
+          } else if (
+            typeof v === "object" &&
+            "$name" in v &&
+            typeof v?.$name === "string"
+          ) {
+            animationNames.push(v?.$name);
+          }
+        }
+      }
+    } else if (animation) {
+      animationNames.push(animation.$name);
+    }
+    const allAnimations = animationNames.map(
+      (name) => (this.context as any)?.["animation"]?.[name],
+    );
+    const maxAnimationDuration = allAnimations.length
+      ? Math.max(
+          ...allAnimations.map((a) => getTimeValue(a?.timing?.duration) ?? 0),
+        )
+      : 0;
+    if (screenChunk.clauses?.wait) {
+      screenChunk.duration += afterDuration ?? 0;
+      screenChunk.duration += overDuration ?? maxAnimationDuration ?? 0;
+    }
+    return screenChunk;
   }
 
   protected createAudioChunk(audioTagContent: string): Chunk {
@@ -710,10 +788,21 @@ export class InterpreterModule extends Module<
                 while (i < chars.length) {
                   if (chars[i] === "]" && chars[i + 1] === "]") {
                     closed = true;
-                    const imageChunk = this.createImageChunk(imageTagContent);
+                    // `[[open SCREEN]]` / `[[close SCREEN]]` route to the
+                    // screen-lifecycle path instead of the image path. The
+                    // control verb is the first whitespace-delimited word.
+                    const verb = imageTagContent
+                      .replaceAll("\t", " ")
+                      .trimStart()
+                      .split(" ")[0];
+                    const isScreenDirective =
+                      !!verb && this.SCREEN_CONTROL_KEYWORDS.includes(verb);
+                    const directiveChunk = isScreenDirective
+                      ? this.createScreenChunk(imageTagContent)
+                      : this.createImageChunk(imageTagContent);
                     const phrase = {
-                      target: imageChunk.target,
-                      chunks: [imageChunk],
+                      target: directiveChunk.target,
+                      chunks: [directiveChunk],
                     };
                     linePhrases.push(phrase);
                     allPhrases.push(phrase);
@@ -1313,6 +1402,44 @@ export class InterpreterModule extends Module<
             result.image ??= {};
             result.image[target] ??= [];
             result.image[target]!.push(event);
+          }
+          // Screen Event ([[open SCREEN]] / [[close SCREEN]])
+          if (c.tag === "screen") {
+            const screenName = c.target || "";
+            if (screenName) {
+              const event: ScreenInstruction = {
+                control: (c.control || "open") as ScreenInstruction["control"],
+                name: screenName,
+              };
+              if (time) {
+                event.after = time;
+              }
+              if (c.clauses) {
+                const withValue = c.clauses?.with;
+                if (withValue != null) {
+                  event.with = withValue;
+                }
+                const afterValue = c.clauses?.after;
+                if (afterValue != null) {
+                  event.after = (event.after ?? 0) + afterValue;
+                }
+                const overValue = c.clauses?.over;
+                if (overValue != null) {
+                  event.over = overValue;
+                }
+                const easeValue = c.clauses?.ease;
+                if (easeValue != null) {
+                  event.ease = easeValue;
+                }
+                const waitValue = c.clauses?.wait;
+                if (waitValue) {
+                  event.wait = true;
+                }
+              }
+              result.screen ??= {};
+              result.screen[screenName] ??= [];
+              result.screen[screenName]!.push(event);
+            }
           }
           // Audio Event
           if (c.tag === "audio") {

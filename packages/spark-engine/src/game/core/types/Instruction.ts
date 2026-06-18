@@ -48,4 +48,16 @@ export interface AudioInstruction extends IInstruction {
   to?: number;
 }
 
-export type Instruction = TextInstruction | ImageInstruction | AudioInstruction;
+export interface ScreenInstruction extends IInstruction {
+  control: "open" | "close";
+  /** The name of the screen to mount (`open`) or tear down (`close`). */
+  name: string;
+  /** The enter/exit animation/transition name (`with` clause). */
+  with?: string;
+}
+
+export type Instruction =
+  | TextInstruction
+  | ImageInstruction
+  | AudioInstruction
+  | ScreenInstruction;

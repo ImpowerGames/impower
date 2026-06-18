@@ -198,6 +198,16 @@ export class Coordinator<G extends Game> {
         );
       }
 
+      // Process screen-lifecycle events ([[open/close SCREEN]]). Mount/destroy
+      // happens here (the reactive screen tree is settled at this point); the
+      // enter/exit transition is fire-and-forget for visuals, while `wait` (which
+      // inflated instructions.end) is what actually holds story advance.
+      if (instructions.screen) {
+        Object.values(instructions.screen).forEach((events) =>
+          game.module.ui.applyScreenInstructions(events, !!instant),
+        );
+      }
+
       // Coarse per-turn re-eval of reactive screen bindings (Phase 3 I2). The
       // story is settled at this point, so binding evaluators are safe to call.
       // No-op unless the reactive render path is active.
