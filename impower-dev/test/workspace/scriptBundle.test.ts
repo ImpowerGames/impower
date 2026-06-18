@@ -13,13 +13,16 @@ import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/Worksp
 
 const PROJECT = "proj1";
 
-// Minimal `this` providing the helpers bundle/split actually touch. getFileUri
-// and getDirectoryUri are the REAL prototype implementations.
+// Minimal `this` providing the helpers bundle/split actually touch. getFileUri,
+// getDirectoryUri, and getRelativePath are the REAL prototype implementations.
+// (bundleProjectText derives each script's project-relative path via
+// this.getRelativePath, so the fake must expose it.)
 function makeFakeFs(files: Record<string, FileData>) {
   return {
     _scheme: "file://",
     getDirectoryUri: WorkspaceFileSystem.prototype.getDirectoryUri,
     getFileUri: WorkspaceFileSystem.prototype.getFileUri,
+    getRelativePath: WorkspaceFileSystem.prototype.getRelativePath,
     getFiles: async () => files,
   } as unknown as WorkspaceFileSystem;
 }

@@ -1,6 +1,10 @@
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import { unzipSync, zipSync } from "fflate";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  buildZippable,
+  parseUnzipEntries,
+} from "../../../packages/opfs-workspace/src/utils/assetArchive";
 
 // Stub the Workspace singleton (Worker-spawning, circular import).
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
@@ -12,16 +16,16 @@ import WorkspaceFileSystem from "../../src/modules/spark-editor/workspace/Worksp
 // AREAS 2 & 3: project zip + asset bundle round-trip, exercised through the
 // REAL WorkspaceFileSystem.readProjectZip / writeProjectZip /
 // readProjectAssetBundle / writeProjectAssetBundle (and their delete-set
-// logic), with the OPFS worker replaced by an in-memory fake that FAITHFULLY
-// replicates the worker's zip/unzip path strategy:
-//   - zipFiles keys the archive by the File's basename (getFileName of the uri);
-//   - unzipFiles maps each entry through getFileName (basename only).
+// logic), with the OPFS worker replaced by an in-memory fake that mirrors the
+// worker's zip/unzip strategy via the REAL opfs-workspace assetArchive helpers
+// (buildZippable / parseUnzipEntries), i.e. PROJECT-RELATIVE-PATH keying.
 // createFiles / deleteFiles mutate the same in-memory OPFS map.
 //
-// This lets us assert the DESIRED export->import contract (content + folder
-// path intact, nested dirs preserved, import deletes files absent from the zip)
-// against the genuine class behavior. The nested-path specs are grouped under
-// "known gaps on main" because the worker's basename keying flattens folders.
+// This lets us assert the export->import contract (content + folder path intact,
+// nested dirs preserved, import deletes files absent from the zip) against the
+// genuine class behavior. The "known gaps on main" nested-path specs FAIL on
+// main (basename keying flattens folders) and PASS here (the worker now keys by
+// the relative path — commit 2f79eb510).
 
 const PROJECT = "proj1";
 const enc = new TextEncoder();
@@ -63,29 +67,26 @@ function makeHarness(initial: Record<string, Uint8Array>): Harness {
   const fs = {
     getDirectoryUri: WorkspaceFileSystem.prototype.getDirectoryUri,
     getFileUri: WorkspaceFileSystem.prototype.getFileUri,
+    getRelativePath: WorkspaceFileSystem.prototype.getRelativePath,
     _scheme: "file://",
     getFiles: async () => files,
 
-    // --- faithful in-memory replicas of the OPFS worker protocol calls ---
-    zipFiles: async ({ files: list }: { files: { uri: string }[] }) => {
-      // worker zipFiles: zippable[fileRef.name] = bytes (basename key).
-      const zippable: Record<string, Uint8Array> = {};
-      for (const { uri } of list) {
-        const bytes = opfs.get(uri)!;
-        zippable[basename(uri)] = bytes;
-      }
-      return zipSync(zippable, { level: 0 }).buffer;
+    // --- in-memory replicas of the OPFS worker, mirroring the FIXED worker via
+    // the REAL assetArchive helpers (project-relative-path keying). readProjectZip
+    // now supplies a `path` per file. ---
+    zipFiles: async ({
+      files: list,
+    }: {
+      files: { uri: string; path?: string }[];
+    }) => {
+      const refs = list.map(({ uri, path }) => ({
+        path: path ?? basename(uri),
+        data: opfs.get(uri)!,
+      }));
+      return zipSync(buildZippable(refs), { level: 0 }).buffer;
     },
-    unzipFiles: async ({ data }: { data: ArrayBuffer }) => {
-      // worker unzipFiles: filename = getFileName(entryName) (basename).
-      const unzipped = unzipSync(new Uint8Array(data));
-      return Object.entries(unzipped)
-        .filter(([fn]) => Boolean(basename(fn)))
-        .map(([fn, d]) => ({
-          filename: basename(fn),
-          data: d.buffer as ArrayBuffer,
-        }));
-    },
+    unzipFiles: async ({ data }: { data: ArrayBuffer }) =>
+      parseUnzipEntries(unzipSync(new Uint8Array(data))),
     createFiles: async ({
       files: list,
     }: {

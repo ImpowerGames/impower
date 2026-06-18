@@ -1,6 +1,6 @@
 import { unzipSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
-import { getFileName } from "../src/utils/getFileName";
+import { buildZippable, parseUnzipEntries } from "../src/utils/assetArchive";
 
 // AREA 2/3 (pure layer): Project zip + asset bundle path preservation.
 //
@@ -59,29 +59,24 @@ describe("fflate codec is path-preserving (sanity: the codec is not the bug)", (
   });
 });
 
-// Replicates the worker's actual export path (zipFiles): the zip key is the
-// File's basename (`fileRef.name`). Two files in different folders sharing a
-// basename are the canonical collision case.
+// Mirror the FIXED worker via the REAL assetArchive helpers: the export keys the
+// archive by each file's PROJECT-RELATIVE PATH (commit 2f79eb510) and the import
+// keeps the full path. The relative path is the uri minus `file://<root>/`. On
+// main these keyed by basename and dropped folders — the canonical collision is
+// two files sharing a basename in different folders.
+const relativePath = (uri: string) => uri.replace(/^file:\/\/[^/]+\//, "");
+
 function workerZipFilesKeyStrategy(
   files: { uri: string; basename: string; bytes: Uint8Array }[],
 ) {
-  const zippable: Record<string, Uint8Array> = {};
-  files.forEach((f) => {
-    zippable[f.basename] = f.bytes; // <- main keys by basename, dropping dirs
-  });
-  return zipSync(zippable, { level: 0 });
+  return zipSync(
+    buildZippable(files.map((f) => ({ path: relativePath(f.uri), data: f.bytes }))),
+    { level: 0 },
+  );
 }
 
-// Replicates the worker's import path (unzipFiles): map each entry name through
-// getFileName, i.e. keep only the basename.
 function workerUnzipFilesEntries(zip: Uint8Array) {
-  const unzipped = unzipSync(zip);
-  return Object.entries(unzipped)
-    .filter(([filename]) => Boolean(getFileName(filename)))
-    .map(([filename, data]) => ({
-      filename: getFileName(filename),
-      data,
-    }));
+  return parseUnzipEntries(unzipSync(zip));
 }
 
 describe("project zip round-trip — DESIRED folder-path preservation", () => {
