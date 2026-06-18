@@ -934,12 +934,58 @@ export class SparkdownCompiler {
         }
       }
       if (context) {
-        // Copy pre-built structs to program context
+        // Copy pre-built structs to program context. An authored define that
+        // reuses a builtin name (seeded earlier by mergePreludeContext) OVERRIDES
+        // IN PLACE: its properties win, but the builtin's *unspecified* siblings
+        // are retained. Without this, a partial override silently drops every
+        // field it doesn't restate — e.g. `define ui as config with
+        // reactive = true` would lose the builtin screens_element_name /
+        // styles_element_name / breakpoints, leaving the engine unable to find
+        // the screen root and stranding screens at opacity:0 (a black preview
+        // with no error). Deep-merge so nested config (breakpoints, interpreter
+        // directives/fallbacks) keeps unspecified keys too; $-meta comes from the
+        // authored instance. Structural element-tree types (screen/component)
+        // REPLACE wholesale — merging two trees would splice the builtin's
+        // children into the authored one.
+        const REPLACE_TYPES = new Set(["screen", "component"]);
+        const mergeOver = (base: any, override: any): any => {
+          if (
+            base == null ||
+            typeof base !== "object" ||
+            Array.isArray(base) ||
+            override == null ||
+            typeof override !== "object" ||
+            Array.isArray(override)
+          ) {
+            return override;
+          }
+          const merged: Record<string, any> = {};
+          for (const [k, bv] of Object.entries(base)) {
+            if (!k.startsWith("$")) merged[k] = bv;
+          }
+          for (const [k, v] of Object.entries(override)) {
+            const bv = (base as Record<string, any>)[k];
+            merged[k] =
+              bv != null &&
+              typeof bv === "object" &&
+              !Array.isArray(bv) &&
+              v != null &&
+              typeof v === "object" &&
+              !Array.isArray(v)
+                ? mergeOver(bv, v)
+                : v;
+          }
+          return merged;
+        };
         for (const [type, structs] of Object.entries(context)) {
           for (const [name, struct] of Object.entries(structs)) {
             program.context ??= {};
             program.context[type] ??= {};
-            program.context[type][name] = struct;
+            const existing = program.context[type][name];
+            program.context[type][name] =
+              existing && !REPLACE_TYPES.has(type)
+                ? mergeOver(existing, struct)
+                : struct;
           }
         }
       }
