@@ -220,32 +220,27 @@ export default function FileItem({
             }}
           />
         ))}
-        {/* Disclosure column: a rotating chevron for folders-with-children,
-            an equal-width spacer otherwise so names stay aligned. */}
-        <span class="flex w-5 flex-none items-center justify-center text-foreground/50">
-          {isDirectory ? (
-            <ChevronRight
-              class={`size-4 transition-transform ${expanded ? "rotate-90" : ""} ${
-                hasChildren ? "" : "opacity-40"
-              }`}
-            />
-          ) : null}
-        </span>
         <DiagnosticsLabel filename={path}>
-          {/* Icon column (Google-Drive style): FILES sit in a rounded tile
-              holding the type glyph or a live image thumbnail; FOLDERS are a
-              bare, prominent icon with no tile. The size-9 footprint is shared
-              so file names stay aligned whether or not there's a tile. Inside
+          {/* Icon column: FILES sit in a rounded tile holding the type glyph or
+              a live image thumbnail; FOLDERS show a rotating disclosure chevron
+              in the same slot (no tile) — the chevron IS the folder's glyph. The
+              size-9 footprint is shared so names stay aligned. Inside
               DiagnosticsLabel so the fallback glyph goes red/amber with the name
               on a diagnostic (currentColor). */}
           <span
             class={`mr-3 flex size-9 flex-none items-center justify-center ${
               isDirectory
-                ? ""
-                : "overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10"
-            } ${iconMuted}`}
+                ? "text-foreground/60"
+                : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
+            }`}
           >
-            {showThumb ? (
+            {isDirectory ? (
+              <ChevronRight
+                class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
+                  hasChildren ? "" : "opacity-40"
+                }`}
+              />
+            ) : showThumb ? (
               // No loading="lazy": the virtualizer already mounts only
               // visible+overscan rows (its own windowing), and native lazy
               // loading fails to trigger inside its transformed rows — leaving
@@ -258,7 +253,7 @@ export default function FileItem({
                 onError={() => setThumbFailed(true)}
               />
             ) : (
-              <FileIcon class={isDirectory ? "size-6" : "size-5"} />
+              <FileIcon class="size-5" />
             )}
           </span>
           <div class="flex flex-1 flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
