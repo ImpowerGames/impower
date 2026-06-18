@@ -7395,10 +7395,26 @@ repository:
     # the `Too many consecutive empty matches` warning. See GRAMMAR.md
     # §12 ("Switch rules can't include OptionalWhitespace") — same
     # constraint applies to a scoped rule's own patterns list.
+    # The assignment operator does NOT span the line break. An empty
+    # RHS (`name =` with nothing after `=` on the same line) leaves the
+    # value empty and closes at end-of-line, so the next line's `end`
+    # is seen fresh by the enclosing `define` block. Previously this
+    # rule included `#Newline` to allow a bare `x =\n  rhs`
+    # continuation; that let an empty RHS consume the line break and
+    # park the cursor before `end`, which was then mis-read as the
+    # property VALUE (`name = "end"`), so the `define` never closed
+    # (ERROR_INCOMPLETE). No authored content uses bare `=`-then-
+    # newline continuation — multi-line table/closure values always
+    # open their `{`/`(` on the `=` line (e.g. `const X = {` … `}`),
+    # which still parses because the operator never needs to cross a
+    # newline there. Unlike the parallel binary-operator rules
+    # (arithmetic/compare/concat/logical), an assignment operator can
+    # only ever appear at statement start, so it never needs to absorb
+    # a continuation that began on a previous line. See GRAMMAR.md
+    # §11.5 corollary 2 ("`(?=$|{{WS}})` is a single-line bound").
     patterns:
       - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|(?!{{WS}})
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})
