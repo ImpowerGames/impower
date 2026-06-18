@@ -10,8 +10,15 @@ import type {
   ForNode,
   IfNode,
   MatchNode,
+  PropValue,
   ScreenNode,
 } from "@impower/sparkdown/src/compiler/types/SparkleNode";
+import {
+  AbstractValue,
+  BoolValue,
+  ObjectValue,
+  StringValue,
+} from "@impower/sparkdown/src/inkjs/engine/Value";
 import type { Game } from "../../../core/classes/Game";
 import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { Module } from "../../../core/classes/Module";
@@ -106,6 +113,18 @@ interface ReactiveText {
   deps: ReactiveDeps;
 }
 
+/** A reactive element attribute (an input widget's `value`/`checked`) bound to a
+ *  `{expr}` — one-way (UI follows state); user write-back is via `@input`/
+ *  `@change`. `last` is the last applied value for equality-gated updates. */
+interface ReactiveAttr {
+  element: Element;
+  prop: string;
+  binding: Binding;
+  boolean: boolean;
+  last: string | null;
+  deps: ReactiveDeps;
+}
+
 /** An if/match conditional: a persistent wrapper element + the currently-active
  *  branch index (`-1` = else/no-match, `-2` = not yet mounted) + the child scope
  *  holding that branch's registrations (dropped when the branch switches). */
@@ -150,7 +169,18 @@ interface ReactiveScope {
   env: ReactiveEnv;
   texts: ReactiveText[];
   regions: ReactiveRegion[];
+  attrs: ReactiveAttr[];
 }
+
+/** Builtin form-control tags → the `<input>` type they render as. Their props
+ *  (value/checked/min/max/placeholder/…) become attributes; value/checked also
+ *  bind one-way + write back via @input/@change. */
+const INPUT_WIDGETS: Record<string, { inputType: string }> = {
+  field: { inputType: "text" },
+  input: { inputType: "text" },
+  slider: { inputType: "range" },
+  checkbox: { inputType: "checkbox" },
+};
 
 export type UIMessageMap = AnimateElementsMessageMap &
   CreateElementMessageMap &
@@ -874,12 +904,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    const scope: ReactiveScope = { env: {}, texts: [], regions: [] };
+    const scope = this.makeScope({});
     this._rootScopes.push(scope);
     for (const child of screen.children) {
       this.mountNode(uiEl, child, scope);
     }
     return uiEl;
+  }
+
+  /** A fresh reactive scope with the given loop env. */
+  protected makeScope(env: ReactiveEnv): ReactiveScope {
+    return { env, texts: [], regions: [], attrs: [] };
   }
 
   protected mountNode(
@@ -905,6 +940,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // Element name = builtin tag joined with its bare-word classes, matching the
     // static path's dotted-segment naming ("mask shadow_1", "text", "stage").
     const name = [node.tag, ...node.classes].join(" ");
+    // Input widgets (field/slider/checkbox) render a real <input> with their
+    // value-surface props as attributes (and reactive value/checked).
+    const widget = INPUT_WIDGETS[node.tag];
+    if (widget) {
+      return this.mountInputWidget(parent, node, scope, name, widget);
+    }
     const el = this.createElement(parent, { type: "div", name });
     // Builtin leaf semantics: image/mask render a background span; everything
     // else with adjacency content (text/stroke, but also button/label/…) renders
@@ -926,6 +967,59 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return el;
   }
 
+  /** Mount a form-control widget as a real `<input>`: its props become initial
+   *  attributes, and `value`/`checked` bindings register for one-way reactive
+   *  updates (UI follows state; write-back is via the element's `@input`/
+   *  `@change` handler). Inputs are void — no content/children are mounted. */
+  protected mountInputWidget(
+    parent: Element,
+    node: ElementNode,
+    scope: ReactiveScope,
+    name: string,
+    widget: { inputType: string },
+  ): Element {
+    const vs = this._game.story.variablesState;
+    const attributes: Record<string, string | null> = { type: widget.inputType };
+    const reactive: Omit<ReactiveAttr, "element">[] = [];
+    for (const [prop, propValue] of Object.entries(node.props)) {
+      const boolean = prop === "checked";
+      vs.beginReactiveRead();
+      const resolved = this.resolveProp(propValue, scope.env);
+      const deps = vs.endReactiveRead();
+      const attrVal = this.propToAttr(resolved, boolean);
+      attributes[prop] = attrVal;
+      if (propValue.kind === "binding") {
+        reactive.push({ prop, binding: propValue.binding, boolean, last: attrVal, deps });
+      }
+    }
+    const el = this.createElement(parent, { type: "input", name, attributes });
+    for (const r of reactive) {
+      scope.attrs.push({ element: el, ...r });
+    }
+    for (const ev of node.events) {
+      this.mountEvent(el, ev, scope);
+    }
+    return el;
+  }
+
+  /** Resolve a `#prop=value` to its current value (literal, or a live binding
+   *  eval with the scope's loop env). */
+  protected resolveProp(propValue: PropValue, env: ReactiveEnv): unknown {
+    return propValue.kind === "literal"
+      ? propValue.value
+      : this.evalBinding(propValue.binding, env);
+  }
+
+  /** Map a resolved prop value to an attribute string: a boolean (checkbox
+   *  `checked`) becomes a presence attribute (`""`/absent); everything else is
+   *  stringified (nullish → absent). */
+  protected propToAttr(resolved: unknown, boolean: boolean): string | null {
+    if (boolean) {
+      return this.isTruthy(resolved) ? "" : null;
+    }
+    return resolved == null ? null : String(resolved);
+  }
+
   /** Wire a `@event=handler` on a mounted element: observe the DOM event and run
    *  the handler when it fires, then flush reactive screens. `@e=name` calls the
    *  named Luau function; `@e=expr(args)` evaluates the call expression (its
@@ -936,12 +1030,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  inside a `for` uses that row's current loop values. */
   protected mountEvent(el: Element, ev: EventBinding, scope: ReactiveScope): void {
     const handler = ev.handler;
-    const callback = (): void => {
+    const callback = (event: Event): void => {
+      // Build a Luau `event` table from the DOM event payload so write-back
+      // handlers can read event.value / event.checked / event.key (two-way
+      // binding). Bare refs receive it as their first arg; call/closure handlers
+      // read it via the reserved `event` evaluator param.
+      const eventTable = this.buildEventTable(event);
       if (handler.kind === "ref") {
-        this.runHandlerFunction(handler.name);
+        this.runHandlerFunction(handler.name, eventTable);
       } else {
-        // call / closure: evaluate the hoisted handler binding for its effects.
-        this.evalBinding(handler.binding, scope.env);
+        // call / closure: evaluate the hoisted handler binding for its effects,
+        // with `event` available alongside any enclosing loop vars.
+        this.evalBinding(handler.binding, { ...scope.env, event: eventTable });
       }
       this.refreshScreens();
     };
@@ -961,13 +1061,40 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   /** Run a named Luau function (an `@event` `ref` handler) for its side effects,
-   *  guarded by HasFunction. Safe between turns (EvaluateFunction asserts
-   *  IfAsyncWeCant); events fire when the story is idle. */
-  protected runHandlerFunction(name: string): void {
+   *  guarded by HasFunction. The DOM `event` table is passed as the first arg
+   *  (a bare `@input=set_name` implicitly receives it; a no-param function just
+   *  ignores it). Safe between turns (EvaluateFunction asserts IfAsyncWeCant);
+   *  events fire when the story is idle. */
+  protected runHandlerFunction(name: string, event?: AbstractValue): void {
     const story = this._game.story;
     if (story.HasFunction(name)) {
-      story.EvaluateFunction(name, []);
+      story.EvaluateFunction(name, event !== undefined ? [event] : []);
     }
+  }
+
+  /** Build a Luau `event` table (ObjectValue) from a DOM event payload, exposing
+   *  value / checked / key / type for write-back handlers. */
+  protected buildEventTable(event: Event | undefined): ObjectValue {
+    const payload = (event ?? {}) as {
+      value?: unknown;
+      checked?: unknown;
+      key?: unknown;
+      type?: unknown;
+    };
+    const map = new Map<string, AbstractValue>();
+    if (payload.value != null) {
+      map.set("value", new StringValue(String(payload.value)));
+    }
+    if (payload.checked != null) {
+      map.set("checked", new BoolValue(Boolean(payload.checked)));
+    }
+    if (payload.key != null) {
+      map.set("key", new StringValue(String(payload.key)));
+    }
+    if (payload.type != null) {
+      map.set("type", new StringValue(String(payload.type)));
+    }
+    return new ObjectValue(map);
   }
 
   /** Mount a text/stroke leaf's inline span. A content-less leaf creates no span
@@ -1040,7 +1167,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       wrapper,
       node,
       active: -2, // nothing mounted yet
-      scope: { env: scope.env, texts: [], regions: [] },
+      scope: this.makeScope(scope.env),
       deps: { globals: new Set(), tables: new Set() },
     };
     scope.regions.push(region);
@@ -1138,7 +1265,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!elseChildren || elseChildren.length === 0) {
       return;
     }
-    region.elseScope = { env: parentEnv, texts: [], regions: [] };
+    region.elseScope = this.makeScope(parentEnv);
     for (const child of elseChildren) {
       this.mountNode(region.wrapper, child, region.elseScope);
     }
@@ -1156,7 +1283,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): ForIteration {
     const env: ReactiveEnv = { ...parentEnv };
     this.bindLoopVars(region.node.bindings, env, entryKey, value);
-    const scope: ReactiveScope = { env, texts: [], regions: [] };
+    const scope = this.makeScope(env);
     const wrapper = this.createWrapper(region.wrapper);
     for (const child of region.node.children) {
       this.mountNode(wrapper, child, scope);
@@ -1294,6 +1421,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    for (const entry of scope.attrs) {
+      if (envScope || this.depsChanged(entry.deps, changes)) {
+        const vs = this._game.story.variablesState;
+        vs.beginReactiveRead();
+        const resolved = this.resolveProp(
+          { kind: "binding", binding: entry.binding },
+          scope.env,
+        );
+        entry.deps = vs.endReactiveRead();
+        const next = this.propToAttr(resolved, entry.boolean);
+        if (next !== entry.last) {
+          entry.last = next;
+          this.updateElement(entry.element, {
+            attributes: { [entry.prop]: next },
+          });
+        }
+      }
+    }
     for (const region of scope.regions) {
       if (region.kind === "for") {
         this.refreshForRegion(region, scope.env, changes);
@@ -1321,7 +1466,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // the new branch into the same persistent wrapper (position preserved,
         // env reference reused so an enclosing for-iteration's values stay live).
         this.clearWrapper(region.wrapper);
-        region.scope = { env: region.scope.env, texts: [], regions: [] };
+        region.scope = this.makeScope(region.scope.env);
         region.active = next;
         for (const child of this.branchChildren(region.node, next)) {
           this.mountNode(region.wrapper, child, region.scope);

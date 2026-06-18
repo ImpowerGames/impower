@@ -186,6 +186,9 @@ end
             exprId: expect.stringMatching(/^__binding_\d+$/),
             source: "take_damage(10)",
             span: expect.objectContaining({ from: expect.any(Number) }),
+            // `event` is a reserved evaluator param so the handler can pass it
+            // (write-back: the runtime supplies the DOM event table).
+            params: ["event"],
           },
         },
       },

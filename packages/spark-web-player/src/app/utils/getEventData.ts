@@ -189,6 +189,19 @@ export const getEventData = <T extends keyof EventMap>(event: Event) => {
       relatedTargetId: (focusEventData.relatedTarget as HTMLElement)?.id,
     } as EventMap[T];
   }
+  if (event.type === "input" || event.type === "change") {
+    // Two-way binding: surface the control's current value/checked so an
+    // @input/@change handler can write it back into Luau state.
+    const inputTarget = event.target as HTMLInputElement | null;
+    return {
+      type: event.type,
+      timeStamp: event.timeStamp,
+      value: inputTarget?.value,
+      checked: inputTarget?.checked,
+      targetId: (event.target as HTMLElement)?.id,
+      currentTargetId: (event.currentTarget as HTMLElement)?.id,
+    } as EventMap[T];
+  }
   return {
     targetId: (event.target as HTMLElement)?.id,
     currentTargetId: (event.currentTarget as HTMLElement)?.id,

@@ -260,7 +260,11 @@ function collapseBraceEscapes(text: string): string {
  *  globals by name, so the function is nullary — no upvalue capture (one-way
  *  binding, spec L6). The name is keyed on the source byte offset so it stays
  *  unique across chunks and stable across edits (mirrors `__anon_fn_<from>`). */
-function lowerBinding(interpNode: SyntaxNode, ctx: LowerContext): Binding {
+function lowerBinding(
+  interpNode: SyntaxNode,
+  ctx: LowerContext,
+  extraParams: string[] = [],
+): Binding {
   const exprId = `__binding_${interpNode.from}`;
   const source = ctx.read(interpNode.from, interpNode.to);
   const span: SparkRange = {
@@ -271,8 +275,9 @@ function lowerBinding(interpNode: SyntaxNode, ctx: LowerContext): Binding {
   };
   // Enclosing `for`-loop variables become the evaluator's parameters so the
   // body can read per-iteration values the runtime passes as args (loop locals
-  // aren't globals — see LowerContext.sparkleLoopVars).
-  const loopVars = ctx.sparkleLoopVars ?? [];
+  // aren't globals — see LowerContext.sparkleLoopVars). `extraParams` adds
+  // handler-only params like `event` (the runtime supplies the DOM event table).
+  const loopVars = [...(ctx.sparkleLoopVars ?? []), ...extraParams];
   // Hoist the evaluator once per source position (the same expression node can
   // be lowered more than once; first registration wins). Snapshot-only callers
   // without a hoist buffer skip it — the handle is still produced.
@@ -338,7 +343,12 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
     } else if (handlerNode) {
       events.push({
         event,
-        handler: { kind: "call", binding: lowerBinding(handlerNode, ctx) },
+        // `event` is a reserved evaluator param so a call handler can pass it
+        // (`@change=toggle(event)`); the runtime supplies the DOM event table.
+        handler: {
+          kind: "call",
+          binding: lowerBinding(handlerNode, ctx, ["event"]),
+        },
       });
     }
   }
