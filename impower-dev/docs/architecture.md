@@ -89,37 +89,74 @@ JS realm:
   *this app's* store so it can also be used by the VS Code extension.
 
 These communicate via **`@impower/spark-editor-protocol`** — JSON-RPC-shaped
-messages (`SomeMessage.type.request(...)` / `.notification(...)`) dispatched on
-a `window` `CustomEvent` bus (and forwarded to/from workers & iframes by
-`postMessage`).
+messages dispatched on a `window` `CustomEvent` bus (and forwarded to/from
+workers & iframes by `postMessage`).
+
+### Requests vs. notifications
+
+Every message is one of two kinds, and the distinction is load-bearing:
+
+- a **request** (`MessageProtocolRequestType`) expects exactly one responder to
+  **reply** — the sender may await the reply (`ShowDocument`,
+  `ApplyWorkspaceEdit`, `GetGameVariables`, …);
+- a **notification** (`MessageProtocolNotificationType`) is **one-way** — any
+  number of listeners react, nobody replies (`DidChangeWatchedFiles`,
+  `ScrolledEditor`, `CompiledProgram`, `GameStarted`, …).
+
+> **The invariant:** a request must always be replied to; a notification must
+> never be. If something "listens for a request" but doesn't reply, the message
+> was mis-modeled — make it a **notification** so anyone can listen without
+> implying a response. (Several fire-and-forget "requests" — the player→editor
+> drag-drop relay, `SelectEditor` — were converted to notifications for exactly
+> this reason; see git history.)
+
+### The four helpers (`MessageProtocol` module)
+
+Named `…ProtocolMessage` / `…ProtocolRequest` (not `send`/`onMessage`) so they
+stay distinct from a Worker's `postMessage` / `onmessage` — this bus is in-page
+`CustomEvent`s, not the worker/port channel.
+
+- **`sendProtocolMessage(message, target = window)`** — dispatch any message
+  (`SomeMessage.type.notification(...)` / `.request(...)`).
+- **`onProtocolMessage(type, handler, target = window)`** — subscribe to a
+  message; returns a disposer. The low-level listener used by transport relays
+  and one-off component listeners (e.g. `FileList` ← `DidChangeWatchedFiles`).
+- **`onProtocolRequest(type, handler, responseTarget = window)`** — subscribe to
+  a **request**. The handler's return type is *required* to be that message's
+  `Response` (inferred from the type's own `response()`), and the reply is sent
+  automatically. **Forgetting to `return` the response is a compile error**, not
+  a silently-dropped reply. (Returns `undefined` ⇒ no reply, for handlers that
+  answer only when the message targets them.)
+- **`ProtocolObserver`** — groups many subscriptions behind one `dispose()`, so
+  a consumer with several listeners never hand-manages a disposer array. Its
+  **`.onNotification(type, handler)`** carries a `response?: never` guard that
+  *rejects request types*, and **`.onRequest(type, handler)`** is the request
+  form — so the request/notification split is type-checked **both ways**. An
+  optional constructor middleware wraps every handler (the game player uses it
+  to bracket each handler with `performance` marks).
+
+Use the standalone helpers for permanent singletons (`Workspace.window`); use a
+`ProtocolObserver` for anything with a lifecycle to tear down (the CodeMirror
+editor-view controllers, which create one and call `.dispose()` on unmount).
 
 `Workspace.window` is the **bridge** between the two worlds:
 
-- **Outbound** — `sendProtocolMessage(SomeMessage…)` broadcasts a protocol
-  message to peers. Legitimate emits are all cross-process: game control
-  (`StartGameMessage`), editor commands (`SetEditorHighlightsMessage`,
-  `SelectEditorMessage`), request/response pairs (`ShowDocument`,
-  `ApplyWorkspaceEdit`), and `DidExpand/CollapsePreviewPaneMessage` (consumed by
-  the editor-view controllers).
-- **Inbound** — `registerProtocolHandlers()` subscribes with one
-  `onProtocolMessage(SomeMessage.type, handler)` per message kind and folds
-  peer-originated events back into the store: editor scroll/selection
-  (`ScrolledEditorMessage`, `SelectedEditorMessage`), `CompiledProgramMessage`
-  from the compiler worker, etc. This view→store direction is legitimate — the
-  CodeMirror view genuinely *is* the source of truth for its own scroll
-  position, and reports it up.
-
-Both helpers live in `@impower/spark-editor-protocol`'s `MessageProtocol`
-module. They're named `sendProtocolMessage` / `onProtocolMessage` (not
-`send`/`onMessage`) to stay distinct from a Worker's `postMessage` / `onmessage`
-— this bus is in-page `CustomEvent`s, not the worker/port channel.
+- **Outbound** — `sendProtocolMessage(SomeMessage…)` broadcasts to peers:
+  game control (`StartGameMessage`), editor commands
+  (`SetEditorHighlightsMessage`, `SelectEditorMessage`), etc.
+- **Inbound** — `registerProtocolHandlers()` subscribes via `onProtocolRequest`
+  (for `ShowDocument` / `ApplyWorkspaceEdit`, which reply) and `onProtocolMessage`
+  (for the rest — editor scroll/selection, `CompiledProgramMessage` from the
+  compiler worker) and folds peer-originated events back into the store. This
+  view→store direction is legitimate — the CodeMirror view genuinely *is* the
+  source of truth for its own scroll position, and reports it up.
 
 ### The rule of thumb
 
 > If a consumer is an in-page Preact component, share state through the
-> **store** (signals + intents). Only reach for `sendProtocolMessage` / the
-> protocol bus when the consumer is **out-of-process** (a worker, an iframe, or
-> the framework-agnostic editor views).
+> **store** (signals + intents). Only reach for the protocol bus when the
+> consumer is **out-of-process** (a worker, an iframe, or the framework-agnostic
+> editor views).
 
 A component subscribing with `onProtocolMessage(SomeMessage.type, …)` is correct
 **only** when the event originates out-of-process — e.g. `FileList` reacting to

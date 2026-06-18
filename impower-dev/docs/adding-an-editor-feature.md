@@ -62,25 +62,63 @@ something changed — put it in the store and let that component read the signal
 ## When to use the protocol bus
 
 Only to talk to **out-of-process** peers (workers, iframes, the CodeMirror
-editor views). Use the `sendProtocolMessage` / `onProtocolMessage` helpers from
-`@impower/spark-editor-protocol` (named that way to stay distinct from a
-Worker's `postMessage` / `onmessage`). For example, to ask the game player to
-start you emit a protocol request from a `WorkspaceWindow` intent:
+editor views). The helpers live in `@impower/spark-editor-protocol`'s
+`MessageProtocol` module (named `…ProtocolMessage` / `…ProtocolRequest` to stay
+distinct from a Worker's `postMessage` / `onmessage`).
+
+First decide whether your message is a **request** or a **notification**, and
+pick the matching type when you define it:
+
+- **Notification** (`MessageProtocolNotificationType`) — one-way, no reply.
+  This is the default; reach for it unless a caller genuinely needs an answer.
+- **Request** (`MessageProtocolRequestType`) — expects exactly one reply.
+  > A request **must** be replied to; a notification **must not** be. If you
+  > catch yourself handling a "request" without replying, make it a notification.
+
+**Sending** (either kind):
 
 ```ts
-sendProtocolMessage(StartGameMessage.type.request({}));
+sendProtocolMessage(StartGameMessage.type.request({})); // or .notification(...)
 ```
 
-and to react to something a worker/iframe reports, a component subscribes by
-message type (the handler receives the message fully typed, and the call
-returns a disposer):
+**Handling a notification** — `onProtocolMessage` returns a disposer; the
+handler receives the message fully typed (no `instanceof` / `.type.is`):
 
 ```tsx
 const dispose = onProtocolMessage(DidChangeWatchedFilesMessage.type, (message) => {
-  // message is a DidChangeWatchedFilesMessage — no instanceof/`.type.is` needed
+  // message: DidChangeWatchedFilesMessage
 });
-// later (e.g. in a useEffect cleanup): dispose();
+// later (e.g. a useEffect cleanup): dispose();
 ```
+
+**Handling a request** — `onProtocolRequest` *requires* the handler to return
+the message's `Response` and sends the reply for you. Forgetting to `return` is
+a **compile error**, not a silently-dropped reply:
+
+```ts
+onProtocolRequest(ShowDocumentMessage.type, async (message) => {
+  const result = await doTheThing(message.params);
+  return ShowDocumentMessage.type.response(message.id, result); // required
+});
+```
+
+If your consumer is a class with a lifecycle (e.g. an editor-view controller),
+register through a **`ProtocolObserver`** instead of tracking disposers by hand
+— `.onNotification` / `.onRequest` add to the group, and one `.dispose()` tears
+them all down:
+
+```ts
+protected _protocols = new ProtocolObserver();
+setup() {
+  this._protocols
+    .onNotification(DidExpandPreviewPaneMessage.type, (m) => this.handleExpand(m))
+    .onRequest(LoadEditorMessage.type, (m) => this.handleLoad(m), this.host);
+}
+dispose() { this._protocols.dispose(); }
+```
+
+(`.onNotification` rejects request types at compile time, so the
+request/notification split can't be crossed by accident.)
 
 If both the emitter and the consumer are in-page Preact, you're using the wrong
 tool — use the store.
