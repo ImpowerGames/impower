@@ -90,6 +90,10 @@ const INLINE_HIDDEN_TAGS = [
   tags.macroName,
   tags.meta,
   tags.logicOperator,
+  // Flow-control keywords (choose/then/end/done/if/else/do/...) are logic, never
+  // screenplay prose. They surface as `keyword.control.*` (controlKeyword) when
+  // the walk descends into a Luau flow-block container, so hide them inline.
+  tags.controlKeyword,
 ];
 
 const createHighlightStyle = (inlineHiddenStyle: Record<string, string>) =>
@@ -312,6 +316,12 @@ export const decorate = (
     );
   };
 
+  // The Luau flow-control container nodes the grammar emits — choose/then,
+  // if/elseif/else, do, control, and the alternator blocks
+  // (LuauSparkdownChooseBlock, LuauSparkdownIfBlock, ...ThenClause, etc.).
+  const isLuauFlowBlockContainer = (name: string) =>
+    /^LuauSparkdown[A-Za-z]*(Block|Clause)$/.test(name);
+
   const isBlockHidden = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
     if (nodeRef.node.parent?.name === "sparkdown") {
@@ -338,7 +348,13 @@ export const decorate = (
         name !== "ImplicitAction" &&
         name !== "Choice" &&
         name !== "Newline" &&
-        name !== "Whitespace"
+        name !== "Whitespace" &&
+        // Flow-block containers wrap their bodies as a single top-level node.
+        // Hiding them whole collapses the display content inside (choices,
+        // dialogue, action). Treat them as transparent so the walk descends —
+        // the flow KEYWORDS hide via the inline tag rules and the inner display
+        // content renders normally.
+        !isLuauFlowBlockContainer(name)
       );
     }
     return false;
