@@ -1,5 +1,4 @@
 import {
-  Binder,
   FileCode,
   FileText,
   FileTypeCsv,
@@ -10,6 +9,8 @@ import {
   FileTypeTs,
   FileTypeXml,
   FileZip,
+  Folder,
+  FolderOpen,
   Link,
   Music,
   Photo,
@@ -23,11 +24,14 @@ import {
 } from "../../src/modules/spark-editor/utils/fileIcon";
 
 describe("iconForPath", () => {
-  it("returns the Binder glyph for folders regardless of name", () => {
-    expect(iconForPath("chapters", true)).toBe(Binder);
-    expect(iconForPath("a/b/deeply/nested", true)).toBe(Binder);
-    // A directory whose name happens to look like a file still gets Binder.
-    expect(iconForPath("weird.png", true)).toBe(Binder);
+  it("returns a folder glyph for folders (open when expanded), regardless of name", () => {
+    expect(iconForPath("chapters", true)).toBe(Folder);
+    expect(iconForPath("chapters", true, false)).toBe(Folder);
+    expect(iconForPath("chapters", true, true)).toBe(FolderOpen);
+    expect(iconForPath("a/b/deeply/nested", true)).toBe(Folder);
+    // A directory whose name happens to look like a file still gets a folder.
+    expect(iconForPath("weird.png", true)).toBe(Folder);
+    expect(iconForPath("weird.png", true, true)).toBe(FolderOpen);
   });
 
   it("maps the screenplay script extension to Script", () => {

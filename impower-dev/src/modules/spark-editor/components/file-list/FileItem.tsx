@@ -76,11 +76,14 @@ export default function FileItem({
   // full weight; everything else is muted to /50 so the icon reads as chrome,
   // not content. The icon sits inside DiagnosticsLabel so it inherits the
   // danger/warning color (via currentColor) when the row has a diagnostic.
-  const FileIcon = iconForPath(path, isDirectory);
-  const iconMuted = isDirectory && expanded ? "" : "opacity-50";
+  const FileIcon = iconForPath(path, isDirectory, expanded);
   // Show a live thumbnail for image assets, but only once we actually have a
   // url and it hasn't failed to load.
   const showThumb = !isDirectory && !!src && !thumbFailed && isImagePath(path);
+  // Google-Drive convention: files sit in a rounded tile (glyph or thumbnail);
+  // folders are a bare, prominent icon with no tile. Mute only file *glyphs*
+  // (not thumbnails, not folders) to /50 so they read as quiet chrome.
+  const iconMuted = !isDirectory && !showThumb ? "opacity-50" : "";
   // Ask the service worker for a downscaled thumbnail (max 144px wide ≈ 4× the
   // 36px box for retina) so the page never decodes full-res art. The SW falls
   // back to the original bytes if it can't resize, so this is always safe.
@@ -229,14 +232,18 @@ export default function FileItem({
           ) : null}
         </span>
         <DiagnosticsLabel filename={path}>
-          {/* File-type icon box (Google-Drive style): a rounded tile that holds
-              the type glyph, or a live thumbnail for image assets. Inside
+          {/* Icon column (Google-Drive style): FILES sit in a rounded tile
+              holding the type glyph or a live image thumbnail; FOLDERS are a
+              bare, prominent icon with no tile. The size-9 footprint is shared
+              so file names stay aligned whether or not there's a tile. Inside
               DiagnosticsLabel so the fallback glyph goes red/amber with the name
               on a diagnostic (currentColor). */}
           <span
-            class={`mr-3 flex size-9 flex-none items-center justify-center overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${
-              showThumb ? "" : iconMuted
-            }`}
+            class={`mr-3 flex size-9 flex-none items-center justify-center ${
+              isDirectory
+                ? ""
+                : "overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10"
+            } ${iconMuted}`}
           >
             {showThumb ? (
               // No loading="lazy": the virtualizer already mounts only
@@ -251,7 +258,7 @@ export default function FileItem({
                 onError={() => setThumbFailed(true)}
               />
             ) : (
-              <FileIcon class="size-5" />
+              <FileIcon class={isDirectory ? "size-6" : "size-5"} />
             )}
           </span>
           <div class="flex flex-1 flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">

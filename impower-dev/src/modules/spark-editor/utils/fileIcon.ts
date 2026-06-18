@@ -1,5 +1,4 @@
 import {
-  Binder,
   FileCode,
   FileText,
   FileTypeCsv,
@@ -10,6 +9,8 @@ import {
   FileTypeTs,
   FileTypeXml,
   FileZip,
+  Folder,
+  FolderOpen,
   type IconComponent,
   Link,
   Music,
@@ -85,17 +86,22 @@ function extOf(path: string): string {
 /**
  * Pick the icon for a file-tree row.
  *
- * Folders always render the {@link Binder} glyph (the editor has no open/closed
- * variants — the caller conveys expand state via styling, not a different icon).
- * Files key off their final extension; unknown extensions get {@link FileText}.
+ * Folders render {@link FolderOpen} when expanded and {@link Folder} when
+ * collapsed (VS Code's open/closed treatment). Files key off their final
+ * extension; unknown extensions get {@link FileText}.
  *
  * @param path - Project-relative path (e.g. `chapters/intro.sd`). Only the
  *   basename's final extension matters; directories in the path are ignored.
  * @param isDirectory - True for a folder row.
+ * @param expanded - For folders, whether the row is expanded (open glyph).
  */
-export function iconForPath(path: string, isDirectory: boolean): IconComponent {
+export function iconForPath(
+  path: string,
+  isDirectory: boolean,
+  expanded = false,
+): IconComponent {
   if (isDirectory) {
-    return Binder;
+    return expanded ? FolderOpen : Folder;
   }
   return ICON_BY_EXT[extOf(path)] ?? FileText;
 }
