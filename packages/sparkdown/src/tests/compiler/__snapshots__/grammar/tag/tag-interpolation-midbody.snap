@@ -1,0 +1,33 @@
+sparkdown [0..19]
+ ├─ Tags [0..18]
+ │   ├─ Tags_begin 0
+ │   ├─ Tags_content [0..18]
+ │   │   └─ Tag [0..18]
+ │   │       ├─ Tag_c1 0
+ │   │       ├─ Tag_c2 [0..1]: "#"
+ │   │       └─ Tag_c3 [1..18]
+ │   │           └─ TagContent [1..18]
+ │   │               ├─ TagContent_begin 1
+ │   │               ├─ TagContent_content [1..18]
+ │   │               │   ├─ TagText [1..8]: " a tag "
+ │   │               │   ├─ LuauInterpolatedStringExpression [8..13]
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_begin [8..9]
+ │   │               │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [8..9]
+ │   │               │   │   │       └─ PunctuationBraceOpen [8..9]: "{"
+ │   │               │   │   ├─ LuauInterpolatedStringExpression_content [9..12]
+ │   │               │   │   │   └─ LuauAccessPath [9..12]
+ │   │               │   │   │       ├─ LuauAccessPath_begin 9
+ │   │               │   │   │       ├─ LuauAccessPath_content [9..12]
+ │   │               │   │   │       │   └─ LuauAccessPart [9..12]
+ │   │               │   │   │       │       └─ LuauVariable [9..12]
+ │   │               │   │   │       │           └─ LuauVariable_c1 [9..12]
+ │   │               │   │   │       │               └─ LuauVariableName [9..12]: "var"
+ │   │               │   │   │       └─ LuauAccessPath_end 12
+ │   │               │   │   │           └─ LuauAccessPath_end_c1 12
+ │   │               │   │   └─ LuauInterpolatedStringExpression_end [12..13]
+ │   │               │   │       └─ LuauInterpolatedStringExpression_end_c1 [12..13]
+ │   │               │   │           └─ PunctuationBraceClose [12..13]: "}"
+ │   │               │   └─ TagText [13..18]: " more"
+ │   │               └─ TagContent_end 18
+ │   └─ Tags_end 18
+ └─ Newline [18..19]: "\n"

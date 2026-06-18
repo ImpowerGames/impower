@@ -1,0 +1,42 @@
+text.source.sparkdown [0..112]
+ ├─ meta.screen.luau [0..16]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..11]: "main"
+ │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
+ │   └─ keyword.control.as.luau [12..16]: "with"
+ ├─ Newline [16..17]: "\n"
+ ├─ meta.screen.luau [17..25]
+ │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
+ │   ├─ entity.name.tag.struct.luau [19..24]: "stage"
+ │   └─ punctuation.separator.struct.colon.luau [24..25]: ":"
+ ├─ Newline [25..26]: "\n"
+ ├─ meta.screen.luau [26..39]
+ │   ├─ punctuation.whitespace.optional.sd [26..30]: "    "
+ │   ├─ entity.name.tag.struct.luau [30..38]: "backdrop"
+ │   └─ punctuation.separator.struct.colon.luau [38..39]: ":"
+ ├─ Newline [39..40]: "\n"
+ ├─ meta.screen.luau [40..61]
+ │   ├─ punctuation.whitespace.optional.sd [40..46]: "      "
+ │   ├─ entity.other.attribute-name.struct.luau [46..51]: "image"
+ │   ├─ punctuation.whitespace.optional.sd [51..52]: " "
+ │   ├─ keyword.operator.assignment.struct.luau [52..53]: "="
+ │   ├─ punctuation.whitespace.optional.sd [53..54]: " "
+ │   └─ string.unquoted.struct.luau [54..61]: "\"black\""
+ ├─ Newline [61..62]: "\n"
+ ├─ meta.screen.luau [62..75]
+ │   ├─ punctuation.whitespace.optional.sd [62..66]: "    "
+ │   ├─ entity.name.tag.struct.luau [66..74]: "portrait"
+ │   └─ punctuation.separator.struct.colon.luau [74..75]: ":"
+ ├─ Newline [75..76]: "\n"
+ ├─ meta.screen.luau [76..95]
+ │   ├─ punctuation.whitespace.optional.sd [76..82]: "      "
+ │   └─ meta.struct.body.luau [82..95]: "mask shadow_1"
+ ├─ Newline [95..96]: "\n"
+ ├─ meta.screen.luau [96..107]
+ │   ├─ punctuation.whitespace.optional.sd [96..102]: "      "
+ │   └─ meta.struct.body.luau [102..107]: "image"
+ ├─ Newline [107..108]: "\n"
+ ├─ meta.screen.luau [108..111]
+ │   └─ keyword.control.end.luau [108..111]: "end"
+ └─ Newline [111..112]: "\n"

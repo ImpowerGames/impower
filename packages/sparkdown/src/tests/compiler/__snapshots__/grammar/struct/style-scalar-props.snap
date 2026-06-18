@@ -1,0 +1,79 @@
+sparkdown [0..64]
+ ├─ LuauStyle [0..63]
+ │   ├─ LuauStyle_begin [0..6]
+ │   │   ├─ LuauStyle_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauStyle_begin_c2 [0..5]
+ │   │   │   └─ LuauStyleKeyword [0..5]: "style"
+ │   │   └─ LuauStyle_begin_c3 [5..6]
+ │   │       └─ LuauStyle_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauStyle_content [6..60]
+ │   │   ├─ LuauStyleNameAndInheritance [6..16]
+ │   │   │   ├─ LuauStyleNameAndInheritance_begin [6..11]
+ │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [6..11]
+ │   │   │   │       └─ LuauDefineName [6..11]: "panel"
+ │   │   │   └─ LuauStyleNameAndInheritance_end [11..16]
+ │   │   │       ├─ LuauStyleNameAndInheritance_end_c1 [11..12]
+ │   │   │       │   └─ LuauStyleNameAndInheritance_end_c1 [11..12]
+ │   │   │       │       └─ OptionalWhitespace [11..12]: " "
+ │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [12..16]
+ │   │   │           └─ LuauWithKeyword [12..16]: "with"
+ │   │   ├─ Newline [16..17]: "\n"
+ │   │   ├─ LuauStructBodyLine [17..38]
+ │   │   │   ├─ LuauStructBodyLine_c1 [17..19]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [17..19]
+ │   │   │   │       └─ OptionalWhitespace [17..19]: "  "
+ │   │   │   ├─ LuauStructBodyLine_c2 [19..38]
+ │   │   │   │   └─ LuauStructScalarProperty [19..38]
+ │   │   │   │       ├─ LuauStructScalarProperty_c1 [19..27]
+ │   │   │   │       │   └─ LuauStructPropertyName [19..27]: "position"
+ │   │   │   │       ├─ LuauStructScalarProperty_c2 [27..28]
+ │   │   │   │       │   └─ LuauStructScalarProperty_c2 [27..28]
+ │   │   │   │       │       └─ OptionalWhitespace [27..28]: " "
+ │   │   │   │       ├─ LuauStructScalarProperty_c3 [28..29]
+ │   │   │   │       │   └─ LuauStructAssignmentMark [28..29]: "="
+ │   │   │   │       ├─ LuauStructScalarProperty_c4 [29..30]
+ │   │   │   │       │   └─ LuauStructScalarProperty_c4 [29..30]
+ │   │   │   │       │       └─ OptionalWhitespace [29..30]: " "
+ │   │   │   │       ├─ LuauStructScalarProperty_c5 [30..38]
+ │   │   │   │       │   └─ LuauStructPropertyValue [30..38]: "absolute"
+ │   │   │   │       └─ LuauStructScalarProperty_c6 38
+ │   │   │   │           └─ LuauStructScalarProperty_c6 38
+ │   │   │   │               └─ OptionalWhitespace 38
+ │   │   │   └─ LuauStructBodyLine_c3 38
+ │   │   │       └─ LuauStructBodyLine_c3 38
+ │   │   │           └─ OptionalWhitespace 38
+ │   │   ├─ Newline [38..39]: "\n"
+ │   │   ├─ LuauStructBodyLine [39..59]
+ │   │   │   ├─ LuauStructBodyLine_c1 [39..41]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [39..41]
+ │   │   │   │       └─ OptionalWhitespace [39..41]: "  "
+ │   │   │   ├─ LuauStructBodyLine_c2 [41..59]
+ │   │   │   │   └─ LuauStructScalarProperty [41..59]
+ │   │   │   │       ├─ LuauStructScalarProperty_c1 [41..50]
+ │   │   │   │       │   └─ LuauStructPropertyName [41..50]: "font_size"
+ │   │   │   │       ├─ LuauStructScalarProperty_c2 [50..51]
+ │   │   │   │       │   └─ LuauStructScalarProperty_c2 [50..51]
+ │   │   │   │       │       └─ OptionalWhitespace [50..51]: " "
+ │   │   │   │       ├─ LuauStructScalarProperty_c3 [51..52]
+ │   │   │   │       │   └─ LuauStructAssignmentMark [51..52]: "="
+ │   │   │   │       ├─ LuauStructScalarProperty_c4 [52..53]
+ │   │   │   │       │   └─ LuauStructScalarProperty_c4 [52..53]
+ │   │   │   │       │       └─ OptionalWhitespace [52..53]: " "
+ │   │   │   │       ├─ LuauStructScalarProperty_c5 [53..59]
+ │   │   │   │       │   └─ LuauStructPropertyValue [53..59]: "3.4cqh"
+ │   │   │   │       └─ LuauStructScalarProperty_c6 59
+ │   │   │   │           └─ LuauStructScalarProperty_c6 59
+ │   │   │   │               └─ OptionalWhitespace 59
+ │   │   │   └─ LuauStructBodyLine_c3 59
+ │   │   │       └─ LuauStructBodyLine_c3 59
+ │   │   │           └─ OptionalWhitespace 59
+ │   │   └─ Newline [59..60]: "\n"
+ │   └─ LuauStyle_end [60..63]
+ │       ├─ LuauStyle_end_c1 60
+ │       │   └─ LuauStyle_end_c1 60
+ │       │       └─ OptionalWhitespace 60
+ │       └─ LuauStyle_end_c2 [60..63]
+ │           └─ LuauEndKeyword [60..63]: "end"
+ └─ Newline [63..64]: "\n"

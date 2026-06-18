@@ -1,0 +1,129 @@
+sparkdown [0..112]
+ ├─ LuauScreen [0..111]
+ │   ├─ LuauScreen_begin [0..7]
+ │   │   ├─ LuauScreen_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauScreen_begin_c2 [0..6]
+ │   │   │   └─ LuauScreenKeyword [0..6]: "screen"
+ │   │   └─ LuauScreen_begin_c3 [6..7]
+ │   │       └─ LuauScreen_begin_c3 [6..7]
+ │   │           └─ OptionalWhitespace [6..7]: " "
+ │   ├─ LuauScreen_content [7..108]
+ │   │   ├─ LuauUINameAndInheritance [7..16]
+ │   │   │   ├─ LuauUINameAndInheritance_begin [7..11]
+ │   │   │   │   └─ LuauUINameAndInheritance_begin_c1 [7..11]
+ │   │   │   │       └─ LuauDefineName [7..11]: "main"
+ │   │   │   └─ LuauUINameAndInheritance_end [11..16]
+ │   │   │       ├─ LuauUINameAndInheritance_end_c1 [11..12]
+ │   │   │       │   └─ LuauUINameAndInheritance_end_c1 [11..12]
+ │   │   │       │       └─ OptionalWhitespace [11..12]: " "
+ │   │   │       └─ LuauUINameAndInheritance_end_c2 [12..16]
+ │   │   │           └─ LuauWithKeyword [12..16]: "with"
+ │   │   ├─ Newline [16..17]: "\n"
+ │   │   ├─ LuauStructBodyLine [17..25]
+ │   │   │   ├─ LuauStructBodyLine_c1 [17..19]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [17..19]
+ │   │   │   │       └─ OptionalWhitespace [17..19]: "  "
+ │   │   │   ├─ LuauStructBodyLine_c2 [19..25]
+ │   │   │   │   └─ LuauStructObjectHeader [19..25]
+ │   │   │   │       ├─ LuauStructObjectHeader_c1 [19..24]
+ │   │   │   │       │   └─ LuauStructObjectKey [19..24]: "stage"
+ │   │   │   │       ├─ LuauStructObjectHeader_c2 24
+ │   │   │   │       │   └─ LuauStructObjectHeader_c2 24
+ │   │   │   │       │       └─ OptionalWhitespace 24
+ │   │   │   │       └─ LuauStructObjectHeader_c3 [24..25]
+ │   │   │   │           └─ LuauStructObjectColon [24..25]: ":"
+ │   │   │   └─ LuauStructBodyLine_c3 25
+ │   │   │       └─ LuauStructBodyLine_c3 25
+ │   │   │           └─ OptionalWhitespace 25
+ │   │   ├─ Newline [25..26]: "\n"
+ │   │   ├─ LuauStructBodyLine [26..39]
+ │   │   │   ├─ LuauStructBodyLine_c1 [26..30]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [26..30]
+ │   │   │   │       └─ OptionalWhitespace [26..30]: "    "
+ │   │   │   ├─ LuauStructBodyLine_c2 [30..39]
+ │   │   │   │   └─ LuauStructObjectHeader [30..39]
+ │   │   │   │       ├─ LuauStructObjectHeader_c1 [30..38]
+ │   │   │   │       │   └─ LuauStructObjectKey [30..38]: "backdrop"
+ │   │   │   │       ├─ LuauStructObjectHeader_c2 38
+ │   │   │   │       │   └─ LuauStructObjectHeader_c2 38
+ │   │   │   │       │       └─ OptionalWhitespace 38
+ │   │   │   │       └─ LuauStructObjectHeader_c3 [38..39]
+ │   │   │   │           └─ LuauStructObjectColon [38..39]: ":"
+ │   │   │   └─ LuauStructBodyLine_c3 39
+ │   │   │       └─ LuauStructBodyLine_c3 39
+ │   │   │           └─ OptionalWhitespace 39
+ │   │   ├─ Newline [39..40]: "\n"
+ │   │   ├─ LuauStructBodyLine [40..61]
+ │   │   │   ├─ LuauStructBodyLine_c1 [40..46]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [40..46]
+ │   │   │   │       └─ OptionalWhitespace [40..46]: "      "
+ │   │   │   ├─ LuauStructBodyLine_c2 [46..61]
+ │   │   │   │   └─ LuauStructScalarProperty [46..61]
+ │   │   │   │       ├─ LuauStructScalarProperty_c1 [46..51]
+ │   │   │   │       │   └─ LuauStructPropertyName [46..51]: "image"
+ │   │   │   │       ├─ LuauStructScalarProperty_c2 [51..52]
+ │   │   │   │       │   └─ LuauStructScalarProperty_c2 [51..52]
+ │   │   │   │       │       └─ OptionalWhitespace [51..52]: " "
+ │   │   │   │       ├─ LuauStructScalarProperty_c3 [52..53]
+ │   │   │   │       │   └─ LuauStructAssignmentMark [52..53]: "="
+ │   │   │   │       ├─ LuauStructScalarProperty_c4 [53..54]
+ │   │   │   │       │   └─ LuauStructScalarProperty_c4 [53..54]
+ │   │   │   │       │       └─ OptionalWhitespace [53..54]: " "
+ │   │   │   │       ├─ LuauStructScalarProperty_c5 [54..61]
+ │   │   │   │       │   └─ LuauStructPropertyValue [54..61]: "\"black\""
+ │   │   │   │       └─ LuauStructScalarProperty_c6 61
+ │   │   │   │           └─ LuauStructScalarProperty_c6 61
+ │   │   │   │               └─ OptionalWhitespace 61
+ │   │   │   └─ LuauStructBodyLine_c3 61
+ │   │   │       └─ LuauStructBodyLine_c3 61
+ │   │   │           └─ OptionalWhitespace 61
+ │   │   ├─ Newline [61..62]: "\n"
+ │   │   ├─ LuauStructBodyLine [62..75]
+ │   │   │   ├─ LuauStructBodyLine_c1 [62..66]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [62..66]
+ │   │   │   │       └─ OptionalWhitespace [62..66]: "    "
+ │   │   │   ├─ LuauStructBodyLine_c2 [66..75]
+ │   │   │   │   └─ LuauStructObjectHeader [66..75]
+ │   │   │   │       ├─ LuauStructObjectHeader_c1 [66..74]
+ │   │   │   │       │   └─ LuauStructObjectKey [66..74]: "portrait"
+ │   │   │   │       ├─ LuauStructObjectHeader_c2 74
+ │   │   │   │       │   └─ LuauStructObjectHeader_c2 74
+ │   │   │   │       │       └─ OptionalWhitespace 74
+ │   │   │   │       └─ LuauStructObjectHeader_c3 [74..75]
+ │   │   │   │           └─ LuauStructObjectColon [74..75]: ":"
+ │   │   │   └─ LuauStructBodyLine_c3 75
+ │   │   │       └─ LuauStructBodyLine_c3 75
+ │   │   │           └─ OptionalWhitespace 75
+ │   │   ├─ Newline [75..76]: "\n"
+ │   │   ├─ LuauStructBodyLine [76..95]
+ │   │   │   ├─ LuauStructBodyLine_c1 [76..82]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [76..82]
+ │   │   │   │       └─ OptionalWhitespace [76..82]: "      "
+ │   │   │   ├─ LuauStructBodyLine_c2 [82..95]
+ │   │   │   │   └─ LuauStructBareMarker [82..95]
+ │   │   │   │       └─ LuauStructBareMarker_c1 [82..95]
+ │   │   │   │           └─ LuauStructMarkerName [82..95]: "mask shadow_1"
+ │   │   │   └─ LuauStructBodyLine_c3 95
+ │   │   │       └─ LuauStructBodyLine_c3 95
+ │   │   │           └─ OptionalWhitespace 95
+ │   │   ├─ Newline [95..96]: "\n"
+ │   │   ├─ LuauStructBodyLine [96..107]
+ │   │   │   ├─ LuauStructBodyLine_c1 [96..102]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [96..102]
+ │   │   │   │       └─ OptionalWhitespace [96..102]: "      "
+ │   │   │   ├─ LuauStructBodyLine_c2 [102..107]
+ │   │   │   │   └─ LuauStructBareMarker [102..107]
+ │   │   │   │       └─ LuauStructBareMarker_c1 [102..107]
+ │   │   │   │           └─ LuauStructMarkerName [102..107]: "image"
+ │   │   │   └─ LuauStructBodyLine_c3 107
+ │   │   │       └─ LuauStructBodyLine_c3 107
+ │   │   │           └─ OptionalWhitespace 107
+ │   │   └─ Newline [107..108]: "\n"
+ │   └─ LuauScreen_end [108..111]
+ │       ├─ LuauScreen_end_c1 108
+ │       │   └─ LuauScreen_end_c1 108
+ │       │       └─ OptionalWhitespace 108
+ │       └─ LuauScreen_end_c2 [108..111]
+ │           └─ LuauEndKeyword [108..111]: "end"
+ └─ Newline [111..112]: "\n"
