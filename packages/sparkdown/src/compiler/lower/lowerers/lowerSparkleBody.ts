@@ -724,40 +724,9 @@ function buildBlock(
       children: [],
     };
     i = attachBlock(element, lines, i, childIndent, ctx);
-    warnDynamicDropdownOptions(element, kind, ctx);
     children.push(element);
   }
   return { children, props, next: i };
-}
-
-const CONTROL_FLOW_KINDS: ReadonlySet<string> = new Set(["if", "for", "match"]);
-
-/** Warn (editor-side) when a `dropdown` has `if`/`for`/`match` children. A
- *  reactive control-flow region mounts its children inside a `display:contents`
- *  wrapper element, but a `<select>` only enumerates `<option>`s that are its
- *  DIRECT DOM children — so options produced by control flow are invisible to
- *  the dropdown. Until dynamic option lists are supported, list `option`s
- *  statically. No-op for snapshot callers without a diagnostics buffer. */
-function warnDynamicDropdownOptions(
-  element: ElementNode,
-  node: SyntaxNode,
-  ctx: LowerContext,
-): void {
-  if (!ctx.diagnostics || element.tag !== "dropdown") return;
-  if (!element.children.some((c) => CONTROL_FLOW_KINDS.has(c.kind))) return;
-  ctx.diagnostics.push({
-    message:
-      "Dynamic option lists (`if`/`for`/`match`) inside a `dropdown` aren't supported yet — list `option`s statically. Options produced by control flow won't appear in the dropdown.",
-    severity: ErrorType.Warning,
-    source: {
-      fileName: null,
-      filePath: ctx.filePath ?? null,
-      startLineNumber: ctx.lineNumber(node.from) + 1,
-      endLineNumber: ctx.lineNumber(node.to) + 1,
-      startCharacterNumber: ctx.characterNumber(node.from) + 1,
-      endCharacterNumber: ctx.characterNumber(node.to) + 1,
-    },
-  });
 }
 
 /** Direct children of `node` whose name is in `names`, in source order. */

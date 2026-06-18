@@ -1,10 +1,10 @@
 // Phase 3 I3: reactive if/match control flow.
 //
-// Each conditional mounts a persistent, layout-transparent wrapper
-// (display: contents) that reserves its sibling position. Only the active
-// branch's children live inside it; when the selected branch changes, the
-// wrapper's contents are torn down and the new branch is mounted in place. The
-// wrapper itself never moves, so sibling order survives an append-only ui/create.
+// Each conditional mounts its active branch's children DIRECTLY into the parent
+// at the region's slot (wrapperless — positional `ui/create` with a `before`
+// target). When the selected branch changes, the old branch's elements are torn
+// down and the new branch is mounted at the same slot (anchored before the next
+// live sibling), so sibling order is preserved with no wrapper element.
 
 import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";

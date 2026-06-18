@@ -24,12 +24,22 @@ export class Element {
     return this._name;
   }
 
-  constructor(parent: Element | null, id: string, type: string, name: string) {
+  constructor(
+    parent: Element | null,
+    id: string,
+    type: string,
+    name: string,
+    before?: Element | null,
+  ) {
     this._parent = parent;
     this._id = id;
     this._type = type;
     this._name = name;
-    parent?.appendChild(this);
+    if (before) {
+      parent?.insertChildBefore(this, before);
+    } else {
+      parent?.appendChild(this);
+    }
   }
 
   remove() {
@@ -68,6 +78,19 @@ export class Element {
 
   appendChild(child: Element): Element {
     this._children.push(child);
+    return child;
+  }
+
+  /** Insert `child` immediately before sibling `before` (append if `before`
+   *  isn't a child here). Mirrors the DOM's `insertBefore` for positional
+   *  `ui/create`. */
+  insertChildBefore(child: Element, before: Element | null): Element {
+    const at = before ? this._children.indexOf(before) : -1;
+    if (at < 0) {
+      this._children.push(child);
+    } else {
+      this._children.splice(at, 0, child);
+    }
     return child;
   }
 

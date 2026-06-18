@@ -148,7 +148,10 @@ export default class UIManager extends Manager {
       } else {
         const parent = this.getElement(params.parent);
         if (parent) {
-          const appendedEl = parent.appendChild(el);
+          // Positional create: insert before the named sibling (reactive
+          // control-flow slot), else append. insertBefore(el, null) === append.
+          const before = params.before ? this.getElement(params.before) : null;
+          const appendedEl = parent.insertBefore(el, before ?? null);
           if (parent === this.app.overlay) {
             this._overlayRoots.push(appendedEl);
           }

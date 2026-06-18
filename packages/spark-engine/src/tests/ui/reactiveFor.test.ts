@@ -1,7 +1,8 @@
 // Phase 3 I4: reactive `for` lists (positional reconcile).
 //
-// A `for item in items do … end` mounts one rendered item per iterable element
-// inside a persistent wrapper. Body bindings read the loop variable as an
+// A `for item in items do … end` mounts one rendered run per iterable element
+// directly into the parent at the region's slot (wrapperless). Body bindings
+// read the loop variable as an
 // evaluator parameter (the compiler emits Binding.params; the runtime passes
 // each row's value as an arg — including raw Luau table elements). On the coarse
 // per-turn boundary the list is reconciled POSITIONALLY: slot i is updated in
@@ -97,6 +98,60 @@ end
     // Retained items move (ui/move), nothing is created or destroyed, and their
     // unchanged content emits no update.
     expect(h.snapshotFiltered("ui/move").length).toBeGreaterThan(0);
+    expect(h.snapshotFiltered("ui/create")).toEqual([]);
+    expect(h.snapshotFiltered("ui/destroy")).toEqual([]);
+  });
+
+  test("a stable MULTI-element-body list emits no moves on an unrelated refresh", async () => {
+    // Each iteration renders TWO top-level elements. With the list unchanged, the
+    // reorder pass must emit ZERO ui/move — moving run elements relative to each
+    // other (not all to one outer anchor) keeps an already-placed run in place.
+    const h = createHarness(
+      `store tick = 0
+store items = { {n = 1}, {n = 2}, {n = 3} }
+function nudge()
+  tick = tick + 1
+end
+screen bag with
+  for it in items do
+    text "a{it.n}"
+    text "b{it.n}"
+  end
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    h.reset();
+    run(h, "nudge"); // unrelated global write — items unchanged
+    refresh(h);
+    expect(h.snapshotFiltered("ui/move")).toEqual([]);
+    expect(h.snapshotFiltered("ui/create")).toEqual([]);
+    expect(h.snapshotFiltered("ui/destroy")).toEqual([]);
+  });
+
+  test("reordering a MULTI-element-body list keeps element order correct", async () => {
+    const h = createHarness(
+      `store items = { {n = 1}, {n = 2}, {n = 3} }
+function reverse()
+  items = { items[3], items[2], items[1] }
+end
+screen bag with
+  for it in items do
+    text "a{it.n}"
+    text "b{it.n}"
+  end
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    h.reset();
+    run(h, "reverse");
+    refresh(h);
+    // No rebuild (keyed reuse), and the runs end in reversed order: a3 b3 a2 b2 a1 b1.
     expect(h.snapshotFiltered("ui/create")).toEqual([]);
     expect(h.snapshotFiltered("ui/destroy")).toEqual([]);
   });

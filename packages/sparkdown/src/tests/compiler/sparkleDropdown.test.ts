@@ -1,13 +1,12 @@
-// A reactive control-flow region mounts its children inside a `display:contents`
-// wrapper, but a <select> only enumerates <option>s that are its DIRECT DOM
-// children — so options produced by if/for/match inside a dropdown are invisible.
-// Until dynamic option lists are supported, the compiler warns rather than
-// emitting a silently-broken dropdown.
+// Dynamic option lists (if/for/match inside a dropdown) are supported: the
+// reactive runtime is wrapperless, so for/if-generated <option>s become DIRECT
+// children of the <select> (verified end-to-end in spark-web-player's
+// domControlFlow DOM test). The compiler must NOT warn about them.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
-function diagnosticsFor(source: string): { message: string; severity?: number }[] {
+function diagnosticMessages(source: string): string[] {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
@@ -25,26 +24,32 @@ function diagnosticsFor(source: string): { message: string; severity?: number }[
   const result = compiler.compile({
     textDocument: { uri: "inmemory:///main.sd" },
   });
-  const out: { message: string; severity?: number }[] = [];
+  const out: string[] = [];
   for (const docDiagnostics of Object.values(result.program.diagnostics ?? {})) {
     for (const d of docDiagnostics) {
       const raw = (d as any).message;
-      out.push({
-        message: typeof raw === "string" ? raw : raw?.value ?? JSON.stringify(d),
-        severity: (d as any).severity,
-      });
+      out.push(typeof raw === "string" ? raw : raw?.value ?? JSON.stringify(d));
     }
   }
   return out;
 }
 
-const dynamicWarnings = (source: string) =>
-  diagnosticsFor(source).filter((d) =>
-    d.message.includes("Dynamic option lists"),
-  );
-
 describe("dropdown dynamic option lists", () => {
-  test("`if` inside a dropdown warns", () => {
+  test("`for` inside a dropdown compiles without a dynamic-options warning", () => {
+    const src = `list opts = "a", "b"
+screen form with
+  dropdown:
+    for o in opts do
+      option "{o}"
+    end
+end
+`;
+    expect(
+      diagnosticMessages(src).filter((m) => m.includes("Dynamic option lists")),
+    ).toHaveLength(0);
+  });
+
+  test("`if` inside a dropdown compiles without a dynamic-options warning", () => {
     const src = `store unlocked = true
 screen form with
   dropdown:
@@ -54,30 +59,8 @@ screen form with
     end
 end
 `;
-    const warnings = dynamicWarnings(src);
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]!.severity).toBe(2); // Warning
-  });
-
-  test("`for` inside a dropdown warns", () => {
-    const src = `list opts = "a", "b"
-screen form with
-  dropdown:
-    for o in opts do
-      option "{o}"
-    end
-end
-`;
-    expect(dynamicWarnings(src)).toHaveLength(1);
-  });
-
-  test("a static option list does NOT warn", () => {
-    const src = `screen form with
-  dropdown:
-    option "Easy" #value="easy"
-    option "Hard" #value="hard"
-end
-`;
-    expect(dynamicWarnings(src)).toHaveLength(0);
+    expect(
+      diagnosticMessages(src).filter((m) => m.includes("Dynamic option lists")),
+    ).toHaveLength(0);
   });
 });
