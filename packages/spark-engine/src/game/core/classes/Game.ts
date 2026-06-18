@@ -1054,7 +1054,17 @@ export class Game<T extends M = {}> {
         if (this._story.asyncContinueComplete) {
           const currentText = this._story.currentText || "";
           const currentChoices = this._story.currentChoices.map((c) => c.text);
-          this.module.interpreter.queue(currentText, currentChoices);
+          // `currentTags` is snapshot-scoped to the just-completed Continue
+          // (computed from this beat's outputStream in StoryState). It carries
+          // the compiler's per-beat ROUTING TAG (plus any author `# tag`s); the
+          // interpreter routes the beat by that tag rather than by regex over
+          // the visible text.
+          const currentTags = this._story.currentTags || [];
+          this.module.interpreter.queue(
+            currentText,
+            currentChoices,
+            currentTags,
+          );
         }
 
         if (this._simulation !== "simulating") {

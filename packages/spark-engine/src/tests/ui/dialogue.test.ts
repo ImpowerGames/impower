@@ -97,4 +97,27 @@ describe("dialogue", () => {
     await flushMicrotasks();
     expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
   });
+
+  // Routing now reads the compiler's per-beat routing TAG, not a `<prefix>:`
+  // regex over the visible text. A colon in the BODY (e.g. "Well: hello.") used
+  // to risk being mis-extracted by the old TARGETED_TEXT_REGEX; with tag-based
+  // routing the whole body — colon and all — reaches the dialogue target intact.
+  test("a body containing a colon still routes to dialogue (no regex mis-extract)", async () => {
+    const harness = createHarness(story(`  HERO: Well: hello.`));
+    await harness.ready;
+    harness.jumpTo("start");
+    const beat = harness.nextBeat();
+    // The whole line (including the colon) lands on the dialogue target...
+    const dialogueText = (beat?.text?.["dialogue"] ?? [])
+      .map((e: any) => e.text ?? "")
+      .join("");
+    expect(dialogueText).toBe("Well: hello.");
+    // ...and the cue resolved the character (HERO is defined with name "HERO").
+    const nameText = (beat?.text?.["character_name"] ?? [])
+      .map((e: any) => e.text ?? "")
+      .join("");
+    expect(nameText).toBe("HERO");
+    // Nothing leaked onto the default action target.
+    expect(beat?.text?.["action"]).toBeUndefined();
+  });
 });

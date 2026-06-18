@@ -9,15 +9,11 @@
         },
         {
           "type": "Text",
-          "text": "title"
+          "text": "\u0000title"
         },
         {
           "type": "Tag",
           "start": false
-        },
-        {
-          "type": "Text",
-          "text": "^: "
         },
         {
           "type": "Text",

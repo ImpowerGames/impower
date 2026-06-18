@@ -9,15 +9,11 @@
         },
         {
           "type": "Text",
-          "text": "heading"
+          "text": "\u0000heading"
         },
         {
           "type": "Tag",
           "start": false
-        },
-        {
-          "type": "Text",
-          "text": "$: "
         },
         {
           "type": "Text",

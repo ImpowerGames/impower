@@ -17,26 +17,19 @@ import {
 } from "../expression/lowerExpression";
 import { buildDivert } from "../utils/buildDivert";
 import { stampDebugMetadata } from "../utils/debugMetadata";
+import { formatDisplayRoutingTag } from "../../utils/displayRoutingTag";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
 
-// Slice 4: each display line emits a Tag pair carrying the line type (and
-// optional identifier such as a character name or write target), then the
-// body's content nodes (Text runs interleaved with lowered `{expr}`
-// interpolation expressions), followed by a trailing newline Text.
-
-// Line-type → the routing marker the interpreter's `TARGETED_TEXT_REGEX`
-// expects as a `<marker>:` text prefix. Mirrors the grammar markers
-// (`InlineTitle` `^:`, `InlineHeading` `$:`, `InlineTransitional` `%:`) and
-// the engine's `config.interpreter.directives`. `action` has no marker (it's
-// the default target); `dialogue`/`write` use the character/layer identifier.
-const DIRECTIVE_MARKERS: Record<string, string> = {
-  title: "^",
-  heading: "$",
-  transitional: "%",
-};
+// Each display line emits a reserved ROUTING TAG pair carrying the line type
+// (and, for dialogue/write, an identifier such as the character cue or the
+// write layer), then the body's content nodes (Text runs interleaved with
+// lowered `{expr}` interpolation expressions), followed by a trailing newline
+// Text. The engine's interpreter reads the routing tag to pick a target
+// (`InterpreterModule.queue`) — the visible body text carries NO routing
+// prefix. See `displayRoutingTag.ts` for the shared tag contract.
 
 function buildDisplayContent(
   parent: SyntaxNode,
@@ -72,37 +65,31 @@ function buildDisplayContent(
   // A mid-line `>` BREAK marker splits the display content into separate
   // BEATS. Each beat is a standalone Continue() at the runtime level (a
   // plain newline between the previous beat's body and the next beat's
-  // routing tag/prefix forms an output-stream boundary the engine stops
+  // routing tag forms an output-stream boundary the engine stops
   // on), so the screenplay preview / planRoute can route to each beat by
   // its own checkpoint. Without this split, a chained dialogue compiles to
   // ONE Continue: the interpreter's `BREAK_BOX_REGEX` still renders two
   // textboxes, but they share a single story-path checkpoint, so every box
   // after the first is unreachable by the preview. Each beat re-emits the
-  // line-type tag + routing prefix so the continuation routes to the same
-  // target (e.g. the same character's dialogue). A TRAILING break (`>` with
-  // no content after — no following newline) is NOT a split point; it's
-  // handled inside `processDisplayBody` (`detectTrailingBreak`) as an extra
-  // newline, matching the legacy compiler.
-  const prefix = computeRoutingPrefix(lineType, identifier);
+  // routing tag so the continuation routes to the same target (e.g. the same
+  // character's dialogue). A TRAILING break (`>` with no content after — no
+  // following newline) is NOT a split point; it's handled inside
+  // `processDisplayBody` (`detectTrailingBreak`) as an extra newline, matching
+  // the legacy compiler.
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx);
   const content: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
     const range = ranges[i]!;
     const beat: ParsedObject[] = [];
+    // Emit the line's ROUTING TAG. The engine's interpreter
+    // (InterpreterModule.queue) reads this tag from `story.currentTags` to
+    // route the beat to a target (dialogue / title / heading / transitional /
+    // write layer / default action) and, for dialogue, to resolve the
+    // character cue. The visible body text carries NO routing prefix — the tag
+    // is the single source of routing truth. See `displayRoutingTag.ts`.
     beat.push(new Tag(true));
-    beat.push(new Text(identifier ? `${lineType}:${identifier}` : lineType));
+    beat.push(new Text(formatDisplayRoutingTag(lineType, identifier)));
     beat.push(new Tag(false));
-    // Emit the line's routing PREFIX in the VISIBLE text. The engine's
-    // interpreter (InterpreterModule.queue) routes display content to a
-    // target (dialogue / title / heading / transitional / layer) by parsing
-    // a `<prefix>:` text prefix (TARGETED_TEXT_REGEX) — it does NOT read the
-    // line-type tag above. Without it, every non-action line falls through
-    // to the default `action` target (wrong element + styling: e.g. dialogue
-    // with no box, wrong color). A colon+SPACE keeps the prefix on the same
-    // line as the body so the cue + body stay in one Continue().
-    if (prefix) {
-      beat.push(new Text(`${prefix} `));
-    }
     beat.push(...processDisplayBody(parent, range.from, range.to, ctx, mode));
     beat.push(new Text("\n"));
     // For a chained (break-split) dialogue, stamp EACH beat's objects with a
@@ -132,23 +119,6 @@ function buildDisplayContent(
     content.push(...beat);
   }
   return content;
-}
-
-// The routing prefix the interpreter expects as a `<prefix>:` text prefix.
-// Directive markers (`^`/`$`/`%`) mirror the grammar markers and the
-// engine's `config.interpreter.directives`; dialogue/write use the
-// character/layer identifier; action has no prefix (default target).
-function computeRoutingPrefix(
-  lineType: string,
-  identifier: string | null,
-): string {
-  return lineType === "dialogue" && identifier
-    ? `${identifier}:`
-    : lineType === "write" && identifier
-      ? `@${identifier}:`
-      : DIRECTIVE_MARKERS[lineType]
-        ? `${DIRECTIVE_MARKERS[lineType]}:`
-        : "";
 }
 
 // Trim trailing whitespace/newlines off a source range so a stamped beat

@@ -9,15 +9,11 @@
         },
         {
           "type": "Text",
-          "text": "write:target"
+          "text": "\u0000write:target"
         },
         {
           "type": "Tag",
           "start": false
-        },
-        {
-          "type": "Text",
-          "text": "@target: "
         },
         {
           "type": "Text",

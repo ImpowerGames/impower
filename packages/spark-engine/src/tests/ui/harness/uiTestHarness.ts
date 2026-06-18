@@ -205,6 +205,8 @@ export function createHarness(
           interpreter.queue(
             story.currentText || "",
             story.currentChoices.map((c: any) => c.text),
+            // Pass the beat's routing tags, exactly as Game's continue loop does.
+            story.currentTags || [],
           );
         }
         guard++;

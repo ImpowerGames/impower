@@ -1,4 +1,5 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
+import { parseDisplayRoutingTag } from "@impower/sparkdown/src/compiler/utils/displayRoutingTag";
 import { Module } from "../../../core/classes/Module";
 import {
   AudioInstruction,
@@ -76,14 +77,13 @@ export class InterpreterModule extends Module<
 
   WHITESPACE_REGEX = /[ \t\r\n]+/;
 
-  TARGETED_TEXT_REGEX =
-    /((?:\\.|[^:\r\n])*)((?<!\\)[:](?:$|[ ]+))((?:.|\r|\n)*)/m;
-
+  // Maps a directive marker → its target name (e.g. `"^" → "title"`), plus the
+  // empty-key default-target entry (`"" → "action"`). Display routing no longer
+  // matches markers in the visible text (that's the routing tag's job now); this
+  // map is retained only to resolve the DEFAULT target (`_targetPrefixMap[""]`).
   protected _targetPrefixMap: Record<string, string> = {};
 
   protected _characterNameMap: Record<string, string> = {};
-
-  protected _targetPrefixes: string[] = [];
 
   override getBuiltins() {
     return interpreterBuiltinDefinitions();
@@ -120,7 +120,6 @@ export class InterpreterModule extends Module<
     )) {
       this._targetPrefixMap[v] = k;
     }
-    this._targetPrefixes = Object.keys(this._targetPrefixMap);
   }
 
   /**
@@ -215,8 +214,13 @@ export class InterpreterModule extends Module<
    * and queue these instructions to be executed later.
    * @param content current text to queue
    * @param choices choices to queue
+   * @param tags the just-completed beat's `story.currentTags` — carries the
+   *   per-beat ROUTING TAG the compiler emits (`displayRoutingTag.ts`). The
+   *   beat is routed by that tag (line type + cue identifier) rather than by
+   *   re-deriving a `<prefix>:` from the visible text. Author `# tag`
+   *   annotations also live here and are ignored by routing.
    */
-  queue(content: string, choices: string[]): void {
+  queue(content: string, choices: string[], tags: string[] = []): void {
     this._state.buffer ??= [];
     const options: InstructionOptions = {};
     // Trim away indent.
@@ -237,27 +241,41 @@ export class InterpreterModule extends Module<
       return;
     }
 
-    // Determine the default target (if no prefix matches).
+    // Determine the default target (when there's no routing tag at all).
     const defaultTarget = this._targetPrefixMap?.[""] || "";
 
-    const targetedMatch = content.match(this.TARGETED_TEXT_REGEX);
-    const targetIdentifier = targetedMatch ? targetedMatch[1]! : "";
-    content = targetIdentifier && targetedMatch ? targetedMatch[3]! : content;
+    // The compiler stamps each non-glued display beat with a reserved ROUTING
+    // TAG (`displayRoutingTag.ts`). Locate it among `tags` (author `# tag`
+    // annotations also land in `currentTags`, so DON'T assume index 0 — select
+    // by the reserved sentinel). A glued continuation line (`..`) emits NO
+    // routing tag, so the beat falls back to the default target and merges into
+    // the previous textbox below.
+    let routing: ReturnType<typeof parseDisplayRoutingTag> = null;
+    for (const tag of tags) {
+      const parsed = parseDisplayRoutingTag(tag);
+      if (parsed) {
+        routing = parsed;
+        break;
+      }
+    }
 
-    let target = this._targetPrefixMap[targetIdentifier] || defaultTarget;
-
+    let target = defaultTarget;
     let characterNameInstructions: Instructions | undefined = undefined;
     let characterParentheticalInstructions: Instructions | undefined =
       undefined;
-    // Parse fallback write target
-    if (targetIdentifier && target === defaultTarget) {
-      if (targetIdentifier.startsWith("@")) {
-        // we are targeting a specific layer
-        target = targetIdentifier.slice(1).trim();
-      } else {
+    if (routing) {
+      const { lineType, identifier } = routing;
+      if (lineType === "write") {
+        // The routing tag's identifier is the bare layer name (no leading `@`,
+        // unlike the old visible `@layer:` prefix). Empty → default target.
+        target = identifier.trim() || defaultTarget;
+      } else if (lineType === "dialogue") {
         target = "dialogue";
-        // assume targetIdentifier is a character name
-        const characterDeclaration = targetIdentifier;
+        // The identifier is the full character cue (name + optional
+        // parenthetical + optional `<`/`>` position). Resolve it exactly as
+        // before — only the INPUT changed (was the regex-extracted visible
+        // prefix, now the tag's identifier).
+        const characterDeclaration = identifier;
         if (characterDeclaration) {
           // Character declaration can include name, parenthetical, and position.
           // @ CHARACTER NAME (parenthetical) [>]
@@ -302,6 +320,12 @@ export class InterpreterModule extends Module<
             );
           }
         }
+      } else {
+        // title / heading / transitional / action (and any unknown line type):
+        // the line type IS the target name (matches the directives config,
+        // where the directive key — e.g. `heading` — names the target). An
+        // empty / unknown type falls back to the default target.
+        target = lineType || defaultTarget;
       }
     }
     // Queue content
