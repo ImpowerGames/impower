@@ -1,7 +1,7 @@
 import { Button, ChevronRight, Ripple } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { iconForPath } from "../../utils/fileIcon";
+import { iconForPath, isImagePath } from "../../utils/fileIcon";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileOptionsButton from "./FileOptionsButton";
@@ -28,6 +28,12 @@ export type FileItemProps = {
   expanded?: boolean;
   /** Row is the file currently open in the editor (gets the selection accent). */
   selected?: boolean;
+  /**
+   * Service-worker-served URL of the file (`FileData.src`). For image assets
+   * this is rendered as a live thumbnail inside the icon box; ignored for
+   * everything else.
+   */
+  src?: string;
   /** Folder rows: toggle expand/collapse. */
   onToggle?: () => void;
 };
@@ -46,10 +52,13 @@ export default function FileItem({
   hasChildren = false,
   expanded = false,
   selected = false,
+  src,
   onToggle,
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  // A thumbnail that 404s / fails to decode falls back to the type glyph.
+  const [thumbFailed, setThumbFailed] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLButtonElement | null>(null);
 
@@ -69,6 +78,15 @@ export default function FileItem({
   // danger/warning color (via currentColor) when the row has a diagnostic.
   const FileIcon = iconForPath(path, isDirectory);
   const iconMuted = isDirectory && expanded ? "" : "opacity-50";
+  // Show a live thumbnail for image assets (the SW serves `src` directly), but
+  // only once we actually have a url and it hasn't failed to load.
+  const showThumb = !isDirectory && !!src && !thumbFailed && isImagePath(path);
+
+  // Re-arm the thumbnail when the row's url changes (e.g. after a cache-bust or
+  // a move) so a previously-broken image gets another chance.
+  useEffect(() => {
+    setThumbFailed(false);
+  }, [src]);
 
   // Auto-focus + select the editable name when entering rename mode.
   useEffect(() => {
@@ -204,12 +222,27 @@ export default function FileItem({
           ) : null}
         </span>
         <DiagnosticsLabel filename={path}>
-          {/* File-type icon column. Inside DiagnosticsLabel so it goes
-              red/amber with the name on a diagnostic (currentColor). */}
+          {/* File-type icon box (Google-Drive style): a rounded tile that holds
+              the type glyph, or a live thumbnail for image assets. Inside
+              DiagnosticsLabel so the fallback glyph goes red/amber with the name
+              on a diagnostic (currentColor). */}
           <span
-            class={`mr-3 flex w-6 flex-none items-center justify-center ${iconMuted}`}
+            class={`mr-3 flex size-9 flex-none items-center justify-center overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${
+              showThumb ? "" : iconMuted
+            }`}
           >
-            <FileIcon class="size-5" />
+            {showThumb ? (
+              <img
+                src={src}
+                loading="lazy"
+                decoding="async"
+                alt=""
+                class="size-full object-cover"
+                onError={() => setThumbFailed(true)}
+              />
+            ) : (
+              <FileIcon class="size-5" />
+            )}
           </span>
           <div class="flex flex-1 flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
             {renaming ? (

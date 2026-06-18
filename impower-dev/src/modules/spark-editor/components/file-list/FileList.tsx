@@ -81,6 +81,9 @@ export default function FileList({
   onScrolledChange,
 }: FileListProps) {
   const [uris, setUris] = useState<string[] | null>(null);
+  // uri -> service-worker-served url (`FileData.src`), used to render image
+  // thumbnails in the rows. Kept beside `uris` so a reload refreshes both.
+  const [srcByUri, setSrcByUri] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const draggedPathRef = useRef<string | null>(null);
@@ -111,12 +114,18 @@ export default function FileList({
     );
   };
 
-  const loadUris = async () => {
+  const loadFiles = async () => {
     const { Workspace } = await import("../../workspace/Workspace");
     const files = await Workspace.fs.getFiles(projectId!);
-    return Object.keys(files)
-      .filter(matchesGlobs)
-      .sort();
+    const filteredUris = Object.keys(files).filter(matchesGlobs).sort();
+    const srcs: Record<string, string> = {};
+    for (const uri of filteredUris) {
+      const src = files[uri]?.src;
+      if (src) {
+        srcs[uri] = src;
+      }
+    }
+    return { uris: filteredUris, srcByUri: srcs };
   };
 
   // Initial load + reload on project / glob change.
@@ -128,8 +137,11 @@ export default function FileList({
         return;
       }
       try {
-        const filtered = await loadUris();
-        if (!cancelled) setUris(filtered);
+        const { uris: filtered, srcByUri: srcs } = await loadFiles();
+        if (!cancelled) {
+          setUris(filtered);
+          setSrcByUri(srcs);
+        }
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error("[FileList] loadEntries failed:", err);
@@ -146,7 +158,9 @@ export default function FileList({
   const reload = async () => {
     if (!projectId) return;
     try {
-      setUris(await loadUris());
+      const { uris: filtered, srcByUri: srcs } = await loadFiles();
+      setUris(filtered);
+      setSrcByUri(srcs);
     } catch {
       /* no-op */
     }
@@ -226,6 +240,14 @@ export default function FileList({
   const relativePaths = (uris ?? []).map((uri) =>
     relativePathFromUri(uri, projectId),
   );
+  // Project-relative path -> served url, so a row can look up its thumbnail.
+  const srcByPath = new Map<string, string>();
+  for (const uri of uris ?? []) {
+    const src = srcByUri[uri];
+    if (src) {
+      srcByPath.set(relativePathFromUri(uri, projectId), src);
+    }
+  }
   const tree = buildFileTree(relativePaths);
   const rows = flattenVisibleRows(tree, expanded);
 
@@ -401,6 +423,7 @@ export default function FileList({
                     hasChildren={row.hasChildren}
                     expanded={row.expanded}
                     selected={openFilenames.has(row.path)}
+                    src={srcByPath.get(row.path)}
                     onToggle={() => toggle(row.path)}
                   />
                 </div>

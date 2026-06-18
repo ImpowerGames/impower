@@ -12,7 +12,10 @@ import {
   WaveSaw,
 } from "@impower/impower-ui/icons";
 import { describe, expect, it } from "vitest";
-import { iconForPath } from "../../src/modules/spark-editor/utils/fileIcon";
+import {
+  iconForPath,
+  isImagePath,
+} from "../../src/modules/spark-editor/utils/fileIcon";
 
 describe("iconForPath", () => {
   it("returns the Binder glyph for folders regardless of name", () => {
@@ -75,5 +78,24 @@ describe("iconForPath", () => {
     expect(iconForPath("weird.xyz", false)).toBe(FileText);
     // A dotfile has no extension (leading dot only) → fallback.
     expect(iconForPath(".folder", false)).toBe(FileText);
+  });
+});
+
+describe("isImagePath", () => {
+  it("is true for image extensions (case-insensitive, nested, multi-dot)", () => {
+    for (const ext of ["png", "jpg", "jpeg", "gif", "webp", "svg"]) {
+      expect(isImagePath(`art.${ext}`)).toBe(true);
+    }
+    expect(isImagePath("backgrounds/forest.PNG")).toBe(true);
+    expect(isImagePath("scene.backup.webp")).toBe(true);
+  });
+
+  it("is false for non-image files and folders' names", () => {
+    expect(isImagePath("main.sd")).toBe(false);
+    expect(isImagePath("song.mp3")).toBe(false);
+    expect(isImagePath("data.json")).toBe(false);
+    expect(isImagePath("LICENSE")).toBe(false);
+    expect(isImagePath("archive.tar.gz")).toBe(false);
+    expect(isImagePath("")).toBe(false);
   });
 });

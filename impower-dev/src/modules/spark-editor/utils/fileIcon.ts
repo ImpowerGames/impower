@@ -64,6 +64,16 @@ const ICON_BY_EXT: Record<string, IconComponent> = {
 };
 
 /**
+ * Lowercased final extension of a path's basename, or `""` when there is none.
+ * Leading-dot files (`.folder`) and extension-less names have no extension.
+ */
+function extOf(path: string): string {
+  const basename = path.split("/").slice(-1)[0] ?? path;
+  const dotIndex = basename.lastIndexOf(".");
+  return dotIndex > 0 ? basename.slice(dotIndex + 1).toLowerCase() : "";
+}
+
+/**
  * Pick the icon for a file-tree row.
  *
  * Folders always render the {@link Binder} glyph (the editor has no open/closed
@@ -78,9 +88,15 @@ export function iconForPath(path: string, isDirectory: boolean): IconComponent {
   if (isDirectory) {
     return Binder;
   }
-  const basename = path.split("/").slice(-1)[0] ?? path;
-  const dotIndex = basename.lastIndexOf(".");
-  // Leading-dot files (e.g. `.folder`) and extension-less names have no ext.
-  const ext = dotIndex > 0 ? basename.slice(dotIndex + 1).toLowerCase() : "";
-  return ICON_BY_EXT[ext] ?? FileText;
+  return ICON_BY_EXT[extOf(path)] ?? FileText;
+}
+
+/**
+ * True when the path is a raster/vector image whose row should show a live
+ * thumbnail instead of the {@link Photo} glyph. Derived from the icon map so
+ * the image set has a single source of truth (every image ext maps to Photo,
+ * and nothing else does).
+ */
+export function isImagePath(path: string): boolean {
+  return ICON_BY_EXT[extOf(path)] === Photo;
 }
