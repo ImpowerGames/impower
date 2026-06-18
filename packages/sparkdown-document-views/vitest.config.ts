@@ -1,15 +1,13 @@
-import { resolve } from "path";
 import { defineConfig } from "vitest/config";
 
 // Dedupe @codemirror/* and @lezer/* across the monorepo's many file: deps.
 // Each package has its own node_modules so transitive imports can pick up
 // duplicate copies — that triggers Configuration "Unrecognized extension
 // value" errors when two copies' instanceof checks see different classes.
-// Forcing all to resolve from THIS package's node_modules fixes it for tests
-// the same way the webview's esbuild aliases fix it for the bundle.
-const here = (p: string) =>
-  resolve(__dirname, "node_modules", p);
-
+// `resolve.dedupe` forces every import to collapse to a single copy, which is
+// robust to npm hoisting. (An earlier hardcoded `<pkg>/node_modules` alias
+// broke once these deps were hoisted to the workspace root, where that
+// package-local path no longer exists — the import then failed to resolve.)
 const SHARED_PACKAGES = [
   "@codemirror/autocomplete",
   "@codemirror/collab",
@@ -23,13 +21,8 @@ const SHARED_PACKAGES = [
   "@lezer/highlight",
 ];
 
-const alias: Record<string, string> = {};
-for (const pkg of SHARED_PACKAGES) {
-  alias[pkg] = here(pkg);
-}
-
 export default defineConfig({
-  resolve: { alias },
+  resolve: { dedupe: SHARED_PACKAGES },
   test: {
     include: ["test/**/*.test.ts"],
     environment: "jsdom",
