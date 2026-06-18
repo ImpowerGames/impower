@@ -48,6 +48,7 @@ import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
 import getTextBuffer from "./utils/getTextBuffer";
 import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
+import { FOLDER_SENTINEL, computeFolderMoves } from "../utils/fileTree";
 
 const cmp = (a: any, b: any) => {
   if (a > b) return +1;
@@ -495,6 +496,56 @@ export default class WorkspaceFileSystem {
   async renameFiles(params: WillRenameFilesParams) {
     const result = await this.sendRequest(WillRenameFilesMessage.type, params);
     return result;
+  }
+
+  /**
+   * Create an (otherwise empty) folder by writing a hidden sentinel file —
+   * OPFS directories are implicit, so an empty folder needs a file to persist.
+   * `folderPath` is project-relative (e.g. `chapters` or `art/backgrounds`).
+   */
+  async createFolder(projectId: string, folderPath: string) {
+    const sentinelPath = `${folderPath.replace(/\/+$/, "")}/${FOLDER_SENTINEL}`;
+    return this.createFiles({
+      files: [
+        {
+          uri: this.getFileUri(projectId, sentinelPath),
+          data: new ArrayBuffer(0),
+        },
+      ],
+    });
+  }
+
+  /** Move/rename a single file to a new project-relative path (across folders). */
+  async moveFile(projectId: string, fromPath: string, toPath: string) {
+    return this.renameFiles({
+      files: [
+        {
+          oldUri: this.getFileUri(projectId, fromPath),
+          newUri: this.getFileUri(projectId, toPath),
+        },
+      ],
+    });
+  }
+
+  /**
+   * Relocate a folder and everything beneath it (e.g. `chapters` ->
+   * `archive/chapters`) by renaming each contained file across directories.
+   */
+  async moveFolder(projectId: string, fromFolder: string, toFolder: string) {
+    const files = await this.getFiles(projectId);
+    const relativePaths = Object.keys(files).map((uri) =>
+      this.getRelativePath(projectId, uri),
+    );
+    const moves = computeFolderMoves(relativePaths, fromFolder, toFolder);
+    if (moves.length === 0) {
+      return [];
+    }
+    return this.renameFiles({
+      files: moves.map((m) => ({
+        oldUri: this.getFileUri(projectId, m.from),
+        newUri: this.getFileUri(projectId, m.to),
+      })),
+    });
   }
 
   async writeTextDocument(params: {

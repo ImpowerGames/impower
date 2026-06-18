@@ -7,6 +7,14 @@
 // the component layer owns selection/expansion state and rendering; this module
 // owns only the structural math.
 
+/**
+ * Hidden marker file that persists an (otherwise empty) folder. OPFS dirs are
+ * implicit — they exist only while they contain a file — so creating an empty
+ * folder writes this sentinel. buildFileTree treats it as a folder marker and
+ * never renders it as a file.
+ */
+export const FOLDER_SENTINEL = ".folder";
+
 export interface FileTreeNode {
   /** Project-relative path. For a folder this is the path WITHOUT a trailing slash. */
   path: string;
@@ -77,7 +85,7 @@ export const buildFileTree = (
   paths: string[],
   options?: BuildFileTreeOptions,
 ): FileTreeNode[] => {
-  const sentinels = new Set(options?.sentinelNames ?? [".folder"]);
+  const sentinels = new Set(options?.sentinelNames ?? [FOLDER_SENTINEL]);
   const root = new Map<string, MutableNode>();
 
   for (const rawPath of paths) {
@@ -156,4 +164,25 @@ export const filterPaths = (paths: string[], query: string): string[] => {
     return paths;
   }
   return paths.filter((path) => path.toLowerCase().includes(q));
+};
+
+/**
+ * Compute the `{ from, to }` relative-path moves needed to relocate
+ * `fromFolder` (and everything beneath it) so it becomes `toFolder`. Drives
+ * WorkspaceFileSystem.moveFolder, which renames each file across directories.
+ * Returns `[]` when nothing lives under `fromFolder`.
+ *
+ * Example: relocating `chapters` -> `archive/chapters` rewrites
+ * `chapters/intro.sd` to `archive/chapters/intro.sd`.
+ */
+export const computeFolderMoves = (
+  relativePaths: string[],
+  fromFolder: string,
+  toFolder: string,
+): { from: string; to: string }[] => {
+  const prefix = `${fromFolder.replace(/\/+$/, "")}/`;
+  const dest = toFolder.replace(/\/+$/, "");
+  return relativePaths
+    .filter((p) => p.startsWith(prefix))
+    .map((p) => ({ from: p, to: `${dest}/${p.slice(prefix.length)}` }));
 };

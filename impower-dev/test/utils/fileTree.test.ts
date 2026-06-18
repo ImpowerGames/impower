@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFileTree,
+  computeFolderMoves,
   filterPaths,
   flattenVisibleRows,
+  FOLDER_SENTINEL,
 } from "../../src/modules/spark-editor/utils/fileTree";
 
 describe("buildFileTree", () => {
@@ -121,5 +123,49 @@ describe("filterPaths", () => {
     // The ancestor folder survives because the tree is rebuilt from matches.
     expect(tree.map((n) => n.name)).toEqual(["chapters"]);
     expect(tree[0]!.children.map((n) => n.name)).toEqual(["ending.sd", "intro.sd"]);
+  });
+});
+
+describe("computeFolderMoves", () => {
+  const paths = [
+    "main.sd",
+    "chapters/intro.sd",
+    "chapters/sub/deep.sd",
+    "art/forest.png",
+  ];
+
+  it("rewrites every path under the moved folder, leaving others untouched", () => {
+    expect(computeFolderMoves(paths, "chapters", "archive")).toEqual([
+      { from: "chapters/intro.sd", to: "archive/intro.sd" },
+      { from: "chapters/sub/deep.sd", to: "archive/sub/deep.sd" },
+    ]);
+  });
+
+  it("supports nesting a folder under another (deeper destination)", () => {
+    expect(computeFolderMoves(paths, "chapters", "archive/old")).toEqual([
+      { from: "chapters/intro.sd", to: "archive/old/intro.sd" },
+      { from: "chapters/sub/deep.sd", to: "archive/old/sub/deep.sd" },
+    ]);
+  });
+
+  it("tolerates trailing slashes on either argument", () => {
+    expect(computeFolderMoves(paths, "art/", "media/")).toEqual([
+      { from: "art/forest.png", to: "media/forest.png" },
+    ]);
+  });
+
+  it("returns [] when nothing lives under the folder", () => {
+    expect(computeFolderMoves(paths, "nonexistent", "x")).toEqual([]);
+    // A prefix that matches a filename but not a folder boundary must NOT match.
+    expect(computeFolderMoves(["chapters.sd"], "chapters", "x")).toEqual([]);
+  });
+});
+
+describe("FOLDER_SENTINEL", () => {
+  it("materializes an empty folder and is hidden from the tree", () => {
+    const tree = buildFileTree([`emptydir/${FOLDER_SENTINEL}`, "main.sd"]);
+    const empty = tree.find((n) => n.name === "emptydir")!;
+    expect(empty.isDirectory).toBe(true);
+    expect(empty.children).toEqual([]);
   });
 });
