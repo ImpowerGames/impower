@@ -64,7 +64,16 @@ function viteInlineWorkerPlugin(extraConfig?: esbuild.BuildOptions): Plugin {
           if (input.includes("node_modules")) {
             continue;
           }
-          this.addWatchFile(path.resolve(input));
+          // esbuild lists namespaced inputs as `<namespace>:<path>` — e.g. a
+          // `?raw` import resolved into the rawPlugin's `raw-loader` namespace.
+          // Strip the namespace to recover the real file path; otherwise
+          // path.resolve mangles `raw-loader:C:\…` into a bogus path that Vite's
+          // import-analysis then fails to resolve. (The real file, e.g.
+          // builtins.sd, still gets watched so editing it hot-reloads the worker.)
+          const real = input.startsWith("raw-loader:")
+            ? input.slice("raw-loader:".length)
+            : input;
+          this.addWatchFile(path.resolve(real));
         }
 
         let code = result.outputFiles?.[0]?.text || "";
