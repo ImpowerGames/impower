@@ -14,10 +14,74 @@ import {
   flattenVisibleRows,
   FOLDER_SENTINEL,
 } from "../../utils/fileTree";
+import { isImagePath } from "../../utils/fileIcon";
 import globToRegex from "../../utils/globToRegex";
 import workspace from "../../workspace/WorkspaceStore";
 import FileItem from "./FileItem";
 import { useTreeDrag } from "./useTreeDrag";
+
+// Thumbnail width requested from the SW — keep in sync with FileItem's `?thumb`.
+const THUMB_WIDTH = 144;
+
+// URLs whose thumbnail has already been requested this session, so re-mounting
+// the list (e.g. switching panes) doesn't re-issue fetches for them.
+const warmedThumbs = new Set<string>();
+
+// Background tick. Uses requestIdleCallback so warming ONLY runs when the page
+// has spare time — never stealing frames from the user or the game-preview
+// animation. (Generating a thumbnail decodes the source image, which shares the
+// renderer's decode capacity with the preview; forcing it on a timer visibly
+// stutters the preview, so we stay polite. The trade-off: while the preview is
+// animating hard the page is rarely idle, so warming makes little progress —
+// the real fix for the recurring hitch is the persistent SW cache.)
+const schedule = (cb: () => void): void => {
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(() => cb(), { timeout: 4000 });
+  } else {
+    setTimeout(cb, 400);
+  }
+};
+
+/**
+ * Warm the SW thumbnail cache for a batch of image urls in the background, so
+ * scrolling never triggers a cold-decode burst (the "frozen on first scroll"
+ * hitch). A couple of fetches in flight at a time with a gap between batches;
+ * the SW does the actual decode off the main thread. Aborts when the list
+ * changes / unmounts.
+ */
+function prewarmThumbnails(urls: string[], signal: AbortSignal): void {
+  const pending = urls.filter((u) => !warmedThumbs.has(u));
+  if (pending.length === 0) {
+    return;
+  }
+  let i = 0;
+  // One decode at a time: thumbnail generation shares the renderer's image
+  // decode capacity with the game preview, so we keep the footprint minimal.
+  const CONCURRENCY = 1;
+  const pump = () => {
+    if (signal.aborted || i >= pending.length) {
+      return;
+    }
+    const batch: Promise<unknown>[] = [];
+    while (i < pending.length && batch.length < CONCURRENCY) {
+      const url = pending[i++]!;
+      warmedThumbs.add(url);
+      // Reading the (tiny) body lets the SW finish generating + caching; the
+      // result is discarded. Failures are ignored (the row's <img> still works).
+      batch.push(
+        fetch(url, { signal })
+          .then((r) => r.arrayBuffer())
+          .catch(() => undefined),
+      );
+    }
+    void Promise.all(batch).then(() => {
+      if (!signal.aborted) {
+        schedule(pump);
+      }
+    });
+  };
+  schedule(pump);
+}
 
 // Pure helper that doesn't need Workspace (Workspace.fs.getFilename used
 // to be the source of truth, but it's literally `uri.split('/').pop()`).
@@ -249,6 +313,25 @@ export default function FileList({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, include, exclude]);
+
+  // Background-warm the thumbnail cache for every image in this list, on idle,
+  // so scrolling never triggers a cold-decode burst. Matches FileItem's exact
+  // thumbnail url (so the SW caches under the same signature).
+  useEffect(() => {
+    if (!uris || uris.length === 0) return;
+    const urls: string[] = [];
+    for (const uri of uris) {
+      if (!isImagePath(relativePathFromUri(uri, projectId))) continue;
+      const src = srcByUri[uri];
+      if (src) {
+        urls.push(`${src}${src.includes("?") ? "&" : "?"}thumb=${THUMB_WIDTH}`);
+      }
+    }
+    if (urls.length === 0) return;
+    const controller = new AbortController();
+    prewarmThumbnails(urls, controller.signal);
+    return () => controller.abort();
+  }, [uris, srcByUri, projectId]);
 
   // Stable across renders (setExpanded is stable) so FileItem's `onToggle` prop
   // stays referentially equal — a precondition for FileItem's `memo`.
