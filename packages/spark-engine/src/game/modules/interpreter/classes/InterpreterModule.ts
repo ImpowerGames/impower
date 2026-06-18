@@ -89,6 +89,13 @@ export class InterpreterModule extends Module<
     this.setup();
   }
 
+  override onProgramUpdate() {
+    // Re-derive the character-name / directive maps from the refreshed context
+    // so a live edit (e.g. removing a character's `name`) takes effect instead
+    // of resolving against the previous program's defines.
+    this.setup();
+  }
+
   setup() {
     this._characterNameMap = {};
     for (const [k, v] of Object.entries(this.context.character || {})) {

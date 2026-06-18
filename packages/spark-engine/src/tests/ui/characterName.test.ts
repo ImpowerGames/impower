@@ -4,7 +4,11 @@
 // characterObj.name, falling back to the cue text when there's no name.)
 
 import { describe, expect, test } from "vitest";
-import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
+import {
+  compileUI,
+  createHarness,
+  flushMicrotasks,
+} from "./harness/uiTestHarness";
 
 const SCREEN = `screen main with
   textbox:
@@ -98,5 +102,41 @@ end
 
     expect(beatText(beat, "character_name")).toBe("GUARD");
     expect(beatText(beat, "dialogue")).toBe("Halt!");
+  });
+
+  test("recompiling in place (live edit) refreshes the resolved name", async () => {
+    const withName = `define KING as character with
+  name = "King Arthur"
+end
+
+${SCREEN}
+-> start
+
+scene start
+  KING: Hail!
+end
+`;
+    const withoutName = `define KING as character with
+end
+
+${SCREEN}
+-> start
+
+scene start
+  KING: Hail!
+end
+`;
+    const harness = createHarness(withName);
+    await harness.ready;
+    harness.jumpTo("start");
+    expect(beatText(harness.nextBeat(), "character_name")).toBe("King Arthur");
+
+    // Simulate the editor recompiling the EDITED source into the SAME game
+    // (the workspace worker's updateProgram path) — the resolved name must
+    // refresh, not keep the previous program's "King Arthur".
+    const { program } = compileUI(withoutName);
+    harness.game.updateProgram(program as any);
+    harness.jumpTo("start");
+    expect(beatText(harness.nextBeat(), "character_name")).toBe("KING");
   });
 });

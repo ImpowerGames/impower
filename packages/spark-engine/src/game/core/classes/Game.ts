@@ -280,24 +280,7 @@ export class Game<T extends M = {}> {
     //   screens/components/styles — static UI structs
     // Mutable interpreter state (visited/returned/…) is written onto this object
     // by the modules at runtime; it was never part of program.context.
-    const assignChannel = (src?: { [type: string]: any }) => {
-      if (src) {
-        for (const [type, structs] of Object.entries(src)) {
-          this._context[type] = structs;
-        }
-      }
-    };
-    assignChannel(this._program.defines);
-    assignChannel(this._program.assets);
-    if (this._program.screens) {
-      this._context["screen"] = this._program.screens;
-    }
-    if (this._program.components) {
-      this._context["component"] = this._program.components;
-    }
-    if (this._program.styles) {
-      this._context["style"] = this._program.styles;
-    }
+    this.assignContextChannels();
 
     // Override default modules with custom ones if specified
     const allModules = {
@@ -363,7 +346,42 @@ export class Game<T extends M = {}> {
       this._story = new Story(program.compiled);
     }
     this.setupStory(this._story);
+    // Live edit → recompile reuses this Game: refresh the context channels from
+    // the new program and let modules re-derive any state cached from context
+    // (e.g. InterpreterModule's character-name map). Guarded on modules already
+    // existing — the constructor calls updateProgram BEFORE building the context
+    // + instantiating modules (it assigns channels itself, after).
+    if (this._moduleNames && this._moduleNames.length > 0) {
+      this.assignContextChannels();
+      for (const moduleName of this._moduleNames) {
+        this._modules[moduleName]?.onProgramUpdate();
+      }
+    }
     return this._program;
+  }
+
+  /** Assign the program's static channels (defines → character/image/…, assets,
+   *  screen/component/style) onto the runtime context. Runtime-mutated state
+   *  (visit counts, …) lives under separate keys and is preserved. */
+  protected assignContextChannels() {
+    const assignChannel = (src?: { [type: string]: any }) => {
+      if (src) {
+        for (const [type, structs] of Object.entries(src)) {
+          this._context[type] = structs;
+        }
+      }
+    };
+    assignChannel(this._program.defines);
+    assignChannel(this._program.assets);
+    if (this._program.screens) {
+      this._context["screen"] = this._program.screens;
+    }
+    if (this._program.components) {
+      this._context["component"] = this._program.components;
+    }
+    if (this._program.styles) {
+      this._context["style"] = this._program.styles;
+    }
   }
 
   setupStory(story: Story) {
