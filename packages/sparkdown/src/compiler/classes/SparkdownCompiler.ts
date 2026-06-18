@@ -252,6 +252,12 @@ export class SparkdownCompiler {
       this._config.useBuiltinsPrelude = config.useBuiltinsPrelude;
     }
     if (
+      config.experimentalDisplayCalls !== undefined &&
+      config.experimentalDisplayCalls !== this._config.experimentalDisplayCalls
+    ) {
+      this._config.experimentalDisplayCalls = config.experimentalDisplayCalls;
+    }
+    if (
       config.workspace !== undefined &&
       config.workspace !== this._config.workspace
     ) {
@@ -281,6 +287,7 @@ export class SparkdownCompiler {
         {
           compilations: {
             definitions: this._config.definitions,
+            experimentalDisplayCalls: this._config.experimentalDisplayCalls,
           },
         },
       );

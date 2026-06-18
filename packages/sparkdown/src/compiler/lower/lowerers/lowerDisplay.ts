@@ -3,7 +3,14 @@ import { type SyntaxNode } from "@lezer/common";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import {
+  ObjectExpression,
+  ObjectExpressionEntry,
+} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
+import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
+import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
+import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
@@ -60,6 +67,26 @@ function buildDisplayContent(
     );
     content.push(new Text("\n"));
     return content;
+  }
+
+  // EXPERIMENTAL display-as-Luau-call path: when enabled, a SIMPLE display
+  // statement (plain text, single beat, no cue/layer/interpolation/divert/
+  // alternator/tag) lowers to a native `display({ target, text })` call instead
+  // of the legacy routing-tag + visible-text form. Carries the pre-parsed
+  // instruction table the runtime renders without a char-by-char re-scan. Any
+  // non-simple content returns null and falls through to the legacy path below,
+  // so existing goldens stay byte-identical until the table shape grows.
+  const displayCall = tryBuildSimpleDisplayCall(
+    parent,
+    bodyStart,
+    bodyEnd,
+    ctx,
+    mode,
+    lineType,
+    identifier,
+  );
+  if (displayCall) {
+    return displayCall;
   }
 
   // A mid-line `>` BREAK marker splits the display content into separate
@@ -119,6 +146,71 @@ function buildDisplayContent(
     content.push(...beat);
   }
   return content;
+}
+
+// Line types whose target is just the line type itself (no character cue, no
+// write layer) — the only ones the minimal `{ target, text }` display table can
+// represent today. `dialogue` (needs cue resolution) and `write` (needs the
+// layer identifier) stay on the legacy path until the table carries them.
+const SIMPLE_DISPLAY_LINE_TYPES = new Set([
+  "action",
+  "title",
+  "heading",
+  "transitional",
+]);
+
+// EXPERIMENTAL: build a `display({ target, text })` FunctionCall for a SIMPLE
+// display statement, or return null to fall back to the legacy routing-tag +
+// text form. "Simple" = the experimental flag is on, no leading `..` glue, a
+// known cue-less/layer-less line type, a single beat (no mid-line `>` split),
+// and a body that is PURE TEXT (no `{interp}` / divert / alternator / `# tag` /
+// comment) resolving to exactly one Text run. Anything else returns null.
+function tryBuildSimpleDisplayCall(
+  parent: SyntaxNode,
+  bodyStart: number,
+  bodyEnd: number,
+  ctx: LowerContext,
+  mode: "inline" | "block",
+  lineType: string,
+  identifier: string | null,
+): ParsedObject[] | null {
+  if (!ctx.config?.experimentalDisplayCalls) return null;
+  // A character cue / write layer can't ride the minimal table yet.
+  if (identifier !== null) return null;
+  if (!SIMPLE_DISPLAY_LINE_TYPES.has(lineType)) return null;
+  // Single beat only — a `>` break makes multiple beats.
+  if (splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx).length !== 1) {
+    return null;
+  }
+  // Any dynamic injection means the body carries structure the flat `text`
+  // string can't hold (interpolation values, diverts, alternators, tags).
+  if (collectTopLevelInjections(parent, bodyStart, bodyEnd).length > 0) {
+    return null;
+  }
+  // Reuse the legacy body walker so trimming/escapes match exactly, then
+  // require it to have collapsed to a single Text run (no trailing-break
+  // newline, no empty body).
+  const body = processDisplayBody(parent, bodyStart, bodyEnd, ctx, mode);
+  if (body.length !== 1) return null;
+  const only = body[0]!;
+  if (!(only instanceof Text)) return null;
+  const text = only.text;
+  if (!text) return null;
+  return [buildDisplayCall(lineType, text)];
+}
+
+// `display({ target = <lineType>, text = <body> })` with `shouldPopReturnedValue`
+// — a synthesized bare-call statement (no author `&` needed). `display` is a
+// state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
+// live ObjectValue arg the engine reads via `story.currentDisplayInstructions`.
+function buildDisplayCall(target: string, text: string): FunctionCall {
+  const table = new ObjectExpression([
+    new ObjectExpressionEntry("target", new StringExpression([new Text(target)])),
+    new ObjectExpressionEntry("text", new StringExpression([new Text(text)])),
+  ]);
+  const call = new FunctionCall(new Identifier("display"), [table]);
+  call.shouldPopReturnedValue = true;
+  return call;
 }
 
 // Trim trailing whitespace/newlines off a source range so a stamped beat
