@@ -93,7 +93,9 @@ export class InterpreterModule extends Module<
     this._characterNameMap = {};
     for (const [k, v] of Object.entries(this.context.character || {})) {
       const name = v.name;
-      if (typeof name === "string") {
+      // Only map a non-empty name → identifier; characters without a `name`
+      // inherit `name = ""` from the type default and must not register a "" key.
+      if (typeof name === "string" && name) {
         this._characterNameMap[name] = k;
       }
     }
@@ -240,8 +242,12 @@ export class InterpreterModule extends Module<
           const characterObj =
             characterMap?.[characterNameMatch] || characterMap?.[characterId];
           const character = characterObj?.$name;
+          // Fall back to the cue text when the character has no NON-EMPTY name:
+          // a character defined without a `name` inherits `name = ""` from the
+          // type default, so an empty string must be treated as absent (the same
+          // as an undefined character) rather than rendered as a blank speaker.
           const characterName =
-            typeof characterObj?.name === "string"
+            typeof characterObj?.name === "string" && characterObj.name
               ? characterObj.name
               : characterNameMatch;
           const characterParenthetical = characterParentheticalMatch;

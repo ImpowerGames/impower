@@ -76,4 +76,27 @@ end
     expect(beatText(beat, "character_name")).toBe("GUARD");
     expect(beatText(beat, "dialogue")).toBe("Halt!");
   });
+
+  test("a defined character with no `name` falls back to the cue (not blank)", async () => {
+    // Without a `name`, the character inherits `name = ""` from the type default;
+    // that empty string must not render as a blank speaker — fall back to the cue.
+    const story = `define GUARD as character with
+  color = red
+end
+
+${SCREEN}
+-> start
+
+scene start
+  GUARD: Halt!
+end
+`;
+    const harness = createHarness(story);
+    await harness.ready;
+    harness.jumpTo("start");
+    const beat = harness.nextBeat();
+
+    expect(beatText(beat, "character_name")).toBe("GUARD");
+    expect(beatText(beat, "dialogue")).toBe("Halt!");
+  });
 });
