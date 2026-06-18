@@ -36,6 +36,9 @@ define world with
   src = ""
 end
 
+define config with
+end
+
 define ui as config with
   styles_element_name = "styles"
   screens_element_name = "screens"
