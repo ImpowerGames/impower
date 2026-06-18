@@ -8,10 +8,31 @@ import {
 } from "../../src/modules/spark-editor/utils/fileTree";
 
 describe("buildFileTree", () => {
-  it("keeps flat files at the top level, folders before files, alpha within group", () => {
+  it("keeps flat files at the top level, grouped by extension then name", () => {
     const tree = buildFileTree(["main.sd", "zebra.png", "apple.sd"]);
-    expect(tree.map((n) => n.name)).toEqual(["apple.sd", "main.sd", "zebra.png"]);
+    // `.png` sorts before `.sd`; within `.sd`, apple before main.
+    expect(tree.map((n) => n.name)).toEqual(["zebra.png", "apple.sd", "main.sd"]);
     expect(tree.every((n) => !n.isDirectory)).toBe(true);
+  });
+
+  it("groups files by extension first, then alphabetically within an extension", () => {
+    const tree = buildFileTree([
+      "song.mp3",
+      "hero.png",
+      "main.sd",
+      "alpha.png",
+      "intro.sd",
+      "beat.mp3",
+    ]);
+    // ext order: mp3 < png < sd; alpha within each.
+    expect(tree.map((n) => n.name)).toEqual([
+      "beat.mp3",
+      "song.mp3",
+      "alpha.png",
+      "hero.png",
+      "intro.sd",
+      "main.sd",
+    ]);
   });
 
   it("nests files under implicit, deduped folders", () => {

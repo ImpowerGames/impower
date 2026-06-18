@@ -54,9 +54,22 @@ interface MutableNode {
   children: Map<string, MutableNode>;
 }
 
+/** Lowercased final extension of a basename, or `""` when it has none. */
+const extOf = (name: string): string => {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
+};
+
 const sortNodes = (a: FileTreeNode, b: FileTreeNode): number => {
   if (a.isDirectory !== b.isDirectory) {
     return a.isDirectory ? -1 : 1;
+  }
+  // Files are grouped by extension first (all `.png` together, then `.sd`, …),
+  // then alphabetically within each extension. Folders sort by name only.
+  if (!a.isDirectory) {
+    const ae = extOf(a.name);
+    const be = extOf(b.name);
+    if (ae !== be) return ae < be ? -1 : 1;
   }
   const an = a.name.toLowerCase();
   const bn = b.name.toLowerCase();
