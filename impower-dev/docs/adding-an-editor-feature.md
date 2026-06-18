@@ -148,19 +148,6 @@ See `test/workspace/WorkspaceWindow.test.ts` for the established patterns
 `matchMedia`/`Worker` stubs in `test/setup.ts`). New intents should get a
 characterization test here.
 
-## Visual parity
-
-The `../e2e-visual-parity` harness pixel- and computed-style-diffs the editor
-against the web-component baseline. Run it before finishing UI work:
-
-```sh
-cd ../e2e-visual-parity && npm run parity   # needs ../impower (baseline) + this app built
-```
-
-Intentional restyles go in its allowlist; see
-[`visual-parity-harness-spec.md`](./visual-parity-harness-spec.md). The two
-skipped tests (a baseline startup race, an undrivable baseline menu) are known.
-
 ## Checklist
 
 - [ ] Component reads state via signals, writes via an intent.

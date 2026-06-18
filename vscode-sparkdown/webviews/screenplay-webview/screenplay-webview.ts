@@ -4,8 +4,16 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { SparkdownScreenplayPreviewElement } from "@impower/sparkdown-document-views/src/modules/screenplay-preview/SparkdownScreenplayPreview.elem";
+// Build-time-compiled impower-ui utilities (see impower-ui-utilities.css + the
+// `?tw` loader in esbuild.js). impower-dev gets these from its global Vite
+// stylesheet; this webview has none, so inject them so LoadingBar renders styled.
+import impowerUiCss from "./impower-ui-utilities.css?tw";
 
 console.log("running screenplay-webview v1.0");
+
+const impowerUiStyle = document.createElement("style");
+impowerUiStyle.textContent = impowerUiCss;
+document.head.appendChild(impowerUiStyle);
 
 declare var acquireVsCodeApi: any;
 

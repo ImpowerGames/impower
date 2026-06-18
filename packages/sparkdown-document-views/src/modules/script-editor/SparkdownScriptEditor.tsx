@@ -1,4 +1,4 @@
-import { LoadingBar } from "@impower/impower-ui/components";
+import { LoadingBar } from "@impower/impower-ui/loading-bar";
 import { useEffect, useRef } from "preact/hooks";
 import type {
   ScriptEditorController as ScriptEditorControllerType,

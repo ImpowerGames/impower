@@ -12,6 +12,11 @@
       "types": "./src/components/index.ts",
       "import": "./dist/impower-ui.js"
     },
+    "./loading-bar": {
+      "development": "./src/components/loading-bar/LoadingBar.tsx",
+      "types": "./src/components/loading-bar/LoadingBar.tsx",
+      "import": "./dist/impower-ui.js"
+    },
     "./preact": {
       "development": "./src/preact/PreactComponent.ts",
       "types": "./src/preact/PreactComponent.ts",

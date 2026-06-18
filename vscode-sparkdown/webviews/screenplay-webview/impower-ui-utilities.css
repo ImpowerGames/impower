@@ -1,0 +1,23 @@
+/* Tailwind input compiled at build time by the `?tw` loader in esbuild.js and
+ * injected into the webview <head> by screenplay-webview.ts. impower-dev gets
+ * impower-ui's utilities from its global Vite-built stylesheet; the vscode
+ * webview has no such global, so we compile just the utilities the rendered
+ * components use (LoadingBar + the screenplay-preview module) here.
+ *
+ * Deliberately imports `theme` + `utilities` only — NOT `preflight`. Tailwind's
+ * preflight is a global reset (`*{margin:0}`, `img,svg{display:block}`,
+ * `ul{list-style:none}`, ...) that would fight the CodeMirror screenplay
+ * preview's own styling. The `@source` dirs are scanned for class candidates,
+ * so this stays in sync with whatever classes those components actually use. */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* The only impower-ui-specific theme token the scanned components reference
+ * (LoadingBar's `text-primary`). Everything else they use is stock Tailwind.
+ * Mirror just this one alias rather than pulling in impower-ui's whole theme. */
+@theme {
+  --color-primary: var(--color-sky-400);
+}
+
+@source "../../../packages/impower-ui/src/components/loading-bar";
+@source "../../../packages/sparkdown-document-views/src/modules/screenplay-preview";
