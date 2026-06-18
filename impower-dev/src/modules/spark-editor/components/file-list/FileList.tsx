@@ -5,6 +5,7 @@
 // module load. Both must be deferred — see memory:
 // feedback_defer_cjs_imports_in_ssr_loaded_modules.
 import { Button, Plus } from "@impower/impower-ui/components";
+import { useComputed } from "@preact/signals";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -228,6 +229,24 @@ export default function FileList({
   const tree = buildFileTree(relativePaths);
   const rows = flattenVisibleRows(tree, expanded);
 
+  // Relative paths of every editor currently open across the workspace panes.
+  // A row whose path is in this set gets the selection accent (the file the
+  // user is viewing). `activeEditor.filename` holds the project-relative path
+  // `openFileEditor` was called with — the same identity a row keys off.
+  const openFilenames = useComputed(() => {
+    const open = new Set<string>();
+    const panes = workspace.state.value.panes ?? {};
+    for (const pane of Object.values(panes)) {
+      for (const panel of Object.values(pane?.panels ?? {})) {
+        const editor = panel?.activeEditor;
+        if (editor?.open && editor.filename) {
+          open.add(editor.filename);
+        }
+      }
+    }
+    return open;
+  }).value;
+
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
@@ -381,6 +400,7 @@ export default function FileList({
                     depth={row.depth}
                     hasChildren={row.hasChildren}
                     expanded={row.expanded}
+                    selected={openFilenames.has(row.path)}
                     onToggle={() => toggle(row.path)}
                   />
                 </div>

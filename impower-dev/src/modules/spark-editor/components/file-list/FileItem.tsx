@@ -1,6 +1,7 @@
 import { Button, ChevronRight, Ripple } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { iconForPath } from "../../utils/fileIcon";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileOptionsButton from "./FileOptionsButton";
@@ -25,6 +26,8 @@ export type FileItemProps = {
   hasChildren?: boolean;
   /** Folder is expanded (chevron points down). */
   expanded?: boolean;
+  /** Row is the file currently open in the editor (gets the selection accent). */
+  selected?: boolean;
   /** Folder rows: toggle expand/collapse. */
   onToggle?: () => void;
 };
@@ -42,6 +45,7 @@ export default function FileItem({
   depth = 0,
   hasChildren = false,
   expanded = false,
+  selected = false,
   onToggle,
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
@@ -58,6 +62,13 @@ export default function FileItem({
     isDirectory || dotIndex <= 0 ? basename : basename.slice(0, dotIndex);
   const ext = !isDirectory && dotIndex > 0 ? basename.slice(dotIndex + 1) : "";
   const showExt = ext && ext !== "sd";
+
+  // File-type glyph (folders → Binder). An expanded folder shows its icon at
+  // full weight; everything else is muted to /50 so the icon reads as chrome,
+  // not content. The icon sits inside DiagnosticsLabel so it inherits the
+  // danger/warning color (via currentColor) when the row has a diagnostic.
+  const FileIcon = iconForPath(path, isDirectory);
+  const iconMuted = isDirectory && expanded ? "" : "opacity-50";
 
   // Auto-focus + select the editable name when entering rename mode.
   useEffect(() => {
@@ -156,13 +167,31 @@ export default function FileItem({
     <Button
       ref={rowRef}
       variant="ghost"
-      class="h-14 w-full justify-start gap-0 rounded-none px-5 text-left text-base font-normal text-foreground/80"
+      class={`h-14 w-full justify-start gap-0 rounded-none px-5 text-left text-base font-normal text-foreground/80 ${
+        selected
+          ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
+          : ""
+      }`}
       onClick={onRowClick}
     >
       <div
-        class="flex flex-1 flex-row items-center overflow-hidden"
+        class="relative flex flex-1 flex-row items-center overflow-hidden"
         style={{ paddingLeft: `${BASE_INDENT + depth * INDENT_PER_DEPTH}px` }}
       >
+        {/* Indent guides: one faint 1px vertical rule per ancestor depth,
+            centered in each indentation step (VS Code's containment lines).
+            Absolutely positioned so they ride the row's transform and stay
+            pixel-aligned with the name's left padding. */}
+        {Array.from({ length: depth }, (_unused, i) => (
+          <span
+            key={i}
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-y-0 w-px bg-foreground/10"
+            style={{
+              left: `${BASE_INDENT + i * INDENT_PER_DEPTH + INDENT_PER_DEPTH / 2}px`,
+            }}
+          />
+        ))}
         {/* Disclosure column: a rotating chevron for folders-with-children,
             an equal-width spacer otherwise so names stay aligned. */}
         <span class="flex w-5 flex-none items-center justify-center text-foreground/50">
@@ -175,6 +204,13 @@ export default function FileItem({
           ) : null}
         </span>
         <DiagnosticsLabel filename={path}>
+          {/* File-type icon column. Inside DiagnosticsLabel so it goes
+              red/amber with the name on a diagnostic (currentColor). */}
+          <span
+            class={`flex w-6 flex-none items-center justify-center ${iconMuted}`}
+          >
+            <FileIcon class="size-5" />
+          </span>
           <div class="flex flex-1 flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
             {renaming ? (
               <div

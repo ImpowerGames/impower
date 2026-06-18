@@ -12,6 +12,11 @@
       "types": "./src/components/index.ts",
       "import": "./dist/impower-ui.js"
     },
+    "./icons": {
+      "development": "./src/components/icon/icons.generated.tsx",
+      "types": "./src/components/icon/icons.generated.tsx",
+      "import": "./dist/impower-ui.js"
+    },
     "./loading-bar": {
       "development": "./src/components/loading-bar/LoadingBar.tsx",
       "types": "./src/components/loading-bar/LoadingBar.tsx",
