@@ -975,12 +975,30 @@ export class SparkdownCompiler {
         }
       }
       if (context) {
-        // Copy pre-built structs to program context
+        // Copy pre-built structs to program context. An authored define that
+        // reuses a builtin name (seeded earlier by mergePreludeContext) OVERRIDES
+        // IN PLACE: its properties win, but the builtin's *unspecified* siblings
+        // are retained. Without this, a partial override silently drops every
+        // field it doesn't restate — e.g. `define ui as config with
+        // reactive = true` would lose the builtin `screens_element_name` /
+        // `styles_element_name` / `breakpoints`, leaving `reveal()` unable to
+        // find the screen root (it bails on an undefined `screens_element_name`),
+        // so screens stay at opacity:0 — a black preview with no error.
+        //
+        // Structural element-tree types (screen/component) are REPLACED wholesale
+        // rather than deep-merged — merging two element trees would splice the
+        // builtin's children into the authored one. (They likewise override by
+        // replace in the reactive `sparkle` channel; see mergePreludeSparkle.)
+        const REPLACE_TYPES = new Set(["screen", "component"]);
         for (const [type, structs] of Object.entries(context)) {
           for (const [name, struct] of Object.entries(structs)) {
             program.context ??= {};
             program.context[type] ??= {};
-            program.context[type][name] = struct;
+            const existing = program.context[type][name];
+            program.context[type][name] =
+              existing && !REPLACE_TYPES.has(type)
+                ? this.inheritDefaults(existing, struct)
+                : struct;
           }
         }
       }

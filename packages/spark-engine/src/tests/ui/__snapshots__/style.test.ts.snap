@@ -1356,7 +1356,12 @@ exports[`style > style + variables construction stream 1`] = `
             "@screen-size(sm)": {
               "width": "100%",
             },
+            "@screen_size(sm)": {
+              "width": "80%",
+            },
             "height": "100%",
+            "margin": "0 auto",
+            "width": "68%",
           },
           "dialogue_background": {
             "$name": "dialogue_background",
