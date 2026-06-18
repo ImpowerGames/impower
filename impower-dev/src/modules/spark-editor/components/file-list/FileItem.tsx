@@ -207,7 +207,7 @@ export default function FileItem({
           {/* File-type icon column. Inside DiagnosticsLabel so it goes
               red/amber with the name on a diagnostic (currentColor). */}
           <span
-            class={`flex w-6 flex-none items-center justify-center ${iconMuted}`}
+            class={`mr-3 flex w-6 flex-none items-center justify-center ${iconMuted}`}
           >
             <FileIcon class="size-5" />
           </span>
