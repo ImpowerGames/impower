@@ -6,6 +6,7 @@ import {
   ObjectExpressionEntry,
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import { LowerContext } from "../context";
+import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
@@ -92,6 +93,9 @@ export function lowerTable(
             : null;
         }
       }
+      // An empty keyed-entry RHS (`{ a = }`) is the same parse error as a
+      // statement-level empty RHS — flag it (the entry is dropped below).
+      validateAssignmentValue(second, ctx);
       const opContent = findChildByName(
         second,
         "LuauAssignmentOperation_content",

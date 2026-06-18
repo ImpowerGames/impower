@@ -15,6 +15,7 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
+import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Statement-like nodes that can appear as siblings inside a
@@ -191,6 +192,7 @@ export function lowerVariableDefinition(
     "LuauAssignmentOperation",
     lastTarget.assignNode,
   );
+  if (firstRhsOp) validateAssignmentValue(firstRhsOp, ctx);
   const firstRhs = firstRhsOp
     ? lowerExpressionFromContainer(firstRhsOp, ctx)
     : null;

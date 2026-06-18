@@ -8,6 +8,7 @@ import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerPropertyTargetAssignment } from "../utils/lowerPropertyTargetAssignment";
+import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Lower a bare reassignment statement from its constituent grammar nodes —
@@ -33,6 +34,10 @@ export function lowerReassignment(
   ctx: LowerContext,
 ): CompiledBlock {
   const opText = readAssignmentOperatorText(opNode, ctx);
+
+  // `x =` / `count +=` with an empty RHS → Luau-style parse error. Covers both
+  // the property-target and simple-identifier branches below.
+  validateAssignmentValue(opNode, ctx);
 
   // Multi-segment LHS → property-target via StorePropertyAssignment.
   const propertyAssignment = lowerPropertyTargetAssignment(

@@ -31,6 +31,7 @@ import { findChildByName } from "../utils/alternatorArms";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
+import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // `define` is sparkdown's unified OOP type/instance construct. Every
@@ -571,6 +572,7 @@ function readPropertyDefinition(
   }
 
   const opNode = getDescendent("LuauAssignmentOperation", propNode);
+  if (opNode) validateAssignmentValue(opNode, ctx);
   const expr = opNode ? lowerExpressionFromContainer(opNode, ctx) : null;
   if (!expr) return null;
 

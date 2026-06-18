@@ -22,6 +22,7 @@ import {
   lowerExpressionFromNodes,
 } from "./expression/lowerExpression";
 import { wrapInWeave } from "./utils/wrapInWeave";
+import { validateAssignmentValue } from "./utils/validateAssignmentValue";
 import {
   lowerAudioLine,
   lowerImageAndAudioLine,
@@ -658,6 +659,7 @@ function lowerMultiTargetReassignment(
   // property and variable targets is common in Luau (`a.x, b = …`,
   // `a[f()], b, a[f()+3] = f(), a, 'x'`) — this fixture shape is
   // attrib.luau lines 13, 15.
+  validateAssignmentValue(multi.op, ctx);
   const allSimple = multi.targets.every((t) => isSimpleVariableTarget(t));
   const firstRhs = lowerExpressionFromContainer(multi.op, ctx);
   const trailingExprs = multi.trailingExprGroups
