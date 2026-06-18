@@ -68,6 +68,106 @@ end
     expect(evalGlobal(h, "muted")).toBe(true);
   });
 
+  test("@input inline-closure writes the typed value back (event.value)", async () => {
+    const h = createHarness(
+      `store name = "Zelda"
+screen form with
+  field #value={name} @input={ name = event.value }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const fieldId = h.observedElementIds()[0];
+    expect(fieldId).toBeTruthy();
+    h.emitEvent("input", fieldId!, { value: "Link" });
+    expect(evalGlobal(h, "name")).toBe("Link");
+  });
+
+  test("@change inline-closure reading event.checked toggles a boolean", async () => {
+    const h = createHarness(
+      `store muted = false
+screen form with
+  checkbox #checked={muted} @change={ muted = event.checked }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const boxId = h.observedElementIds()[0];
+    expect(boxId).toBeTruthy();
+    h.emitEvent("change", boxId!, { checked: true });
+    expect(evalGlobal(h, "muted")).toBe(true);
+  });
+
+  test("@click inline-closure runs multiple statements (`;`-separated)", async () => {
+    const h = createHarness(
+      `store score = 10
+store combo = 3
+screen form with
+  button "Reset" @click={ score = 0; combo = 0 }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const btnId = h.observedElementIds()[0];
+    expect(btnId).toBeTruthy();
+    h.emitEvent("click", btnId!, {});
+    expect(evalGlobal(h, "score")).toBe(0);
+    expect(evalGlobal(h, "combo")).toBe(0);
+  });
+
+  test("@click inline-closure can call a function (bare call fires, no `&`)", async () => {
+    const h = createHarness(
+      `store score = 7
+function reset_score()
+  score = 0
+end
+screen form with
+  button "Reset" @click={ reset_score() }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const btnId = h.observedElementIds()[0];
+    expect(btnId).toBeTruthy();
+    h.emitEvent("click", btnId!, {});
+    expect(evalGlobal(h, "score")).toBe(0);
+  });
+
+  test("@input inline-closure writes a property target (`obj.field = event.value`)", async () => {
+    // A property-target write inside a closure (`player.name = …`) is what a
+    // table reinterpretation of `{…}` could NOT express — verify it works, and
+    // observe it through the re-rendered bound value (the runtime table isn't a
+    // plain JS object, so we assert the binding sees the new value).
+    const h = createHarness(
+      `store player = { name = "Zelda" }
+screen form with
+  field #value={player.name} @input={ player.name = event.value }
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const fieldId = h.observedElementIds()[0];
+    expect(fieldId).toBeTruthy();
+    h.reset();
+    h.emitEvent("input", fieldId!, { value: "Link" });
+    const update = h
+      .snapshotFiltered("ui/update")
+      .find(
+        (m: any) => m.params?.attributes && "value" in m.params.attributes,
+      ) as any;
+    expect(update?.params?.attributes?.value).toBe("Link");
+  });
+
   test("one-way value follows state on a programmatic change", async () => {
     const h = createHarness(
       `store name = "Zelda"

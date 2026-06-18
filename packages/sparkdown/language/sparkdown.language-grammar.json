@@ -4664,7 +4664,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*;)|(?=(?:[^\\S\\n\\r])+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?=(?:[^\\S\\n\\r])+(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]|\\([^()\\n]*\\)|,(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)))*(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))|(?=(?:[^\\S\\n\\r])+(?!(?:and|or|not)\\b)(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]))*(?:[^\\S\\n\\r])*[(])|$"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*;)|(?=(?:[^\\S\\n\\r])*[}])|(?=(?:[^\\S\\n\\r])+\\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\\b)|(?=(?:[^\\S\\n\\r])+(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]|\\([^()\\n]*\\)|,(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)))*(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))|(?=(?:[^\\S\\n\\r])+(?!(?:and|or|not)\\b)(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[[^\\]\\n]*\\]))*(?:[^\\S\\n\\r])*[(])|$"
     },
     "LuauDefine": {
       "tag": "meta",
@@ -7282,10 +7282,41 @@
       },
       "patterns": [
         {
+          "include": "#LuauSparkleHandlerClosure"
+        },
+        {
           "include": "#LuauExpression"
         }
       ],
       "end": "(?=$|(?:[^\\S\\n\\r])+[@#])"
+    },
+    "LuauSparkleHandlerClosure": {
+      "brackets": true,
+      "begin": "([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauBlockBody"
+        }
+      ],
+      "end": "([}])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
     },
     "LuauPropAttribute": {
       "begin": "([#])((?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[-](?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*)",

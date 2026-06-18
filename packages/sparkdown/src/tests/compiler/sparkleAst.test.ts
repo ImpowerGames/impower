@@ -195,6 +195,36 @@ end
     ]);
   });
 
+  test("`@event={ ... }` lowers to a closure EventBinding (statements, not a table)", () => {
+    const ast = screenAst(`screen form with
+  field @input={ name = event.value }
+  button "Reset" @click={ score = 0; combo = 0 }
+end
+`);
+    const [field, button] = ast.form.children;
+    expect(field.tag).toBe("field");
+    expect(field.events).toEqual([
+      {
+        event: "input",
+        handler: {
+          kind: "closure",
+          binding: {
+            exprId: expect.stringMatching(/^__binding_\d+$/),
+            // The whole `{ … }` is the closure source; `event` is a reserved
+            // param so the body can read the DOM payload (event.value).
+            source: "{ name = event.value }",
+            span: expect.objectContaining({ from: expect.any(Number) }),
+            params: ["event"],
+          },
+        },
+      },
+    ]);
+    expect(button.events[0].handler.kind).toBe("closure");
+    expect(button.events[0].handler.binding.source).toBe(
+      "{ score = 0; combo = 0 }",
+    );
+  });
+
   test("`#prop=value` lowers to literal + binding PropValues (header/marker/adjacency)", () => {
     const ast = screenAst(`screen panel with
   column #gap=16:

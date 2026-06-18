@@ -2956,7 +2956,18 @@ repository:
     # safe at value-START positions because every operator/separator
     # rule consumes its TRAILING whitespace, so a call that begins an
     # operand never has the `{{WS}}+` prefix this lookahead requires.
-    end: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    #
+    # `(?={{WS}}*[}])` closes the reassignment at a `}` boundary — needed
+    # for an inline event-handler closure (`@input={ name = event.value }`,
+    # see LuauSparkleHandlerClosure) whose LAST statement is a bare
+    # reassignment: without it the reassignment runs out of patterns
+    # before the closure's `}` and the scoped rule appends an
+    # ERROR_INCOMPLETE node. Safe elsewhere — a reassignment is only ever
+    # followed by `}` inside such a closure (function/if bodies close at
+    # `end`/newline, never `}`; a table-literal VALUE consumes its own
+    # braces before this end is checked, and reassignment statements never
+    # appear inside a table).
+    end: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -4506,8 +4517,39 @@ repository:
         patterns:
           - { include: "#EqualOperator" }
     patterns:
+      - { include: "#LuauSparkleHandlerClosure" }
       - { include: "#LuauExpression" }
     end: (?=$|{{WS}}+[@#])
+
+  # Inline event-handler closure (spec §4.5, L7): `@click={ score = 0; combo = 0 }`,
+  # `@input={ name = event.value }`. In event-handler value position the braces
+  # delimit a STATEMENT block (a closure body), NOT a Luau table — identical
+  # source text (`{ a = b }`), different context. Per the grammar Golden Rule
+  # this is its own rule (not a table reinterpreted downstream): it reuses
+  # `#LuauBlockBody`, the SAME statement list a function body parses, so every
+  # statement form works (assignment, property-target `a.b = x`, bare call,
+  # `;`-separated statements). Tried before `#LuauExpression` in
+  # `LuauEventAttribute` so the leading `{` isn't taken as a table; only
+  # reachable from there, so tables elsewhere are unaffected.
+  #
+  # SINGLE-LINE only: `LuauEventAttribute.end` (`(?=$|…)`) is line-oriented, so
+  # the closing `}` must be on the `=` line. A body split across lines would be
+  # truncated at the newline; `lowerHandlerClosure` detects a missing `}` and
+  # raises a diagnostic rather than silently dropping the rest.
+  LuauSparkleHandlerClosure:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauBlockBody" }
+    end: ([}])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
 
   # Inline style/attribute prop (spec §4.2/§4.4): `#prop=value`, e.g.
   # `row #gap=16`, `#background-color={team_color}`, `image #src="a.png"`. The

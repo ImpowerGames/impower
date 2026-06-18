@@ -9,6 +9,7 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
+import { lowerStatements } from "../lower";
 import {
   type Binding,
   type BodyNode,
@@ -307,6 +308,9 @@ function lowerBinding(
 const EVENT_ATTR = new Set(["LuauEventAttribute"]);
 const EVENT_NAME = new Set(["EventAttributeName"]);
 const EVENT_CONTENT = new Set(["LuauEventAttribute_content"]);
+const EVENT_CLOSURE = new Set(["LuauSparkleHandlerClosure"]);
+const EVENT_CLOSURE_BODY = new Set(["LuauSparkleHandlerClosure_content"]);
+const EVENT_CLOSURE_END = new Set(["LuauSparkleHandlerClosure_end"]);
 const BARE_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** DFS: every `LuauEventAttribute` descendant, in source order. */
@@ -325,15 +329,31 @@ function eventAttributes(node: SyntaxNode): SyntaxNode[] {
 }
 
 /** Build EventBindings (spec §4.5) from a line's `@event=handler` attributes.
- *  `@e=name` → a `ref` (the runtime calls the named function); `@e=call(args)`
- *  → a `call` whose binding (`__binding_N`) the runtime invokes. Inline closures
- *  `@e={ … }` are a later increment. */
+ *  Three handler forms (L7):
+ *   `@e=name`         → a `ref` (the runtime calls the named function);
+ *   `@e=call(args)`   → a `call` whose binding (`__binding_N`) the runtime
+ *                       evaluates for its effects;
+ *   `@e={ stmts }`    → a `closure` whose binding is a hoisted function body of
+ *                       statements (write-back: `@input={ name = event.value }`).
+ *  All three expose `event` (the DOM payload) plus any enclosing loop vars. */
 function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
   const events: EventBinding[] = [];
   for (const attr of eventAttributes(lineNode)) {
     const nameNode = firstDescendant(attr, EVENT_NAME);
     const event = nameNode ? ctx.read(nameNode.from, nameNode.to).trim() : "";
     if (!event) continue;
+    // Inline closure `{ … }` — its own grammar node (statements, not a table).
+    const closureNode = firstDescendant(attr, EVENT_CLOSURE);
+    if (closureNode) {
+      events.push({
+        event,
+        handler: {
+          kind: "closure",
+          binding: lowerHandlerClosure(closureNode, ctx, ["event"]),
+        },
+      });
+      continue;
+    }
     const handlerNode = firstDescendant(attr, EVENT_CONTENT);
     const handlerText = handlerNode
       ? ctx.read(handlerNode.from, handlerNode.to).trim()
@@ -353,6 +373,72 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
     }
   }
   return events;
+}
+
+/** Compile an inline-closure handler (`@e={ stmts }`) into a {@link Binding}: a
+ *  hoisted function `__binding_<from>(event, <loopvars>) <stmts> end`. Unlike
+ *  {@link lowerBinding} (a single `return <expr>`), the body is the closure's
+ *  STATEMENTS — lowered via the shared `lowerStatements` so every form works
+ *  (assignment, property-target `a.b = x`, bare call). The reactive runtime
+ *  evaluates it for its side effects (writes), then flushes affected bindings.
+ *  `event` and loop vars are the function's parameters; references resolve to
+ *  them at the call frame, while assigned game-state names resolve as globals. */
+function lowerHandlerClosure(
+  closureNode: SyntaxNode,
+  ctx: LowerContext,
+  extraParams: string[] = [],
+): Binding {
+  const exprId = `__binding_${closureNode.from}`;
+  const source = ctx.read(closureNode.from, closureNode.to);
+  const span: SparkRange = {
+    file: ctx.filePath,
+    line: ctx.lineNumber(closureNode.from),
+    from: closureNode.from,
+    to: closureNode.to,
+  };
+  const loopVars = [...(ctx.sparkleLoopVars ?? []), ...extraParams];
+  // The attribute is line-oriented, so a closure whose `}` isn't on the `=`
+  // line is force-closed at the newline — the grammar emits no
+  // `LuauSparkleHandlerClosure_end` (closing brace). Surface that as an error
+  // rather than silently dropping the statements past line 1.
+  if (
+    childrenByName(closureNode, EVENT_CLOSURE_END).length === 0 &&
+    ctx.diagnostics
+  ) {
+    ctx.diagnostics.push({
+      message:
+        "Inline event handler is missing its closing `}`. Keep the whole handler on one line (multi-line handler bodies aren't supported) — use `;` to separate statements.",
+      severity: ErrorType.Error,
+      source: {
+        fileName: null,
+        filePath: ctx.filePath ?? null,
+        startLineNumber: ctx.lineNumber(closureNode.from) + 1,
+        endLineNumber: ctx.lineNumber(closureNode.to) + 1,
+        startCharacterNumber: ctx.characterNumber(closureNode.from) + 1,
+        endCharacterNumber: ctx.characterNumber(closureNode.to) + 1,
+      },
+    });
+  }
+  const already = ctx.hoistedKnots?.some(
+    (o) => o instanceof Function && o.identifier?.name === exprId,
+  );
+  if (!already && ctx.hoistedKnots) {
+    const body = firstDescendant(closureNode, EVENT_CLOSURE_BODY);
+    const stmts = lowerStatements(body, ctx);
+    ctx.hoistedKnots.push(
+      new Function(
+        new Identifier(exprId),
+        stmts,
+        loopVars.map((n) => new Argument(new Identifier(n), false, false)),
+      ),
+    );
+  }
+  return {
+    exprId,
+    source,
+    span,
+    ...(loopVars.length > 0 ? { params: [...loopVars] } : {}),
+  };
 }
 
 const PROP_ATTR = new Set(["LuauPropAttribute"]);
