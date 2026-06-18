@@ -81,3 +81,36 @@ end
     });
   });
 });
+
+describe("screen/component structural lowering (static context channel)", () => {
+  // Reactive inline attributes (`@event=`, `#prop=`) live on element lines but
+  // are NOT part of the static struct the engine consumes from `context.screen`
+  // — the reactive AST builder (lowerSparkleBody) reads them instead. The static
+  // `lowerStructBody` reader must EXCISE their spans from every text it reads:
+  // object-header keys (`column #gap=16:` → `column`), adjacency content
+  // (`button "Use" @click=x` → `{ button: "Use" }`), and bare markers. This
+  // guards the merge of dev's attribute-excision with the grammar's shape-node
+  // dispatch — a regression would leak `@click` / `#gap` into the static channel
+  // (e.g. as a bogus key/value or a malformed selector).
+  test("static screen body excises inline `@event` / `#prop` attributes", () => {
+    const struct = ctxOf(
+      `screen hud with
+  column #gap=16:
+    button "Use" @click=use_item
+    text "HP: {hp}" #color=red
+end
+`,
+      "screen",
+      "hud",
+    );
+    expect(struct).toEqual({
+      $type: "screen",
+      $name: "hud",
+      $recursive: true,
+      // `#gap=16` excised from the header key; `@click` / `#color` excised from
+      // the element lines; the display content (`"Use"`, `"HP: {hp}"`) is kept
+      // raw (the `{hp}` interpolation stays as literal text in the static struct).
+      column: { button: "Use", text: "HP: {hp}" },
+    });
+  });
+});

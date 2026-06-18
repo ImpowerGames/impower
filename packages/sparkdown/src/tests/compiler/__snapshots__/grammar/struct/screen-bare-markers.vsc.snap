@@ -1,0 +1,57 @@
+text.source.sparkdown [0..112]
+ ├─ meta.screen.luau [0..16]
+ │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..11]: "main"
+ │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
+ │   └─ keyword.control.as.luau [12..16]: "with"
+ ├─ Newline [16..17]: "\n"
+ ├─ meta.screen.luau [17..25]
+ │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
+ │   └─ meta.struct.body.luau [19..25]
+ │       ├─ entity.name.type.class.view.sd [19..24]: "stage"
+ │       └─ meta.template.expression.operator.colon.sd [24..25]: ":"
+ ├─ Newline [25..26]: "\n"
+ ├─ meta.screen.luau [26..39]
+ │   ├─ punctuation.whitespace.optional.sd [26..30]: "    "
+ │   └─ meta.struct.body.luau [30..39]
+ │       ├─ entity.name.type.class.view.sd [30..38]: "backdrop"
+ │       └─ meta.template.expression.operator.colon.sd [38..39]: ":"
+ ├─ Newline [39..40]: "\n"
+ ├─ meta.screen.luau [40..61]
+ │   ├─ punctuation.whitespace.optional.sd [40..46]: "      "
+ │   └─ meta.struct.body.luau [46..61]
+ │       ├─ keyword.other.component.builtin.name.sd [46..51]: "image"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [51..52]: " "
+ │       ├─ keyword.operator.assignment.sd [52..53]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [53..54]: " "
+ │       └─ string.quoted.double.sd [54..61]
+ │           ├─ punctuation.definition.string.begin.sd [54..55]: "\""
+ │           ├─ markup.raw.whitespace.sd [55..56]: "b"
+ │           ├─ markup.raw.whitespace.sd [56..57]: "l"
+ │           ├─ markup.raw.whitespace.sd [57..58]: "a"
+ │           ├─ markup.raw.whitespace.sd [58..59]: "c"
+ │           ├─ markup.raw.whitespace.sd [59..60]: "k"
+ │           └─ punctuation.definition.string.end.sd [60..61]: "\""
+ ├─ Newline [61..62]: "\n"
+ ├─ meta.screen.luau [62..75]
+ │   ├─ punctuation.whitespace.optional.sd [62..66]: "    "
+ │   └─ meta.struct.body.luau [66..75]
+ │       ├─ entity.name.type.class.view.sd [66..74]: "portrait"
+ │       └─ meta.template.expression.operator.colon.sd [74..75]: ":"
+ ├─ Newline [75..76]: "\n"
+ ├─ meta.screen.luau [76..95]
+ │   ├─ punctuation.whitespace.optional.sd [76..82]: "      "
+ │   └─ meta.struct.body.luau [82..95]
+ │       ├─ keyword.other.component.builtin.name.sd [82..86]: "mask"
+ │       ├─ punctuation.whitespace.optional.sd [86..87]: " "
+ │       └─ entity.name.type.class.view.sd [87..95]: "shadow_1"
+ ├─ Newline [95..96]: "\n"
+ ├─ meta.screen.luau [96..107]
+ │   ├─ punctuation.whitespace.optional.sd [96..102]: "      "
+ │   └─ meta.struct.body.luau [102..107]
+ │       └─ keyword.other.component.builtin.name.sd [102..107]: "image"
+ ├─ Newline [107..108]: "\n"
+ ├─ meta.screen.luau [108..111]
+ │   └─ keyword.control.end.luau [108..111]: "end"
+ └─ Newline [111..112]: "\n"

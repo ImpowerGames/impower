@@ -369,10 +369,27 @@ repository:
         patterns:
           - { include: "#TagContent" }
 
+  # A tag body. `{...}` interpolations become their own
+  # `LuauInterpolatedStringExpression` nodes (the same display-text
+  # interpolation rule) so the lowerer reads them as structure instead of
+  # re-scanning the raw text for braces (GRAMMAR.md §5). The interleaved
+  # literal runs are `TagText`. No `^` anchors and the text run always
+  # consumes from the body's first character, so vscode-textmate and the
+  # tree agree per character (GRAMMAR.md §17). Bounded by end-of-line or the
+  # next `#` tag start, exactly like the old flat match.
   TagContent:
     tag: definition(docComment)
     name: punctuation.definition.comment.content.sd
-    match: (.+?)(?=$|{{TAG_START}})
+    begin: (?=.)
+    patterns:
+      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#TagText" }
+    end: (?=$|{{TAG_START}})
+
+  TagText:
+    tag: definition(docComment)
+    name: punctuation.definition.comment.content.sd
+    match: ([^\n{]+?)(?=$|[{]|{{TAG_START}})
 
   ########## Include ##########
 
@@ -3269,9 +3286,13 @@ repository:
 
   # One body line inside a structural-define block (`style`/`screen`/
   # `component`). Matched opaquely (indent + content) so the block spans
-  # to its `end`; the lowerer parses the colon/indent struct from the raw
-  # text. The leading indent is its own capture so the formatter can
-  # PRESERVE it (these bodies are indentation-significant).
+  # to its `end`; the lowerer reconstructs the colon/indent struct from
+  # each line's indentation column. The leading indent is its own capture
+  # so the formatter can PRESERVE it (these bodies are
+  # indentation-significant). The content capture classifies the line's
+  # SHAPE into a named node (array item / object header / scalar property /
+  # bare marker) so the lowerer reads the shape from the grammar instead of
+  # re-tokenizing the raw line — see lowerStructBody / GRAMMAR.md §5.
   LuauStructBodyLine:
     match: ^({{WS}}+)([^\n]*?)({{WS}}*)$
     captures:
@@ -3287,14 +3308,22 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
 
-  # Opaque per-line body content (the lowerer reads this node's raw text by
-  # range and rebuilds the indentation tree itself — see lowerStructBody). The
-  # node MUST keep its `LuauStructBodyContent` name for the lowerer; the
-  # `captures` only add syntax-highlighting children WITHIN it (property
-  # `key = value`, nested `key:` / `> selector:` / `@breakpoint:` headers, and
-  # bare element markers like `image` / `mask shadow_1`). Reuses the existing
-  # `LuauStyleProperty*` tags so structural blocks highlight like the pre-Luau
-  # colon-based rules did.
+  # Per-line body content. The grammar classifies each line into a named
+  # SHAPE node (`LuauStructScalarProperty` / `LuauStructArrayItem` /
+  # `LuauStructObjectHeader` / `LuauStructAdjacencyContent` /
+  # `LuauStructBareMarker`, with a `LuauStructBodyFallback` catch-all); the
+  # lowerers dispatch on that node NAME rather than re-tokenizing the raw line
+  # (GRAMMAR.md §5). `LuauStructBodyContent` MUST keep its name: all three
+  # struct lowerers (lowerStructBody / lowerStructBodyTyped / lowerSparkleBody)
+  # walk for it as the per-line wrapper and read the shape + its value tokens
+  # by name from WITHIN it. The shape rules also emit syntax-highlighting
+  # children (CSS value tokens, element tag/class `ComponentName`s, content
+  # strings) AND the reactive inline-attribute nodes (`@event=` / `#prop=` →
+  # `LuauEventAttribute` / `LuauPropAttribute`); `lowerStructBody` excises those
+  # attribute spans so the STATIC struct stays free of reactive bindings, while
+  # `lowerSparkleBody` reads them to build the reactive AST. Order: comment
+  # first (so a `--`/`//` line isn't claimed by a shape), then most-specific
+  # shapes, then the bare-marker + fallback catch-alls.
   LuauStructBodyContent:
     tag: content
     name: meta.struct.body.luau

@@ -1,0 +1,52 @@
+text.source.sparkdown [0..114]
+ ├─ meta.style.luau [0..19]
+ │   ├─ keyword.control.style.luau [0..5]: "style"
+ │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ │   ├─ entity.name.type.define.luau [6..14]: "dialogue"
+ │   ├─ punctuation.whitespace.optional.sd [14..15]: " "
+ │   └─ keyword.control.as.luau [15..19]: "with"
+ ├─ Newline [19..20]: "\n"
+ ├─ meta.style.luau [20..39]
+ │   ├─ punctuation.whitespace.optional.sd [20..22]: "  "
+ │   └─ meta.struct.body.luau [22..39]
+ │       ├─ entity.name.function.attribute.name.view.sd [22..23]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [23..34]: "screen-size"
+ │       ├─ punctuation.definition.template-expression.begin.sd [34..35]: "("
+ │       ├─ string.unquoted.identifier.sd [35..37]: "sm"
+ │       ├─ punctuation.definition.template-expression.end.sd [37..38]: ")"
+ │       └─ meta.template.expression.operator.colon.sd [38..39]: ":"
+ ├─ Newline [39..40]: "\n"
+ ├─ meta.style.luau [40..56]
+ │   ├─ punctuation.whitespace.optional.sd [40..44]: "    "
+ │   └─ meta.struct.body.luau [44..56]
+ │       ├─ variable.other.property.define.sd [44..49]: "width"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [49..50]: " "
+ │       ├─ keyword.operator.assignment.sd [50..51]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [51..52]: " "
+ │       ├─ constant.numeric.amount.sd [52..55]: "100"
+ │       └─ constant.numeric.unit.sd [55..56]: "%"
+ ├─ Newline [56..57]: "\n"
+ ├─ meta.style.luau [57..78]
+ │   ├─ punctuation.whitespace.optional.sd [57..59]: "  "
+ │   └─ meta.struct.body.luau [59..78]
+ │       ├─ keyword.other.selector.operator.sd [59..60]: ">"
+ │       ├─ punctuation.whitespace.required.sd [60..61]: " "
+ │       ├─ variable.other.constant.attribute.style.sd [61..62]: "#"
+ │       ├─ variable.other.constant.attribute.style.sd [62..67]: "image"
+ │       ├─ keyword.operator.comparison.sd [67..68]: "^"
+ │       ├─ keyword.operator.assignment.sd [68..69]: "="
+ │       ├─ string.unquoted.attribute.value.sd [69..77]: "raffles_"
+ │       └─ meta.template.expression.operator.colon.sd [77..78]: ":"
+ ├─ Newline [78..79]: "\n"
+ ├─ meta.style.luau [79..109]
+ │   ├─ punctuation.whitespace.optional.sd [79..83]: "    "
+ │   └─ meta.struct.body.luau [83..109]
+ │       ├─ variable.other.property.define.sd [83..99]: "background_color"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [99..100]: " "
+ │       ├─ keyword.operator.assignment.sd [100..101]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [101..102]: " "
+ │       └─ string.color.hex.sd [102..109]: "#E5323E"
+ ├─ Newline [109..110]: "\n"
+ ├─ meta.style.luau [110..113]
+ │   └─ keyword.control.end.luau [110..113]: "end"
+ └─ Newline [113..114]: "\n"

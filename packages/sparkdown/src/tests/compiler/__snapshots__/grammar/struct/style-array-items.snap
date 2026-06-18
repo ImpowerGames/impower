@@ -1,0 +1,97 @@
+sparkdown [0..54]
+ ├─ LuauStyle [0..53]
+ │   ├─ LuauStyle_begin [0..6]
+ │   │   ├─ LuauStyle_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauStyle_begin_c2 [0..5]
+ │   │   │   └─ LuauStyleKeyword [0..5]: "style"
+ │   │   └─ LuauStyle_begin_c3 [5..6]
+ │   │       └─ LuauStyle_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauStyle_content [6..50]
+ │   │   ├─ LuauStyleNameAndInheritance [6..15]
+ │   │   │   ├─ LuauStyleNameAndInheritance_begin [6..10]
+ │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [6..10]
+ │   │   │   │       └─ LuauDefineName [6..10]: "list"
+ │   │   │   └─ LuauStyleNameAndInheritance_end [10..15]
+ │   │   │       ├─ LuauStyleNameAndInheritance_end_c1 [10..11]
+ │   │   │       │   └─ LuauStyleNameAndInheritance_end_c1 [10..11]
+ │   │   │       │       └─ OptionalWhitespace [10..11]: " "
+ │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [11..15]
+ │   │   │           └─ LuauWithKeyword [11..15]: "with"
+ │   │   ├─ Newline [15..16]: "\n"
+ │   │   ├─ LuauStructBodyLine [16..24]
+ │   │   │   ├─ LuauStructBodyLine_c1 [16..18]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [16..18]
+ │   │   │   │       └─ OptionalWhitespace [16..18]: "  "
+ │   │   │   ├─ LuauStructBodyLine_c2 [18..24]
+ │   │   │   │   └─ LuauStructBodyContent [18..24]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [18..24]
+ │   │   │   │           └─ LuauStructObjectHeader [18..24]
+ │   │   │   │               ├─ LuauStructObjectHeader_c1 18
+ │   │   │   │               │   └─ OptionalWhitespace 18
+ │   │   │   │               ├─ LuauStructObjectHeader_c2 [18..23]
+ │   │   │   │               │   └─ CustomComponentName [18..23]: "items"
+ │   │   │   │               └─ LuauStructObjectHeader_c4 [23..24]
+ │   │   │   │                   └─ LuauStructObjectColon [23..24]: ":"
+ │   │   │   └─ LuauStructBodyLine_c3 24
+ │   │   │       └─ LuauStructBodyLine_c3 24
+ │   │   │           └─ OptionalWhitespace 24
+ │   │   ├─ Newline [24..25]: "\n"
+ │   │   ├─ LuauStructBodyLine [25..36]
+ │   │   │   ├─ LuauStructBodyLine_c1 [25..29]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [25..29]
+ │   │   │   │       └─ OptionalWhitespace [25..29]: "    "
+ │   │   │   ├─ LuauStructBodyLine_c2 [29..36]
+ │   │   │   │   └─ LuauStructBodyContent [29..36]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [29..36]
+ │   │   │   │           └─ LuauStructArrayItem [29..36]
+ │   │   │   │               ├─ LuauStructArrayItem_c1 29
+ │   │   │   │               │   └─ OptionalWhitespace 29
+ │   │   │   │               ├─ LuauStructArrayItem_c2 [29..31]
+ │   │   │   │               │   └─ ArrayItemOperator [29..31]
+ │   │   │   │               │       ├─ ArrayItemOperator_c1 [29..30]
+ │   │   │   │               │       │   └─ ArrayItemMark [29..30]: "-"
+ │   │   │   │               │       └─ ArrayItemOperator_c2 [30..31]
+ │   │   │   │               │           └─ Separator [30..31]: " "
+ │   │   │   │               └─ LuauStructArrayItem_c3 [31..36]
+ │   │   │   │                   └─ StylingValue [31..36]
+ │   │   │   │                       ├─ StylingValue_c1 [31..36]
+ │   │   │   │                       │   └─ StylingStringIdentifier [31..36]: "first"
+ │   │   │   │                       └─ StylingValue_c2 36
+ │   │   │   └─ LuauStructBodyLine_c3 36
+ │   │   │       └─ LuauStructBodyLine_c3 36
+ │   │   │           └─ OptionalWhitespace 36
+ │   │   ├─ Newline [36..37]: "\n"
+ │   │   ├─ LuauStructBodyLine [37..49]
+ │   │   │   ├─ LuauStructBodyLine_c1 [37..41]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [37..41]
+ │   │   │   │       └─ OptionalWhitespace [37..41]: "    "
+ │   │   │   ├─ LuauStructBodyLine_c2 [41..49]
+ │   │   │   │   └─ LuauStructBodyContent [41..49]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [41..49]
+ │   │   │   │           └─ LuauStructArrayItem [41..49]
+ │   │   │   │               ├─ LuauStructArrayItem_c1 41
+ │   │   │   │               │   └─ OptionalWhitespace 41
+ │   │   │   │               ├─ LuauStructArrayItem_c2 [41..43]
+ │   │   │   │               │   └─ ArrayItemOperator [41..43]
+ │   │   │   │               │       ├─ ArrayItemOperator_c1 [41..42]
+ │   │   │   │               │       │   └─ ArrayItemMark [41..42]: "-"
+ │   │   │   │               │       └─ ArrayItemOperator_c2 [42..43]
+ │   │   │   │               │           └─ Separator [42..43]: " "
+ │   │   │   │               └─ LuauStructArrayItem_c3 [43..49]
+ │   │   │   │                   └─ StylingValue [43..49]
+ │   │   │   │                       ├─ StylingValue_c1 [43..49]
+ │   │   │   │                       │   └─ StylingStringIdentifier [43..49]: "second"
+ │   │   │   │                       └─ StylingValue_c2 49
+ │   │   │   └─ LuauStructBodyLine_c3 49
+ │   │   │       └─ LuauStructBodyLine_c3 49
+ │   │   │           └─ OptionalWhitespace 49
+ │   │   └─ Newline [49..50]: "\n"
+ │   └─ LuauStyle_end [50..53]
+ │       ├─ LuauStyle_end_c1 50
+ │       │   └─ LuauStyle_end_c1 50
+ │       │       └─ OptionalWhitespace 50
+ │       └─ LuauStyle_end_c2 [50..53]
+ │           └─ LuauEndKeyword [50..53]: "end"
+ └─ Newline [53..54]: "\n"

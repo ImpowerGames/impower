@@ -1,0 +1,31 @@
+text.source.sparkdown [0..54]
+ ├─ meta.style.luau [0..15]
+ │   ├─ keyword.control.style.luau [0..5]: "style"
+ │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ │   ├─ entity.name.type.define.luau [6..10]: "list"
+ │   ├─ punctuation.whitespace.optional.sd [10..11]: " "
+ │   └─ keyword.control.as.luau [11..15]: "with"
+ ├─ Newline [15..16]: "\n"
+ ├─ meta.style.luau [16..24]
+ │   ├─ punctuation.whitespace.optional.sd [16..18]: "  "
+ │   └─ meta.struct.body.luau [18..24]
+ │       ├─ entity.name.type.class.view.sd [18..23]: "items"
+ │       └─ meta.template.expression.operator.colon.sd [23..24]: ":"
+ ├─ Newline [24..25]: "\n"
+ ├─ meta.style.luau [25..36]
+ │   ├─ punctuation.whitespace.optional.sd [25..29]: "    "
+ │   └─ meta.struct.body.luau [29..36]
+ │       ├─ keyword.operator.expression.array.sd [29..30]: "-"
+ │       ├─ markup.raw.whitespace.separator.sd [30..31]: " "
+ │       └─ string.unquoted.identifier.sd [31..36]: "first"
+ ├─ Newline [36..37]: "\n"
+ ├─ meta.style.luau [37..49]
+ │   ├─ punctuation.whitespace.optional.sd [37..41]: "    "
+ │   └─ meta.struct.body.luau [41..49]
+ │       ├─ keyword.operator.expression.array.sd [41..42]: "-"
+ │       ├─ markup.raw.whitespace.separator.sd [42..43]: " "
+ │       └─ string.unquoted.identifier.sd [43..49]: "second"
+ ├─ Newline [49..50]: "\n"
+ ├─ meta.style.luau [50..53]
+ │   └─ keyword.control.end.luau [50..53]: "end"
+ └─ Newline [53..54]: "\n"

@@ -463,7 +463,21 @@
     "TagContent": {
       "tag": "definition(docComment)",
       "name": "punctuation.definition.comment.content.sd",
-      "match": "(.+?)(?=$|(?:[#]+(?=$|(?:[^\\S\\n\\r]))))"
+      "begin": "(?=.)",
+      "patterns": [
+        {
+          "include": "#LuauInterpolatedStringExpression"
+        },
+        {
+          "include": "#TagText"
+        }
+      ],
+      "end": "(?=$|(?:[#]+(?=$|(?:[^\\S\\n\\r]))))"
+    },
+    "TagText": {
+      "tag": "definition(docComment)",
+      "name": "punctuation.definition.comment.content.sd",
+      "match": "([^\\n{]+?)(?=$|[{]|(?:[#]+(?=$|(?:[^\\S\\n\\r]))))"
     },
     "Include": {
       "tag": "meta",
