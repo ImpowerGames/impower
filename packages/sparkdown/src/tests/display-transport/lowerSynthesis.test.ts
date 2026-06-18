@@ -136,6 +136,33 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect(field(instructions[0]!, "text")).toBe("You feel great today.");
   });
 
+  test("an inline [[asset]] directive rides as text in the table", () => {
+    // `[[show backdrop BG]]` is not a structural injection — it stays literal in
+    // the body, so it takes the display() path and the engine's parse() extracts
+    // the image directive from the table's text (same as legacy).
+    const { story, errors } = run(
+      `define BG as image with\n  src = "x"\nend\nThe sun rises. [[show backdrop BG]]\ndone\n`,
+      { experimentalDisplayCalls: true },
+    );
+    expect(errors).toEqual([]);
+    const instructions = story.currentDisplayInstructions;
+    expect(instructions).toHaveLength(1);
+    expect(field(instructions[0]!, "text")).toBe(
+      "The sun rises. [[show backdrop BG]]",
+    );
+  });
+
+  test("a trailing # tag falls back to the legacy path", () => {
+    // A `# tag` is metadata (currentTags), not capturable text, so the lowerer
+    // falls back — the beat renders via legacy (no display instruction).
+    const { story, errors } = run(`The bell rings. # ominous\ndone\n`, {
+      experimentalDisplayCalls: true,
+    });
+    expect(errors).toEqual([]);
+    expect(story.currentDisplayInstructions).toHaveLength(0);
+    expect((story.currentText ?? "").trim()).toBe("The bell rings.");
+  });
+
   test("emphasis markers ride as literal text in the table", () => {
     // `**`/`*` are not structured at compile time — they stay literal chars in
     // the table's `text` and the engine's parse() turns them into styled spans

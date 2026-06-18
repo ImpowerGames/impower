@@ -125,4 +125,73 @@ describe("display() ↔ legacy parity (message stream)", () => {
   test("inline sequence alternator", async () => {
     await assertParity(`  The light {queue|"flickers"|"steadies"|"dies"} now.`);
   });
+
+  // These exercise the FALLBACK boundary: content the display() table doesn't
+  // carry yet must still render identically (because the lowerer falls back to
+  // the legacy path). Parity here proves "no regression", not display() usage.
+  test("display line with a trailing # tag (fallback)", async () => {
+    await assertParity(`  The bell rings. # ominous`);
+  });
+
+  test("dialogue with a trailing # tag (fallback)", async () => {
+    await assertParity(`  HERO: Goodbye. # final`);
+  });
+});
+
+const IMAGE_SCREEN = `define HERO as character with
+  name = "HERO"
+end
+
+define BG as image with
+  src = "https://example.com/bg.png"
+end
+
+screen main with
+  stage:
+    backdrop:
+      image
+  action:
+    text
+  dialogue:
+    character_info:
+      character_name:
+        text
+    text
+end
+`;
+
+function imageStory(body: string) {
+  return `${IMAGE_SCREEN}\n-> start\n\nscene start\n${body}\nend\n`;
+}
+
+async function imageBeatStream(body: string, flag: boolean) {
+  const harness = createHarness(imageStory(body), 0, {
+    experimentalDisplayCalls: flag,
+  });
+  await harness.ready;
+  harness.jumpTo("start");
+  harness.reset();
+  let beat = harness.nextBeat();
+  while (beat) {
+    await harness.display(beat, true);
+    await flushMicrotasks();
+    beat = harness.nextBeat();
+  }
+  return harness.snapshotFiltered("ui/");
+}
+
+async function assertImageParity(body: string) {
+  const legacy = await imageBeatStream(body, false);
+  const viaDisplay = await imageBeatStream(body, true);
+  expect(viaDisplay).toEqual(legacy);
+}
+
+describe("display() ↔ legacy parity · inline asset directives", () => {
+  test("action with an inline [[show]] directive", async () => {
+    await assertImageParity(`  The sun rises. [[show backdrop BG]]`);
+  });
+
+  test("dialogue with an inline [[show]] directive", async () => {
+    await assertImageParity(`  HERO: Look! [[show backdrop BG]]`);
+  });
 });
