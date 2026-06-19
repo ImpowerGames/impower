@@ -84,7 +84,7 @@ export default function FilePreviewOverlay({
 
   return createPortal(
     <div
-      class={`fixed inset-0 z-50 bg-black/95 transition-opacity duration-200 ${
+      class={`fixed inset-0 z-50 bg-black transition-opacity duration-200 ${
         visible ? "opacity-100" : "opacity-0"
       }`}
     >
@@ -105,7 +105,7 @@ export default function FilePreviewOverlay({
           variant="ghost"
           aria-label="Close preview"
           onClick={onClose}
-          class="size-9 flex-none rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+          class="size-9 flex-none rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white"
         >
           <X class="size-5" />
         </Button>
@@ -124,7 +124,7 @@ export default function FilePreviewOverlay({
             aria-label="Previous"
             disabled={index === 0}
             onClick={() => onIndexChange(index - 1)}
-            class="size-9 rounded-full text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-25"
+            class="size-9 rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-25"
           >
             <ChevronRight class="size-5 rotate-180" />
           </Button>
@@ -136,7 +136,7 @@ export default function FilePreviewOverlay({
             aria-label="Next"
             disabled={index === total - 1}
             onClick={() => onIndexChange(index + 1)}
-            class="size-9 rounded-full text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-25"
+            class="size-9 rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-25"
           >
             <ChevronRight class="size-5" />
           </Button>

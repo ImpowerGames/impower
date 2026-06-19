@@ -871,7 +871,7 @@ export default function FileList({
               variant="ghost"
               aria-label={allSelected ? "Deselect all" : "Select all"}
               onClick={toggleSelectAll}
-              class="size-8 flex-none rounded-full text-foreground/70 hover:text-foreground"
+              class="size-8 flex-none rounded-full p-0 text-foreground/70 hover:text-foreground"
             >
               <span
                 class={`flex size-5 items-center justify-center rounded border-2 ${
