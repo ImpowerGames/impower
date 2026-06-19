@@ -86,6 +86,27 @@ export class InterpreterModule extends Module<
 
   protected _characterNameMap: Record<string, string> = {};
 
+  // Memoize `Matcher`s by pattern string. `parse()` builds voiced/yelled/
+  // punctuated matchers from the (stable) typewriter config on EVERY call (per
+  // line + per phrase), and each `new Matcher` compiles a RegExp — a measurable
+  // per-beat cost in the display hot path. Keying by the pattern string keeps it
+  // correct across live-edits (a changed pattern is a new key, never stale).
+  protected _matcherCache = new Map<string, Matcher>();
+
+  /** Cached `Matcher` for a pattern; `undefined` for an absent/empty pattern
+   *  (matching the previous `pattern ? new Matcher(pattern) : undefined`). */
+  protected getMatcher(pattern: string | undefined): Matcher | undefined {
+    if (!pattern) {
+      return undefined;
+    }
+    let matcher = this._matcherCache.get(pattern);
+    if (!matcher) {
+      matcher = new Matcher(pattern);
+      this._matcherCache.set(pattern, matcher);
+    }
+    return matcher;
+  }
+
   override getBuiltins() {
     return interpreterBuiltinDefinitions();
   }
@@ -822,12 +843,8 @@ export class InterpreterModule extends Module<
         typewriter?.min_syllable_length || 0,
         Math.round(minSynthDuration / letterPause),
       );
-      const voicedMatcher = typewriter?.voiced
-        ? new Matcher(typewriter?.voiced)
-        : undefined;
-      const yelledMatcher = typewriter?.yelled
-        ? new Matcher(typewriter?.yelled)
-        : undefined;
+      const voicedMatcher = this.getMatcher(typewriter?.voiced);
+      const yelledMatcher = this.getMatcher(typewriter?.yelled);
 
       activeMarks.length = 0;
       consecutiveLettersLength = 0;
@@ -1324,9 +1341,7 @@ export class InterpreterModule extends Module<
       const typewriter = this.lookupContextValue("typewriter", target);
       const letterPause = typewriter?.letter_pause ?? 0;
       const interjectionPause = typewriter?.punctuated_pause_scale ?? 1;
-      const punctuatedMatcher = typewriter?.punctuated
-        ? new Matcher(typewriter?.punctuated)
-        : undefined;
+      const punctuatedMatcher = this.getMatcher(typewriter?.punctuated);
       // Erase any syllables that occur on any unvoiced chars at the end of phrases
       // (whitespace, punctuation, etc).
       if (phrase.chunks) {
