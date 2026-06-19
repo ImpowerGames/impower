@@ -4,11 +4,16 @@ import {
   ChevronRight,
   FolderFill,
   Ripple,
+  World,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { memo } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { iconForPath, isImagePath } from "../../utils/fileIcon";
+import {
+  iconForCategory,
+  iconForPath,
+  isImagePath,
+} from "../../utils/fileIcon";
 import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
@@ -54,6 +59,20 @@ export type FileItemProps = {
    * everything else.
    */
   src?: string;
+  /**
+   * A remote/CDN asset (a `.url` file): show a small "remote" badge on the tile,
+   * resolve the glyph/thumbnail from {@link category} (the URL's inferred medium)
+   * rather than the `.url` extension, and load the thumbnail straight from the
+   * remote `src` (the service-worker `?thumb=` resize only applies to local
+   * files).
+   */
+  remote?: boolean;
+  /**
+   * Resolved media category (`image` | `audio` | `video` | `text`) for a
+   * {@link remote} asset, from the worker's inferred `FileData.type`. Ignored
+   * for local files (their category comes from the path extension).
+   */
+  category?: string;
   /** Last-modified time (epoch ms) — shown as "Modified <age>" in the caption. */
   modified?: number;
   /** File size in bytes — shown as a human size in the caption. */
@@ -109,6 +128,8 @@ function FileItem({
   diveMode = false,
   selected = false,
   src,
+  remote = false,
+  category,
   modified,
   size,
   selectMode = false,
@@ -148,12 +169,18 @@ function FileItem({
   // full weight; everything else is muted to /50 so the icon reads as chrome,
   // not content. The icon sits inside DiagnosticsLabel so it inherits the
   // danger/warning color (via currentColor) when the row has a diagnostic.
-  const FileIcon = iconForPath(path, isDirectory, expanded);
+  // A remote (`.url`) asset's glyph comes from its resolved medium, not the
+  // `.url` extension (which would always be the generic link glyph).
+  const FileIcon = remote
+    ? iconForCategory(category)
+    : iconForPath(path, isDirectory, expanded);
   // Show a live thumbnail for image assets once we have a url and it hasn't
   // failed to load. Thumbnails are pre-generated at import time (and the
   // <img> decodes async), so they can stay mounted while scrolling — no
-  // deferral burst on settle, which used to wedge the next scroll.
-  const showThumb = !isDirectory && !!src && !thumbFailed && isImagePath(path);
+  // deferral burst on settle, which used to wedge the next scroll. Remote
+  // assets resolve image-ness from their inferred category (path ext is `.url`).
+  const isImage = remote ? category === "image" : isImagePath(path);
+  const showThumb = !isDirectory && !!src && !thumbFailed && isImage;
   // Google-Drive convention: files sit in a rounded tile (glyph or thumbnail);
   // folders are a bare, prominent icon with no tile. Mute only file *glyphs*
   // (not thumbnails, not folders) to /50 so they read as quiet chrome.
@@ -161,9 +188,14 @@ function FileItem({
   // Ask the service worker for a downscaled thumbnail (max 144px wide ≈ 4× the
   // 36px box for retina) so the page never decodes full-res art. The SW falls
   // back to the original bytes if it can't resize, so this is always safe.
+  // Remote URLs are loaded as-is — the `?thumb=` resize is a service-worker
+  // feature for local `/file:` URLs, and appending it could break a signed CDN
+  // URL — so the browser just downscales the full remote image to the tile.
   const thumbSrc =
     showThumb && src
-      ? `${src}${src.includes("?") ? "&" : "?"}thumb=144`
+      ? remote
+        ? src
+        : `${src}${src.includes("?") ? "&" : "?"}thumb=144`
       : undefined;
 
   // Re-arm the thumbnail when the row's url changes (e.g. after a cache-bust or
@@ -363,40 +395,54 @@ function FileItem({
               </span>
             </span>
           ) : (
-            <span
-              class={`mr-3 flex size-10 flex-none items-center justify-center ${
-                isDirectory
-                  ? "text-foreground/60"
-                  : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
-              }`}
-            >
-              {isDirectory ? (
-                diveMode ? (
-                  // Dive mode: tapping NAVIGATES into the folder — a filled
-                  // folder glyph (not the expand/collapse chevron, which would
-                  // imply an inline tree). Drive convention: folders stay unboxed.
-                  <FolderFill class="size-6" />
-                ) : (
-                  <ChevronRight
-                    class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
-                      hasChildren ? "" : "opacity-40"
-                    }`}
+            <span class="relative mr-3 flex size-10 flex-none items-center justify-center">
+              <span
+                class={`flex size-full items-center justify-center ${
+                  isDirectory
+                    ? "text-foreground/60"
+                    : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
+                }`}
+              >
+                {isDirectory ? (
+                  diveMode ? (
+                    // Dive mode: tapping NAVIGATES into the folder — a filled
+                    // folder glyph (not the expand/collapse chevron, which would
+                    // imply an inline tree). Drive convention: folders stay unboxed.
+                    <FolderFill class="size-6" />
+                  ) : (
+                    <ChevronRight
+                      class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
+                        hasChildren ? "" : "opacity-40"
+                      }`}
+                    />
+                  )
+                ) : showThumb ? (
+                  // No loading="lazy": the virtualizer already mounts only
+                  // visible+overscan rows (its own windowing), and native lazy
+                  // loading fails to trigger inside its transformed rows — leaving
+                  // visible thumbnails unloaded. Eager + async decode is correct.
+                  <img
+                    src={thumbSrc}
+                    decoding="async"
+                    alt=""
+                    class="size-full object-cover"
+                    onError={() => setThumbFailed(true)}
                   />
-                )
-              ) : showThumb ? (
-                // No loading="lazy": the virtualizer already mounts only
-                // visible+overscan rows (its own windowing), and native lazy
-                // loading fails to trigger inside its transformed rows — leaving
-                // visible thumbnails unloaded. Eager + async decode is correct.
-                <img
-                  src={thumbSrc}
-                  decoding="async"
-                  alt=""
-                  class="size-full object-cover"
-                  onError={() => setThumbFailed(true)}
-                />
-              ) : (
-                <FileIcon class="size-5" />
+                ) : (
+                  <FileIcon class="size-5" />
+                )}
+              </span>
+              {/* Remote (.url) assets get a small corner badge so they read as
+                  "from the web", distinct from a locally-imported file. Sits
+                  outside the tile's overflow-hidden clip; full opacity even when
+                  the glyph tile is muted. */}
+              {remote && (
+                <span
+                  class="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-white ring-2 ring-engine-900"
+                  title="Remote URL asset"
+                >
+                  <World class="size-2.5" />
+                </span>
               )}
             </span>
           )}

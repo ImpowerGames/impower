@@ -792,6 +792,23 @@ export default function FileList({
     [enablePreview],
   );
 
+  // Edit a remote (`.url`) asset's target from the preview: write the new URL
+  // back as the file's content. The worker re-derives the asset's `src`/`type`
+  // on the resulting change, so the preview (and the row) re-resolve. Stable for
+  // the overlay; `projectId` is the only dependency.
+  const onEditUrl = useCallback(
+    async (item: PreviewItem, newUrl: string) => {
+      if (!projectId) return;
+      const { Workspace } = await import("../../workspace/Workspace");
+      const uri = Workspace.fs.getFileUri(projectId, item.path);
+      await Workspace.fs.writeTextDocument({
+        textDocument: { uri, version: 0, text: newUrl },
+      });
+      await Workspace.window.recordAssetChange();
+    },
+    [projectId],
+  );
+
   // Move a set of paths into `folderPath` (`""` = project root). A dragged
   // selection can include a folder AND its contents (folder-cascade), so move
   // only the TOP-LEVEL paths — moving the folder carries its descendants.
@@ -1091,6 +1108,8 @@ export default function FileList({
                     diveMode={diveMode}
                     selected={openFilenames.has(row.path)}
                     src={file?.src}
+                    remote={extOf(row.path) === "url"}
+                    category={file?.type}
                     modified={file?.modified}
                     size={file?.size}
                     selectMode={selectMode}
@@ -1136,6 +1155,7 @@ export default function FileList({
           index={previewIndex ?? 0}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
+          onEditUrl={onEditUrl}
         />
       )}
     </div>

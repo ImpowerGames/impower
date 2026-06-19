@@ -1,13 +1,15 @@
 import {
   Button,
+  Check,
   ChevronRight,
   FileText,
-  Music,
+  Pencil,
   X,
 } from "@impower/impower-ui/components";
 import { createPortal } from "preact/compat";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { useMountTransition } from "../../hooks/useMountTransition";
+import AudioPreview from "./AudioPreview";
 import ImagePreview from "./ImagePreview";
 import TextPreview from "./TextPreview";
 
@@ -35,6 +37,12 @@ export type FilePreviewOverlayProps = {
   index: number;
   onIndexChange: (index: number) => void;
   onClose: () => void;
+  /**
+   * Edit a remote (`.url`) asset's target. When provided, a `.url` item's URL
+   * line becomes editable (pencil → input → commit). The parent writes the new
+   * URL back to the `.url` file and re-resolves the asset.
+   */
+  onEditUrl?: (item: PreviewItem, newUrl: string) => void;
 };
 
 /**
@@ -50,6 +58,7 @@ export default function FilePreviewOverlay({
   index,
   onIndexChange,
   onClose,
+  onEditUrl,
 }: FilePreviewOverlayProps) {
   const { mounted, visible } = useMountTransition(open, 200);
   // Keep showing the last item while animating out (the parent clears its index
@@ -60,6 +69,33 @@ export default function FilePreviewOverlay({
   }
   const item = items[open ? index : lastIndex.current];
   const total = items.length;
+
+  // URL editor: `null` = not editing; a string = the in-progress edited URL.
+  const [editingUrl, setEditingUrl] = useState<string | null>(null);
+  const urlInputRef = useRef<HTMLInputElement | null>(null);
+  // Reset the editor whenever the shown item changes or the overlay closes.
+  useEffect(() => {
+    setEditingUrl(null);
+  }, [index, open]);
+  // Focus + select the URL field when the editor opens.
+  useEffect(() => {
+    if (editingUrl == null) {
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      urlInputRef.current?.focus();
+      urlInputRef.current?.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [editingUrl]);
+
+  const commitUrl = () => {
+    const next = (editingUrl ?? "").trim();
+    if (item && next && next !== item.url) {
+      onEditUrl?.(item, next);
+    }
+    setEditingUrl(null);
+  };
 
   // Keyboard: Escape closes, arrows step (the old engine was click-only).
   useEffect(() => {
@@ -98,9 +134,58 @@ export default function FilePreviewOverlay({
       <div class="flex flex-none flex-row items-center gap-3 px-4 py-3">
         <div class="min-w-0 flex-1">
           <div class="truncate text-sm font-semibold">{item.name}</div>
-          {item.url && (
-            <div class="truncate text-xs text-white/50">{item.url}</div>
-          )}
+          {item.url != null &&
+            (editingUrl != null ? (
+              <div class="mt-0.5 flex flex-row items-center gap-1">
+                <input
+                  ref={urlInputRef}
+                  value={editingUrl}
+                  onInput={(e) =>
+                    setEditingUrl((e.target as HTMLInputElement).value)
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitUrl();
+                    } else if (e.key === "Escape") {
+                      e.preventDefault();
+                      setEditingUrl(null);
+                    }
+                  }}
+                  class="min-w-0 flex-1 select-text rounded bg-white/10 px-1.5 py-0.5 text-xs text-white outline-none ring-1 ring-white/20 focus:ring-white/40"
+                />
+                <Button
+                  variant="ghost"
+                  aria-label="Save URL"
+                  onClick={commitUrl}
+                  class="size-6 flex-none rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white"
+                >
+                  <Check class="size-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  aria-label="Cancel"
+                  onClick={() => setEditingUrl(null)}
+                  class="size-6 flex-none rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white"
+                >
+                  <X class="size-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <div class="flex flex-row items-center gap-1">
+                <span class="truncate text-xs text-white/50">{item.url}</span>
+                {onEditUrl && (
+                  <Button
+                    variant="ghost"
+                    aria-label="Edit URL"
+                    onClick={() => setEditingUrl(item.url ?? "")}
+                    class="size-6 flex-none rounded-full p-0 text-white/50 hover:bg-white/10 hover:text-white"
+                  >
+                    <Pencil class="size-3.5" />
+                  </Button>
+                )}
+              </div>
+            ))}
         </div>
         <Button
           variant="ghost"
@@ -161,21 +246,18 @@ function PreviewBody({ item }: { item: PreviewItem }) {
       // `key` re-mounts (and resets zoom) when the file changes.
       return <ImagePreview key={item.path} src={src} alt={name} />;
     case "video":
+      // Fill the preview area like images do (object-contain letterboxes to
+      // preserve the aspect ratio rather than centering at natural size).
       return (
         <video
           key={item.path}
           src={src}
           controls
-          class="m-auto max-h-full max-w-full"
+          class="size-full object-contain"
         />
       );
     case "audio":
-      return (
-        <div class="m-auto flex flex-col items-center gap-6">
-          <Music class="size-16 text-white/30" />
-          <audio key={item.path} src={src} controls class="w-80 max-w-full" />
-        </div>
-      );
+      return <AudioPreview key={item.path} src={src} />;
     case "text":
       return <TextPreview key={item.path} src={src} />;
     default:

@@ -13,6 +13,7 @@ import {
   FolderOpen,
   type IconComponent,
   Link,
+  Movie,
   Music,
   Photo,
   Script,
@@ -62,6 +63,15 @@ const ICON_BY_EXT: Record<string, IconComponent> = {
   ogg: Music,
   wav: Music,
   m4a: Music,
+
+  // Video
+  mp4: Movie,
+  webm: Movie,
+  mov: Movie,
+  m4v: Movie,
+  ogv: Movie,
+  mkv: Movie,
+  avi: Movie,
 
   // Synth instrument
   synth: WaveSaw,
@@ -167,4 +177,26 @@ export function iconForPath(
  */
 export function isImagePath(path: string): boolean {
   return ICON_BY_EXT[extOf(path)] === Photo;
+}
+
+/**
+ * Pick a glyph for a resolved media category. Used for remote (`.url`) assets,
+ * whose path extension is always `.url` (→ {@link Link}) but whose *resolved*
+ * type (image/audio/video) is inferred from the remote URL — so the row glyph
+ * should reflect the medium, not the `.url` wrapper. Unknown → {@link Link}
+ * (a generic "remote reference").
+ */
+export function iconForCategory(category: string | undefined): IconComponent {
+  switch (category) {
+    case "image":
+      return Photo;
+    case "audio":
+      return Music;
+    case "video":
+      return Movie;
+    case "text":
+      return FileText;
+    default:
+      return Link;
+  }
 }
