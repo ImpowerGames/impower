@@ -28,6 +28,7 @@ import { Thread } from "../types/Thread";
 import { Variable, VariablePresentationHint } from "../types/Variable";
 import { findClosestPath } from "../utils/findClosestPath";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
+import { CheckpointStore } from "./CheckpointStore";
 import { Clock } from "./Clock";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
@@ -119,6 +120,11 @@ export class Game<T extends M = {}> {
   // copied.
   protected _runtimeSnapshot: {
     pathsExecutedThisFrame: Set<string>;
+    // Mirror of pathsExecutedThisFrame's per-checkpoint delta log — snapshotted
+    // alongside it so a lookahead rewind reverts the delta tracking too (else a
+    // speculative-then-rewound execution would leak into the next checkpoint's
+    // delta). Bounded by one beat's executions (we checkpoint every beat).
+    executedSinceCheckpoint: Set<string>;
     choicesLength: number;
     conditionsLength: number;
   } | null = null;
@@ -214,7 +220,7 @@ export class Game<T extends M = {}> {
 
   protected _plannedRouteStepMap: { [seq: string]: number } = {};
 
-  protected _checkpoints: string[] = [];
+  protected _checkpoints!: CheckpointStore;
   get checkpoints() {
     return this._checkpoints;
   }
@@ -256,6 +262,28 @@ export class Game<T extends M = {}> {
     if (options?.executionTimeout) {
       this._executionTimeout = options.executionTimeout;
     }
+
+    this._checkpoints = new CheckpointStore(
+      {
+        save: () => this.save(),
+        saveDeltaBody: () => this.saveDeltaBody(),
+        snapshotCounts: () => ({
+          vc: this._story.state.GetVisitCountEntries(),
+          ti: this._story.state.GetTurnIndexEntries(),
+        }),
+        drainCountDeltas: () => ({
+          vc: this._story.state.DrainVisitCountDeltas(),
+          ti: this._story.state.DrainTurnIndexDeltas(),
+        }),
+        snapshotRuntime: () => this._runtimeState.snapshotFull(),
+        drainRuntime: () => this._runtimeState.drainDeltas(),
+      },
+      {
+        incremental: options?.incrementalCheckpoints ?? false,
+        verify: options?.verifyCheckpoints ?? true,
+        baseInterval: options?.checkpointBaseInterval ?? 50,
+      },
+    );
 
     // Create context
     this._context = {
@@ -421,6 +449,9 @@ export class Game<T extends M = {}> {
         pathsExecutedThisFrame: new Set(
           this._runtimeState.pathsExecutedThisFrame,
         ),
+        executedSinceCheckpoint: new Set(
+          this._runtimeState.executedSinceCheckpoint,
+        ),
         choicesLength: this._runtimeState.choicesEncountered.length,
         conditionsLength: this._runtimeState.conditionsEncountered.length,
       };
@@ -431,6 +462,9 @@ export class Game<T extends M = {}> {
         // back to the snapshot Set, and truncate the appended choices/conditions.
         this._runtimeState.pathsExecutedThisFrame = new Set(
           this._runtimeSnapshot.pathsExecutedThisFrame,
+        );
+        this._runtimeState.executedSinceCheckpoint = new Set(
+          this._runtimeSnapshot.executedSinceCheckpoint,
         );
         this._runtimeState.choicesEncountered.length =
           this._runtimeSnapshot.choicesLength;
@@ -688,7 +722,7 @@ export class Game<T extends M = {}> {
         const step = this._plannedRoute.steps[stepIndex];
         if (step) {
           if (step.checkpoint != null) {
-            return this._checkpoints[step.checkpoint] ?? null;
+            return this._checkpoints.getJson(step.checkpoint);
           }
         }
       }
@@ -700,8 +734,8 @@ export class Game<T extends M = {}> {
     const startStep = route.steps[fromStep];
     const fromDecision = startStep?.decision ?? 0;
     const fromCheckpoint = startStep?.checkpoint ?? -1;
-    const startCheckpoint = this._checkpoints[fromCheckpoint];
-    this._checkpoints = this._checkpoints.slice(0, fromCheckpoint + 1);
+    const startCheckpoint = this._checkpoints.getJson(fromCheckpoint);
+    this._checkpoints.truncate(fromCheckpoint + 1);
     this._plannedRoute = route;
     this._simulatePath = route.fromPath;
     this._startPath = route.toPath;
@@ -878,17 +912,34 @@ export class Game<T extends M = {}> {
   }
 
   checkpoint(): void {
-    this._checkpoints.push(this.save());
+    this._checkpoints.capture();
   }
 
   save(): string {
+    return this.buildSave(false);
+  }
+
+  /** Like `save()` but serializes the unbounded, per-beat-growing collections
+   *  (story visit/turn count maps + runtime executed-paths/choices/conditions)
+   *  as empty. The CheckpointStore stores this bounded body for delta beats and
+   *  re-injects the (delta-reconstructed) collections to rebuild a
+   *  byte-identical full save. */
+  saveDeltaBody(): string {
+    return this.buildSave(true);
+  }
+
+  protected buildSave(omitDeltaState: boolean): string {
     let story = "";
     try {
-      story = this._story.state.toJson();
+      story = omitDeltaState
+        ? this._story.state.ToJsonWithoutCounts()
+        : this._story.state.toJson();
     } catch (e: any) {
       this.Error(e.message, ErrorType.Error);
     }
-    const runtime = this._runtimeState.toJSON();
+    const runtime = omitDeltaState
+      ? this._runtimeState.toJSONWithoutCollections()
+      : this._runtimeState.toJSON();
     const saveData: SaveData = {
       modules: {},
       context: {},

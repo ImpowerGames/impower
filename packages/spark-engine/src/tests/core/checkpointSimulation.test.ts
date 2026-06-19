@@ -12,11 +12,31 @@
 // not match natural execution — e.g. a forced branch can leave a variable at a
 // value the natural branch wouldn't).
 
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../game/core/classes/Game";
 
 const URI = "inmemory:///main.sd";
+
+// The same net runs under both checkpoint storage modes. The delta refactor must
+// be behavior-invariant: full-save mode (OFF) is the legacy baseline; delta mode
+// (ON) stores periodic keyframes + per-beat deltas and must reconstruct
+// byte-identically (a small baseInterval forces many delta beats between
+// keyframes so the delta path is actually exercised).
+const CHECKPOINT_MODES: { label: string; config: Record<string, unknown> }[] = [
+  { label: "full-save checkpoints (flag OFF)", config: {} },
+  {
+    label: "incremental delta checkpoints (flag ON)",
+    config: {
+      incrementalCheckpoints: true,
+      verifyCheckpoints: true,
+      checkpointBaseInterval: 3,
+    },
+  },
+];
+
+// Set by the outer describe.each iteration; folded into every Game created below.
+let ACTIVE_CHECKPOINT_CONFIG: Record<string, unknown> = {};
 
 function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
@@ -41,6 +61,7 @@ function newGame(program: unknown) {
       fn(...a);
       return 0;
     }) as any,
+    ...ACTIVE_CHECKPOINT_CONFIG,
   } as any);
 }
 
@@ -83,6 +104,14 @@ end
 `;
 const LINEAR_T = { first: 6, second: 8, third: 10, fourth: 12 };
 const LINEAR_VARS = ["score", "flag"];
+
+// Run the entire net once per checkpoint storage mode. `beforeEach` installs the
+// mode's Game config (read by `newGame`) at execution time — not collection time
+// — so each test sees its own mode.
+describe.each(CHECKPOINT_MODES)("$label", (mode) => {
+  beforeEach(() => {
+    ACTIVE_CHECKPOINT_CONFIG = mode.config;
+  });
 
 describe("save / load / simulate (linear)", () => {
   test("simulate() to the last line mutates globals through that point", () => {
@@ -252,3 +281,5 @@ describe("checkpoint round-trip through variable-driven IF routes", () => {
     expect(game2.save()).toBe(cp);
   });
 });
+
+}); // describe.each(CHECKPOINT_MODES)
