@@ -159,6 +159,36 @@
   animation: s-sheen 8s ease-in-out infinite;
 }
 
+/* ----------------------------------------------------------------------------
+ * Menu transitions — a faithful port of the old impower-app DrawerMenu (MUI).
+ *
+ * DESKTOP popover = MUI `Grow`: opacity + an asymmetric scale (0.75, 0.5625)
+ * from the trigger corner (Radix sets the transform-origin), on MUI's standard
+ * `easeInOut` curve. MOBILE bottom sheet = MUI `Drawer` (anchor=bottom): the
+ * paper slides up (translateY 100% → 0) with a backdrop fade — enter on MUI's
+ * `easeOut`/enteringScreen (225ms), exit on `sharp`/leavingScreen (195ms). The
+ * `forwards` on the exits holds the end frame until Radix unmounts (no flash).
+ * --------------------------------------------------------------------------*/
+@keyframes menu-grow-in {
+  from { opacity: 0; transform: scale(0.75, 0.5625); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes menu-grow-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: scale(0.75, 0.5625); }
+}
+@keyframes menu-overlay-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes menu-overlay-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes menu-sheet-in    { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes menu-sheet-out   { from { transform: translateY(0); } to { transform: translateY(100%); } }
+
+@utility anim-menu-in  { animation: menu-grow-in 200ms cubic-bezier(0.4, 0, 0.2, 1); }
+@utility anim-menu-out { animation: menu-grow-out 150ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+@utility anim-overlay-in  { animation: menu-overlay-in 225ms cubic-bezier(0.4, 0, 0.2, 1); }
+@utility anim-overlay-out { animation: menu-overlay-out 195ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+@utility anim-sheet-in  { animation: menu-sheet-in 225ms cubic-bezier(0, 0, 0.2, 1); }
+@utility anim-sheet-out { animation: menu-sheet-out 195ms cubic-bezier(0.4, 0, 0.6, 1) forwards; }
+
 /* Material-design ripple animation is driven imperatively by the
    <Ripple /> component via element.animate() (Web Animations API) — see
    `components/ripple/Ripple.tsx`. The translate + scale interpolation

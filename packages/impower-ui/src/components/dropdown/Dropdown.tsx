@@ -1,40 +1,98 @@
-// Thin re-export of Radix DropdownMenu pieces under impower-ui's roof so
-// consumer packages (impower-dev) don't need their own copy of
-// @radix-ui/react-dropdown-menu. Pre-skinned `Content` and `Item` variants
-// match the rest of impower-ui's surface (engine-800 surface, hover state).
+// A RESPONSIVE menu under impower-ui's roof — a faithful port of the old
+// impower-app `DrawerMenu`: a small dropdown/popover on desktop, a bottom sheet
+// on mobile (below the editor's 960px breakpoint). The same authoring API
+// (Root/Trigger/Content/Item/CheckboxItem) renders the matching primitive:
+// Radix DropdownMenu on desktop, Radix Dialog (styled as a bottom sheet) on
+// mobile. `DropdownRoot` publishes the mode via context so the pieces agree.
+//
+// Transitions match impower-app's MUI defaults — desktop = `Grow`, mobile =
+// `Drawer` slide-up + backdrop fade (see the keyframes in style.css).
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { cva } from "class-variance-authority";
-import type { ComponentChildren, JSX } from "preact";
+import { type ComponentChildren, createContext, type JSX } from "preact";
+import { useContext } from "preact/hooks";
+import { useIsMobile } from "../../hooks/useIsMobile";
 import { cn } from "../../utils/cn";
 import Ripple from "../ripple/Ripple";
 
-// Re-exports — use these for the un-styled bits (Root, Trigger, Portal,
-// Sub, Separator, etc.). Wrappers further down add impower-ui styling
-// to the visible bits (Content, Item, CheckboxItem).
-export const DropdownRoot = DropdownMenuPrimitive.Root;
-export const DropdownTrigger = DropdownMenuPrimitive.Trigger;
+type Mode = "menu" | "sheet";
+const ModeContext = createContext<Mode>("menu");
+const useMode = (): Mode => useContext(ModeContext);
+
+// Re-exports for the un-styled bits not used responsively in impower-dev — they
+// stay desktop (DropdownMenu) primitives.
 export const DropdownPortal = DropdownMenuPrimitive.Portal;
 export const DropdownSub = DropdownMenuPrimitive.Sub;
 export const DropdownSeparator = DropdownMenuPrimitive.Separator;
 
-// Popup surface styling. `bg-popup` (a fixed dark neutral, ~rgb(18,18,18))
-// is the canonical "floating panel" surface in the design system —
-// distinct from `engine-800` which is for inline surfaces. py-2 / px-0
-// matches the legacy `<s-box p="8 0">`; items provide their own
-// horizontal padding.
+// Props common to both Radix roots (open / defaultOpen / onOpenChange / modal).
+type RootProps = {
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  modal?: boolean;
+  children?: ComponentChildren;
+};
+
+/**
+ * Menu root. Renders a Radix DropdownMenu on desktop and a Radix Dialog (bottom
+ * sheet) on mobile, publishing the active mode to its descendants. Open-state
+ * props (`open`/`defaultOpen`/`onOpenChange`) are shared by both primitives.
+ */
+export function DropdownRoot({ children, ...rest }: RootProps) {
+  const mobile = useIsMobile();
+  if (mobile) {
+    return (
+      <ModeContext.Provider value="sheet">
+        <DialogPrimitive.Root {...rest}>{children}</DialogPrimitive.Root>
+      </ModeContext.Provider>
+    );
+  }
+  return (
+    <ModeContext.Provider value="menu">
+      <DropdownMenuPrimitive.Root {...rest}>
+        {children}
+      </DropdownMenuPrimitive.Root>
+    </ModeContext.Provider>
+  );
+}
+
+export function DropdownTrigger(props: {
+  asChild?: boolean;
+  children?: ComponentChildren;
+}) {
+  const Trigger =
+    useMode() === "sheet"
+      ? DialogPrimitive.Trigger
+      : DropdownMenuPrimitive.Trigger;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return <Trigger {...(props as any)} />;
+}
+
+// Popup surface styling. `bg-popup` (a fixed dark neutral, ~rgb(18,18,18)) is
+// the canonical "floating panel" surface — distinct from `engine-800` (inline
+// surfaces). py-2 / px-0 matches the legacy `<s-box p="8 0">`; items provide
+// their own horizontal padding.
 const dropdownContent = cva([
   "z-50 min-w-[120px] overflow-hidden rounded-lg",
   "bg-popup py-2 px-0 text-foreground shadow-xl ring-1 ring-foreground/10",
-  // Enter/exit (tw-animate-css): grow from the trigger corner (Radix sets the
-  // transform-origin + data-side) with a fade + zoom + small directional slide.
-  // Soft ease-out open, snappier close.
-  "origin-[--radix-dropdown-menu-content-transform-origin] ease-out",
-  "data-[state=open]:animate-in data-[state=closed]:animate-out",
-  "data-[state=open]:duration-200 data-[state=closed]:duration-100",
-  "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
-  "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
-  "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2",
-  "data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2",
+  // MUI Grow: opacity + asymmetric scale from the trigger corner.
+  "origin-[--radix-dropdown-menu-content-transform-origin]",
+  "data-[state=open]:anim-menu-in data-[state=closed]:anim-menu-out",
+]);
+
+// Mobile bottom-sheet surfaces (MUI Drawer anchor="bottom"). Backdrop fade +
+// a full-width panel pinned to the bottom with a rounded top (8px, matching the
+// old `border-radius: 8px 8px 0 0`) that slides up.
+const sheetOverlay = cva([
+  "fixed inset-0 z-50 bg-black/40",
+  "data-[state=open]:anim-overlay-in data-[state=closed]:anim-overlay-out",
+]);
+const sheetContent = cva([
+  "fixed inset-x-0 bottom-0 z-50 max-h-[80vh] overflow-y-auto",
+  "rounded-t-lg bg-popup py-2 text-foreground shadow-2xl",
+  "data-[state=open]:anim-sheet-in data-[state=closed]:anim-sheet-out",
 ]);
 
 export function DropdownContent({
@@ -49,6 +107,24 @@ export function DropdownContent({
   align?: "start" | "center" | "end";
   children?: ComponentChildren;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "align">) {
+  if (useMode() === "sheet") {
+    return (
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay class={sheetOverlay()} />
+        <DialogPrimitive.Content
+          class={cn(sheetContent(), className)}
+          aria-label="Menu"
+          aria-describedby={undefined}
+          // Don't yank focus onto the first item on touch — the sheet just
+          // appears; the user taps. (Escape / backdrop still dismiss.)
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogPrimitive.Title class="sr-only">Menu</DialogPrimitive.Title>
+          {children}
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    );
+  }
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -63,41 +139,59 @@ export function DropdownContent({
   );
 }
 
-// `pointer-events-auto` is explicit because sparkle's normalize.css
-// declares `* { pointer-events: none }` as a defensive base. Without
-// re-asserting it the dropdown item's hover/click would silently fall
-// through to the underlying page and the cursor wouldn't follow the
-// `cursor-pointer` declaration (cursor tracks hit-testing).
-// Item geometry matches the legacy `<s-button variant="option">`:
-// 40px tall, 20px horizontal padding, 14px label, 70% white foreground.
-// No outer corner radius (the popup itself is the rounded surface).
+// `pointer-events-auto` is explicit because sparkle's normalize.css declares
+// `* { pointer-events: none }` as a defensive base. Item geometry matches the
+// legacy `<s-button variant="option">`: 40px tall, 20px horizontal padding,
+// 14px label, 70% white foreground. No outer corner radius (the popup is the
+// rounded surface).
 const dropdownItem = cva([
-  // relative + overflow-hidden so the inner <Ripple /> wave is clipped
-  // to the item's bounds.
   "relative overflow-hidden",
-  "flex h-10 cursor-pointer pointer-events-auto flex-row items-center gap-2 px-5",
-  "text-sm text-foreground/70 select-none outline-none",
-  // Static hover/active layer (5% / 12% currentColor). The <Ripple />
-  // adds the expanding radial wave on press.
+  "flex h-10 w-full cursor-pointer pointer-events-auto flex-row items-center gap-2 px-5",
+  "text-sm text-foreground/70 select-none outline-none text-left",
   "hover:bg-foreground/5 active:bg-foreground/[0.12]",
   "focus:bg-foreground/5",
+  "disabled:pointer-events-none disabled:opacity-50",
   "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
 ]);
 
 export function DropdownItem({
   class: className,
   children,
+  disabled,
+  onSelect,
   ...rest
 }: {
   class?: string;
   children?: ComponentChildren;
+  disabled?: boolean;
   // Radix's onSelect (fires on item activation). Declared explicitly because
-  // preact's DOM `onSelect` (text-selection) has an incompatible signature;
-  // it's omitted from the spread below so radix's wins.
+  // preact's DOM `onSelect` (text-selection) has an incompatible signature.
   onSelect?: (event: Event) => void;
 } & Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "onSelect">) {
+  if (useMode() === "sheet") {
+    // In the sheet, items are plain buttons. `Dialog.Close` dismisses on tap
+    // (matching a menu item closing the menu); the onSelect runs alongside.
+    return (
+      <DialogPrimitive.Close asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          class={cn(dropdownItem(), className)}
+          onClick={() => onSelect?.(new Event("select"))}
+        >
+          {children}
+          <Ripple />
+        </button>
+      </DialogPrimitive.Close>
+    );
+  }
   return (
-    <DropdownMenuPrimitive.Item class={cn(dropdownItem(), className)} {...rest}>
+    <DropdownMenuPrimitive.Item
+      class={cn(dropdownItem(), className)}
+      disabled={disabled}
+      onSelect={onSelect}
+      {...rest}
+    >
       {children}
       <Ripple />
     </DropdownMenuPrimitive.Item>
@@ -120,6 +214,22 @@ export function DropdownCheckboxItem({
   JSX.HTMLAttributes<HTMLDivElement>,
   "class" | "checked" | "onChange" | "onSelect"
 >) {
+  if (useMode() === "sheet") {
+    // Toggle in place — a checkbox shouldn't dismiss the sheet (you may flip
+    // several), so it is NOT wrapped in Dialog.Close.
+    return (
+      <button
+        type="button"
+        role="menuitemcheckbox"
+        aria-checked={checked}
+        class={cn(dropdownItem(), className)}
+        onClick={() => onCheckedChange?.(!checked)}
+      >
+        {children}
+        <Ripple />
+      </button>
+    );
+  }
   return (
     <DropdownMenuPrimitive.CheckboxItem
       checked={checked}
