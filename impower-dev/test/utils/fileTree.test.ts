@@ -260,3 +260,34 @@ describe("resolveScopePath", () => {
     expect(resolveScopePath(tree, "")).toBe("");
   });
 });
+
+describe("buildFileTree compareFiles (sort)", () => {
+  it("sorts file siblings by the comparator; folders stay first by name", () => {
+    const tree = buildFileTree(
+      ["zebra.png", "apple.png", "beta/x.sd", "alpha/y.sd"],
+      // name DESCENDING comparator for files
+      { compareFiles: (a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0) },
+    );
+    // folders (alpha, beta) always first by name asc; then files name-desc.
+    expect(tree.map((n) => n.name)).toEqual([
+      "alpha",
+      "beta",
+      "zebra.png",
+      "apple.png",
+    ]);
+  });
+});
+
+describe("flattenVisibleRows expandAll", () => {
+  it("emits every descendant when expandAll is set, ignoring `expanded`", () => {
+    const tree = buildFileTree(["a/b/c.sd", "a/d.sd"]);
+    const rows = flattenVisibleRows(tree, new Set(), true);
+    // folders first within each level: a, a/b (folder), a/b/c.sd, a/d.sd.
+    expect(rows.map((r) => r.path)).toEqual(["a", "a/b", "a/b/c.sd", "a/d.sd"]);
+  });
+
+  it("still honors the expanded set when expandAll is false", () => {
+    const tree = buildFileTree(["a/b/c.sd"]);
+    expect(flattenVisibleRows(tree, new Set()).map((r) => r.path)).toEqual(["a"]);
+  });
+});

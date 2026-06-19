@@ -19,6 +19,8 @@ import {
 } from "@impower/impower-ui/icons";
 import { describe, expect, it } from "vitest";
 import {
+  extOf,
+  fileCategory,
   iconForPath,
   isImagePath,
 } from "../../src/modules/spark-editor/utils/fileIcon";
@@ -109,5 +111,35 @@ describe("isImagePath", () => {
     expect(isImagePath("LICENSE")).toBe(false);
     expect(isImagePath("archive.tar.gz")).toBe(false);
     expect(isImagePath("")).toBe(false);
+  });
+});
+
+describe("extOf", () => {
+  it("returns the lowercased final extension", () => {
+    expect(extOf("a/b.PNG")).toBe("png");
+    expect(extOf("multi.dot.name.sd")).toBe("sd");
+  });
+
+  it("is empty for dotfiles and extension-less names", () => {
+    expect(extOf(".folder")).toBe("");
+    expect(extOf("LICENSE")).toBe("");
+    expect(extOf("")).toBe("");
+  });
+});
+
+describe("fileCategory (Type filter)", () => {
+  it("maps extensions to coarse media categories", () => {
+    expect(fileCategory("art/forest.png")).toBe("image");
+    expect(fileCategory("song.ogg")).toBe("audio");
+    expect(fileCategory("beat.mid")).toBe("audio");
+    expect(fileCategory("clip.mp4")).toBe("video");
+    expect(fileCategory("notes.md")).toBe("text");
+    expect(fileCategory("main.sd")).toBe("text");
+  });
+
+  it("is 'other' for unmapped / missing extensions", () => {
+    expect(fileCategory("bundle.zip")).toBe("other");
+    expect(fileCategory("manual.pdf")).toBe("other");
+    expect(fileCategory("LICENSE")).toBe("other");
   });
 });

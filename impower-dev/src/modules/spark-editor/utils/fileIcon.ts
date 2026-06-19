@@ -77,10 +77,63 @@ const ICON_BY_EXT: Record<string, IconComponent> = {
  * Lowercased final extension of a path's basename, or `""` when there is none.
  * Leading-dot files (`.folder`) and extension-less names have no extension.
  */
-function extOf(path: string): string {
+export function extOf(path: string): string {
   const basename = path.split("/").slice(-1)[0] ?? path;
   const dotIndex = basename.lastIndexOf(".");
   return dotIndex > 0 ? basename.slice(dotIndex + 1).toLowerCase() : "";
+}
+
+/** Coarse media category of a file, keyed off its extension. */
+export type FileCategory = "image" | "audio" | "video" | "text" | "other";
+
+// Extension → category. Derived from the extension (not the worker's FileData
+// `type`, which depends on configurable glob patterns that may be unset), so the
+// Type filter is reliable regardless of workspace settings.
+const CATEGORY_BY_EXT: Record<string, FileCategory> = {
+  // image
+  png: "image",
+  jpg: "image",
+  jpeg: "image",
+  gif: "image",
+  webp: "image",
+  svg: "image",
+  bmp: "image",
+  ico: "image",
+  // audio
+  mid: "audio",
+  midi: "audio",
+  mp3: "audio",
+  ogg: "audio",
+  wav: "audio",
+  m4a: "audio",
+  aac: "audio",
+  flac: "audio",
+  // video
+  mp4: "video",
+  webm: "video",
+  mov: "video",
+  avi: "video",
+  mkv: "video",
+  m4v: "video",
+  // text / data
+  txt: "text",
+  md: "text",
+  name: "text",
+  sd: "text",
+  json: "text",
+  js: "text",
+  ts: "text",
+  jsx: "text",
+  tsx: "text",
+  csv: "text",
+  xml: "text",
+  html: "text",
+  url: "text",
+};
+
+/** Coarse media category for the Type filter; `"other"` for anything unmapped. */
+export function fileCategory(path: string): FileCategory {
+  return CATEGORY_BY_EXT[extOf(path)] ?? "other";
 }
 
 /**

@@ -45,6 +45,13 @@ export interface BuildFileTreeOptions {
    * sentinel like `.folder`. Default: `[".folder"]`.
    */
   sentinelNames?: string[];
+  /**
+   * Optional comparator applied to FILE siblings only (folders always sort
+   * first, by name). Lets the file list sort by modified/size/type — the
+   * comparator closes over the per-path metadata. When omitted, files fall back
+   * to the default extension-then-name grouping.
+   */
+  compareFiles?: (a: FileTreeNode, b: FileTreeNode) => number;
 }
 
 interface MutableNode {
@@ -60,34 +67,46 @@ const extOf = (name: string): string => {
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
 };
 
-const sortNodes = (a: FileTreeNode, b: FileTreeNode): number => {
-  if (a.isDirectory !== b.isDirectory) {
-    return a.isDirectory ? -1 : 1;
-  }
-  // Files are grouped by extension first (all `.png` together, then `.sd`, …),
-  // then alphabetically within each extension. Folders sort by name only.
-  if (!a.isDirectory) {
-    const ae = extOf(a.name);
-    const be = extOf(b.name);
-    if (ae !== be) return ae < be ? -1 : 1;
-  }
-  const an = a.name.toLowerCase();
-  const bn = b.name.toLowerCase();
-  if (an < bn) return -1;
-  if (an > bn) return 1;
-  // Stable, deterministic tiebreak for names differing only by case.
-  return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
-};
+const makeSortNodes =
+  (compareFiles?: (a: FileTreeNode, b: FileTreeNode) => number) =>
+  (a: FileTreeNode, b: FileTreeNode): number => {
+    // Folders always sort first.
+    if (a.isDirectory !== b.isDirectory) {
+      return a.isDirectory ? -1 : 1;
+    }
+    // Files: defer to the caller's comparator (sort by modified/size/type) when
+    // provided; otherwise group by extension first (all `.png` together, then
+    // `.sd`, …) then alphabetically. Folders always sort by name.
+    if (!a.isDirectory && !b.isDirectory && compareFiles) {
+      const c = compareFiles(a, b);
+      if (c !== 0) {
+        return c;
+      }
+    } else if (!a.isDirectory) {
+      const ae = extOf(a.name);
+      const be = extOf(b.name);
+      if (ae !== be) return ae < be ? -1 : 1;
+    }
+    const an = a.name.toLowerCase();
+    const bn = b.name.toLowerCase();
+    if (an < bn) return -1;
+    if (an > bn) return 1;
+    // Stable, deterministic tiebreak for names differing only by case.
+    return a.name < b.name ? -1 : a.name > b.name ? 1 : 0;
+  };
 
-const toSortedNodes = (level: Map<string, MutableNode>): FileTreeNode[] =>
+const toSortedNodes = (
+  level: Map<string, MutableNode>,
+  sorter: (a: FileTreeNode, b: FileTreeNode) => number,
+): FileTreeNode[] =>
   [...level.values()]
     .map((node) => ({
       path: node.path,
       name: node.name,
       isDirectory: node.isDirectory,
-      children: toSortedNodes(node.children),
+      children: toSortedNodes(node.children, sorter),
     }))
-    .sort(sortNodes);
+    .sort(sorter);
 
 /**
  * Build a nested folder tree from a flat list of project-relative paths.
@@ -133,22 +152,26 @@ export const buildFileTree = (
     }
   }
 
-  return toSortedNodes(root);
+  return toSortedNodes(root, makeSortNodes(options?.compareFiles));
 };
 
 /**
  * Flatten the tree into the linear, display-ordered rows the virtualizer
- * renders. A folder's children are emitted only when its path is in `expanded`.
+ * renders. A folder's children are emitted only when its path is in `expanded`,
+ * unless `expandAll` is set (used while searching, so matches buried in
+ * collapsed folders are revealed).
  */
 export const flattenVisibleRows = (
   roots: FileTreeNode[],
   expanded: ReadonlySet<string>,
+  expandAll = false,
 ): FileTreeRow[] => {
   const rows: FileTreeRow[] = [];
   const walk = (nodes: FileTreeNode[], depth: number): void => {
     for (const node of nodes) {
       const hasChildren = node.isDirectory && node.children.length > 0;
-      const isExpanded = node.isDirectory && expanded.has(node.path);
+      const isExpanded =
+        node.isDirectory && (expandAll || expanded.has(node.path));
       rows.push({
         path: node.path,
         name: node.name,

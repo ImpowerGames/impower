@@ -20,11 +20,13 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import {
   buildFileTree,
   childrenRows,
+  filterPaths,
   flattenVisibleRows,
   FOLDER_SENTINEL,
   resolveScopePath,
+  type FileTreeNode,
 } from "../../utils/fileTree";
-import { isImagePath } from "../../utils/fileIcon";
+import { extOf, fileCategory, isImagePath } from "../../utils/fileIcon";
 import globToRegex from "../../utils/globToRegex";
 import workspace from "../../workspace/WorkspaceStore";
 // Type-only import (fully erased at build) — safe despite the protocol package's
@@ -32,6 +34,11 @@ import workspace from "../../workspace/WorkspaceStore";
 import type { FileData } from "@impower/spark-editor-protocol/src/types/workspace/FileData";
 import FileBreadcrumb from "./FileBreadcrumb";
 import FileItem from "./FileItem";
+import FileListHeader, {
+  type SortKey,
+  type SortOrder,
+  type TypeFilter,
+} from "./FileListHeader";
 import { useTreeDrag } from "./useTreeDrag";
 
 // Thumbnail width requested from the SW — keep in sync with FileItem's `?thumb`.
@@ -175,6 +182,11 @@ export default function FileList({
   // Dive-mode (mobile) folder scope: which folder's direct children are shown
   // (`""` = project root). Ignored in tree mode (desktop). See `diveMode` below.
   const [scopePath, setScopePath] = useState("");
+  // Header controls: search-by-name, sort field + direction, Type filter.
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // Report scroll-off-top so the parent can collapse the FAB.
@@ -401,28 +413,68 @@ export default function FileList({
     });
   }, []);
 
-  // Build the tree from the filtered relative paths (sentinels materialize empty
-  // folders and are hidden).
-  const relativePaths = (uris ?? []).map((uri) =>
-    relativePathFromUri(uri, projectId),
-  );
-  // Project-relative path -> FileData, so a row can look up its thumbnail src +
-  // its size/modified time for the caption.
+  // Project-relative path -> FileData (thumbnail src + size/modified for the
+  // caption + the sort/filter keys), plus the flat path list for the tree.
   const filesByPath = new Map<string, FileData>();
+  const allRelativePaths: string[] = [];
   for (const uri of uris ?? []) {
+    const rel = relativePathFromUri(uri, projectId);
+    allRelativePaths.push(rel);
     const file = filesByUri[uri];
     if (file) {
-      filesByPath.set(relativePathFromUri(uri, projectId), file);
+      filesByPath.set(rel, file);
     }
   }
-  const tree = buildFileTree(relativePaths);
-  // TREE mode (desktop): flatten the expanded tree. DIVE mode (mobile): only the
-  // current folder's direct children at depth 0. `scope` recovers to the nearest
+
+  // Header controls applied to the path list BEFORE the tree is built:
+  //   - Type filter keeps files whose FileData category matches (an ancestor
+  //     folder survives as long as it still contains a matching file).
+  //   - Search keeps paths containing the query (substring over the full path,
+  //     so a match keeps its ancestor folders); folders auto-expand to reveal it.
+  const trimmedSearch = search.trim();
+  let visiblePaths = allRelativePaths;
+  if (typeFilter) {
+    visiblePaths = visiblePaths.filter((p) => fileCategory(p) === typeFilter);
+  }
+  if (trimmedSearch) {
+    visiblePaths = filterPaths(visiblePaths, trimmedSearch);
+  }
+
+  // Sort comparator for FILE siblings (folders always sort first, by name).
+  // Files are ALWAYS grouped by extension/type first (ascending), so all `.png`
+  // sit together, then all `.ogg`, etc.; WITHIN a type group the chosen sort
+  // field (name / modified / size) + direction takes over.
+  const sortDir = sortOrder === "asc" ? 1 : -1;
+  const compareFiles = (a: FileTreeNode, b: FileTreeNode): number => {
+    const ea = extOf(a.path);
+    const eb = extOf(b.path);
+    if (ea !== eb) {
+      return ea < eb ? -1 : 1;
+    }
+    const fa = filesByPath.get(a.path);
+    const fb = filesByPath.get(b.path);
+    let cmp = 0;
+    if (sortKey === "size") {
+      cmp = (fa?.size ?? 0) - (fb?.size ?? 0);
+    } else if (sortKey === "modified") {
+      cmp = (fa?.modified ?? 0) - (fb?.modified ?? 0);
+    } else {
+      const na = a.name.toLowerCase();
+      const nb = b.name.toLowerCase();
+      cmp = na < nb ? -1 : na > nb ? 1 : 0;
+    }
+    return cmp * sortDir;
+  };
+
+  const tree = buildFileTree(visiblePaths, { compareFiles });
+  // TREE mode (desktop): flatten the expanded tree (every folder expands while
+  // searching so buried matches show). DIVE mode (mobile): only the current
+  // folder's direct children at depth 0. `scope` recovers to the nearest
   // surviving ancestor if the scoped folder was deleted/renamed underneath us.
   const scope = diveMode ? resolveScopePath(tree, scopePath) : "";
   const rows = diveMode
     ? childrenRows(tree, scope)
-    : flattenVisibleRows(tree, expanded);
+    : flattenVisibleRows(tree, expanded, !!trimmedSearch || !!typeFilter);
 
   // Recover the scope state when the scoped folder vanishes, and report the
   // active scope (`""` in tree mode) to the parent so its create FAB targets the
@@ -437,8 +489,23 @@ export default function FileList({
   }, [onScopeChange, diveMode, scope]);
   useEffect(() => {
     setScopePath("");
+    setSearch("");
+    setTypeFilter("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, include, exclude]);
+
+  // Pick a sort field — toggle asc↔desc when it's already the active field,
+  // otherwise switch to it (keeping the current direction, like Drive).
+  const handleSort = useCallback(
+    (key: SortKey) => {
+      if (key === sortKey) {
+        setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+      } else {
+        setSortKey(key);
+      }
+    },
+    [sortKey],
+  );
 
   // Relative paths of every editor currently open across the workspace panes.
   // A row whose path is in this set gets the selection accent (the file the
@@ -545,38 +612,43 @@ export default function FileList({
 
   return (
     <div class="relative flex h-full w-full flex-col">
-      {/* Toolbar — in dive mode (mobile) the breadcrumb fills the left; the
-          overflow "more" menu (New Folder for now; search + sort/filter join
-          here later) stays docked right. Secondary create/organize actions live
-          here so the bottom FAB stays the single primary action per pane. */}
-      <div class="flex flex-none flex-row items-center gap-2 px-4 pt-2">
-        {diveMode ? (
-          <FileBreadcrumb
-            scope={scope}
-            onNavigate={setScopePath}
-            class="min-w-0 flex-1"
-          />
-        ) : (
-          <div class="flex-1" />
+      {/* Toolbar — search / Type filter / sort (the FileListHeader), with the
+          overflow "more" menu (New Folder) docked right. In dive mode (mobile)
+          the breadcrumb sits on its own row above. The bottom FAB stays the
+          single primary create action per pane. */}
+      <div class="flex flex-none flex-col gap-1.5 px-4 pt-2">
+        {diveMode && (
+          <FileBreadcrumb scope={scope} onNavigate={setScopePath} class="min-w-0" />
         )}
-        <DropdownRoot>
-          <DropdownTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="More options"
-              class="rounded-full text-foreground/60 hover:text-foreground"
-            >
-              <DotsVertical class="size-5" />
-            </Button>
-          </DropdownTrigger>
-          <DropdownContent align="end" sideOffset={4}>
-            <DropdownItem onSelect={() => void newFolder()}>
-              <FolderPlus class="size-4" />
-              New Folder
-            </DropdownItem>
-          </DropdownContent>
-        </DropdownRoot>
+        <div class="flex flex-row items-center gap-1">
+          <FileListHeader
+            search={search}
+            onSearch={setSearch}
+            sortKey={sortKey}
+            sortOrder={sortOrder}
+            onSort={handleSort}
+            typeFilter={typeFilter}
+            onTypeFilter={setTypeFilter}
+          />
+          <DropdownRoot>
+            <DropdownTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="More options"
+                class="rounded-full text-foreground/60 hover:text-foreground"
+              >
+                <DotsVertical class="size-5" />
+              </Button>
+            </DropdownTrigger>
+            <DropdownContent align="end" sideOffset={4}>
+              <DropdownItem onSelect={() => void newFolder()}>
+                <FolderPlus class="size-4" />
+                New Folder
+              </DropdownItem>
+            </DropdownContent>
+          </DropdownRoot>
+        </div>
       </div>
       <div
         ref={scrollRef}
