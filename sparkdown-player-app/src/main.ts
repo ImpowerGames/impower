@@ -17,16 +17,26 @@ import "./style.css";
 
 const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
 
-// When served from localhost (local dev), accept the editor on ANY origin and
-// post back with "*". Otherwise, a mismatch between this player's compiled
-// VITE_SPARKDOWN_EDITOR_ORIGIN and the editor's actual origin (localhost vs
-// 127.0.0.1, or a different editor port) makes the browser SILENTLY drop the
-// handshake messages in both directions — the game preview stays black with no
-// error logged anywhere. Production (non-localhost) keeps strict origin checks.
+// DEV-ONLY same-origin preview: when the editor proxies this app under its own
+// origin (see impower-dev/build.ts + vite base "/__player/"), our origin equals
+// the editor's. The postMessage handshake then matches exactly with no origin
+// relaxation needed. We also skip registering our own service worker: the
+// editor already runs a root-scoped SW that intercepts /file:/ and serves game
+// assets straight from its OPFS, so it controls this iframe too.
+const SAME_ORIGIN = window.location.origin === SPARKDOWN_EDITOR_ORIGIN;
+
+// Otherwise, when served CROSS-origin from localhost (the default local dev:
+// editor :EP / player :PP), accept the editor on ANY origin and post back with
+// "*". A mismatch between this player's compiled VITE_SPARKDOWN_EDITOR_ORIGIN and
+// the editor's actual origin (localhost vs 127.0.0.1, or a different editor port)
+// otherwise makes the browser SILENTLY drop the handshake in both directions —
+// the preview stays black with no error. Same-origin (proxy) needs no relaxation
+// and production (non-localhost) keeps strict origin checks.
 const IS_LOCALHOST =
   location.hostname === "localhost" || location.hostname === "127.0.0.1";
-const EDITOR_SEND_ORIGIN = IS_LOCALHOST ? "*" : SPARKDOWN_EDITOR_ORIGIN;
-const EDITOR_ACCEPT_ORIGIN = IS_LOCALHOST ? undefined : SPARKDOWN_EDITOR_ORIGIN;
+const RELAX_ORIGIN = IS_LOCALHOST && !SAME_ORIGIN;
+const EDITOR_SEND_ORIGIN = RELAX_ORIGIN ? "*" : SPARKDOWN_EDITOR_ORIGIN;
+const EDITOR_ACCEPT_ORIGIN = RELAX_ORIGIN ? undefined : SPARKDOWN_EDITOR_ORIGIN;
 
 const connection = new Port2MessageConnection(
   (message: any, transfer?: Transferable[]) =>
@@ -105,7 +115,7 @@ window.addEventListener("drop", async (e) => {
   );
 });
 
-if ("serviceWorker" in navigator) {
+if (!SAME_ORIGIN && "serviceWorker" in navigator) {
   navigator.serviceWorker
     .register("/sw.js", { type: "module" })
     .catch((err) => console.error("SW register failed:", err));

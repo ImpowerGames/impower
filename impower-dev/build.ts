@@ -2,6 +2,8 @@ import preact from "@preact/preset-vite";
 import tailwindcss from "@tailwindcss/vite";
 import { exec } from "child_process";
 import fs from "fs";
+import http from "node:http";
+import https from "node:https";
 import path from "path";
 import glob from "tiny-glob";
 import { build, createServer } from "vite";
@@ -344,7 +346,9 @@ const serve = async () => {
     publicDir: path.resolve(process.cwd(), publicInDir),
     server: {
       middlewareMode: true,
-      hmr: { port: Number(process.env["HMR_PORT"]) || 24679 },
+      // HMR port is overridable so several worktrees can run dev servers at once
+      // without colliding on the websocket port.
+      hmr: { port: Number(process.env["HMR_PORT"] || 24679) },
       watch: { ignored: ["**/out/**", "**/.dev/**"] },
     },
     resolve: { alias, dedupe },
@@ -400,6 +404,116 @@ const serve = async () => {
   const apiModule = await vite.ssrLoadModule(`${apiInDir}/index.ts`);
   const app = apiModule.default?.app || apiModule.app || apiModule.default;
   await app.ready();
+
+  // DEV-ONLY same-origin game preview. When VITE_SAME_ORIGIN_PREVIEW is set,
+  // reverse-proxy the game-preview player (its own Vite dev server) under the
+  // editor's origin at /__player/ so the editor can embed it as a SAME-ORIGIN
+  // iframe — making the live game DOM directly reachable from the editor page
+  // (document.querySelector('#iframe').contentDocument) and devtools. Defaults
+  // OFF: with the flag unset, the editor keeps embedding the player cross-origin
+  // via VITE_SPARKDOWN_PLAYER_ORIGIN. The player must be launched with the same
+  // flag so it serves under base /__player/ (see sparkdown-player-app).
+  if (process.env["VITE_SAME_ORIGIN_PREVIEW"]) {
+    const PLAYER_PROXY_BASE = "/__player";
+    const playerOrigin = new URL(
+      process.env["SPARKDOWN_PLAYER_DEV_ORIGIN"] || "http://localhost:5173",
+    );
+    const client = playerOrigin.protocol === "https:" ? https : http;
+    // HTTP/1.1 hop-by-hop headers. They're connection-scoped and must NOT be
+    // forwarded; re-emitting them is also a hard error under HTTP/2 (which the
+    // dev server uses when https/ certs exist) — ERR_HTTP2_INVALID_CONNECTION_HEADERS.
+    const HOP_BY_HOP = new Set([
+      "connection",
+      "keep-alive",
+      "proxy-authenticate",
+      "proxy-authorization",
+      "te",
+      "trailer",
+      "transfer-encoding",
+      "upgrade",
+      "proxy-connection",
+    ]);
+    let warnedAsymmetric = false;
+    app.use((req: any, res: any, next: any) => {
+      // Boundary match so a future sibling route (e.g. /__playerfoo) can't be
+      // hijacked by the prefix.
+      const url: string = req.url || "";
+      if (url !== PLAYER_PROXY_BASE && !url.startsWith(PLAYER_PROXY_BASE + "/")) {
+        next();
+        return;
+      }
+      const proxyReq = client.request(
+        {
+          protocol: playerOrigin.protocol,
+          hostname: playerOrigin.hostname,
+          port: playerOrigin.port,
+          method: req.method,
+          path: url,
+          headers: { ...req.headers, host: playerOrigin.host },
+        },
+        (proxyRes) => {
+          const headers: Record<string, any> = {};
+          for (const [k, v] of Object.entries(proxyRes.headers)) {
+            if (!HOP_BY_HOP.has(k.toLowerCase())) {
+              headers[k] = v;
+            }
+          }
+          res.writeHead(proxyRes.statusCode || 502, headers);
+          // Diagnose the easy-to-make asymmetric-config mistake: the editor has
+          // the flag but the player wasn't started with it, so it serves at base
+          // "/" and the proxied index.html lacks the /__player/ asset prefix →
+          // a silent white iframe. Sniff the document response once and warn.
+          if (
+            !warnedAsymmetric &&
+            url === PLAYER_PROXY_BASE + "/" &&
+            String(proxyRes.headers["content-type"] || "").includes("text/html")
+          ) {
+            let head = "";
+            proxyRes.on("data", (chunk) => {
+              if (head.length < 2048) {
+                head += chunk.toString("utf8");
+                if (head.length >= 256 && !head.includes(PLAYER_PROXY_BASE)) {
+                  warnedAsymmetric = true;
+                  console.log(
+                    YELLOW,
+                    `Same-origin preview: the player at ${playerOrigin.origin} ` +
+                      `is not serving under base ${PLAYER_PROXY_BASE}/. Start ` +
+                      `sparkdown-player-app with VITE_SAME_ORIGIN_PREVIEW=1 too.`,
+                  );
+                }
+              }
+            });
+          }
+          proxyRes.pipe(res);
+          proxyRes.on("error", () => res.destroy());
+        },
+      );
+      proxyReq.on("error", (err) => {
+        if (res.headersSent) {
+          res.destroy();
+          return;
+        }
+        res.statusCode = 502;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end(
+          `Same-origin preview: could not reach the game-preview player at ` +
+            `${playerOrigin.origin}. Start sparkdown-player-app (npm run dev) ` +
+            `with VITE_SAME_ORIGIN_PREVIEW=1. (${err.message})`,
+        );
+      });
+      // Tear the upstream request down if the client goes away mid-flight.
+      req.on("aborted", () => proxyReq.destroy());
+      res.on("close", () => proxyReq.destroy());
+      req.pipe(proxyReq);
+    });
+    // HMR websockets intentionally bypass this proxy — the player's Vite client
+    // connects straight to its own port (see sparkdown-player-app hmr config).
+    console.log(
+      STEP_COLOR,
+      `Same-origin preview ON: proxying ${PLAYER_PROXY_BASE}/ -> ${playerOrigin.origin} ` +
+        `(also set VITE_SAME_ORIGIN_PREVIEW=1 for sparkdown-player-app)`,
+    );
+  }
 
   app.use(async (req: any, res: any, next: any) => {
     vite.middlewares(req, res, next);
