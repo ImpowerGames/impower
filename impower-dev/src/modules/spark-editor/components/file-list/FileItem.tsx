@@ -8,6 +8,7 @@ import { useComputed } from "@preact/signals";
 import { memo } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { iconForPath, isImagePath } from "../../utils/fileIcon";
+import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileOptionsButton from "./FileOptionsButton";
@@ -51,6 +52,10 @@ export type FileItemProps = {
    * everything else.
    */
   src?: string;
+  /** Last-modified time (epoch ms) — shown as "Modified <age>" in the caption. */
+  modified?: number;
+  /** File size in bytes — shown as a human size in the caption. */
+  size?: number;
   /**
    * Folder rows: toggle expand/collapse. Receives the row's own path so the
    * parent can pass a single STABLE callback (not a per-row closure), which
@@ -75,6 +80,8 @@ function FileItem({
   diveMode = false,
   selected = false,
   src,
+  modified,
+  size,
   onToggle,
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
@@ -93,6 +100,13 @@ function FileItem({
     isDirectory || dotIndex <= 0 ? basename : basename.slice(0, dotIndex);
   const ext = !isDirectory && dotIndex > 0 ? basename.slice(dotIndex + 1) : "";
   const showExt = ext && ext !== "sd";
+  // Files show a "Modified <age> | <size>" caption under the name (matching the
+  // legacy engine's file list). Folders carry no such metadata → no caption.
+  const caption = isDirectory
+    ? ""
+    : [formatModified(modified), getFileSizeDisplayValue(size)]
+        .filter(Boolean)
+        .join(" | ");
 
   // File-type glyph (folders → Binder). An expanded folder shows its icon at
   // full weight; everything else is muted to /50 so the icon reads as chrome,
@@ -298,7 +312,7 @@ function FileItem({
               <FileIcon class="size-5" />
             )}
           </span>
-          <div class="flex flex-1 flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
+          <div class="flex min-w-0 flex-1 flex-col justify-center overflow-hidden">
             {renaming ? (
               <div
                 class="relative w-full overflow-hidden rounded text-foreground"
@@ -326,8 +340,15 @@ function FileItem({
               </div>
             ) : (
               <>
-                <span class={isDirectory ? "font-medium" : ""}>{name}</span>
-                {showExt && <span class="opacity-30">.{ext}</span>}
+                <div class="flex flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
+                  <span class={isDirectory ? "font-medium" : ""}>{name}</span>
+                  {showExt && <span class="opacity-30">.{ext}</span>}
+                </div>
+                {caption && (
+                  <div class="truncate text-xs text-foreground/60">
+                    {caption}
+                  </div>
+                )}
               </>
             )}
           </div>

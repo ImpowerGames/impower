@@ -27,6 +27,9 @@ import {
 import { isImagePath } from "../../utils/fileIcon";
 import globToRegex from "../../utils/globToRegex";
 import workspace from "../../workspace/WorkspaceStore";
+// Type-only import (fully erased at build) — safe despite the protocol package's
+// CJS runtime exports that would otherwise trip Vite SSR (see the file header).
+import type { FileData } from "@impower/spark-editor-protocol/src/types/workspace/FileData";
 import FileBreadcrumb from "./FileBreadcrumb";
 import FileItem from "./FileItem";
 import { useTreeDrag } from "./useTreeDrag";
@@ -165,9 +168,9 @@ export default function FileList({
   onScopeChange,
 }: FileListProps) {
   const [uris, setUris] = useState<string[] | null>(null);
-  // uri -> service-worker-served url (`FileData.src`), used to render image
-  // thumbnails in the rows. Kept beside `uris` so a reload refreshes both.
-  const [srcByUri, setSrcByUri] = useState<Record<string, string>>({});
+  // uri -> full FileData (src for thumbnails, size/modified for the row caption
+  // + sort/filter). Kept beside `uris` so a reload refreshes both.
+  const [filesByUri, setFilesByUri] = useState<Record<string, FileData>>({});
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   // Dive-mode (mobile) folder scope: which folder's direct children are shown
   // (`""` = project root). Ignored in tree mode (desktop). See `diveMode` below.
@@ -252,14 +255,14 @@ export default function FileList({
     const { Workspace } = await import("../../workspace/Workspace");
     const files = await Workspace.fs.getFiles(projectId!);
     const filteredUris = Object.keys(files).filter(matchesGlobs).sort();
-    const srcs: Record<string, string> = {};
+    const filesByUri: Record<string, FileData> = {};
     for (const uri of filteredUris) {
-      const src = files[uri]?.src;
-      if (src) {
-        srcs[uri] = src;
+      const file = files[uri];
+      if (file) {
+        filesByUri[uri] = file;
       }
     }
-    return { uris: filteredUris, srcByUri: srcs };
+    return { uris: filteredUris, filesByUri };
   };
 
   // Initial load + reload on project / glob change.
@@ -271,10 +274,10 @@ export default function FileList({
         return;
       }
       try {
-        const { uris: filtered, srcByUri: srcs } = await loadFiles();
+        const { uris: filtered, filesByUri: fbu } = await loadFiles();
         if (!cancelled) {
           setUris(filtered);
-          setSrcByUri(srcs);
+          setFilesByUri(fbu);
         }
       } catch (err) {
         // eslint-disable-next-line no-console
@@ -292,9 +295,9 @@ export default function FileList({
   const reload = async () => {
     if (!projectId) return;
     try {
-      const { uris: filtered, srcByUri: srcs } = await loadFiles();
+      const { uris: filtered, filesByUri: fbu } = await loadFiles();
       setUris(filtered);
-      setSrcByUri(srcs);
+      setFilesByUri(fbu);
     } catch {
       /* no-op */
     }
@@ -369,7 +372,7 @@ export default function FileList({
     const urls: string[] = [];
     for (const uri of uris) {
       if (!isImagePath(relativePathFromUri(uri, projectId))) continue;
-      const src = srcByUri[uri];
+      const src = filesByUri[uri]?.src;
       if (src) {
         urls.push(`${src}${src.includes("?") ? "&" : "?"}thumb=${THUMB_WIDTH}`);
       }
@@ -378,7 +381,7 @@ export default function FileList({
     const controller = new AbortController();
     prewarmThumbnails(urls, controller.signal);
     return () => controller.abort();
-  }, [uris, srcByUri, projectId]);
+  }, [uris, filesByUri, projectId]);
 
   // Stable handler passed to FileItem (keeps its `memo` intact): a folder tap
   // toggles expand/collapse in TREE mode, or scopes INTO the folder in DIVE
@@ -403,12 +406,13 @@ export default function FileList({
   const relativePaths = (uris ?? []).map((uri) =>
     relativePathFromUri(uri, projectId),
   );
-  // Project-relative path -> served url, so a row can look up its thumbnail.
-  const srcByPath = new Map<string, string>();
+  // Project-relative path -> FileData, so a row can look up its thumbnail src +
+  // its size/modified time for the caption.
+  const filesByPath = new Map<string, FileData>();
   for (const uri of uris ?? []) {
-    const src = srcByUri[uri];
-    if (src) {
-      srcByPath.set(relativePathFromUri(uri, projectId), src);
+    const file = filesByUri[uri];
+    if (file) {
+      filesByPath.set(relativePathFromUri(uri, projectId), file);
     }
   }
   const tree = buildFileTree(relativePaths);
@@ -590,6 +594,7 @@ export default function FileList({
             {rowVirtualizer.getVirtualItems().map((virtualRow, slot) => {
               const row = rows[virtualRow.index];
               if (!row) return null;
+              const file = filesByPath.get(row.path);
               return (
                 // Key by the window SLOT (position in the visible set), not the
                 // row path. As the user scrolls, each slot's DOM is REUSED and
@@ -627,7 +632,9 @@ export default function FileList({
                     expanded={row.expanded}
                     diveMode={diveMode}
                     selected={openFilenames.has(row.path)}
-                    src={srcByPath.get(row.path)}
+                    src={file?.src}
+                    modified={file?.modified}
+                    size={file?.size}
                     onToggle={onItemActivate}
                   />
                 </div>

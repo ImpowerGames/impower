@@ -544,7 +544,7 @@ const readFile = async (fileUri: string) => {
   const fileHandle = await getFileHandleFromUri(root, fileUri, false);
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
-  updateFileCache(fileUri, buffer, false);
+  updateFileCache(fileUri, buffer, false, undefined, fileRef.lastModified);
   return buffer;
 };
 
@@ -783,7 +783,8 @@ const write = async (fileUri: string) => {
     syncAccessHandle.flush();
     syncAccessHandle.close();
     const arrayBuffer = buffer.buffer as ArrayBuffer;
-    const file = updateFileCache(fileUri, arrayBuffer, true, version);
+    // A fresh write happened now — stamp the modified time accordingly.
+    const file = updateFileCache(fileUri, arrayBuffer, true, version, Date.now());
     listeners.forEach((l) => {
       l({ file, created });
     });
@@ -867,6 +868,7 @@ const updateFileCache = (
   buffer: ArrayBuffer,
   overwrite: boolean,
   version?: number,
+  modified?: number,
 ) => {
   const existingFile = State.files.get(uri);
   let src = existingFile?.src || "";
@@ -890,6 +892,10 @@ const updateFileCache = (
     type,
     src,
     version: version ?? existingFile?.version ?? 0,
+    // Size from the buffer; modified from the OPFS file's lastModified on load
+    // or the write time on a fresh write (falls back to the cached value).
+    size: buffer.byteLength,
+    modified: modified ?? existingFile?.modified ?? Date.now(),
     languageId: type === "script" ? LANGUAGE_ID : null,
     text,
   };
