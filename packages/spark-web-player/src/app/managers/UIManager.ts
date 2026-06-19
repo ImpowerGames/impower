@@ -55,6 +55,17 @@ export default class UIManager extends Manager {
    */
   protected _staleIds = new Set<string>();
 
+  /**
+   * Per-reconcile-pass insertion cursor: parent → the last child we placed under
+   * it this pass. The create stream re-emits a parent's children in document
+   * order with `before=null` (append). Anchoring each append AFTER this cursor
+   * (rather than at the parent's end) makes re-emitting an unchanged child order
+   * a no-op — without it, every non-last child gets moved to the end on each
+   * render, churning #e's children (and every structural parent's) and flashing
+   * the whole tree even though nothing actually moved.
+   */
+  protected _placeCursor = new Map<Element, Element>();
+
   override async onInit() {
     await super.onInit();
     // A fresh UIManager built for a re-render inherits the prior render's overlay
@@ -67,6 +78,7 @@ export default class UIManager extends Manager {
    *  reuse-or-sweep candidate. Idempotent; safe to call before each re-render. */
   beginReconcilePass() {
     this._staleIds.clear();
+    this._placeCursor.clear();
     const overlay = this.app.overlay;
     if (overlay) {
       overlay.querySelectorAll("[id]").forEach((node) => {
@@ -281,18 +293,29 @@ export default class UIManager extends Manager {
       if (!isFontHost) {
         const parent = this.getElement(params.parent);
         if (parent) {
-          // Positional create: insert before the named sibling (reactive
-          // control-flow slot), else append. insertBefore(el, null) === append.
           // Only (re)insert when the position actually changed — a no-op move
           // still registers as a DOM mutation (and flashes in devtools), so a
-          // re-render that keeps the order touches nothing.
-          const before = params.before ? this.getElement(params.before) : null;
-          if (
-            el.parentElement !== parent ||
-            el.nextSibling !== (before ?? null)
-          ) {
-            parent.insertBefore(el, before ?? null);
+          // re-render that keeps the order must touch nothing.
+          if (params.before) {
+            // Explicit positional anchor (a reactive control-flow slot): el goes
+            // immediately before the named sibling.
+            const before = this.getElement(params.before);
+            if (el.parentElement !== parent || el.nextElementSibling !== before) {
+              parent.insertBefore(el, before ?? null);
+            }
+          } else {
+            // Append in CREATE-ORDER: place right after the previous child placed
+            // under this parent THIS pass (not at the parent's end), so a child
+            // that's already correctly ordered isn't pointlessly moved.
+            const cursor = this._placeCursor.get(parent) ?? null;
+            if (
+              el.parentElement !== parent ||
+              el.previousElementSibling !== cursor
+            ) {
+              parent.insertBefore(el, cursor ? cursor.nextSibling : parent.firstChild);
+            }
           }
+          this._placeCursor.set(parent, el);
         }
       }
       return CreateElementMessage.type.result(params.element);
