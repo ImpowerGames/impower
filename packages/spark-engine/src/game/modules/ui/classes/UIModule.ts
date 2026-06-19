@@ -342,9 +342,37 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     await Promise.all(tasks);
   }
 
-  protected generateId() {
-    // Id must start with a letter
-    return "e-" + this.context.system.uuid();
+  /** Reduce an element's `name`/`type` to a path-segment token: only
+   *  `[A-Za-z0-9_]` survive (runs of anything else collapse to `_`), so a
+   *  segment can never contain the `-` we use as the path separator. */
+  protected sanitizeIdPart(s: string): string {
+    return s.trim().replace(/[^A-Za-z0-9]+/g, "_") || "el";
+  }
+
+  /** Deterministic, structural element id (NOT a random uuid). An element's id
+   *  is its parent's id + a path segment derived from its `tag.classes` name
+   *  (idiomorph-style: identity follows tag+classes), disambiguated by a
+   *  monotonic per-base index from the parent. Because the index is a pure
+   *  function of the create-call sequence (not of which siblings are currently
+   *  live), a deterministic replay assigns the SAME ids every time — which is
+   *  what lets the player reconcile a live-preview re-render against the existing
+   *  DOM (reuse unchanged nodes) instead of tearing the whole tree down on every
+   *  edit. Content (dialogue/image) is keyed separately by stable target name,
+   *  so editing prose never perturbs these.
+   *
+   *  Format `parent-<base>-<index>` (index always present) is collision-free:
+   *  segments strictly alternate base/index after the `e` root, a base can never
+   *  contain `-`, and the index never repeats for a given (parent, base) — so
+   *  distinct elements always map to distinct ids, even under `for`/`if`
+   *  reconcile that mounts a new node before destroying the displaced one. */
+  protected generateId(parent: Element | null, name: string, type: string): string {
+    if (!parent) {
+      // Root element. Must start with a letter.
+      return "e";
+    }
+    const base = this.sanitizeIdPart(name || type);
+    const index = parent.nextChildIndex(base);
+    return `${parent.id}-${base}-${index}`;
   }
 
   protected createElement(
@@ -352,9 +380,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     state?: ElementState,
     before?: Element | null,
   ): Element {
-    const id = this.generateId();
     const name = state?.name || "";
     const type = state?.type || "div";
+    const id = this.generateId(parent, name, type);
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;

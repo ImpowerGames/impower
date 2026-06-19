@@ -24,6 +24,18 @@ export class Element {
     return this._name;
   }
 
+  /** Monotonic id-sequence per child base name. Never reuses a number even after
+   *  a child is removed, so structural ids stay collision-free under dynamic
+   *  `for`/`if` reconcile (where a new iteration is mounted before the displaced
+   *  one is destroyed). For a fresh build with no removals this is just the
+   *  positional index, so two identical (re)builds assign identical ids. */
+  protected _childSeqByBase: Map<string, number> = new Map();
+  nextChildIndex(base: string): number {
+    const n = this._childSeqByBase.get(base) ?? 0;
+    this._childSeqByBase.set(base, n + 1);
+    return n;
+  }
+
   constructor(
     parent: Element | null,
     id: string,

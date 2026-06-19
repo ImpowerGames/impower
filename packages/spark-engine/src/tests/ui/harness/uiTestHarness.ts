@@ -21,11 +21,12 @@
 //      (`ui.text.write` / `ui.image.write` / `audio.schedule` / `ui.observe`),
 //      feeding the *real* `Instructions` the interpreter produced.
 //
-// Determinism: element ids are `e-<uuid>` (8× Math.random in generateId) and
-// request ids are uuids. `normalizeMessages` rewrites every `e-<uuid>` to
-// `e-1, e-2, …` and every request id to `req-1, req-2, …` in first-seen
-// order, so snapshots are byte-stable. Time inputs are pinned (`now: () => 0`,
-// synchronous `setTimeout`).
+// Determinism: element ids are STRUCTURAL (`e-<path>`, derived from the screen
+// tree's tag.classes — see UIModule.generateId) and request ids are uuids.
+// `normalizeMessages` rewrites every real element id to `e-1, e-2, …` and every
+// request id to `req-1, req-2, …` in first-seen order, so snapshots are
+// byte-stable. Time inputs are pinned (`now: () => 0`, synchronous
+// `setTimeout`).
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "../../../game/core/classes/Game";
@@ -333,11 +334,46 @@ export async function flushMicrotasks(rounds = 5): Promise<void> {
 // ID normalization
 // ---------------------------------------------------------------------------
 
-const ELEMENT_ID_RE = /^e-[0-9A-Za-z]+$/;
-const ELEMENT_ID_INLINE_RE = /e-[0-9A-Za-z]{6,}/g;
+const REGEX_META_RE = /[.*+?^${}()|[\]\\]/g;
+const escapeRegExp = (s: string): string => s.replace(REGEX_META_RE, "\\$&");
+
+/** The authoritative element ids are the strings that appear in an id-bearing
+ *  protocol field (`element`/`parent`/`before`) of ANY message. Element ids are
+ *  now STRUCTURAL (e.g. `e-ui-main-div_hud-0`), not a fixed-shape uuid, so they
+ *  can't be recognized by a regex — we recognize them by membership in this set
+ *  instead. We must scan every message (not just `ui/create`): a captured slice
+ *  often starts after connect, so a target the beat only `ui/update`s was
+ *  created off-camera and its id appears solely as an `element` ref. */
+const ID_BEARING_KEYS = new Set(["element", "parent", "before"]);
+function collectElementIds(messages: any[]): string[] {
+  const ids = new Set<string>();
+  const visit = (value: any, key?: string): void => {
+    if (typeof value === "string") {
+      if (key && ID_BEARING_KEYS.has(key) && value) {
+        ids.add(value);
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const v of value) {
+        visit(v, key);
+      }
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const [k, v] of Object.entries(value)) {
+        visit(v, k);
+      }
+    }
+  };
+  visit(messages);
+  // Longest-first so the alternation never matches a shorter id that is a prefix
+  // of a longer one (e.g. `e-ui-0` inside `e-ui-0-main-0`).
+  return [...ids].sort((a, b) => b.length - a.length);
+}
 
 /** Rewrite nondeterministic ids to stable counters in first-seen order:
- *  element ids `e-<uuid>` → `e-1, e-2, …`; request ids (uuid) → `req-1, …`.
+ *  structural element ids → `e-1, e-2, …`; request ids (uuid) → `req-1, …`.
  *  Returns a deep-cloned, stable view safe to snapshot. */
 export function normalizeMessages(messages: any[]): unknown[] {
   const elementIds = new Map<string, string>();
@@ -360,17 +396,26 @@ export function normalizeMessages(messages: any[]): unknown[] {
     return mapped;
   };
 
-  // First pass: assign element ids in creation order. CreateElement.params
-  // carry the authoritative new-element id in `.element`; visiting messages in
-  // order makes the numbering deterministic regardless of where else the id
-  // later appears (parent refs, update targets, animate effects, …).
+  // A single alternation of every real element id, replaced left-to-right so
+  // the numbering follows first-seen (= creation) order whether an id appears
+  // standalone (`element`/`parent`/`before`) or inline (e.g. a style `url(#…)`).
+  // Boundary lookarounds (`[\w-]`) keep an id matching only as a whole token —
+  // without them the bare root id `e` would match the `e` inside every word
+  // (`none` → `none-1`). Longest-first ordering means a longer id wins over a
+  // shorter one sharing its prefix.
+  const idTokens = collectElementIds(messages);
+  const elementIdRe =
+    idTokens.length > 0
+      ? new RegExp(
+          `(?<![\\w-])(?:${idTokens.map(escapeRegExp).join("|")})(?![\\w-])`,
+          "g",
+        )
+      : null;
+
   const normalizeValue = (value: any): any => {
     if (typeof value === "string") {
-      if (ELEMENT_ID_RE.test(value)) {
-        return mapElementId(value);
-      }
-      if (ELEMENT_ID_INLINE_RE.test(value)) {
-        return value.replace(ELEMENT_ID_INLINE_RE, (m) => mapElementId(m));
+      if (elementIdRe) {
+        return value.replace(elementIdRe, (m) => mapElementId(m));
       }
       return value;
     }
