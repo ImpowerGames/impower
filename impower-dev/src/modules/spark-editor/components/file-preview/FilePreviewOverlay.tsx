@@ -1,6 +1,7 @@
 import { ChevronRight, FileText, Music, X } from "@impower/impower-ui/components";
 import { createPortal } from "preact/compat";
-import { useEffect } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
+import { useMountTransition } from "../../hooks/useMountTransition";
 import ImagePreview from "./ImagePreview";
 
 /** A previewable asset. `kind` is the resolved media category. */
@@ -19,6 +20,8 @@ export type PreviewItem = {
 };
 
 export type FilePreviewOverlayProps = {
+  /** Whether the preview is open (animates in/out). */
+  open: boolean;
   /** The navigable list (previewable files in display order). */
   items: PreviewItem[];
   /** Index of the item currently shown. */
@@ -35,16 +38,27 @@ export type FilePreviewOverlayProps = {
  * closes; ← / → step. Portaled to <body> so nothing clips the fixed overlay.
  */
 export default function FilePreviewOverlay({
+  open,
   items,
   index,
   onIndexChange,
   onClose,
 }: FilePreviewOverlayProps) {
-  const item = items[index];
+  const { mounted, visible } = useMountTransition(open, 200);
+  // Keep showing the last item while animating out (the parent clears its index
+  // on close, but we want the closing frame to still render what was open).
+  const lastIndex = useRef(index);
+  if (open) {
+    lastIndex.current = index;
+  }
+  const item = items[open ? index : lastIndex.current];
   const total = items.length;
 
   // Keyboard: Escape closes, arrows step (the old engine was click-only).
   useEffect(() => {
+    if (!open) {
+      return;
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
@@ -56,14 +70,23 @@ export default function FilePreviewOverlay({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [index, total, onClose, onIndexChange]);
+  }, [open, index, total, onClose, onIndexChange]);
 
-  if (!item || typeof document === "undefined") {
+  if (!mounted || !item || typeof document === "undefined") {
     return null;
   }
 
   return createPortal(
-    <div class="fixed inset-0 z-50 flex flex-col bg-black/95 text-white">
+    <div
+      class={`fixed inset-0 z-50 bg-black/95 transition-opacity duration-200 ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
+    >
+      <div
+        class={`absolute inset-0 flex flex-col text-white transition-transform duration-200 ease-out ${
+          visible ? "translate-y-0" : "translate-y-3"
+        }`}
+      >
       {/* Header: name (+ remote URL for url assets) and close. */}
       <div class="flex flex-none flex-row items-center gap-3 px-4 py-3">
         <div class="min-w-0 flex-1">
@@ -113,6 +136,7 @@ export default function FilePreviewOverlay({
           </button>
         </div>
       )}
+      </div>
     </div>,
     document.body,
   );

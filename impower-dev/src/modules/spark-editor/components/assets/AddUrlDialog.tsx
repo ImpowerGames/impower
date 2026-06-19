@@ -1,6 +1,7 @@
 import { Button, Link, X } from "@impower/impower-ui/components";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { useMountTransition } from "../../hooks/useMountTransition";
 
 export type AddUrlDialogProps = {
   open: boolean;
@@ -37,6 +38,7 @@ export default function AddUrlDialog({
   const [name, setName] = useState("");
   const [nameEdited, setNameEdited] = useState(false);
   const urlRef = useRef<HTMLInputElement | null>(null);
+  const { mounted, visible } = useMountTransition(open, 200);
 
   // Reset fields and focus the URL input each time the dialog opens.
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function AddUrlDialog({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open || typeof document === "undefined") {
+  if (!mounted || typeof document === "undefined") {
     return null;
   }
 
@@ -77,12 +79,16 @@ export default function AddUrlDialog({
 
   return createPortal(
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      class={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 transition-opacity duration-200 ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
       onClick={onClose}
       role="presentation"
     >
       <div
-        class="w-full max-w-sm rounded-lg bg-engine-800 p-5 text-foreground shadow-2xl ring-1 ring-foreground/10"
+        class={`w-full max-w-sm rounded-lg bg-engine-800 p-5 text-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 ease-out ${
+          visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
+        }`}
         role="dialog"
         aria-modal="true"
         aria-label="Add URL"

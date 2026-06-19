@@ -1123,10 +1123,11 @@ export default function FileList({
           {drag.proxy.label}
         </div>
       )}
-      {previewIndex != null && previewItems[previewIndex] && (
+      {enablePreview && (
         <FilePreviewOverlay
+          open={previewIndex != null && previewItems[previewIndex] != null}
           items={previewItems}
-          index={previewIndex}
+          index={previewIndex ?? 0}
           onIndexChange={setPreviewIndex}
           onClose={() => setPreviewIndex(null)}
         />

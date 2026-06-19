@@ -1,4 +1,4 @@
-import { useRef } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import { DOUBLE_TAP_SCALE, useImageZoom } from "./useImageZoom";
 
 export type ImagePreviewProps = {
@@ -14,6 +14,7 @@ export type ImagePreviewProps = {
  */
 export default function ImagePreview({ src, alt }: ImagePreviewProps) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const zoom = useImageZoom(ref, src);
 
   return (
@@ -46,7 +47,10 @@ export default function ImagePreview({ src, alt }: ImagePreviewProps) {
           src={src}
           alt={alt ?? ""}
           draggable={false}
-          class="size-full object-contain"
+          onLoad={() => setLoaded(true)}
+          class={`size-full object-contain transition-opacity duration-200 ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
         />
       </div>
     </div>
