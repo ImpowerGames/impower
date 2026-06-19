@@ -1369,10 +1369,17 @@ export class GamePlayerController {
     this._options ??= {};
     this._options.previewFrom = validPreviewFrom;
 
-    const shouldBuildNewGame = !this._game || programChanged;
-
-    if (shouldBuildNewGame) {
+    // Reuse the Game + Application across edits instead of rebuilding them.
+    // `updateProgram` swaps the recompiled program + a fresh Story IN PLACE (the
+    // intended live-edit path), keeping the SAME Game object — so the Application
+    // (bound to that object) stays valid and we never destroy/recreate the
+    // Application or its pixi canvas (the old `buildApp`-every-edit was the
+    // game-view blink + per-edit object churn).
+    if (!this._game) {
       this._game = await this.buildGame(program);
+      this.listen(this._game);
+    } else if (programChanged) {
+      this._game.updateProgram(program);
     }
 
     if (!this._game) {
@@ -1390,23 +1397,26 @@ export class GamePlayerController {
       this._game.simulation = "fail";
     }
 
-    if (shouldBuildNewGame) {
-      this.listen(this._game);
+    if (!this._app) {
+      // First render: build the Application (renderer/canvas + managers) and
+      // connect the game (its onConnected renders the screen tree).
+      this._app = await this.buildApp(this._game);
+    } else {
+      // Re-render in place: adopt the preserved overlay DOM (beginReconcilePass),
+      // then re-run the game's onConnected + restore via connectGame — the
+      // re-emitted create stream reconciles against the existing DOM. No app /
+      // canvas / manager teardown.
+      this._app.ui.beginReconcilePass();
+      await this._app.connectGame();
     }
-
-    this._app = await this.buildApp(this._game);
 
     if (validPreviewFrom) {
       this._game.preview(validPreviewFrom.file, validPreviewFrom.line);
     }
 
-    // DOM reconcile (live-preview HMR): buildApp preserved the previous render's
-    // overlay DOM and the new UIManager adopted it (beginReconcilePass), so the
-    // re-emit above reused unchanged nodes in place instead of rebuilding the
-    // tree. Now that the full create/write stream for this preview point has been
-    // dispatched, sweep whatever wasn't re-emitted (elements gone since the last
-    // edit). The emits are synchronous through this point, so the stale set is
-    // settled here.
+    // DOM reconcile tail: the full create/write stream for this preview point has
+    // now been dispatched (synchronously through here), so sweep whatever wasn't
+    // re-emitted — elements that disappeared since the last edit.
     this._app?.ui.sweepReconcile();
   };
 }
