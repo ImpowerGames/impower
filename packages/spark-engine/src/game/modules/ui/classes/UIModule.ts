@@ -90,6 +90,17 @@ export interface UIState {
   image?: Record<string, ImageState[]>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
+  /**
+   * The currently-open reactive screens, in mount order (layering). Author
+   * `[[open/close/navigate]]` directives mutate the in-memory {@link
+   * UIModule._mountedScreens}, which is NOT serializable; this mirror IS part of
+   * the serialized state, so a checkpoint/scrub-preview restore can re-mount the
+   * same screens via {@link UIModule.onRestore} — exactly how `image` rides
+   * save/restore. `main` is excluded (it auto-mounts at connect). Each entry
+   * keeps only `name` (+ `container` for diagnostics); the DOM is rebuilt from
+   * the screen AST + current reactive state, so nothing else needs persisting.
+   */
+  screen?: { name: string; container?: string }[];
 }
 
 /** Loop-variable bindings in effect for a scope: each enclosing `for` loop's
@@ -337,6 +348,31 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (this._state.attributes) {
       for (const [target] of Object.entries(this._state.attributes)) {
         tasks.push(this.attributes.restore(target));
+      }
+    }
+    // Re-mount author-opened reactive screens recorded in the serialized state
+    // (mirrors image.restore). `onConnected` already mounted `main`; here we add
+    // the screens that `[[open/navigate]]` opened on earlier beats, so a
+    // checkpoint/scrub-preview shows the correct screen set instead of just
+    // `main`. Mount instantly via constructScreenFromAst (NOT openScreen) so no
+    // enter transition replays during a scrub. The story state is already loaded,
+    // so each screen's reactive bindings resolve against the restored values.
+    if (this._state.screen) {
+      let remounted = false;
+      for (const { name } of this._state.screen) {
+        if (name && name !== "main" && !this._mountedScreens.has(name)) {
+          const screen = this._game.program?.sparkle?.screens?.[name];
+          if (screen) {
+            this.constructScreenFromAst(screen);
+            remounted = true;
+          }
+        }
+      }
+      if (remounted) {
+        // Settle load-time reactive residue (as openScreen does) and reveal the
+        // screens layer so the re-mounted screens are visible.
+        this._game.story.variablesState.takeReactiveChanges();
+        this.reveal();
       }
     }
     await Promise.all(tasks);
@@ -2306,6 +2342,54 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     ]);
   }
 
+  /** Fold a screen directive into the serialized open-set (`_state.screen`),
+   *  mirroring `Image.saveState`. Runs for EVERY directive regardless of
+   *  `_reactive`/connection state — crucially, the route-simulation game that
+   *  builds scrub checkpoints (workspace.worker) is never connected, so its
+   *  `openScreen` short-circuits on the `!_reactive` guard and would never record
+   *  the open-set here. Recording at the fan-out keeps the checkpoint correct so
+   *  {@link onRestore} can re-mount the right screens. `main` auto-mounts at
+   *  connect and is never recorded. */
+  protected saveScreenState(e: ScreenInstruction): void {
+    const screens = this._game.program?.sparkle?.screens;
+    const recordOpen = (name: string) => {
+      if (!name || name === "main" || !screens?.[name]) {
+        return;
+      }
+      const container = screens[name]?.container;
+      this._state.screen ??= [];
+      if (!this._state.screen.some((s) => s.name === name)) {
+        this._state.screen.push({
+          name,
+          ...(container ? { container } : {}),
+        });
+      }
+    };
+    if (e.control === "close") {
+      if (this._state.screen) {
+        this._state.screen = this._state.screen.filter((s) => s.name !== e.name);
+      }
+      return;
+    }
+    if (e.control === "navigate") {
+      // Incomplete `[[navigate <container>]]` (no destination) is a runtime
+      // no-op — leave the set untouched (matches navigateScreen).
+      if (!e.name) {
+        return;
+      }
+      // Close the open screens this navigate replaces: scoped to the container
+      // when given (the target is spared), else the whole stack (legacy).
+      if (this._state.screen) {
+        this._state.screen = this._state.screen.filter((s) =>
+          e.container ? s.container !== e.container || s.name === e.name : s.name === e.name,
+        );
+      }
+      recordOpen(e.name);
+      return;
+    }
+    recordOpen(e.name); // open
+  }
+
   /** Apply a beat's `[[open/close/navigate SCREEN]]` directives (Coordinator
    *  fan-out), mirroring `image.write`/`audio.schedule`. Awaits all transitions so
    *  a beat with a `wait` directive can hold advance until they settle. */
@@ -2313,6 +2397,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     instructions: ScreenInstruction[],
     instant: boolean,
   ): Promise<void> {
+    // Fold the open-set into serialized state FIRST (in directive order), so the
+    // checkpoint reflects the net result even when the (unconnected) simulation
+    // game can't run the reactive mount primitives below.
+    for (const e of instructions) {
+      this.saveScreenState(e);
+    }
     await Promise.all(
       instructions.map((e) => {
         const clauses = {

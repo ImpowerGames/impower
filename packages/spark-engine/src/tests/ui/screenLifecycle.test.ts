@@ -13,7 +13,11 @@
 // their "mounted at connect" assumption).
 
 import { describe, expect, test } from "vitest";
-import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
+import {
+  createHarness,
+  flushMicrotasks,
+  MAIN_URI,
+} from "./harness/uiTestHarness";
 
 // A program with TWO screens: the builtin-overriding `main` (auto-opens) and a
 // `hud` (only mounts on `[[open hud]]`). The scene emits the directives.
@@ -357,5 +361,145 @@ end
     await flushMicrotasks();
     // pause stays open — nothing was torn down.
     expect(ui._mountedScreens.has("pause")).toBe(true);
+  });
+});
+
+// Scrub/restore: reactive screens must survive a checkpoint save→load→restore so
+// the editor's cursor-scrub preview shows the screens that earlier [[open]]/
+// [[navigate]] beats opened — not just the connect-time builtin `main`. The fix
+// mirrors images: openScreen/closeScreen record the open set into the serialized
+// UIState (`_state.screen`), and onRestore re-mounts it (the image.restore
+// analog). Without this, a scrub restores story+text+image but drops author
+// screens because `_mountedScreens` is in-memory only.
+describe("screen scrub/restore (reactive screens survive checkpoint restore)", () => {
+  const drive = async (h: ReturnType<typeof createHarness>) => {
+    const beat = h.nextBeat();
+    if (beat) {
+      await h.display(beat, true);
+      await flushMicrotasks();
+    }
+    return beat;
+  };
+
+  test("openScreen records the open set into serialized UIState (_state.screen)", async () => {
+    const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    const ui: any = h.game.module.ui;
+    // Nothing recorded before any [[open]] (main auto-mounts but isn't recorded).
+    expect(ui._state.screen ?? []).toEqual([]);
+    await drive(h); // [[open hud]]   (overlay container)
+    await drive(h); // [[open pause]] (menu container)
+    expect(ui._state.screen).toEqual([
+      { name: "hud", container: "overlay" },
+      { name: "pause", container: "menu" },
+    ]);
+  });
+
+  test("closeScreen removes it from the serialized set", async () => {
+    // SOURCE: main + hud (no container). open hud, then close hud.
+    const h = createHarness(SOURCE, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    const ui: any = h.game.module.ui;
+    await drive(h); // [[open hud]]
+    expect(ui._state.screen).toEqual([{ name: "hud" }]);
+    await drive(h); // "Hello."
+    await drive(h); // [[close hud]]
+    expect(ui._state.screen).toEqual([]);
+  });
+
+  test("navigate leaves the set as the destination (closed source dropped)", async () => {
+    const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    const ui: any = h.game.module.ui;
+    await drive(h); // [[open hud]]
+    await drive(h); // [[open pause]]
+    await drive(h); // "Hello."
+    await drive(h); // [[navigate menu to settings]]
+    // hud (overlay) untouched; within `menu`, pause replaced by settings.
+    expect(ui._state.screen).toEqual([
+      { name: "hud", container: "overlay" },
+      { name: "settings", container: "menu" },
+    ]);
+  });
+
+  test("a checkpoint restore re-mounts the open screens (the scrub fix)", async () => {
+    const h1 = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
+    await h1.ready;
+    h1.jumpTo("start");
+    await drive(h1); // [[open hud]]
+    await drive(h1); // [[open pause]]
+    const ui1: any = h1.game.module.ui;
+    expect(ui1._mountedScreens.has("hud")).toBe(true);
+    expect(ui1._mountedScreens.has("pause")).toBe(true);
+    const cp = h1.game.save();
+    expect(typeof cp).toBe("string");
+
+    // Fresh game: load the checkpoint, THEN connect (onConnected mounts `main`,
+    // onRestore re-mounts the recorded author screens) — the editor scrub flow.
+    const h2 = createHarness(NAV_SOURCE, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      loadCheckpoint: cp as string,
+    });
+    await h2.ready;
+    const ui2: any = h2.game.module.ui;
+    expect(ui2._mountedScreens.has("main")).toBe(true); // connect-time
+    expect(ui2._mountedScreens.has("hud")).toBe(true); // restored
+    expect(ui2._mountedScreens.has("pause")).toBe(true); // restored
+  });
+
+  test("restore after navigate shows the destination, not the closed source", async () => {
+    const h1 = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
+    await h1.ready;
+    h1.jumpTo("start");
+    await drive(h1); // [[open hud]]
+    await drive(h1); // [[open pause]]
+    await drive(h1); // "Hello."
+    await drive(h1); // [[navigate menu to settings]]
+    const cp = h1.game.save();
+
+    const h2 = createHarness(NAV_SOURCE, 0, {
+      reactive: true,
+      autoOpenAll: false,
+      loadCheckpoint: cp as string,
+    });
+    await h2.ready;
+    const ui2: any = h2.game.module.ui;
+    expect(ui2._mountedScreens.has("hud")).toBe(true); // overlay, untouched
+    expect(ui2._mountedScreens.has("settings")).toBe(true); // menu destination
+    expect(ui2._mountedScreens.has("pause")).toBe(false); // menu source closed
+  });
+
+  test("UNCONNECTED route simulation records the open-set (real production scrub path)", async () => {
+    // The editor's scrub checkpoint is built by workspace.worker's Game, which is
+    // NEVER connected — so `_reactive` stays false and openScreen short-circuits.
+    // The open-set must be recorded at the fan-out (saveScreenState), not behind
+    // the _reactive guard. This reproduces that exact path: a `connect: false`
+    // game runs the route sim, and its checkpoint must still carry the screens.
+    const h1 = createHarness(NAV_SOURCE, 0, { connect: false });
+    const g1: any = h1.game;
+    g1.setStartFrom({ file: MAIN_URI, line: 21 }); // "Bye." — after navigate
+    g1.simulate();
+    expect(g1.module.ui._reactive).toBe(false); // never connected
+    expect(g1.module.ui._state.screen).toEqual([
+      { name: "hud", container: "overlay" },
+      { name: "settings", container: "menu" },
+    ]);
+    const cp = g1.save();
+    expect(typeof cp).toBe("string");
+
+    // Load that checkpoint into a fresh CONNECTED game → onRestore re-mounts.
+    const h2 = createHarness(NAV_SOURCE, 0, {
+      autoOpenAll: false,
+      loadCheckpoint: cp as string,
+    });
+    await h2.ready;
+    const ui2: any = h2.game.module.ui;
+    expect(ui2._mountedScreens.has("hud")).toBe(true);
+    expect(ui2._mountedScreens.has("settings")).toBe(true);
+    expect(ui2._mountedScreens.has("pause")).toBe(false);
   });
 });

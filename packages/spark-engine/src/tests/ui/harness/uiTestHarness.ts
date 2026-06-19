@@ -32,7 +32,7 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { Game } from "../../../game/core/classes/Game";
 import type { Instructions } from "../../../game/core/types/Instructions";
 
-const MAIN_URI = "inmemory:///main.sd";
+export const MAIN_URI = "inmemory:///main.sd";
 
 export interface UIHarness {
   game: Game;
@@ -135,6 +135,16 @@ export function createHarness(
     reactive?: boolean;
     autoOpenAll?: boolean;
     experimentalDisplayCalls?: boolean;
+    /** Load a saved checkpoint BEFORE connecting — reproduces the editor's
+     *  scrub/restore flow (`game.load(checkpoint)` then `connectGame()` →
+     *  onConnected + onRestore). Lets a test verify that restore re-mounts the
+     *  reactive screens recorded in the checkpoint. */
+    loadCheckpoint?: string;
+    /** Skip the eager connect — yields an UNCONNECTED game (`ready` resolves
+     *  immediately, onConnected never runs so `_reactive` stays false). Mirrors
+     *  the workspace.worker route-simulation game that builds scrub checkpoints
+     *  without ever connecting. */
+    connect?: boolean;
   },
 ): UIHarness {
   const { program } = compileUI(source, {
@@ -166,6 +176,13 @@ export function createHarness(
   // `autoOpenAll: false`.
   (game.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
 
+  // Reproduce the scrub/restore flow: load the checkpoint BEFORE connect, so the
+  // subsequent connect runs onConnected (mounts `main`) then onRestore (re-mounts
+  // the screens recorded in the checkpoint's serialized UI state).
+  if (opts?.loadCheckpoint) {
+    game.load(opts.loadCheckpoint);
+  }
+
   const respond = (msg: any) => {
     messages.push(msg);
     if (msg && typeof msg === "object" && "id" in msg && "params" in msg) {
@@ -194,8 +211,12 @@ export function createHarness(
 
   // Connect eagerly (kicks off onConnected screen/style construction +
   // restore). `ready` resolves only after the whole chain — including the
-  // deferred request responses it awaits — has drained.
-  const ready = ensureConnected().then(() => flushMicrotasks(10));
+  // deferred request responses it awaits — has drained. With `connect: false`
+  // the game stays unconnected (the route-simulation case).
+  const ready =
+    opts?.connect === false
+      ? Promise.resolve()
+      : ensureConnected().then(() => flushMicrotasks(10));
 
   const harness: UIHarness = {
     game,
