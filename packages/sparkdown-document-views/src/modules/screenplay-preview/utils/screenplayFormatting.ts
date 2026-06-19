@@ -90,6 +90,10 @@ const INLINE_HIDDEN_TAGS = [
   tags.macroName,
   tags.meta,
   tags.logicOperator,
+  // Flow-control keywords (choose/then/end/done/if/else/do/...) are logic, never
+  // screenplay prose. They surface as `keyword.control.*` (controlKeyword) when
+  // the walk descends into a Luau flow-block container, so hide them inline.
+  tags.controlKeyword,
 ];
 
 const createHighlightStyle = (inlineHiddenStyle: Record<string, string>) =>
@@ -312,6 +316,31 @@ export const decorate = (
     );
   };
 
+  // The Luau flow-control container nodes the grammar emits — choose/then,
+  // if/elseif/else, do, control, and the alternator blocks
+  // (LuauSparkdownChooseBlock, LuauSparkdownIfBlock, ...ThenClause, etc.).
+  const isLuauFlowBlockContainer = (name: string) =>
+    /^LuauSparkdown[A-Za-z]*(Block|Clause)$/.test(name);
+
+  // Logic that lives INSIDE Luau flow blocks (and at top level) but is never
+  // screenplay prose. The flow KEYWORDS (`if`/`else`/`choose`/`then`/`end`/…)
+  // already hide via the controlKeyword inline tag, but these nodes carry
+  // their own non-keyword tokens — variable names, operators, numbers, divert
+  // paths, label names — that the inline-hide tag set doesn't cover, so they
+  // leak into the rendered screenplay as raw `<unknown>` text. Hide each node
+  // wholesale (the walk does not descend, so nested tokens never re-surface):
+  //   Divert                  `-> WishCourage`, `-> Alley`
+  //   Label                   the `(greeting)` anchor on a `then`/label line
+  //   LuauExplicitStatement   a bare `& c.trust -= 1` discard-call/assignment
+  //   Luau*BlockCondition     the `trust >= 1 then` / `c.trust == 0 then` head
+  //                           of an `if`/`elseif` block (includes the `then`)
+  const isHiddenFlowLogic = (name: string) =>
+    name === "Divert" ||
+    name === "Label" ||
+    name === "LuauExplicitStatement" ||
+    name === "LuauIfBlockCondition" ||
+    name === "LuauElseifBlockCondition";
+
   const isBlockHidden = (nodeRef: SyntaxNodeRef) => {
     const name = nodeRef.name as SparkdownNodeName;
     if (nodeRef.node.parent?.name === "sparkdown") {
@@ -338,7 +367,13 @@ export const decorate = (
         name !== "ImplicitAction" &&
         name !== "Choice" &&
         name !== "Newline" &&
-        name !== "Whitespace"
+        name !== "Whitespace" &&
+        // Flow-block containers wrap their bodies as a single top-level node.
+        // Hiding them whole collapses the display content inside (choices,
+        // dialogue, action). Treat them as transparent so the walk descends —
+        // the flow KEYWORDS hide via the inline tag rules and the inner display
+        // content renders normally.
+        !isLuauFlowBlockContainer(name)
       );
     }
     return false;
@@ -639,6 +674,11 @@ export const decorate = (
         // parser emits the cue name without it, and the dialogue widget
         // re-adds it visually when rendering. Hide the source `:` so the
         // raw character cue doesn't show double-colon.
+        hideInlineRange(nodeRef);
+        return false;
+      } else if (isHiddenFlowLogic(name)) {
+        // Divert targets, then-labels, bare `& …` statements, and `if`/`elseif`
+        // conditions — pure logic, never displayed in the screenplay preview.
         hideInlineRange(nodeRef);
         return false;
       } else if (isCentered(nodeRef)) {
