@@ -3,16 +3,19 @@
 // For each of many DIVERSE edits, compares two programs compiled from the SAME
 // resulting text:
 //   - INCREMENTAL: one persistent compiler driven by updateDocument + compile
-//     (the HMR path; reuses cached per-chunk work once incrementality lands).
+//     applying a MINIMAL-RANGE edit (a real keystroke-sized change), so the
+//     incremental parser carries forward unchanged chunks and the per-chunk
+//     reuse path is genuinely exercised.
 //   - COLD: a fresh compiler configured from the post-edit text from scratch.
 // They must be byte-identical across compiled ink JSON + every *Locations map +
-// context + diagnostics + ui. Any incrementality bug (stale cache, missed
-// cross-flow invalidation — visit counts, divert paths, renames) flips this.
+// context + diagnostics + ui + colorAnnotations. Any incrementality bug (stale
+// cache, missed cross-flow invalidation — visit counts, divert paths, renames,
+// line shifts) flips this.
 //
 // This is the gold-standard safety net the incremental work is built against;
-// it intentionally uses a screenplay with cross-flow coupling (diverts between
-// scenes, read-counts, defines/tables) — exactly where naive per-chunk reuse
-// breaks — not the uniform perf fixture.
+// it uses a screenplay with cross-flow coupling (diverts between scenes,
+// read-counts, defines/tables, chained dialogue) — exactly where naive
+// per-chunk reuse breaks — not the uniform perf fixture.
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -60,21 +63,25 @@ function coupledScreenplay(): string {
   return L.join("\n");
 }
 
+// Each edit is a single find -> replace applied to the FIRST occurrence, turned
+// into a minimal-range contentChange so only the affected region reparses.
 interface Edit {
   name: string;
-  // returns [find, replaceWith] applied to current text (first occurrence)
-  apply: (text: string) => string;
+  find: string;
+  replace: string;
 }
 
 const edits: Edit[] = [
-  { name: "same-line char insert in dialogue", apply: (t) => t.replace("Line one of dialogue in scene 5.", "Line one of dialogue in scene 5x.") },
-  { name: "newline insert (shifts lines below)", apply: (t) => t.replace("Action describing room 6 in some detail here.", "Action describing room 6 in some detail here.\n  An extra action line.") },
-  { name: "edit define table value", apply: (t) => t.replace("speed = 5", "speed = 9") },
-  { name: "add a read-count reference (changes visit-count coupling)", apply: (t) => t.replace("Not yet in scene 7.", "Not yet in scene 7, {scene_2}.") },
-  { name: "remove a cross-flow divert", apply: (t) => t.replace("-> scene_10", "-> DONE") },
-  { name: "change function body", apply: (t) => t.replace("return x * 2 + 1", "return x * 3 + 1") },
-  { name: "edit store initial value", apply: (t) => t.replace("store trust = 0", "store trust = 1") },
-  { name: "append a whole new scene at end", apply: (t) => t + "\n= scene_extra\nINT. NEW - DAY\n:\n  Brand new action.\n-> DONE\n" },
+  { name: "same-line char insert in dialogue", find: "Line one of dialogue in scene 5.", replace: "Line one of dialogue in scene 5x." },
+  { name: "newline insert (shifts lines below)", find: "Action describing room 6 in some detail here.", replace: "Action describing room 6 in some detail here.\n  An extra action line." },
+  { name: "edit define table value", find: "speed = 5", replace: "speed = 9" },
+  { name: "add read-count reference (visit-count coupling)", find: "Not yet in scene 7.", replace: "Not yet in scene 7, {scene_2}." },
+  { name: "remove a cross-flow divert", find: "-> scene_10", replace: "-> DONE" },
+  { name: "change function body", find: "return x * 2 + 1", replace: "return x * 3 + 1" },
+  { name: "edit store initial value", find: "store trust = 0", replace: "store trust = 1" },
+  { name: "rename a scene (cross-flow divert target)", find: "= scene_4", replace: "= scene_renamed" },
+  { name: "delete a whole line above many flows", find: "store visited_count = 0\n", replace: "" },
+  { name: "append a whole new scene at end", find: "-> scene_2\n", replace: "-> scene_2\n\n= scene_extra\nINT. NEW - DAY\n:\n  Brand new action.\n-> DONE\n" },
 ];
 
 function pick(p: any) {
@@ -91,9 +98,6 @@ function pick(p: any) {
     context: p.context,
     diagnostics: p.diagnostics,
     ui: p.ui,
-    // colorAnnotations is also a whole-document reference walk and is NOT in
-    // the perfEquivalence gate's pick — include it here so incrementality can't
-    // silently break it.
     colorAnnotations: p.colorAnnotations,
   };
 }
@@ -114,59 +118,107 @@ function stable(value: unknown): string {
   return JSON.stringify(walk(value));
 }
 
+const URI = "inmemory:///main.sd";
+
 function coldCompile(text: string) {
-  const uri = "inmemory:///main.sd";
   const c = new SparkdownCompiler();
   c.configure({
-    files: [{ uri, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+    files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
   });
-  return pick(c.compile({ textDocument: { uri } }).program);
+  return pick(c.compile({ textDocument: { uri: URI } }).program);
+}
+
+// Translate an absolute offset into a {line, character} position in `text`.
+function posAt(text: string, offset: number) {
+  let line = 0;
+  let lineStart = 0;
+  for (let i = 0; i < offset; i++) {
+    if (text[i] === "\n") {
+      line++;
+      lineStart = i + 1;
+    }
+  }
+  return { line, character: offset - lineStart };
 }
 
 describe("compiler incremental equivalence", () => {
-  it("incremental recompile == cold compile across diverse edits", () => {
+  // Each diverse edit is applied as a SINGLE minimal-range incremental update
+  // from a freshly-configured compiler, then compared to a cold compile of the
+  // resulting text. This isolates per-edit-type correctness (exactly what the
+  // per-chunk caching must preserve) without conflating it with any pre-existing
+  // accumulated incremental-parser state drift across long edit sequences (the
+  // cumulative path is separately stressed by the fuzz test below).
+  for (const edit of edits) {
+    it(`incremental == cold for edit: ${edit.name}`, () => {
+      const realWarn = console.warn;
+      const realError = console.error;
+      console.warn = () => {};
+      console.error = () => {};
+      try {
+        const base = coupledScreenplay();
+        const offset = base.indexOf(edit.find);
+        expect(offset, `find "${edit.find}" present`).toBeGreaterThanOrEqual(0);
+        const start = posAt(base, offset);
+        const end = posAt(base, offset + edit.find.length);
+        const after = base.slice(0, offset) + edit.replace + base.slice(offset + edit.find.length);
+
+        const incr = new SparkdownCompiler();
+        incr.configure({
+          files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: base, version: 1, languageId: "sparkdown" }],
+        });
+        incr.compile({ textDocument: { uri: URI } });
+        incr.updateDocument({
+          textDocument: { uri: URI, version: 2 },
+          contentChanges: [{ range: { start, end }, text: edit.replace }],
+        });
+        const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+        const coldProg = coldCompile(after);
+        expect(stable(incrProg)).toBe(stable(coldProg));
+      } finally {
+        console.warn = realWarn;
+        console.error = realError;
+      }
+    });
+  }
+
+  it("incremental == cold under randomized single-char edits (fuzz)", () => {
     const realWarn = console.warn;
     const realError = console.error;
     console.warn = () => {};
     console.error = () => {};
     try {
-      const uri = "inmemory:///main.sd";
       let text = coupledScreenplay();
-
-      // Persistent compiler (incremental path): configure once, then replace
-      // the whole document text per edit via a full-range update + compile.
       const incr = new SparkdownCompiler();
       incr.configure({
-        files: [{ uri, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+        files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
       });
-      incr.compile({ textDocument: { uri } });
+      incr.compile({ textDocument: { uri: URI } });
+
+      // Deterministic LCG so the fuzz is reproducible (no Math.random).
+      let seed = 0x2f6e2b1;
+      const rand = () => {
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        return seed / 0x7fffffff;
+      };
+      const inserts = ["x", "\n", " ", "1", "}", "{trust}"];
 
       let version = 1;
-      for (const edit of edits) {
-        const next = edit.apply(text);
-        expect(next, `edit "${edit.name}" should change the text`).not.toBe(text);
-
-        // Apply as a full-document replacement so we exercise the incremental
-        // path without hand-computing ranges. (The compiler diffs internally.)
-        const lines = text.split("\n");
+      for (let n = 0; n < 40; n++) {
+        const insert = inserts[Math.floor(rand() * inserts.length)]!;
+        const offset = Math.floor(rand() * text.length);
+        const start = posAt(text, offset);
         version += 1;
         incr.updateDocument({
-          textDocument: { uri, version },
-          contentChanges: [
-            {
-              range: {
-                start: { line: 0, character: 0 },
-                end: { line: lines.length - 1, character: lines[lines.length - 1]!.length },
-              },
-              text: next,
-            },
-          ],
+          textDocument: { uri: URI, version },
+          contentChanges: [{ range: { start, end: start }, text: insert }],
         });
-        const incrProg = pick(incr.compile({ textDocument: { uri } }).program);
-        const coldProg = coldCompile(next);
+        text = text.slice(0, offset) + insert + text.slice(offset);
 
-        expect(stable(incrProg), `after edit "${edit.name}"`).toBe(stable(coldProg));
-        text = next;
+        const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+        const coldProg = coldCompile(text);
+        expect(stable(incrProg), `after fuzz edit #${n} insert ${JSON.stringify(insert)} @${offset}`).toBe(
+          stable(coldProg),
+        );
       }
     } finally {
       console.warn = realWarn;
