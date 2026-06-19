@@ -22,11 +22,20 @@ const EDGE_MAX_SPEED = 16;
 export type TreeDragRow = {
   /** Project-relative path of the row (its drag identity). */
   path: string;
+  /**
+   * The full set of paths being dragged. Omitted for a single-row drag (treated
+   * as `[path]`); set when dragging a multi-selection so the whole group moves.
+   */
+  paths?: string[];
   /** Folders are valid drop targets; files are not. */
   isDirectory: boolean;
   /** Display label shown inside the floating drag proxy. */
   label: string;
 };
+
+/** The set of paths a drag carries (a single-row drag is just `[path]`). */
+const dragPathsOf = (row: TreeDragRow): string[] =>
+  row.paths && row.paths.length > 0 ? row.paths : [row.path];
 
 export type TreeDrag = {
   /** Path of the row currently being dragged (render it at reduced opacity). */
@@ -53,16 +62,18 @@ type DragInternal = {
 
 type TreeDragOpts = {
   scrollRef: { current: HTMLElement | null };
-  /** Move `srcPath` into `folderPath`. */
-  onDropInto: (folderPath: string, srcPath: string) => void;
-  /** Move `srcPath` to the project root. */
-  onDropToRoot: (srcPath: string) => void;
+  /** Move every `srcPath` into `folderPath`. */
+  onDropInto: (folderPath: string, srcPaths: string[]) => void;
+  /** Move every `srcPath` to the project root. */
+  onDropToRoot: (srcPaths: string[]) => void;
 };
 
-// A folder is a legal target unless it's the dragged item itself or one of its
-// descendants (can't move a folder inside itself).
-const canDropInto = (folderPath: string, srcPath: string) =>
-  folderPath !== srcPath && !folderPath.startsWith(`${srcPath}/`);
+// A folder is a legal target unless it equals, or sits under, ANY dragged item
+// (can't move a folder into itself or one of its own descendants).
+const canDropInto = (folderPath: string, srcPaths: string[]) =>
+  srcPaths.every(
+    (src) => folderPath !== src && !folderPath.startsWith(`${src}/`),
+  );
 
 export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
   const [draggingPath, setDraggingPath] = useState<string | null>(null);
@@ -125,12 +136,12 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
       edgeScrollRef.current = { dir: step, raf: requestAnimationFrame(tick) };
     };
 
-    const hitDropTarget = (x: number, y: number, srcPath: string) => {
+    const hitDropTarget = (x: number, y: number, srcPaths: string[]) => {
       const el = document.elementFromPoint(x, y);
       const rowEl = el?.closest<HTMLElement>("[data-tree-row]");
       if (rowEl && rowEl.dataset.dir === "1") {
         const path = rowEl.dataset.path ?? "";
-        if (canDropInto(path, srcPath)) return path;
+        if (canDropInto(path, srcPaths)) return path;
       }
       return null;
     };
@@ -192,7 +203,7 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
       // Armed: drive the proxy + drop target, and suppress scrolling/selection.
       e.preventDefault();
       setProxy({ x: e.clientX, y: e.clientY, label: st.row.label });
-      setDropTarget(hitDropTarget(e.clientX, e.clientY, st.row.path));
+      setDropTarget(hitDropTarget(e.clientX, e.clientY, dragPathsOf(st.row)));
       updateEdgeScroll(e.clientY);
     }
 
@@ -216,12 +227,13 @@ export function useTreeDrag(opts: TreeDragOpts): TreeDrag {
       const st = stateRef.current;
       if (!st || e.pointerId !== st.pointerId) return;
       if (st.armed) {
-        const target = hitDropTarget(e.clientX, e.clientY, st.row.path);
+        const srcPaths = dragPathsOf(st.row);
+        const target = hitDropTarget(e.clientX, e.clientY, srcPaths);
         if (target != null) {
-          optsRef.current.onDropInto(target, st.row.path);
+          optsRef.current.onDropInto(target, srcPaths);
         } else {
           // Dropped on the background or a file row → move to project root.
-          optsRef.current.onDropToRoot(st.row.path);
+          optsRef.current.onDropToRoot(srcPaths);
         }
         suppressNextClick();
       }

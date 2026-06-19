@@ -661,50 +661,55 @@ export default function FileList({
     await reload();
   };
 
-  const handleDropInto = async (folderPath: string, src: string) => {
-    if (!src || !projectId) return;
-    // Don't drop a folder onto itself or its own descendant.
-    if (src === folderPath || folderPath.startsWith(`${src}/`)) return;
-    const srcBasename = src.split("/").pop() ?? src;
-    const destPath = folderPath ? `${folderPath}/${srcBasename}` : srcBasename;
-    if (destPath === src) return;
-    const srcRow = rows.find((r) => r.path === src);
+  // Move a set of paths into `folderPath` (`""` = project root). A dragged
+  // selection can include a folder AND its contents (folder-cascade), so move
+  // only the TOP-LEVEL paths — moving the folder carries its descendants.
+  const movePaths = async (srcPaths: string[], folderPath: string) => {
+    if (!projectId || srcPaths.length === 0) return;
+    const roots = srcPaths.filter(
+      (p) => !srcPaths.some((o) => o !== p && p.startsWith(`${o}/`)),
+    );
     const { Workspace } = await import("../../workspace/Workspace");
-    const result = srcRow?.isDirectory
-      ? await Workspace.fs.moveFolder(projectId, src, destPath)
-      : await Workspace.fs.moveFile(projectId, src, destPath);
-    if (result.some((d) => d.type === "script")) {
-      await Workspace.window.recordScriptChange();
-    } else {
-      await Workspace.window.recordAssetChange();
+    let scriptChanged = false;
+    let assetChanged = false;
+    for (const src of roots) {
+      // Can't move a folder into itself or one of its own descendants.
+      if (src === folderPath || folderPath.startsWith(`${src}/`)) continue;
+      const basename = src.split("/").pop() ?? src;
+      const destPath = folderPath ? `${folderPath}/${basename}` : basename;
+      if (destPath === src) continue; // already there
+      // Folder paths have no FileData entry (only their files / sentinel do).
+      const result = !filesByPath.has(src)
+        ? await Workspace.fs.moveFolder(projectId, src, destPath)
+        : await Workspace.fs.moveFile(projectId, src, destPath);
+      if (result.some((d) => d.type === "script")) scriptChanged = true;
+      else assetChanged = true;
     }
+    if (scriptChanged) await Workspace.window.recordScriptChange();
+    if (assetChanged) await Workspace.window.recordAssetChange();
+    // The moved paths are stale after a multi-move — leave select mode.
+    if (selectMode) exitSelectMode();
   };
 
-  // Dropping on the list BACKGROUND (or a file row) moves the dragged item to
-  // the project ROOT — the way to pull a file/folder back OUT of a folder.
+  const handleDropInto = (folderPath: string, srcPaths: string[]) =>
+    movePaths(srcPaths, folderPath);
+
+  // Dropping on the list BACKGROUND (or a file row) moves the dragged items to
+  // the project ROOT — the way to pull files/folders back OUT of a folder.
   // Disabled in dive mode: there the background isn't "root" (you're inside a
-  // folder), so a background drop would silently teleport the item out of view.
-  // Cross-level moves on mobile are a follow-up (drop onto a breadcrumb crumb).
-  const handleDropToRoot = async (src: string) => {
+  // folder), so a background drop would silently teleport items out of view.
+  const handleDropToRoot = (srcPaths: string[]) => {
     if (diveMode) return;
-    if (!src || !projectId || !src.includes("/")) return; // already at root
-    const destPath = src.split("/").pop() ?? src;
-    const srcRow = rows.find((r) => r.path === src);
-    const { Workspace } = await import("../../workspace/Workspace");
-    const result = srcRow?.isDirectory
-      ? await Workspace.fs.moveFolder(projectId, src, destPath)
-      : await Workspace.fs.moveFile(projectId, src, destPath);
-    if (result.some((d) => d.type === "script")) {
-      await Workspace.window.recordScriptChange();
-    } else {
-      await Workspace.window.recordAssetChange();
-    }
+    void movePaths(
+      srcPaths.filter((p) => p.includes("/")), // skip anything already at root
+      "",
+    );
   };
 
   const drag = useTreeDrag({
     scrollRef,
-    onDropInto: (folderPath, src) => void handleDropInto(folderPath, src),
-    onDropToRoot: (src) => void handleDropToRoot(src),
+    onDropInto: (folderPath, srcPaths) => void handleDropInto(folderPath, srcPaths),
+    onDropToRoot: (srcPaths) => void handleDropToRoot(srcPaths),
   });
 
   // VS Code "sticky scroll": the expanded ancestor folders of the row at the top
@@ -891,17 +896,25 @@ export default function FileList({
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
-                  onPointerDown={
-                    // No drag-to-reorganize while multi-selecting.
-                    selectMode
-                      ? undefined
-                      : (e) =>
-                          drag.onRowPointerDown(e, {
-                            path: row.path,
-                            isDirectory: row.isDirectory,
-                            label: row.path.split("/").pop() ?? row.path,
-                          })
-                  }
+                  onPointerDown={(e) => {
+                    // In select mode, dragging a SELECTED row drags the whole
+                    // selection; a non-selected row (or normal mode) drags just
+                    // itself. A plain tap still toggles selection (the drag only
+                    // arms on movement / long-press).
+                    const dragSelection =
+                      selectMode && selectedPaths.has(row.path);
+                    const paths = dragSelection ? [...selectedPaths] : undefined;
+                    const count = paths?.length ?? 1;
+                    drag.onRowPointerDown(e, {
+                      path: row.path,
+                      paths,
+                      isDirectory: row.isDirectory,
+                      label:
+                        count > 1
+                          ? `${count} items`
+                          : (row.path.split("/").pop() ?? row.path),
+                    });
+                  }}
                 >
                   <FileItem
                     path={row.path}
