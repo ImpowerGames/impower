@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  breadcrumbSegments,
   buildFileTree,
+  childrenRows,
   computeFolderMoves,
   filterPaths,
   flattenVisibleRows,
   FOLDER_SENTINEL,
+  resolveScopePath,
 } from "../../src/modules/spark-editor/utils/fileTree";
 
 describe("buildFileTree", () => {
@@ -188,5 +191,72 @@ describe("FOLDER_SENTINEL", () => {
     const empty = tree.find((n) => n.name === "emptydir")!;
     expect(empty.isDirectory).toBe(true);
     expect(empty.children).toEqual([]);
+  });
+});
+
+describe("childrenRows (dive mode)", () => {
+  const tree = buildFileTree([
+    "main.sd",
+    "chapters/intro.sd",
+    "chapters/act1/scene1.sd",
+    "chapters/act1/scene2.sd",
+    "art/hero.png",
+  ]);
+
+  it("returns the top-level children at depth 0 for the root scope", () => {
+    const rows = childrenRows(tree, "");
+    // folders (art, chapters) before the file (main.sd); all depth 0.
+    expect(rows.map((r) => r.name)).toEqual(["art", "chapters", "main.sd"]);
+    expect(rows.every((r) => r.depth === 0)).toBe(true);
+    expect(rows.every((r) => r.expanded === false)).toBe(true);
+  });
+
+  it("returns only the direct children of a nested scope (no descendants)", () => {
+    const rows = childrenRows(tree, "chapters");
+    expect(rows.map((r) => r.name)).toEqual(["act1", "intro.sd"]);
+    const act1 = rows.find((r) => r.name === "act1")!;
+    expect(act1.isDirectory).toBe(true);
+    expect(act1.hasChildren).toBe(true);
+  });
+
+  it("returns [] for a scope that does not resolve to a folder", () => {
+    expect(childrenRows(tree, "chapters/nope")).toEqual([]);
+    expect(childrenRows(tree, "main.sd")).toEqual([]); // a file, not a folder
+  });
+});
+
+describe("breadcrumbSegments", () => {
+  it("is empty at the root", () => {
+    expect(breadcrumbSegments("")).toEqual([]);
+  });
+
+  it("returns cumulative { name, path } from shallowest to deepest", () => {
+    expect(breadcrumbSegments("chapters/act1/scene")).toEqual([
+      { name: "chapters", path: "chapters" },
+      { name: "act1", path: "chapters/act1" },
+      { name: "scene", path: "chapters/act1/scene" },
+    ]);
+  });
+});
+
+describe("resolveScopePath", () => {
+  const tree = buildFileTree([
+    "chapters/act1/scene1.sd",
+    "chapters/intro.sd",
+  ]);
+
+  it("returns the scope unchanged when it still resolves", () => {
+    expect(resolveScopePath(tree, "chapters/act1")).toBe("chapters/act1");
+  });
+
+  it("falls back to the deepest surviving ancestor", () => {
+    // act1 deleted -> scope recovers to `chapters`.
+    expect(resolveScopePath(tree, "chapters/gone/deeper")).toBe("chapters");
+    // whole branch gone -> root.
+    expect(resolveScopePath(tree, "nope/at/all")).toBe("");
+  });
+
+  it("returns root for the root scope", () => {
+    expect(resolveScopePath(tree, "")).toBe("");
   });
 });

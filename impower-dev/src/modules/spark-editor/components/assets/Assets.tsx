@@ -38,6 +38,14 @@ export default function Assets(_props: AssetsProps) {
 
   // Collapse the FAB to an icon once the active list is scrolled off the top.
   const [fabCollapsed, setFabCollapsed] = useState(false);
+  // Dive-mode (mobile) folder scope per panel, reported by each FileList, so the
+  // create FAB drops new files INTO the folder the user is currently viewing.
+  // `""` (root) on desktop / when not scoped in. Separate `useState`s (not one
+  // object) so the setters are stable identities AND bail out when unchanged —
+  // FileList's `onScopeChange` effect depends on the callback, so an unstable one
+  // would re-fire and loop.
+  const [filesScope, setFilesScope] = useState("");
+  const [urlsScope, setUrlsScope] = useState("");
 
   const onPanelChange = (next: string) => {
     startTransition(() => {
@@ -70,6 +78,7 @@ export default function Assets(_props: AssetsProps) {
             key="files"
             exclude="*.{sd,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
             onScrolledChange={setFabCollapsed}
+            onScopeChange={setFilesScope}
             emptyState={
               <FileListBorder>
                 <Files class="size-12 m-2" />
@@ -81,6 +90,7 @@ export default function Assets(_props: AssetsProps) {
             key="urls"
             include="*.{url}"
             onScrolledChange={setFabCollapsed}
+            onScopeChange={setUrlsScope}
             emptyState={
               <FileListBorder>
                 <Link class="size-12 m-2" />
@@ -96,7 +106,11 @@ export default function Assets(_props: AssetsProps) {
             stays at 100% opacity so there's no compositing-induced
             brightness dip during the cross-fade. */}
         <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 [&_button]:pointer-events-auto">
-          <AssetsFab panel={panel} collapsed={fabCollapsed} />
+          <AssetsFab
+            panel={panel}
+            collapsed={fabCollapsed}
+            scope={panel === "files" ? filesScope : urlsScope}
+          />
         </div>
       </div>
     </>
@@ -106,9 +120,12 @@ export default function Assets(_props: AssetsProps) {
 function AssetsFab({
   panel,
   collapsed,
+  scope,
 }: {
   panel: Panel;
   collapsed: boolean;
+  /** Current dive-mode folder (`""` = root) new files are created INTO. */
+  scope: string;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const disabledSig = useComputed(() => {
@@ -129,10 +146,14 @@ function AssetsFab({
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
     const files = await Promise.all(
-      Array.from(fileList).map(async (file) => ({
-        uri: Workspace.fs.getFileUri(projectId, getValidFileName(file.name)),
-        data: await file.arrayBuffer(),
-      })),
+      Array.from(fileList).map(async (file) => {
+        const name = getValidFileName(file.name);
+        const rel = scope ? `${scope}/${name}` : name;
+        return {
+          uri: Workspace.fs.getFileUri(projectId, rel),
+          data: await file.arrayBuffer(),
+        };
+      }),
     );
     await Workspace.fs.createFiles({ files });
     await Workspace.window.recordAssetChange();
@@ -148,10 +169,11 @@ function AssetsFab({
       Workspace.fs.getFilename(uri),
     );
     const uniqueFilename = getUniqueFileName(filenames, "asset00.url");
+    const rel = scope ? `${scope}/${uniqueFilename}` : uniqueFilename;
     await Workspace.fs.createFiles({
       files: [
         {
-          uri: Workspace.fs.getFileUri(projectId, uniqueFilename),
+          uri: Workspace.fs.getFileUri(projectId, rel),
           data: new ArrayBuffer(0),
         },
       ],

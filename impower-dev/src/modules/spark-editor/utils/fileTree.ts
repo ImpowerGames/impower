@@ -167,6 +167,94 @@ export const flattenVisibleRows = (
 };
 
 /**
+ * Direct children of the folder `scopePath` (`""` = project root). Walks the
+ * path segment by segment; returns `null` when `scopePath` doesn't resolve to a
+ * folder (e.g. it was deleted while scoped into it). Sibling names are unique
+ * within a folder, so name-matching per level is exact.
+ */
+const childrenOf = (
+  roots: FileTreeNode[],
+  scopePath: string,
+): FileTreeNode[] | null => {
+  const segments = scopePath.split("/").filter(Boolean);
+  let level = roots;
+  let node: FileTreeNode | undefined;
+  for (const segment of segments) {
+    node = level.find((n) => n.isDirectory && n.name === segment);
+    if (!node) {
+      return null;
+    }
+    level = node.children;
+  }
+  return node ? node.children : roots;
+};
+
+/**
+ * The "dive mode" rows: the direct children of `scopePath`, each as a depth-0
+ * row (mobile shows one folder level at a time, so there is no indentation).
+ * Returns `[]` when `scopePath` no longer resolves to a folder.
+ */
+export const childrenRows = (
+  roots: FileTreeNode[],
+  scopePath: string,
+): FileTreeRow[] => {
+  const children = childrenOf(roots, scopePath);
+  if (!children) {
+    return [];
+  }
+  return children.map((node) => ({
+    path: node.path,
+    name: node.name,
+    isDirectory: node.isDirectory,
+    depth: 0,
+    hasChildren: node.isDirectory && node.children.length > 0,
+    expanded: false,
+  }));
+};
+
+/**
+ * Breadcrumb trail for `scopePath`, shallowest → deepest, as `{ name, path }`
+ * (the cumulative path each crumb scopes to). Excludes the root — the UI renders
+ * its own root/home crumb. `""` → `[]`.
+ */
+export const breadcrumbSegments = (
+  scopePath: string,
+): { name: string; path: string }[] => {
+  const segments = scopePath.split("/").filter(Boolean);
+  const trail: { name: string; path: string }[] = [];
+  let prefix = "";
+  for (const segment of segments) {
+    prefix = prefix ? `${prefix}/${segment}` : segment;
+    trail.push({ name: segment, path: prefix });
+  }
+  return trail;
+};
+
+/**
+ * The deepest existing ancestor of `scopePath` (itself included) that still
+ * resolves to a folder in `roots`. Recovers the dive-mode scope after the
+ * scoped folder — or one of its ancestors — is deleted or renamed; `""` (root)
+ * always resolves.
+ */
+export const resolveScopePath = (
+  roots: FileTreeNode[],
+  scopePath: string,
+): string => {
+  const segments = scopePath.split("/").filter(Boolean);
+  let valid = "";
+  let level = roots;
+  for (const segment of segments) {
+    const node = level.find((n) => n.isDirectory && n.name === segment);
+    if (!node) {
+      break;
+    }
+    valid = node.path;
+    level = node.children;
+  }
+  return valid;
+};
+
+/**
  * Case-insensitive substring filter over the full relative path. Because the
  * tree is rebuilt from the surviving paths, a match keeps its ancestor folders
  * automatically (typing a folder name reveals everything beneath it).

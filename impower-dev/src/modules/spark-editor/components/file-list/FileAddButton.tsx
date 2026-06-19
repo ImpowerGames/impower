@@ -14,6 +14,11 @@ export type FileAddButtonProps = {
    * mirroring main's `<s-collapsible collapsed="scrolled">`.
    */
   collapsed?: boolean;
+  /**
+   * Folder the new file is created INTO (`""`/undefined = project root). Set on
+   * mobile so a script created while scoped into a folder lands in that folder.
+   */
+  targetDir?: string;
 };
 
 /**
@@ -25,6 +30,7 @@ export default function FileAddButton({
   defaultFilename,
   children,
   collapsed = false,
+  targetDir = "",
 }: FileAddButtonProps) {
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
@@ -45,10 +51,11 @@ export default function FileAddButton({
       Workspace.fs.getFilename(uri),
     );
     const uniqueFilename = getUniqueFileName(filenames, defaultFilename);
+    const rel = targetDir ? `${targetDir}/${uniqueFilename}` : uniqueFilename;
     await Workspace.fs.createFiles({
       files: [
         {
-          uri: Workspace.fs.getFileUri(projectId, uniqueFilename),
+          uri: Workspace.fs.getFileUri(projectId, rel),
           data: new ArrayBuffer(0),
         },
       ],

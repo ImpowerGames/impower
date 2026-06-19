@@ -19,12 +19,15 @@ import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import {
   buildFileTree,
+  childrenRows,
   flattenVisibleRows,
   FOLDER_SENTINEL,
+  resolveScopePath,
 } from "../../utils/fileTree";
 import { isImagePath } from "../../utils/fileIcon";
 import globToRegex from "../../utils/globToRegex";
 import workspace from "../../workspace/WorkspaceStore";
+import FileBreadcrumb from "./FileBreadcrumb";
 import FileItem from "./FileItem";
 import { useTreeDrag } from "./useTreeDrag";
 
@@ -127,6 +130,13 @@ export type FileListProps = {
    * the FAB lives outside of here.
    */
   onScrolledChange?: (scrolled: boolean) => void;
+  /**
+   * Called with the current dive-mode folder scope (`""` = project root, or e.g.
+   * `chapters/act1`) whenever it changes — `""` on desktop (tree mode). Lets the
+   * parent's create FAB (Upload / Add URL / New Script) drop new files INTO the
+   * folder the user is currently viewing on mobile.
+   */
+  onScopeChange?: (scopePath: string) => void;
 };
 
 // Slot height for the virtualizer. The row button itself is h-14 (56px),
@@ -152,12 +162,16 @@ export default function FileList({
   emptyState,
   action,
   onScrolledChange,
+  onScopeChange,
 }: FileListProps) {
   const [uris, setUris] = useState<string[] | null>(null);
   // uri -> service-worker-served url (`FileData.src`), used to render image
   // thumbnails in the rows. Kept beside `uris` so a reload refreshes both.
   const [srcByUri, setSrcByUri] = useState<Record<string, string>>({});
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  // Dive-mode (mobile) folder scope: which folder's direct children are shown
+  // (`""` = project root). Ignored in tree mode (desktop). See `diveMode` below.
+  const [scopePath, setScopePath] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // Report scroll-off-top so the parent can collapse the FAB.
@@ -213,6 +227,15 @@ export default function FileList({
   // Make the active project id reactive so the list reloads when the user
   // switches projects.
   const projectId = workspace.signals.projectId.value;
+
+  // Responsive presentation, switched on the SAME breakpoint the rest of the app
+  // uses (WorkspaceWindow's `matchMedia("(min-width: 960px)")`):
+  //   - desktop / horizontalLayout (≥960px) → TREE mode: the VS Code inline
+  //     nested tree (expand/collapse in place, drag to reorganize).
+  //   - mobile / vertical (<960px) → DIVE mode: Google-Drive folder navigation —
+  //     one folder level at a time (depth 0, no indent), with a breadcrumb.
+  // Defaults to tree mode until the flag is set (it's set synchronously on load).
+  const diveMode = workspace.state.value.screen?.horizontalLayout === false;
 
   // Keep `.folder` sentinels (so empty folders show) plus any file matching the
   // pane's globs.
@@ -357,21 +380,26 @@ export default function FileList({
     return () => controller.abort();
   }, [uris, srcByUri, projectId]);
 
-  // Stable across renders (setExpanded is stable) so FileItem's `onToggle` prop
-  // stays referentially equal — a precondition for FileItem's `memo`.
-  const toggle = useCallback(
-    (folderPath: string) =>
-      setExpanded((prev) => {
-        const next = new Set(prev);
-        if (next.has(folderPath)) next.delete(folderPath);
-        else next.add(folderPath);
-        return next;
-      }),
-    [],
-  );
+  // Stable handler passed to FileItem (keeps its `memo` intact): a folder tap
+  // toggles expand/collapse in TREE mode, or scopes INTO the folder in DIVE
+  // mode. Reads the mode off a ref so the callback identity never changes.
+  const diveModeRef = useRef(diveMode);
+  diveModeRef.current = diveMode;
+  const onItemActivate = useCallback((folderPath: string) => {
+    if (diveModeRef.current) {
+      setScopePath(folderPath);
+      return;
+    }
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderPath)) next.delete(folderPath);
+      else next.add(folderPath);
+      return next;
+    });
+  }, []);
 
   // Build the tree from the filtered relative paths (sentinels materialize empty
-  // folders and are hidden), then flatten the EXPANDED tree for the virtualizer.
+  // folders and are hidden).
   const relativePaths = (uris ?? []).map((uri) =>
     relativePathFromUri(uri, projectId),
   );
@@ -384,7 +412,29 @@ export default function FileList({
     }
   }
   const tree = buildFileTree(relativePaths);
-  const rows = flattenVisibleRows(tree, expanded);
+  // TREE mode (desktop): flatten the expanded tree. DIVE mode (mobile): only the
+  // current folder's direct children at depth 0. `scope` recovers to the nearest
+  // surviving ancestor if the scoped folder was deleted/renamed underneath us.
+  const scope = diveMode ? resolveScopePath(tree, scopePath) : "";
+  const rows = diveMode
+    ? childrenRows(tree, scope)
+    : flattenVisibleRows(tree, expanded);
+
+  // Recover the scope state when the scoped folder vanishes, and report the
+  // active scope (`""` in tree mode) to the parent so its create FAB targets the
+  // folder the user is viewing. Reset to root when the project / globs change.
+  useEffect(() => {
+    if (diveMode && scope !== scopePath) {
+      setScopePath(scope);
+    }
+  }, [diveMode, scope, scopePath]);
+  useEffect(() => {
+    onScopeChange?.(diveMode ? scope : "");
+  }, [onScopeChange, diveMode, scope]);
+  useEffect(() => {
+    setScopePath("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, include, exclude]);
 
   // Relative paths of every editor currently open across the workspace panes.
   // A row whose path is in this set gets the selection accent (the file the
@@ -416,17 +466,29 @@ export default function FileList({
   const newFolder = async () => {
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    const existing = new Set(
-      tree.filter((n) => n.isDirectory).map((n) => n.name.toLowerCase()),
-    );
+    // Dive mode (mobile) creates the folder INSIDE the folder you're viewing;
+    // tree mode (desktop) creates it at the project root, as before. Uniqueness
+    // is checked against that same level's existing folders.
+    const parent = diveMode ? scope : "";
+    const siblingDirNames = diveMode
+      ? childrenRows(tree, scope)
+          .filter((r) => r.isDirectory)
+          .map((r) => r.name)
+      : tree.filter((n) => n.isDirectory).map((n) => n.name);
+    const existing = new Set(siblingDirNames.map((n) => n.toLowerCase()));
     let folderName = "New Folder";
     let i = 2;
     while (existing.has(folderName.toLowerCase())) {
       folderName = `New Folder ${i}`;
       i += 1;
     }
-    await Workspace.fs.createFolder(projectId, folderName);
-    setExpanded((prev) => new Set(prev).add(folderName));
+    const folderPath = parent ? `${parent}/${folderName}` : folderName;
+    await Workspace.fs.createFolder(projectId, folderPath);
+    // Tree mode: auto-expand the new (root-level) folder. Dive mode: it already
+    // shows in the current scope after reload.
+    if (!diveMode) {
+      setExpanded((prev) => new Set(prev).add(folderName));
+    }
     await Workspace.window.recordAssetChange();
     await reload();
   };
@@ -452,7 +514,11 @@ export default function FileList({
 
   // Dropping on the list BACKGROUND (or a file row) moves the dragged item to
   // the project ROOT — the way to pull a file/folder back OUT of a folder.
+  // Disabled in dive mode: there the background isn't "root" (you're inside a
+  // folder), so a background drop would silently teleport the item out of view.
+  // Cross-level moves on mobile are a follow-up (drop onto a breadcrumb crumb).
   const handleDropToRoot = async (src: string) => {
+    if (diveMode) return;
     if (!src || !projectId || !src.includes("/")) return; // already at root
     const destPath = src.split("/").pop() ?? src;
     const srcRow = rows.find((r) => r.path === src);
@@ -475,11 +541,20 @@ export default function FileList({
 
   return (
     <div class="relative flex h-full w-full flex-col">
-      {/* Toolbar — an overflow "more" menu on the right (New Folder for now;
-          a search field + sort/filter will join here later, with the menu
-          docked beside the search bar). Secondary create/organize actions live
+      {/* Toolbar — in dive mode (mobile) the breadcrumb fills the left; the
+          overflow "more" menu (New Folder for now; search + sort/filter join
+          here later) stays docked right. Secondary create/organize actions live
           here so the bottom FAB stays the single primary action per pane. */}
-      <div class="flex flex-none flex-row items-center justify-end px-4 pt-2">
+      <div class="flex flex-none flex-row items-center gap-2 px-4 pt-2">
+        {diveMode ? (
+          <FileBreadcrumb
+            scope={scope}
+            onNavigate={setScopePath}
+            class="min-w-0 flex-1"
+          />
+        ) : (
+          <div class="flex-1" />
+        )}
         <DropdownRoot>
           <DropdownTrigger asChild>
             <Button
@@ -552,7 +627,7 @@ export default function FileList({
                     expanded={row.expanded}
                     selected={openFilenames.has(row.path)}
                     src={srcByPath.get(row.path)}
-                    onToggle={toggle}
+                    onToggle={onItemActivate}
                   />
                 </div>
               );

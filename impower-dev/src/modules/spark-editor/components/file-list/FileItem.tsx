@@ -11,6 +11,11 @@ import FileOptionsButton from "./FileOptionsButton";
 // a depth-0 file's name at the same x it sat at in the old flat list.
 const INDENT_PER_DEPTH = 16;
 const BASE_INDENT = 12;
+// Cap the visual indent so a pathologically deep tree (the desktop inline view)
+// never pushes the name off-screen. Past this depth the indent plateaus — the
+// data still nests; only the indentation stops growing. On mobile the dive view
+// renders every row at depth 0, so this never applies there.
+const MAX_INDENT_DEPTH = 8;
 
 export type FileItemProps = {
   /**
@@ -219,13 +224,16 @@ function FileItem({
     >
       <div
         class="relative flex flex-1 flex-row items-center overflow-hidden"
-        style={{ paddingLeft: `${BASE_INDENT + depth * INDENT_PER_DEPTH}px` }}
+        style={{
+          paddingLeft: `${BASE_INDENT + Math.min(depth, MAX_INDENT_DEPTH) * INDENT_PER_DEPTH}px`,
+        }}
       >
         {/* Indent guides: one faint 1px vertical rule per ancestor depth,
             centered in each indentation step (VS Code's containment lines).
             Absolutely positioned so they ride the row's transform and stay
-            pixel-aligned with the name's left padding. */}
-        {Array.from({ length: depth }, (_unused, i) => (
+            pixel-aligned with the name's left padding. Clamped to the same
+            MAX_INDENT_DEPTH cap as the padding. */}
+        {Array.from({ length: Math.min(depth, MAX_INDENT_DEPTH) }, (_unused, i) => (
           <span
             key={i}
             aria-hidden="true"
