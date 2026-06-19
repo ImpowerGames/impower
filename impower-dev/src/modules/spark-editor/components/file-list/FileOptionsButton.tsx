@@ -10,14 +10,22 @@ import {
   DropdownRoot,
   DropdownTrigger,
 } from "@impower/impower-ui/components";
-import { useComputed } from "@preact/signals";
-import { useState } from "preact/hooks";
+import { signal, useComputed, useSignalEffect } from "@preact/signals";
+import { useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
 
 export type FileOptionsButtonProps = {
   onRename: () => void;
   onDelete: () => void;
 };
+
+// Identity of the row whose options menu is currently open — only one at a time.
+// Opening a row reassigns this; every other instance's `useSignalEffect` then
+// sees its key no longer matches and disarms (closing its menu). This is needed
+// because the trigger stops event propagation (so the row click doesn't open the
+// file), which also prevents Radix's outside-click from dismissing a sibling
+// row's menu — without coordination they'd stack open.
+const openOptionsKey = signal<symbol | null>(null);
 
 const TRIGGER_CLASS =
   "mr-2 rounded-full text-foreground/50 hover:text-foreground";
@@ -37,6 +45,18 @@ export default function FileOptionsButton({
   onDelete,
 }: FileOptionsButtonProps) {
   const [armed, setArmed] = useState(false);
+  // Stable per-instance key for the single-open coordination above.
+  const keyRef = useRef<symbol | null>(null);
+  if (!keyRef.current) {
+    keyRef.current = Symbol();
+  }
+  // Close this menu when another row claims the open slot. (Reading no local
+  // state keeps it correct: setArmed(false) is a no-op when already closed.)
+  useSignalEffect(() => {
+    if (openOptionsKey.value !== keyRef.current) {
+      setArmed(false);
+    }
+  });
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
     return (
@@ -60,6 +80,8 @@ export default function FileOptionsButton({
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
+          // Claim the single open slot (closes any other row's menu), then arm.
+          openOptionsKey.value = keyRef.current;
           setArmed(true);
         }}
       >
@@ -72,7 +94,14 @@ export default function FileOptionsButton({
     <DropdownRoot
       defaultOpen
       onOpenChange={(open) => {
-        if (!open) setArmed(false);
+        if (!open) {
+          setArmed(false);
+          // Release the slot if we still hold it (so we don't clobber a menu
+          // that was opened on another row in the meantime).
+          if (openOptionsKey.value === keyRef.current) {
+            openOptionsKey.value = null;
+          }
+        }
       }}
     >
       <DropdownTrigger asChild>
