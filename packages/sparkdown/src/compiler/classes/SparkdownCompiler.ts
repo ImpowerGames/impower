@@ -34,7 +34,8 @@ import { SourceMetadata } from "../../inkjs/engine/Error";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { asOrNull } from "../../inkjs/engine/TypeAssertion";
+import { asINamedContentOrNull, asOrNull } from "../../inkjs/engine/TypeAssertion";
+import { Container } from "../../inkjs/engine/Container";
 import { StringValue } from "../../inkjs/engine/Value";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import { SparkDeclaration } from "../types/SparkDeclaration";
@@ -114,6 +115,10 @@ export class SparkdownCompiler {
   get files() {
     return this._files;
   }
+
+  // uri -> index in `program.scripts`, rebuilt per compile before the JSON
+  // emit pass so `populateLocations` can look up the script index in O(1).
+  protected _scriptIndices?: Map<string, number>;
 
   protected _builtinStructs: {
     [type: string]: {
@@ -489,8 +494,6 @@ export class SparkdownCompiler {
       profile("end", this._profilerId, "ink/compile", uri);
       if (story) {
         profile("start", this._profilerId, "ink/json", uri);
-        story.onWriteRuntimeObject = (_, obj) =>
-          this.populateLocations(program, obj);
         const writer = new SimpleJson.Writer();
         story.ToJson(writer);
         const json = writer.toObject();
@@ -499,6 +502,20 @@ export class SparkdownCompiler {
         }
         state.story = story;
         profile("end", this._profilerId, "ink/json", uri);
+        // Gather source-location maps in a single top-down walk of the
+        // runtime tree (see `populateAllLocations`). Done AFTER `ToJson`
+        // rather than as its `onWriteRuntimeObject` callback so the path of
+        // each object is derived incrementally from the traversal instead of
+        // recomputed per object via the O(n²) `Object.path` getter.
+        profile("start", this._profilerId, "populateLocations", uri);
+        // Precompute uri -> scriptIndex once so `populateLocations` can look
+        // it up in O(1) instead of re-running `Object.keys().indexOf()` per
+        // object.
+        this._scriptIndices = new Map(
+          Object.keys(program.scripts).map((u, i) => [u, i]),
+        );
+        this.populateAllLocations(program, story);
+        profile("end", this._profilerId, "populateLocations", uri);
       }
     } catch (e) {
       console.error(e);
@@ -1082,7 +1099,21 @@ export class SparkdownCompiler {
     return combinedParsedStory;
   }
 
-  populateLocations(program: SparkProgram, obj: InkObject) {
+  populateLocations(
+    program: SparkProgram,
+    obj: InkObject,
+    // Path string computed by the caller's single top-down traversal
+    // (`populateAllLocations`). Equivalent to `obj.path.toString()` but
+    // avoids the per-object `Object.path` getter, whose
+    // `container.content.indexOf(child)` makes computing every child's path
+    // O(n²) in a container's size. Falls back to the getter when omitted.
+    precomputedPath?: string,
+    // Resolved debug metadata (the object's own, or the nearest ancestor's),
+    // threaded down by `populateAllLocations` so leaves without their own
+    // metadata don't re-walk the parent chain via the `debugMetadata` getter.
+    // Only consulted when `precomputedPath` is provided (DFS caller).
+    precomputedMetadata?: DebugMetadata | null,
+  ) {
     // Prefer the object's OWN metadata when set — it's the most
     // specific source range. Fall back to inherited metadata (walks
     // parent chain) so every path in the bytecode gets a location
@@ -1105,10 +1136,15 @@ export class SparkdownCompiler {
     // for inner items. Until that's untangled, the `error()`
     // formatter reports the enclosing function's start line rather
     // than the actual call site.
-    const metadata = obj?.ownDebugMetadata ?? obj?.debugMetadata;
+    const metadata =
+      precomputedPath !== undefined
+        ? precomputedMetadata ?? null
+        : obj?.ownDebugMetadata ?? obj?.debugMetadata;
     if (metadata) {
       const uri = metadata.filePath ?? program.uri;
-      const scriptIndex = Object.keys(program.scripts).indexOf(uri || "");
+      const scriptIndex =
+        this._scriptIndices?.get(uri || "") ??
+        Object.keys(program.scripts).indexOf(uri || "");
       let startLine = metadata.startLineNumber - 1;
       let startColumn = metadata.startCharacterNumber - 1;
       let endLine = metadata.endLineNumber - 1;
@@ -1126,8 +1162,7 @@ export class SparkdownCompiler {
               endColumn,
             ];
           } else {
-            const containerPath = varAss.path
-              .toString()
+            const containerPath = (precomputedPath ?? varAss.path.toString())
               .split(".")
               .filter(
                 (p) =>
@@ -1150,7 +1185,7 @@ export class SparkdownCompiler {
         ) &&
         !(obj instanceof StringValue && obj.isNewline)
       ) {
-        let path = obj.path.toString();
+        let path = precomputedPath ?? obj.path.toString();
         if (!path.startsWith("global ")) {
           const [
             _,
@@ -1211,6 +1246,75 @@ export class SparkdownCompiler {
       }
     }
     return false;
+  }
+
+  // Walk the runtime container tree once, computing each leaf object's path
+  // string incrementally (parent path + name-or-index component) and feeding
+  // it to `populateLocations`. This replaces the previous approach of running
+  // `populateLocations` as the `onWriteRuntimeObject` callback during
+  // `ToJson`, which recomputed `obj.path` per object via the `Object.path`
+  // getter — whose `container.content.indexOf(child)` is O(n) per level,
+  // making path computation across a container O(n²) in its size.
+  //
+  // The traversal mirrors `JsonSerialisation.WriteRuntimeContainer` exactly:
+  // it visits `content` (indexed children) in order, then `namedOnlyContent`
+  // (named-only children); the callback only ever fired for NON-container
+  // objects, so containers themselves are recursed into but not recorded.
+  // Path components match `Object.path`: a child with a valid name uses its
+  // name, otherwise its index within `content`. Paths are relative to
+  // `mainContentContainer`, which is the serialized root and the path root.
+  populateAllLocations(program: SparkProgram, story: RuntimeStory) {
+    const root = story.mainContentContainer;
+    if (!root) {
+      return;
+    }
+    const walk = (
+      container: Container,
+      parentPath: string,
+      inherited: DebugMetadata | null,
+    ) => {
+      // Metadata inherited by this container's children: the container's own
+      // stamped metadata, else whatever it inherited. Mirrors the recursive
+      // `debugMetadata` getter (own ?? parent.debugMetadata) but resolved once
+      // per container instead of re-walked per descendant.
+      const containerMeta = container.ownDebugMetadata ?? inherited;
+      const content = container.content;
+      for (let i = 0; i < content.length; i++) {
+        const child = content[i];
+        const named = asINamedContentOrNull(child);
+        const comp = named != null && named.hasValidName ? named.name! : i;
+        const childPath = parentPath ? `${parentPath}.${comp}` : `${comp}`;
+        const childContainer = asOrNull(child, Container);
+        if (childContainer) {
+          walk(childContainer, childPath, containerMeta);
+        } else {
+          this.populateLocations(
+            program,
+            child,
+            childPath,
+            child.ownDebugMetadata ?? containerMeta,
+          );
+        }
+      }
+      const namedOnly = container.namedOnlyContent;
+      if (namedOnly) {
+        for (const [key, value] of namedOnly) {
+          const childPath = parentPath ? `${parentPath}.${key}` : key;
+          const childContainer = asOrNull(value, Container);
+          if (childContainer) {
+            walk(childContainer, childPath, containerMeta);
+          } else {
+            this.populateLocations(
+              program,
+              value,
+              childPath,
+              value.ownDebugMetadata ?? containerMeta,
+            );
+          }
+        }
+      }
+    };
+    walk(root, "", null);
   }
 
   populateFiles(program: SparkProgram) {
@@ -1280,15 +1384,15 @@ export class SparkdownCompiler {
     const uri = program.uri;
     profile("start", this._profilerId, "sortPathLocations", uri);
     if (program.pathLocations) {
+      // Index into the [scriptIndex, startLine, startColumn, ...] tuples
+      // directly rather than array-destructuring inside the comparator —
+      // destructuring allocates an iterator per comparison, which is hot
+      // across the tens of thousands of entries a large script produces.
       const sortedEntries = Object.entries(program.pathLocations).sort(
-        ([, a], [, b]) => {
-          const [scriptIndexA, startLineA, startColumnA] = a;
-          const [scriptIndexB, startLineB, startColumnB] = b;
-          return (
-            scriptIndexA - scriptIndexB ||
-            startLineA - startLineB ||
-            startColumnA - startColumnB
-          );
+        (a, b) => {
+          const av = a[1];
+          const bv = b[1];
+          return av[0] - bv[0] || av[1] - bv[1] || av[2] - bv[2];
         },
       );
       program.pathLocations = {};
