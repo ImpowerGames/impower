@@ -439,31 +439,62 @@ export const computeFolderMoves = (
     .map((p) => ({ from: p, to: `${dest}/${p.slice(prefix.length)}` }));
 };
 
+// The category roots a project's files are organized under. `assets/urls/`
+// (remote refs) nests inside `assets/`, so it must be listed BEFORE `assets/`:
+// stripCategoryPrefix tries them in order and the nested root has to win, else
+// `assets/urls/x` would strip to `urls/x` instead of `x`. A bare top-level
+// `urls/` is tolerated too (an older layout that put `.url` files there).
+export const CATEGORY_PREFIXES = [
+  "assets/urls/",
+  "scripts/",
+  "assets/",
+  "urls/",
+];
+
+/** Strip a leading category root from a path (longest/nested match first). */
+const stripCategoryPrefix = (p: string): string => {
+  for (const prefix of CATEGORY_PREFIXES) {
+    if (p.startsWith(prefix)) {
+      return p.slice(prefix.length);
+    }
+  }
+  return p;
+};
+
 /**
- * Migrate a legacy FLAT project layout to the `scripts/` + `assets/` split.
- * Every script moves under `scripts/` and every asset under `assets/`,
- * PRESERVING any sub-structure (`chapters/act1.sd` → `scripts/chapters/act1.sd`).
+ * Migrate a project layout to its category split: scripts under `scripts/`,
+ * remote `.url` refs under `assets/urls/`, every other asset under `assets/`.
+ * Each file is placed under the path `subtreeFor(path)` returns (e.g.
+ * `"scripts"`, `"assets"`, `"assets/urls"`), PRESERVING any sub-structure
+ * (`chapters/act1.sd` → `scripts/chapters/act1.sd`).
+ *
+ * Re-categorizes a misfiled file too: a `.url` that an earlier layout put under
+ * `assets/` (or a top-level `urls/`) moves to `assets/urls/` — the inner path is
+ * kept; only the category root is corrected. That makes the function safe to run
+ * on every load — idempotent once everything is correctly placed (target ===
+ * current → no move).
  *
  * Left in place (returns no move for them):
  *  - `main.sd` — the entry point stays at the project root.
  *  - dotfiles — project metadata (`.name`, …) AND empty-folder sentinels
  *    (`.folder`); a `.`-prefixed basename is never a user script/asset.
- *  - anything already under `scripts/` or `assets/` — so this is idempotent and
- *    safe to run on every load (a no-op once migrated).
  *
- * `isScript(path)` decides scripts vs assets (extension-based at the call site).
+ * `subtreeFor(path)` decides the category (extension-based at the call site).
  */
 export const computeLayoutMigration = (
   relativePaths: string[],
-  isScript: (path: string) => boolean,
+  subtreeFor: (path: string) => string,
 ): { from: string; to: string }[] => {
   const moves: { from: string; to: string }[] = [];
   for (const p of relativePaths) {
     if (p === "main.sd") continue;
-    if (p.startsWith("scripts/") || p.startsWith("assets/")) continue;
     const base = p.split("/").pop() ?? p;
     if (base.startsWith(".")) continue;
-    moves.push({ from: p, to: `${isScript(p) ? "scripts" : "assets"}/${p}` });
+    const inner = stripCategoryPrefix(p);
+    const to = `${subtreeFor(p)}/${inner}`;
+    if (to !== p) {
+      moves.push({ from: p, to });
+    }
   }
   return moves;
 };

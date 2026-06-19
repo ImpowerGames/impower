@@ -147,6 +147,12 @@ export type FileListProps = {
   /** Glob of filenames to EXCLUDE from this list. */
   exclude?: string;
   /**
+   * Project-relative folders to hide WHOLESALE — the folder and everything under
+   * it (including `.folder` sentinels). Used so the Files panel doesn't show the
+   * nested `assets/urls/` folder, which is the URLs panel's territory.
+   */
+  excludeDirs?: string[];
+  /**
    * Root the list at a project SUBTREE (e.g. `"scripts"` or `"assets"`) so each
    * pane owns a SEPARATE folder tree instead of all sharing the project root.
    * The panel shows the CONTENTS of `<rootDir>/` (not the wrapper folder), and
@@ -200,6 +206,7 @@ const ITEM_HEIGHT = 64;
 export default function FileList({
   include = "*",
   exclude,
+  excludeDirs,
   rootDir = "",
   enablePreview,
   emptyState,
@@ -312,7 +319,14 @@ export default function FileList({
   // pane's globs — confined to this pane's `rootDir` subtree so a `scripts/`
   // pane never reacts to / shows an `assets/` file (and vice versa).
   const matchesGlobs = (uri: string) => {
-    if (rootDir && !relativePathFromUri(uri, projectId).startsWith(`${rootDir}/`)) {
+    const rel = relativePathFromUri(uri, projectId);
+    if (rootDir && !rel.startsWith(`${rootDir}/`)) {
+      return false;
+    }
+    // Hide excluded subtrees wholesale (folder + contents + sentinels), before
+    // the sentinel allowance below — so a nested `assets/urls/` never surfaces in
+    // the Files panel even via its `.folder` marker.
+    if (excludeDirs?.some((d) => rel === d || rel.startsWith(`${d}/`))) {
       return false;
     }
     const includeRegex = include ? globToRegex(include) : /.*/;

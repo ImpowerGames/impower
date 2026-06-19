@@ -23,6 +23,12 @@ export type AssetsProps = Partial<typeof propDefaults>;
 
 type Panel = "files" | "urls";
 
+// The `.url` refs live in `assets/urls/` (the URLs panel). Hide that nested
+// folder from the Files panel so each panel shows only its own category.
+// Module constant → stable identity (safe as a FileList prop).
+const URLS_DIR = "assets/urls";
+const FILES_EXCLUDE_DIRS = [URLS_DIR];
+
 /**
  * Assets pane wrapper. Top sub-tabs switch between Files and URLs panels.
  *
@@ -45,11 +51,12 @@ export default function Assets(_props: AssetsProps) {
   // object) so the setters are stable identities AND bail out when unchanged —
   // FileList's `onScopeChange` effect depends on the callback, so an unstable one
   // would re-fire and loop.
-  // Both asset panels live under the `assets/` subtree (kept separate from the
-  // `scripts/` tree). Seed the scope to "assets" so an upload/add before the
-  // FileList reports its scope still lands inside assets/, not the project root.
+  // The Assets pane's two panels map to two folders: local files under
+  // `assets/`, remote `.url` refs under `assets/urls/` (nested, mirroring the
+  // pane/panel hierarchy). Seed each panel's scope to its folder so an upload/add
+  // before the FileList reports its scope still lands in the right place.
   const [filesScope, setFilesScope] = useState("assets");
-  const [urlsScope, setUrlsScope] = useState("assets");
+  const [urlsScope, setUrlsScope] = useState("assets/urls");
 
   const onPanelChange = (next: string) => {
     startTransition(() => {
@@ -83,6 +90,7 @@ export default function Assets(_props: AssetsProps) {
             rootDir="assets"
             enablePreview
             exclude="*.{sd,url,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
+            excludeDirs={FILES_EXCLUDE_DIRS}
             onScrolledChange={setFabCollapsed}
             onScopeChange={setFilesScope}
             emptyState={
@@ -94,9 +102,8 @@ export default function Assets(_props: AssetsProps) {
           />
           <FileList
             key="urls"
-            rootDir="assets"
+            rootDir={URLS_DIR}
             enablePreview
-            include="*.{url}"
             onScrolledChange={setFabCollapsed}
             onScopeChange={setUrlsScope}
             emptyState={
@@ -172,7 +179,7 @@ function AssetsFab({
   // Create a remote/CDN asset: write a `<name>.url` file whose CONTENT is the
   // URL the user entered. The engine resolves `.url` files straight to that
   // remote `src` (opfs-workspace `updateFileCache`), so it renders in-game like
-  // a local import. Goes into the same `assets/` subtree as uploaded files.
+  // a local import. Goes into the `urls/` subtree (the URLs panel's scope).
   async function createUrlAsset(url: string, name: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;

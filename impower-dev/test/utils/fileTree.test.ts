@@ -405,39 +405,77 @@ describe("subtreeChildren", () => {
 });
 
 describe("computeLayoutMigration", () => {
-  const isScript = (p: string) => p.endsWith(".sd");
+  const subtreeFor = (p: string) =>
+    p.endsWith(".sd")
+      ? "scripts"
+      : p.endsWith(".url")
+        ? "assets/urls"
+        : "assets";
 
-  it("moves scripts under scripts/ and assets under assets/, preserving substructure", () => {
+  it("moves scripts/assets/urls under their subtree, preserving substructure", () => {
     expect(
       computeLayoutMigration(
-        ["intro.sd", "chapters/act1.sd", "hero.png", "art/bg.png"],
-        isScript,
+        [
+          "intro.sd",
+          "chapters/act1.sd",
+          "hero.png",
+          "art/bg.png",
+          "song.url",
+        ],
+        subtreeFor,
       ),
     ).toEqual([
       { from: "intro.sd", to: "scripts/intro.sd" },
       { from: "chapters/act1.sd", to: "scripts/chapters/act1.sd" },
       { from: "hero.png", to: "assets/hero.png" },
       { from: "art/bg.png", to: "assets/art/bg.png" },
+      { from: "song.url", to: "assets/urls/song.url" },
     ]);
   });
 
   it("leaves main.sd at the root", () => {
-    expect(computeLayoutMigration(["main.sd"], isScript)).toEqual([]);
+    expect(computeLayoutMigration(["main.sd"], subtreeFor)).toEqual([]);
   });
 
   it("leaves dotfiles (metadata + .folder sentinels) alone", () => {
     expect(
-      computeLayoutMigration([".name", ".zipSynced", "empty/.folder"], isScript),
+      computeLayoutMigration(
+        [".name", ".zipSynced", "empty/.folder"],
+        subtreeFor,
+      ),
     ).toEqual([]);
   });
 
   it("is idempotent — already-migrated files are skipped", () => {
     expect(
       computeLayoutMigration(
-        ["scripts/intro.sd", "assets/hero.png", "main.sd"],
-        isScript,
+        [
+          "scripts/intro.sd",
+          "assets/hero.png",
+          "assets/urls/song.url",
+          "main.sd",
+        ],
+        subtreeFor,
       ),
     ).toEqual([]);
+  });
+
+  it("re-homes a .url misfiled under assets/ or top-level urls/ into assets/urls/", () => {
+    expect(
+      computeLayoutMigration(
+        [
+          "assets/song.url",
+          "assets/sfx/click.url",
+          "urls/legacy.url",
+          "assets/hero.png",
+        ],
+        subtreeFor,
+      ),
+    ).toEqual([
+      { from: "assets/song.url", to: "assets/urls/song.url" },
+      { from: "assets/sfx/click.url", to: "assets/urls/sfx/click.url" },
+      { from: "urls/legacy.url", to: "assets/urls/legacy.url" },
+    ]);
   });
 });
 

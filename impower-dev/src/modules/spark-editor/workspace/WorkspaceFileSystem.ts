@@ -99,14 +99,21 @@ export default class WorkspaceFileSystem {
     let files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
     });
-    // One-time, idempotent migration of legacy FLAT projects to the
-    // `scripts/` + `assets/` split: every script (except root `main.sd`) moves
-    // under `scripts/` and every asset under `assets/`, preserving substructure.
-    // Already-split projects yield no moves (cheap no-op). Run before the files
-    // load into `_files`/the LSP so everything downstream sees the new layout.
+    // One-time, idempotent migration to the project's category split: every
+    // script (except root `main.sd`) moves under `scripts/`, remote `.url` refs
+    // under `assets/urls/`, and every other asset under `assets/`, preserving
+    // substructure. Already-split projects yield no moves (cheap no-op); a `.url`
+    // left under `assets/` by an earlier layout is re-homed to `assets/urls/`.
+    // Run before the files load into `_files`/the LSP so everything downstream
+    // sees the new layout.
     const migration = computeLayoutMigration(
       files.map((f) => this.getRelativePath(projectId, f.uri)),
-      (p) => p.endsWith(".sd"),
+      (p) =>
+        p.endsWith(".sd")
+          ? "scripts"
+          : p.endsWith(".url")
+            ? "assets/urls"
+            : "assets",
     );
     if (migration.length > 0) {
       await this.renameFiles({

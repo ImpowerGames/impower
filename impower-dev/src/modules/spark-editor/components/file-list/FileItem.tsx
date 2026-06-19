@@ -4,7 +4,6 @@ import {
   ChevronRight,
   FolderFill,
   Ripple,
-  World,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { memo } from "preact/compat";
@@ -156,7 +155,10 @@ function FileItem({
   const name =
     isDirectory || dotIndex <= 0 ? basename : basename.slice(0, dotIndex);
   const ext = !isDirectory && dotIndex > 0 ? basename.slice(dotIndex + 1) : "";
-  const showExt = ext && ext !== "sd";
+  // Hide the extension for the formats that get their own dedicated panel, where
+  // the extension is implied and just noise: `.sd` scripts and `.url` remote
+  // assets (mirrors how the Scripts panel hides `.sd`).
+  const showExt = ext && ext !== "sd" && ext !== "url";
   // Files show a "Modified <age> | <size>" caption under the name (matching the
   // legacy engine's file list). Folders carry no such metadata → no caption.
   const caption = isDirectory
@@ -395,54 +397,40 @@ function FileItem({
               </span>
             </span>
           ) : (
-            <span class="relative mr-3 flex size-10 flex-none items-center justify-center">
-              <span
-                class={`flex size-full items-center justify-center ${
-                  isDirectory
-                    ? "text-foreground/60"
-                    : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
-                }`}
-              >
-                {isDirectory ? (
-                  diveMode ? (
-                    // Dive mode: tapping NAVIGATES into the folder — a filled
-                    // folder glyph (not the expand/collapse chevron, which would
-                    // imply an inline tree). Drive convention: folders stay unboxed.
-                    <FolderFill class="size-6" />
-                  ) : (
-                    <ChevronRight
-                      class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
-                        hasChildren ? "" : "opacity-40"
-                      }`}
-                    />
-                  )
-                ) : showThumb ? (
-                  // No loading="lazy": the virtualizer already mounts only
-                  // visible+overscan rows (its own windowing), and native lazy
-                  // loading fails to trigger inside its transformed rows — leaving
-                  // visible thumbnails unloaded. Eager + async decode is correct.
-                  <img
-                    src={thumbSrc}
-                    decoding="async"
-                    alt=""
-                    class="size-full object-cover"
-                    onError={() => setThumbFailed(true)}
-                  />
+            <span
+              class={`mr-3 flex size-10 flex-none items-center justify-center ${
+                isDirectory
+                  ? "text-foreground/60"
+                  : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
+              }`}
+            >
+              {isDirectory ? (
+                diveMode ? (
+                  // Dive mode: tapping NAVIGATES into the folder — a filled
+                  // folder glyph (not the expand/collapse chevron, which would
+                  // imply an inline tree). Drive convention: folders stay unboxed.
+                  <FolderFill class="size-6" />
                 ) : (
-                  <FileIcon class="size-5" />
-                )}
-              </span>
-              {/* Remote (.url) assets get a small corner badge so they read as
-                  "from the web", distinct from a locally-imported file. Sits
-                  outside the tile's overflow-hidden clip; full opacity even when
-                  the glyph tile is muted. */}
-              {remote && (
-                <span
-                  class="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full bg-primary text-white ring-2 ring-engine-900"
-                  title="Remote URL asset"
-                >
-                  <World class="size-2.5" />
-                </span>
+                  <ChevronRight
+                    class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
+                      hasChildren ? "" : "opacity-40"
+                    }`}
+                  />
+                )
+              ) : showThumb ? (
+                // No loading="lazy": the virtualizer already mounts only
+                // visible+overscan rows (its own windowing), and native lazy
+                // loading fails to trigger inside its transformed rows — leaving
+                // visible thumbnails unloaded. Eager + async decode is correct.
+                <img
+                  src={thumbSrc}
+                  decoding="async"
+                  alt=""
+                  class="size-full object-cover"
+                  onError={() => setThumbFailed(true)}
+                />
+              ) : (
+                <FileIcon class="size-5" />
               )}
             </span>
           )}
