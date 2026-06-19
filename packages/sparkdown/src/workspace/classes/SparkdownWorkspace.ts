@@ -86,6 +86,9 @@ export abstract class SparkdownWorkspace {
 
   protected _worldFilePattern?: RegExp;
 
+  /** Memoized HEAD-probed media category per remote URL (`""` = unresolvable). */
+  protected _urlTypeCache = new Map<string, string>();
+
   protected _lastCompiledUri?: string;
 
   protected _watchedFiles = new Map<string, File>();
@@ -216,7 +219,7 @@ export abstract class SparkdownWorkspace {
               let ext = this.getFileExtension(file.uri);
               let type = this.getFileType(file.uri);
               // Remote/CDN `.url` assets infer their type/ext from the URL text.
-              const urlResolved = this.resolveUrlAssetType(ext, file.text);
+              const urlResolved = await this.resolveUrlAssetType(ext, file.text);
               if (urlResolved) {
                 type = urlResolved.type;
                 ext = urlResolved.ext;
@@ -399,10 +402,10 @@ export abstract class SparkdownWorkspace {
    * asset's identity. Type/ext are inferred from the URL's path only (query and
    * hash stripped) so signed URLs don't false-match on a token.
    */
-  protected resolveUrlAssetType(
+  protected async resolveUrlAssetType(
     ext: string,
     urlText: string | undefined,
-  ): { type: string; ext: string } | null {
+  ): Promise<{ type: string; ext: string } | null> {
     if (ext !== "url") {
       return null;
     }
@@ -411,10 +414,58 @@ export abstract class SparkdownWorkspace {
       return null;
     }
     const urlPath = url.split(/[?#]/)[0] || "";
+    const urlExt = this.getFileExtension(urlPath);
+    let type = this.getFileType(urlPath);
+    // No extension in the URL path (a bare CDN URL): ask the server for the
+    // media type via a HEAD probe and map its Content-Type.
+    if (!urlExt) {
+      const headType = await this.resolveUrlTypeViaHead(url);
+      if (headType) {
+        type = headType;
+      }
+    }
     return {
-      type: this.getFileType(urlPath),
-      ext: this.getFileExtension(urlPath) || ext,
+      type,
+      ext: urlExt || ext,
     };
+  }
+
+  /** Map a `Content-Type` header to a media category (`""` if none matches). */
+  protected categoryFromContentType(contentType: string): string {
+    const t = (contentType.split(";")[0] || "").trim().toLowerCase();
+    if (t.startsWith("image/")) return "image";
+    if (t.startsWith("audio/")) return "audio";
+    if (t.startsWith("video/")) return "video";
+    if (t.startsWith("font/") || t.includes("font")) return "font";
+    if (t.startsWith("text/")) return "text";
+    return "";
+  }
+
+  /**
+   * Resolve a remote URL's media category from a HEAD request's `Content-Type`,
+   * memoized per URL. Bounded by a 4s timeout; swallows all errors (CORS,
+   * network, timeout) and caches `""` so an unresolvable URL is probed once.
+   * Mirrors opfs-workspace `resolveUrlTypeViaHead` so editor and compiler agree.
+   */
+  protected async resolveUrlTypeViaHead(url: string): Promise<string> {
+    const cached = this._urlTypeCache.get(url);
+    if (cached !== undefined) {
+      return cached;
+    }
+    let category = "";
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, { method: "HEAD", signal: controller.signal });
+      clearTimeout(timer);
+      category = this.categoryFromContentType(
+        res.headers.get("content-type") || "",
+      );
+    } catch {
+      category = "";
+    }
+    this._urlTypeCache.set(url, category);
+    return category;
   }
 
   getRenamedUri(uri: string, newName: string): string {

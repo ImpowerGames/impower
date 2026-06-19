@@ -550,6 +550,9 @@ const readFile = async (fileUri: string) => {
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
   updateFileCache(fileUri, buffer, false, undefined, fileRef.lastModified);
+  // Refine an extension-less `.url` asset's type via a HEAD probe before the
+  // caller reads it back out of the cache.
+  await enrichUrlAssetType(fileUri);
   return buffer;
 };
 
@@ -790,8 +793,12 @@ const write = async (fileUri: string) => {
     const arrayBuffer = buffer.buffer as ArrayBuffer;
     // A fresh write happened now — stamp the modified time accordingly.
     const file = updateFileCache(fileUri, arrayBuffer, true, version, Date.now());
+    // Refine an extension-less `.url` asset's type via a HEAD probe so listeners
+    // (the URLs panel/preview) get the right media kind on first notification.
+    await enrichUrlAssetType(fileUri);
+    const notifyFile = State.files.get(fileUri) ?? file;
     listeners.forEach((l) => {
-      l({ file, created });
+      l({ file: notifyFile, created });
     });
     queued.listeners = [];
     // Warm this image's thumbnail in the background (fire-and-forget) so the
@@ -871,6 +878,75 @@ const getMimeType = (type: string, ext: string) => {
   return `${type}/${encoding}`;
 };
 
+// HEAD-probed media category per remote URL (`""` = probed but unresolvable).
+// A `.url` whose target has no path extension (e.g. a CDN URL like
+// `https://img.host/abc123`) can't infer its type from the path, so we ask the
+// server via a HEAD request and map the `Content-Type` header to a category.
+const headTypeCache = new Map<string, string>();
+
+/** Map a `Content-Type` header to one of our media categories (`""` if none). */
+const categoryFromContentType = (contentType: string): string => {
+  const t = (contentType.split(";")[0] || "").trim().toLowerCase();
+  if (t.startsWith("image/")) return "image";
+  if (t.startsWith("audio/")) return "audio";
+  if (t.startsWith("video/")) return "video";
+  if (t.startsWith("font/") || t.includes("font")) return "font";
+  if (t.startsWith("text/")) return "text";
+  return "";
+};
+
+/**
+ * Resolve a remote URL's media category from a HEAD request's `Content-Type`,
+ * memoized per URL. Bounded by a 4s timeout and swallows all errors (CORS,
+ * network, timeout) — an unresolvable probe caches `""` so we never re-request.
+ */
+const resolveUrlTypeViaHead = async (url: string): Promise<string> => {
+  const cached = headTypeCache.get(url);
+  if (cached !== undefined) {
+    return cached;
+  }
+  let category = "";
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch(url, { method: "HEAD", signal: controller.signal });
+    clearTimeout(timer);
+    category = categoryFromContentType(res.headers.get("content-type") || "");
+  } catch {
+    category = "";
+  }
+  headTypeCache.set(url, category);
+  return category;
+};
+
+/**
+ * Refine a `.url` asset's `type` for an extension-less remote URL via a HEAD
+ * probe, then patch the cached file. No-op when the URL already carries a path
+ * extension (type is known) or the probe can't resolve a category. Awaited
+ * before the file is surfaced so the URLs panel/preview never flash the wrong
+ * media kind.
+ */
+const enrichUrlAssetType = async (uri: string): Promise<void> => {
+  if (getFileExtension(uri) !== "url") {
+    return;
+  }
+  const file = State.files.get(uri);
+  const url = (file?.text || "").trim();
+  if (!file || !url) {
+    return;
+  }
+  const urlPath = url.split(/[?#]/)[0] || "";
+  if (getFileExtension(urlPath)) {
+    return; // URL path has an extension → type already inferred from it.
+  }
+  const category = await resolveUrlTypeViaHead(url);
+  // Re-check identity: the file may have been replaced/deleted during the await.
+  if (category && State.files.get(uri) === file) {
+    file.type = category;
+    State.files.set(uri, file);
+  }
+};
+
 const updateFileCache = (
   uri: string,
   buffer: ArrayBuffer,
@@ -897,11 +973,15 @@ const updateFileCache = (
     // Infer type/ext from the URL's path only (ignore query/hash so signed
     // URLs don't false-match on a `.png` hiding in a token).
     const urlPath = url.split(/[?#]/)[0] || "";
+    const urlExt = getFileExtension(urlPath);
+    // No extension in the URL path (a bare CDN URL): fall back to a HEAD-probed
+    // content-type if `enrichUrlAssetType` has resolved one for this URL.
+    const headType = !urlExt ? headTypeCache.get(url) : undefined;
     const file = {
       uri,
       name,
-      ext: getFileExtension(urlPath) || ext,
-      type: url ? getFileType(urlPath) : type,
+      ext: urlExt || ext,
+      type: url ? headType || getFileType(urlPath) : type,
       src: url,
       version: version ?? existingFile?.version ?? 0,
       languageId: null,
