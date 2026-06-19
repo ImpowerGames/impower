@@ -767,10 +767,7 @@ export class InterpreterModule extends Module<
     const allPhrases: Phrase[] = [];
 
     const textTarget = target;
-    const delay = options?.delay || 0;
-    const choice = options?.choice;
     const character = options?.character;
-    const debug = this.context?.system.debugging;
 
     let uuids: string[] = [];
     let consecutiveLettersLength = 0;
@@ -1300,6 +1297,28 @@ export class InterpreterModule extends Module<
       }
     }
 
+    return this.chunksToInstructions(allPhrases, uuids, target, options);
+  }
+
+  /**
+   * Runtime half of display parsing: turn the structural Phrase/Chunk array the
+   * scan produced into timed Text/Image/Audio/Screen {@link Instructions} —
+   * applying the per-character timing/synth/prosody and style-from-context that
+   * can only be resolved against live game state. Split out of {@link parse}
+   * (the scan is the STRUCTURAL, compile-time-derivable half) so a future
+   * compile-time path can feed a pre-scanned chunk template straight in,
+   * skipping the char-by-char re-scan (the P4 double-parse elimination).
+   */
+  protected chunksToInstructions(
+    allPhrases: Phrase[],
+    uuids: string[],
+    target: string,
+    options?: InstructionOptions,
+  ): Instructions {
+    const delay = options?.delay || 0;
+    const choice = options?.choice;
+    const character = options?.character;
+    const debug = this.context?.system.debugging;
     for (const phrase of allPhrases) {
       const target = phrase.target || "";
       const typewriter = this.lookupContextValue("typewriter", target);
