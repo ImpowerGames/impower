@@ -170,6 +170,46 @@ export default function FileList({
     return () => el.removeEventListener("scroll", update);
   }, [onScrolledChange]);
 
+  // WHEEL SCROLL FIX — drive scrolling from JS instead of the compositor.
+  //
+  // The editor embeds a continuously-animating game-preview iframe in the SAME
+  // tab. Nonstop compositing in the same renderer process wedges Chrome's wheel
+  // scroll-latching: after a gesture settles, the NEXT wheel gesture is still
+  // delivered to JS but the compositor applies NO scroll to any element until
+  // the gesture times out (~1s) — the list (and even the scrollbar thumb)
+  // freezes in place. Diagnosed with an in-page monitor: wheel events fired with
+  // defaultPrevented=false, zero long tasks (main thread free), scrollTop pinned
+  // mid-range, and NO scrollable element on the page moved. So it isn't our
+  // CSS/JS, a preventDefault, or a main-thread block — it's the compositor input
+  // path itself wedging.
+  //
+  // Taking the gesture onto a non-passive wheel listener + preventDefault pulls
+  // it OFF that wedged path and scrolls reliably. This opts the list out of
+  // threaded wheel scrolling on purpose; the main thread is never blocked here
+  // (the virtualizer re-render is well under a frame), so it stays smooth. Touch
+  // uses a separate compositor path (touch-action: pan-y) and isn't covered —
+  // revisit only if touch scrolling shows the same wedge.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.deltaY === 0) return; // ctrl = pinch-zoom; ignore pure-horizontal
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) dy *= 16; // delta in lines -> approx px
+      else if (e.deltaMode === 2) dy *= el.clientHeight; // delta in pages
+      const max = el.scrollHeight - el.clientHeight;
+      const next = Math.max(0, Math.min(max, el.scrollTop + dy));
+      if (next !== el.scrollTop) {
+        el.scrollTop = next;
+        e.preventDefault(); // off the compositor's wedged latch path
+      }
+      // At a scroll boundary we leave the event alone so overscroll behaves
+      // normally (the scroller already sets overscroll-behavior: none).
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
   // Make the active project id reactive so the list reloads when the user
   // switches projects.
   const projectId = workspace.signals.projectId.value;
