@@ -83,6 +83,7 @@ const globToRegex = (glob: string) => {
 abstract class State {
   static imageFilePattern?: RegExp;
   static audioFilePattern?: RegExp;
+  static videoFilePattern?: RegExp;
   static fontFilePattern?: RegExp;
   static scriptFilePattern?: RegExp;
   static writeQueue = new Map<
@@ -513,6 +514,10 @@ const loadConfiguration = (settings: any) => {
   if (audioFiles) {
     State.audioFilePattern = globToRegex(audioFiles);
   }
+  const videoFiles = settings?.videoFiles;
+  if (videoFiles) {
+    State.videoFilePattern = globToRegex(videoFiles);
+  }
   const fontFiles = settings?.fontFiles;
   if (fontFiles) {
     State.fontFilePattern = globToRegex(fontFiles);
@@ -851,6 +856,9 @@ const getFileType = (uri: string): string => {
   }
   if (State.audioFilePattern?.test(uri)) {
     return "audio";
+  }
+  if (State.videoFilePattern?.test(uri)) {
+    return "video";
   }
   if (State.fontFilePattern?.test(uri)) {
     return "font";

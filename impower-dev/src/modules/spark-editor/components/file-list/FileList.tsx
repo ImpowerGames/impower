@@ -15,6 +15,7 @@ import {
   DropdownRoot,
   DropdownTrigger,
   FolderPlus,
+  Ripple,
   Trash,
   X,
 } from "@impower/impower-ui/components";
@@ -866,11 +867,11 @@ export default function FileList({
         {selectMode ? (
           // Multi-editing bar: select-all + count, then Delete + exit.
           <div class="flex h-8 flex-row items-center gap-2">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               aria-label={allSelected ? "Deselect all" : "Select all"}
               onClick={toggleSelectAll}
-              class="flex size-8 flex-none items-center justify-center rounded-full text-foreground/70 hover:text-foreground"
+              class="size-8 flex-none rounded-full text-foreground/70 hover:text-foreground"
             >
               <span
                 class={`flex size-5 items-center justify-center rounded border-2 ${
@@ -881,7 +882,7 @@ export default function FileList({
               >
                 {allSelected && <Check class="size-3.5" />}
               </span>
-            </button>
+            </Button>
             <span class="text-sm tabular-nums text-foreground/70">
               ({selectedPaths.size})
             </span>
@@ -1009,7 +1010,7 @@ export default function FileList({
                     // `relative` keeps the label above the hover `before:` overlay
                     // (an absolutely-positioned pseudo would otherwise paint over
                     // this static content).
-                    class="relative flex flex-1 items-center overflow-hidden"
+                    class="relative flex flex-1 select-none items-center overflow-hidden"
                     style={{ paddingLeft: `${indent}px` }}
                   >
                     <span class="mr-3 flex size-10 flex-none items-center justify-center text-foreground/60">
@@ -1017,6 +1018,11 @@ export default function FileList({
                     </span>
                     <span class="truncate font-semibold">{s.name}</span>
                   </div>
+                  {/* Manual ripple — this stays a raw <button> (not <Button>)
+                      because its custom opaque `before:` hover is what keeps it
+                      occluding; a ghost Button's translucent hover would let the
+                      rows behind it peek through. */}
+                  <Ripple />
                 </button>
               );
             })}

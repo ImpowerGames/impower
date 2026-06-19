@@ -1,4 +1,10 @@
-import { ChevronRight, FileText, Music, X } from "@impower/impower-ui/components";
+import {
+  Button,
+  ChevronRight,
+  FileText,
+  Music,
+  X,
+} from "@impower/impower-ui/components";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef } from "preact/hooks";
 import { useMountTransition } from "../../hooks/useMountTransition";
@@ -83,7 +89,7 @@ export default function FilePreviewOverlay({
       }`}
     >
       <div
-        class={`absolute inset-0 flex flex-col text-white transition-transform duration-200 ease-out ${
+        class={`absolute inset-0 flex select-none flex-col text-white transition-transform duration-200 ease-out ${
           visible ? "translate-y-0" : "translate-y-3"
         }`}
       >
@@ -95,14 +101,14 @@ export default function FilePreviewOverlay({
             <div class="truncate text-xs text-white/50">{item.url}</div>
           )}
         </div>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
           aria-label="Close preview"
           onClick={onClose}
-          class="flex size-9 flex-none items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+          class="size-9 flex-none rounded-full text-white/70 hover:bg-white/10 hover:text-white"
         >
           <X class="size-5" />
-        </button>
+        </Button>
       </div>
 
       {/* Preview area. */}
@@ -113,27 +119,27 @@ export default function FilePreviewOverlay({
       {/* `‹ N / M ›` navigator — only when there's more than one item. */}
       {total > 1 && (
         <div class="flex flex-none flex-row items-center justify-center gap-5 py-3">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             aria-label="Previous"
             disabled={index === 0}
             onClick={() => onIndexChange(index - 1)}
-            class="flex size-9 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-25"
+            class="size-9 rounded-full text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-25"
           >
             <ChevronRight class="size-5 rotate-180" />
-          </button>
-          <span class="text-sm tabular-nums text-white/80">
+          </Button>
+          <span class="select-none text-sm tabular-nums text-white/80">
             {index + 1} / {total}
           </span>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             aria-label="Next"
             disabled={index === total - 1}
             onClick={() => onIndexChange(index + 1)}
-            class="flex size-9 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-25"
+            class="size-9 rounded-full text-white/70 hover:bg-white/10 hover:text-white disabled:opacity-25"
           >
             <ChevronRight class="size-5" />
-          </button>
+          </Button>
         </div>
       )}
       </div>

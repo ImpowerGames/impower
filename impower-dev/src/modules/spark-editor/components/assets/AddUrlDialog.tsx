@@ -75,7 +75,7 @@ export default function AddUrlDialog({
   };
 
   const inputClass =
-    "h-9 w-full rounded-md bg-foreground/5 px-3 text-sm text-foreground outline-none placeholder:text-foreground/40 focus:bg-foreground/10";
+    "h-9 w-full select-text rounded-md bg-foreground/5 px-3 text-sm text-foreground outline-none placeholder:text-foreground/40 focus:bg-foreground/10";
 
   return createPortal(
     <div
@@ -86,7 +86,7 @@ export default function AddUrlDialog({
       role="presentation"
     >
       <div
-        class={`w-full max-w-sm rounded-lg bg-engine-800 p-5 text-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 ease-out ${
+        class={`w-full max-w-sm select-none rounded-lg bg-engine-800 p-5 text-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 ease-out ${
           visible ? "scale-100 opacity-100" : "scale-95 opacity-0"
         }`}
         role="dialog"
@@ -97,14 +97,14 @@ export default function AddUrlDialog({
         <div class="mb-4 flex flex-row items-center gap-2">
           <Link class="size-5 text-foreground/70" />
           <h2 class="flex-1 text-base font-semibold">Add URL</h2>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             aria-label="Close"
             onClick={onClose}
-            class="flex size-7 items-center justify-center rounded-full text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+            class="size-7 rounded-full text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
           >
             <X class="size-4" />
-          </button>
+          </Button>
         </div>
 
         <label class="mb-1 block text-xs font-medium text-foreground/60">

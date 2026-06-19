@@ -80,6 +80,8 @@ export abstract class SparkdownWorkspace {
 
   protected _audioFilePattern?: RegExp;
 
+  protected _videoFilePattern?: RegExp;
+
   protected _fontFilePattern?: RegExp;
 
   protected _worldFilePattern?: RegExp;
@@ -176,6 +178,7 @@ export abstract class SparkdownWorkspace {
         scriptFiles?: string;
         imageFiles?: string;
         audioFiles?: string;
+        videoFiles?: string;
         fontFiles?: string;
         worldFiles?: string;
       };
@@ -294,6 +297,10 @@ export abstract class SparkdownWorkspace {
     if (audioFiles) {
       this._audioFilePattern = globToRegex(audioFiles);
     }
+    const videoFiles = settings?.videoFiles;
+    if (videoFiles) {
+      this._videoFilePattern = globToRegex(videoFiles);
+    }
     const fontFiles = settings?.fontFiles;
     if (fontFiles) {
       this._fontFilePattern = globToRegex(fontFiles);
@@ -365,6 +372,9 @@ export abstract class SparkdownWorkspace {
     }
     if (this._audioFilePattern?.test(uri)) {
       return "audio";
+    }
+    if (this._videoFilePattern?.test(uri)) {
+      return "video";
     }
     if (this._fontFilePattern?.test(uri)) {
       return "font";

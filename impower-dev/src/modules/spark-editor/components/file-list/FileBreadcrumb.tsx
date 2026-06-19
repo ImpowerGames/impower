@@ -1,4 +1,4 @@
-import { ChevronRight, Folder } from "@impower/impower-ui/components";
+import { Button, ChevronRight, Folder } from "@impower/impower-ui/components";
 import { Fragment } from "preact";
 import { breadcrumbSegments } from "../../utils/fileTree";
 
@@ -42,18 +42,18 @@ export default function FileBreadcrumb({
                 aria-hidden="true"
               />
             )}
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               disabled={isLast}
               onClick={() => onNavigate(crumb.path)}
-              class={`flex flex-none flex-row items-center gap-1 rounded px-1.5 py-0.5 text-sm ${
+              class={`h-auto flex-none gap-1 rounded px-1.5 py-0.5 text-sm disabled:cursor-default disabled:opacity-100 ${
                 isLast
                   ? "font-medium text-foreground"
                   : "text-foreground/55 hover:text-foreground"
               }`}
             >
               {crumb.name ?? <Folder class="size-4" aria-label="Root" />}
-            </button>
+            </Button>
           </Fragment>
         );
       })}

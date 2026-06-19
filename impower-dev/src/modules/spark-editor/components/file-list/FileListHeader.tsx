@@ -83,14 +83,14 @@ export default function FileListHeader({
             class="h-10 w-full rounded-md bg-foreground/5 pl-8 pr-7 text-sm text-foreground outline-none placeholder:text-foreground/40 focus:bg-foreground/10"
           />
           {search && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
               aria-label="Clear search"
               onClick={() => onSearch("")}
-              class="absolute right-1 flex size-6 items-center justify-center rounded-full text-foreground/50 hover:text-foreground"
+              class="absolute right-1 size-6 rounded-full p-0 text-foreground/50 hover:text-foreground"
             >
               <X class="size-3.5" />
-            </button>
+            </Button>
           )}
         </div>
         {trailing}
