@@ -181,89 +181,112 @@ export default class UIManager extends Manager {
         this._elements.set(id, el);
         this._staleIds.delete(id);
       }
-      // Full-replace className so a reused node matches the new render exactly.
-      el.className = params.name || "";
-      if (params.content) {
-        el.textContent = getElementContent(params.content, {
-          breakpoints: params.breakpoints,
-          scope: "spark-web-player #game",
-        });
-      }
-      if (params.style) {
-        el.style.cssText = Object.entries(params.style)
-          .flatMap(([k, v]) => {
-            const arr = [];
-            if (v != null) {
-              const [prop, value] = getCSSPropertyKeyValue(k, v);
-              const cssEntries = getCssEquivalent(prop, value);
-              for (const [k, v] of cssEntries) {
-                arr.push(`${k}:${v}`);
-              }
-            }
-            return arr;
-          })
-          .join(";");
-      } else if (reused) {
-        // Reused node may carry stale inline style from the prior render; the
-        // create carries the element's full static style, so an absent `style`
-        // means "no static style" — clear it. (Dynamic display/etc. toggles are
-        // re-applied by the same pass's ui/update messages.)
-        el.style.cssText = "";
-      }
-      if (params.attributes) {
-        Object.entries(params.attributes).forEach(([k, v]) => {
-          if (v != null) {
-            el.setAttribute(k, v);
-          }
-        });
-      }
-      if (params.content && "fonts" in params.content) {
-        for (const [, font] of Object.entries(params.content.fonts)) {
-          try {
-            if (font.font_family) {
-              const fontFace = new FontFace(
-                font.font_family,
-                `url(${font.src})`,
-                {
-                  style: font.font_style || undefined,
-                  weight: font.font_weight || undefined,
-                  stretch: font.font_stretch || undefined,
-                  display: (font.font_display as FontDisplay) || undefined,
-                },
-              );
-              if (
-                !Array.from(
-                  document.fonts as unknown as Iterable<FontFace>,
-                ).some(
-                  (f) =>
-                    f.family === font.font_family &&
-                    f.style === font.font_style &&
-                    f.weight === font.font_weight &&
-                    f.stretch === font.font_stretch,
-                )
-              ) {
-                if (
-                  "add" in document.fonts &&
-                  typeof document.fonts.add === "function"
-                ) {
-                  document.fonts.add(fontFace);
+      const sig = JSON.stringify([
+        params.type,
+        params.name ?? null,
+        params.content ?? null,
+        params.style ?? null,
+        params.attributes ?? null,
+      ]);
+      const isFontHost = !!(params.content && "fonts" in params.content);
+      // Apply class/content/style/attrs only when this is a fresh node or its
+      // create-params actually changed — an unchanged reused node is left
+      // untouched (no restyle / recalc / devtools flash). The signature lives ON
+      // the node (`__sdCreate`), not in a per-manager map, because buildApp makes
+      // a NEW UIManager every edit while the DOM node is preserved.
+      if (!reused || (el as any).__sdCreate !== sig) {
+        // Full-replace className so a reused node matches the new render exactly.
+        el.className = params.name || "";
+        if (params.content) {
+          el.textContent = getElementContent(params.content, {
+            breakpoints: params.breakpoints,
+            scope: "spark-web-player #game",
+          });
+        }
+        if (params.style) {
+          el.style.cssText = Object.entries(params.style)
+            .flatMap(([k, v]) => {
+              const arr = [];
+              if (v != null) {
+                const [prop, value] = getCSSPropertyKeyValue(k, v);
+                const cssEntries = getCssEquivalent(prop, value);
+                for (const [k, v] of cssEntries) {
+                  arr.push(`${k}:${v}`);
                 }
-                await fontFace.load();
               }
+              return arr;
+            })
+            .join(";");
+        } else if (reused) {
+          // Reused node may carry stale inline style from the prior render; the
+          // create carries the element's full static style, so an absent `style`
+          // means "no static style" — clear it. (Dynamic display/etc. toggles are
+          // re-applied by the same pass's ui/update messages.)
+          el.style.cssText = "";
+        }
+        if (params.attributes) {
+          Object.entries(params.attributes).forEach(([k, v]) => {
+            if (v != null) {
+              el.setAttribute(k, v);
             }
-          } catch (e) {
-            console.error(e);
+          });
+        }
+        if (params.content && "fonts" in params.content) {
+          for (const [, font] of Object.entries(params.content.fonts)) {
+            try {
+              if (font.font_family) {
+                const fontFace = new FontFace(
+                  font.font_family,
+                  `url(${font.src})`,
+                  {
+                    style: font.font_style || undefined,
+                    weight: font.font_weight || undefined,
+                    stretch: font.font_stretch || undefined,
+                    display: (font.font_display as FontDisplay) || undefined,
+                  },
+                );
+                if (
+                  !Array.from(
+                    document.fonts as unknown as Iterable<FontFace>,
+                  ).some(
+                    (f) =>
+                      f.family === font.font_family &&
+                      f.style === font.font_style &&
+                      f.weight === font.font_weight &&
+                      f.stretch === font.font_stretch,
+                  )
+                ) {
+                  if (
+                    "add" in document.fonts &&
+                    typeof document.fonts.add === "function"
+                  ) {
+                    document.fonts.add(fontFace);
+                  }
+                  await fontFace.load();
+                }
+              }
+            } catch (e) {
+              console.error(e);
+            }
           }
         }
-      } else {
+        (el as any).__sdCreate = sig;
+      }
+      if (!isFontHost) {
         const parent = this.getElement(params.parent);
         if (parent) {
           // Positional create: insert before the named sibling (reactive
           // control-flow slot), else append. insertBefore(el, null) === append.
-          // For a reused node this repositions it (and is a no-op when already in
-          // place), so a re-render that reorders siblings settles correctly.
+          // Only (re)insert when the position actually changed — a no-op move
+          // still registers as a DOM mutation (and flashes in devtools), so a
+          // re-render that keeps the order touches nothing.
           const before = params.before ? this.getElement(params.before) : null;
-          parent.insertBefore(el, before ?? null);
+          if (
+            el.parentElement !== parent ||
+            el.nextSibling !== (before ?? null)
+          ) {
+            parent.insertBefore(el, before ?? null);
+          }
         }
       }
       return CreateElementMessage.type.result(params.element);
@@ -628,6 +651,20 @@ export default class UIManager extends Manager {
     instant: boolean,
   ) {
     const targetEls = this.findTargetElements(target);
+    // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
+    // onto a reused target would both re-reveal and DUPLICATE its text. If every
+    // target already shows exactly this write, leave it untouched. Stored on the
+    // node so it survives the per-edit UIManager swap.
+    const sig = JSON.stringify(instructions);
+    if (
+      targetEls.length > 0 &&
+      targetEls.every((el) => (el as any).__sdTxt === sig)
+    ) {
+      return;
+    }
+    for (const el of targetEls) {
+      (el as any).__sdTxt = sig;
+    }
     const enter: {
       element: HTMLElement;
       animation: ReturnType<typeof getRevealAnimation>;
@@ -690,6 +727,21 @@ export default class UIManager extends Manager {
     instructions: WriteImageInstruction[],
   ) {
     const targetEls = this.findTargetElements(target);
+    // Reconcile dedup: if every target already shows exactly this write, its
+    // layers — and their already-DECODED <img>s — are correct, so skip the
+    // rebuild + crossfade. This is what stops a live-preview edit from
+    // re-decoding an unchanged backdrop (the dominant cost). The signature is
+    // stored ON the target node so it survives the per-edit UIManager swap.
+    const sig = JSON.stringify(instructions);
+    if (
+      targetEls.length > 0 &&
+      targetEls.every((el) => (el as any).__sdImg === sig)
+    ) {
+      return;
+    }
+    for (const el of targetEls) {
+      (el as any).__sdImg = sig;
+    }
     const targetEffects: { element: HTMLElement; animations: Animation[] }[] =
       [];
     const enterEffects: { element: HTMLElement; animations: Animation[] }[] = [];

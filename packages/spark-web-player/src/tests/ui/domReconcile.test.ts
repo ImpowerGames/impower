@@ -104,12 +104,17 @@ describe("UIManager reconcile (live-preview DOM patching)", () => {
     await h.ready;
     await flushMicrotasks();
     const count = () => h.overlay.querySelectorAll("[id]").length;
-    const initial = count();
-    expect(initial).toBeGreaterThan(0);
+    // Baseline at the STEADY STATE (after one edit). The very first harness
+    // render is connect-only; a real edit (and every rerender) also previews,
+    // which reveals a couple more nodes (e.g. image-layer spans) — that one-time
+    // jump isn't a leak. A leak would show as growth across SUBSEQUENT edits.
+    await h.rerender(V1);
+    const steady = count();
+    expect(steady).toBeGreaterThan(0);
     for (let i = 0; i < 3; i += 1) {
       await h.rerender(V1);
     }
-    expect(count()).toBe(initial);
+    expect(count()).toBe(steady);
   });
 
   test("a reused observed element isn't double-bound after re-observe", async () => {

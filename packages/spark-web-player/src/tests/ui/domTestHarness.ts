@@ -217,7 +217,9 @@ export function createDOMHarness(
     },
   };
 
-  const ui = new UIManager(stubApp);
+  // Swapped on rerender (buildApp makes a NEW manager per edit; the overlay DOM
+  // persists across the swap).
+  let ui = new UIManager(stubApp);
 
   // Wire the engine's output straight into the real consumer: every emitted
   // request is handed to `UIManager.onReceiveRequest`, and the response is fed
@@ -244,7 +246,9 @@ export function createDOMHarness(
     get game() {
       return game;
     },
-    ui,
+    get ui() {
+      return ui;
+    },
     overlay,
     ready,
     preview(line = startLine) {
@@ -260,10 +264,16 @@ export function createDOMHarness(
     async rerender(newSource: string, line = startLine) {
       const newProgram = compile(newSource);
       game = makeGame(newProgram);
-      // The player's updatePreview path: previous DOM is preserved, the new
-      // render adopts it, the stream reuses unchanged nodes, then the tail is
-      // swept.
-      ui.beginReconcilePass();
+      // Faithfully model GamePlayerController.buildApp on an edit: the OLD
+      // manager is disposed (which now PRESERVES the overlay DOM, only tearing
+      // down listeners), a FRESH manager is built, and its onInit adopts the
+      // preserved DOM (beginReconcilePass). The fresh manager has no in-memory
+      // caches — anything reused-without-rework must ride state stored on the
+      // preserved nodes themselves. Then the stream reuses unchanged nodes and
+      // the tail is swept.
+      ui.onDispose();
+      ui = new UIManager(stubApp);
+      await ui.onInit();
       await game.connect(sendToConsumer);
       await flushMicrotasks(10);
       game.preview(MAIN_URI, line);
