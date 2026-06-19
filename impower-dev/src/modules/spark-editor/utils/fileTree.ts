@@ -348,19 +348,31 @@ export const computeStickyRows = (
   }
   // Ancestor folder rows (shallow → deep): the nearest preceding row at each
   // shallower depth (which, by tree construction, is always a folder).
-  const ancestors: { row: FileTreeRow; index: number }[] = [];
+  const stack: { row: FileTreeRow; index: number }[] = [];
   let depth = topRow.depth;
   for (let i = topIndex - 1; i >= 0 && depth > 0; i -= 1) {
     if (rows[i]!.depth === depth - 1) {
-      ancestors.unshift({ row: rows[i]!, index: i });
+      stack.unshift({ row: rows[i]!, index: i });
       depth -= 1;
     }
   }
-  if (ancestors.length === 0) {
+  // If the top row is itself an OPEN folder whose own row has started scrolling
+  // off the top, pin it too — so a folder sticks the moment it reaches the top,
+  // not only once its first child does.
+  if (
+    topRow.isDirectory &&
+    topRow.hasChildren &&
+    topRow.expanded &&
+    topIndex * rowHeight < scrollOffset
+  ) {
+    stack.push({ row: topRow, index: topIndex });
+  }
+  if (stack.length === 0) {
     return [];
   }
-  // Push the deepest header up as the bottom of its subtree approaches.
-  const deepest = ancestors[ancestors.length - 1]!;
+  // Push the deepest header up (eventually clipped above the stack) as the
+  // bottom of its subtree scrolls past, so it eases out instead of popping.
+  const deepest = stack[stack.length - 1]!;
   let lastDescendant = deepest.index;
   for (let i = deepest.index + 1; i < rows.length; i += 1) {
     if (rows[i]!.depth > deepest.row.depth) {
@@ -369,10 +381,10 @@ export const computeStickyRows = (
       break;
     }
   }
-  const lastSlot = ancestors.length - 1;
+  const lastSlot = stack.length - 1;
   const subtreeBottom = (lastDescendant + 1) * rowHeight - scrollOffset;
   const push = Math.min(0, subtreeBottom - (lastSlot + 1) * rowHeight);
-  return ancestors.map((a, k) => ({
+  return stack.map((a, k) => ({
     path: a.row.path,
     name: a.row.name,
     depth: a.row.depth,

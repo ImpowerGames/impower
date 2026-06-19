@@ -347,4 +347,25 @@ describe("computeStickyRows (sticky scroll)", () => {
       "a/b/c",
     ]);
   });
+
+  it("pins an open folder as soon as its own row scrolls off the top", () => {
+    // a(d0,i0), a/sub(d1,i1), a/sub/f1(d2,i2), a/sub/f2(d2,i3)
+    const r = flattenVisibleRows(
+      buildFileTree(["a/sub/f1.sd", "a/sub/f2.sd"]),
+      new Set(["a", "a/sub"]),
+    );
+    // 1px past a/sub's OWN row → it pins under `a`, not only once a child is up.
+    expect(computeStickyRows(r, 1 * H + 1, H).map((s) => s.path)).toEqual([
+      "a",
+      "a/sub",
+    ]);
+  });
+
+  it("does not pin an open folder while its row is still fully at the top", () => {
+    const r = flattenVisibleRows(
+      buildFileTree(["a/sub/f1.sd"]),
+      new Set(["a", "a/sub"]),
+    );
+    expect(computeStickyRows(r, 1 * H, H).map((s) => s.path)).toEqual(["a"]);
+  });
 });

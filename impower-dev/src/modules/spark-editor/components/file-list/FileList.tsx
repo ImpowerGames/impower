@@ -832,7 +832,13 @@ export default function FileList({
                   class={`pointer-events-auto absolute inset-x-0 flex items-center bg-engine-900 px-5 text-left text-base font-normal text-foreground/80 hover:bg-engine-800/40 ${
                     isLast ? "shadow-[0_2px_4px_rgba(0,0,0,0.3)]" : ""
                   }`}
-                  style={{ top: `${s.offset}px`, height: `${ITEM_HEIGHT}px` }}
+                  style={{
+                    top: `${s.offset}px`,
+                    height: `${ITEM_HEIGHT}px`,
+                    // Shallower headers paint on top, so the deepest slides up
+                    // BEHIND them (and clips above) as its folder's contents end.
+                    zIndex: stickyRows.length - k,
+                  }}
                   onClick={() => {
                     if (scrollRef.current) {
                       scrollRef.current.scrollTop = s.index * ITEM_HEIGHT;
