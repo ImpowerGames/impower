@@ -17,6 +17,14 @@ import "./style.css";
 
 const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
 
+// DEV-ONLY same-origin preview: when the editor proxies this app under its own
+// origin (see impower-dev/build.ts + vite base "/__player/"), our origin equals
+// the editor's. The postMessage handshake then matches exactly with no origin
+// relaxation needed. We also skip registering our own service worker: the
+// editor already runs a root-scoped SW that intercepts /file:/ and serves game
+// assets straight from its OPFS, so it controls this iframe too.
+const SAME_ORIGIN = window.location.origin === SPARKDOWN_EDITOR_ORIGIN;
+
 const connection = new Port2MessageConnection(
   (message: any, transfer?: Transferable[]) =>
     window.parent.postMessage(message, SPARKDOWN_EDITOR_ORIGIN, transfer),
@@ -89,7 +97,7 @@ window.addEventListener("drop", async (e) => {
   );
 });
 
-if ("serviceWorker" in navigator) {
+if (!SAME_ORIGIN && "serviceWorker" in navigator) {
   navigator.serviceWorker
     .register("/sw.js", { type: "module" })
     .catch((err) => console.error("SW register failed:", err));
