@@ -63,12 +63,13 @@ export default function FileListHeader({
   onTypeFilter,
   trailing,
 }: FileListHeaderProps) {
-  const sortLabel = SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? "Name";
+  const sortLabel =
+    SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? "Name";
   const SortArrow = sortOrder === "asc" ? ArrowUp : ArrowDown;
   const filterActive = typeFilter !== "";
 
   return (
-    <div class="flex min-w-0 flex-1 flex-col gap-1.5">
+    <div class="flex min-w-0 flex-1 flex-col gap-4 mt-4">
       {/* Row 1 — search bar + the pane's "more" menu (matching the old engine,
           whose 3-dots sat on the search/title row). */}
       <div class="flex flex-row items-center gap-2">
@@ -79,7 +80,7 @@ export default function FileListHeader({
             onInput={(e) => onSearch((e.target as HTMLInputElement).value)}
             placeholder="Search"
             aria-label="Search files"
-            class="h-8 w-full rounded-md bg-foreground/5 pl-8 pr-7 text-sm text-foreground outline-none placeholder:text-foreground/40 focus:bg-foreground/10"
+            class="h-10 w-full rounded-md bg-foreground/5 pl-8 pr-7 text-sm text-foreground outline-none placeholder:text-foreground/40 focus:bg-foreground/10"
           />
           {search && (
             <button
@@ -102,7 +103,7 @@ export default function FileListHeader({
             <Button
               variant="ghost"
               aria-label="Filter by type"
-              class={`h-8 gap-1.5 rounded-md px-2 text-sm font-normal ${
+              class={`h-8 gap-4 rounded-md px-2 mx-1 text-sm font-normal ${
                 filterActive
                   ? "text-primary"
                   : "text-foreground/60 hover:text-foreground"
@@ -117,7 +118,10 @@ export default function FileListHeader({
           </DropdownTrigger>
           <DropdownContent align="start" sideOffset={4}>
             {TYPE_FILTERS.map((f) => (
-              <DropdownItem key={f.value} onSelect={() => onTypeFilter(f.value)}>
+              <DropdownItem
+                key={f.value}
+                onSelect={() => onTypeFilter(f.value)}
+              >
                 <span class="flex size-4 items-center justify-center">
                   {typeFilter === f.value && <Check class="size-4" />}
                 </span>
@@ -132,7 +136,7 @@ export default function FileListHeader({
             <Button
               variant="ghost"
               aria-label="Sort"
-              class="h-8 gap-1 rounded-md px-2 text-sm font-normal text-foreground/70 hover:text-foreground"
+              class="h-8 gap-4 rounded-md px-2 mx-3 text-sm font-normal text-foreground/70 hover:text-foreground"
             >
               {sortLabel}
               <SortArrow class="size-4" />

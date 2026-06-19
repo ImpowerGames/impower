@@ -137,6 +137,10 @@ export const Check: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"m5 12l5 5L20 7\"/>" }} />
 );
 
+export const Checkbox: IconComponent = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M9 11l3 3l8 -8 M20 12v6a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h9\" />" }} />
+);
+
 export const ChevronDown: IconComponent = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false" {...props} dangerouslySetInnerHTML={{ __html: "<path fill=\"none\"  stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M6 9l6 6l6 -6\"/>" }} />
 );

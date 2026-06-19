@@ -7,6 +7,7 @@
 import {
   Button,
   Check,
+  Checkbox,
   ChevronRight,
   DotsVertical,
   DropdownContent,
@@ -21,6 +22,7 @@ import { useComputed } from "@preact/signals";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { extOf, fileCategory, isImagePath } from "../../utils/fileIcon";
 import {
   buildFileTree,
   childrenRows,
@@ -32,7 +34,6 @@ import {
   resolveScopePath,
   type FileTreeNode,
 } from "../../utils/fileTree";
-import { extOf, fileCategory, isImagePath } from "../../utils/fileIcon";
 import globToRegex from "../../utils/globToRegex";
 import workspace from "../../workspace/WorkspaceStore";
 // Type-only import (fully erased at build) — safe despite the protocol package's
@@ -159,12 +160,12 @@ export type FileListProps = {
   onScopeChange?: (scopePath: string) => void;
 };
 
-// Slot height for the virtualizer — the row pitch. Roomier than the legacy
-// 52px so the two-line name + caption have breathing room (the row button is
-// h-16/64px and overlaps its slot by 4px; transparent, so no visible artifact).
-// Drives the virtualizer estimate AND the sticky-header offsets, so keep them
-// in sync via this constant.
-const ITEM_HEIGHT = 60;
+// Slot height for the virtualizer — the row pitch. Roomier than the legacy 52px
+// so the two-line name + caption have breathing room. MUST equal the FileItem
+// row button height (h-16 = 64px): the virtualizer lays rows out at this pitch
+// and the sticky-header offsets are computed from it, so any mismatch makes the
+// pinned headers sit a few px off (and rows overlap their slots). Keep in sync.
+const ITEM_HEIGHT = 64;
 
 /**
  * Virtualized folder tree of files for the Assets and Logic > Scripts panes.
@@ -202,6 +203,14 @@ export default function FileList({
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(
     () => new Set(),
   );
+  // A just-created file/folder we want to SCROLL into view once (one-shot): set
+  // on create, cleared by the reveal effect the moment the row materializes.
+  const [revealPath, setRevealPath] = useState<string | null>(null);
+  // A just-created-from-scratch entry (a folder, or a blank script) whose row
+  // should open straight into rename mode (VS Code "New Folder" UX): drives
+  // FileItem's `isNew` (auto-edit + Escape removes the empty new entry). NOT set
+  // for imports/uploads, which arrive already named. Cleared when the session ends.
+  const [editingNewPath, setEditingNewPath] = useState<string | null>(null);
   // Latest built tree, read by the stable select handlers to cascade a folder's
   // selection to its descendants (set after the tree is built below).
   const treeRef = useRef<FileTreeNode[]>([]);
@@ -242,7 +251,8 @@ export default function FileList({
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.deltaY === 0) return; // ctrl = pinch-zoom; ignore pure-horizontal
       let dy = e.deltaY;
-      if (e.deltaMode === 1) dy *= 16; // delta in lines -> approx px
+      if (e.deltaMode === 1)
+        dy *= 16; // delta in lines -> approx px
       else if (e.deltaMode === 2) dy *= el.clientHeight; // delta in pages
       const max = el.scrollHeight - el.clientHeight;
       const next = Math.max(0, Math.min(max, el.scrollTop + dy));
@@ -276,8 +286,7 @@ export default function FileList({
     const includeRegex = include ? globToRegex(include) : /.*/;
     const excludeRegex = exclude ? globToRegex(exclude) : undefined;
     return (
-      isSentinelUri(uri) ||
-      (includeRegex.test(uri) && !excludeRegex?.test(uri))
+      isSentinelUri(uri) || (includeRegex.test(uri) && !excludeRegex?.test(uri))
     );
   };
 
@@ -344,14 +353,10 @@ export default function FileList({
         { FileChangeType },
         { onProtocolMessage },
         { DidChangeWatchedFilesMessage },
-        { Workspace },
       ] = await Promise.all([
         import("@impower/spark-editor-protocol/src/enums/FileChangeType"),
         import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
-        import(
-          "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage"
-        ),
-        import("../../workspace/Workspace"),
+        import("@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage"),
       ]);
       if (cancelled) return;
       detach = onProtocolMessage(
@@ -367,21 +372,24 @@ export default function FileList({
           // NOTE: the legacy "don't reload during a rename" guard is gone. A
           // rename/move broadcasts only AFTER it commits (the inline input is
           // already closed), and the tree MUST refresh so a moved file lands in
-          // its new folder. Auto-open is still gated on a pure create below.
-
+          // its new folder.
           const firstUri = changes[0]?.uri || "";
           const firstFilename = getFilenameFromUri(firstUri);
-          if (
-            isCreate &&
-            changes.length === 1 &&
-            firstFilename?.endsWith(".sd")
-          ) {
-            // Open by project-relative path so a newly-created nested script
-            // routes to the right editor identity (not just its basename).
-            Workspace.window.openFileEditor(
-              relativePathFromUri(firstUri, projectId),
-            );
-            return;
+          // Reveal a newly-created file (upload / drop / Add / new script) so an
+          // add to a long list is obviously there — the same one-shot scroll as a
+          // new folder. Skip `.folder` sentinels: a folder create reveals itself
+          // via newFolder() (revealing the sentinel uri here would hijack it).
+          if (isCreate && !isSentinelUri(firstUri)) {
+            const rel = relativePathFromUri(firstUri, projectId);
+            setRevealPath(rel);
+            // A single brand-new `.sd` is a from-scratch script (the "Add"
+            // button) with a placeholder name → open it straight into rename like
+            // a new folder (Escape removes it; commit names it AND opens it in the
+            // editor — see FileItem). A bulk create is a project import → leave
+            // those alone (they're already named).
+            if (changes.length === 1 && firstFilename?.endsWith(".sd")) {
+              setEditingNewPath(rel);
+            }
           }
           void reload();
         },
@@ -588,6 +596,23 @@ export default function FileList({
     overscan: 6,
   });
 
+  // Scroll a freshly-created folder into view (centered) the first frame its row
+  // exists, then clear the request so it fires exactly once. Rows are fixed
+  // ITEM_HEIGHT, so we can place scrollTop directly (mirrors the sticky-header
+  // click idiom) — more reliable here than scrollToIndex through the wedge-proof
+  // wheel path. Without this a new folder lands offscreen in a long list.
+  useEffect(() => {
+    if (!revealPath) return;
+    const idx = rows.findIndex((r) => r.path === revealPath);
+    if (idx < 0) return; // not in the rows yet (reload still settling) — wait
+    const el = scrollRef.current;
+    if (el) {
+      const centered = idx * ITEM_HEIGHT - (el.clientHeight - ITEM_HEIGHT) / 2;
+      el.scrollTop = Math.max(0, centered);
+    }
+    setRevealPath(null);
+  }, [revealPath, rows]);
+
   const isEmpty = uris !== null && rows.length === 0;
 
   // Multi-select derived state. Select-all covers EVERY node (files + folders,
@@ -659,7 +684,20 @@ export default function FileList({
     }
     await Workspace.window.recordAssetChange();
     await reload();
+    // VS Code "New Folder": scroll the new row into view and open it straight
+    // into rename mode (the name preselected) so it's obvious it was created and
+    // ready to name. Escape then removes the empty folder (see onEndNewEntry).
+    setRevealPath(folderPath);
+    setEditingNewPath(folderPath);
   };
+
+  // End the new-entry rename session (FileItem committed a name, kept the
+  // default, or Escaped — Escape also deletes the empty new entry inside
+  // FileItem). Stable so FileItem's `memo` holds.
+  const onEndNewEntry = useCallback(() => {
+    setEditingNewPath(null);
+    setRevealPath(null);
+  }, []);
 
   // Move a set of paths into `folderPath` (`""` = project root). A dragged
   // selection can include a folder AND its contents (folder-cascade), so move
@@ -708,7 +746,8 @@ export default function FileList({
 
   const drag = useTreeDrag({
     scrollRef,
-    onDropInto: (folderPath, srcPaths) => void handleDropInto(folderPath, srcPaths),
+    onDropInto: (folderPath, srcPaths) =>
+      void handleDropInto(folderPath, srcPaths),
     onDropToRoot: (srcPaths) => void handleDropToRoot(srcPaths),
   });
 
@@ -726,7 +765,7 @@ export default function FileList({
           overflow "more" menu (New Folder) docked right. In dive mode (mobile)
           the breadcrumb sits on its own row above. The bottom FAB stays the
           single primary create action per pane. */}
-      <div class="flex flex-none flex-col gap-1.5 px-5 pb-2 pt-2">
+      <div class="flex flex-none flex-col gap-1.5 px-8 pt-2">
         {selectMode ? (
           // Multi-editing bar: select-all + count, then Delete + exit.
           <div class="flex h-8 flex-row items-center gap-2">
@@ -806,7 +845,7 @@ export default function FileList({
                       New Folder
                     </DropdownItem>
                     <DropdownItem onSelect={() => setSelectMode(true)}>
-                      <Check class="size-4" />
+                      <Checkbox class="size-4" />
                       Select
                     </DropdownItem>
                   </DropdownContent>
@@ -836,7 +875,13 @@ export default function FileList({
                   key={s.path}
                   type="button"
                   aria-label={`Scroll to ${s.name}`}
-                  class={`pointer-events-auto absolute inset-x-0 flex items-center bg-engine-900 px-5 text-left text-base font-normal text-foreground/80 hover:bg-engine-800/40 ${
+                  // A sticky header OCCLUDES the rows scrolling behind it, so the
+                  // opaque base (bg-engine-900) must stay put — swapping it for a
+                  // translucent hover would let those rows peek through. Instead
+                  // fade a `before:` overlay carrying the EXACT ghost-button tints
+                  // (hover foreground/5, active foreground/12) over the solid base,
+                  // so the hover reads identically to the file rows.
+                  class={`pointer-events-auto absolute inset-x-0 flex cursor-pointer items-center bg-engine-900 px-5 text-left text-base font-normal text-foreground/80 before:pointer-events-none before:absolute before:inset-0 before:bg-foreground/5 before:opacity-0 before:transition-opacity before:content-[''] hover:before:opacity-100 active:before:bg-foreground/[0.12] active:before:opacity-100 ${
                     isLast ? "shadow-[0_2px_4px_rgba(0,0,0,0.3)]" : ""
                   }`}
                   style={{
@@ -853,7 +898,10 @@ export default function FileList({
                   }}
                 >
                   <div
-                    class="flex flex-1 items-center overflow-hidden"
+                    // `relative` keeps the label above the hover `before:` overlay
+                    // (an absolutely-positioned pseudo would otherwise paint over
+                    // this static content).
+                    class="relative flex flex-1 items-center overflow-hidden"
                     style={{ paddingLeft: `${indent}px` }}
                   >
                     <span class="mr-3 flex size-10 flex-none items-center justify-center text-foreground/60">
@@ -905,7 +953,9 @@ export default function FileList({
                     // arms on movement / long-press).
                     const dragSelection =
                       selectMode && selectedPaths.has(row.path);
-                    const paths = dragSelection ? [...selectedPaths] : undefined;
+                    const paths = dragSelection
+                      ? [...selectedPaths]
+                      : undefined;
                     const count = paths?.length ?? 1;
                     drag.onRowPointerDown(e, {
                       path: row.path,
@@ -931,9 +981,11 @@ export default function FileList({
                     size={file?.size}
                     selectMode={selectMode}
                     bulkSelected={selectedPaths.has(row.path)}
+                    isNew={editingNewPath === row.path}
                     onToggle={onItemActivate}
                     onToggleSelect={toggleSelected}
                     onContextSelect={contextSelect}
+                    onEndNewEntry={onEndNewEntry}
                   />
                 </div>
               );
@@ -954,7 +1006,10 @@ export default function FileList({
       {drag.proxy && (
         <div
           class="pointer-events-none fixed z-50 max-w-[16rem] truncate rounded-md bg-popup px-3 py-1.5 text-sm text-foreground shadow-lg ring-1 ring-foreground/15"
-          style={{ left: `${drag.proxy.x + 14}px`, top: `${drag.proxy.y + 12}px` }}
+          style={{
+            left: `${drag.proxy.x + 14}px`,
+            top: `${drag.proxy.y + 12}px`,
+          }}
         >
           {drag.proxy.label}
         </div>

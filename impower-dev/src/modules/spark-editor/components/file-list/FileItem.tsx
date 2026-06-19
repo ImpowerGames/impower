@@ -66,6 +66,13 @@ export type FileItemProps = {
   /** Whether this row is checked in multi-select mode. */
   bulkSelected?: boolean;
   /**
+   * An entry just created from scratch (a "New Folder", or a blank script):
+   * open straight into rename mode with the name preselected (VS Code UX), let
+   * Escape REMOVE the still-empty entry instead of reverting to its placeholder
+   * name, and — for a file (script) — open it in the editor once named.
+   */
+  isNew?: boolean;
+  /**
    * Folder rows: toggle expand/collapse. Receives the row's own path so the
    * parent can pass a single STABLE callback (not a per-row closure), which
    * keeps {@link FileItem}'s props referentially stable for `memo`.
@@ -76,6 +83,8 @@ export type FileItemProps = {
   onToggleSelect?: (path: string, isDirectory: boolean) => void;
   /** Right-click / long-press: enter multi-select mode and select this row. */
   onContextSelect?: (path: string, isDirectory: boolean) => void;
+  /** A new-entry rename session ended (committed, kept default, or canceled). */
+  onEndNewEntry?: () => void;
 };
 
 /**
@@ -98,9 +107,11 @@ function FileItem({
   size,
   selectMode = false,
   bulkSelected = false,
+  isNew = false,
   onToggle,
   onToggleSelect,
   onContextSelect,
+  onEndNewEntry,
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -162,15 +173,29 @@ function FileItem({
     setRenaming(false);
   }, [path]);
 
-  // Auto-focus + select the editable name when entering rename mode.
+  // A freshly-created folder opens straight into rename mode (VS Code "New
+  // Folder"). Runs AFTER the recycle reset above so it wins on the render where
+  // the new folder's row first appears in this slot.
+  useEffect(() => {
+    if (isNew) setRenaming(true);
+  }, [isNew, path]);
+
+  // Auto-focus + select the ENTIRE editable name when entering rename mode
+  // (files and folders alike). The input value is controlled, so selecting
+  // synchronously here would run against the still-empty input (the new value
+  // lands on the next render) — defer to a rAF so `select()` covers the value
+  // that's actually in the DOM.
   useEffect(() => {
     if (!renaming) return;
     setInputValue(name ?? "");
-    const el = inputRef.current;
-    if (el) {
-      el.focus();
-      el.setSelectionRange(0, (name ?? "").length);
-    }
+    const id = requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    });
+    return () => cancelAnimationFrame(id);
   }, [renaming, name]);
 
   // Click-outside commits (if changed) and exits rename mode.
@@ -188,18 +213,35 @@ function FileItem({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renaming, inputValue]);
 
-  function commit() {
+  async function commit() {
     const newName = inputValue.trim();
-    if (newName && newName !== name) {
+    const renamed = !!newName && newName !== name;
+    let finalPath = path;
+    // Close the input immediately so dismissal feels snappy; the rename (and,
+    // for a new script, the open) proceed underneath.
+    setRenaming(false);
+    if (renamed) {
       if (isDirectory) {
         // Folder: rename in place (same parent), moving everything beneath it.
         void renameFolder(path, dir ? `${dir}/${newName}` : newName);
       } else {
         const newBasename = ext ? `${newName}.${ext}` : newName;
-        void renameFile(path, dir ? `${dir}/${newBasename}` : newBasename);
+        finalPath = dir ? `${dir}/${newBasename}` : newBasename;
+        // Await so the file exists at its new path before we open it below.
+        await renameFile(path, finalPath);
       }
     }
-    setRenaming(false);
+    if (isNew) {
+      // The create session is over (named, kept the default, or clicked away).
+      onEndNewEntry?.();
+      // A freshly-created FILE (a blank script) opens for editing once it's
+      // named — the create flow defers the open until after the inline rename
+      // so the editor never steals focus from the name input.
+      if (!isDirectory) {
+        const { Workspace } = await import("../../workspace/Workspace");
+        Workspace.window.openFileEditor(finalPath);
+      }
+    }
   }
 
   async function renameFile(oldPath: string, newPath: string) {
@@ -289,21 +331,6 @@ function FileItem({
           paddingLeft: `${BASE_INDENT + Math.min(depth, MAX_INDENT_DEPTH) * INDENT_PER_DEPTH}px`,
         }}
       >
-        {/* Indent guides: one faint 1px vertical rule per ancestor depth,
-            centered in each indentation step (VS Code's containment lines).
-            Absolutely positioned so they ride the row's transform and stay
-            pixel-aligned with the name's left padding. Clamped to the same
-            MAX_INDENT_DEPTH cap as the padding. */}
-        {Array.from({ length: Math.min(depth, MAX_INDENT_DEPTH) }, (_unused, i) => (
-          <span
-            key={i}
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-y-0 w-px bg-foreground/10"
-            style={{
-              left: `${BASE_INDENT + i * INDENT_PER_DEPTH + INDENT_PER_DEPTH / 2}px`,
-            }}
-          />
-        ))}
         <DiagnosticsLabel filename={path}>
           {/* Icon column: FILES sit in a rounded tile holding the type glyph or
               a live image thumbnail; FOLDERS show a rotating disclosure chevron
@@ -380,6 +407,13 @@ function FileItem({
                       commit();
                     } else if (e.key === "Escape") {
                       e.preventDefault();
+                      // Canceling a brand-new entry removes the empty file/folder
+                      // (VS Code); canceling a rename of an existing entry just
+                      // reverts to its current name.
+                      if (isNew) {
+                        void deleteEntry();
+                        onEndNewEntry?.();
+                      }
                       setRenaming(false);
                     }
                   }}
@@ -392,7 +426,9 @@ function FileItem({
               <>
                 <div class="flex flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
                   <span class="font-semibold">{name}</span>
-                  {showExt && <span class="font-normal opacity-30">.{ext}</span>}
+                  {showExt && (
+                    <span class="font-normal opacity-30">.{ext}</span>
+                  )}
                 </div>
                 {caption && (
                   <div class="truncate text-xs text-foreground/60">
