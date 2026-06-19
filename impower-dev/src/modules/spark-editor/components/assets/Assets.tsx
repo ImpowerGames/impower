@@ -81,7 +81,8 @@ export default function Assets(_props: AssetsProps) {
           <FileList
             key="files"
             rootDir="assets"
-            exclude="*.{sd,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
+            enablePreview
+            exclude="*.{sd,url,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
             onScrolledChange={setFabCollapsed}
             onScopeChange={setFilesScope}
             emptyState={
@@ -94,6 +95,7 @@ export default function Assets(_props: AssetsProps) {
           <FileList
             key="urls"
             rootDir="assets"
+            enablePreview
             include="*.{url}"
             onScrolledChange={setFabCollapsed}
             onScopeChange={setUrlsScope}

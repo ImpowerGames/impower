@@ -52,6 +52,10 @@ import FileListHeader, {
   type TypeFilter,
 } from "./FileListHeader";
 import { useTreeDrag } from "./useTreeDrag";
+import FilePreviewOverlay, {
+  type PreviewItem,
+  type PreviewKind,
+} from "../file-preview/FilePreviewOverlay";
 
 // Thumbnail width requested from the SW — keep in sync with FileItem's `?thumb`.
 const THUMB_WIDTH = 144;
@@ -149,6 +153,12 @@ export type FileListProps = {
    * (default) = the whole project root (legacy flat behaviour).
    */
   rootDir?: string;
+  /**
+   * Clicking a FILE opens a fullscreen preview overlay (image/audio/video/text)
+   * instead of routing to the editor. Set on the Assets panes; the Scripts pane
+   * leaves it off so a `.sd` click still opens the script editor.
+   */
+  enablePreview?: boolean;
   /** Empty-state content (icon + label) — only shown when list is empty. */
   emptyState?: ComponentChildren;
   /** "New / Upload" call-to-action button rendered below the list. */
@@ -190,6 +200,7 @@ export default function FileList({
   include = "*",
   exclude,
   rootDir = "",
+  enablePreview,
   emptyState,
   action,
   onScrolledChange,
@@ -222,9 +233,14 @@ export default function FileList({
   // FileItem's `isNew` (auto-edit + Escape removes the empty new entry). NOT set
   // for imports/uploads, which arrive already named. Cleared when the session ends.
   const [editingNewPath, setEditingNewPath] = useState<string | null>(null);
+  // Index into `previewItems` of the file shown in the fullscreen preview
+  // overlay (`null` = closed). Only used when `enablePreview` is set.
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   // Latest built tree, read by the stable select handlers to cascade a folder's
   // selection to its descendants (set after the tree is built below).
   const treeRef = useRef<FileTreeNode[]>([]);
+  // Latest previewable list, read by the stable `onOpenFile` handler.
+  const previewItemsRef = useRef<PreviewItem[]>([]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // Report scroll-off-top so the parent can collapse the FAB.
@@ -532,6 +548,31 @@ export default function FileList({
     ? childrenRows(tree, scope)
     : flattenVisibleRows(displayRoots, expanded, !!trimmedSearch || !!typeFilter);
 
+  // Previewable list (Assets panes only): the visible FILE rows in display order
+  // mapped to preview items. `.url` assets resolve their media kind from the
+  // inferred FileData.type (the path ext is `.url`); everything else from the
+  // path's extension category. Kept in a ref for the stable `onOpenFile`.
+  const previewItems: PreviewItem[] = enablePreview
+    ? rows.flatMap((r) => {
+        if (r.isDirectory) return [];
+        const file = filesByPath.get(r.path);
+        const isUrl = extOf(r.path) === "url";
+        const cat = isUrl ? file?.type : fileCategory(r.path);
+        const kind: PreviewKind =
+          cat === "image" || cat === "audio" || cat === "video" ? cat : "text";
+        return [
+          {
+            path: r.path,
+            name: r.path.split("/").pop() ?? r.path,
+            src: file?.src,
+            kind,
+            url: isUrl ? file?.text : undefined,
+          },
+        ];
+      })
+    : [];
+  previewItemsRef.current = previewItems;
+
   // Recover the scope state when the scoped folder vanishes, and report the
   // active scope (`""` in tree mode) to the parent so its create FAB targets the
   // folder the user is viewing. Reset to root when the project / globs change.
@@ -552,6 +593,7 @@ export default function FileList({
     setTypeFilter("");
     setSelectMode(false);
     setSelectedPaths(new Set());
+    setPreviewIndex(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, include, exclude]);
 
@@ -730,6 +772,24 @@ export default function FileList({
     setEditingNewPath(null);
     setRevealPath(null);
   }, []);
+
+  // File click: in preview-enabled panes (Assets) a previewable file opens the
+  // fullscreen overlay at its position; otherwise it routes to the editor.
+  // Stable for FileItem's `memo` — reads the latest list via previewItemsRef.
+  const onOpenFile = useCallback(
+    async (path: string) => {
+      if (enablePreview) {
+        const idx = previewItemsRef.current.findIndex((i) => i.path === path);
+        if (idx >= 0) {
+          setPreviewIndex(idx);
+          return;
+        }
+      }
+      const { Workspace } = await import("../../workspace/Workspace");
+      Workspace.window.openFileEditor(path);
+    },
+    [enablePreview],
+  );
 
   // Move a set of paths into `folderPath` (`""` = project root). A dragged
   // selection can include a folder AND its contents (folder-cascade), so move
@@ -1034,6 +1094,7 @@ export default function FileList({
                     onToggleSelect={toggleSelected}
                     onContextSelect={contextSelect}
                     onEndNewEntry={onEndNewEntry}
+                    onOpenFile={onOpenFile}
                   />
                 </div>
               );
@@ -1061,6 +1122,14 @@ export default function FileList({
         >
           {drag.proxy.label}
         </div>
+      )}
+      {previewIndex != null && previewItems[previewIndex] && (
+        <FilePreviewOverlay
+          items={previewItems}
+          index={previewIndex}
+          onIndexChange={setPreviewIndex}
+          onClose={() => setPreviewIndex(null)}
+        />
       )}
     </div>
   );

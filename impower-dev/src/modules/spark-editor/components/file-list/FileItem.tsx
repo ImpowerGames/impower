@@ -85,6 +85,12 @@ export type FileItemProps = {
   onContextSelect?: (path: string, isDirectory: boolean) => void;
   /** A new-entry rename session ended (committed, kept default, or canceled). */
   onEndNewEntry?: () => void;
+  /**
+   * Open a FILE on click. When provided it replaces the default "open in editor"
+   * behavior — the Assets panes pass a handler that opens the preview overlay
+   * instead. (Folders still toggle/navigate; this is files only.)
+   */
+  onOpenFile?: (path: string) => void;
 };
 
 /**
@@ -112,6 +118,7 @@ function FileItem({
   onToggleSelect,
   onContextSelect,
   onEndNewEntry,
+  onOpenFile,
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -292,6 +299,10 @@ function FileItem({
     }
     if (isDirectory) {
       onToggle?.(path);
+      return;
+    }
+    if (onOpenFile) {
+      onOpenFile(path);
       return;
     }
     const { Workspace } = await import("../../workspace/Workspace");
