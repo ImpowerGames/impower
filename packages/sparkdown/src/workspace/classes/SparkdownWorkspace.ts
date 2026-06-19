@@ -210,8 +210,14 @@ export abstract class SparkdownWorkspace {
             compilerConfig.files.map(async (file) => {
               const uri = file.uri;
               const name = this.getFileName(file.uri);
-              const ext = this.getFileExtension(file.uri);
-              const type = this.getFileType(file.uri);
+              let ext = this.getFileExtension(file.uri);
+              let type = this.getFileType(file.uri);
+              // Remote/CDN `.url` assets infer their type/ext from the URL text.
+              const urlResolved = this.resolveUrlAssetType(ext, file.text);
+              if (urlResolved) {
+                type = urlResolved.type;
+                ext = urlResolved.ext;
+              }
               const [src, text, version, languageId] = await Promise.all([
                 file.src ?? this.getFileSrc(file.uri),
                 type === "script" || type === "text" || ext === "svg"
@@ -371,6 +377,34 @@ export abstract class SparkdownWorkspace {
 
   getFileExtension(uri: string): string {
     return uri.split("/").slice(-1).join("").split(".")[1]!;
+  }
+
+  /**
+   * A `.url` file is a remote/CDN asset reference (see
+   * docs/file-manager/url-assets-plan.md): its text content IS the remote URL,
+   * and its media type is inferred from that URL's own extension rather than
+   * the `.url` extension. Returns the inferred `{ type, ext }`, or `null` when
+   * this isn't a resolvable `.url` file. Mirrors the resolution performed in
+   * opfs-workspace `updateFileCache` so the editor and compiler agree on the
+   * asset's identity. Type/ext are inferred from the URL's path only (query and
+   * hash stripped) so signed URLs don't false-match on a token.
+   */
+  protected resolveUrlAssetType(
+    ext: string,
+    urlText: string | undefined,
+  ): { type: string; ext: string } | null {
+    if (ext !== "url") {
+      return null;
+    }
+    const url = (urlText ?? "").trim();
+    if (!url) {
+      return null;
+    }
+    const urlPath = url.split(/[?#]/)[0] || "";
+    return {
+      type: this.getFileType(urlPath),
+      ext: this.getFileExtension(urlPath) || ext,
+    };
   }
 
   getRenamedUri(uri: string, newName: string): string {
