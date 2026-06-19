@@ -213,6 +213,18 @@ const childrenOf = (
 };
 
 /**
+ * Child nodes of the folder `prefix` (e.g. the contents of `scripts/`), used to
+ * ROOT a FileList at a subtree: the tree is built from full project-relative
+ * paths, then we descend past the `scripts`/`assets` node so the panel shows its
+ * contents (not the wrapper folder). `""` returns the whole forest; a prefix
+ * that doesn't resolve to a folder returns `[]` (an empty subtree → empty panel).
+ */
+export const subtreeChildren = (
+  roots: FileTreeNode[],
+  prefix: string,
+): FileTreeNode[] => (prefix ? (childrenOf(roots, prefix) ?? []) : roots);
+
+/**
  * The "dive mode" rows: the direct children of `scopePath`, each as a depth-0
  * row (mobile shows one folder level at a time, so there is no indentation).
  * Returns `[]` when `scopePath` no longer resolves to a folder.
@@ -426,3 +438,52 @@ export const computeFolderMoves = (
     .filter((p) => p.startsWith(prefix))
     .map((p) => ({ from: p, to: `${dest}/${p.slice(prefix.length)}` }));
 };
+
+/**
+ * Migrate a legacy FLAT project layout to the `scripts/` + `assets/` split.
+ * Every script moves under `scripts/` and every asset under `assets/`,
+ * PRESERVING any sub-structure (`chapters/act1.sd` → `scripts/chapters/act1.sd`).
+ *
+ * Left in place (returns no move for them):
+ *  - `main.sd` — the entry point stays at the project root.
+ *  - dotfiles — project metadata (`.name`, …) AND empty-folder sentinels
+ *    (`.folder`); a `.`-prefixed basename is never a user script/asset.
+ *  - anything already under `scripts/` or `assets/` — so this is idempotent and
+ *    safe to run on every load (a no-op once migrated).
+ *
+ * `isScript(path)` decides scripts vs assets (extension-based at the call site).
+ */
+export const computeLayoutMigration = (
+  relativePaths: string[],
+  isScript: (path: string) => boolean,
+): { from: string; to: string }[] => {
+  const moves: { from: string; to: string }[] = [];
+  for (const p of relativePaths) {
+    if (p === "main.sd") continue;
+    if (p.startsWith("scripts/") || p.startsWith("assets/")) continue;
+    const base = p.split("/").pop() ?? p;
+    if (base.startsWith(".")) continue;
+    moves.push({ from: p, to: `${isScript(p) ? "scripts" : "assets"}/${p}` });
+  }
+  return moves;
+};
+
+/**
+ * After {@link computeLayoutMigration} moves every other script under `scripts/`,
+ * the root `main.sd` (which stays put) has dangling relative `include` paths —
+ * `include intro.sd` now needs to be `include scripts/intro.sd`. Rewrite each
+ * `include <path>` directive to prepend `scripts/`.
+ *
+ * Conservative: only rewrites lines that ARE an include directive, leaves paths
+ * already rooted (`scripts/…`, `assets/…`, `/…`, `./…`, `../…`) or schemed
+ * (`http:…`) untouched, and is idempotent (re-running prepends nothing more).
+ * A `main.sd` with no includes is returned unchanged.
+ */
+export const rewriteMainIncludesForMigration = (text: string): string =>
+  text.replace(
+    /^([^\S\r\n]*include[^\S\r\n]+)(.*\S)([^\S\r\n]*)$/gm,
+    (match, lead: string, path: string, trail: string) =>
+      /^(scripts\/|assets\/|\/|\.\.?\/|[a-zA-Z][\w+.-]*:)/.test(path)
+        ? match
+        : `${lead}scripts/${path}${trail}`,
+  );

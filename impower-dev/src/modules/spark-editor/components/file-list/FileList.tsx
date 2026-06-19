@@ -32,6 +32,7 @@ import {
   flattenVisibleRows,
   FOLDER_SENTINEL,
   resolveScopePath,
+  subtreeChildren,
   type FileTreeNode,
 } from "../../utils/fileTree";
 import globToRegex from "../../utils/globToRegex";
@@ -140,6 +141,14 @@ export type FileListProps = {
   include?: string;
   /** Glob of filenames to EXCLUDE from this list. */
   exclude?: string;
+  /**
+   * Root the list at a project SUBTREE (e.g. `"scripts"` or `"assets"`) so each
+   * pane owns a SEPARATE folder tree instead of all sharing the project root.
+   * The panel shows the CONTENTS of `<rootDir>/` (not the wrapper folder), and
+   * every create / move / drop-to-root / dive-scope op is confined to it. `""`
+   * (default) = the whole project root (legacy flat behaviour).
+   */
+  rootDir?: string;
   /** Empty-state content (icon + label) — only shown when list is empty. */
   emptyState?: ComponentChildren;
   /** "New / Upload" call-to-action button rendered below the list. */
@@ -180,6 +189,7 @@ const ITEM_HEIGHT = 64;
 export default function FileList({
   include = "*",
   exclude,
+  rootDir = "",
   emptyState,
   action,
   onScrolledChange,
@@ -190,9 +200,10 @@ export default function FileList({
   // + sort/filter). Kept beside `uris` so a reload refreshes both.
   const [filesByUri, setFilesByUri] = useState<Record<string, FileData>>({});
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  // Dive-mode (mobile) folder scope: which folder's direct children are shown
-  // (`""` = project root). Ignored in tree mode (desktop). See `diveMode` below.
-  const [scopePath, setScopePath] = useState("");
+  // Dive-mode (mobile) folder scope: which folder's direct children are shown,
+  // as a FULL project-relative path. Starts at `rootDir` (the pane's subtree
+  // root) and never escapes it. Ignored in tree mode (desktop). See `diveMode`.
+  const [scopePath, setScopePath] = useState(rootDir);
   // Header controls: search-by-name, sort field + direction, Type filter.
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -281,8 +292,12 @@ export default function FileList({
   const diveMode = workspace.state.value.screen?.horizontalLayout === false;
 
   // Keep `.folder` sentinels (so empty folders show) plus any file matching the
-  // pane's globs.
+  // pane's globs — confined to this pane's `rootDir` subtree so a `scripts/`
+  // pane never reacts to / shows an `assets/` file (and vice versa).
   const matchesGlobs = (uri: string) => {
+    if (rootDir && !relativePathFromUri(uri, projectId).startsWith(`${rootDir}/`)) {
+      return false;
+    }
     const includeRegex = include ? globToRegex(include) : /.*/;
     const excludeRegex = exclude ? globToRegex(exclude) : undefined;
     return (
@@ -494,14 +509,28 @@ export default function FileList({
 
   const tree = buildFileTree(visiblePaths, { compareFiles });
   treeRef.current = tree;
-  // TREE mode (desktop): flatten the expanded tree (every folder expands while
-  // searching so buried matches show). DIVE mode (mobile): only the current
-  // folder's direct children at depth 0. `scope` recovers to the nearest
-  // surviving ancestor if the scoped folder was deleted/renamed underneath us.
-  const scope = diveMode ? resolveScopePath(tree, scopePath) : "";
+  // Root the panel at its subtree: the tree is built from full project-relative
+  // paths, then we descend past the `scripts`/`assets` wrapper so the panel shows
+  // its CONTENTS (full paths kept, so FileItem's ops are unchanged). `""` rootDir
+  // = the whole project (legacy flat behaviour).
+  const displayRoots = rootDir ? subtreeChildren(tree, rootDir) : tree;
+  // DIVE mode (mobile): the current folder's direct children at depth 0. `scope`
+  // recovers to the nearest surviving ancestor if the scoped folder vanished, and
+  // is CLAMPED so it never escapes `rootDir` — a recovered/empty scope falls back
+  // to the subtree root so creation still targets `rootDir`, not the project root.
+  // TREE mode (desktop): the flattened, subtree-rooted tree (folders expand while
+  // searching so buried matches show).
+  const resolvedScope = diveMode ? resolveScopePath(tree, scopePath) : "";
+  const scope =
+    diveMode &&
+    rootDir &&
+    resolvedScope !== rootDir &&
+    !resolvedScope.startsWith(`${rootDir}/`)
+      ? rootDir
+      : resolvedScope;
   const rows = diveMode
     ? childrenRows(tree, scope)
-    : flattenVisibleRows(tree, expanded, !!trimmedSearch || !!typeFilter);
+    : flattenVisibleRows(displayRoots, expanded, !!trimmedSearch || !!typeFilter);
 
   // Recover the scope state when the scoped folder vanishes, and report the
   // active scope (`""` in tree mode) to the parent so its create FAB targets the
@@ -512,10 +541,13 @@ export default function FileList({
     }
   }, [diveMode, scope, scopePath]);
   useEffect(() => {
-    onScopeChange?.(diveMode ? scope : "");
-  }, [onScopeChange, diveMode, scope]);
+    // Report the folder new files should be created INTO: the dive scope on
+    // mobile, else the pane's subtree root (so a desktop "Upload"/"Add" lands in
+    // `assets/`/`scripts/`, not the project root).
+    onScopeChange?.(diveMode ? scope : rootDir);
+  }, [onScopeChange, diveMode, scope, rootDir]);
   useEffect(() => {
-    setScopePath("");
+    setScopePath(rootDir);
     setSearch("");
     setTypeFilter("");
     setSelectMode(false);
@@ -619,7 +651,7 @@ export default function FileList({
   // including ones inside collapsed folders), not just the visible rows. Only
   // computed in select mode so the full-tree walk never runs on a scroll frame.
   const allNodePaths = selectMode
-    ? flattenVisibleRows(tree, new Set<string>(), true).map((r) => r.path)
+    ? flattenVisibleRows(displayRoots, new Set<string>(), true).map((r) => r.path)
     : [];
   const allSelected =
     allNodePaths.length > 0 && allNodePaths.every((p) => selectedPaths.has(p));
@@ -660,14 +692,14 @@ export default function FileList({
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
     // Dive mode (mobile) creates the folder INSIDE the folder you're viewing;
-    // tree mode (desktop) creates it at the project root, as before. Uniqueness
-    // is checked against that same level's existing folders.
-    const parent = diveMode ? scope : "";
+    // tree mode (desktop) creates it at this pane's subtree root (`rootDir`).
+    // Uniqueness is checked against that same level's existing folders.
+    const parent = diveMode ? scope : rootDir;
     const siblingDirNames = diveMode
       ? childrenRows(tree, scope)
           .filter((r) => r.isDirectory)
           .map((r) => r.name)
-      : tree.filter((n) => n.isDirectory).map((n) => n.name);
+      : displayRoots.filter((n) => n.isDirectory).map((n) => n.name);
     const existing = new Set(siblingDirNames.map((n) => n.toLowerCase()));
     let folderName = "New Folder";
     let i = 2;
@@ -677,10 +709,10 @@ export default function FileList({
     }
     const folderPath = parent ? `${parent}/${folderName}` : folderName;
     await Workspace.fs.createFolder(projectId, folderPath);
-    // Tree mode: auto-expand the new (root-level) folder. Dive mode: it already
-    // shows in the current scope after reload.
+    // Tree mode: auto-expand the new folder (keyed by its FULL path, like every
+    // expanded entry). Dive mode: it already shows in the current scope.
     if (!diveMode) {
-      setExpanded((prev) => new Set(prev).add(folderName));
+      setExpanded((prev) => new Set(prev).add(folderPath));
     }
     await Workspace.window.recordAssetChange();
     await reload();
@@ -733,14 +765,19 @@ export default function FileList({
     movePaths(srcPaths, folderPath);
 
   // Dropping on the list BACKGROUND (or a file row) moves the dragged items to
-  // the project ROOT — the way to pull files/folders back OUT of a folder.
-  // Disabled in dive mode: there the background isn't "root" (you're inside a
-  // folder), so a background drop would silently teleport items out of view.
+  // this pane's ROOT (`rootDir`, e.g. `assets/`) — the way to pull files/folders
+  // back OUT of a folder. Disabled in dive mode: there the background isn't
+  // "root" (you're inside a folder), so a background drop would silently teleport
+  // items out of view.
   const handleDropToRoot = (srcPaths: string[]) => {
     if (diveMode) return;
+    // Skip items already sitting directly under the pane root (their parent dir
+    // IS rootDir) — moving them there would be a no-op.
+    const parentOf = (p: string) =>
+      p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "";
     void movePaths(
-      srcPaths.filter((p) => p.includes("/")), // skip anything already at root
-      "",
+      srcPaths.filter((p) => parentOf(p) !== rootDir),
+      rootDir,
     );
   };
 
@@ -811,9 +848,20 @@ export default function FileList({
         ) : (
           <>
             {diveMode && (
+              // The breadcrumb works in subtree-RELATIVE paths so the pane root
+              // (`assets`/`scripts`) isn't shown as a crumb — its own home glyph
+              // navigates back to `rootDir`. Translate to/from full paths here.
               <FileBreadcrumb
-                scope={scope}
-                onNavigate={setScopePath}
+                scope={
+                  rootDir
+                    ? scope.startsWith(`${rootDir}/`)
+                      ? scope.slice(rootDir.length + 1)
+                      : ""
+                    : scope
+                }
+                onNavigate={(rel) =>
+                  setScopePath(rootDir ? (rel ? `${rootDir}/${rel}` : rootDir) : rel)
+                }
                 class="min-w-0"
               />
             )}

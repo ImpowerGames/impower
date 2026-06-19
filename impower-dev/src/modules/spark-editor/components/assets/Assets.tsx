@@ -44,8 +44,11 @@ export default function Assets(_props: AssetsProps) {
   // object) so the setters are stable identities AND bail out when unchanged —
   // FileList's `onScopeChange` effect depends on the callback, so an unstable one
   // would re-fire and loop.
-  const [filesScope, setFilesScope] = useState("");
-  const [urlsScope, setUrlsScope] = useState("");
+  // Both asset panels live under the `assets/` subtree (kept separate from the
+  // `scripts/` tree). Seed the scope to "assets" so an upload/add before the
+  // FileList reports its scope still lands inside assets/, not the project root.
+  const [filesScope, setFilesScope] = useState("assets");
+  const [urlsScope, setUrlsScope] = useState("assets");
 
   const onPanelChange = (next: string) => {
     startTransition(() => {
@@ -76,6 +79,7 @@ export default function Assets(_props: AssetsProps) {
         <Router active={panel} mode="slide-x">
           <FileList
             key="files"
+            rootDir="assets"
             exclude="*.{sd,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
             onScrolledChange={setFabCollapsed}
             onScopeChange={setFilesScope}
@@ -88,6 +92,7 @@ export default function Assets(_props: AssetsProps) {
           />
           <FileList
             key="urls"
+            rootDir="assets"
             include="*.{url}"
             onScrolledChange={setFabCollapsed}
             onScopeChange={setUrlsScope}

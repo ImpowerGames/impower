@@ -48,7 +48,12 @@ import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
 import getTextBuffer from "./utils/getTextBuffer";
 import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
-import { FOLDER_SENTINEL, computeFolderMoves } from "../utils/fileTree";
+import {
+  FOLDER_SENTINEL,
+  computeFolderMoves,
+  computeLayoutMigration,
+  rewriteMainIncludesForMigration,
+} from "../utils/fileTree";
 
 const cmp = (a: any, b: any) => {
   if (a > b) return +1;
@@ -91,9 +96,42 @@ export default class WorkspaceFileSystem {
 
   protected async loadInitialFiles(projectId: string) {
     const directoryUri = this.getDirectoryUri(projectId);
-    const files = await this.readDirectoryFiles({
+    let files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
     });
+    // One-time, idempotent migration of legacy FLAT projects to the
+    // `scripts/` + `assets/` split: every script (except root `main.sd`) moves
+    // under `scripts/` and every asset under `assets/`, preserving substructure.
+    // Already-split projects yield no moves (cheap no-op). Run before the files
+    // load into `_files`/the LSP so everything downstream sees the new layout.
+    const migration = computeLayoutMigration(
+      files.map((f) => this.getRelativePath(projectId, f.uri)),
+      (p) => p.endsWith(".sd"),
+    );
+    if (migration.length > 0) {
+      await this.renameFiles({
+        files: migration.map((m) => ({
+          oldUri: this.getFileUri(projectId, m.from),
+          newUri: this.getFileUri(projectId, m.to),
+        })),
+      });
+      // `main.sd` stayed at the root while the scripts it `include`s moved under
+      // scripts/ — rewrite its include paths so they still resolve. No-op if it
+      // has no includes (or they're already rooted).
+      const mainUri = this.getFileUri(projectId, "main.sd");
+      const mainText = files.find((f) => f.uri === mainUri)?.text;
+      if (mainText != null) {
+        const rewritten = rewriteMainIncludesForMigration(mainText);
+        if (rewritten !== mainText) {
+          await this.writeTextDocument({
+            textDocument: { uri: mainUri, version: 0, text: rewritten },
+          });
+        }
+      }
+      files = await this.readDirectoryFiles({
+        directory: { uri: directoryUri },
+      });
+    }
     this._files ??= {};
     const result: Record<string, FileData> = {};
     files.forEach((file) => {

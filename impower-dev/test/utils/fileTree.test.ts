@@ -4,12 +4,15 @@ import {
   buildFileTree,
   childrenRows,
   computeFolderMoves,
+  computeLayoutMigration,
   computeStickyRows,
   descendantPaths,
   filterPaths,
   flattenVisibleRows,
   FOLDER_SENTINEL,
   resolveScopePath,
+  rewriteMainIncludesForMigration,
+  subtreeChildren,
 } from "../../src/modules/spark-editor/utils/fileTree";
 
 describe("buildFileTree", () => {
@@ -367,5 +370,104 @@ describe("computeStickyRows (sticky scroll)", () => {
       new Set(["a", "a/sub"]),
     );
     expect(computeStickyRows(r, 1 * H, H).map((s) => s.path)).toEqual(["a"]);
+  });
+});
+
+describe("subtreeChildren", () => {
+  const tree = buildFileTree([
+    "scripts/intro.sd",
+    "scripts/chapters/act1.sd",
+    "assets/hero.png",
+    "main.sd",
+  ]);
+
+  it("returns the whole forest for an empty prefix", () => {
+    expect(subtreeChildren(tree, "").map((n) => n.name).sort()).toEqual([
+      "assets",
+      "main.sd",
+      "scripts",
+    ]);
+  });
+
+  it("returns the CONTENTS of a subtree, not the wrapper folder", () => {
+    // Rooting at `scripts/` shows intro.sd + the chapters folder, full paths kept.
+    const kids = subtreeChildren(tree, "scripts");
+    expect(kids.map((n) => n.path).sort()).toEqual([
+      "scripts/chapters",
+      "scripts/intro.sd",
+    ]);
+  });
+
+  it("returns [] for a prefix that doesn't resolve to a folder (empty panel)", () => {
+    expect(subtreeChildren(tree, "assets/missing")).toEqual([]);
+    expect(subtreeChildren(buildFileTree(["main.sd"]), "scripts")).toEqual([]);
+  });
+});
+
+describe("computeLayoutMigration", () => {
+  const isScript = (p: string) => p.endsWith(".sd");
+
+  it("moves scripts under scripts/ and assets under assets/, preserving substructure", () => {
+    expect(
+      computeLayoutMigration(
+        ["intro.sd", "chapters/act1.sd", "hero.png", "art/bg.png"],
+        isScript,
+      ),
+    ).toEqual([
+      { from: "intro.sd", to: "scripts/intro.sd" },
+      { from: "chapters/act1.sd", to: "scripts/chapters/act1.sd" },
+      { from: "hero.png", to: "assets/hero.png" },
+      { from: "art/bg.png", to: "assets/art/bg.png" },
+    ]);
+  });
+
+  it("leaves main.sd at the root", () => {
+    expect(computeLayoutMigration(["main.sd"], isScript)).toEqual([]);
+  });
+
+  it("leaves dotfiles (metadata + .folder sentinels) alone", () => {
+    expect(
+      computeLayoutMigration([".name", ".zipSynced", "empty/.folder"], isScript),
+    ).toEqual([]);
+  });
+
+  it("is idempotent — already-migrated files are skipped", () => {
+    expect(
+      computeLayoutMigration(
+        ["scripts/intro.sd", "assets/hero.png", "main.sd"],
+        isScript,
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("rewriteMainIncludesForMigration", () => {
+  it("prepends scripts/ to bare relative include paths", () => {
+    const src = "include intro.sd\ninclude chapters/act1.sd\n";
+    expect(rewriteMainIncludesForMigration(src)).toBe(
+      "include scripts/intro.sd\ninclude scripts/chapters/act1.sd\n",
+    );
+  });
+
+  it("preserves leading indentation and trailing whitespace", () => {
+    expect(rewriteMainIncludesForMigration("  include intro.sd  ")).toBe(
+      "  include scripts/intro.sd  ",
+    );
+  });
+
+  it("leaves already-rooted, dotted, and schemed paths alone (idempotent)", () => {
+    const src =
+      "include scripts/intro.sd\ninclude ./local.sd\ninclude ../up.sd\ninclude https://x/y.sd";
+    expect(rewriteMainIncludesForMigration(src)).toBe(src);
+  });
+
+  it("does not touch non-include lines or the word inside another token", () => {
+    const src = "title: My Include\nmyinclude foo.sd\n# include heading\n";
+    expect(rewriteMainIncludesForMigration(src)).toBe(src);
+  });
+
+  it("returns a main.sd with no includes unchanged", () => {
+    const src = "= start\nThe quick brown fox.\n-> END\n";
+    expect(rewriteMainIncludesForMigration(src)).toBe(src);
   });
 });
