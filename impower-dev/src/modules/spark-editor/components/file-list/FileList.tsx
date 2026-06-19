@@ -7,6 +7,7 @@
 import {
   Button,
   Check,
+  ChevronRight,
   DotsVertical,
   DropdownContent,
   DropdownItem,
@@ -23,6 +24,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import {
   buildFileTree,
   childrenRows,
+  computeStickyRows,
   descendantPaths,
   filterPaths,
   flattenVisibleRows,
@@ -37,7 +39,11 @@ import workspace from "../../workspace/WorkspaceStore";
 // CJS runtime exports that would otherwise trip Vite SSR (see the file header).
 import type { FileData } from "@impower/spark-editor-protocol/src/types/workspace/FileData";
 import FileBreadcrumb from "./FileBreadcrumb";
-import FileItem from "./FileItem";
+import FileItem, {
+  BASE_INDENT,
+  INDENT_PER_DEPTH,
+  MAX_INDENT_DEPTH,
+} from "./FileItem";
 import FileListHeader, {
   type SortKey,
   type SortOrder,
@@ -701,6 +707,14 @@ export default function FileList({
     onDropToRoot: (src) => void handleDropToRoot(src),
   });
 
+  // VS Code "sticky scroll": the expanded ancestor folders of the row at the top
+  // of the scroller, pinned as headers. Tree mode (desktop) only — never in dive
+  // mode (mobile uses the breadcrumb) or while multi-selecting.
+  const stickyRows =
+    diveMode || selectMode
+      ? []
+      : computeStickyRows(rows, rowVirtualizer.scrollOffset ?? 0, ITEM_HEIGHT);
+
   return (
     <div class="relative flex h-full w-full flex-col">
       {/* Toolbar — search / Type filter / sort (the FileListHeader), with the
@@ -801,6 +815,44 @@ export default function FileList({
           drag.draggingPath ? "select-none [touch-action:none]" : ""
         }`}
       >
+        {/* VS Code-style sticky folder headers, pinned at the top of the scroller
+            and stacked by depth (the deepest eases out as its contents end). */}
+        {stickyRows.length > 0 && (
+          <div class="pointer-events-none sticky top-0 z-20 h-0">
+            {stickyRows.map((s, k) => {
+              const indent =
+                BASE_INDENT +
+                Math.min(s.depth, MAX_INDENT_DEPTH) * INDENT_PER_DEPTH;
+              const isLast = k === stickyRows.length - 1;
+              return (
+                <button
+                  key={s.path}
+                  type="button"
+                  aria-label={`Scroll to ${s.name}`}
+                  class={`pointer-events-auto absolute inset-x-0 flex items-center bg-engine-900 px-5 text-left text-base font-normal text-foreground/80 hover:bg-engine-800/40 ${
+                    isLast ? "shadow-[0_2px_4px_rgba(0,0,0,0.3)]" : ""
+                  }`}
+                  style={{ top: `${s.offset}px`, height: `${ITEM_HEIGHT}px` }}
+                  onClick={() => {
+                    if (scrollRef.current) {
+                      scrollRef.current.scrollTop = s.index * ITEM_HEIGHT;
+                    }
+                  }}
+                >
+                  <div
+                    class="flex flex-1 items-center overflow-hidden"
+                    style={{ paddingLeft: `${indent}px` }}
+                  >
+                    <span class="mr-3 flex size-9 flex-none items-center justify-center text-foreground/60">
+                      <ChevronRight class="size-5 rotate-90" />
+                    </span>
+                    <span class="truncate font-medium">{s.name}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
         {isEmpty ? (
           <div class="flex h-full flex-col">{emptyState}</div>
         ) : (

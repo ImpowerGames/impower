@@ -4,6 +4,7 @@ import {
   buildFileTree,
   childrenRows,
   computeFolderMoves,
+  computeStickyRows,
   descendantPaths,
   filterPaths,
   flattenVisibleRows,
@@ -309,5 +310,41 @@ describe("descendantPaths (folder-select cascade)", () => {
     expect(descendantPaths(tree, "f.sd")).toEqual([]);
     expect(descendantPaths(tree, "")).toEqual([]);
     expect(descendantPaths(tree, "nope")).toEqual([]);
+  });
+});
+
+describe("computeStickyRows (sticky scroll)", () => {
+  const H = 52;
+  // a(d0,i0), a/f1(d1,i1)..a/f5(d1,i5), b.sd(d0,i6)
+  const rows = flattenVisibleRows(
+    buildFileTree(["a/f1.sd", "a/f2.sd", "a/f3.sd", "a/f4.sd", "a/f5.sd", "b.sd"]),
+    new Set(["a"]),
+  );
+
+  it("pins the ancestor folder once scrolled into its contents", () => {
+    const sticky = computeStickyRows(rows, 2 * H, H);
+    expect(sticky.map((s) => s.path)).toEqual(["a"]);
+    expect(sticky[0]!.depth).toBe(0);
+    expect(sticky[0]!.index).toBe(0);
+  });
+
+  it("is empty at the very top", () => {
+    expect(computeStickyRows(rows, 0, H)).toEqual([]);
+  });
+
+  it("clears once scrolled past the folder's contents", () => {
+    expect(computeStickyRows(rows, 6 * H, H)).toEqual([]);
+  });
+
+  it("pins nested ancestors shallow → deep", () => {
+    const nested = flattenVisibleRows(
+      buildFileTree(["a/b/c/f.sd"]),
+      new Set(["a", "a/b", "a/b/c"]),
+    );
+    expect(computeStickyRows(nested, 3 * H, H).map((s) => s.path)).toEqual([
+      "a",
+      "a/b",
+      "a/b/c",
+    ]);
   });
 });

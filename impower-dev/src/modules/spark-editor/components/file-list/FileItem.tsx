@@ -15,14 +15,15 @@ import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileOptionsButton from "./FileOptionsButton";
 
 // Per-depth indentation (px). The base padding + the fixed chevron column keep
-// a depth-0 file's name at the same x it sat at in the old flat list.
-const INDENT_PER_DEPTH = 16;
-const BASE_INDENT = 12;
+// a depth-0 file's name at the same x it sat at in the old flat list. Exported
+// so the sticky-folder headers (FileList) line up with the tree rows.
+export const INDENT_PER_DEPTH = 16;
+export const BASE_INDENT = 12;
 // Cap the visual indent so a pathologically deep tree (the desktop inline view)
 // never pushes the name off-screen. Past this depth the indent plateaus — the
 // data still nests; only the indentation stops growing. On mobile the dive view
 // renders every row at depth 0, so this never applies there.
-const MAX_INDENT_DEPTH = 8;
+export const MAX_INDENT_DEPTH = 8;
 
 export type FileItemProps = {
   /**

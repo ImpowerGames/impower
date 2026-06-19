@@ -312,6 +312,75 @@ export const descendantPaths = (
   return out;
 };
 
+export interface StickyRow {
+  path: string;
+  name: string;
+  depth: number;
+  /** Index of the folder's row in the flattened list (for scroll-to-on-click). */
+  index: number;
+  /** Vertical px offset within the pinned stack (slot top, minus push-out). */
+  offset: number;
+}
+
+/**
+ * VS Code "sticky scroll": the expanded ancestor folders of whatever row sits at
+ * the top of the scroller, to be pinned as headers. Walks the flattened `rows`
+ * back from the top row to collect its ancestor folder at each shallower depth
+ * (shallow → deep), then slides the DEEPEST header up as its folder's contents
+ * scroll past (so it eases out instead of popping). Tree mode only — the caller
+ * passes `[]`/skips it in dive mode.
+ */
+export const computeStickyRows = (
+  rows: FileTreeRow[],
+  scrollOffset: number,
+  rowHeight: number,
+): StickyRow[] => {
+  if (scrollOffset <= 0 || rows.length === 0 || rowHeight <= 0) {
+    return [];
+  }
+  const topIndex = Math.min(
+    rows.length - 1,
+    Math.floor(scrollOffset / rowHeight),
+  );
+  const topRow = rows[topIndex];
+  if (!topRow) {
+    return [];
+  }
+  // Ancestor folder rows (shallow → deep): the nearest preceding row at each
+  // shallower depth (which, by tree construction, is always a folder).
+  const ancestors: { row: FileTreeRow; index: number }[] = [];
+  let depth = topRow.depth;
+  for (let i = topIndex - 1; i >= 0 && depth > 0; i -= 1) {
+    if (rows[i]!.depth === depth - 1) {
+      ancestors.unshift({ row: rows[i]!, index: i });
+      depth -= 1;
+    }
+  }
+  if (ancestors.length === 0) {
+    return [];
+  }
+  // Push the deepest header up as the bottom of its subtree approaches.
+  const deepest = ancestors[ancestors.length - 1]!;
+  let lastDescendant = deepest.index;
+  for (let i = deepest.index + 1; i < rows.length; i += 1) {
+    if (rows[i]!.depth > deepest.row.depth) {
+      lastDescendant = i;
+    } else {
+      break;
+    }
+  }
+  const lastSlot = ancestors.length - 1;
+  const subtreeBottom = (lastDescendant + 1) * rowHeight - scrollOffset;
+  const push = Math.min(0, subtreeBottom - (lastSlot + 1) * rowHeight);
+  return ancestors.map((a, k) => ({
+    path: a.row.path,
+    name: a.row.name,
+    depth: a.row.depth,
+    index: a.index,
+    offset: k * rowHeight + (k === lastSlot ? push : 0),
+  }));
+};
+
 /**
  * Case-insensitive substring filter over the full relative path. Because the
  * tree is rebuilt from the surviving paths, a match keeps its ancestor folders
