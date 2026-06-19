@@ -120,6 +120,18 @@ export class SparkdownCompiler {
   // emit pass so `populateLocations` can look up the script index in O(1).
   protected _scriptIndices?: Map<string, number>;
 
+  // Insertion-order index of `pathLocations` entries, bucketed by scriptIndex
+  // then startLine as they're created during the location walk. Lets
+  // `sortPathLocations` emit entries in (scriptIndex, startLine, startColumn)
+  // order via a linear bucket merge instead of an O(n log n) comparison sort
+  // over every entry. Within a bucket, entries keep DFS insertion order, so a
+  // stable per-line tie-break on startColumn reproduces the comparison sort
+  // exactly. Rebuilt per compile in `populateAllLocations`.
+  protected _pathLocationOrder?: Map<
+    number,
+    Map<number, Array<[path: string, startColumn: number]>>
+  >;
+
   protected _builtinStructs: {
     [type: string]: {
       [name: string]: any;
@@ -1235,13 +1247,33 @@ export class SparkdownCompiler {
             }
           }
           program.pathLocations ??= {};
-          program.pathLocations[path] ??= [
-            scriptIndex,
-            startLine,
-            startColumn,
-            endLine,
-            endColumn,
-          ];
+          if (!(path in program.pathLocations)) {
+            program.pathLocations[path] = [
+              scriptIndex,
+              startLine,
+              startColumn,
+              endLine,
+              endColumn,
+            ];
+            // Record creation order, bucketed by (scriptIndex, startLine), for
+            // the linear-time `sortPathLocations`. Only the first write per
+            // path creates an entry (matching the previous `??=`), so a path is
+            // bucketed exactly once with its final coordinates.
+            const order = this._pathLocationOrder;
+            if (order) {
+              let byLine = order.get(scriptIndex);
+              if (!byLine) {
+                byLine = new Map();
+                order.set(scriptIndex, byLine);
+              }
+              let bucket = byLine.get(startLine);
+              if (!bucket) {
+                bucket = [];
+                byLine.set(startLine, bucket);
+              }
+              bucket.push([path, startColumn]);
+            }
+          }
         }
       }
     }
@@ -1268,6 +1300,9 @@ export class SparkdownCompiler {
     if (!root) {
       return;
     }
+    // Fresh creation-order index for this compile; consumed by
+    // `sortPathLocations` to avoid a comparison sort over every entry.
+    this._pathLocationOrder = new Map();
     const walk = (
       container: Container,
       parentPath: string,
@@ -1383,11 +1418,38 @@ export class SparkdownCompiler {
   sortPathLocations(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "sortPathLocations", uri);
-    if (program.pathLocations) {
-      // Index into the [scriptIndex, startLine, startColumn, ...] tuples
-      // directly rather than array-destructuring inside the comparator —
-      // destructuring allocates an iterator per comparison, which is hot
-      // across the tens of thousands of entries a large script produces.
+    const order = this._pathLocationOrder;
+    if (program.pathLocations && order) {
+      // Linear bucket merge: entries were bucketed by (scriptIndex, startLine)
+      // in DFS/creation order as they were added. Emit scriptIndices then lines
+      // in ascending numeric order; within each line, a stable sort on
+      // startColumn (only when a line holds 2+ entries) reproduces the
+      // (scriptIndex, startLine, startColumn) ordering — and the DFS-insertion
+      // bucket order matches the prior comparison sort's stable tie-break.
+      const entries = program.pathLocations;
+      const sorted: typeof entries = {};
+      const scriptIndices = [...order.keys()].sort((a, b) => a - b);
+      for (const scriptIndex of scriptIndices) {
+        const byLine = order.get(scriptIndex)!;
+        const lines = [...byLine.keys()].sort((a, b) => a - b);
+        for (const line of lines) {
+          const bucket = byLine.get(line)!;
+          if (bucket.length > 1) {
+            bucket.sort((a, b) => a[1] - b[1]);
+          }
+          for (let i = 0; i < bucket.length; i++) {
+            const path = bucket[i][0];
+            sorted[path] = entries[path];
+          }
+        }
+      }
+      program.pathLocations = sorted;
+    } else if (program.pathLocations) {
+      // Fallback (no creation-order index, e.g. if locations weren't gathered
+      // via `populateAllLocations`): comparison sort. Index into the
+      // [scriptIndex, startLine, startColumn, ...] tuples directly rather than
+      // array-destructuring inside the comparator — destructuring allocates an
+      // iterator per comparison, hot across tens of thousands of entries.
       const sortedEntries = Object.entries(program.pathLocations).sort(
         (a, b) => {
           const av = a[1];
