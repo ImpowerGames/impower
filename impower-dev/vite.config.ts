@@ -140,9 +140,18 @@ for (const file of envFiles) {
   dotenv.config({ path: path.join(process.cwd(), file), override: false });
 }
 
+// Dev-only browser flags that must never be baked into a production bundle —
+// even if they happen to be present in the build environment. VITE_SAME_ORIGIN_PREVIEW
+// only makes sense against the dev proxy (see build.ts / docs/architecture.md);
+// leaking it into prod would point the preview iframe at a non-existent /__player/.
+const DEV_ONLY_ENV_KEYS = new Set(["VITE_SAME_ORIGIN_PREVIEW"]);
+
 const BROWSER_VARIABLES_ENV: Record<string, string> = {};
 Object.entries(process.env).forEach(([key, value]) => {
   if (value && (key.startsWith("BROWSER_") || key.startsWith("VITE_"))) {
+    if (PRODUCTION && DEV_ONLY_ENV_KEYS.has(key)) {
+      return;
+    }
     BROWSER_VARIABLES_ENV[key] = value;
   }
 });

@@ -1,7 +1,7 @@
 import * as esbuild from "esbuild";
 import fs from "node:fs";
 import path from "node:path";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 
 const PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -151,9 +151,29 @@ function devServiceWorkerPlugin(options: {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // DEV-ONLY same-origin game preview. When VITE_SAME_ORIGIN_PREVIEW is set, the
+  // editor reverse-proxies this dev server under its own origin at /__player/
+  // (see impower-dev/build.ts). Serving under base "/__player/" makes the
+  // emitted HTML/asset URLs (/__player/@vite/client, /__player/src/main.ts, …)
+  // route back through that proxy. HMR connects directly to this server's port
+  // (not through the proxy) so no websocket proxying is needed. Defaults OFF
+  // (base "/"). Gated on `mode !== "production"` so an ambient flag can never
+  // flip a prod build onto the /__player/ base.
+  const env = loadEnv(mode, process.cwd(), "");
+  const SAME_ORIGIN_PREVIEW =
+    mode !== "production" && !!env["VITE_SAME_ORIGIN_PREVIEW"];
+  // Keep the served port and the HMR client port in one knob so they can't drift
+  // (and so multiple worktrees can run players without colliding). The editor's
+  // SPARKDOWN_PLAYER_DEV_ORIGIN must point at this same port.
+  const PLAYER_PORT = Number(env["SPARKDOWN_PLAYER_PORT"] || 5173);
+  return {
+  base: SAME_ORIGIN_PREVIEW ? "/__player/" : "/",
   server: {
     host: true,
+    ...(SAME_ORIGIN_PREVIEW
+      ? { port: PLAYER_PORT, hmr: { clientPort: PLAYER_PORT } }
+      : {}),
   },
   // Use Preact's automatic JSX runtime for the .tsx in spark-web-player.
   esbuild: {
@@ -184,4 +204,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });
