@@ -83,4 +83,20 @@ describe("screen lifecycle directive validation", () => {
     const diags = diagnosticsFor(SCREEN + `[[play hud]]\n`);
     expect(diags.some((m) => m.includes("Unrecognized"))).toBe(true);
   });
+
+  test("[[navigate hud]] for a defined screen produces no diagnostics", () => {
+    expect(diagnosticsFor(SCREEN + `[[navigate hud]]\n`)).toEqual([]);
+  });
+
+  test("[[navigate hud with fade over 1s]] inherits clauses cleanly", () => {
+    expect(
+      diagnosticsFor(SCREEN + `[[navigate hud with fade over 1s]]\n`),
+    ).toEqual([]);
+  });
+
+  test("navigating to an undefined screen warns (target validates against screens)", () => {
+    const diags = diagnosticsFor(SCREEN + `[[navigate ghost]]\n`);
+    expect(diags.some((m) => m.toLowerCase().includes("screen"))).toBe(true);
+    expect(diags.some((m) => m.includes("Unrecognized"))).toBe(false);
+  });
 });

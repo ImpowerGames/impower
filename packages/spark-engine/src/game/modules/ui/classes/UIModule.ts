@@ -2259,9 +2259,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._mountedScreens.delete(name);
   }
 
-  /** Apply a beat's `[[open/close SCREEN]]` directives (Coordinator fan-out),
-   *  mirroring `image.write`/`audio.schedule`. Awaits all transitions so a beat
-   *  with a `wait` directive can hold advance until they settle. */
+  /** Replace the screen stack (`[[navigate X]]`): play the exit transition on +
+   *  destroy every currently-open screen EXCEPT the target, then open the target
+   *  (its enter transition). Full-screen routing, composed from the open/close
+   *  primitives — clauses drive both the outgoing exit and the incoming enter (so
+   *  a `with` transition gives a crossfade). No-op when the target is already the
+   *  sole open screen. */
+  async navigateScreen(
+    name: string,
+    clauses?: { with?: string; after?: number; over?: number; ease?: string },
+    instant = false,
+  ): Promise<void> {
+    if (!this._reactive) {
+      // Static path: just show the target (screens are all constructed at connect).
+      this.showScreen(name);
+      return;
+    }
+    if (!name) {
+      return;
+    }
+    const toClose = [...this._mountedScreens.keys()].filter((n) => n !== name);
+    await Promise.all([
+      ...toClose.map((n) => this.closeScreen(n, clauses, instant)),
+      this.openScreen(name, clauses, instant),
+    ]);
+  }
+
+  /** Apply a beat's `[[open/close/navigate SCREEN]]` directives (Coordinator
+   *  fan-out), mirroring `image.write`/`audio.schedule`. Awaits all transitions so
+   *  a beat with a `wait` directive can hold advance until they settle. */
   async applyScreenInstructions(
     instructions: ScreenInstruction[],
     instant: boolean,
@@ -2276,6 +2302,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         };
         if (e.control === "close") {
           return this.closeScreen(e.name, clauses, instant);
+        }
+        if (e.control === "navigate") {
+          return this.navigateScreen(e.name, clauses, instant);
         }
         return this.openScreen(e.name, clauses, instant);
       }),

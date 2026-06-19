@@ -49,12 +49,15 @@ export class InterpreterModule extends Module<
     "write",
     "open",
     "close",
+    "navigate",
   ];
 
   // Control verbs that route a `[[...]]` directive to the screen-lifecycle path
-  // (openScreen/closeScreen) instead of the image path. They reuse the asset
-  // clause parser (with/over/after/ease/wait) verbatim.
-  SCREEN_CONTROL_KEYWORDS = ["open", "close"];
+  // (openScreen/closeScreen/navigateScreen) instead of the image path. They reuse
+  // the asset clause parser (with/over/after/ease/wait) verbatim. `open`/`close`
+  // are overlay primitives; `navigate` REPLACES the screen stack (close all open,
+  // then open the target) for full-screen routing.
+  SCREEN_CONTROL_KEYWORDS = ["open", "close", "navigate"];
 
   ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
 

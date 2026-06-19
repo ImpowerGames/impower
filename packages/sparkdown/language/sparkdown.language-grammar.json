@@ -45,7 +45,8 @@
     ],
     "SCREEN_CONTROL_KEYWORDS": [
       "open",
-      "close"
+      "close",
+      "navigate"
     ],
     "FLOW_BEAT_KEYWORDS": [
       "scene",
@@ -3690,7 +3691,7 @@
       }
     },
     "AssetCommandInstruction": {
-      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b|\\b(?:open|close)\\b)((?:[^\\S\\n\\r])*)($|\\S+)((?:[^\\S\\n\\r])*))?(.*)",
+      "match": "(?:(\\b(?:show|hide|animate)\\b|\\b(?:play|stop|fade|queue|await)\\b|\\b(?:open|close|navigate)\\b)((?:[^\\S\\n\\r])*)($|\\S+)((?:[^\\S\\n\\r])*))?(.*)",
       "captures": {
         "1": {
           "patterns": [

@@ -225,3 +225,96 @@ end
     expect(beat!.end).toBe(0);
   });
 });
+
+// [[navigate SCREEN]] — full-screen routing: REPLACE the stack (close every open
+// screen, including `main` and any overlays, then open the target). Composes the
+// open/close primitives.
+const NAV_SOURCE = `store hp = 100
+screen main with
+  textbox:
+    dialogue:
+      text
+end
+screen hud with
+  text "HP: {hp}"
+end
+screen menu with
+  text "Menu"
+end
+-> start
+scene start
+  [[open hud]]
+  Hello.
+  [[navigate menu]]
+  Bye.
+end
+`;
+
+describe("screen navigation ([[navigate SCREEN]])", () => {
+  const drive = async (h: ReturnType<typeof createHarness>) => {
+    const beat = h.nextBeat();
+    if (beat) {
+      await h.display(beat, true);
+      await flushMicrotasks();
+    }
+    return beat;
+  };
+
+  test("[[navigate X]] parses as control=navigate, name=X", async () => {
+    const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    await drive(h); // [[open hud]]
+    await drive(h); // "Hello."
+    h.reset();
+    const navBeat = h.nextBeat();
+    const ev = Object.values(navBeat!.screen ?? {})[0]?.[0] as any;
+    expect(ev?.control).toBe("navigate");
+    expect(ev?.name).toBe("menu");
+  });
+
+  test("[[navigate X]] replaces the stack: closes main + overlays, opens X", async () => {
+    const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    const ui: any = h.game.module.ui;
+
+    await drive(h); // [[open hud]]
+    await drive(h); // "Hello."
+    // main (auto-opened) + hud are both open before the navigate.
+    expect(ui._mountedScreens.has("main")).toBe(true);
+    expect(ui._mountedScreens.has("hud")).toBe(true);
+
+    await drive(h); // [[navigate menu]]
+    // The stack is REPLACED: only menu remains, main + hud were torn down.
+    expect(ui._mountedScreens.has("menu")).toBe(true);
+    expect(ui._mountedScreens.has("main")).toBe(false);
+    expect(ui._mountedScreens.has("hud")).toBe(false);
+    // The teardown emitted ui/destroy (the closed screens' subtrees).
+    expect(h.snapshotFiltered("ui/destroy").length).toBeGreaterThan(0);
+  });
+
+  test("[[navigate X]] when X is already the sole screen is a no-op-ish (X stays open)", async () => {
+    const h = createHarness(
+      `screen main with
+  textbox:
+    dialogue:
+      text
+end
+-> start
+scene start
+  [[navigate main]]
+  Hello.
+end
+`,
+      0,
+      { reactive: true, autoOpenAll: false },
+    );
+    await h.ready;
+    h.jumpTo("start");
+    const ui: any = h.game.module.ui;
+    expect(ui._mountedScreens.has("main")).toBe(true);
+    await drive(h); // [[navigate main]] — main is already the only screen
+    expect(ui._mountedScreens.has("main")).toBe(true);
+  });
+});

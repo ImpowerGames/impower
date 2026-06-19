@@ -13,11 +13,12 @@ variables:
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
   # Screen lifecycle directives — `[[open hud with fade over 1s]]` /
-  # `[[close hud]]`. They flow through the same AssetCommand grammar as image
-  # directives, so they inherit every IMAGE_CLAUSE_KEYWORD (over/after/with/
-  # wait/ease) for free; the runtime InterpreterModule routes the open/close
-  # verbs to screen mount/unmount instead of the image path.
-  SCREEN_CONTROL_KEYWORDS: ["open", "close"]
+  # `[[close hud]]` / `[[navigate menu]]`. They flow through the same AssetCommand
+  # grammar as image directives, so they inherit every IMAGE_CLAUSE_KEYWORD
+  # (over/after/with/wait/ease) for free; the runtime InterpreterModule routes the
+  # verbs to screen mount/unmount/replace instead of the image path. `open`/`close`
+  # are overlay primitives; `navigate` replaces the screen stack (full-screen nav).
+  SCREEN_CONTROL_KEYWORDS: ["open", "close", "navigate"]
 
   FLOW_BEAT_KEYWORDS: ["scene", "branch"]
   FLOW_MODULE_KEYWORDS: ["include", "run"]

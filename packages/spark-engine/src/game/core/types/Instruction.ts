@@ -49,8 +49,9 @@ export interface AudioInstruction extends IInstruction {
 }
 
 export interface ScreenInstruction extends IInstruction {
-  control: "open" | "close";
-  /** The name of the screen to mount (`open`) or tear down (`close`). */
+  control: "open" | "close" | "navigate";
+  /** The name of the screen to mount (`open`), tear down (`close`), or replace
+   *  the whole stack with (`navigate`). */
   name: string;
   /** The enter/exit animation/transition name (`with` clause). */
   with?: string;
