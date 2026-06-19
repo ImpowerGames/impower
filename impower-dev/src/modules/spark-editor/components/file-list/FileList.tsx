@@ -4,7 +4,15 @@
 // `Workspace` constructs WorkspaceWindow (touches localStorage/window) at
 // module load. Both must be deferred — see memory:
 // feedback_defer_cjs_imports_in_ssr_loaded_modules.
-import { Button, Plus } from "@impower/impower-ui/components";
+import {
+  Button,
+  DotsVertical,
+  DropdownContent,
+  DropdownItem,
+  DropdownRoot,
+  DropdownTrigger,
+  FolderPlus,
+} from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ComponentChildren } from "preact";
@@ -427,16 +435,29 @@ export default function FileList({
 
   return (
     <div class="relative flex h-full w-full flex-col">
-      {/* Toolbar: New Folder (search/sort/filter will join here later). */}
+      {/* Toolbar — an overflow "more" menu on the right (New Folder for now;
+          a search field + sort/filter will join here later, with the menu
+          docked beside the search bar). Secondary create/organize actions live
+          here so the bottom FAB stays the single primary action per pane. */}
       <div class="flex flex-none flex-row items-center justify-end px-4 pt-2">
-        <Button
-          variant="ghost"
-          class="h-8 gap-1.5 rounded-md px-2 text-sm font-normal text-foreground/70"
-          onClick={() => void newFolder()}
-        >
-          <Plus class="size-4" />
-          New Folder
-        </Button>
+        <DropdownRoot>
+          <DropdownTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="More options"
+              class="rounded-full text-foreground/60 hover:text-foreground"
+            >
+              <DotsVertical class="size-5" />
+            </Button>
+          </DropdownTrigger>
+          <DropdownContent align="end" sideOffset={4}>
+            <DropdownItem onSelect={() => void newFolder()}>
+              <FolderPlus class="size-4" />
+              New Folder
+            </DropdownItem>
+          </DropdownContent>
+        </DropdownRoot>
       </div>
       <div
         ref={scrollRef}
