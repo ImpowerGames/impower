@@ -899,6 +899,10 @@ const updateFileCache = (
       languageId: null,
       // Keep the raw URL as text so the URL editor (preview pane) can read it.
       text: url,
+      // The on-disk file is the URL string; surface its byte size + mtime so the
+      // URLs pane caption ("Modified <age> | <size>") renders like other assets.
+      size: buffer.byteLength,
+      modified: modified ?? existingFile?.modified ?? Date.now(),
     };
     State.files.set(uri, file);
     return file;

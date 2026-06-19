@@ -16,6 +16,7 @@ import getValidFileName from "../../utils/getValidFileName";
 import workspace from "../../workspace/WorkspaceStore";
 import FileList from "../file-list/FileList";
 import FileListBorder from "../file-list/FileListBorder";
+import AddUrlDialog from "./AddUrlDialog";
 
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
@@ -133,6 +134,7 @@ function AssetsFab({
   scope: string;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
     return (
@@ -165,7 +167,11 @@ function AssetsFab({
     input.value = "";
   }
 
-  async function addUrl() {
+  // Create a remote/CDN asset: write a `<name>.url` file whose CONTENT is the
+  // URL the user entered. The engine resolves `.url` files straight to that
+  // remote `src` (opfs-workspace `updateFileCache`), so it renders in-game like
+  // a local import. Goes into the same `assets/` subtree as uploaded files.
+  async function createUrlAsset(url: string, name: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
@@ -173,20 +179,24 @@ function AssetsFab({
     const filenames = Object.keys(files).map((uri) =>
       Workspace.fs.getFilename(uri),
     );
-    const uniqueFilename = getUniqueFileName(filenames, "asset00.url");
+    const base = getValidFileName(name) || "asset";
+    const uniqueFilename = getUniqueFileName(filenames, `${base}.url`);
     const rel = scope ? `${scope}/${uniqueFilename}` : uniqueFilename;
     await Workspace.fs.createFiles({
       files: [
         {
           uri: Workspace.fs.getFileUri(projectId, rel),
-          data: new ArrayBuffer(0),
+          data: new TextEncoder().encode(url).buffer,
         },
       ],
     });
     await Workspace.window.recordAssetChange();
   }
 
-  const onClick = panel === "files" ? () => inputRef.current?.click() : addUrl;
+  const onClick =
+    panel === "files"
+      ? () => inputRef.current?.click()
+      : () => setUrlDialogOpen(true);
 
   // Collapsed: shrink to a 48px circle docked right, icon-only. The two
   // crossfading label overlays keep their icon but collapse their text width
@@ -228,6 +238,11 @@ function AssetsFab({
         multiple
         class="hidden"
         onChange={uploadFiles}
+      />
+      <AddUrlDialog
+        open={urlDialogOpen}
+        onClose={() => setUrlDialogOpen(false)}
+        onSubmit={createUrlAsset}
       />
     </div>
   );
