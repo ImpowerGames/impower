@@ -625,6 +625,7 @@ export default function FileList({
                     depth={row.depth}
                     hasChildren={row.hasChildren}
                     expanded={row.expanded}
+                    diveMode={diveMode}
                     selected={openFilenames.has(row.path)}
                     src={srcByPath.get(row.path)}
                     onToggle={onItemActivate}

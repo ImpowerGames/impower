@@ -1,4 +1,9 @@
-import { Button, ChevronRight, Ripple } from "@impower/impower-ui/components";
+import {
+  Button,
+  ChevronRight,
+  FolderFill,
+  Ripple,
+} from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { memo } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -32,6 +37,12 @@ export type FileItemProps = {
   hasChildren?: boolean;
   /** Folder is expanded (chevron points down). */
   expanded?: boolean;
+  /**
+   * Dive mode (mobile): a folder row NAVIGATES into the folder instead of
+   * expanding in place, so it shows a filled folder glyph rather than the
+   * expand/collapse chevron (which would wrongly imply an inline tree).
+   */
+  diveMode?: boolean;
   /** Row is the file currently open in the editor (gets the selection accent). */
   selected?: boolean;
   /**
@@ -61,6 +72,7 @@ function FileItem({
   depth = 0,
   hasChildren = false,
   expanded = false,
+  diveMode = false,
   selected = false,
   src,
   onToggle,
@@ -258,11 +270,18 @@ function FileItem({
             }`}
           >
             {isDirectory ? (
-              <ChevronRight
-                class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
-                  hasChildren ? "" : "opacity-40"
-                }`}
-              />
+              diveMode ? (
+                // Dive mode: tapping NAVIGATES into the folder — a filled folder
+                // glyph (not the expand/collapse chevron, which would imply an
+                // inline tree). Drive convention: folders stay unboxed.
+                <FolderFill class="size-6" />
+              ) : (
+                <ChevronRight
+                  class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
+                    hasChildren ? "" : "opacity-40"
+                  }`}
+                />
+              )
             ) : showThumb ? (
               // No loading="lazy": the virtualizer already mounts only
               // visible+overscan rows (its own windowing), and native lazy
