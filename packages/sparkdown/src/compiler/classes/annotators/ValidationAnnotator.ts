@@ -14,11 +14,44 @@ const AUDIO_CONTROL_KEYWORDS =
 const SCREEN_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.SCREEN_CONTROL_KEYWORDS || [];
 // `[[...]]` brackets carry both visual (show/hide/animate) and screen-lifecycle
-// (open/close) verbs — see SCREEN_CONTROL_KEYWORDS in the grammar.
+// (open/close/navigate) verbs — see SCREEN_CONTROL_KEYWORDS in the grammar.
 const BRACKET_CONTROL_KEYWORDS = [
   ...IMAGE_CONTROL_KEYWORDS,
   ...SCREEN_CONTROL_KEYWORDS,
 ];
+
+// The whole `[[…]]` / `((…))` command + its control token. A clause keyword/
+// value is a SIBLING of AssetCommandInstruction (both under the command), so
+// reading the control from a clause node walks up to the command, not the
+// instruction.
+const ASSET_COMMAND = new Set(["ImageCommand", "AudioCommand"]);
+const ASSET_COMMAND_CONTROL = new Set(["AssetCommandControl"]);
+
+// Bounded parent walk: nearest ancestor whose name is in `names`, else null.
+function ancestorMatching(
+  node: { parent?: any } | undefined,
+  names: Set<string>,
+  max = 10,
+): any {
+  let cur = node?.parent;
+  for (let depth = 0; depth < max && cur; depth++) {
+    if (names.has(cur.name)) return cur;
+    cur = cur.parent;
+  }
+  return null;
+}
+
+// DFS in-order: first descendant (or self) whose name is in `names`, else null.
+function firstDescendant(node: any, names: Set<string>): any {
+  if (names.has(node.name)) return node;
+  let c = node.firstChild;
+  while (c) {
+    const found = firstDescendant(c, names);
+    if (found) return found;
+    c = c.nextSibling;
+  }
+  return null;
+}
 
 // NOTE: This annotator previously also validated property selectors
 // (`PropertySelectorSimpleConditionName`/`...FunctionConditionName`/
@@ -41,6 +74,32 @@ export interface Diagnostic {
 export class ValidationAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Diagnostic>
 > {
+  /** Does this `[[…]]` command contain a `to <NameValue>` destination (the
+   *  navigate target screen)? Mirrors how ReferenceAnnotator reads a clause
+   *  value's keyword (`prevSibling.prevSibling`). */
+  protected hasNavigateDestination(commandNode: any): boolean {
+    const search = (node: any): boolean => {
+      if (node.name === "NameValue") {
+        const clauseKeywordNode = node.prevSibling?.prevSibling;
+        const clauseKeyword = clauseKeywordNode
+          ? this.read(clauseKeywordNode.from, clauseKeywordNode.to)
+          : "";
+        if (clauseKeyword === "to") {
+          return true;
+        }
+      }
+      let c = node.firstChild;
+      while (c) {
+        if (search(c)) {
+          return true;
+        }
+        c = c.nextSibling;
+      }
+      return false;
+    };
+    return search(commandNode);
+  }
+
   override enter(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
@@ -86,6 +145,24 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           ),
         );
         return annotations;
+      }
+      // `[[navigate <container> to <screen>]]` requires a `to <screen>`
+      // destination — a bare `[[navigate <container>]]` is incomplete.
+      if (
+        context.includes("ImageCommand") &&
+        this.read(nodeRef.from, nodeRef.to) === "navigate"
+      ) {
+        const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
+        if (command && !this.hasNavigateDestination(command)) {
+          const message = `Incomplete \`navigate\`: name the destination screen\n> e.g. \`[[navigate menu to settings]]\``;
+          annotations.push(
+            SparkdownAnnotation.mark<Diagnostic>({
+              message,
+              severity: "warning",
+            }).range(nodeRef.from, nodeRef.to),
+          );
+          return annotations;
+        }
       }
     }
     if (nodeRef.name === "IllegalChar") {
@@ -230,9 +307,22 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
       if (text === "to") {
+        // `[[navigate <container> to <screen>]]` uses `to` to name a destination
+        // SCREEN (a NameValue), not a number — skip the numeric check for
+        // navigate (the destination is validated as a screen by the reference
+        // resolver). Audio `to <number>` (volume target) still validates here.
+        const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
+        const controlNode = command
+          ? firstDescendant(command, ASSET_COMMAND_CONTROL)
+          : null;
+        const control = controlNode
+          ? this.read(controlNode.from, controlNode.to).trim()
+          : "";
         if (
-          nextValueNodeType !== "NumberValue" ||
-          (nextValueNodeType === "NumberValue" && Number(nextValueNodeText) < 0)
+          control !== "navigate" &&
+          (nextValueNodeType !== "NumberValue" ||
+            (nextValueNodeType === "NumberValue" &&
+              Number(nextValueNodeText) < 0))
         ) {
           const message = `\`${text}\` should be followed by a number greater than 0\n> e.g. \`to 0\`, \`to 0.5\`, \`to 1\``;
           const errorFrom = nextValueNode

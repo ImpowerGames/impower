@@ -9,15 +9,15 @@ sparkdown [0..145]
  │   │       └─ LuauScreen_begin_c3 [6..7]
  │   │           └─ OptionalWhitespace [6..7]: " "
  │   ├─ LuauScreen_content [7..141]
- │   │   ├─ LuauUINameAndInheritance [7..17]
- │   │   │   ├─ LuauUINameAndInheritance_begin [7..12]
- │   │   │   │   └─ LuauUINameAndInheritance_begin_c1 [7..12]
+ │   │   ├─ LuauScreenNameAndInheritance [7..17]
+ │   │   │   ├─ LuauScreenNameAndInheritance_begin [7..12]
+ │   │   │   │   └─ LuauScreenNameAndInheritance_begin_c1 [7..12]
  │   │   │   │       └─ LuauDefineName [7..12]: "sheet"
- │   │   │   └─ LuauUINameAndInheritance_end [12..17]
- │   │   │       ├─ LuauUINameAndInheritance_end_c1 [12..13]
- │   │   │       │   └─ LuauUINameAndInheritance_end_c1 [12..13]
+ │   │   │   └─ LuauScreenNameAndInheritance_end [12..17]
+ │   │   │       ├─ LuauScreenNameAndInheritance_end_c1 [12..13]
+ │   │   │       │   └─ LuauScreenNameAndInheritance_end_c1 [12..13]
  │   │   │       │       └─ OptionalWhitespace [12..13]: " "
- │   │   │       └─ LuauUINameAndInheritance_end_c2 [13..17]
+ │   │   │       └─ LuauScreenNameAndInheritance_end_c2 [13..17]
  │   │   │           └─ LuauWithKeyword [13..17]: "with"
  │   │   ├─ Newline [17..18]: "\n"
  │   │   ├─ LuauSparkleMatchBlock [18..140]

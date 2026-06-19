@@ -952,8 +952,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  the scope tree walked each turn by {@link refreshScreens} are the `scope`s
    *  of every entry. Designed to hold >1 screen so a future goto/navigate can
    *  layer screens. */
-  protected _mountedScreens: Map<string, { element: Element; scope: ReactiveScope }> =
-    new Map();
+  protected _mountedScreens: Map<
+    string,
+    { element: Element; scope: ReactiveScope; container?: string }
+  > = new Map();
 
   /** Test/preview convenience: when set, {@link constructScreensFromAst} mounts
    *  EVERY screen at connect (instant, no transition) instead of just `main`.
@@ -1006,7 +1008,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       },
     });
     const scope = this.makeScope({});
-    this._mountedScreens.set(screen.name, { element: uiEl, scope });
+    this._mountedScreens.set(screen.name, {
+      element: uiEl,
+      scope,
+      ...(screen.container ? { container: screen.container } : {}),
+    });
     this.mountChildren(uiEl, screen.children, scope, null);
     return uiEl;
   }
@@ -2259,26 +2265,41 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this._mountedScreens.delete(name);
   }
 
-  /** Replace the screen stack (`[[navigate X]]`): play the exit transition on +
-   *  destroy every currently-open screen EXCEPT the target, then open the target
-   *  (its enter transition). Full-screen routing, composed from the open/close
-   *  primitives — clauses drive both the outgoing exit and the incoming enter (so
-   *  a `with` transition gives a crossfade). No-op when the target is already the
-   *  sole open screen. */
+  /** Navigate within a container (`[[navigate <container> to <name>]]`): play
+   *  the exit transition on + destroy every currently-open screen IN THAT
+   *  CONTAINER except the target, then open the target (its enter transition).
+   *  Screens in other containers (and uncategorized screens like a persistent
+   *  HUD) are left untouched. Composed from the open/close primitives — clauses
+   *  drive both the outgoing exit and the incoming enter (so a `with` transition
+   *  gives a crossfade). With no `container`, falls back to replacing the whole
+   *  stack (close every open screen except the target). A missing target (an
+   *  incomplete `[[navigate <container>]]`) is a no-op — the LSP warns. */
   async navigateScreen(
     name: string,
+    container?: string,
     clauses?: { with?: string; after?: number; over?: number; ease?: string },
     instant = false,
   ): Promise<void> {
     if (!this._reactive) {
       // Static path: just show the target (screens are all constructed at connect).
-      this.showScreen(name);
+      if (name) {
+        this.showScreen(name);
+      }
       return;
     }
     if (!name) {
+      // Incomplete `[[navigate <container>]]` — nothing to open. The LSP flags
+      // this; the runtime stays a no-op rather than dismissing the container.
       return;
     }
-    const toClose = [...this._mountedScreens.keys()].filter((n) => n !== name);
+    // Close the open screens this navigate replaces: scoped to `container` when
+    // given (leave other containers/uncategorized screens alone), else the whole
+    // stack. The target is always spared (it gets opened, not torn down).
+    const toClose = [...this._mountedScreens.entries()]
+      .filter(([n, entry]) =>
+        n !== name && (container ? entry.container === container : true),
+      )
+      .map(([n]) => n);
     await Promise.all([
       ...toClose.map((n) => this.closeScreen(n, clauses, instant)),
       this.openScreen(name, clauses, instant),
@@ -2304,7 +2325,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           return this.closeScreen(e.name, clauses, instant);
         }
         if (e.control === "navigate") {
-          return this.navigateScreen(e.name, clauses, instant);
+          return this.navigateScreen(e.name, e.container, clauses, instant);
         }
         return this.openScreen(e.name, clauses, instant);
       }),

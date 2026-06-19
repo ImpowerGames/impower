@@ -9,15 +9,15 @@ sparkdown [0..112]
  │   │       └─ LuauScreen_begin_c3 [6..7]
  │   │           └─ OptionalWhitespace [6..7]: " "
  │   ├─ LuauScreen_content [7..108]
- │   │   ├─ LuauUINameAndInheritance [7..16]
- │   │   │   ├─ LuauUINameAndInheritance_begin [7..11]
- │   │   │   │   └─ LuauUINameAndInheritance_begin_c1 [7..11]
+ │   │   ├─ LuauScreenNameAndInheritance [7..16]
+ │   │   │   ├─ LuauScreenNameAndInheritance_begin [7..11]
+ │   │   │   │   └─ LuauScreenNameAndInheritance_begin_c1 [7..11]
  │   │   │   │       └─ LuauDefineName [7..11]: "main"
- │   │   │   └─ LuauUINameAndInheritance_end [11..16]
- │   │   │       ├─ LuauUINameAndInheritance_end_c1 [11..12]
- │   │   │       │   └─ LuauUINameAndInheritance_end_c1 [11..12]
+ │   │   │   └─ LuauScreenNameAndInheritance_end [11..16]
+ │   │   │       ├─ LuauScreenNameAndInheritance_end_c1 [11..12]
+ │   │   │       │   └─ LuauScreenNameAndInheritance_end_c1 [11..12]
  │   │   │       │       └─ OptionalWhitespace [11..12]: " "
- │   │   │       └─ LuauUINameAndInheritance_end_c2 [12..16]
+ │   │   │       └─ LuauScreenNameAndInheritance_end_c2 [12..16]
  │   │   │           └─ LuauWithKeyword [12..16]: "with"
  │   │   ├─ Newline [16..17]: "\n"
  │   │   ├─ LuauStructBodyLine [17..25]

@@ -226,31 +226,36 @@ end
   });
 });
 
-// [[navigate SCREEN]] — full-screen routing: REPLACE the stack (close every open
-// screen, including `main` and any overlays, then open the target). Composes the
-// open/close primitives.
+// [[navigate <container> to <screen>]] — container-scoped routing: close every
+// open screen IN THAT CONTAINER except the target, then open the target. Screens
+// in OTHER containers (and uncategorized screens) are left untouched. Containers
+// are declared with `screen NAME in CONTAINER with … end`. Composes open/close.
 const NAV_SOURCE = `store hp = 100
 screen main with
   textbox:
     dialogue:
       text
 end
-screen hud with
+screen hud in overlay with
   text "HP: {hp}"
 end
-screen menu with
-  text "Menu"
+screen pause in menu with
+  text "Paused"
+end
+screen settings in menu with
+  text "Settings"
 end
 -> start
 scene start
   [[open hud]]
+  [[open pause]]
   Hello.
-  [[navigate menu]]
+  [[navigate menu to settings]]
   Bye.
 end
 `;
 
-describe("screen navigation ([[navigate SCREEN]])", () => {
+describe("screen navigation ([[navigate <container> to <screen>]])", () => {
   const drive = async (h: ReturnType<typeof createHarness>) => {
     const beat = h.nextBeat();
     if (beat) {
@@ -260,50 +265,75 @@ describe("screen navigation ([[navigate SCREEN]])", () => {
     return beat;
   };
 
-  test("[[navigate X]] parses as control=navigate, name=X", async () => {
+  test("parses as control=navigate, container=<first>, name=<after `to`>", async () => {
     const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     h.jumpTo("start");
     await drive(h); // [[open hud]]
+    await drive(h); // [[open pause]]
     await drive(h); // "Hello."
     h.reset();
     const navBeat = h.nextBeat();
     const ev = Object.values(navBeat!.screen ?? {})[0]?.[0] as any;
     expect(ev?.control).toBe("navigate");
-    expect(ev?.name).toBe("menu");
+    expect(ev?.container).toBe("menu");
+    expect(ev?.name).toBe("settings");
   });
 
-  test("[[navigate X]] replaces the stack: closes main + overlays, opens X", async () => {
+  test("closes open screens in the container (except target), leaves others", async () => {
     const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
     await h.ready;
     h.jumpTo("start");
     const ui: any = h.game.module.ui;
 
-    await drive(h); // [[open hud]]
+    await drive(h); // [[open hud]]   (overlay container)
+    await drive(h); // [[open pause]] (menu container)
     await drive(h); // "Hello."
-    // main (auto-opened) + hud are both open before the navigate.
+    // Before navigate: main (uncategorized, auto-open), hud (overlay), pause (menu).
     expect(ui._mountedScreens.has("main")).toBe(true);
     expect(ui._mountedScreens.has("hud")).toBe(true);
+    expect(ui._mountedScreens.has("pause")).toBe(true);
 
-    await drive(h); // [[navigate menu]]
-    // The stack is REPLACED: only menu remains, main + hud were torn down.
-    expect(ui._mountedScreens.has("menu")).toBe(true);
-    expect(ui._mountedScreens.has("main")).toBe(false);
-    expect(ui._mountedScreens.has("hud")).toBe(false);
-    // The teardown emitted ui/destroy (the closed screens' subtrees).
+    await drive(h); // [[navigate menu to settings]]
+    // Within the `menu` container: pause closed, settings opened.
+    expect(ui._mountedScreens.has("settings")).toBe(true);
+    expect(ui._mountedScreens.has("pause")).toBe(false);
+    // Other containers / uncategorized are UNTOUCHED.
+    expect(ui._mountedScreens.has("hud")).toBe(true); // overlay container
+    expect(ui._mountedScreens.has("main")).toBe(true); // uncategorized (persistent)
+    // The container teardown emitted ui/destroy (pause's subtree).
     expect(h.snapshotFiltered("ui/destroy").length).toBeGreaterThan(0);
   });
 
-  test("[[navigate X]] when X is already the sole screen is a no-op-ish (X stays open)", async () => {
+  test("the mounted target records its container (for later navigates)", async () => {
+    const h = createHarness(NAV_SOURCE, 0, { reactive: true, autoOpenAll: false });
+    await h.ready;
+    h.jumpTo("start");
+    const ui: any = h.game.module.ui;
+    await drive(h); // [[open hud]]
+    await drive(h); // [[open pause]]
+    await drive(h); // "Hello."
+    await drive(h); // [[navigate menu to settings]]
+    expect(ui._mountedScreens.get("settings")?.container).toBe("menu");
+    expect(ui._mountedScreens.get("hud")?.container).toBe("overlay");
+    // Uncategorized screens have no container.
+    expect(ui._mountedScreens.get("main")?.container).toBeUndefined();
+  });
+
+  test("incomplete `[[navigate <container>]]` (no `to`) is a runtime no-op", async () => {
     const h = createHarness(
       `screen main with
   textbox:
     dialogue:
       text
 end
+screen pause in menu with
+  text "Paused"
+end
 -> start
 scene start
-  [[navigate main]]
+  [[open pause]]
+  [[navigate menu]]
   Hello.
 end
 `,
@@ -313,8 +343,19 @@ end
     await h.ready;
     h.jumpTo("start");
     const ui: any = h.game.module.ui;
-    expect(ui._mountedScreens.has("main")).toBe(true);
-    await drive(h); // [[navigate main]] — main is already the only screen
-    expect(ui._mountedScreens.has("main")).toBe(true);
+    await drive(h); // [[open pause]]
+    expect(ui._mountedScreens.has("pause")).toBe(true);
+    // Bare navigate: parsed with container but no destination → no-op. It does
+    // NOT dismiss the container (that requires `to <screen>`); the LSP warns.
+    h.reset();
+    const navBeat = h.nextBeat();
+    const ev = Object.values(navBeat!.screen ?? {})[0]?.[0] as any;
+    expect(ev?.control).toBe("navigate");
+    expect(ev?.container).toBe("menu");
+    expect(ev?.name).toBe("");
+    await h.display(navBeat!, true);
+    await flushMicrotasks();
+    // pause stays open — nothing was torn down.
+    expect(ui._mountedScreens.has("pause")).toBe(true);
   });
 });

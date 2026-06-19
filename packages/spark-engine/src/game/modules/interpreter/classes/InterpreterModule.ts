@@ -55,8 +55,9 @@ export class InterpreterModule extends Module<
   // Control verbs that route a `[[...]]` directive to the screen-lifecycle path
   // (openScreen/closeScreen/navigateScreen) instead of the image path. They reuse
   // the asset clause parser (with/over/after/ease/wait) verbatim. `open`/`close`
-  // are overlay primitives; `navigate` REPLACES the screen stack (close all open,
-  // then open the target) for full-screen routing.
+  // are overlay primitives; `navigate <container> to <screen>` routes WITHIN a
+  // container (close the open screens in that container, then open the target),
+  // leaving other containers / uncategorized screens untouched.
   SCREEN_CONTROL_KEYWORDS = ["open", "close", "navigate"];
 
   ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
@@ -638,21 +639,65 @@ export class InterpreterModule extends Module<
   }
 
   protected createScreenChunk(screenTagContent: string): Chunk {
-    // `open`/`close` come in through the same `[[...]]` brackets as images, so
-    // they share the asset clause parser. The screen NAME plays the role of the
-    // asset's `target` (e.g. `[[open hud with fade over 1s]]` → control="open",
-    // target="hud", clauses={with:"fade", over:1}). There is no default target —
-    // a screen directive without a name is a no-op downstream.
-    const screenChunk = this.createAssetChunk(
-      screenTagContent,
-      "screen",
-      "open",
-      "",
-    );
-    // Mirror the image chunk's `wait` handling: when the author asks to block
-    // story advance until the enter/exit transition finishes, inflate the chunk
-    // duration (which becomes `result.end`, the Coordinator's auto-advance gate)
-    // by the start delay + the transition duration.
+    const verb = screenTagContent.replaceAll("\t", " ").trim().split(" ")[0];
+    // `navigate <container> to <screen>` parses differently from open/close:
+    // the FIRST positional token is the CONTAINER (not the screen), and the
+    // destination screen follows `to`.
+    const screenChunk =
+      verb === "navigate"
+        ? this.createNavigateChunk(screenTagContent)
+        : // `open`/`close` share the asset clause parser. The screen NAME plays
+          // the role of the asset's `target` (e.g. `[[open hud with fade over
+          // 1s]]` → control="open", target="hud", clauses={with:"fade",
+          // over:1}). No default target — a nameless directive no-ops downstream.
+          this.createAssetChunk(screenTagContent, "screen", "open", "");
+    this.applyScreenWaitDuration(screenChunk);
+    return screenChunk;
+  }
+
+  /** Parse `navigate <container> to <screen> [clauses]`. The container is the
+   *  first positional token (→ `chunk.target`, the AssetCommand "target" slot,
+   *  mirroring how `[[show <layer> <asset>]]` puts the layer in `target`); the
+   *  destination screen follows `to` (→ `chunk.assets[0]`). A bare
+   *  `navigate <container>` leaves the destination empty (LSP warns it's
+   *  incomplete; the runtime no-ops). */
+  protected createNavigateChunk(navigateTagContent: string): Chunk {
+    const tokens = navigateTagContent
+      .replaceAll("\t", " ")
+      .split(" ")
+      .filter((t) => t !== "");
+    // tokens[0] is the `navigate` verb.
+    let container = "";
+    let destination = "";
+    let i = 1;
+    if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
+      container = tokens[i]!;
+      i += 1;
+    }
+    if (tokens[i] === "to") {
+      i += 1;
+      if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
+        destination = tokens[i]!;
+        i += 1;
+      }
+    }
+    const clauses = this.parseAssetClauses(tokens.slice(i));
+    return {
+      tag: "screen",
+      control: "navigate",
+      target: container,
+      assets: destination ? [destination] : [],
+      clauses,
+      duration: 0,
+      speed: 1,
+    };
+  }
+
+  /** Mirror the image chunk's `wait` handling for screen directives: when the
+   *  author asks to block story advance until the enter/exit transition
+   *  finishes, inflate the chunk duration (which becomes `result.end`, the
+   *  Coordinator's auto-advance gate) by the start delay + transition duration. */
+  protected applyScreenWaitDuration(screenChunk: Chunk): void {
     const withEffectName =
       screenChunk.clauses?.["with"] || screenChunk.target || "";
     const afterDuration = screenChunk.clauses?.["after"];
@@ -689,7 +734,6 @@ export class InterpreterModule extends Module<
       screenChunk.duration += afterDuration ?? 0;
       screenChunk.duration += overDuration ?? maxAnimationDuration ?? 0;
     }
-    return screenChunk;
   }
 
   protected createAudioChunk(audioTagContent: string): Chunk {
@@ -745,6 +789,22 @@ export class InterpreterModule extends Module<
         }
       }
     }
+    const clauses = this.parseAssetClauses(args);
+    return {
+      tag,
+      control,
+      target,
+      assets,
+      clauses,
+      duration: 0,
+      speed: 1,
+    };
+  }
+
+  /** Parse asset-directive clause args (`with X`, `over 1s`, `after 0.2s`,
+   *  `ease Y`, `to 0.5`, and flags like `wait`/`loop`) into a clause map. Shared
+   *  by the image/audio/screen `[[…]]` / `((…))` directive paths. */
+  protected parseAssetClauses(args: string[]): Record<string, unknown> {
     const clauses: Record<string, unknown> = {};
     for (let i = 0; i < args.length; i += 1) {
       const arg = args[i];
@@ -772,15 +832,7 @@ export class InterpreterModule extends Module<
         }
       }
     }
-    return {
-      tag,
-      control,
-      target,
-      assets,
-      clauses,
-      duration: 0,
-      speed: 1,
-    };
+    return clauses;
   }
 
   parse(
@@ -1525,12 +1577,26 @@ export class InterpreterModule extends Module<
           }
           // Screen Event ([[open SCREEN]] / [[close SCREEN]])
           if (c.tag === "screen") {
-            const screenName = c.target || "";
-            if (screenName) {
+            // For `navigate`, the first positional token is the CONTAINER
+            // (c.target) and the destination screen follows `to` (c.assets[0]);
+            // for `open`/`close`, the first token IS the screen (c.target).
+            const isNavigate = c.control === "navigate";
+            const container = isNavigate ? c.target || "" : "";
+            const screenName = isNavigate
+              ? c.assets?.[0] || ""
+              : c.target || "";
+            // Emit even for an incomplete `[[navigate <container>]]` (empty
+            // destination, container present) so the directive isn't silently
+            // dropped — the LSP warns and the runtime no-ops. Skip only a truly
+            // empty directive.
+            if (screenName || container) {
               const event: ScreenInstruction = {
                 control: (c.control || "open") as ScreenInstruction["control"],
                 name: screenName,
               };
+              if (container) {
+                event.container = container;
+              }
               if (time) {
                 event.after = time;
               }
@@ -1556,9 +1622,10 @@ export class InterpreterModule extends Module<
                   event.wait = true;
                 }
               }
+              const key = screenName || container;
               result.screen ??= {};
-              result.screen[screenName] ??= [];
-              result.screen[screenName]!.push(event);
+              result.screen[key] ??= [];
+              result.screen[key]!.push(event);
             }
           }
           // Audio Event

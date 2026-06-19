@@ -13,11 +13,13 @@ variables:
   AUDIO_CLAUSE_KEYWORDS:
     ["over", "after", "to", "loop", "once", "mute", "unmute", "now"]
   # Screen lifecycle directives — `[[open hud with fade over 1s]]` /
-  # `[[close hud]]` / `[[navigate menu]]`. They flow through the same AssetCommand
-  # grammar as image directives, so they inherit every IMAGE_CLAUSE_KEYWORD
-  # (over/after/with/wait/ease) for free; the runtime InterpreterModule routes the
-  # verbs to screen mount/unmount/replace instead of the image path. `open`/`close`
-  # are overlay primitives; `navigate` replaces the screen stack (full-screen nav).
+  # `[[close hud]]` / `[[navigate menu to settings]]`. They flow through the same
+  # AssetCommand grammar as image directives, so they inherit every
+  # IMAGE_CLAUSE_KEYWORD (over/after/with/wait/ease) for free; the runtime
+  # InterpreterModule routes the verbs to screen mount/unmount/navigate instead of
+  # the image path. `open`/`close` are overlay primitives; `navigate <container>
+  # to <screen>` routes within a container (close that container's open screens,
+  # open the target), leaving other containers / uncategorized screens untouched.
   SCREEN_CONTROL_KEYWORDS: ["open", "close", "navigate"]
 
   FLOW_BEAT_KEYWORDS: ["scene", "branch"]
@@ -4993,7 +4995,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauUINameAndInheritance" }
+      - { include: "#LuauScreenNameAndInheritance" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
@@ -5025,7 +5027,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauUINameAndInheritance" }
+      - { include: "#LuauComponentNameAndInheritance" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
@@ -5040,12 +5042,39 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # Name + optional `as PARENT`, ending at `with`. Shared by screen and
-  # component (variable-length lookbehind over both keywords). Reuses
+  # Screen header: `NAME [as PARENT] [in CONTAINER]`, ending at `with`. The
+  # `in CONTAINER` clause groups screens for `[[navigate CONTAINER to NAME]]`
+  # routing — it is SCREEN-ONLY (components are mounted, never navigated), which
+  # is why the screen/component headers are two distinct rules instead of one
+  # shared rule (Golden Rule: distinct contexts → distinct grammar). Reuses
   # LuauDefineName / LuauInheritanceOperation → LuauDefineParentName so the
-  # lowerer reads names through the same node names as `define` / `style`.
-  LuauUINameAndInheritance:
-    begin: (?<=(?:screen|component)\b{{WS}}*)({{LUAU_IDENTIFIER}})
+  # lowerer reads name/parent through the same node names as `define` / `style`;
+  # adds LuauScreenContainerOperation → LuauScreenContainerName for `in`.
+  LuauScreenNameAndInheritance:
+    begin: (?<=screen\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauDefineName" }
+    patterns:
+      - { include: "#LuauInheritanceOperation" }
+      - { include: "#LuauScreenContainerOperation" }
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauWithKeyword" }
+
+  # Component header: `NAME [as PARENT]`, ending at `with`. No `in CONTAINER`
+  # (containers are a screen-navigation concept). Reuses LuauDefineName /
+  # LuauInheritanceOperation → LuauDefineParentName like the screen header.
+  LuauComponentNameAndInheritance:
+    begin: (?<=component\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -5062,6 +5091,31 @@ repository:
       2:
         patterns:
           - { include: "#LuauWithKeyword" }
+
+  # `in CONTAINER` — the screen's navigation container. Mirrors
+  # LuauInheritanceOperation (`as PARENT`): the space before `in` is a SEPARATOR
+  # (normalize to one space) so the formatter doesn't eat it (`hudin`). The
+  # container name lowers through LuauScreenContainerName.
+  LuauScreenContainerOperation:
+    match: ({{WS}}*)(in)\b({{WS}}*)($|{{LUAU_IDENTIFIER}})($|{{WS}}*)
+    captures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauInKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauScreenContainerName" }
+      5:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
 
   # One element line: `<tag> [#attr=val ...] ["content"]`. Single-line
   # (ends at EOL); nesting is by indentation and reconstructed in the
@@ -5235,6 +5289,12 @@ repository:
   LuauDefineParentName:
     tag: typeName
     name: entity.name.type.define.parent.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  # The screen's navigation container name (from `screen NAME in CONTAINER`).
+  LuauScreenContainerName:
+    tag: typeName
+    name: entity.name.type.screen.container.luau
     match: ({{LUAU_IDENTIFIER}})
 
   # ----------------------------------------------------------------------------

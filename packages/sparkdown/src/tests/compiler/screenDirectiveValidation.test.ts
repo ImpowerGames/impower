@@ -84,19 +84,62 @@ describe("screen lifecycle directive validation", () => {
     expect(diags.some((m) => m.includes("Unrecognized"))).toBe(true);
   });
 
-  test("[[navigate hud]] for a defined screen produces no diagnostics", () => {
-    expect(diagnosticsFor(SCREEN + `[[navigate hud]]\n`)).toEqual([]);
+});
+
+// `[[navigate <container> to <screen>]]` — the FIRST token is a navigation
+// CONTAINER (a screen's `in <container>` group), and the destination screen
+// follows `to`. Validation:
+//  - the container must be the `in <container>` of at least one screen
+//    (`$container` property) — a bare screen name there warns "Cannot find
+//    container X" (catches `[[navigate my_screen]]`);
+//  - the destination after `to` must be a defined screen;
+//  - `to` is followed by a screen NAME (not the numeric audio `to`) — no false
+//    "should be followed by a number" error;
+//  - a bare `[[navigate <container>]]` (no `to`) is incomplete.
+const MENU = `screen pause in menu with
+  text "Paused"
+end
+screen settings in menu with
+  text "Settings"
+end
+`;
+
+describe("screen navigation directive validation ([[navigate CONTAINER to SCREEN]])", () => {
+  test("[[navigate menu to settings]] (defined screen in that container) is clean", () => {
+    expect(diagnosticsFor(MENU + `[[navigate menu to settings]]\n`)).toEqual([]);
   });
 
-  test("[[navigate hud with fade over 1s]] inherits clauses cleanly", () => {
+  test("clauses after the destination validate cleanly", () => {
     expect(
-      diagnosticsFor(SCREEN + `[[navigate hud with fade over 1s]]\n`),
+      diagnosticsFor(MENU + `[[navigate menu to settings with fade over 1s]]\n`),
     ).toEqual([]);
   });
 
-  test("navigating to an undefined screen warns (target validates against screens)", () => {
-    const diags = diagnosticsFor(SCREEN + `[[navigate ghost]]\n`);
-    expect(diags.some((m) => m.toLowerCase().includes("screen"))).toBe(true);
-    expect(diags.some((m) => m.includes("Unrecognized"))).toBe(false);
+  test("`to` followed by a screen name does NOT trigger the numeric-`to` error", () => {
+    const diags = diagnosticsFor(MENU + `[[navigate menu to settings]]\n`);
+    expect(diags.some((m) => m.includes("should be followed by a number"))).toBe(
+      false,
+    );
+  });
+
+  test("navigating to an undefined screen warns about the screen", () => {
+    const diags = diagnosticsFor(MENU + `[[navigate menu to ghost]]\n`);
+    expect(diags.some((m) => m.includes("Cannot find screen"))).toBe(true);
+  });
+
+  test("an undefined container warns about the container", () => {
+    const diags = diagnosticsFor(MENU + `[[navigate nogroup to settings]]\n`);
+    expect(diags.some((m) => m.includes("Cannot find container"))).toBe(true);
+  });
+
+  test("a SCREEN name used as the container warns it's not a container", () => {
+    // `pause` is a defined screen, not a container → flag the mistake.
+    const diags = diagnosticsFor(MENU + `[[navigate pause to settings]]\n`);
+    expect(diags.some((m) => m.includes("Cannot find container"))).toBe(true);
+  });
+
+  test("a bare [[navigate CONTAINER]] (no `to`) warns it's incomplete", () => {
+    const diags = diagnosticsFor(MENU + `[[navigate menu]]\n`);
+    expect(diags.some((m) => m.includes("Incomplete"))).toBe(true);
   });
 });

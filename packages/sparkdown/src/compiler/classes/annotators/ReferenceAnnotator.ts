@@ -67,6 +67,10 @@ const VARIABLE_DECL_SITE = new Set(["LuauVariableAssignment_begin"]);
 const VARIABLE_DEFINITION = new Set(["LuauVariableDefinition"]);
 const ASSET_COMMAND_INSTRUCTION = new Set(["AssetCommandInstruction"]);
 const ASSET_COMMAND_CONTROL = new Set(["AssetCommandControl"]);
+// The whole `[[…]]` / `((…))` command. A clause value (NameValue) is a SIBLING
+// of AssetCommandInstruction (both under the command), so reading the control
+// from a clause value walks up to the command, not the instruction.
+const ASSET_COMMAND = new Set(["ImageCommand", "AudioCommand"]);
 
 // The OOP define property line (`store trust = 0`, `name = "RAFFLES"`). Its LHS
 // name LuauVariableName must be claimed as a `property` declaration by the
@@ -545,7 +549,33 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         const control = controlNode
           ? this.read(controlNode.from, controlNode.to).trim()
           : "";
+        if (control === "navigate") {
+          // `[[navigate <container> to <screen>]]` — the FIRST token is the
+          // navigation CONTAINER, not a screen. A container "exists" iff some
+          // screen declares `in <container>` (a `$container` property). The
+          // property/value selector resolves against any screen with that
+          // container; if none, it warns "Cannot find container `X`" — which also
+          // flags `[[navigate my_screen]]` (a screen name used where a container
+          // is expected). Not linkable (a container has no single defining node).
+          annotations.push(
+            SparkdownAnnotation.mark<Reference>({
+              selectors: [
+                {
+                  types: ["screen"],
+                  property: "$container",
+                  value: name,
+                  displayName: name,
+                  displayType: "container",
+                },
+              ],
+              kind: "read",
+              linkable: false,
+            }).range(nodeRef.from, nodeRef.to),
+          );
+          return annotations;
+        }
         if (SCREEN_CONTROL_KEYWORDS.includes(control)) {
+          // `[[open/close <screen>]]` — the target IS a screen name.
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
               selectors: [{ types: ["screen"], name, displayType: "screen" }],
@@ -691,6 +721,29 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
             }).range(nodeRef.from, nodeRef.to),
           );
           return annotations;
+        }
+        if (clauseKeyword === "to") {
+          // `[[navigate <container> to <screen>]]` — the value after `to` is the
+          // destination SCREEN. (`to` only appears in `[[…]]` brackets for
+          // navigate; the screen control is verified before resolving.)
+          const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
+          const controlNode = command
+            ? firstDescendant(command, ASSET_COMMAND_CONTROL)
+            : null;
+          const control = controlNode
+            ? this.read(controlNode.from, controlNode.to).trim()
+            : "";
+          if (control === "navigate") {
+            annotations.push(
+              SparkdownAnnotation.mark<Reference>({
+                selectors: [{ types: ["screen"], name, displayType: "screen" }],
+                symbolIds: [`screen.${name}`],
+                kind: "read",
+                linkable: true,
+              }).range(nodeRef.from, nodeRef.to),
+            );
+            return annotations;
+          }
         }
       }
       if (context.includes("AudioCommand")) {

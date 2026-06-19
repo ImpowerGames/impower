@@ -74,6 +74,14 @@ export interface ScreenNode {
   kind: "screen";
   name: string;
   extends?: string;
+  /**
+   * Navigation container (`screen NAME in CONTAINER`): groups screens for
+   * `[[navigate CONTAINER to NAME]]` routing. Screens in the same container are
+   * mutually exclusive — navigating to one closes the others in that container,
+   * leaving screens in other containers (and uncategorized screens) untouched.
+   * Absent for uncategorized screens.
+   */
+  container?: string;
   children: BodyNode[];
 }
 

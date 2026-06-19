@@ -31,6 +31,17 @@ export function lowerLuauUI(
     ? ctx.read(parentNode.from, parentNode.to).trim()
     : "";
 
+  // `screen NAME in CONTAINER` — the navigation container (screen-only). The
+  // grammar restricts the `in CONTAINER` clause to the screen header, so this
+  // node never appears for components.
+  const containerNode =
+    uiType === "screen"
+      ? getDescendent("LuauScreenContainerName", nodeRef.node)
+      : undefined;
+  const container = containerNode
+    ? ctx.read(containerNode.from, containerNode.to).trim()
+    : "";
+
   const contentNode = findChildByName(
     nodeRef.node,
     `Luau${uiType === "screen" ? "Screen" : "Component"}_content`,
@@ -42,6 +53,7 @@ export function lowerLuauUI(
     $name: name,
     $recursive: true,
     ...(parent ? { $extends: parent } : {}),
+    ...(container ? { $container: container } : {}),
     ...body,
   };
 
@@ -57,6 +69,7 @@ export function lowerLuauUI(
               kind: "screen",
               name,
               ...(parent ? { extends: parent } : {}),
+              ...(container ? { container } : {}),
               children,
             } satisfies ScreenNode,
           },

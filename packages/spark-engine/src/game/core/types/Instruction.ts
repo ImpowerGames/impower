@@ -50,9 +50,14 @@ export interface AudioInstruction extends IInstruction {
 
 export interface ScreenInstruction extends IInstruction {
   control: "open" | "close" | "navigate";
-  /** The name of the screen to mount (`open`), tear down (`close`), or replace
-   *  the whole stack with (`navigate`). */
+  /** The screen to mount (`open`), tear down (`close`), or navigate TO
+   *  (`navigate` — the destination after `to`). May be empty for an incomplete
+   *  `[[navigate <container>]]` (the LSP warns; the runtime no-ops). */
   name: string;
+  /** For `navigate` (`[[navigate <container> to <screen>]]`): the container to
+   *  route within. Closing is scoped to open screens in this container; screens
+   *  in other containers (and uncategorized screens) are left untouched. */
+  container?: string;
   /** The enter/exit animation/transition name (`with` clause). */
   with?: string;
 }
