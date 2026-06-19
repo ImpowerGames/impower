@@ -1,7 +1,7 @@
 import * as esbuild from "esbuild";
 import fs from "node:fs";
 import path from "node:path";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 
 const PRODUCTION = process.env.NODE_ENV === "production";
 
@@ -151,9 +151,20 @@ function devServiceWorkerPlugin(options: {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // DEV-ONLY same-origin game preview. When VITE_SAME_ORIGIN_PREVIEW is set, the
+  // editor reverse-proxies this dev server under its own origin at /__player/
+  // (see impower-dev/build.ts). Serving under base "/__player/" makes the
+  // emitted HTML/asset URLs (/__player/@vite/client, /__player/src/main.ts, …)
+  // route back through that proxy. HMR connects directly to this server's port
+  // so no websocket proxying is needed. Defaults OFF (base "/").
+  const env = loadEnv(mode, process.cwd(), "");
+  const SAME_ORIGIN_PREVIEW = !!env["VITE_SAME_ORIGIN_PREVIEW"];
+  return {
+  base: SAME_ORIGIN_PREVIEW ? "/__player/" : "/",
   server: {
     host: true,
+    ...(SAME_ORIGIN_PREVIEW ? { hmr: { clientPort: 5173 } } : {}),
   },
   // Use Preact's automatic JSX runtime for the .tsx in spark-web-player.
   esbuild: {
@@ -184,4 +195,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });

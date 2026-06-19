@@ -5,6 +5,24 @@ import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
 const SPARKDOWN_PLAYER_ORIGIN =
   import.meta.env.VITE_SPARKDOWN_PLAYER_ORIGIN || "";
 
+// DEV-ONLY same-origin preview. When VITE_SAME_ORIGIN_PREVIEW is set, the editor
+// dev server proxies the player under our own origin at /__player/ (see
+// impower-dev/build.ts), so we embed it as a SAME-ORIGIN iframe and address it
+// via our own origin. This makes the live game DOM reachable from this page
+// (document.querySelector('#iframe').contentDocument) and devtools. Defaults
+// OFF: the player stays a cross-origin iframe at VITE_SPARKDOWN_PLAYER_ORIGIN.
+const SAME_ORIGIN_PREVIEW = !!import.meta.env.VITE_SAME_ORIGIN_PREVIEW;
+const PLAYER_SRC = SAME_ORIGIN_PREVIEW ? "/__player/" : `${SPARKDOWN_PLAYER_ORIGIN}/`;
+// Guard `window`: this module is also evaluated during the editor's SSG render
+// (server-side, no `window`). The target origin is only needed at runtime in the
+// browser. Same-origin posts match the iframe's origin with or without an
+// explicit targetOrigin, so an SSR-time "" is harmless.
+const PLAYER_TARGET_ORIGIN = SAME_ORIGIN_PREVIEW
+  ? typeof window !== "undefined"
+    ? window.location.origin
+    : ""
+  : SPARKDOWN_PLAYER_ORIGIN;
+
 export const propDefaults = {};
 export type PreviewGameProps = Partial<typeof propDefaults>;
 
@@ -271,13 +289,13 @@ export default function PreviewGame(_props: PreviewGameProps) {
               onChannelMessage,
             );
           }
-          if (!SPARKDOWN_PLAYER_ORIGIN) {
+          if (!PLAYER_TARGET_ORIGIN) {
             console.error("no target origin specified");
           }
           const channel = new MessageChannel();
           const iframeWindowConnection = new IFrameMessageConnection(
             iframe,
-            SPARKDOWN_PLAYER_ORIGIN,
+            PLAYER_TARGET_ORIGIN,
           );
           const connection = new Port1MessageConnection(channel.port1);
           iframeChannelRef.current = connection;
@@ -499,7 +517,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         <iframe
           ref={iframeRef}
           id="iframe"
-          src={`${SPARKDOWN_PLAYER_ORIGIN}/`}
+          src={PLAYER_SRC}
           sandbox="allow-scripts allow-forms allow-same-origin"
           allow="autoplay"
           referrerpolicy="no-referrer"

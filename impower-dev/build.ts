@@ -2,6 +2,7 @@ import preact from "@preact/preset-vite";
 import tailwindcss from "@tailwindcss/vite";
 import { exec } from "child_process";
 import fs from "fs";
+import http from "node:http";
 import path from "path";
 import glob from "tiny-glob";
 import { build, createServer } from "vite";
@@ -344,7 +345,9 @@ const serve = async () => {
     publicDir: path.resolve(process.cwd(), publicInDir),
     server: {
       middlewareMode: true,
-      hmr: { port: 24679 },
+      // HMR port is overridable so several worktrees can run dev servers at once
+      // without colliding on the websocket port.
+      hmr: { port: Number(process.env["HMR_PORT"] || 24679) },
       watch: { ignored: ["**/out/**", "**/.dev/**"] },
     },
     resolve: { alias, dedupe },
@@ -400,6 +403,50 @@ const serve = async () => {
   const apiModule = await vite.ssrLoadModule(`${apiInDir}/index.ts`);
   const app = apiModule.default?.app || apiModule.app || apiModule.default;
   await app.ready();
+
+  // DEV-ONLY same-origin game preview. When VITE_SAME_ORIGIN_PREVIEW is set,
+  // reverse-proxy the game-preview player (its own Vite dev server) under the
+  // editor's origin at /__player/ so the editor can embed it as a SAME-ORIGIN
+  // iframe — making the live game DOM directly reachable from the editor page
+  // (document.querySelector('#iframe').contentDocument) and devtools. Defaults
+  // OFF: with the flag unset, the editor keeps embedding the player cross-origin
+  // via VITE_SPARKDOWN_PLAYER_ORIGIN. The player must be launched with the same
+  // flag so it serves under base /__player/ (see sparkdown-player-app).
+  if (process.env["VITE_SAME_ORIGIN_PREVIEW"]) {
+    const PLAYER_PROXY_BASE = "/__player";
+    const playerOrigin = new URL(
+      process.env["SPARKDOWN_PLAYER_DEV_ORIGIN"] || "http://localhost:5173",
+    );
+    app.use((req: any, res: any, next: any) => {
+      if (!req.url?.startsWith(PLAYER_PROXY_BASE)) {
+        next();
+        return;
+      }
+      const proxyReq = http.request(
+        {
+          protocol: playerOrigin.protocol,
+          hostname: playerOrigin.hostname,
+          port: playerOrigin.port,
+          method: req.method,
+          path: req.url,
+          headers: { ...req.headers, host: playerOrigin.host },
+        },
+        (proxyRes) => {
+          res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+          proxyRes.pipe(res);
+        },
+      );
+      proxyReq.on("error", (err) => {
+        res.statusCode = 502;
+        res.end(`Player proxy error: ${err.message}`);
+      });
+      req.pipe(proxyReq);
+    });
+    console.log(
+      STEP_COLOR,
+      `Same-origin preview ON: proxying ${PLAYER_PROXY_BASE}/ -> ${playerOrigin.origin}`,
+    );
+  }
 
   app.use(async (req: any, res: any, next: any) => {
     vite.middlewares(req, res, next);
