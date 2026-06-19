@@ -875,6 +875,35 @@ const updateFileCache = (
   const name = getName(uri);
   const ext = getFileExtension(uri);
   const type = getFileType(uri);
+
+  // A `.url` file is a remote/CDN asset reference: its text content IS the
+  // remote URL, and its media type is inferred from that URL's own extension
+  // (not the `.url` extension). The asset name/identity is the filename minus
+  // `.url` (already computed above as `name`). Resolving `src` straight to the
+  // remote URL means the service worker is never involved and everything
+  // downstream — the compiler's populateAssets, the runtime <img>/<audio>/
+  // <video> elements — is transparent. This is Layer A1 of
+  // docs/file-manager/url-assets-plan.md.
+  if (ext === "url") {
+    const url = new TextDecoder("utf-8").decode(buffer).trim();
+    // Infer type/ext from the URL's path only (ignore query/hash so signed
+    // URLs don't false-match on a `.png` hiding in a token).
+    const urlPath = url.split(/[?#]/)[0] || "";
+    const file = {
+      uri,
+      name,
+      ext: getFileExtension(urlPath) || ext,
+      type: url ? getFileType(urlPath) : type,
+      src: url,
+      version: version ?? existingFile?.version ?? 0,
+      languageId: null,
+      // Keep the raw URL as text so the URL editor (preview pane) can read it.
+      text: url,
+    };
+    State.files.set(uri, file);
+    return file;
+  }
+
   if (name) {
     if (!src || overwrite) {
       src = getSrcFromUri(uri) + `?v=${Date.now()}`;
