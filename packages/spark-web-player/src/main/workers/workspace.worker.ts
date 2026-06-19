@@ -21,6 +21,16 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
       program: params.program,
       story: params.story,
       ...gameState.systemConfiguration,
+      // This is the live-preview / HMR route-simulation game: it saves a
+      // checkpoint at every beat while replaying to the edited line, which is
+      // the O(n^2) cost incremental checkpoints exist to remove. Deltas store
+      // periodic full keyframes + per-beat deltas; `verifyCheckpoints: false`
+      // drops the per-beat full-save self-check so capture is bounded per beat
+      // (the full time win). The delta reconstruction is covered by the
+      // byte-identical round-trip tests (incl. the pure-delta path); flip verify
+      // back on if a regression ever needs the self-check's fall-back-to-full.
+      incrementalCheckpoints: true,
+      verifyCheckpoints: false,
     });
     profile("end", compilerState.compiler.profilerId + " " + "game/create");
   } else {
