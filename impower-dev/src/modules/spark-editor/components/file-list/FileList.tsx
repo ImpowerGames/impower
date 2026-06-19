@@ -721,7 +721,7 @@ export default function FileList({
           overflow "more" menu (New Folder) docked right. In dive mode (mobile)
           the breadcrumb sits on its own row above. The bottom FAB stays the
           single primary create action per pane. */}
-      <div class="flex flex-none flex-col gap-1.5 px-4 pt-2">
+      <div class="flex flex-none flex-col gap-1.5 px-4 pb-2 pt-2">
         {selectMode ? (
           // Multi-editing bar: select-all + count, then Delete + exit.
           <div class="flex h-8 flex-row items-center gap-2">
@@ -811,7 +811,7 @@ export default function FileList({
       </div>
       <div
         ref={scrollRef}
-        class={`relative flex-1 overflow-auto [scrollbar-gutter:stable] pt-2 pb-24 ${
+        class={`relative flex-1 overflow-auto [scrollbar-gutter:stable] pb-24 ${
           drag.draggingPath ? "select-none [touch-action:none]" : ""
         }`}
       >
