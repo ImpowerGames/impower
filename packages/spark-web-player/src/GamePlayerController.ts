@@ -1399,5 +1399,14 @@ export class GamePlayerController {
     if (validPreviewFrom) {
       this._game.preview(validPreviewFrom.file, validPreviewFrom.line);
     }
+
+    // DOM reconcile (live-preview HMR): buildApp preserved the previous render's
+    // overlay DOM and the new UIManager adopted it (beginReconcilePass), so the
+    // re-emit above reused unchanged nodes in place instead of rebuilding the
+    // tree. Now that the full create/write stream for this preview point has been
+    // dispatched, sweep whatever wasn't re-emitted (elements gone since the last
+    // edit). The emits are synchronous through this point, so the stale set is
+    // settled here.
+    this._app?.ui.sweepReconcile();
   };
 }

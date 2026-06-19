@@ -26,24 +26,107 @@ import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 
 export default class UIManager extends Manager {
-  protected _overlayRoots: HTMLElement[] = [];
-
   protected _breakpoints: Record<string, number> = {};
 
-  protected _listeners: Record<string, (event: Event) => void> = {};
+  /** Observed DOM listeners, keyed id → event → listener. Keyed by event (not
+   *  just id) so an element observing two events doesn't lose one, and so
+   *  re-observing on reconcile can remove the prior listener for that exact event
+   *  before re-adding (no duplicate handlers on a reused element). */
+  protected _listeners: Record<string, Record<string, (event: Event) => void>> =
+    {};
 
   /**
    * id → element cache (spec D13). The reactive runtime addresses elements by id
    * for every create-parent / update / destroy / observe; resolving each through
    * a `querySelector` is O(messages) DOM work. Elements register here on
    * `ui/create` and are dropped (with their subtree) on `ui/destroy`. Ids are
-   * unique uuids and never reused, so a miss falls back to a query (e.g. the
-   * overlay root) and re-caches.
+   * deterministic + structural (UIModule.generateId) and stable across renders of
+   * the same structure, which is what makes the reconcile below possible.
    */
   protected _elements = new Map<string, HTMLElement>();
 
+  /**
+   * Reconcile state: ids present from the PREVIOUS render that haven't yet been
+   * re-emitted this pass. A live-preview re-render replays the full create stream;
+   * rather than tearing the overlay down and rebuilding it, we reuse existing
+   * nodes by id (preserving focus / scroll / decoded backgrounds) and, once the
+   * stream settles, sweep whatever wasn't touched. See {@link beginReconcilePass}
+   * / {@link sweepReconcile}.
+   */
+  protected _staleIds = new Set<string>();
+
+  override async onInit() {
+    await super.onInit();
+    // A fresh UIManager built for a re-render inherits the prior render's overlay
+    // DOM (onDispose preserves it). Adopt those nodes as reconcile candidates so
+    // the incoming create stream reuses them instead of duplicating.
+    this.beginReconcilePass();
+  }
+
+  /** Start a reconcile pass: adopt every currently-rendered element as a
+   *  reuse-or-sweep candidate. Idempotent; safe to call before each re-render. */
+  beginReconcilePass() {
+    this._staleIds.clear();
+    const overlay = this.app.overlay;
+    if (overlay) {
+      overlay.querySelectorAll("[id]").forEach((node) => {
+        const el = node as HTMLElement;
+        if (el.id) {
+          this._staleIds.add(el.id);
+          this._elements.set(el.id, el);
+        }
+      });
+    }
+  }
+
+  /** End a reconcile pass: remove elements that survived from the previous render
+   *  but weren't re-emitted (touched) this pass — the mark-and-sweep tail. */
+  sweepReconcile() {
+    for (const id of this._staleIds) {
+      this.removeElementById(id);
+    }
+    this._staleIds.clear();
+  }
+
+  /** Remove every DOM listener tracked for `id` (used on destroy/sweep, and
+   *  before re-observing a reused element). */
+  protected removeListeners(id: string) {
+    const byEvent = this._listeners[id];
+    if (byEvent) {
+      const el = this._elements.get(id);
+      if (el) {
+        for (const [event, listener] of Object.entries(byEvent)) {
+          el.removeEventListener(event, listener);
+        }
+      }
+      delete this._listeners[id];
+    }
+  }
+
+  /** Remove an element (and its subtree) from the DOM + id cache + listener map. */
+  protected removeElementById(id: string) {
+    const el = this._elements.get(id) ?? this.getElement(id);
+    if (el) {
+      this.removeListeners(id);
+      this._elements.delete(id);
+      el.querySelectorAll("[id]").forEach((d) => {
+        const childId = (d as HTMLElement).id;
+        this.removeListeners(childId);
+        this._elements.delete(childId);
+        this._staleIds.delete(childId);
+      });
+      el.remove();
+    }
+    this._staleIds.delete(id);
+  }
+
   override onDispose() {
-    this._overlayRoots.forEach((el) => el.remove());
+    // Clean up listeners off the nodes but DO NOT remove the overlay DOM: the
+    // next render's UIManager adopts it (beginReconcilePass) and reconciles, so a
+    // live-preview edit reuses unchanged nodes instead of a full teardown.
+    for (const id of Object.keys(this._listeners)) {
+      this.removeListeners(id);
+    }
     this._listeners = {};
     this._elements.clear();
   }
@@ -71,14 +154,35 @@ export default class UIManager extends Manager {
     }
     if (CreateElementMessage.type.isRequest(msg)) {
       const params = msg.params;
-      const el = document.createElement(params.type);
-      if (params.element) {
-        el.id = params.element;
-        this._elements.set(params.element, el);
+      const id = params.element;
+      // Reconcile: a live-preview re-render replays the full create stream. Reuse
+      // an existing node with this id when its tag still matches — preserving its
+      // identity (focus / scroll / already-decoded backgrounds / running
+      // animations) — instead of building a duplicate. A tag change can't be
+      // morphed in place, so drop the old subtree and recreate.
+      let el: HTMLElement | undefined;
+      if (id) {
+        const existing = this.getElement(id);
+        if (
+          existing &&
+          existing.tagName.toLowerCase() === params.type.toLowerCase()
+        ) {
+          el = existing;
+        } else if (existing) {
+          this.removeElementById(id);
+        }
       }
-      if (params.name) {
-        el.className = params.name;
+      const reused = el != null;
+      if (!el) {
+        el = document.createElement(params.type);
       }
+      if (id) {
+        el.id = id;
+        this._elements.set(id, el);
+        this._staleIds.delete(id);
+      }
+      // Full-replace className so a reused node matches the new render exactly.
+      el.className = params.name || "";
       if (params.content) {
         el.textContent = getElementContent(params.content, {
           breakpoints: params.breakpoints,
@@ -99,6 +203,12 @@ export default class UIManager extends Manager {
             return arr;
           })
           .join(";");
+      } else if (reused) {
+        // Reused node may carry stale inline style from the prior render; the
+        // create carries the element's full static style, so an absent `style`
+        // means "no static style" — clear it. (Dynamic display/etc. toggles are
+        // re-applied by the same pass's ui/update messages.)
+        el.style.cssText = "";
       }
       if (params.attributes) {
         Object.entries(params.attributes).forEach(([k, v]) => {
@@ -150,30 +260,22 @@ export default class UIManager extends Manager {
         if (parent) {
           // Positional create: insert before the named sibling (reactive
           // control-flow slot), else append. insertBefore(el, null) === append.
+          // For a reused node this repositions it (and is a no-op when already in
+          // place), so a re-render that reorders siblings settles correctly.
           const before = params.before ? this.getElement(params.before) : null;
-          const appendedEl = parent.insertBefore(el, before ?? null);
-          if (parent === this.app.overlay) {
-            this._overlayRoots.push(appendedEl);
-          }
+          parent.insertBefore(el, before ?? null);
         }
       }
       return CreateElementMessage.type.result(params.element);
     }
     if (DestroyElementMessage.type.isRequest(msg)) {
       const params = msg.params;
-      const element = this.getElement(params.element);
-      if (element) {
-        // Drop the destroyed subtree from the id cache before removing it.
-        this._elements.delete(params.element);
-        element
-          .querySelectorAll("[id]")
-          .forEach((d) => this._elements.delete(d.id));
-        element.remove();
-      }
+      this.removeElementById(params.element);
       return DestroyElementMessage.type.result(params.element);
     }
     if (MoveElementMessage.type.isRequest(msg)) {
       const params = msg.params;
+      this._staleIds.delete(params.element);
       const element = this.getElement(params.element);
       const parent = element?.parentElement;
       if (element && parent) {
@@ -186,6 +288,7 @@ export default class UIManager extends Manager {
     }
     if (UpdateElementMessage.type.isRequest(msg)) {
       const params = msg.params;
+      this._staleIds.delete(params.element);
       const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
@@ -294,21 +397,30 @@ export default class UIManager extends Manager {
       const params = msg.params;
       const el = this.getElement(params.element);
       if (el) {
+        this._staleIds.delete(params.element);
+        // Idempotent: drop any prior listener for this exact event first, so
+        // re-observing a reused element on reconcile doesn't stack duplicate
+        // handlers (which would fire the engine event N times per click).
+        const byEvent = (this._listeners[params.element] ??= {});
+        const prior = byEvent[params.event];
+        if (prior) {
+          el.removeEventListener(params.event, prior);
+        }
         const listener = (event: Event) => {
           this.app.emit(EventMessage.type.notification(getEventData(event)));
         };
-        this._listeners[params.element] = listener;
+        byEvent[params.event] = listener;
         el.addEventListener(params.event, listener);
       }
     }
     if (UnobserveElementMessage.type.isRequest(msg)) {
       const params = msg.params;
       const el = this.getElement(params.element);
-      if (el) {
-        const listener = this._listeners[params.element];
-        if (listener) {
-          el.removeEventListener(params.event, listener);
-        }
+      const byEvent = this._listeners[params.element];
+      const listener = byEvent?.[params.event];
+      if (listener) {
+        el?.removeEventListener(params.event, listener);
+        delete byEvent[params.event];
       }
     }
     return undefined;

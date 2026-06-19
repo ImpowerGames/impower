@@ -32,6 +32,9 @@ export interface DOMHarness {
   overlay: HTMLElement;
   ready: Promise<void>;
   preview(line?: number): void;
+  /** Re-render a (possibly edited) source into the same overlay via the same
+   *  reconciling UIManager — models a live-preview edit. */
+  rerender(newSource: string, line?: number): Promise<void>;
   jumpTo(path: string): void;
   nextBeat(): Instructions | undefined;
   display(instructions: Instructions, instant: boolean): Promise<void>;
@@ -174,15 +177,34 @@ export function createDOMHarness(
 
   const overlay = win.document.getElementById("overlay") as HTMLElement;
 
-  const game = new Game({
-    program: program as any,
-    previewFrom: { file: MAIN_URI, line: startLine },
-    now: () => 0,
-    setTimeout: ((fn: Function, _ms?: number, ...args: any[]) => {
-      fn(...args);
-      return 0;
-    }) as any,
-  } as any);
+  const makeGame = (prog: any) => {
+    const g = new Game({
+      program: prog,
+      previewFrom: { file: MAIN_URI, line: startLine },
+      now: () => 0,
+      setTimeout: ((fn: Function, _ms?: number, ...args: any[]) => {
+        fn(...args);
+        return 0;
+      }) as any,
+    } as any);
+    // Enable the reactive (AST-driven) render path before connect()'s eager
+    // onConnected runs (mirrors uiTestHarness) — required to render screen
+    // widgets. `onConnected` now always sets `_reactive`, so the `reactive` opt
+    // is only kept for back-compat with existing call sites.
+    if (opts?.reactive) {
+      (g.module.ui as any)._reactive = true;
+    }
+    // Auto-mount EVERY screen at connect (instant) so tests keep their "screen is
+    // mounted at connect" assumption — production only auto-opens `main`, so a
+    // test exercising the real [[open/close]] lifecycle passes
+    // `autoOpenAll: false`. Mirrors the Layer-2 uiTestHarness default.
+    (g.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
+    return g;
+  };
+
+  // The game can be swapped (rerender) to model a live-preview edit; event
+  // round-trips + request responses must follow the CURRENT game.
+  let game = makeGame(program);
 
   // Minimal stub `app` — UIManager only ever touches `.overlay` and `.emit`.
   // `emit` is the renderer→engine path: when a real DOM event fires on an
@@ -194,18 +216,6 @@ export function createDOMHarness(
       game.connection.receive(message);
     },
   };
-  // Enable the reactive (AST-driven) render path before connect()'s eager
-  // onConnected runs (mirrors uiTestHarness) — required to render screen widgets.
-  // `onConnected` now always sets `_reactive`, so the `reactive` opt is only kept
-  // for back-compat with existing call sites.
-  if (opts?.reactive) {
-    (game.module.ui as any)._reactive = true;
-  }
-  // Auto-mount EVERY screen at connect (instant) so tests keep their "screen is
-  // mounted at connect" assumption — production only auto-opens `main`, so a test
-  // exercising the real [[open/close]] lifecycle passes `autoOpenAll: false`.
-  // Mirrors the Layer-2 uiTestHarness default.
-  (game.module.ui as any)._autoOpenAll = opts?.autoOpenAll ?? true;
 
   const ui = new UIManager(stubApp);
 
@@ -231,12 +241,34 @@ export function createDOMHarness(
   const ready = game.connect(sendToConsumer).then(() => flushMicrotasks(10));
 
   return {
-    game,
+    get game() {
+      return game;
+    },
     ui,
     overlay,
     ready,
     preview(line = startLine) {
       game.preview(MAIN_URI, line);
+    },
+    /**
+     * Model a live-preview EDIT: compile `newSource`, build a fresh game, and
+     * render it into the SAME overlay through the SAME (persistent) UIManager —
+     * exactly what `GamePlayerController.updatePreview` does, minus pixi. The
+     * reconcile (beginReconcilePass → reuse-by-id → sweepReconcile) runs, so the
+     * overlay is patched in place rather than rebuilt. Returns once settled.
+     */
+    async rerender(newSource: string, line = startLine) {
+      const newProgram = compile(newSource);
+      game = makeGame(newProgram);
+      // The player's updatePreview path: previous DOM is preserved, the new
+      // render adopts it, the stream reuses unchanged nodes, then the tail is
+      // swept.
+      ui.beginReconcilePass();
+      await game.connect(sendToConsumer);
+      await flushMicrotasks(10);
+      game.preview(MAIN_URI, line);
+      await flushMicrotasks(10);
+      ui.sweepReconcile();
     },
     jumpTo(path: string) {
       (game as any).jumpToPath(path);
