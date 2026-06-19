@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { exec } from "child_process";
 import fs from "fs";
 import http from "node:http";
+import https from "node:https";
 import path from "path";
 import glob from "tiny-glob";
 import { build, createServer } from "vite";
@@ -417,34 +418,100 @@ const serve = async () => {
     const playerOrigin = new URL(
       process.env["SPARKDOWN_PLAYER_DEV_ORIGIN"] || "http://localhost:5173",
     );
+    const client = playerOrigin.protocol === "https:" ? https : http;
+    // HTTP/1.1 hop-by-hop headers. They're connection-scoped and must NOT be
+    // forwarded; re-emitting them is also a hard error under HTTP/2 (which the
+    // dev server uses when https/ certs exist) — ERR_HTTP2_INVALID_CONNECTION_HEADERS.
+    const HOP_BY_HOP = new Set([
+      "connection",
+      "keep-alive",
+      "proxy-authenticate",
+      "proxy-authorization",
+      "te",
+      "trailer",
+      "transfer-encoding",
+      "upgrade",
+      "proxy-connection",
+    ]);
+    let warnedAsymmetric = false;
     app.use((req: any, res: any, next: any) => {
-      if (!req.url?.startsWith(PLAYER_PROXY_BASE)) {
+      // Boundary match so a future sibling route (e.g. /__playerfoo) can't be
+      // hijacked by the prefix.
+      const url: string = req.url || "";
+      if (url !== PLAYER_PROXY_BASE && !url.startsWith(PLAYER_PROXY_BASE + "/")) {
         next();
         return;
       }
-      const proxyReq = http.request(
+      const proxyReq = client.request(
         {
           protocol: playerOrigin.protocol,
           hostname: playerOrigin.hostname,
           port: playerOrigin.port,
           method: req.method,
-          path: req.url,
+          path: url,
           headers: { ...req.headers, host: playerOrigin.host },
         },
         (proxyRes) => {
-          res.writeHead(proxyRes.statusCode || 502, proxyRes.headers);
+          const headers: Record<string, any> = {};
+          for (const [k, v] of Object.entries(proxyRes.headers)) {
+            if (!HOP_BY_HOP.has(k.toLowerCase())) {
+              headers[k] = v;
+            }
+          }
+          res.writeHead(proxyRes.statusCode || 502, headers);
+          // Diagnose the easy-to-make asymmetric-config mistake: the editor has
+          // the flag but the player wasn't started with it, so it serves at base
+          // "/" and the proxied index.html lacks the /__player/ asset prefix →
+          // a silent white iframe. Sniff the document response once and warn.
+          if (
+            !warnedAsymmetric &&
+            url === PLAYER_PROXY_BASE + "/" &&
+            String(proxyRes.headers["content-type"] || "").includes("text/html")
+          ) {
+            let head = "";
+            proxyRes.on("data", (chunk) => {
+              if (head.length < 2048) {
+                head += chunk.toString("utf8");
+                if (head.length >= 256 && !head.includes(PLAYER_PROXY_BASE)) {
+                  warnedAsymmetric = true;
+                  console.log(
+                    YELLOW,
+                    `Same-origin preview: the player at ${playerOrigin.origin} ` +
+                      `is not serving under base ${PLAYER_PROXY_BASE}/. Start ` +
+                      `sparkdown-player-app with VITE_SAME_ORIGIN_PREVIEW=1 too.`,
+                  );
+                }
+              }
+            });
+          }
           proxyRes.pipe(res);
+          proxyRes.on("error", () => res.destroy());
         },
       );
       proxyReq.on("error", (err) => {
+        if (res.headersSent) {
+          res.destroy();
+          return;
+        }
         res.statusCode = 502;
-        res.end(`Player proxy error: ${err.message}`);
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end(
+          `Same-origin preview: could not reach the game-preview player at ` +
+            `${playerOrigin.origin}. Start sparkdown-player-app (npm run dev) ` +
+            `with VITE_SAME_ORIGIN_PREVIEW=1. (${err.message})`,
+        );
       });
+      // Tear the upstream request down if the client goes away mid-flight.
+      req.on("aborted", () => proxyReq.destroy());
+      res.on("close", () => proxyReq.destroy());
       req.pipe(proxyReq);
     });
+    // HMR websockets intentionally bypass this proxy — the player's Vite client
+    // connects straight to its own port (see sparkdown-player-app hmr config).
     console.log(
       STEP_COLOR,
-      `Same-origin preview ON: proxying ${PLAYER_PROXY_BASE}/ -> ${playerOrigin.origin}`,
+      `Same-origin preview ON: proxying ${PLAYER_PROXY_BASE}/ -> ${playerOrigin.origin} ` +
+        `(also set VITE_SAME_ORIGIN_PREVIEW=1 for sparkdown-player-app)`,
     );
   }
 

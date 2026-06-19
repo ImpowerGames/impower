@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { SparkProgram } from "../../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
+import { installPreviewInspector } from "./previewInspect";
 
 const SPARKDOWN_PLAYER_ORIGIN =
   import.meta.env.VITE_SPARKDOWN_PLAYER_ORIGIN || "";
@@ -167,6 +168,13 @@ export default function PreviewGame(_props: PreviewGameProps) {
   useEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
+
+    // DEV-ONLY: when the preview is same-origin, expose `window.__preview` so the
+    // live game DOM is inspectable from the console / automation. No-op (and not
+    // installed) when embedding cross-origin, where frame access would be blocked.
+    const uninstallInspector = SAME_ORIGIN_PREVIEW
+      ? installPreviewInspector()
+      : undefined;
 
     Promise.all([
       import("@impower/jsonrpc/src/browser/classes/IFrameMessageConnection"),
@@ -506,6 +514,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
     return () => {
       cancelled = true;
       cleanup?.();
+      uninstallInspector?.();
     };
   }, []);
 

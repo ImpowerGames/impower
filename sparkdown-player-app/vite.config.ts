@@ -157,14 +157,23 @@ export default defineConfig(({ mode }) => {
   // (see impower-dev/build.ts). Serving under base "/__player/" makes the
   // emitted HTML/asset URLs (/__player/@vite/client, /__player/src/main.ts, …)
   // route back through that proxy. HMR connects directly to this server's port
-  // so no websocket proxying is needed. Defaults OFF (base "/").
+  // (not through the proxy) so no websocket proxying is needed. Defaults OFF
+  // (base "/"). Gated on `mode !== "production"` so an ambient flag can never
+  // flip a prod build onto the /__player/ base.
   const env = loadEnv(mode, process.cwd(), "");
-  const SAME_ORIGIN_PREVIEW = !!env["VITE_SAME_ORIGIN_PREVIEW"];
+  const SAME_ORIGIN_PREVIEW =
+    mode !== "production" && !!env["VITE_SAME_ORIGIN_PREVIEW"];
+  // Keep the served port and the HMR client port in one knob so they can't drift
+  // (and so multiple worktrees can run players without colliding). The editor's
+  // SPARKDOWN_PLAYER_DEV_ORIGIN must point at this same port.
+  const PLAYER_PORT = Number(env["SPARKDOWN_PLAYER_PORT"] || 5173);
   return {
   base: SAME_ORIGIN_PREVIEW ? "/__player/" : "/",
   server: {
     host: true,
-    ...(SAME_ORIGIN_PREVIEW ? { hmr: { clientPort: 5173 } } : {}),
+    ...(SAME_ORIGIN_PREVIEW
+      ? { port: PLAYER_PORT, hmr: { clientPort: PLAYER_PORT } }
+      : {}),
   },
   // Use Preact's automatic JSX runtime for the .tsx in spark-web-player.
   esbuild: {

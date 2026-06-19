@@ -222,7 +222,12 @@ servers (`impower-dev` and `sparkdown-player-app`), since it's a build-time var:
   `/__player/` so its HTML/asset URLs route back through the proxy, and makes
   `main.ts` skip its own service-worker registration (the editor's root-scoped SW
   already intercepts `/file:/` and serves game assets straight from OPFS, so it
-  controls the same-origin iframe too). HMR connects directly to `:5173`.
+  controls the same-origin iframe too). HMR connects directly to the player's port
+  (not through the proxy).
+
+If you run the player on a non-default port, set `SPARKDOWN_PLAYER_PORT` for the
+player (it drives both the served port and the HMR client port) and point the
+editor's `SPARKDOWN_PLAYER_DEV_ORIGIN` at the same `http://localhost:<port>`.
 
 Because the iframe is now same-origin, the `postMessage` handshake matches
 exactly with no origin relaxation, and the live game DOM is reachable from the
@@ -233,3 +238,20 @@ OFF.
 Verify with the flag on: load `http://localhost:8080`, open the preview, then in
 the editor page console
 `document.querySelector('#iframe').contentDocument` is non-null.
+
+### `window.__preview` inspector
+
+When the flag is on, `PreviewGame` installs a small **`window.__preview`** helper
+(`previewInspect.ts`) on the editor page so the live game DOM is ergonomic to
+inspect from the console or automation (it's only installed in same-origin mode;
+cross-origin it would be blocked anyway). It resolves the iframe lazily, so it
+keeps working across preview reloads:
+
+```js
+__preview.summary()        // { mounted, sameOrigin, url, readyState, gameChildren, resourceEntries }
+__preview.game()           // the live #game element
+__preview.$('#game-ui')    // querySelector into the game document
+__preview.deep('canvas')   // querySelectorAll that descends open shadow roots
+__preview.perf('resource') // the iframe's performance entries
+await __preview.ready()    // resolves once #game has rendered
+```
