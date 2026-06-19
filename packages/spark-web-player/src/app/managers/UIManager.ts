@@ -177,7 +177,13 @@ export default class UIManager extends Manager {
         el = document.createElement(params.type);
       }
       if (id) {
-        el.id = id;
+        // Only write the id attribute when it actually differs (a fresh or
+        // tag-swapped node). Re-assigning the same id to a REUSED node still
+        // fires a mutation — which flashes the whole subtree in devtools and
+        // reads as a rebuild even though the node was reused in place.
+        if (el.id !== id) {
+          el.id = id;
+        }
         this._elements.set(id, el);
         this._staleIds.delete(id);
       }
