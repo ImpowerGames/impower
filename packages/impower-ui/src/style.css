@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* Tailwind v4 successor to tailwindcss-animate: `animate-in`/`animate-out` plus
+   `fade-*`, `zoom-*`, `slide-in-from-*`, and animation-aware `duration`/`ease`
+   utilities. Drives the Radix dropdown/popover enter+exit (data-state). */
+@import "tw-animate-css";
 @plugin 'tailwind-scrollbar';
 @source ".";
 

@@ -25,15 +25,14 @@ export const DropdownSeparator = DropdownMenuPrimitive.Separator;
 const dropdownContent = cva([
   "z-50 min-w-[120px] overflow-hidden rounded-lg",
   "bg-popup py-2 px-0 text-foreground shadow-xl ring-1 ring-foreground/10",
-  // Enter/exit: grow from the trigger corner (Radix sets the transform-origin
-  // and data-side) — a fade + zoom + directional slide on an ease-out curve.
-  // Matches the file-manager overlays' feel; the open is a touch slower and
-  // softer than the snappy close.
+  // Enter/exit (tw-animate-css): grow from the trigger corner (Radix sets the
+  // transform-origin + data-side) with a fade + zoom + small directional slide.
+  // Soft ease-out open, snappier close.
   "origin-[--radix-dropdown-menu-content-transform-origin] ease-out",
   "data-[state=open]:animate-in data-[state=closed]:animate-out",
   "data-[state=open]:duration-200 data-[state=closed]:duration-100",
-  "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-  "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+  "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
+  "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95",
   "data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2",
   "data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2",
 ]);
