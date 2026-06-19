@@ -95,12 +95,16 @@ export default function FileOptionsButton({
       defaultOpen
       onOpenChange={(open) => {
         if (!open) {
-          setArmed(false);
-          // Release the slot if we still hold it (so we don't clobber a menu
-          // that was opened on another row in the meantime).
-          if (openOptionsKey.value === keyRef.current) {
-            openOptionsKey.value = null;
-          }
+          // Keep the lazy-armed menu mounted briefly so its exit transition can
+          // finish before we drop the Radix root. Hold the single-open slot
+          // until then too, so our own useSignalEffect doesn't disarm us
+          // mid-exit (it disarms when the slot key no longer matches).
+          window.setTimeout(() => {
+            setArmed(false);
+            if (openOptionsKey.value === keyRef.current) {
+              openOptionsKey.value = null;
+            }
+          }, 250);
         }
       }}
     >
