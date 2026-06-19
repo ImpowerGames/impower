@@ -391,8 +391,8 @@ function FileItem({
             ) : (
               <>
                 <div class="flex flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
-                  <span class={isDirectory ? "font-medium" : ""}>{name}</span>
-                  {showExt && <span class="opacity-30">.{ext}</span>}
+                  <span class="font-semibold">{name}</span>
+                  {showExt && <span class="font-normal opacity-30">.{ext}</span>}
                 </div>
                 {caption && (
                   <div class="truncate text-xs text-foreground/60">
