@@ -1,5 +1,6 @@
 import {
   Button,
+  Check,
   ChevronRight,
   FolderFill,
   Ripple,
@@ -57,11 +58,23 @@ export type FileItemProps = {
   /** File size in bytes — shown as a human size in the caption. */
   size?: number;
   /**
+   * Multi-select ("multi-editing") mode is active: the icon slot becomes a
+   * checkbox, a row click toggles its selection, and the per-row 3-dots hides.
+   */
+  selectMode?: boolean;
+  /** Whether this row is checked in multi-select mode. */
+  bulkSelected?: boolean;
+  /**
    * Folder rows: toggle expand/collapse. Receives the row's own path so the
    * parent can pass a single STABLE callback (not a per-row closure), which
    * keeps {@link FileItem}'s props referentially stable for `memo`.
    */
   onToggle?: (path: string) => void;
+  /** Toggle this row's selection (multi-select mode). Folders cascade to their
+   * contents in the parent. */
+  onToggleSelect?: (path: string, isDirectory: boolean) => void;
+  /** Right-click / long-press: enter multi-select mode and select this row. */
+  onContextSelect?: (path: string, isDirectory: boolean) => void;
 };
 
 /**
@@ -82,7 +95,11 @@ function FileItem({
   src,
   modified,
   size,
+  selectMode = false,
+  bulkSelected = false,
   onToggle,
+  onToggleSelect,
+  onContextSelect,
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -225,12 +242,24 @@ function FileItem({
   async function onRowClick(e: MouseEvent) {
     if (renaming) return;
     e.stopPropagation();
+    // Multi-select mode: a row click toggles its checkbox instead of opening it.
+    if (selectMode) {
+      onToggleSelect?.(path, isDirectory);
+      return;
+    }
     if (isDirectory) {
       onToggle?.(path);
       return;
     }
     const { Workspace } = await import("../../workspace/Workspace");
     Workspace.window.openFileEditor(path);
+  }
+
+  function onRowContextMenu(e: MouseEvent) {
+    // Right-click enters multi-select mode (if not already) and selects this row.
+    e.preventDefault();
+    e.stopPropagation();
+    onContextSelect?.(path, isDirectory);
   }
 
   // Re-render on diagnostics change (DiagnosticsLabel reads the same signal).
@@ -242,11 +271,16 @@ function FileItem({
       ref={rowRef}
       variant="ghost"
       class={`h-14 w-full justify-start gap-0 rounded-none px-5 text-left text-base font-normal text-foreground/80 ${
-        selected
-          ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
-          : ""
+        selectMode
+          ? bulkSelected
+            ? "bg-primary/15"
+            : ""
+          : selected
+            ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
+            : ""
       }`}
       onClick={onRowClick}
+      onContextMenu={onRowContextMenu}
     >
       <div
         class="relative flex flex-1 flex-row items-center overflow-hidden"
@@ -276,42 +310,57 @@ function FileItem({
               size-9 footprint is shared so names stay aligned. Inside
               DiagnosticsLabel so the fallback glyph goes red/amber with the name
               on a diagnostic (currentColor). */}
-          <span
-            class={`mr-3 flex size-9 flex-none items-center justify-center ${
-              isDirectory
-                ? "text-foreground/60"
-                : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
-            }`}
-          >
-            {isDirectory ? (
-              diveMode ? (
-                // Dive mode: tapping NAVIGATES into the folder — a filled folder
-                // glyph (not the expand/collapse chevron, which would imply an
-                // inline tree). Drive convention: folders stay unboxed.
-                <FolderFill class="size-6" />
-              ) : (
-                <ChevronRight
-                  class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
-                    hasChildren ? "" : "opacity-40"
-                  }`}
+          {selectMode ? (
+            // Multi-select: the icon slot becomes a checkbox.
+            <span class="mr-3 flex size-9 flex-none items-center justify-center text-foreground/60">
+              <span
+                class={`flex size-5 items-center justify-center rounded border-2 transition-colors ${
+                  bulkSelected
+                    ? "border-primary bg-primary text-white"
+                    : "border-foreground/40"
+                }`}
+              >
+                {bulkSelected && <Check class="size-3.5" />}
+              </span>
+            </span>
+          ) : (
+            <span
+              class={`mr-3 flex size-9 flex-none items-center justify-center ${
+                isDirectory
+                  ? "text-foreground/60"
+                  : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
+              }`}
+            >
+              {isDirectory ? (
+                diveMode ? (
+                  // Dive mode: tapping NAVIGATES into the folder — a filled
+                  // folder glyph (not the expand/collapse chevron, which would
+                  // imply an inline tree). Drive convention: folders stay unboxed.
+                  <FolderFill class="size-6" />
+                ) : (
+                  <ChevronRight
+                    class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
+                      hasChildren ? "" : "opacity-40"
+                    }`}
+                  />
+                )
+              ) : showThumb ? (
+                // No loading="lazy": the virtualizer already mounts only
+                // visible+overscan rows (its own windowing), and native lazy
+                // loading fails to trigger inside its transformed rows — leaving
+                // visible thumbnails unloaded. Eager + async decode is correct.
+                <img
+                  src={thumbSrc}
+                  decoding="async"
+                  alt=""
+                  class="size-full object-cover"
+                  onError={() => setThumbFailed(true)}
                 />
-              )
-            ) : showThumb ? (
-              // No loading="lazy": the virtualizer already mounts only
-              // visible+overscan rows (its own windowing), and native lazy
-              // loading fails to trigger inside its transformed rows — leaving
-              // visible thumbnails unloaded. Eager + async decode is correct.
-              <img
-                src={thumbSrc}
-                decoding="async"
-                alt=""
-                class="size-full object-cover"
-                onError={() => setThumbFailed(true)}
-              />
-            ) : (
-              <FileIcon class="size-5" />
-            )}
-          </span>
+              ) : (
+                <FileIcon class="size-5" />
+              )}
+            </span>
+          )}
           <div class="flex min-w-0 flex-1 flex-col justify-center overflow-hidden">
             {renaming ? (
               <div
@@ -354,10 +403,12 @@ function FileItem({
           </div>
         </DiagnosticsLabel>
       </div>
-      <FileOptionsButton
-        onRename={() => setRenaming(true)}
-        onDelete={() => void deleteEntry()}
-      />
+      {!selectMode && (
+        <FileOptionsButton
+          onRename={() => setRenaming(true)}
+          onDelete={() => void deleteEntry()}
+        />
+      )}
     </Button>
   );
 }

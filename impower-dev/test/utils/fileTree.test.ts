@@ -4,6 +4,7 @@ import {
   buildFileTree,
   childrenRows,
   computeFolderMoves,
+  descendantPaths,
   filterPaths,
   flattenVisibleRows,
   FOLDER_SENTINEL,
@@ -289,5 +290,24 @@ describe("flattenVisibleRows expandAll", () => {
   it("still honors the expanded set when expandAll is false", () => {
     const tree = buildFileTree(["a/b/c.sd"]);
     expect(flattenVisibleRows(tree, new Set()).map((r) => r.path)).toEqual(["a"]);
+  });
+});
+
+describe("descendantPaths (folder-select cascade)", () => {
+  const tree = buildFileTree(["a/b/c.sd", "a/b/d.png", "a/e.sd", "f.sd"]);
+
+  it("returns every descendant (files + subfolders), excluding the folder itself", () => {
+    expect(descendantPaths(tree, "a").sort()).toEqual(
+      ["a/b", "a/b/c.sd", "a/b/d.png", "a/e.sd"].sort(),
+    );
+    expect(descendantPaths(tree, "a/b").sort()).toEqual(
+      ["a/b/c.sd", "a/b/d.png"].sort(),
+    );
+  });
+
+  it("returns [] for a leaf file, the root, or an unknown path", () => {
+    expect(descendantPaths(tree, "f.sd")).toEqual([]);
+    expect(descendantPaths(tree, "")).toEqual([]);
+    expect(descendantPaths(tree, "nope")).toEqual([]);
   });
 });

@@ -278,6 +278,41 @@ export const resolveScopePath = (
 };
 
 /**
+ * Every descendant node path (files AND subfolders) beneath `folderPath`, NOT
+ * including `folderPath` itself. `""` / a path that doesn't resolve to a folder
+ * → `[]`. Used to cascade a folder's checkbox selection to everything inside it.
+ */
+export const descendantPaths = (
+  roots: FileTreeNode[],
+  folderPath: string,
+): string[] => {
+  const segments = folderPath.split("/").filter(Boolean);
+  let level = roots;
+  let node: FileTreeNode | undefined;
+  for (const segment of segments) {
+    node = level.find((n) => n.isDirectory && n.name === segment);
+    if (!node) {
+      return [];
+    }
+    level = node.children;
+  }
+  if (!node) {
+    return [];
+  }
+  const out: string[] = [];
+  const walk = (nodes: FileTreeNode[]): void => {
+    for (const n of nodes) {
+      out.push(n.path);
+      if (n.isDirectory) {
+        walk(n.children);
+      }
+    }
+  };
+  walk(node.children);
+  return out;
+};
+
+/**
  * Case-insensitive substring filter over the full relative path. Because the
  * tree is rebuilt from the surviving paths, a match keeps its ancestor folders
  * automatically (typing a folder name reveals everything beneath it).

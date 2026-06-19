@@ -6,12 +6,15 @@
 // feedback_defer_cjs_imports_in_ssr_loaded_modules.
 import {
   Button,
+  Check,
   DotsVertical,
   DropdownContent,
   DropdownItem,
   DropdownRoot,
   DropdownTrigger,
   FolderPlus,
+  Trash,
+  X,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -20,6 +23,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import {
   buildFileTree,
   childrenRows,
+  descendantPaths,
   filterPaths,
   flattenVisibleRows,
   FOLDER_SENTINEL,
@@ -187,6 +191,14 @@ export default function FileList({
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("");
+  // Multi-editing ("select") mode: per-row checkboxes + bulk delete.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(
+    () => new Set(),
+  );
+  // Latest built tree, read by the stable select handlers to cascade a folder's
+  // selection to its descendants (set after the tree is built below).
+  const treeRef = useRef<FileTreeNode[]>([]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // Report scroll-off-top so the parent can collapse the FAB.
@@ -467,6 +479,7 @@ export default function FileList({
   };
 
   const tree = buildFileTree(visiblePaths, { compareFiles });
+  treeRef.current = tree;
   // TREE mode (desktop): flatten the expanded tree (every folder expands while
   // searching so buried matches show). DIVE mode (mobile): only the current
   // folder's direct children at depth 0. `scope` recovers to the nearest
@@ -491,8 +504,45 @@ export default function FileList({
     setScopePath("");
     setSearch("");
     setTypeFilter("");
+    setSelectMode(false);
+    setSelectedPaths(new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, include, exclude]);
+
+  // Multi-select handlers — stable identities so FileItem's `memo` holds.
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedPaths(new Set());
+  }, []);
+  // Toggle a row; a folder cascades to ALL its descendants (files + subfolders),
+  // so checking a folder checks everything inside it (and unchecking clears it).
+  const toggleSelected = useCallback((rowPath: string, isDir: boolean) => {
+    setSelectedPaths((prev) => {
+      const next = new Set(prev);
+      const group = isDir
+        ? [rowPath, ...descendantPaths(treeRef.current, rowPath)]
+        : [rowPath];
+      if (next.has(rowPath)) {
+        for (const p of group) next.delete(p);
+      } else {
+        for (const p of group) next.add(p);
+      }
+      return next;
+    });
+  }, []);
+  // Right-click a row: enter select mode (if needed) and select it — a folder
+  // also selects its contents.
+  const contextSelect = useCallback((rowPath: string, isDir: boolean) => {
+    setSelectMode(true);
+    setSelectedPaths((prev) => {
+      const next = new Set(prev);
+      next.add(rowPath);
+      if (isDir) {
+        for (const p of descendantPaths(treeRef.current, rowPath)) next.add(p);
+      }
+      return next;
+    });
+  }, []);
 
   // Pick a sort field — toggle asc↔desc when it's already the active field,
   // otherwise switch to it (keeping the current direction, like Drive).
@@ -533,6 +583,47 @@ export default function FileList({
   });
 
   const isEmpty = uris !== null && rows.length === 0;
+
+  // Multi-select derived state. Select-all covers EVERY node (files + folders,
+  // including ones inside collapsed folders), not just the visible rows. Only
+  // computed in select mode so the full-tree walk never runs on a scroll frame.
+  const allNodePaths = selectMode
+    ? flattenVisibleRows(tree, new Set<string>(), true).map((r) => r.path)
+    : [];
+  const allSelected =
+    allNodePaths.length > 0 && allNodePaths.every((p) => selectedPaths.has(p));
+  const toggleSelectAll = () => {
+    setSelectedPaths(allSelected ? new Set() : new Set(allNodePaths));
+  };
+  const deleteSelected = async () => {
+    if (!projectId || selectedPaths.size === 0) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    const paths = [...selectedPaths];
+    // Drop any path nested under another selected one — deleting a folder
+    // already removes its contents, so deleting the child too would error.
+    const roots = paths.filter(
+      (p) => !paths.some((o) => o !== p && p.startsWith(`${o}/`)),
+    );
+    let scriptChanged = false;
+    let assetChanged = false;
+    for (const p of roots) {
+      // Folder paths have no FileData entry (only their files / sentinel do).
+      const isDir = !filesByPath.has(p);
+      if (isDir) {
+        await Workspace.fs.deleteFolder(projectId, p);
+        assetChanged = true;
+      } else {
+        const uri = Workspace.fs.getFileUri(projectId, p);
+        const deleted = await Workspace.fs.deleteFiles({ files: [{ uri }] });
+        if (deleted.some((d) => d.type === "script")) scriptChanged = true;
+        else assetChanged = true;
+      }
+    }
+    if (scriptChanged) await Workspace.window.recordScriptChange();
+    if (assetChanged) await Workspace.window.recordAssetChange();
+    exitSelectMode();
+    await reload();
+  };
 
   const newFolder = async () => {
     if (!projectId) return;
@@ -617,38 +708,92 @@ export default function FileList({
           the breadcrumb sits on its own row above. The bottom FAB stays the
           single primary create action per pane. */}
       <div class="flex flex-none flex-col gap-1.5 px-4 pt-2">
-        {diveMode && (
-          <FileBreadcrumb scope={scope} onNavigate={setScopePath} class="min-w-0" />
-        )}
-        <div class="flex flex-row items-center gap-1">
-          <FileListHeader
-            search={search}
-            onSearch={setSearch}
-            sortKey={sortKey}
-            sortOrder={sortOrder}
-            onSort={handleSort}
-            typeFilter={typeFilter}
-            onTypeFilter={setTypeFilter}
-          />
-          <DropdownRoot>
-            <DropdownTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="More options"
-                class="rounded-full text-foreground/60 hover:text-foreground"
+        {selectMode ? (
+          // Multi-editing bar: select-all + count, then Delete + exit.
+          <div class="flex h-8 flex-row items-center gap-2">
+            <button
+              type="button"
+              aria-label={allSelected ? "Deselect all" : "Select all"}
+              onClick={toggleSelectAll}
+              class="flex size-8 flex-none items-center justify-center rounded-full text-foreground/70 hover:text-foreground"
+            >
+              <span
+                class={`flex size-5 items-center justify-center rounded border-2 ${
+                  allSelected
+                    ? "border-primary bg-primary text-white"
+                    : "border-foreground/40"
+                }`}
               >
-                <DotsVertical class="size-5" />
-              </Button>
-            </DropdownTrigger>
-            <DropdownContent align="end" sideOffset={4}>
-              <DropdownItem onSelect={() => void newFolder()}>
-                <FolderPlus class="size-4" />
-                New Folder
-              </DropdownItem>
-            </DropdownContent>
-          </DropdownRoot>
-        </div>
+                {allSelected && <Check class="size-3.5" />}
+              </span>
+            </button>
+            <span class="text-sm tabular-nums text-foreground/70">
+              ({selectedPaths.size})
+            </span>
+            <div class="flex-1" />
+            <Button
+              variant="ghost"
+              disabled={selectedPaths.size === 0}
+              onClick={() => void deleteSelected()}
+              class="h-8 gap-1.5 rounded-md px-2 text-sm font-normal text-foreground/80 hover:text-foreground"
+            >
+              <Trash class="size-4" />
+              Delete
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Exit selection"
+              onClick={exitSelectMode}
+              class="rounded-full text-foreground/60 hover:text-foreground"
+            >
+              <X class="size-5" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            {diveMode && (
+              <FileBreadcrumb
+                scope={scope}
+                onNavigate={setScopePath}
+                class="min-w-0"
+              />
+            )}
+            <div class="flex flex-row items-center gap-1">
+              <FileListHeader
+                search={search}
+                onSearch={setSearch}
+                sortKey={sortKey}
+                sortOrder={sortOrder}
+                onSort={handleSort}
+                typeFilter={typeFilter}
+                onTypeFilter={setTypeFilter}
+              />
+              <DropdownRoot>
+                <DropdownTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="More options"
+                    class="rounded-full text-foreground/60 hover:text-foreground"
+                  >
+                    <DotsVertical class="size-5" />
+                  </Button>
+                </DropdownTrigger>
+                <DropdownContent align="end" sideOffset={4}>
+                  <DropdownItem onSelect={() => void newFolder()}>
+                    <FolderPlus class="size-4" />
+                    New Folder
+                  </DropdownItem>
+                  <DropdownItem onSelect={() => setSelectMode(true)}>
+                    <Check class="size-4" />
+                    Select
+                  </DropdownItem>
+                </DropdownContent>
+              </DropdownRoot>
+            </div>
+          </>
+        )}
       </div>
       <div
         ref={scrollRef}
@@ -688,12 +833,16 @@ export default function FileList({
                     height: `${virtualRow.size}px`,
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
-                  onPointerDown={(e) =>
-                    drag.onRowPointerDown(e, {
-                      path: row.path,
-                      isDirectory: row.isDirectory,
-                      label: row.path.split("/").pop() ?? row.path,
-                    })
+                  onPointerDown={
+                    // No drag-to-reorganize while multi-selecting.
+                    selectMode
+                      ? undefined
+                      : (e) =>
+                          drag.onRowPointerDown(e, {
+                            path: row.path,
+                            isDirectory: row.isDirectory,
+                            label: row.path.split("/").pop() ?? row.path,
+                          })
                   }
                 >
                   <FileItem
@@ -707,7 +856,11 @@ export default function FileList({
                     src={file?.src}
                     modified={file?.modified}
                     size={file?.size}
+                    selectMode={selectMode}
+                    bulkSelected={selectedPaths.has(row.path)}
                     onToggle={onItemActivate}
+                    onToggleSelect={toggleSelected}
+                    onContextSelect={contextSelect}
                   />
                 </div>
               );
