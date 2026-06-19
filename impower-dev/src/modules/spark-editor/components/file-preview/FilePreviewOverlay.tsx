@@ -9,6 +9,7 @@ import { createPortal } from "preact/compat";
 import { useEffect, useRef } from "preact/hooks";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import ImagePreview from "./ImagePreview";
+import TextPreview from "./TextPreview";
 
 /** A previewable asset. `kind` is the resolved media category. */
 export type PreviewKind = "image" | "audio" | "video" | "text";
@@ -176,19 +177,7 @@ function PreviewBody({ item }: { item: PreviewItem }) {
         </div>
       );
     case "text":
-      return (
-        <object
-          key={item.path}
-          data={src}
-          type="text/plain"
-          class="size-full rounded bg-white"
-          aria-label={name}
-        >
-          <div class="m-auto text-sm text-white/50">
-            Can't preview this file.
-          </div>
-        </object>
-      );
+      return <TextPreview key={item.path} src={src} />;
     default:
       return (
         <div class="m-auto flex flex-col items-center gap-4 text-white/40">
