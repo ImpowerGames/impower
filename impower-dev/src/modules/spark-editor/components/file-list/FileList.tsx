@@ -159,12 +159,12 @@ export type FileListProps = {
   onScopeChange?: (scopePath: string) => void;
 };
 
-// Slot height for the virtualizer. The row button itself is h-14 (56px),
-// but the legacy `outletEl.itemHeight = 52` packs the rows 52px apart —
-// each button visually overlaps its neighbor's slot by 4px (no visible
-// artifact since both are transparent/same-color). Match that spacing
-// or rows render 4px further apart than main.
-const ITEM_HEIGHT = 52;
+// Slot height for the virtualizer — the row pitch. Roomier than the legacy
+// 52px so the two-line name + caption have breathing room (the row button is
+// h-16/64px and overlaps its slot by 4px; transparent, so no visible artifact).
+// Drives the virtualizer estimate AND the sticky-header offsets, so keep them
+// in sync via this constant.
+const ITEM_HEIGHT = 60;
 
 /**
  * Virtualized folder tree of files for the Assets and Logic > Scripts panes.
@@ -726,7 +726,7 @@ export default function FileList({
           overflow "more" menu (New Folder) docked right. In dive mode (mobile)
           the breadcrumb sits on its own row above. The bottom FAB stays the
           single primary create action per pane. */}
-      <div class="flex flex-none flex-col gap-1.5 px-4 pb-2 pt-2">
+      <div class="flex flex-none flex-col gap-1.5 px-5 pb-2 pt-2">
         {selectMode ? (
           // Multi-editing bar: select-all + count, then Delete + exit.
           <div class="flex h-8 flex-row items-center gap-2">
@@ -778,39 +778,41 @@ export default function FileList({
                 class="min-w-0"
               />
             )}
-            <div class="flex flex-row items-center gap-1">
-              <FileListHeader
-                search={search}
-                onSearch={setSearch}
-                sortKey={sortKey}
-                sortOrder={sortOrder}
-                onSort={handleSort}
-                typeFilter={typeFilter}
-                onTypeFilter={setTypeFilter}
-              />
-              <DropdownRoot>
-                <DropdownTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="More options"
-                    class="rounded-full text-foreground/60 hover:text-foreground"
-                  >
-                    <DotsVertical class="size-5" />
-                  </Button>
-                </DropdownTrigger>
-                <DropdownContent align="end" sideOffset={4}>
-                  <DropdownItem onSelect={() => void newFolder()}>
-                    <FolderPlus class="size-4" />
-                    New Folder
-                  </DropdownItem>
-                  <DropdownItem onSelect={() => setSelectMode(true)}>
-                    <Check class="size-4" />
-                    Select
-                  </DropdownItem>
-                </DropdownContent>
-              </DropdownRoot>
-            </div>
+            <FileListHeader
+              search={search}
+              onSearch={setSearch}
+              sortKey={sortKey}
+              sortOrder={sortOrder}
+              onSort={handleSort}
+              typeFilter={typeFilter}
+              onTypeFilter={setTypeFilter}
+              trailing={
+                <DropdownRoot>
+                  <DropdownTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="More options"
+                      // mr-2 mirrors the per-row 3-dots (FileOptionsButton), so
+                      // the header's 3-dots lines up with the file items' 3-dots.
+                      class="mr-2 rounded-full text-foreground/60 hover:text-foreground"
+                    >
+                      <DotsVertical class="size-5" />
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownContent align="end" sideOffset={4}>
+                    <DropdownItem onSelect={() => void newFolder()}>
+                      <FolderPlus class="size-4" />
+                      New Folder
+                    </DropdownItem>
+                    <DropdownItem onSelect={() => setSelectMode(true)}>
+                      <Check class="size-4" />
+                      Select
+                    </DropdownItem>
+                  </DropdownContent>
+                </DropdownRoot>
+              }
+            />
           </>
         )}
       </div>
@@ -854,10 +856,10 @@ export default function FileList({
                     class="flex flex-1 items-center overflow-hidden"
                     style={{ paddingLeft: `${indent}px` }}
                   >
-                    <span class="mr-3 flex size-9 flex-none items-center justify-center text-foreground/60">
+                    <span class="mr-3 flex size-10 flex-none items-center justify-center text-foreground/60">
                       <ChevronRight class="size-5 rotate-90" />
                     </span>
-                    <span class="truncate font-medium">{s.name}</span>
+                    <span class="truncate font-semibold">{s.name}</span>
                   </div>
                 </button>
               );

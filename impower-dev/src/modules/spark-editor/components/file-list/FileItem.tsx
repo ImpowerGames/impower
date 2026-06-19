@@ -271,7 +271,7 @@ function FileItem({
     <Button
       ref={rowRef}
       variant="ghost"
-      class={`h-14 w-full justify-start gap-0 rounded-none px-5 text-left text-base font-normal text-foreground/80 ${
+      class={`h-16 w-full justify-start gap-0 rounded-none px-5 text-left text-base font-normal text-foreground/80 ${
         selectMode
           ? bulkSelected
             ? "bg-primary/15"
@@ -313,7 +313,7 @@ function FileItem({
               on a diagnostic (currentColor). */}
           {selectMode ? (
             // Multi-select: the icon slot becomes a checkbox.
-            <span class="mr-3 flex size-9 flex-none items-center justify-center text-foreground/60">
+            <span class="mr-3 flex size-10 flex-none items-center justify-center text-foreground/60">
               <span
                 class={`flex size-5 items-center justify-center rounded border-2 transition-colors ${
                   bulkSelected
@@ -326,7 +326,7 @@ function FileItem({
             </span>
           ) : (
             <span
-              class={`mr-3 flex size-9 flex-none items-center justify-center ${
+              class={`mr-3 flex size-10 flex-none items-center justify-center ${
                 isDirectory
                   ? "text-foreground/60"
                   : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
@@ -362,7 +362,7 @@ function FileItem({
               )}
             </span>
           )}
-          <div class="flex min-w-0 flex-1 flex-col justify-center overflow-hidden">
+          <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5 overflow-hidden pr-2">
             {renaming ? (
               <div
                 class="relative w-full overflow-hidden rounded text-foreground"
