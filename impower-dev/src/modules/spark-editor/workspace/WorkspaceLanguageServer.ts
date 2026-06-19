@@ -259,6 +259,12 @@ export default class WorkspaceLanguageServer {
       initializationOptions: {
         settings: Workspace.configuration.settings,
         files,
+        // Production renders display statements via native `display(<table>)`
+        // Luau calls (the structured-transport path; render + pathLocation
+        // parity with the legacy routing-tag form is proven by the
+        // characterization net). The compiler default stays off so the ink-core
+        // conformance suite keeps observing the flat-text representation.
+        experimentalDisplayCalls: true,
         definitions: {
           // builtins now come from the implicitly-imported builtins prelude
           // (useBuiltinsPrelude is the compiler default); only the LSP-side

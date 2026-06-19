@@ -137,7 +137,11 @@ export function createHarness(
   },
 ): UIHarness {
   const { program } = compileUI(source, {
-    experimentalDisplayCalls: opts?.experimentalDisplayCalls,
+    // Display goldens guard the PRODUCTION path, which renders via display()
+    // (the editor enables `experimentalDisplayCalls`). Default on here so the
+    // characterization net tracks production; a test can still pass `false` to
+    // exercise the legacy routing-tag path (e.g. displayCallParity).
+    experimentalDisplayCalls: opts?.experimentalDisplayCalls ?? true,
   });
   const messages: any[] = [];
 

@@ -45,6 +45,9 @@ function compile(source: string) {
     // Builtins come from the implicitly-imported builtins prelude (the compiler
     // default), exactly like the production player.
     useBuiltinsPrelude: true,
+    // The DOM goldens guard the PRODUCTION render path, which lowers display
+    // statements to native `display(<table>)` calls (the editor enables this).
+    experimentalDisplayCalls: true,
     files: [
       {
         uri: MAIN_URI,
