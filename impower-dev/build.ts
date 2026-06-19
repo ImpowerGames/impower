@@ -9,6 +9,10 @@ import glob from "tiny-glob";
 import { build, createServer } from "vite";
 import staticallyRenderPage from "./src/build/staticallyRenderPage.js";
 import {
+  shouldProxyToPlayer,
+  stripHopByHopHeaders,
+} from "./src/build/devPreviewProxy.js";
+import {
   alias,
   apiInDir,
   apiOutDir,
@@ -419,26 +423,12 @@ const serve = async () => {
       process.env["SPARKDOWN_PLAYER_DEV_ORIGIN"] || "http://localhost:5173",
     );
     const client = playerOrigin.protocol === "https:" ? https : http;
-    // HTTP/1.1 hop-by-hop headers. They're connection-scoped and must NOT be
-    // forwarded; re-emitting them is also a hard error under HTTP/2 (which the
-    // dev server uses when https/ certs exist) — ERR_HTTP2_INVALID_CONNECTION_HEADERS.
-    const HOP_BY_HOP = new Set([
-      "connection",
-      "keep-alive",
-      "proxy-authenticate",
-      "proxy-authorization",
-      "te",
-      "trailer",
-      "transfer-encoding",
-      "upgrade",
-      "proxy-connection",
-    ]);
     let warnedAsymmetric = false;
     app.use((req: any, res: any, next: any) => {
-      // Boundary match so a future sibling route (e.g. /__playerfoo) can't be
-      // hijacked by the prefix.
       const url: string = req.url || "";
-      if (url !== PLAYER_PROXY_BASE && !url.startsWith(PLAYER_PROXY_BASE + "/")) {
+      // Boundary match so a future sibling route (e.g. /__playerfoo) can't be
+      // hijacked by the prefix (see src/build/devPreviewProxy.ts).
+      if (!shouldProxyToPlayer(url, PLAYER_PROXY_BASE)) {
         next();
         return;
       }
@@ -452,13 +442,11 @@ const serve = async () => {
           headers: { ...req.headers, host: playerOrigin.host },
         },
         (proxyRes) => {
-          const headers: Record<string, any> = {};
-          for (const [k, v] of Object.entries(proxyRes.headers)) {
-            if (!HOP_BY_HOP.has(k.toLowerCase())) {
-              headers[k] = v;
-            }
-          }
-          res.writeHead(proxyRes.statusCode || 502, headers);
+          // Drop hop-by-hop headers before re-emitting (required under HTTP/2).
+          res.writeHead(
+            proxyRes.statusCode || 502,
+            stripHopByHopHeaders(proxyRes.headers),
+          );
           // Diagnose the easy-to-make asymmetric-config mistake: the editor has
           // the flag but the player wasn't started with it, so it serves at base
           // "/" and the proxied index.html lacks the /__player/ asset prefix →
