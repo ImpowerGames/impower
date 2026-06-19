@@ -45,6 +45,13 @@ export type FileListHeaderProps = {
   onTypeFilter: (value: TypeFilter) => void;
   /** Rendered to the right of the search bar (the pane's "more" 3-dots menu). */
   trailing?: ComponentChildren;
+  /**
+   * Multi-select mode: replaces the Filter/Sort row (row 2) with these selection
+   * controls, leaving the search row (row 1) in place. Keeping the search bar
+   * mounted means the header height is unchanged, so the file list never shifts
+   * when toggling selection mode.
+   */
+  selectionRow?: ComponentChildren;
 };
 
 /**
@@ -62,6 +69,7 @@ export default function FileListHeader({
   typeFilter,
   onTypeFilter,
   trailing,
+  selectionRow,
 }: FileListHeaderProps) {
   const sortLabel =
     SORT_OPTIONS.find((o) => o.key === sortKey)?.label ?? "Name";
@@ -96,64 +104,68 @@ export default function FileListHeader({
         {trailing}
       </div>
 
-      {/* Row 2 — Type filter on the LEFT, sort on the RIGHT (old-engine layout). */}
-      <div class="flex flex-row items-center justify-between">
-        <DropdownRoot>
-          <DropdownTrigger asChild>
-            <Button
-              variant="ghost"
-              aria-label="Filter by type"
-              class={`h-8 gap-4 rounded-md px-2 mx-1 text-sm font-normal ${
-                filterActive
-                  ? "text-primary"
-                  : "text-foreground/60 hover:text-foreground"
-              }`}
-            >
-              <Filter class="size-4" />
-              {filterActive
-                ? (TYPE_FILTERS.find((f) => f.value === typeFilter)?.label ??
-                  "Filter")
-                : "Filter"}
-            </Button>
-          </DropdownTrigger>
-          <DropdownContent align="start" sideOffset={4}>
-            {TYPE_FILTERS.map((f) => (
-              <DropdownItem
-                key={f.value}
-                onSelect={() => onTypeFilter(f.value)}
+      {/* Row 2 — multi-select controls when selecting; otherwise the Type filter
+          (LEFT) + sort (RIGHT). Either way the row is h-8, so the header height
+          is identical and the list doesn't shift when entering selection mode. */}
+      {selectionRow ?? (
+        <div class="flex flex-row items-center justify-between">
+          <DropdownRoot>
+            <DropdownTrigger asChild>
+              <Button
+                variant="ghost"
+                aria-label="Filter by type"
+                class={`h-8 gap-4 rounded-md px-2 mx-1 text-sm font-normal ${
+                  filterActive
+                    ? "text-primary"
+                    : "text-foreground/60 hover:text-foreground"
+                }`}
               >
-                <span class="flex size-4 items-center justify-center">
-                  {typeFilter === f.value && <Check class="size-4" />}
-                </span>
-                {f.label}
-              </DropdownItem>
-            ))}
-          </DropdownContent>
-        </DropdownRoot>
+                <Filter class="size-4" />
+                {filterActive
+                  ? (TYPE_FILTERS.find((f) => f.value === typeFilter)?.label ??
+                    "Filter")
+                  : "Filter"}
+              </Button>
+            </DropdownTrigger>
+            <DropdownContent align="start" sideOffset={4}>
+              {TYPE_FILTERS.map((f) => (
+                <DropdownItem
+                  key={f.value}
+                  onSelect={() => onTypeFilter(f.value)}
+                >
+                  <span class="flex size-4 items-center justify-center">
+                    {typeFilter === f.value && <Check class="size-4" />}
+                  </span>
+                  {f.label}
+                </DropdownItem>
+              ))}
+            </DropdownContent>
+          </DropdownRoot>
 
-        <DropdownRoot>
-          <DropdownTrigger asChild>
-            <Button
-              variant="ghost"
-              aria-label="Sort"
-              class="h-8 gap-4 rounded-md px-2 mx-3 text-sm font-normal text-foreground/70 hover:text-foreground"
-            >
-              {sortLabel}
-              <SortArrow class="size-4" />
-            </Button>
-          </DropdownTrigger>
-          <DropdownContent align="end" sideOffset={4}>
-            {SORT_OPTIONS.map((o) => (
-              <DropdownItem key={o.key} onSelect={() => onSort(o.key)}>
-                <span class="flex size-4 items-center justify-center">
-                  {sortKey === o.key && <SortArrow class="size-4" />}
-                </span>
-                {o.label}
-              </DropdownItem>
-            ))}
-          </DropdownContent>
-        </DropdownRoot>
-      </div>
+          <DropdownRoot>
+            <DropdownTrigger asChild>
+              <Button
+                variant="ghost"
+                aria-label="Sort"
+                class="h-8 gap-4 rounded-md px-2 mx-3 text-sm font-normal text-foreground/70 hover:text-foreground"
+              >
+                {sortLabel}
+                <SortArrow class="size-4" />
+              </Button>
+            </DropdownTrigger>
+            <DropdownContent align="end" sideOffset={4}>
+              {SORT_OPTIONS.map((o) => (
+                <DropdownItem key={o.key} onSelect={() => onSort(o.key)}>
+                  <span class="flex size-4 items-center justify-center">
+                    {sortKey === o.key && <SortArrow class="size-4" />}
+                  </span>
+                  {o.label}
+                </DropdownItem>
+              ))}
+            </DropdownContent>
+          </DropdownRoot>
+        </div>
+      )}
     </div>
   );
 }

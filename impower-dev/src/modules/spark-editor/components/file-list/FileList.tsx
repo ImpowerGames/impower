@@ -895,105 +895,106 @@ export default function FileList({
           the breadcrumb sits on its own row above. The bottom FAB stays the
           single primary create action per pane. */}
       <div class="flex flex-none flex-col gap-1.5 px-8 pt-2">
-        {selectMode ? (
-          // Multi-editing bar: select-all + count, then Delete + exit.
-          <div class="flex h-8 flex-row items-center gap-2">
-            <Button
-              variant="ghost"
-              aria-label={allSelected ? "Deselect all" : "Select all"}
-              onClick={toggleSelectAll}
-              class="size-8 flex-none rounded-full p-0 text-foreground/70 hover:text-foreground"
-            >
-              <span
-                class={`flex size-5 items-center justify-center rounded border-2 ${
-                  allSelected
-                    ? "border-primary bg-primary text-white"
-                    : "border-foreground/40"
-                }`}
-              >
-                {allSelected && <Check class="size-3.5" />}
-              </span>
-            </Button>
-            <span class="text-sm tabular-nums text-foreground/70">
-              ({selectedPaths.size})
-            </span>
-            <div class="flex-1" />
-            <Button
-              variant="ghost"
-              disabled={selectedPaths.size === 0}
-              onClick={() => void deleteSelected()}
-              class="h-8 gap-1.5 rounded-md px-2 text-sm font-normal text-foreground/80 hover:text-foreground"
-            >
-              <Trash class="size-4" />
-              Delete
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Exit selection"
-              onClick={exitSelectMode}
-              class="rounded-full text-foreground/60 hover:text-foreground"
-            >
-              <X class="size-5" />
-            </Button>
-          </div>
-        ) : (
-          <>
-            {diveMode && (
-              // The breadcrumb works in subtree-RELATIVE paths so the pane root
-              // (`assets`/`scripts`) isn't shown as a crumb — its own home glyph
-              // navigates back to `rootDir`. Translate to/from full paths here.
-              <FileBreadcrumb
-                scope={
-                  rootDir
-                    ? scope.startsWith(`${rootDir}/`)
-                      ? scope.slice(rootDir.length + 1)
-                      : ""
-                    : scope
-                }
-                onNavigate={(rel) =>
-                  setScopePath(rootDir ? (rel ? `${rootDir}/${rel}` : rootDir) : rel)
-                }
-                class="min-w-0"
-              />
-            )}
-            <FileListHeader
-              search={search}
-              onSearch={setSearch}
-              sortKey={sortKey}
-              sortOrder={sortOrder}
-              onSort={handleSort}
-              typeFilter={typeFilter}
-              onTypeFilter={setTypeFilter}
-              trailing={
-                <DropdownRoot>
-                  <DropdownTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="More options"
-                      // mr-2 mirrors the per-row 3-dots (FileOptionsButton), so
-                      // the header's 3-dots lines up with the file items' 3-dots.
-                      class="mr-2 rounded-full text-foreground/60 hover:text-foreground"
-                    >
-                      <DotsVertical class="size-5" />
-                    </Button>
-                  </DropdownTrigger>
-                  <DropdownContent align="end" sideOffset={4}>
-                    <DropdownItem onSelect={() => void newFolder()}>
-                      <FolderPlus class="size-4" />
-                      New Folder
-                    </DropdownItem>
-                    <DropdownItem onSelect={() => setSelectMode(true)}>
-                      <Checkbox class="size-4" />
-                      Select
-                    </DropdownItem>
-                  </DropdownContent>
-                </DropdownRoot>
-              }
-            />
-          </>
+        {diveMode && (
+          // The breadcrumb works in subtree-RELATIVE paths so the pane root
+          // (`assets`/`scripts`) isn't shown as a crumb — its own home glyph
+          // navigates back to `rootDir`. Translate to/from full paths here.
+          <FileBreadcrumb
+            scope={
+              rootDir
+                ? scope.startsWith(`${rootDir}/`)
+                  ? scope.slice(rootDir.length + 1)
+                  : ""
+                : scope
+            }
+            onNavigate={(rel) =>
+              setScopePath(rootDir ? (rel ? `${rootDir}/${rel}` : rootDir) : rel)
+            }
+            class="min-w-0"
+          />
         )}
+        <FileListHeader
+          search={search}
+          onSearch={setSearch}
+          sortKey={sortKey}
+          sortOrder={sortOrder}
+          onSort={handleSort}
+          typeFilter={typeFilter}
+          onTypeFilter={setTypeFilter}
+          trailing={
+            <DropdownRoot>
+              <DropdownTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="More options"
+                  // mr-2 mirrors the per-row 3-dots (FileOptionsButton), so
+                  // the header's 3-dots lines up with the file items' 3-dots.
+                  class="mr-2 rounded-full text-foreground/60 hover:text-foreground"
+                >
+                  <DotsVertical class="size-5" />
+                </Button>
+              </DropdownTrigger>
+              <DropdownContent align="end" sideOffset={4}>
+                <DropdownItem onSelect={() => void newFolder()}>
+                  <FolderPlus class="size-4" />
+                  New Folder
+                </DropdownItem>
+                <DropdownItem onSelect={() => setSelectMode(true)}>
+                  <Checkbox class="size-4" />
+                  Select
+                </DropdownItem>
+              </DropdownContent>
+            </DropdownRoot>
+          }
+          selectionRow={
+            selectMode ? (
+              // Multi-editing controls: select-all + count, then Delete + exit.
+              // Swapped in for the Filter/Sort row (same h-8) so the search bar
+              // above stays mounted and the list never shifts.
+              <div class="flex h-8 flex-row items-center gap-2">
+                <Button
+                  variant="ghost"
+                  aria-label={allSelected ? "Deselect all" : "Select all"}
+                  onClick={toggleSelectAll}
+                  class="size-8 flex-none rounded-full p-0 text-foreground/70 hover:text-foreground"
+                >
+                  <span
+                    class={`flex size-5 items-center justify-center rounded border-2 ${
+                      allSelected
+                        ? "border-primary bg-primary text-white"
+                        : "border-foreground/40"
+                    }`}
+                  >
+                    {allSelected && <Check class="size-3.5" />}
+                  </span>
+                </Button>
+                <span class="text-sm tabular-nums text-foreground/70">
+                  ({selectedPaths.size})
+                </span>
+                <div class="flex-1" />
+                <Button
+                  variant="ghost"
+                  disabled={selectedPaths.size === 0}
+                  onClick={() => void deleteSelected()}
+                  class="h-8 gap-1.5 rounded-md px-2 text-sm font-normal text-foreground/80 hover:text-foreground"
+                >
+                  <Trash class="size-4" />
+                  Delete
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Exit selection"
+                  onClick={exitSelectMode}
+                  class="rounded-full text-foreground/60 hover:text-foreground"
+                >
+                  <X class="size-5" />
+                </Button>
+              </div>
+            ) : undefined
+          }
+        />
       </div>
       <div
         ref={scrollRef}
