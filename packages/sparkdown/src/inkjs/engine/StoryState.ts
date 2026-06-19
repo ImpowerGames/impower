@@ -43,6 +43,81 @@ export class StoryState {
     return this.ToJson(indented);
   }
 
+  // --- Delta-checkpoint support (spark-engine incremental checkpoints) ---
+  //
+  // These are ADDITIVE hooks for spark-engine's incremental/delta checkpoint
+  // store. They do not change any existing serialization or runtime behavior:
+  // `ToJsonWithoutCounts` is a strict variant of `ToJson` that writes the two
+  // unbounded count maps as empty objects (the store splices the real maps back
+  // in on reconstruction), and the `_changed*` sets are a passive dirty-key log
+  // recorded at the (only) three sites that commit count mutations.
+
+  // When true, WriteJson emits empty visitCounts/turnIndices objects. The
+  // delta-checkpoint store stores this bounded body per beat and re-injects the
+  // (delta-reconstructed) count maps to rebuild a byte-identical full save.
+  private _omitCountsForDelta = false;
+
+  // Dirty-key logs: container paths whose visit count / turn index were
+  // COMMITTED since the last drain. Shared by reference across
+  // CopyAndStartPatching copies (like the count maps themselves), so a drain
+  // from whichever StoryState is current at a beat boundary sees every commit.
+  // Speculative lookahead writes go through the patch and never touch these —
+  // they're only recorded when the patch is applied (ApplyCountChanges) or on
+  // the direct (no-patch) path.
+  private _changedVisitCounts: Set<string> = new Set();
+  private _changedTurnIndices: Set<string> = new Set();
+
+  // Shared immutable empty map used by ToJsonWithoutCounts (never mutated).
+  private static _emptyCounts: Map<string, number> = new Map();
+
+  public ToJsonWithoutCounts(): string {
+    this._omitCountsForDelta = true;
+    try {
+      return this.ToJson();
+    } finally {
+      this._omitCountsForDelta = false;
+    }
+  }
+
+  /** Full ordered snapshot of the visit-count map (Map insertion order). Used
+   *  to seed a delta-checkpoint keyframe. */
+  public GetVisitCountEntries(): [string, number][] {
+    return Array.from(this._visitCounts);
+  }
+
+  /** Full ordered snapshot of the turn-index map. */
+  public GetTurnIndexEntries(): [string, number][] {
+    return Array.from(this._turnIndices);
+  }
+
+  /** Drain the visit-count keys changed since the last drain, returning each
+   *  with its current value (in first-touch order), and clear the log. */
+  public DrainVisitCountDeltas(): [string, number][] {
+    const out: [string, number][] = [];
+    for (const key of this._changedVisitCounts) {
+      out.push([key, this._visitCounts.get(key) ?? 0]);
+    }
+    this._changedVisitCounts.clear();
+    return out;
+  }
+
+  /** Drain the turn-index keys changed since the last drain. */
+  public DrainTurnIndexDeltas(): [string, number][] {
+    const out: [string, number][] = [];
+    for (const key of this._changedTurnIndices) {
+      out.push([key, this._turnIndices.get(key) ?? 0]);
+    }
+    this._changedTurnIndices.clear();
+    return out;
+  }
+
+  /** Discard any pending dirty-key logs (e.g. after a load, where the loaded
+   *  state is the new baseline and there are no pending deltas). */
+  public ResetCountDeltaTracking(): void {
+    this._changedVisitCounts.clear();
+    this._changedTurnIndices.clear();
+  }
+
   public LoadJson(json: string) {
     let jObject = SimpleJson.TextToDictionary(json);
     this.LoadJsonObj(jObject);
@@ -113,6 +188,7 @@ export class StoryState {
     } else {
       this._visitCounts.set(containerPathStr, 1);
     }
+    this._changedVisitCounts.add(containerPathStr);
   }
 
   public RecordTurnIndexVisitToContainer(container: Container) {
@@ -123,6 +199,7 @@ export class StoryState {
 
     let containerPathStr = container.path.toString();
     this._turnIndices.set(containerPathStr, this.currentTurnIndex);
+    this._changedTurnIndices.add(containerPathStr);
   }
 
   public TurnsSinceForContainer(container: Container) {
@@ -613,6 +690,12 @@ export class StoryState {
     copy._visitCounts = this._visitCounts;
     copy._turnIndices = this._turnIndices;
 
+    // Share the delta dirty-key logs by reference alongside the maps they
+    // track, so a checkpoint drain from whichever copy is current sees every
+    // committed mutation regardless of which copy performed it.
+    copy._changedVisitCounts = this._changedVisitCounts;
+    copy._changedTurnIndices = this._changedTurnIndices;
+
     copy.currentTurnIndex = this.currentTurnIndex;
     copy.storySeed = this.storySeed;
     copy.previousRandom = this.previousRandom;
@@ -647,7 +730,9 @@ export class StoryState {
     isVisit: boolean,
   ) {
     let counts = isVisit ? this._visitCounts : this._turnIndices;
-    counts.set(container.path.toString(), newCount);
+    const pathStr = container.path.toString();
+    counts.set(pathStr, newCount);
+    (isVisit ? this._changedVisitCounts : this._changedTurnIndices).add(pathStr);
   }
 
   public WriteJson(writer: SimpleJson.Writer) {
@@ -693,11 +778,21 @@ export class StoryState {
       );
     }
 
+    // Delta-checkpoint bodies write the unbounded count maps as empty objects;
+    // the store re-injects the (delta-reconstructed) maps to rebuild a
+    // byte-identical full save. A normal save writes them in full.
+    const emptyCounts: Map<string, number> = StoryState._emptyCounts;
     writer.WriteProperty("visitCounts", (w) =>
-      JsonSerialisation.WriteIntDictionary(w, this._visitCounts),
+      JsonSerialisation.WriteIntDictionary(
+        w,
+        this._omitCountsForDelta ? emptyCounts : this._visitCounts,
+      ),
     );
     writer.WriteProperty("turnIndices", (w) =>
-      JsonSerialisation.WriteIntDictionary(w, this._turnIndices),
+      JsonSerialisation.WriteIntDictionary(
+        w,
+        this._omitCountsForDelta ? emptyCounts : this._turnIndices,
+      ),
     );
 
     writer.WriteIntProperty("turnIdx", this.currentTurnIndex);
@@ -821,6 +916,9 @@ export class StoryState {
     this.currentTurnIndex = parseInt(jObject["turnIdx"]);
     this.storySeed = parseInt(jObject["storySeed"]);
     this.previousRandom = parseInt(jObject["previousRandom"]);
+
+    // The freshly-loaded state is the new delta baseline — no pending changes.
+    this.ResetCountDeltaTracking();
   }
 
   public ResetErrors() {
