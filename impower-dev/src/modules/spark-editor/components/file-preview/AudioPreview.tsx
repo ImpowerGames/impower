@@ -2,7 +2,7 @@ import {
   Button,
   PlayerPauseFill,
   PlayerPlayFill,
-  Refresh,
+  PlayerSkipBackwardFill,
   Repeat,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -233,11 +233,11 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
         <div class="flex flex-1 flex-row items-center justify-center gap-2">
           <Button
             variant="ghost"
-            aria-label="Restart"
+            aria-label="Skip to start"
             onClick={restart}
             class="size-9 rounded-full p-0 text-white/70 hover:bg-white/10 hover:text-white"
           >
-            <Refresh class="size-4" />
+            <PlayerSkipBackwardFill class="size-4" />
           </Button>
           <Button
             variant="ghost"
