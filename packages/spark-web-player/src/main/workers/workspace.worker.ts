@@ -21,6 +21,14 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
       program: params.program,
       story: params.story,
       ...gameState.systemConfiguration,
+      // This is the live-preview / HMR route-simulation game: it saves a
+      // checkpoint at every beat while replaying to the edited line, which is
+      // the O(n^2) cost incremental checkpoints exist to remove. Phase 1 keeps
+      // the byte-identical self-check on (default) — correctness first, memory
+      // win now. Phase 2: once this has been watched running stably, add
+      // `verifyCheckpoints: false` here to drop the per-beat full-save check and
+      // claim the full time win.
+      incrementalCheckpoints: true,
     });
     profile("end", compilerState.compiler.profilerId + " " + "game/create");
   } else {
