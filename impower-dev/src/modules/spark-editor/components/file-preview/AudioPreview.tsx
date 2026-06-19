@@ -3,6 +3,7 @@ import {
   PlayerPauseFill,
   PlayerPlayFill,
   Refresh,
+  Repeat,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 
@@ -37,6 +38,7 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [peaks, setPeaks] = useState<number[] | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [looping, setLooping] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
 
@@ -192,6 +194,7 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
       <audio
         ref={audioRef}
         src={src}
+        loop={looping}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => setPlaying(false)}
@@ -247,6 +250,17 @@ export default function AudioPreview({ src }: AudioPreviewProps) {
             ) : (
               <PlayerPlayFill class="size-7" />
             )}
+          </Button>
+          <Button
+            variant="ghost"
+            aria-label="Loop"
+            aria-pressed={looping}
+            onClick={() => setLooping((v) => !v)}
+            class={`size-9 rounded-full p-0 hover:bg-white/10 ${
+              looping ? "text-primary hover:text-primary" : "text-white/70 hover:text-white"
+            }`}
+          >
+            <Repeat class="size-4" />
           </Button>
         </div>
         <span class="w-10 text-left text-xs tabular-nums text-white/60">
