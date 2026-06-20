@@ -13,6 +13,7 @@ import {
   iconForPath,
   isImagePath,
 } from "../../utils/fileIcon";
+import { recordTrashDeletion } from "../../utils/fileUndo";
 import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
@@ -396,8 +397,15 @@ function FileItem({
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
     if (isDirectory) {
-      await Workspace.fs.deleteFolder(projectId, path, mode);
+      const deleted = await Workspace.fs.deleteFolder(projectId, path, mode);
       await Workspace.window.recordAssetChange();
+      if (mode === "trash") {
+        await recordTrashDeletion(
+          projectId,
+          deleted.map((d) => d.uri),
+          basename,
+        );
+      }
       return;
     }
     const uri = Workspace.fs.getFileUri(projectId, path);
@@ -406,6 +414,9 @@ function FileItem({
       await Workspace.window.recordScriptChange();
     } else {
       await Workspace.window.recordAssetChange();
+    }
+    if (mode === "trash") {
+      await recordTrashDeletion(projectId, [uri], basename);
     }
   }
 

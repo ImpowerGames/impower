@@ -37,6 +37,7 @@ import {
   type FileTreeNode,
 } from "../../utils/fileTree";
 import globToRegex from "../../utils/globToRegex";
+import { recordTrashDeletion } from "../../utils/fileUndo";
 import workspace from "../../workspace/WorkspaceStore";
 // Type-only import (fully erased at build) — safe despite the protocol package's
 // CJS runtime exports that would otherwise trip Vite SSR (see the file header).
@@ -732,11 +733,13 @@ export default function FileList({
     );
     let scriptChanged = false;
     let assetChanged = false;
+    const allDeletedUris: string[] = [];
     for (const p of roots) {
       // Folder paths have no FileData entry (only their files / sentinel do).
       const isDir = !filesByPath.has(p);
       if (isDir) {
-        await Workspace.fs.deleteFolder(projectId, p, "trash");
+        const deleted = await Workspace.fs.deleteFolder(projectId, p, "trash");
+        allDeletedUris.push(...deleted.map((d) => d.uri));
         assetChanged = true;
       } else {
         const uri = Workspace.fs.getFileUri(projectId, p);
@@ -744,12 +747,19 @@ export default function FileList({
           files: [{ uri }],
           mode: "trash",
         });
+        allDeletedUris.push(uri);
         if (deleted.some((d) => d.type === "script")) scriptChanged = true;
         else assetChanged = true;
       }
     }
     if (scriptChanged) await Workspace.window.recordScriptChange();
     if (assetChanged) await Workspace.window.recordAssetChange();
+    // One undo entry + snackbar for the whole bulk delete.
+    const label =
+      roots.length === 1
+        ? roots[0]!.split("/").pop() || roots[0]!
+        : `${roots.length} items`;
+    await recordTrashDeletion(projectId, allDeletedUris, label);
     exitSelectMode();
     await reload();
   };

@@ -1,5 +1,6 @@
 import FileDropzone from "../components/file-dropzone/FileDropzone";
 import MainWindow from "../components/main-window/MainWindow";
+import SnackbarHost from "../components/snackbar-host/SnackbarHost";
 import TrashPanel from "../components/trash-panel/TrashPanel";
 
 // Host CSS — `#root` is the page mount; make it a full-bleed flex column so
@@ -38,6 +39,8 @@ export default function SparkEditor(_props: SparkEditorProps) {
       {/* Project-wide recycle bin overlay — a single global instance toggled by
           workspace.trashOpen (opened from the file-list toolbar). */}
       <TrashPanel />
+      {/* Transient toasts (e.g. "Deleted X · Undo"). */}
+      <SnackbarHost />
     </>
   );
 }

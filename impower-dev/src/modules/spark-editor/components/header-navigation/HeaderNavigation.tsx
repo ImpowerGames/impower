@@ -1,4 +1,5 @@
 import { useEffect } from "preact/hooks";
+import { redo, undo } from "../../utils/undoManager";
 import HeaderMenuButton from "../header-menu-button/HeaderMenuButton";
 import HeaderSyncToolbar from "../header-sync-toolbar/HeaderSyncToolbar";
 import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
@@ -15,6 +16,28 @@ import PreviewToggleButton from "../preview-toggle-button/PreviewToggleButton";
  *   [menu] [title + caption stack] [sync toolbar] [preview-toggle (mobile)]
  *   ─────────────────────────────────────────────────────── (6% fg divider)
  */
+// True when focus is in an editable surface (a text input/textarea, a
+// contenteditable, or the CodeMirror editor) — where Ctrl+Z must stay the
+// editor's own text undo, not our file-op undo. Descends through shadow roots
+// since the script editor lives in one.
+function isEditableFocus(): boolean {
+  let el: Element | null = document.activeElement;
+  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+    el = el.shadowRoot.activeElement;
+  }
+  if (!el) {
+    return false;
+  }
+  const tag = el.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA") {
+    return true;
+  }
+  if ((el as HTMLElement).isContentEditable) {
+    return true;
+  }
+  return !!el.closest?.(".cm-editor");
+}
+
 export default function HeaderNavigation() {
   useEffect(() => {
     const onKey = async (e: KeyboardEvent) => {
@@ -22,6 +45,22 @@ export default function HeaderNavigation() {
         e.preventDefault();
         const { Workspace } = await import("../../workspace/Workspace");
         await Workspace.window.syncProject();
+        return;
+      }
+      // File-op undo/redo (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z). Skipped while a
+      // text editor or input has focus — CodeMirror and the inline rename own
+      // their own undo there; we only invert file operations from elsewhere.
+      const key = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && (key === "z" || key === "y")) {
+        if (isEditableFocus()) {
+          return;
+        }
+        e.preventDefault();
+        if (key === "y" || (key === "z" && e.shiftKey)) {
+          await redo();
+        } else {
+          await undo();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
