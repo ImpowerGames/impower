@@ -316,7 +316,7 @@ export class Game<T extends M = {}> {
     //   defines  — define-typed structs (animation/character/ease/config/…),
     //              fully merged with builtin $defaults
     //   assets   — file-derived + implicit-def assets (image/audio/font/…)
-    //   screens/components/styles — static UI structs
+    //   layouts/components/styles — static UI structs
     // Mutable interpreter state (visited/returned/…) is written onto this object
     // by the modules at runtime; it was never part of program.context.
     this.assignContextChannels();
@@ -400,7 +400,7 @@ export class Game<T extends M = {}> {
   }
 
   /** Assign the program's static channels (defines → character/image/…, assets,
-   *  screen/component/style) onto the runtime context. Runtime-mutated state
+   *  layout/component/style) onto the runtime context. Runtime-mutated state
    *  (visit counts, …) lives under separate keys and is preserved. */
   protected assignContextChannels() {
     const assignChannel = (src?: { [type: string]: any }) => {

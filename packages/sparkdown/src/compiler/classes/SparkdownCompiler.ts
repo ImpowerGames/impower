@@ -991,9 +991,9 @@ export class SparkdownCompiler {
         // IN PLACE: its properties win, but the builtin's *unspecified* siblings
         // are retained. Without this, a partial override silently drops every
         // field it doesn't restate — e.g. `define ui as config with
-        // reactive = true` would lose the builtin `screens_element_name` /
+        // reactive = true` would lose the builtin `layouts_element_name` /
         // `styles_element_name` / `breakpoints`, leaving `reveal()` unable to
-        // find the screen root (it bails on an undefined `screens_element_name`),
+        // find the screen root (it bails on an undefined `layouts_element_name`),
         // so screens stay at opacity:0 — a black preview with no error.
         //
         // Structural element-tree types (screen/component) are REPLACED wholesale

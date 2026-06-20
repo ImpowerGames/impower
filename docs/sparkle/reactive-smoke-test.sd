@@ -7,7 +7,7 @@
 
 define ui as config with
   styles_element_name = "styles"
-  screens_element_name = "screens"
+  layouts_element_name = "layouts"
   breakpoints = { xs = 400, sm = 640, md = 768, lg = 1024, xl = 1280 }
   reactive = true
 end
@@ -43,7 +43,7 @@ function set_loud(event)
   loud = event.checked
 end
 
-screen main with
+layout main with
   column:
     text "Welcome, {hero}!"
     text "HP: {hp}"

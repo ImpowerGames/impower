@@ -1,12 +1,23 @@
 # Reactive Sparkle UI — Language & Engine Specification
 
 **Status:** Draft for review · v1 · 2026-06-16
-**Scope:** the `screen` / `component` / `style` / `animation` / `theme` sublanguage of Sparkdown ("Sparkle"), made fully reactive.
+**Scope:** the `layout` / `component` / `style` / `animation` / `theme` sublanguage of Sparkdown ("Sparkle"), made fully reactive.
 **Audience of the *language*:** non-technical game authors. **Audience of *this doc*:** us.
 
 > This is a design spec, not yet an implementation. Sections marked **[DECISION]** are
 > genuine forks with a recommendation; please redline. Sections marked **[DIVERGES]**
 > change behaviour that exists in the repo today and imply a migration.
+
+> **Terminology (post-spec rename, commit `cfb300cff`).** This doc originally called the
+> mountable element-tree block `screen`. It is now the **`layout`** keyword
+> (`layout NAME [in SCREEN] with … end`); the AST node is `LayoutNode (kind "layout")`.
+> The word **`screen`** is now a *separate* top-level keyword — an explicit navigation group
+> that layouts join via `in SCREEN`, driven by `[[open]]` / `[[close]]` /
+> `[[navigate SCREEN to LAYOUT]]`. That navigation feature postdates this reactive spec and
+> is not covered here; this doc has been swept so every old "screen" that meant the
+> element-tree block now reads "layout". (Genuine non-keyword uses kept: the
+> `sparkle-screen-renderer` package, the `screen` structural-overlay builtin style, CSS
+> `@screen-size`/`@container`.)
 
 ---
 
@@ -69,7 +80,7 @@ path and migrates to runtime Luau objects only after reactivity is verified.
 | # | Decision | Source |
 |---|----------|--------|
 | L1 | Block header is `keyword NAME [as PARENT] with … end`. `as` = inherits. | current grammar + formatter |
-| L2 | `screen` / `component` / `style` / `animation` / `theme` are top-level keywords (not `define`). | grammar |
+| L2 | `layout` / `screen` / `component` / `style` / `animation` / `theme` are top-level keywords (not `define`). | grammar |
 | L3 | Reactivity is **engine-side**, emitting the `ElementMessage` protocol. | this session |
 | L4 | Expressions evaluate through **Luau**, not JS. | this session |
 | L5 | Build grammar + lowerer **from scratch**; the `sparkle-screen-renderer` prototype is **reference only**. | user, this session |
@@ -84,7 +95,8 @@ path and migrates to runtime Luau objects only after reactivity is verified.
 ### 4.1 Block headers
 
 ```
-screen    NAME [as PARENT] with … end
+layout    NAME [in SCREEN] [as PARENT] with … end
+screen    NAME with … end
 component NAME [as PARENT] with … end
 style     NAME [as PARENT] with … end
 animation NAME with … end
@@ -93,12 +105,14 @@ theme     NAME with … end
 
 - `NAME` is a Luau identifier (snake_case recommended for authors).
 - `as PARENT` makes this block inherit from another block of the same kind, or from a
-  builtin root (`as button`, `as screen`).
+  builtin root (`as button`, `as layout`).
+- `layout … in SCREEN` puts the layout in an explicit navigation group (the `screen`); see
+  the terminology note above. The navigation behaviour is out of scope for this reactive spec.
 - Body indentation is significant and preserved by the formatter.
 
 ### 4.2 Element lines
 
-The atom of a `screen`/`component` body is an **element line**:
+The atom of a `layout`/`component` body is an **element line**:
 
 ```
 <tag>[.class[.class…]] [ "content {interp}" ] [ #prop=value … ] [ @event=handler … ] [:]
@@ -125,7 +139,7 @@ The atom of a `screen`/`component` body is an **element line**:
 Example:
 
 ```
-screen inventory with
+layout inventory with
   column.panel #gap=16:
     text.title "Inventory"
     row:
@@ -140,7 +154,7 @@ A leading name turns a generic container into a named, styleable node (this is t
 dialogue/stage pattern the production `ui.sd` uses):
 
 ```
-screen main with
+layout main with
   stage:
     backdrop:
       image "black"
@@ -264,7 +278,7 @@ component card(title) with
     slot footer     # named slot
 end
 
-screen sheet with
+layout sheet with
   card "Inventory":
     text "10 / 20 slots"      # fills the default slot
     fill footer:
@@ -365,12 +379,12 @@ interface EventBinding {
 }
 
 type SparkleNode =
-  | ScreenNode | ComponentNode | StyleNode | AnimationNode | ThemeNode  // roots
+  | LayoutNode | ComponentNode | StyleNode | AnimationNode | ThemeNode  // roots
   | ElementNode
   | IfNode | ForNode | MatchNode
   | SlotNode | FillNode;
 
-interface ScreenNode    { kind: "screen";    name: string; extends?: string; children: BodyNode[] }
+interface LayoutNode    { kind: "layout";    name: string; extends?: string; screen?: string; children: BodyNode[] }
 interface ComponentNode { kind: "component"; name: string; extends?: string; params: string[]; children: BodyNode[] }
 interface StyleNode     { kind: "style";     name: string; extends?: string; rules: StyleRule[] }
 interface AnimationNode { kind: "animation"; name: string; /* keyframes/timing struct */ }
@@ -425,7 +439,7 @@ Notes:
 
 Two existing inventories must be reconciled. The **engine** (`uiBuiltinDefinitions.ts`)
 defines structural styles used by the running game; the **prototype** defined widget
-templates. v1 builtins = the union the reactive screens need.
+templates. v1 builtins = the union the reactive layouts need.
 
 **Structural / text (exist as engine styles today):** `screen`, `stage`, `backdrop`,
 `portrait`, `choices`, `choice`, `textbox` (+ `textbox_background`, `textbox_content`),
@@ -481,7 +495,7 @@ which state it read; on the next change to that state, only that effect re-runs.
 - **The missing primitive:** table-field writes (`player.hp = 5`) fire **no** notification
   today (whole-global reassignment is the only existing signal). v1's hard prerequisite is a
   fine-grained change emitter at those write sites. *(Interim fallback: re-evaluate all
-  bindings of a shown screen on the existing per-turn `onDidContinue` boundary — correct but
+  bindings of a shown layout on the existing per-turn `onDidContinue` boundary — correct but
   coarse; upgrade to per-field tracking for performance.)*
 
 > **[DECISION D9] Start coarse or fine?** Recommend shipping P1–P3 on the coarse
@@ -616,7 +630,7 @@ beat (`Instructions { text, image, audio, load }`):
 - **load** = forward `LoadInstruction[]` so the renderer owns preloading (web `<img>`/audio
   buffer warmup vs Unity asset load).
 
-**Boundary — do NOT convert structure to instructions.** The screen/component *element tree*
+**Boundary — do NOT convert structure to instructions.** The layout/component *element tree*
 stays on the abstract id-keyed element protocol (`Create/Update/Destroy/Observe/Move/Batch`) —
 that IS the renderer-neutral representation and the protocol's biggest Unity asset. `style`
 blocks become structured style rules (§9.2); `choices` are structural (buttons + events). The
@@ -678,7 +692,7 @@ The lowerer (rewritten from scratch, L5) must:
 
 **HUD (interpolation):**
 ```
-screen hud with
+layout hud with
   row.hud #gap=12:
     text "❤ {player.hp}/{player.max_hp}"
     text "⛀ {player.gold}"
@@ -687,7 +701,7 @@ end
 
 **Settings (events + form controls, one-way):**
 ```
-screen settings with
+layout settings with
   column.menu #gap=16:
     text.title "Settings"
     slider   "Master Volume" #min=0 #max=100 value={volume} @input={ volume = event.value }
@@ -700,7 +714,7 @@ end
 
 **Inventory (control flow + keyed list):**
 ```
-screen inventory with
+layout inventory with
   column.panel #gap=8:
     text.title "Inventory"
     for item in player.bag do
@@ -750,7 +764,7 @@ end
   `image = "x"` to `image "x"`. Scriptable via the existing migration pipeline.
 - **[DIVERGES]** Element bodies stop being opaque `LuauStructBodyLine` text and gain real
   grammar nodes. The formatter must keep treating these blocks as indentation-significant;
-  UI format snapshots (`screen-tree`/`component-tree`/`style-block`) will change.
+  UI format snapshots (`layout-tree`/`component-tree`/`style-block`) will change.
 - **Delete, don't fork:** remove the prototype's `css.ts` (a byte-for-byte fork of
   `getCSSSelector`); import from `spark-dom`. Kill the dead `populateUI`/`program.ui`/
   `VIEW_DEFINE_TYPES` bridge (never populated) or repurpose it for the new AST.

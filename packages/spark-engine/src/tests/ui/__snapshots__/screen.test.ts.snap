@@ -1767,7 +1767,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
       },
       "content": undefined,
       "element": "e-7",
-      "name": "screens",
+      "name": "layouts",
       "parent": "e-1",
       "style": {
         "font_size": "1em",

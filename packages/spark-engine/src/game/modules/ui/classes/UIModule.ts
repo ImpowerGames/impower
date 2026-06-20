@@ -553,7 +553,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected conceal() {
-    const target = this.context.config?.ui?.screens_element_name;
+    const target = this.context.config?.ui?.layouts_element_name;
     if (target) {
       const uiRoot = this._root?.findChild(target);
       if (uiRoot) {
@@ -563,7 +563,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   reveal() {
-    const target = this.context.config?.ui.screens_element_name;
+    const target = this.context.config?.ui.layouts_element_name;
     if (target) {
       const uiRoot = this._root?.findChild(target);
       if (uiRoot) {
@@ -773,7 +773,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!this._root) {
       this._root = this.getOrCreateRootElement();
     }
-    const target = this.context.config?.ui.screens_element_name;
+    const target = this.context.config?.ui.layouts_element_name;
     const existingElement = target ? this._root.findChild(target) : undefined;
     return (
       existingElement ||
