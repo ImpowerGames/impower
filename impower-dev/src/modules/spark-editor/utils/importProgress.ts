@@ -4,6 +4,16 @@ import workspace from "../workspace/WorkspaceStore";
 // flash a 1-frame bar — the user still gets a clear "something happened".
 const MIN_VISIBLE_MS = 400;
 
+// A monotonic per-call token, and the token that currently OWNS the shared
+// `importProgress` signal. Ownership keys on this unique token, NOT on `total`
+// (the file count, which isn't unique): two overlapping imports must not
+// corrupt or prematurely clear each other's bar. The most recently started
+// import owns the signal; an earlier import that finishes mid-overlap sees it
+// no longer owns it and leaves the signal untouched. The acted-on files all
+// write regardless — only the (single, shared) progress bar is arbitrated.
+let seq = 0;
+let ownerToken = 0;
+
 /**
  * Run a multi-file import while publishing progress to the workspace
  * `importProgress` signal (which ImportProgressBar + HeaderTitleCaption read).
@@ -22,12 +32,18 @@ export async function runImport<T>(
   if (total <= 0) {
     return run(() => {});
   }
+  const token = ++seq;
+  ownerToken = token;
   const startedAt = Date.now();
   workspace.importProgress.value = { loaded: 0, total };
   const advance = () => {
+    // Only touch the signal while we still own it (a newer import may have
+    // taken over).
+    if (ownerToken !== token) {
+      return;
+    }
     const cur = workspace.importProgress.value;
-    // Guard against a concurrent import having replaced the signal.
-    if (cur && cur.total === total) {
+    if (cur) {
       workspace.importProgress.value = {
         loaded: Math.min(cur.loaded + 1, total),
         total,
@@ -37,17 +53,19 @@ export async function runImport<T>(
   try {
     return await run(advance);
   } finally {
-    workspace.importProgress.value = { loaded: total, total };
-    const elapsed = Date.now() - startedAt;
-    if (elapsed < MIN_VISIBLE_MS) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, MIN_VISIBLE_MS - elapsed),
-      );
-    }
-    // Only clear if we still own the signal (no newer import started).
-    const cur = workspace.importProgress.value;
-    if (cur && cur.total === total && cur.loaded === total) {
-      workspace.importProgress.value = null;
+    // Never clobber the signal if a newer import has claimed it.
+    if (ownerToken === token) {
+      workspace.importProgress.value = { loaded: total, total };
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < MIN_VISIBLE_MS) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, MIN_VISIBLE_MS - elapsed),
+        );
+      }
+      // Re-check after the sleep — a newer import may have started during it.
+      if (ownerToken === token) {
+        workspace.importProgress.value = null;
+      }
     }
   }
 }

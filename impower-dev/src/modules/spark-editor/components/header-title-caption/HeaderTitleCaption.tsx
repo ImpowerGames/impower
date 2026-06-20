@@ -35,6 +35,11 @@ export default function HeaderTitleCaption(_p: HeaderTitleCaptionProps) {
 
   return (
     <div
+      // Live region so assistive tech announces status changes — notably the
+      // "Importing N of M..." import feedback (polite coalesces the rapid count
+      // updates to whatever's current at a graceful pause, so it doesn't flood).
+      role="status"
+      aria-live="polite"
       class={`-mt-0.5 mb-0.5 flex flex-row items-center text-sm font-medium select-none ${color}`}
     >
       {showSkeleton ? (

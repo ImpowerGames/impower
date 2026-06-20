@@ -86,6 +86,15 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       e.preventDefault();
       e.stopPropagation();
       const files = Array.from(e.dataTransfer?.files || []);
+      // A single .zip is a whole-project import — handleDrop routes it to
+      // importLocalProject, which owns its own 'importing' status. Don't wrap
+      // it in the per-file bar (it would show a misleading "1 of 1" that hits
+      // 100% before the unzip/load even begins).
+      if (files.length === 1 && files[0]?.name.endsWith(".zip")) {
+        const f = files[0];
+        await handleDrop([{ name: f.name, buffer: await f.arrayBuffer() }]);
+        return;
+      }
       await runImport(files.length, async (advance) => {
         const fileArray = await Promise.all(
           files.map(async (f) => {
@@ -125,6 +134,12 @@ export default function FileDropzone(_props: FileDropzoneProps) {
           onProtocolMessage(DraggedFilesOverMessage.type, () => dragOver()),
           onProtocolMessage(DroppedFilesMessage.type, (m) => {
             const files = m.params.files;
+            // Single-.zip = whole-project import; let importLocalProject own
+            // the feedback rather than a misleading per-file "1 of 1" bar.
+            if (files.length === 1 && files[0]?.name.endsWith(".zip")) {
+              void handleDrop(files);
+              return;
+            }
             // Host relayed already-read buffers — no per-file read phase, so
             // count them up front and let the bar hold full during the write.
             void runImport(files.length, async (advance) => {

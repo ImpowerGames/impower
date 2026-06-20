@@ -148,9 +148,12 @@ function AssetsFab({
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
     return (
-      // Also disabled mid-import so a second upload can't clobber the first's
-      // progress (asset upload doesn't flip sync.status, hence the extra check).
-      workspace.importProgress.value != null ||
+      // The Files FAB also disables mid-import so a second upload can't restart
+      // the first's progress bar (asset upload doesn't flip sync.status, hence
+      // the extra check). Scoped to `files`: the URLs FAB writes an independent
+      // `.url` metadata file with no contention, so an in-flight upload must
+      // not disable it.
+      (panel === "files" && workspace.importProgress.value != null) ||
       status === "syncing" ||
       status === "loading" ||
       status === "importing" ||
