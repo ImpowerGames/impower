@@ -3294,7 +3294,7 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # One body line inside a structural-define block (`style`/`screen`/
+  # One body line inside a structural-define block (`style`/`layout`/
   # `component`). Matched opaquely (indent + content) so the block spans
   # to its `end`; the lowerer reconstructs the colon/indent struct from
   # each line's indentation column. The leading indent is its own capture
@@ -4462,7 +4462,7 @@ repository:
           - { include: "#OptionalWhitespace" }
       2:
         patterns:
-          # In screen/component bodies a builtin element name used as a key
+          # In layout/component bodies a builtin element name used as a key
           # (`image = "black"`) colors pink, matching pre-port. The builtin set
           # is fixed + word-bounded, so CSS property keys in style bodies
           # (`background_image`, `position`, …) fall through to the declaration
@@ -4755,9 +4755,9 @@ repository:
 
   # ----------------------------------------------------------------------------
   # Sparkle control flow (spec §4.6): `if/elseif/else`, `for`, `match` inside a
-  # screen/component body. Luau-keyword delimited (`then`/`do`/`end`). These are
+  # layout/component body. Luau-keyword delimited (`then`/`do`/`end`). These are
   # GRAMMAR BLOCKS (begin/end) — required so a nested `end` is consumed by its
-  # own block and the screen's terminating `end` still balances. Their bodies are
+  # own block and the layout's terminating `end` still balances. Their bodies are
   # the same sparkle element lines (LuauStructBodyLine) + nested control blocks,
   # so the lowerer reads if/for/match as IfNode/ForNode/MatchNode grammar
   # children. `if`-condition rules are reused from the Luau side (they end at
@@ -4967,14 +4967,14 @@ repository:
 
 
   # ----------------------------------------------------------------------------
-  # Screen / Component (structured UI element trees, struct-registry only)
+  # Layout / Component (structured UI element trees, struct-registry only)
   #
-  # `screen NAME [as PARENT] with <element-tree> end` (and `component`).
+  # `layout NAME [as PARENT] [in SCREEN] with <element-tree> end` (and `component`).
   # Each element line is `<tag> [#attr=val ...] ["content"]`; children nest
   # by INDENTATION (no per-element `end`). Top-level structural keywords
   # (parallel to `scene`/`branch`), NOT `define`; `as` = inherits. Lowers to
   # a compile-time nested-object struct in
-  # program.context.screen|component.<name>. Element lines parse FLAT (one
+  # program.context.layout|component.<name>. Element lines parse FLAT (one
   # `LuauUIElement` per line); the lowerer reconstructs the tree from each
   # element's indentation column. See lowerLuauUI.
   # ----------------------------------------------------------------------------

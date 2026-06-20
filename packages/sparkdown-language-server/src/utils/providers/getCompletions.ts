@@ -1632,7 +1632,7 @@ export const getCompletions = (
     }
   }
 
-  // Define / structural (style/screen/component/animation/theme).
+  // Define / structural (style/layout/screen/component/animation/theme).
   //
   // The Luau port inverted the model (`define <name> as <TYPE>`) and flattened
   // the struct body into indentation-nested LuauStructScalarProperty /

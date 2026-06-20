@@ -382,7 +382,7 @@ export const getFormatting = (
   let sceneActive = false;
   let branchActive = false;
 
-  // screen/component/style bodies nest by INDENTATION (the grammar emits flat
+  // layout/component/style bodies nest by INDENTATION (the grammar emits flat
   // body-line siblings; depth isn't in the tree). To normalize them the
   // formatter reconstructs each line's depth from the relative indentation —
   // the same way the lowerer does (lowerStructBody / lowerSparkleBody) — so
@@ -474,7 +474,7 @@ export const getFormatting = (
       const stackPos = firstNonWs >= 0 ? lineStart + firstNonWs : from;
       const stack = getStack<SparkdownNodeName>(tree, stackPos, 1);
 
-      // screen / component / style element trees nest by INDENTATION, which
+      // layout / component / style element trees nest by INDENTATION, which
       // the parse tree doesn't capture (the grammar emits flat body-line
       // siblings; the lowerer rebuilds depth from the indent column). The
       // formatter can't read depth from the tree, so it reconstructs it from

@@ -92,7 +92,7 @@ export const getSymbol = (
         // the type (OOP) or `$extends` (structural).
         n.name === "LuauDefineName" ||
         n.name === "LuauDefineParentName" ||
-        // Struct-body property/header keys (style/screen/component/animation/theme)
+        // Struct-body property/header keys (style/layout/screen/component/animation/theme)
         n.name === "StylingDeclarationScalarPropertyName" ||
         n.name === "DeclarationScalarPropertyKey" ||
         n.name === "BuiltinComponentName" ||

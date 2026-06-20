@@ -1416,7 +1416,7 @@ export class SparkdownCompiler {
   }
 
   /** Mirror the fully-assembled engine-facing context types into dedicated
-   *  channels (`program.screens` / `components` / `styles` / `assets`) the Game
+   *  channels (`program.layouts` / `screens` / `components` / `styles` / `assets`) the Game
    *  runtime reads — so the engine can source them WITHOUT touching the LSP-only
    *  `program.context`. Runs after `buildContext` (and the prelude merge), so it
    *  captures builtin + authored entries with `$extends`/`$default` already
@@ -1492,12 +1492,12 @@ export class SparkdownCompiler {
   /** Merge the once-compiled builtins prelude's reactive Sparkle AST into
    *  `program.sparkle` as the base layer, mirroring {@link mergePreludeContext}.
    *  Runs before this file's own chunks populate `program.sparkle`, so an
-   *  authored `screen main` overrides the builtin `main` in place (Object.assign
+   *  authored `layout main` overrides the builtin `main` in place (Object.assign
    *  on the same key keeps the builtin's earlier insertion order: loading, main,
    *  …). Trees are deep-cloned so the shared cache can't be mutated by later
    *  per-program work. Keeps the reactive AST channel a faithful superset of the
-   *  static `context.screen`/`context.component` channels (it must carry the
-   *  builtin `loading`/`main` screens the reactive runtime renders). */
+   *  static `context.layout`/`context.component` channels (it must carry the
+   *  builtin `loading`/`main` layouts the reactive runtime renders). */
   mergePreludeSparkle(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "mergePreludeSparkle", uri);

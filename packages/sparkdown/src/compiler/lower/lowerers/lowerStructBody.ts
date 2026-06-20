@@ -30,7 +30,7 @@ import { LowerContext } from "../context";
 // reactive and NOT part of the static struct the engine consumes here — the
 // reactive AST builder (lowerSparkleBody) reads them instead. This lowerer
 // EXCISES their source spans from any text it reads, so `button "Use" @click=x`
-// → `button "Use"` and `column #gap=16:` → `column` (the static `context.screen`
+// → `button "Use"` and `column #gap=16:` → `column` (the static `context.layout`
 // channel stays free of reactive bindings).
 
 interface BodyLine {

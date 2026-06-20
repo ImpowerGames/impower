@@ -60,7 +60,8 @@ export interface SparkProgram {
   // screens/components/styles/assets channels above. Carries the fully-merged
   // structs (builtin $defaults already applied), so the Game runtime can build
   // its context entirely from these channels instead of the LSP-only
-  // `program.context`. (Transitional: true runtime-`__def` sourcing of defines
+  // `program.context`. (Channels above: layouts/screens/components/styles/assets.)
+  // (Transitional: true runtime-`__def` sourcing of defines
   // awaits builtins being instantiated into the story; see buildContextFromStory.)
   defines?: { [type: string]: { [name: string]: any } };
   diagnostics?: {
