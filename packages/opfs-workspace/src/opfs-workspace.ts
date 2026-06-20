@@ -628,6 +628,27 @@ const editTextFiles = async (textDocumentEdits: TextDocumentEdit[]) => {
       if (!syncedDocument) {
         throw new Error(`File does not exist: ${td.uri}`);
       }
+      // The edit's ranges were computed by the language server against the
+      // document's CURRENT text. `State.documents` is only seeded at load and
+      // mutated by this function — editor autosaves land in `State.files` (via
+      // writeFiles → updateFileCache) WITHOUT refreshing it, so it can lag the
+      // real content. Applying ranges to a stale snapshot clamps/corrupts (a
+      // multi-line reference edit applied to a one-line snapshot wipes the
+      // tail). Re-sync from the latest saved text before applying so the ranges
+      // line up with what the server saw.
+      const latestText = State.files.get(td.uri)?.text;
+      if (
+        latestText != null &&
+        latestText.replace(NEWLINE_REGEX, "\n") !== syncedDocument.getText()
+      ) {
+        syncedDocument = TextDocument.create(
+          td.uri,
+          LANGUAGE_ID,
+          syncedDocument.version,
+          latestText.replace(NEWLINE_REGEX, "\n"),
+        );
+        State.documents.set(td.uri, syncedDocument);
+      }
       const beforeVersion = syncedDocument.version;
       const normalizedChanges: TextDocumentContentChangeEvent[] = [];
       for (const c of changes) {
