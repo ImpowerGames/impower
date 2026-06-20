@@ -85,19 +85,8 @@ const edits: Edit[] = [
   { name: "edit store initial value", find: "store trust = 0", replace: "store trust = 1" },
   { name: "rename a scene (cross-flow divert target)", find: "scene scene_4", replace: "scene scene_renamed" },
   { name: "delete a whole line above many flows", find: "store visited_count = 0\n", replace: "" },
+  { name: "append a whole new scene at end", find: "-> scene_2\nend\n", replace: "-> scene_2\nend\n\nscene scene_extra\n= INT. NEW - DAY\n:\n  Brand new action.\n-> DONE\nend\n" },
 ];
-
-// Quarantined: appending a `scene ... end` at end-of-document on a non-trivial
-// screenplay trips a PRE-EXISTING incremental-PARSER drift (program.compiled
-// ends up short by ~one scene; pathLocations are byte-identical — so this is the
-// annotation-chunking parser bug, NOT the location/ToJson caching). Re-enable
-// once that parser drift is fixed.
-const appendEdit: Edit = {
-  name: "append a whole new scene at end",
-  find: "-> scene_2\nend\n",
-  replace: "-> scene_2\nend\n\nscene scene_extra\n= INT. NEW - DAY\n:\n  Brand new action.\n-> DONE\nend\n",
-};
-void appendEdit;
 
 function pick(p: any) {
   return {
@@ -256,12 +245,13 @@ describe("compiler incremental equivalence", () => {
         seed = (seed * 1103515245 + 12345) & 0x7fffffff;
         return seed / 0x7fffffff;
       };
-      // Plain-character inserts only: random mid-content DELETIONS and random
-      // STRUCTURAL inserts ("\n", "}", "{...}", "//...") at arbitrary offsets
-      // currently trip a separate pre-existing incremental-PARSER drift
-      // (program.compiled diverges). This fuzz targets the location/ToJson reuse
-      // paths (not the parser), so it uses parser-safe plain inserts — which
-      // also means any failure here would implicate the caching, not the parser.
+      // Plain-character inserts only, compared on the location-map fields
+      // (Design A's surface). Random STRUCTURAL inserts ("}", "{...}", "//...")
+      // or mid-content deletions at arbitrary offsets can still trip separate
+      // pre-existing incremental-PARSER divergences (compiled / diagnostics
+      // differ — not caused by the location cache); the deterministic edits above
+      // (incl. append, rename, read-count) compare the FULL program surface and
+      // pass. A failure HERE would implicate the caching, not the parser.
       const inserts = ["x", " ", "1", "a", "Z", "."];
       for (let n = 0; n < 60; n++) {
         const insert = inserts[Math.floor(rand() * inserts.length)]!;
@@ -279,11 +269,6 @@ describe("compiler incremental equivalence", () => {
           textDocument: { uri: URI, version: 2 },
           contentChanges: [{ range: { start, end }, text: insert }],
         });
-        // Compare ONLY the location-map fields this fuzz targets (Design A).
-        // Random edits can trip separate pre-existing incremental-PARSER /
-        // diagnostics divergences (compiled / diagnostics differ) that are not
-        // caused by the caching; the deterministic edits above compare the FULL
-        // program surface and pass, so parser-correct edits are covered there.
         const locOf = (p: any) => ({
           pathLocations: p.pathLocations,
           dataLocations: p.dataLocations,

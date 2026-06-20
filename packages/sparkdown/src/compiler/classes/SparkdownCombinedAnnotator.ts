@@ -210,10 +210,29 @@ export class SparkdownCombinedAnnotator {
       changes,
       Math.max(tree.length, length),
     ).desc;
+    // The re-annotation lower bound must cover not only `reparsedFrom` (the
+    // parser's reuse split-point) but also the START of the edit itself.
+    // `reparsedFrom` is a CHUNK boundary the tokenizer can restart from; it can
+    // legitimately land AFTER the edit's first changed character when the edit
+    // sits inside a chunk that the reuse logic kept behind the split. In that
+    // case the nodes between [editStart, reparsedFrom) are byte-identical in the
+    // new tree (so the parse tree matches a cold parse) but their OLD
+    // annotations were just deleted by `map(changeDesc)` (their source text was
+    // replaced by the edit). If we only re-annotate from `reparsedFrom` onward,
+    // those nodes get NEITHER a fresh annotation NOR a valid carried-forward one
+    // — silently dropping e.g. a trailing `-> divert` chunk and shortening the
+    // compiled output by a scene. Clamp the window down to the edit's new-doc
+    // start so every node overlapping replaced text is re-annotated.
+    let editStart = reparsedFrom;
+    changeDesc.iterChangedRanges((_fromA, _toA, fromB) => {
+      if (fromB < editStart) {
+        editStart = fromB;
+      }
+    });
     if (reparsedTo == null) {
-      // Only rebuild annotations after reparsedFrom
+      // Only rebuild annotations after `editStart`
       for (const [key, add] of Object.entries(
-        this.annotate(tree, reparsedFrom, undefined, annotate),
+        this.annotate(tree, editStart, undefined, annotate),
       )) {
         if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
           const annotator = this.current[key as keyof SparkdownAnnotators];
@@ -222,7 +241,7 @@ export class SparkdownCombinedAnnotator {
             annotator.current = annotator.current.map(changeDesc);
             annotator.current = annotator.current.update({
               filter: (from, to, value) => {
-                if (to < reparsedFrom) {
+                if (to < editStart) {
                   return true;
                 }
                 removed.push(value.range(from, to));
@@ -243,9 +262,9 @@ export class SparkdownCombinedAnnotator {
       }
       return this.current;
     }
-    // Only rebuild annotations between reparsedFrom and reparsedTo
+    // Only rebuild annotations between `editStart` and reparsedTo
     for (const [key, add] of Object.entries(
-      this.annotate(tree, reparsedFrom, reparsedTo, annotate),
+      this.annotate(tree, editStart, reparsedTo, annotate),
     )) {
       if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
         const annotator = this.current[key as keyof SparkdownAnnotators];
@@ -254,7 +273,7 @@ export class SparkdownCombinedAnnotator {
           annotator.current = annotator.current.map(changeDesc);
           annotator.current = annotator.current.update({
             filter: (from, to, value) => {
-              if (to < reparsedFrom || from > reparsedTo) {
+              if (to < editStart || from > reparsedTo) {
                 return true;
               }
               removed.push(value.range(from, to));
