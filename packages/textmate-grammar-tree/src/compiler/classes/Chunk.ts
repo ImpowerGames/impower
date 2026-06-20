@@ -61,6 +61,16 @@ export class Chunk {
 
   isSplitPoint: boolean;
 
+  /**
+   * True if this chunk was seeded with open scopes from a previous chunk (see
+   * `inherit`). Such a chunk is NOT self-contained — a scope it closes was
+   * opened in an earlier chunk, so its emitted parent node references children
+   * outside this chunk. It therefore must never be converted to a standalone
+   * tree buffer (which copies only this chunk's nodes); the compiler must emit
+   * it node-by-node so cross-chunk nesting resolves in the global buffer.
+   */
+  inheritedOpenScopes = false;
+
   get endsPure() {
     return !this.scopes || this.scopes.length === 0;
   }
@@ -114,7 +124,12 @@ export class Chunk {
       for (const o of open) {
         this.scopes ??= [];
         this.scopes.push(o);
-        this.stack.push(o, from, 0);
+        // Store the open position as ABSOLUTE (not chunk-relative). This lets a
+        // scope opened in one chunk be closed in a LATER chunk (see `inherit`):
+        // the close-chunk converts back with `pos - this.from`. For a scope that
+        // opens and closes within the same chunk this is identical to the old
+        // relative value, so it is inert for the existing (pure-split) model.
+        this.stack.push(o, this.from + from, 0);
       }
     }
 
@@ -140,7 +155,10 @@ export class Chunk {
           // finally pop the node
           const s = this.stack.pop()!;
           const node = s[0]!;
-          const pos = s[1]!;
+          // `pos` is absolute; convert back to this chunk's frame. When the
+          // scope opened in an EARLIER chunk this is negative, and the compiler
+          // re-adds `chunk.from` when emitting, recovering the absolute position.
+          const pos = s[1]! - this.from;
           const children = s[2]!;
           this.emitNode(node, pos, to, children * 4 + 4);
         }
@@ -148,9 +166,29 @@ export class Chunk {
     }
   }
 
+  /**
+   * Seed this chunk's open-scope state from the residual (still-open) scopes of
+   * the previous chunk. This is what enables a scope to span a chunk boundary:
+   * a split point can be created while scopes are open, and the next chunk picks
+   * up exactly where the previous one left off (same open node ids, same
+   * absolute open positions, same accumulated child counts). Inert for chunks
+   * created at a pure boundary (nothing open to inherit).
+   */
+  inherit(prev: Chunk) {
+    if (prev.scopes && prev.scopes.length) {
+      this.scopes = prev.scopes.slice();
+      this.inheritedOpenScopes = true;
+    }
+    if (prev.stack.length > 0) {
+      this.stack = new CompileStack(prev.stack);
+      this.inheritedOpenScopes = true;
+    }
+  }
+
   canConvertToTreeBuffer() {
     return (
       !this.isSplitPoint &&
+      !this.inheritedOpenScopes &&
       this.endsPure &&
       this.nodeCount > 0 &&
       this.treeBufferLength < TREE_BUFFER_LENGTH_LIMIT
