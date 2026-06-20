@@ -3,6 +3,7 @@ import HeaderMenuButton from "../header-menu-button/HeaderMenuButton";
 import HeaderSyncToolbar from "../header-sync-toolbar/HeaderSyncToolbar";
 import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
 import HeaderTitleCaption from "../header-title-caption/HeaderTitleCaption";
+import ImportProgressBar from "../import-progress-bar/ImportProgressBar";
 import PreviewToggleButton from "../preview-toggle-button/PreviewToggleButton";
 
 /**
@@ -55,6 +56,10 @@ export default function HeaderNavigation() {
         {/* 1px divider hugging the bottom edge — sparkle used s-divider with
             bg-color="fg-06" (6% opacity). */}
         <div class="absolute inset-x-0 bottom-0 h-px bg-foreground/[0.06]" />
+        {/* Determinate import progress overlays the divider while assets are
+            being uploaded/dropped (driven by the workspace importProgress
+            signal). Renders nothing otherwise. */}
+        <ImportProgressBar />
       </div>
     </div>
   );

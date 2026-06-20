@@ -21,9 +21,15 @@ export default function HeaderTitleCaption(_p: HeaderTitleCaptionProps) {
   const syncState = useComputed(
     () => workspace.state.value.sync?.status || "",
   ).value;
+  // An in-flight asset import takes precedence over the steady sync status:
+  // show a live "Importing N of M..." count (the bar in the header divider
+  // gives the matching visual).
+  const importProgress = useComputed(() => workspace.importProgress.value).value;
 
-  const info = syncStateInfo(syncState);
-  const color = syncStateColor(syncState);
+  const info = importProgress
+    ? `Importing ${importProgress.loaded} of ${importProgress.total}...`
+    : syncStateInfo(syncState);
+  const color = importProgress ? "text-primary" : syncStateColor(syncState);
 
   const showSkeleton = !name || !info;
 

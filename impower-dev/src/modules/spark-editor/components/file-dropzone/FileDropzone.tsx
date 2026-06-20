@@ -1,6 +1,7 @@
 import { Download } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 import getValidFileName from "../../utils/getValidFileName";
+import { runImport } from "../../utils/importProgress";
 
 export const propDefaults = {};
 export type FileDropzoneProps = Partial<typeof propDefaults>;
@@ -85,13 +86,16 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       e.preventDefault();
       e.stopPropagation();
       const files = Array.from(e.dataTransfer?.files || []);
-      const fileArray = await Promise.all(
-        files.map(async (f) => ({
-          name: f.name,
-          buffer: await f.arrayBuffer(),
-        })),
-      );
-      handleDrop(fileArray);
+      await runImport(files.length, async (advance) => {
+        const fileArray = await Promise.all(
+          files.map(async (f) => {
+            const buffer = await f.arrayBuffer();
+            advance();
+            return { name: f.name, buffer };
+          }),
+        );
+        await handleDrop(fileArray);
+      });
     };
 
     window.addEventListener("dragenter", onDragEnter);
@@ -119,9 +123,17 @@ export default function FileDropzone(_props: FileDropzoneProps) {
           onProtocolMessage(DraggedFilesInMessage.type, () => dragEnter()),
           onProtocolMessage(DraggedFilesOutMessage.type, () => dragLeave()),
           onProtocolMessage(DraggedFilesOverMessage.type, () => dragOver()),
-          onProtocolMessage(DroppedFilesMessage.type, (m) =>
-            handleDrop(m.params.files),
-          ),
+          onProtocolMessage(DroppedFilesMessage.type, (m) => {
+            const files = m.params.files;
+            // Host relayed already-read buffers — no per-file read phase, so
+            // count them up front and let the bar hold full during the write.
+            void runImport(files.length, async (advance) => {
+              for (let i = 0; i < files.length; i++) {
+                advance();
+              }
+              await handleDrop(files);
+            });
+          }),
         ];
         disposeProtocol = () => disposers.forEach((d) => d());
       },

@@ -13,6 +13,7 @@ import { startTransition } from "preact/compat";
 import { useRef, useState } from "preact/hooks";
 import getUniqueFileName from "../../utils/getUniqueFileName";
 import getValidFileName from "../../utils/getValidFileName";
+import { runImport } from "../../utils/importProgress";
 import workspace from "../../workspace/WorkspaceStore";
 import FileList from "../file-list/FileList";
 import FileListBorder from "../file-list/FileListBorder";
@@ -147,6 +148,9 @@ function AssetsFab({
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
     return (
+      // Also disabled mid-import so a second upload can't clobber the first's
+      // progress (asset upload doesn't flip sync.status, hence the extra check).
+      workspace.importProgress.value != null ||
       status === "syncing" ||
       status === "loading" ||
       status === "importing" ||
@@ -161,18 +165,25 @@ function AssetsFab({
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    const files = await Promise.all(
-      Array.from(fileList).map(async (file) => {
-        const name = getValidFileName(file.name);
-        const rel = scope ? `${scope}/${name}` : name;
-        return {
-          uri: Workspace.fs.getFileUri(projectId, rel),
-          data: await file.arrayBuffer(),
-        };
-      }),
-    );
-    await Workspace.fs.createFiles({ files });
-    await Workspace.window.recordAssetChange();
+    const fileArr = Array.from(fileList);
+    // Surface progress: `advance` ticks as each file's bytes load (the bar
+    // fills), then it holds full through the single batched OPFS write.
+    await runImport(fileArr.length, async (advance) => {
+      const files = await Promise.all(
+        fileArr.map(async (file) => {
+          const name = getValidFileName(file.name);
+          const rel = scope ? `${scope}/${name}` : name;
+          const data = await file.arrayBuffer();
+          advance();
+          return {
+            uri: Workspace.fs.getFileUri(projectId, rel),
+            data,
+          };
+        }),
+      );
+      await Workspace.fs.createFiles({ files });
+      await Workspace.window.recordAssetChange();
+    });
     input.value = "";
   }
 
