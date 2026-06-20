@@ -36,6 +36,8 @@ import {
   WillRenameFilesMessage,
   WillRenameFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage";
+import { TrashFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/TrashFilesMessage";
+import { TrashBatch } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
@@ -177,6 +179,10 @@ export default class WorkspaceFileSystem {
       this.getDirectoryUri(projectId),
       Object.values(this._files),
     );
+    // Auto-expire old recycle-bin batches (>30 days). Fire-and-forget — it must
+    // not block the project load, and trash is local-only so there's no remote
+    // coordination.
+    void this.purgeExpiredTrash(projectId);
     return result;
   }
 
@@ -648,6 +654,54 @@ export default class WorkspaceFileSystem {
       return [];
     }
     return this.deleteFiles({ files: toDelete, mode });
+  }
+
+  /** Every recycle-bin batch (newest first). */
+  async listTrash(projectId: string): Promise<TrashBatch[]> {
+    const result = await this.sendRequest(TrashFilesMessage.type, {
+      projectId,
+      action: "list",
+    });
+    return result.batches ?? [];
+  }
+
+  /** Restore a trash batch to its original locations; returns the restored files. */
+  async restoreTrash(projectId: string, batchId: string): Promise<FileData[]> {
+    const result = await this.sendRequest(TrashFilesMessage.type, {
+      projectId,
+      action: "restore",
+      batchId,
+    });
+    return result.restored ?? [];
+  }
+
+  /** Permanently delete one trash batch. */
+  async deleteTrashBatch(projectId: string, batchId: string): Promise<void> {
+    await this.sendRequest(TrashFilesMessage.type, {
+      projectId,
+      action: "deleteBatch",
+      batchId,
+    });
+  }
+
+  /** Permanently empty the whole recycle bin. */
+  async emptyTrash(projectId: string): Promise<void> {
+    await this.sendRequest(TrashFilesMessage.type, {
+      projectId,
+      action: "empty",
+    });
+  }
+
+  /** Purge trash batches older than `retentionMs` (default 30 days). */
+  async purgeExpiredTrash(
+    projectId: string,
+    retentionMs?: number,
+  ): Promise<void> {
+    await this.sendRequest(TrashFilesMessage.type, {
+      projectId,
+      action: "purge",
+      retentionMs,
+    });
   }
 
   async writeTextDocument(params: {

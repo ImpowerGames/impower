@@ -14,6 +14,11 @@ import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { WillCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage";
 import { WillDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage";
 import { WillRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage";
+import {
+  TrashFilesMessage,
+  TrashFilesResult,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/TrashFilesMessage";
+import { TrashBatch } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
@@ -61,6 +66,8 @@ const LANGUAGE_ID = "sparkdown";
 // getAllFilesRecursive([TRASH_DIR]) so it never leaks into bundles/sync/UI.
 const TRASH_DIR = ".trash";
 const TRASH_MANIFEST = "__manifest.json";
+// Trashed batches older than this are purged on project load (local-only trash).
+const DEFAULT_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Import-time thumbnail generation. When an image is written we decode + resize
 // it here (off the page's main thread) and stash a webp in the shared
@@ -317,6 +324,53 @@ onmessage = async (e) => {
         message: err.message,
       });
       respond(response);
+    }
+  }
+  if (TrashFilesMessage.type.isRequest(message)) {
+    try {
+      const { projectId, action, batchId, retentionMs } = message.params;
+      let result: TrashFilesResult = {};
+      if (action === "list") {
+        result = { batches: await listTrash(projectId) };
+      } else if (action === "restore" && batchId) {
+        result = { restored: await restoreTrashBatch(projectId, batchId) };
+      } else if (action === "deleteBatch" && batchId) {
+        await removeTrashBatch(projectId, batchId);
+      } else if (action === "empty") {
+        await emptyTrash(projectId);
+      } else if (action === "purge") {
+        await purgeExpiredTrash(
+          projectId,
+          retentionMs ?? DEFAULT_TRASH_RETENTION_MS,
+        );
+      }
+      respond(TrashFilesMessage.type.response(message.id, result));
+      // A restore re-creates files at their original locations — tell the page
+      // (and the LSP) so its _files cache + the file list pick them back up.
+      if (action === "restore" && result.restored && result.restored.length > 0) {
+        broadcast(
+          DidWriteFilesMessage.type.notification({
+            files: result.restored,
+            remote: false,
+          }),
+        );
+        broadcast(
+          DidChangeWatchedFilesMessage.type.notification({
+            changes: result.restored.map((f) => ({
+              uri: f.uri,
+              type: FileChangeType.Created,
+            })),
+          }),
+        );
+      }
+    } catch (err: any) {
+      console.error(err, err.stack);
+      respond(
+        TrashFilesMessage.type.error(message.id, {
+          code: ErrorCodes.InternalError,
+          message: err.message,
+        }),
+      );
     }
   }
   if (WillRenameFilesMessage.type.isRequest(message)) {
@@ -895,6 +949,106 @@ const moveFilesToTrash = async (files: { uri: string }[]) => {
     },
   ]);
   return deleted;
+};
+
+const getTrashDirHandle = async (projectId: string) =>
+  getDirectoryHandleFromPath(
+    await navigator.storage.getDirectory(),
+    `${projectId}/${TRASH_DIR}`,
+  );
+
+// Evict any cached State.files entries under a trash path (so a removed batch
+// doesn't leave stale entries behind).
+const evictTrashCache = (uriPrefix: string) => {
+  for (const uri of [...State.files.keys()]) {
+    if (uri.startsWith(uriPrefix)) {
+      State.files.delete(uri);
+    }
+  }
+};
+
+// Every trash batch (newest first), read from each batch's manifest.
+const listTrash = async (projectId: string): Promise<TrashBatch[]> => {
+  const trash = await getTrashDirHandle(projectId);
+  const batches: TrashBatch[] = [];
+  // @ts-ignore - values() exists
+  for await (const handle of trash.values()) {
+    if (handle.kind !== "directory") {
+      continue;
+    }
+    try {
+      const dir = handle as FileSystemDirectoryHandle;
+      const file = await (await dir.getFileHandle(TRASH_MANIFEST)).getFile();
+      const m = JSON.parse(await file.text()) as Omit<TrashBatch, "batchId">;
+      batches.push({ batchId: handle.name, deletedAt: m.deletedAt, entries: m.entries });
+    } catch {
+      // Incomplete/corrupt batch (no readable manifest) — skip it.
+    }
+  }
+  batches.sort((a, b) => b.deletedAt - a.deletedAt);
+  return batches;
+};
+
+const removeTrashBatch = async (projectId: string, batchId: string) => {
+  evictTrashCache(getUriFromPath(`${projectId}/${TRASH_DIR}/${batchId}/`));
+  const trash = await getTrashDirHandle(projectId);
+  await trash.removeEntry(batchId, { recursive: true }).catch(() => {});
+};
+
+// Move a batch's files back to their original locations, then drop the batch.
+// Returns the restored FileData[] so the page can update its caches/UI.
+const restoreTrashBatch = async (
+  projectId: string,
+  batchId: string,
+): Promise<FileData[]> => {
+  const trash = await getTrashDirHandle(projectId);
+  const batchHandle = await trash.getDirectoryHandle(batchId);
+  const manifestFile = await (
+    await batchHandle.getFileHandle(TRASH_MANIFEST)
+  ).getFile();
+  const m = JSON.parse(await manifestFile.text()) as {
+    entries: { relPath: string; originalUri: string }[];
+  };
+  const restored: FileData[] = [];
+  const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
+  for (const entry of m.entries) {
+    const data = await readFile(getUriFromPath(`${trashPrefix}/${entry.relPath}`));
+    const [created] = await createFiles([{ uri: entry.originalUri, data }]);
+    if (created?.file) {
+      restored.push(created.file);
+    }
+  }
+  await removeTrashBatch(projectId, batchId);
+  return restored;
+};
+
+const emptyTrash = async (projectId: string) => {
+  evictTrashCache(getUriFromPath(`${projectId}/${TRASH_DIR}/`));
+  const proj = await getDirectoryHandleFromPath(
+    await navigator.storage.getDirectory(),
+    projectId,
+  );
+  await proj.removeEntry(TRASH_DIR, { recursive: true }).catch(() => {});
+};
+
+// Drop batches older than retentionMs (deletedAt is encoded in the batch name).
+const purgeExpiredTrash = async (projectId: string, retentionMs: number) => {
+  const trash = await getTrashDirHandle(projectId);
+  const cutoff = Date.now() - retentionMs;
+  const expired: string[] = [];
+  // @ts-ignore - values() exists
+  for await (const handle of trash.values()) {
+    if (handle.kind !== "directory") {
+      continue;
+    }
+    const deletedAt = Number(handle.name.split("__")[0]);
+    if (Number.isFinite(deletedAt) && deletedAt < cutoff) {
+      expired.push(handle.name);
+    }
+  }
+  for (const batchId of expired) {
+    await removeTrashBatch(projectId, batchId);
+  }
 };
 
 const deleteFiles = async (files: { uri: string }[]) => {
