@@ -573,6 +573,42 @@ export default class WorkspaceFileSystem {
   }
 
   /**
+   * Rename an asset AND rewrite every script reference to it in one workspace
+   * edit (the language server computes the edit; the worker applies the text
+   * rewrites + the file rename atomically-in-order). Falls back to a plain
+   * {@link moveFile} when the asset has no references. Returns how many
+   * references in how many scripts were updated.
+   */
+  async renameFileWithReferences(
+    projectId: string,
+    fromPath: string,
+    toPath: string,
+  ): Promise<{ referencesUpdated: number; scriptsAffected: number }> {
+    const oldUri = this.getFileUri(projectId, fromPath);
+    const newName = this.getDisplayName(this.getFileUri(projectId, toPath));
+    const edit = await Workspace.ls.getFileRenameEdits(oldUri, newName);
+    const textEdits = (edit?.documentChanges ?? []).filter(
+      (c): c is { textDocument: { uri: string }; edits: unknown[] } =>
+        "edits" in c,
+    );
+    if (!edit || textEdits.length === 0) {
+      // No references to update — a plain move is enough.
+      await this.moveFile(projectId, fromPath, toPath);
+      return { referencesUpdated: 0, scriptsAffected: 0 };
+    }
+    await this.applyWorkspaceEdit(
+      edit,
+      `Rename ${this.getDisplayName(oldUri)} → ${newName}`,
+      { isRefactoring: true },
+    );
+    const referencesUpdated = textEdits.reduce(
+      (n, c) => n + c.edits.length,
+      0,
+    );
+    return { referencesUpdated, scriptsAffected: textEdits.length };
+  }
+
+  /**
    * Relocate a folder and everything beneath it (e.g. `chapters` ->
    * `archive/chapters`) by renaming each contained file across directories.
    */

@@ -5,6 +5,7 @@ import {
   InitializeResult,
 } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
+import type { WorkspaceEdit } from "@impower/spark-editor-protocol/src/protocols/workspace/ApplyWorkspaceEditMessage";
 import { sendProtocolMessage } from "@impower/spark-editor-protocol/src/protocols/MessageProtocol";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import {
@@ -152,6 +153,15 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
     // moniker: {},
   },
 };
+
+/** A reference location returned by `sparkdown/fileReferences` (find-usages). */
+export interface FileReferenceLocation {
+  uri: string;
+  range: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+}
 
 export default class WorkspaceLanguageServer {
   protected _worker: Worker;
@@ -322,6 +332,36 @@ export default class WorkspaceLanguageServer {
       throw new Error("Language server not initialized.");
     }
     return this._program;
+  }
+
+  /**
+   * Script locations that reference the asset at `uri` (find-usages). Custom
+   * file-driven request — see the language server's `sparkdown/fileReferences`.
+   */
+  async getFileReferences(uri: string): Promise<FileReferenceLocation[]> {
+    await this.initialization();
+    return (
+      (await this._connection.sendRequest<FileReferenceLocation[]>(
+        "sparkdown/fileReferences",
+        { uri },
+      )) ?? []
+    );
+  }
+
+  /**
+   * The `WorkspaceEdit` to rename the asset at `oldUri` to `newName` AND rewrite
+   * every reference to it. `null` when nothing applies. See the language
+   * server's `sparkdown/fileRenameEdits`.
+   */
+  async getFileRenameEdits(
+    oldUri: string,
+    newName: string,
+  ): Promise<WorkspaceEdit | null> {
+    await this.initialization();
+    return this._connection.sendRequest<WorkspaceEdit | null>(
+      "sparkdown/fileRenameEdits",
+      { oldUri, newName },
+    );
   }
 
   stop() {

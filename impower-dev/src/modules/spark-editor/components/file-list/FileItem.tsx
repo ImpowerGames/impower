@@ -17,6 +17,8 @@ import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileOptionsButton from "./FileOptionsButton";
+import FileUsagesPanel, { type UsageLocation } from "./FileUsagesPanel";
+import RenameReferencesDialog from "./RenameReferencesDialog";
 
 // Per-depth indentation (px). The base padding + the fixed chevron column keep
 // a depth-0 file's name at the same x it sat at in the old flat list. Exported
@@ -142,6 +144,22 @@ function FileItem({
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  // A pending asset rename whose name is referenced by scripts — the confirm
+  // dialog (update refs vs rename-only) acts on these stored paths.
+  const [renameConfirm, setRenameConfirm] = useState<{
+    oldPath: string;
+    newPath: string;
+    fromName: string;
+    toName: string;
+    referenceCount: number;
+    scriptCount: number;
+  } | null>(null);
+  // The "Used in (N)" panel for this asset — null when closed, else the asset
+  // name + every script location that references it.
+  const [usages, setUsages] = useState<{
+    assetName: string;
+    locations: UsageLocation[];
+  } | null>(null);
   // A thumbnail that 404s / fails to decode falls back to the type glyph.
   const [thumbFailed, setThumbFailed] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -285,7 +303,7 @@ function FileItem({
     }
   }
 
-  async function renameFile(oldPath: string, newPath: string) {
+  async function plainMove(oldPath: string, newPath: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
@@ -295,6 +313,70 @@ function FileItem({
     } else {
       await Workspace.window.recordAssetChange();
     }
+  }
+
+  async function renameFile(oldPath: string, newPath: string) {
+    const projectId = workspace.signals.projectId.value;
+    if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    // Does any script reference this asset by name? If so, confirm whether to
+    // rewrite those references along with the rename (the references query and
+    // the rename edits share the same engine, so the count is exact).
+    let refs: { uri: string }[] = [];
+    try {
+      refs = await Workspace.ls.getFileReferences(
+        Workspace.fs.getFileUri(projectId, oldPath),
+      );
+    } catch {
+      refs = [];
+    }
+    if (refs.length === 0) {
+      await plainMove(oldPath, newPath);
+      return;
+    }
+    setRenameConfirm({
+      oldPath,
+      newPath,
+      fromName: oldPath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? oldPath,
+      toName: newPath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? newPath,
+      referenceCount: refs.length,
+      scriptCount: new Set(refs.map((r) => r.uri)).size,
+    });
+  }
+
+  async function renameWithReferences(oldPath: string, newPath: string) {
+    const projectId = workspace.signals.projectId.value;
+    if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    await Workspace.fs.renameFileWithReferences(projectId, oldPath, newPath);
+    // Scripts changed (references) AND the asset moved.
+    await Workspace.window.recordScriptChange();
+    await Workspace.window.recordAssetChange();
+  }
+
+  // Open the "Used in (N)" panel: ask the language server which script
+  // locations reference this asset by name, then surface them as tappable
+  // jump-to-source rows. Opens even with zero results (shows a "No usages"
+  // empty state) so the action always gives feedback.
+  async function openUsages() {
+    const projectId = workspace.signals.projectId.value;
+    if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    let refs: { uri: string; range: UsageLocation["range"] }[] = [];
+    try {
+      refs = await Workspace.ls.getFileReferences(
+        Workspace.fs.getFileUri(projectId, path),
+      );
+    } catch {
+      refs = [];
+    }
+    const locations: UsageLocation[] = refs.map((r) => ({
+      uri: r.uri,
+      label: Workspace.fs.getRelativePath(projectId, r.uri),
+      line: r.range.start.line + 1,
+      range: r.range,
+    }));
+    setUsages({ assetName: name, locations });
   }
 
   async function renameFolder(oldPath: string, newPath: string) {
@@ -499,8 +581,47 @@ function FileItem({
           <FileOptionsButton
             onRename={() => setRenaming(true)}
             onDelete={() => void deleteEntry()}
+            // Find-usages keys off the flat asset name (`image.foo`), so it's
+            // offered for assets only — not scripts (`.sd`) or folders.
+            onFindUsages={
+              !isDirectory && ext !== "sd" ? () => void openUsages() : undefined
+            }
           />
         </div>
+      )}
+      {renameConfirm && (
+        <RenameReferencesDialog
+          open
+          fromName={renameConfirm.fromName}
+          toName={renameConfirm.toName}
+          referenceCount={renameConfirm.referenceCount}
+          scriptCount={renameConfirm.scriptCount}
+          onUpdateAndRename={() => {
+            const c = renameConfirm;
+            setRenameConfirm(null);
+            void renameWithReferences(c.oldPath, c.newPath);
+          }}
+          onRenameOnly={() => {
+            const c = renameConfirm;
+            setRenameConfirm(null);
+            void plainMove(c.oldPath, c.newPath);
+          }}
+          onCancel={() => setRenameConfirm(null)}
+        />
+      )}
+      {usages && (
+        <FileUsagesPanel
+          open
+          assetName={usages.assetName}
+          locations={usages.locations}
+          onJump={(uri, range) => {
+            void (async () => {
+              const { Workspace } = await import("../../workspace/Workspace");
+              await Workspace.window.showDocument(uri, range, true);
+            })();
+          }}
+          onClose={() => setUsages(null)}
+        />
       )}
     </div>
   );

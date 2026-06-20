@@ -1,14 +1,13 @@
 import {
   Button,
   DotsVertical,
-  Pencil,
-  Trash,
-} from "@impower/impower-ui/components";
-import {
   DropdownContent,
   DropdownItem,
   DropdownRoot,
   DropdownTrigger,
+  Pencil,
+  Search,
+  Trash,
 } from "@impower/impower-ui/components";
 import { signal, useComputed, useSignalEffect } from "@preact/signals";
 import { useRef, useState } from "preact/hooks";
@@ -17,6 +16,8 @@ import workspace from "../../workspace/WorkspaceStore";
 export type FileOptionsButtonProps = {
   onRename: () => void;
   onDelete: () => void;
+  /** Show a "Find usages" item (assets only) — lists scripts referencing it. */
+  onFindUsages?: () => void;
 };
 
 // Identity of the row whose options menu is currently open — only one at a time.
@@ -28,7 +29,7 @@ export type FileOptionsButtonProps = {
 const openOptionsKey = signal<symbol | null>(null);
 
 const TRIGGER_CLASS =
-  "mr-2 rounded-full text-foreground/50 hover:text-foreground";
+  "mr-3 rounded-full text-foreground/50 hover:text-foreground";
 
 /**
  * Per-row 3-dots options menu with Rename + Delete. Both items are disabled
@@ -43,6 +44,7 @@ const TRIGGER_CLASS =
 export default function FileOptionsButton({
   onRename,
   onDelete,
+  onFindUsages,
 }: FileOptionsButtonProps) {
   const [armed, setArmed] = useState(false);
   // Stable per-instance key for the single-open coordination above.
@@ -126,6 +128,12 @@ export default function FileOptionsButton({
           <Pencil class="size-4" />
           Rename
         </DropdownItem>
+        {onFindUsages && (
+          <DropdownItem disabled={disabled} onSelect={() => onFindUsages()}>
+            <Search class="size-4" />
+            Find usages
+          </DropdownItem>
+        )}
         <DropdownItem disabled={disabled} onSelect={() => onDelete()}>
           <Trash class="size-4" />
           Delete
