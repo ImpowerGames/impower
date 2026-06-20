@@ -1,0 +1,185 @@
+text.source.sparkdown [0..323]
+ ├─ meta.component.luau [0..37]
+ │   ├─ keyword.control.component.luau [0..9]: "component"
+ │   ├─ punctuation.whitespace.optional.sd [9..10]: " "
+ │   ├─ entity.name.type.define.luau [10..18]: "stat_row"
+ │   ├─ meta.parameter.luau [18..32]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [18..19]: "("
+ │   │   ├─ variable.parameter.function.luau [19..24]: "label"
+ │   │   ├─ keyword.operator.comma.luau [24..25]: ","
+ │   │   ├─ punctuation.whitespace.optional.sd [25..26]: " "
+ │   │   ├─ variable.parameter.function.luau [26..31]: "value"
+ │   │   └─ punctuation.definition.template-expression.end.sd [31..32]: ")"
+ │   ├─ punctuation.whitespace.optional.sd [32..33]: " "
+ │   └─ keyword.control.as.luau [33..37]: "with"
+ ├─ Newline [37..38]: "\n"
+ ├─ meta.component.luau [38..44]
+ │   ├─ punctuation.whitespace.optional.sd [38..40]: "  "
+ │   └─ meta.struct.body.luau [40..44]
+ │       ├─ entity.name.type.class.view.sd [40..43]: "row"
+ │       └─ meta.template.expression.operator.colon.sd [43..44]: ":"
+ ├─ Newline [44..45]: "\n"
+ ├─ meta.component.luau [45..63]
+ │   ├─ punctuation.whitespace.optional.sd [45..49]: "    "
+ │   └─ meta.struct.body.luau [49..63]
+ │       ├─ keyword.other.component.builtin.name.sd [49..53]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [53..54]: " "
+ │       └─ string.quoted.double.sd [54..63]
+ │           ├─ punctuation.definition.string.begin.sd [54..55]: "\""
+ │           ├─ meta.template.expression.luau [55..62]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [55..56]: "{"
+ │           │   ├─ meta.embedded.line.luau [56..61]
+ │           │   │   └─ variable.other.readwrite.luau [56..61]: "label"
+ │           │   └─ punctuation.definition.template-expression.end.sd [61..62]: "}"
+ │           └─ punctuation.definition.string.end.sd [62..63]: "\""
+ ├─ Newline [63..64]: "\n"
+ ├─ meta.component.luau [64..82]
+ │   ├─ punctuation.whitespace.optional.sd [64..68]: "    "
+ │   └─ meta.struct.body.luau [68..82]
+ │       ├─ keyword.other.component.builtin.name.sd [68..72]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [72..73]: " "
+ │       └─ string.quoted.double.sd [73..82]
+ │           ├─ punctuation.definition.string.begin.sd [73..74]: "\""
+ │           ├─ meta.template.expression.luau [74..81]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [74..75]: "{"
+ │           │   ├─ meta.embedded.line.luau [75..80]
+ │           │   │   └─ variable.other.readwrite.luau [75..80]: "value"
+ │           │   └─ punctuation.definition.template-expression.end.sd [80..81]: "}"
+ │           └─ punctuation.definition.string.end.sd [81..82]: "\""
+ ├─ Newline [82..83]: "\n"
+ ├─ meta.component.luau [83..86]
+ │   └─ keyword.control.end.luau [83..86]: "end"
+ ├─ Newline [86..87]: "\n"
+ ├─ Newline [87..88]: "\n"
+ ├─ meta.component.luau [88..114]
+ │   ├─ keyword.control.component.luau [88..97]: "component"
+ │   ├─ punctuation.whitespace.optional.sd [97..98]: " "
+ │   ├─ entity.name.type.define.luau [98..102]: "card"
+ │   ├─ meta.parameter.luau [102..109]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [102..103]: "("
+ │   │   ├─ variable.parameter.function.luau [103..108]: "title"
+ │   │   └─ punctuation.definition.template-expression.end.sd [108..109]: ")"
+ │   ├─ punctuation.whitespace.optional.sd [109..110]: " "
+ │   └─ keyword.control.as.luau [110..114]: "with"
+ ├─ Newline [114..115]: "\n"
+ ├─ meta.component.luau [115..121]
+ │   ├─ punctuation.whitespace.optional.sd [115..117]: "  "
+ │   └─ meta.struct.body.luau [117..121]
+ │       ├─ keyword.other.component.builtin.name.sd [117..120]: "box"
+ │       └─ meta.template.expression.operator.colon.sd [120..121]: ":"
+ ├─ Newline [121..122]: "\n"
+ ├─ meta.component.luau [122..140]
+ │   ├─ punctuation.whitespace.optional.sd [122..126]: "    "
+ │   └─ meta.struct.body.luau [126..140]
+ │       ├─ keyword.other.component.builtin.name.sd [126..130]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [130..131]: " "
+ │       └─ string.quoted.double.sd [131..140]
+ │           ├─ punctuation.definition.string.begin.sd [131..132]: "\""
+ │           ├─ meta.template.expression.luau [132..139]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [132..133]: "{"
+ │           │   ├─ meta.embedded.line.luau [133..138]
+ │           │   │   └─ variable.other.readwrite.luau [133..138]: "title"
+ │           │   └─ punctuation.definition.template-expression.end.sd [138..139]: "}"
+ │           └─ punctuation.definition.string.end.sd [139..140]: "\""
+ ├─ Newline [140..141]: "\n"
+ ├─ meta.component.luau [141..149]
+ │   ├─ punctuation.whitespace.optional.sd [141..145]: "    "
+ │   └─ meta.struct.body.luau [145..149]
+ │       └─ entity.name.type.class.view.sd [145..149]: "slot"
+ ├─ Newline [149..150]: "\n"
+ ├─ meta.component.luau [150..165]
+ │   ├─ punctuation.whitespace.optional.sd [150..154]: "    "
+ │   └─ meta.struct.body.luau [154..165]
+ │       ├─ entity.name.type.class.view.sd [154..158]: "slot"
+ │       ├─ punctuation.whitespace.optional.sd [158..159]: " "
+ │       └─ entity.name.type.class.view.sd [159..165]: "footer"
+ ├─ Newline [165..166]: "\n"
+ ├─ meta.component.luau [166..169]
+ │   └─ keyword.control.end.luau [166..169]: "end"
+ ├─ Newline [169..170]: "\n"
+ ├─ Newline [170..171]: "\n"
+ ├─ meta.layout.luau [171..188]
+ │   ├─ keyword.control.layout.luau [171..177]: "layout"
+ │   ├─ punctuation.whitespace.optional.sd [177..178]: " "
+ │   ├─ entity.name.type.define.luau [178..183]: "sheet"
+ │   ├─ punctuation.whitespace.optional.sd [183..184]: " "
+ │   └─ keyword.control.as.luau [184..188]: "with"
+ ├─ Newline [188..189]: "\n"
+ ├─ meta.layout.luau [189..209]
+ │   ├─ punctuation.whitespace.optional.sd [189..191]: "  "
+ │   └─ meta.struct.body.luau [191..209]
+ │       ├─ entity.name.type.class.view.sd [191..195]: "card"
+ │       ├─ punctuation.definition.template-expression.begin.sd [195..196]: "("
+ │       ├─ string.quoted.double.luau [196..207]
+ │       │   ├─ punctuation.definition.string.double.begin.sd [196..197]: "\""
+ │       │   ├─ markup.raw.text.sd [197..206]: "Inventory"
+ │       │   └─ punctuation.definition.string.double.end.sd [206..207]: "\""
+ │       ├─ punctuation.definition.template-expression.end.sd [207..208]: ")"
+ │       └─ meta.template.expression.operator.colon.sd [208..209]: ":"
+ ├─ Newline [209..210]: "\n"
+ ├─ meta.layout.luau [210..234]
+ │   ├─ punctuation.whitespace.optional.sd [210..214]: "    "
+ │   └─ meta.struct.body.luau [214..234]
+ │       ├─ keyword.other.component.builtin.name.sd [214..218]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [218..219]: " "
+ │       └─ string.quoted.double.sd [219..234]
+ │           ├─ punctuation.definition.string.begin.sd [219..220]: "\""
+ │           ├─ markup.raw.whitespace.sd [220..221]: "1"
+ │           ├─ markup.raw.whitespace.sd [221..222]: "0"
+ │           ├─ markup.raw.whitespace.sd [222..223]: " "
+ │           ├─ markup.raw.whitespace.sd [223..224]: "/"
+ │           ├─ markup.raw.whitespace.sd [224..225]: " "
+ │           ├─ markup.raw.whitespace.sd [225..226]: "2"
+ │           ├─ markup.raw.whitespace.sd [226..227]: "0"
+ │           ├─ markup.raw.whitespace.sd [227..228]: " "
+ │           ├─ markup.raw.whitespace.sd [228..229]: "s"
+ │           ├─ markup.raw.whitespace.sd [229..230]: "l"
+ │           ├─ markup.raw.whitespace.sd [230..231]: "o"
+ │           ├─ markup.raw.whitespace.sd [231..232]: "t"
+ │           ├─ markup.raw.whitespace.sd [232..233]: "s"
+ │           └─ punctuation.definition.string.end.sd [233..234]: "\""
+ ├─ Newline [234..235]: "\n"
+ ├─ meta.layout.luau [235..251]
+ │   ├─ punctuation.whitespace.optional.sd [235..239]: "    "
+ │   └─ meta.struct.body.luau [239..251]
+ │       ├─ entity.name.type.class.view.sd [239..243]: "fill"
+ │       ├─ punctuation.whitespace.required.sd [243..244]: " "
+ │       ├─ entity.name.type.class.view.sd [244..250]: "footer"
+ │       └─ meta.template.expression.operator.colon.sd [250..251]: ":"
+ ├─ Newline [251..252]: "\n"
+ ├─ meta.layout.luau [252..287]
+ │   ├─ punctuation.whitespace.optional.sd [252..258]: "      "
+ │   └─ meta.struct.body.luau [258..287]
+ │       ├─ keyword.other.component.builtin.name.sd [258..264]: "button"
+ │       ├─ punctuation.whitespace.optional.sd [264..265]: " "
+ │       ├─ string.quoted.double.sd [265..271]
+ │       │   ├─ punctuation.definition.string.begin.sd [265..266]: "\""
+ │       │   ├─ markup.raw.whitespace.sd [266..267]: "S"
+ │       │   ├─ markup.raw.whitespace.sd [267..268]: "o"
+ │       │   ├─ markup.raw.whitespace.sd [268..269]: "r"
+ │       │   ├─ markup.raw.whitespace.sd [269..270]: "t"
+ │       │   └─ punctuation.definition.string.end.sd [270..271]: "\""
+ │       ├─ punctuation.whitespace.optional.sd [271..272]: " "
+ │       ├─ entity.name.function.attribute.name.view.sd [272..273]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [273..278]: "click"
+ │       ├─ keyword.operator.assignment.sd [278..279]: "="
+ │       └─ variable.other.readwrite.luau [279..287]: "sort_bag"
+ ├─ Newline [287..288]: "\n"
+ ├─ meta.layout.luau [288..318]
+ │   ├─ punctuation.whitespace.optional.sd [288..290]: "  "
+ │   └─ meta.struct.body.luau [290..318]
+ │       ├─ entity.name.type.class.view.sd [290..298]: "stat_row"
+ │       ├─ punctuation.definition.template-expression.begin.sd [298..299]: "("
+ │       ├─ variable.other.readwrite.luau [299..303]: "hero"
+ │       ├─ meta.template.expression.accessor.sd [303..304]: "."
+ │       ├─ variable.other.property.luau [304..308]: "name"
+ │       ├─ keyword.operator.comma.luau [308..309]: ","
+ │       ├─ punctuation.whitespace.optional.sd [309..310]: " "
+ │       ├─ variable.other.readwrite.luau [310..314]: "hero"
+ │       ├─ meta.template.expression.accessor.sd [314..315]: "."
+ │       ├─ variable.other.property.luau [315..317]: "hp"
+ │       └─ punctuation.definition.template-expression.end.sd [317..318]: ")"
+ ├─ Newline [318..319]: "\n"
+ ├─ meta.layout.luau [319..322]
+ │   └─ keyword.control.end.luau [319..322]: "end"
+ └─ Newline [322..323]: "\n"

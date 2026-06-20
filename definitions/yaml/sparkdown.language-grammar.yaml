@@ -3349,6 +3349,7 @@ repository:
           - { include: "#SparkdownLineComment" }
           - { include: "#LuauStructScalarProperty" }
           - { include: "#LuauStructArrayItem" }
+          - { include: "#LuauStructComponentCall" }
           - { include: "#LuauStructObjectHeader" }
           - { include: "#LuauStructAdjacencyContent" }
           - { include: "#LuauStructBareMarker" }
@@ -4501,6 +4502,55 @@ repository:
           - { include: "#StylingValue" }
           - { include: "#UnquotedStringFieldValue" }
 
+  # Component call (spec §4.7): `name(arg, …)` (leaf) or `name(arg):` (container
+  # whose child lines are default-slot content + `fill`s). Invokes an authored
+  # `component` with paren args that are Luau EXPRESSIONS (lowered to Bindings,
+  # evaluated in the CALLER's scope). A DISTINCT shape from a builtin element line
+  # (Golden Rule): args are expressions, not classes/content. Tried before the
+  # object-header / bare-marker shapes so `card("x"):` isn't claimed as a plain
+  # container header. The tag is a CustomComponentName; args tokenize as
+  # comma-separated LuauExpressions the lowerer splits + lowers (mirrors
+  # lowerParentheticalArgList). (Own paren tokenization rather than
+  # LuauParenthetical, whose close requires a binary-operator lookahead.)
+  LuauStructComponentCall:
+    begin: ({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)([(])
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#CustomComponentName" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      4:
+        patterns:
+          - { include: "#PunctuationParenOpen" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: ([)])({{WS}}*)(:?)({{WS}}*)$
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationParenClose" }
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#LuauStructObjectColon" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
   # `^` dropped for engine equality — see LuauStructScalarProperty.
   LuauStructObjectHeader:
     match: ({{WS}}*)(.+?)({{WS}}*)([:])({{WS}}*)$
@@ -5134,9 +5184,12 @@ repository:
         patterns:
           - { include: "#LuauWithKeyword" }
 
-  # Component header: `NAME [as PARENT]`, ending at `with`. No `in CONTAINER`
-  # (containers are a screen-navigation concept). Reuses LuauDefineName /
-  # LuauInheritanceOperation → LuauDefineParentName like the screen header.
+  # Component header: `NAME[(p1, p2)] [as PARENT]`, ending at `with`. No
+  # `in CONTAINER` (containers are a screen-navigation concept). Reuses
+  # LuauDefineName / LuauInheritanceOperation → LuauDefineParentName like the
+  # screen header; the optional `(params)` reuses LuauFunctionParameters (spec
+  # §4.7 — `component card(title) with …`), so param names tokenize as
+  # LuauFunctionParameter and the lowerer reads them into ComponentNode.params.
   LuauComponentNameAndInheritance:
     begin: (?<=component\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
@@ -5144,6 +5197,7 @@ repository:
         patterns:
           - { include: "#LuauDefineName" }
     patterns:
+      - { include: "#LuauFunctionParameters" }
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|({{WS}}*)(with)\b
@@ -5453,7 +5507,7 @@ repository:
     # where this rule stays live, since LuauFunctionBody only opens
     # after a newline). `table.insert(` now fails the lookbehind —
     # no header keyword before it, and it's mid-line.
-    begin: ((?<=\b(?:function|scene|branch|external)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
+    begin: ((?<=\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
     beginCaptures:
       1:
         patterns:

@@ -17,6 +17,29 @@ import {
 // body is the colon/indent named-element tree the engine consumes
 // directly (`stage:` → `backdrop:` → `image = "black"` / bare markers),
 // parsed by the shared lowerStructBody.
+/** Collect the `LuauFunctionParameter` names declared in a component header
+ *  (`component card(title, value)` → ["title", "value"]), in source order. */
+function collectFunctionParameterNames(
+  node: SparkdownSyntaxNodeRef["node"],
+  ctx: LowerContext,
+): string[] {
+  const names: string[] = [];
+  const walk = (n: typeof node) => {
+    let c = n.firstChild;
+    while (c) {
+      if (c.name === "LuauFunctionParameter") {
+        const text = ctx.read(c.from, c.to).trim();
+        if (text) names.push(text);
+      } else {
+        walk(c);
+      }
+      c = c.nextSibling;
+    }
+  };
+  walk(node);
+  return names;
+}
+
 export function lowerLuauUI(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -43,6 +66,15 @@ export function lowerLuauUI(
     ? ctx.read(screenNode.from, screenNode.to).trim()
     : "";
 
+  // Component parameters (`component card(title, …)`): the header's
+  // LuauFunctionParameter names (spec §4.7). Read into ComponentNode.params AND
+  // pushed onto ctx.sparkleLoopVars while the body is lowered, so a `{title}`
+  // binding in the body compiles to `__binding_N(title) return title end` — the
+  // runtime passes each call-arg value as the matching arg (same mechanism as
+  // `for`-loop vars; see LowerContext.sparkleLoopVars / lowerBinding).
+  const params =
+    uiType === "component" ? collectFunctionParameterNames(nodeRef.node, ctx) : [];
+
   const contentNode = findChildByName(
     nodeRef.node,
     `Luau${uiType === "layout" ? "Layout" : "Component"}_content`,
@@ -61,7 +93,12 @@ export function lowerLuauUI(
   // Reactive Sparkle UI AST (additive, not yet consumed by the engine — the
   // static `context` struct above still drives rendering). Built by reading
   // the grammar's already-separated element tokens, never re-parsing raw text.
+  const savedLoopVars = ctx.sparkleLoopVars;
+  if (params.length > 0) {
+    ctx.sparkleLoopVars = [...(savedLoopVars ?? []), ...params];
+  }
   const children = buildSparkleBody(contentNode, ctx);
+  ctx.sparkleLoopVars = savedLoopVars;
   const sparkle =
     uiType === "layout"
       ? {
@@ -81,7 +118,7 @@ export function lowerLuauUI(
               kind: "component",
               name,
               ...(parent ? { extends: parent } : {}),
-              params: [],
+              params,
               children,
             } satisfies ComponentNode,
           },

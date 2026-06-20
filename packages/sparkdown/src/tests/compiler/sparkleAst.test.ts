@@ -446,4 +446,57 @@ end
     expect(ast.pause.extends).toBe("main");
     expect(ast.pause.children[0].tag).toBe("text");
   });
+
+  test("component header params lower to ComponentNode.params", () => {
+    const ast = componentAst(`component stat_row(label, value) with
+  row:
+    text "{value}"
+end
+`);
+    expect(ast.stat_row.params).toEqual(["label", "value"]);
+  });
+
+  test("a component-body binding captures the params as evaluator args", () => {
+    const ast = componentAst(`component card(title) with
+  text "{title}"
+end
+`);
+    const text = ast.card.children[0];
+    const part = text.content.find((p: any) => p.kind === "binding");
+    // `{title}` must compile to `__binding_N(title) return title end` so the
+    // runtime can feed the call-arg value in as `title`.
+    expect(part.binding.params).toEqual(["title"]);
+  });
+
+  test("component call site lowers to an element with positional arg Bindings", () => {
+    const ast = screenAst(`layout sheet with
+  card("Inventory"):
+    text "10 / 20 slots"
+    fill footer:
+      button "Sort"
+  stat_row(hero.name, hero.hp)
+end
+`);
+    const card = ast.sheet.children[0];
+    expect(card.tag).toBe("card");
+    // One positional arg → one PropValue binding (`"Inventory"`).
+    expect(card.params).toHaveLength(1);
+    expect(card.params[0]).toEqual({
+      kind: "binding",
+      binding: {
+        exprId: expect.stringMatching(/^__binding_\d+$/),
+        source: '"Inventory"',
+        span: expect.objectContaining({ from: expect.any(Number) }),
+      },
+    });
+    // Default-slot child + a named fill attach as the call element's children.
+    expect(card.children[0]).toMatchObject({ tag: "text" });
+    expect(card.children[1]).toMatchObject({ kind: "fill", name: "footer" });
+
+    const statRow = ast.sheet.children[1];
+    expect(statRow.tag).toBe("stat_row");
+    expect(statRow.params).toHaveLength(2);
+    expect(statRow.params[0].binding.source).toBe("hero.name");
+    expect(statRow.params[1].binding.source).toBe("hero.hp");
+  });
 });

@@ -117,6 +117,7 @@ function lineKindNode(content: SyntaxNode): SyntaxNode | null {
 
 const LINE_KIND_NAMES = new Set([
   "LuauStructScalarProperty",
+  "LuauStructComponentCall",
   "LuauStructAdjacencyContent",
   "LuauStructObjectHeader",
   "LuauStructBareMarker",
@@ -302,6 +303,85 @@ function lowerBinding(
     source,
     span,
     ...(loopVars.length > 0 ? { params: [...loopVars] } : {}),
+  };
+}
+
+const COMPONENT_CALL_CONTENT = new Set(["LuauStructComponentCall_content"]);
+/** Nodes inside a call's arg list that carry no expression value (separators,
+ *  whitespace, comments) — skipped when grouping args. */
+const ARG_SKIP_RE = /Whitespace|Newline|Comment|Separator/;
+
+/** Build a component-call's positional args (`card(a, b)`) as `PropValue[]`.
+ *  Splits the call's arg expressions on `LuauCommaSeparator` (mirrors
+ *  `lowerParentheticalArgList`) and compiles each group into a reactive
+ *  {@link Binding} — args are evaluated in the CALLER's scope (so they capture
+ *  the caller's loop vars), and the runtime feeds each value to the component as
+ *  the matching declared param. */
+function readComponentArgs(callNode: SyntaxNode, ctx: LowerContext): PropValue[] {
+  const content = firstDescendant(callNode, COMPONENT_CALL_CONTENT);
+  if (!content) return [];
+  const args: PropValue[] = [];
+  let group: SyntaxNode[] = [];
+  const flush = () => {
+    if (group.length > 0) {
+      args.push(lowerComponentArg(group, ctx));
+      group = [];
+    }
+  };
+  let child = content.firstChild;
+  while (child) {
+    if (child.name === "LuauCommaSeparator") {
+      flush();
+    } else if (!ARG_SKIP_RE.test(child.name)) {
+      group.push(child);
+    }
+    child = child.nextSibling;
+  }
+  flush();
+  return args;
+}
+
+/** Compile one component-call arg (a list of expression nodes for a single
+ *  positional argument) into a reactive {@link Binding} PropValue, mirroring
+ *  {@link lowerBinding} but reading already-split nodes via
+ *  `lowerExpressionFromNodes`. Enclosing `for`-loop vars (caller scope) become
+ *  the evaluator's params. */
+function lowerComponentArg(
+  argNodes: SyntaxNode[],
+  ctx: LowerContext,
+): PropValue {
+  const first = argNodes[0]!;
+  const last = argNodes[argNodes.length - 1]!;
+  const exprId = `__binding_${first.from}`;
+  const source = ctx.read(first.from, last.to);
+  const span: SparkRange = {
+    file: ctx.filePath,
+    line: ctx.lineNumber(first.from),
+    from: first.from,
+    to: last.to,
+  };
+  const loopVars = [...(ctx.sparkleLoopVars ?? [])];
+  const already = ctx.hoistedKnots?.some(
+    (o) => o instanceof Function && o.identifier?.name === exprId,
+  );
+  if (!already && ctx.hoistedKnots) {
+    const expr = lowerExpressionFromNodes(argNodes, ctx);
+    ctx.hoistedKnots.push(
+      new Function(
+        new Identifier(exprId),
+        [new ReturnType(expr ?? null)],
+        loopVars.map((n) => new Argument(new Identifier(n), false, false)),
+      ),
+    );
+  }
+  return {
+    kind: "binding",
+    binding: {
+      exprId,
+      source,
+      span,
+      ...(loopVars.length > 0 ? { params: [...loopVars] } : {}),
+    },
   };
 }
 
@@ -676,6 +756,28 @@ function buildBlock(
         if (key) props[key] = readLiteralValue(valueNode, ctx);
         i += 1;
       }
+      continue;
+    }
+
+    if (kind.name === "LuauStructComponentCall") {
+      // `card("Inventory"):` / `stat_row(hero.name, hero.hp)` — invoke an authored
+      // component (spec §4.7). The tag is the CustomComponentName; the paren args
+      // are Luau expressions compiled to per-arg `Binding`s (evaluated in THIS —
+      // the caller's — scope, so they capture the caller's loop vars). Child lines
+      // are the default-slot content + `fill`s (attached like any container).
+      const tagNode = firstDescendant(kind, NAME_TOKEN_NAMES);
+      const tag = tagNode ? ctx.read(tagNode.from, tagNode.to).trim() : "";
+      const element: ElementNode = {
+        kind: "element",
+        tag,
+        classes: [],
+        props: {},
+        events: [],
+        params: readComponentArgs(kind, ctx),
+        children: [],
+      };
+      i = attachBlock(element, lines, i, childIndent, ctx);
+      children.push(element);
       continue;
     }
 
