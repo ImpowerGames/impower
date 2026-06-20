@@ -1,0 +1,80 @@
+name: Publish VS Code Extension
+
+# Auto-publishes the Sparkdown VS Code extension to the Microsoft Marketplace
+# whenever a push to main touches the extension or one of the packages it
+# bundles. Each run auto-bumps the patch version (the Marketplace rejects
+# republishing an existing version), publishes, then commits the bump back.
+#
+# Setup required (one-time):
+#   - Repo secret VSCE_PAT: an Azure DevOps Personal Access Token for the
+#     "impowergames" publisher, scoped to Marketplace > Manage.
+#     See https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "vscode-sparkdown/**"
+      - "packages/**"
+      - ".github/workflows/publish-vscode-extension.yml"
+
+# Never let two publishes overlap or race the version-bump push-back.
+concurrency:
+  group: publish-vscode-extension
+  cancel-in-progress: false
+
+permissions:
+  contents: write # needed to push the version-bump commit back to main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so the bump commit can be pushed back on top of main.
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # >= 23.6 required: the esbuild build scripts are run as .ts via
+          # Node's native type-stripping (node scripts/esbuild.ts).
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bump patch version
+        id: bump
+        run: |
+          npm version patch --no-git-tag-version -w vscode-sparkdown
+          version=$(node -p "require('./vscode-sparkdown/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Bumped vscode-sparkdown to $version"
+
+      # vsce publish runs the extension's vscode:prepublish script, which does
+      # the full production build (npm run package). --no-dependencies skips
+      # vsce's own dependency walk, which chokes on the monorepo's file: deps
+      # (everything is bundled by esbuild anyway).
+      - name: Publish to VS Code Marketplace
+        working-directory: vscode-sparkdown
+        run: npx --yes @vscode/vsce@^3 publish --no-dependencies
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      # Only reached if the publish above succeeded. Pushing with the default
+      # GITHUB_TOKEN does not re-trigger workflows, and [skip ci] is a second
+      # guard against a publish loop.
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vscode-sparkdown/package.json package-lock.json
+          git commit -m "chore(vscode): release v${{ steps.bump.outputs.version }} [skip ci]"
+          # --autostash sets aside any stray working-tree changes (e.g. npm
+          # version normalizing a nested workspace) so the rebase can proceed.
+          git pull --rebase --autostash origin main
+          git push
