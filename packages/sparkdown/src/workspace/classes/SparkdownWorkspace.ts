@@ -476,7 +476,10 @@ export abstract class SparkdownWorkspace {
 
   findFiles(name: string, type: string): string[] {
     const matchingUris: string[] = [];
-    for (const uri of Object.keys(this._watchedFiles)) {
+    // `_watchedFiles` is a Map — `Object.keys` on it is always empty, which had
+    // silently made every findFiles() return [] (so asset file-renames + the
+    // asset branch of getReferences never matched). Iterate the Map's keys.
+    for (const uri of this._watchedFiles.keys()) {
       const fileName = this.getFileName(uri);
       const fileType = this.getFileType(uri);
       if (fileName === name && fileType === type) {
