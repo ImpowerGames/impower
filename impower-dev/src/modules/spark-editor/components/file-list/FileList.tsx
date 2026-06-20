@@ -955,6 +955,14 @@ export default function FileList({
                   <Checkbox class="size-4" />
                   Select
                 </DropdownItem>
+                <DropdownItem
+                  onSelect={() => {
+                    workspace.trashOpen.value = true;
+                  }}
+                >
+                  <Trash class="size-4" />
+                  Recycle bin
+                </DropdownItem>
               </DropdownContent>
             </DropdownRoot>
           }

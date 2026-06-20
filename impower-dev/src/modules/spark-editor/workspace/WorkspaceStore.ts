@@ -90,6 +90,11 @@ class WorkspaceStore {
     null,
   );
 
+  // Whether the project-wide recycle-bin overlay is open. Transient UI state
+  // (a single global instance — trash isn't per-pane), toggled by the file-list
+  // toolbar and the TrashPanel's own close/restore.
+  readonly trashOpen = signal<boolean>(false);
+
   // Pre-built derived signals for the shell's most common slices. Each is a
   // ReadonlySignal so consumers can't mutate them directly — write the whole
   // cache via `current =`, or go through the message-protocol handlers.
