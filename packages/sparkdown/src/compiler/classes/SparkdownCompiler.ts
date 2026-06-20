@@ -31,6 +31,11 @@ import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
 import { DebugMetadata } from "../../inkjs/engine/DebugMetadata";
 import { SourceMetadata } from "../../inkjs/engine/Error";
+import {
+  validateScene,
+  validateBranch,
+} from "../lower/utils/validateSceneBranchScope";
+import { LowerContext } from "../lower/context";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
@@ -1120,6 +1125,14 @@ export class SparkdownCompiler {
       cur.next();
     }
 
+    // Scene/`end` (and branch) pairing validation. This is a CROSS-CHUNK
+    // structural check — a scene's validity depends on a LATER root-level `end`
+    // sibling — so it runs fresh over the whole parse tree each compile rather
+    // than per-chunk during lowering. A per-chunk check would go stale when only
+    // the matching `end` chunk is edited (the earlier scene chunk isn't
+    // re-lowered), silently dropping the "missing `end`" diagnostic incrementally.
+    this.validateSceneStructure(uri, onDiagnostic);
+
     // Auto-terminate non-function scenes / branches whose body doesn't end
     // with an explicit terminator. Sparkdown narrative flows (`scene` /
     // `branch`) are story content — running off the end without a
@@ -1385,6 +1398,50 @@ export class SparkdownCompiler {
   // Path components match `Object.path`: a child with a valid name uses its
   // name, otherwise its index within `content`. Paths are relative to
   // `mainContentContainer`, which is the serialized root and the path root.
+  // Whole-document scene/`end` + branch pairing validation. Walks the file's
+  // root-level Scene/Branch nodes and runs the same forward/backward `end`
+  // pairing checks the lowerer used to do per-chunk — but freshly, over the full
+  // tree, every compile. Because it never relies on a stale per-chunk result, an
+  // edit that breaks only the matching `end` keyword now correctly re-emits the
+  // "missing `end`" diagnostic incrementally. Source positions are absolute (the
+  // doc-level ctx returns document line/column directly), matching what the
+  // previous chunk-relative + lineNumberOffset path produced.
+  validateSceneStructure(
+    uri: string,
+    onDiagnostic: (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null,
+      tags?: number[],
+    ) => void,
+  ) {
+    const tree = this.documents.tree(uri);
+    const doc = this.documents.get(uri);
+    if (!tree || !doc) {
+      return;
+    }
+    const ctx = {
+      filePath: uri,
+      read: (from: number, to: number) => doc.read(from, to),
+      lineNumber: (pos: number) => doc.positionAt(pos).line,
+      characterNumber: (pos: number) => doc.positionAt(pos).character,
+    } as unknown as LowerContext;
+    const emit = (diags: ReturnType<typeof validateScene>) => {
+      for (const d of diags) {
+        onDiagnostic(d.message, d.severity, d.source ?? null);
+      }
+    };
+    let cur = tree.topNode.firstChild;
+    while (cur) {
+      if (cur.name === "Scene") {
+        emit(validateScene(cur, ctx));
+      } else if (cur.name === "Branch") {
+        emit(validateBranch(cur, ctx));
+      }
+      cur = cur.nextSibling;
+    }
+  }
+
   populateAllLocations(program: SparkProgram, story: RuntimeStory) {
     const root = story.mainContentContainer;
     if (!root) {

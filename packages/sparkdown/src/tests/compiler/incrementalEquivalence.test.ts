@@ -272,11 +272,12 @@ describe("compiler incremental equivalence", () => {
     }
   });
 
-  it("incremental == cold under randomized single edits (fuzz, each from fresh)", () => {
-    // Each random edit is applied as a SINGLE incremental update from a freshly
-    // configured compiler (not cumulative), so it exercises the per-flow reuse
-    // path on a wide variety of edit sites/kinds without conflating it with the
-    // separate pre-existing cumulative-parser drift.
+  it("incremental == cold under randomized structural edits (fuzz, full surface)", () => {
+    // Each random edit (structural inserts AND mid-content deletions) is applied
+    // as a SINGLE incremental update from a freshly configured compiler and
+    // compared on the FULL program surface to a cold compile. This exercises the
+    // location/ToJson reuse paths AND the incremental parser+annotation+validation
+    // across a wide variety of edit sites/kinds.
     const realWarn = console.warn;
     const realError = console.error;
     console.warn = () => {};
@@ -289,20 +290,15 @@ describe("compiler incremental equivalence", () => {
         seed = (seed * 1103515245 + 12345) & 0x7fffffff;
         return seed / 0x7fffffff;
       };
-      // Plain-character inserts only, compared on the location-map fields
-      // (Design A's surface). Random STRUCTURAL inserts ("}", "{...}", "//...")
-      // or mid-content deletions at arbitrary offsets can still trip separate
-      // pre-existing incremental-PARSER divergences (compiled / diagnostics
-      // differ — not caused by the location cache); the deterministic edits above
-      // (incl. append, rename, read-count) compare the FULL program surface and
-      // pass. A failure HERE would implicate the caching, not the parser.
-      const inserts = ["x", " ", "1", "a", "Z", "."];
-      for (let n = 0; n < 60; n++) {
+      const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", ""];
+      for (let n = 0; n < 120; n++) {
         const insert = inserts[Math.floor(rand() * inserts.length)]!;
+        const delLen = rand() < 0.4 ? Math.min(1 + Math.floor(rand() * 8), 14) : 0;
+        if (insert === "" && delLen === 0) continue;
         const offset = Math.floor(rand() * base.length);
         const start = posAt(base, offset);
-        const end = start;
-        const after = base.slice(0, offset) + insert + base.slice(offset);
+        const end = posAt(base, Math.min(offset + delLen, base.length));
+        const after = base.slice(0, offset) + insert + base.slice(offset + delLen);
 
         const incr = new SparkdownCompiler();
         incr.configure({
@@ -313,17 +309,12 @@ describe("compiler incremental equivalence", () => {
           textDocument: { uri: URI, version: 2 },
           contentChanges: [{ range: { start, end }, text: insert }],
         });
-        const locOf = (p: any) => ({
-          pathLocations: p.pathLocations,
-          dataLocations: p.dataLocations,
-          pathLocationsOrder: p.pathLocationsOrder,
-          dataLocationsOrder: p.dataLocationsOrder,
-        });
-        const incrLoc = locOf(pick(incr.compile({ textDocument: { uri: URI } }).program));
-        const coldLoc = locOf(coldCompile(after));
-        expect(stable(incrLoc), `after fuzz edit #${n} insert ${JSON.stringify(insert)} @${offset}`).toBe(
-          stable(coldLoc),
-        );
+        const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+        const coldProg = coldCompile(after);
+        expect(
+          stable(incrProg),
+          `after fuzz edit #${n} insert ${JSON.stringify(insert)} del ${delLen} @${offset}`,
+        ).toBe(stable(coldProg));
       }
     } finally {
       console.warn = realWarn;
