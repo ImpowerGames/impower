@@ -1589,7 +1589,11 @@ export class SparkdownCompiler {
   ) {
     const pathEntries: typeof cached.pathEntries = [];
     const dataEntries: typeof cached.dataEntries = [];
-    program.pathLocations ??= {};
+    // Create the maps lazily only when this flow actually contributes entries —
+    // the cold path (populateLocations) creates them on first write, so a flow
+    // with zero entries must not materialize an empty {} (which would diverge
+    // from a cold compile of a file that has no path/data locations at all).
+    if (cached.pathEntries.length > 0) program.pathLocations ??= {};
     const order = this._pathLocationOrder;
     for (const pe of cached.pathEntries) {
       const t = pe.tuple;
@@ -1618,7 +1622,7 @@ export class SparkdownCompiler {
       }
       pathEntries.push({ path: pe.path, tuple: nt });
     }
-    program.dataLocations ??= {};
+    if (cached.dataEntries.length > 0) program.dataLocations ??= {};
     for (const de of cached.dataEntries) {
       const t = de.tuple;
       const nt: [number, number, number, number, number] = [
