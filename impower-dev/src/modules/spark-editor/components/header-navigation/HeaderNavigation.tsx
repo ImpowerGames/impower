@@ -1,5 +1,5 @@
 import { useEffect } from "preact/hooks";
-import { redo, undo } from "../../utils/undoManager";
+import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 import HeaderMenuButton from "../header-menu-button/HeaderMenuButton";
 import HeaderSyncToolbar from "../header-sync-toolbar/HeaderSyncToolbar";
 import HeaderTitleButton from "../header-title-button/HeaderTitleButton";
@@ -55,8 +55,14 @@ export default function HeaderNavigation() {
         if (isEditableFocus()) {
           return;
         }
+        const isRedo = key === "y" || (key === "z" && e.shiftKey);
+        // Only swallow the keystroke when there's actually something to
+        // (un/re)do — otherwise let the browser's native shortcut through.
+        if (isRedo ? !canRedo.value : !canUndo.value) {
+          return;
+        }
         e.preventDefault();
-        if (key === "y" || (key === "z" && e.shiftKey)) {
+        if (isRedo) {
           await redo();
         } else {
           await undo();

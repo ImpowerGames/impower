@@ -403,6 +403,9 @@ function FileItem({
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
+    // Timestamp BEFORE the delete so the undo records exactly this delete's
+    // trash batch, never an older same-path one.
+    const since = Date.now();
     if (isDirectory) {
       const deleted = await Workspace.fs.deleteFolder(projectId, path, mode);
       await Workspace.window.recordAssetChange();
@@ -411,6 +414,7 @@ function FileItem({
           projectId,
           deleted.map((d) => d.uri),
           basename,
+          since,
         );
       }
       return;
@@ -423,7 +427,7 @@ function FileItem({
       await Workspace.window.recordAssetChange();
     }
     if (mode === "trash") {
-      await recordTrashDeletion(projectId, [uri], basename);
+      await recordTrashDeletion(projectId, [uri], basename, since);
     }
   }
 

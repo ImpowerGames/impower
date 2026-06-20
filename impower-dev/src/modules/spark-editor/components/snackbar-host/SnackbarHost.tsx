@@ -27,9 +27,12 @@ export default function SnackbarHost() {
 
   return createPortal(
     <div
-      class="pointer-events-none fixed inset-x-0 bottom-20 z-[60] flex justify-center px-4"
+      // Sits clear of the bottom nav + the Upload/Add FAB band (which the
+      // toast used to overlap). assertive (vs the header caption's polite) so
+      // this time-limited, actionable message is announced promptly.
+      class="pointer-events-none fixed inset-x-0 bottom-32 z-[60] flex justify-center px-4"
       role="status"
-      aria-live="polite"
+      aria-live="assertive"
     >
       <div
         class={`pointer-events-auto flex max-w-[calc(100vw-2rem)] flex-row items-center gap-3 rounded-lg bg-popup px-4 py-3 text-sm text-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 ease-out ${

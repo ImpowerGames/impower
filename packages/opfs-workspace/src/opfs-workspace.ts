@@ -356,9 +356,13 @@ onmessage = async (e) => {
         );
         broadcast(
           DidChangeWatchedFilesMessage.type.notification({
+            // `Changed`, not `Created` — a restored file is reappearing, not a
+            // brand-new authored one. (FileList opens single-`.sd` *Created*
+            // events straight into inline rename; a restore must not do that,
+            // or an Escape would re-delete the just-recovered file.)
             changes: result.restored.map((f) => ({
               uri: f.uri,
-              type: FileChangeType.Created,
+              type: FileChangeType.Changed,
             })),
           }),
         );
@@ -926,7 +930,9 @@ const moveFilesToTrash = async (files: { uri: string }[]) => {
   // One OPFS root for all uris; projectId is the first path segment.
   const projectId = getPathFromUri(files[0]!.uri).split("/")[0]!;
   const deletedAt = Date.now();
-  const batchId = `${deletedAt}__${Math.random().toString(36).slice(2, 8)}`;
+  // `<deletedAt>__<uuid>` — the uuid makes two deletes in the same millisecond
+  // collision-proof (deletedAt is still parseable for purge).
+  const batchId = `${deletedAt}__${crypto.randomUUID()}`;
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   const entries: { relPath: string; originalUri: string; type: string }[] = [];
   for (const file of files) {
@@ -995,14 +1001,52 @@ const removeTrashBatch = async (projectId: string, batchId: string) => {
   await trash.removeEntry(batchId, { recursive: true }).catch(() => {});
 };
 
+const fileExists = async (uri: string): Promise<boolean> => {
+  try {
+    const root = await navigator.storage.getDirectory();
+    await getFileHandleFromUri(root, uri, false);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// A non-colliding restore target — `name (restored).ext`, then `(restored 2)`,
+// … — so restoring NEVER clobbers a file the user recreated at the same path.
+const deconflictRestoreUri = async (uri: string): Promise<string> => {
+  const path = getPathFromUri(uri);
+  const slash = path.lastIndexOf("/");
+  const dir = slash >= 0 ? path.slice(0, slash + 1) : "";
+  const file = slash >= 0 ? path.slice(slash + 1) : path;
+  const dot = file.lastIndexOf(".");
+  const base = dot > 0 ? file.slice(0, dot) : file;
+  const ext = dot > 0 ? file.slice(dot) : "";
+  for (let i = 1; ; i++) {
+    const suffix = i === 1 ? " (restored)" : ` (restored ${i})`;
+    const candidate = getUriFromPath(`${dir}${base}${suffix}${ext}`);
+    if (!(await fileExists(candidate))) {
+      return candidate;
+    }
+  }
+};
+
 // Move a batch's files back to their original locations, then drop the batch.
-// Returns the restored FileData[] so the page can update its caches/UI.
+// Returns the restored FileData[] so the page can update its caches/UI. A file
+// already living at an entry's original path is NOT overwritten — that entry
+// restores to a `(restored)` name instead. Tolerant of an already-gone batch.
 const restoreTrashBatch = async (
   projectId: string,
   batchId: string,
 ): Promise<FileData[]> => {
   const trash = await getTrashDirHandle(projectId);
-  const batchHandle = await trash.getDirectoryHandle(batchId);
+  let batchHandle: FileSystemDirectoryHandle;
+  try {
+    batchHandle = await trash.getDirectoryHandle(batchId);
+  } catch {
+    // The batch was already restored/emptied (e.g. via the Trash panel) — a
+    // no-op so a stale undo action still resolves cleanly.
+    return [];
+  }
   const manifestFile = await (
     await batchHandle.getFileHandle(TRASH_MANIFEST)
   ).getFile();
@@ -1013,7 +1057,10 @@ const restoreTrashBatch = async (
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   for (const entry of m.entries) {
     const data = await readFile(getUriFromPath(`${trashPrefix}/${entry.relPath}`));
-    const [created] = await createFiles([{ uri: entry.originalUri, data }]);
+    const targetUri = (await fileExists(entry.originalUri))
+      ? await deconflictRestoreUri(entry.originalUri)
+      : entry.originalUri;
+    const [created] = await createFiles([{ uri: targetUri, data }]);
     if (created?.file) {
       restored.push(created.file);
     }

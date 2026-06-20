@@ -7,7 +7,7 @@ import {
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { createPortal } from "preact/compat";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { useMountTransition } from "../../hooks/useMountTransition";
 import workspace from "../../workspace/WorkspaceStore";
 
@@ -67,6 +67,9 @@ export default function TrashPanel() {
   const [batches, setBatches] = useState<TrashBatch[] | null>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
+  // Synchronous latch — `busy` only disables the buttons after a re-render, so
+  // a fast double-tap could fire a worker op twice before that lands.
+  const busyRef = useRef(false);
 
   const close = () => {
     workspace.trashOpen.value = false;
@@ -104,6 +107,8 @@ export default function TrashPanel() {
   }, [open, confirm]);
 
   const restore = async (batchId: string) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const pid = workspace.signals.projectId.value;
@@ -114,13 +119,18 @@ export default function TrashPanel() {
         await Workspace.window.recordScriptChange();
         await Workspace.window.recordAssetChange();
       }
+    } catch {
+      // A lost race (batch already gone) is fine — the list just refreshes.
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
     await refresh();
   };
 
   const deletePermanently = async (batchId: string) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const pid = workspace.signals.projectId.value;
@@ -128,7 +138,10 @@ export default function TrashPanel() {
         const { Workspace } = await import("../../workspace/Workspace");
         await Workspace.fs.deleteTrashBatch(pid, batchId);
       }
+    } catch {
+      // ignore — refresh below reflects the real state
     } finally {
+      busyRef.current = false;
       setBusy(false);
       setConfirm(null);
     }
@@ -136,6 +149,8 @@ export default function TrashPanel() {
   };
 
   const empty = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const pid = workspace.signals.projectId.value;
@@ -143,7 +158,10 @@ export default function TrashPanel() {
         const { Workspace } = await import("../../workspace/Workspace");
         await Workspace.fs.emptyTrash(pid);
       }
+    } catch {
+      // ignore — refresh below reflects the real state
     } finally {
+      busyRef.current = false;
       setBusy(false);
       setConfirm(null);
     }

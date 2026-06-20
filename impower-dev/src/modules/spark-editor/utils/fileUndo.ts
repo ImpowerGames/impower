@@ -1,17 +1,23 @@
 import { showSnackbar } from "./snackbar";
 import { pushUndo, undo } from "./undoManager";
 
-// The trash batch ids whose entries include any of `uris` (a single delete
-// makes one batch; a bulk delete makes several).
+// The trash batch ids created at/after `sinceMs` whose entries include any of
+// `uris` (a single delete makes one batch; a bulk delete makes several). The
+// `sinceMs` floor is essential: the same originalUri can live in an OLDER batch
+// (delete X -> recreate X -> delete X), and an undo must target only the batch
+// THIS delete just produced, never the stale older one.
 async function findBatchesForUris(
   projectId: string,
   uris: string[],
+  sinceMs: number,
 ): Promise<string[]> {
   const { Workspace } = await import("../workspace/Workspace");
   const batches = await Workspace.fs.listTrash(projectId);
   const set = new Set(uris);
   return batches
-    .filter((b) => b.entries.some((e) => set.has(e.originalUri)))
+    .filter(
+      (b) => b.deletedAt >= sinceMs && b.entries.some((e) => set.has(e.originalUri)),
+    )
     .map((b) => b.batchId);
 }
 
@@ -31,8 +37,11 @@ export async function recordTrashDeletion(
   projectId: string,
   deletedUris: string[],
   label: string,
+  // Captured by the caller just BEFORE the delete, so we only pick up the
+  // batch(es) THIS delete produced (not an older same-path batch).
+  since: number,
 ) {
-  let batchIds = await findBatchesForUris(projectId, deletedUris);
+  let batchIds = await findBatchesForUris(projectId, deletedUris, since);
   if (batchIds.length === 0) {
     return;
   }
@@ -46,6 +55,7 @@ export async function recordTrashDeletion(
       await markProjectDirty();
     },
     redo: async () => {
+      const redoSince = Date.now();
       const { Workspace } = await import("../workspace/Workspace");
       await Workspace.fs.deleteFiles({
         files: deletedUris.map((uri) => ({ uri })),
@@ -53,7 +63,7 @@ export async function recordTrashDeletion(
       });
       // The redo lands in NEW batches — retarget so a subsequent undo restores
       // the right ones.
-      batchIds = await findBatchesForUris(projectId, deletedUris);
+      batchIds = await findBatchesForUris(projectId, deletedUris, redoSince);
       await markProjectDirty();
     },
   });
@@ -127,12 +137,13 @@ export function recordCreate(
   pushUndo({
     label: `Create ${label}`,
     undo: async () => {
+      const since = Date.now();
       const { Workspace } = await import("../workspace/Workspace");
       await Workspace.fs.deleteFiles({
         files: createdUris.map((uri) => ({ uri })),
         mode: "trash",
       });
-      batchIds = await findBatchesForUris(projectId, createdUris);
+      batchIds = await findBatchesForUris(projectId, createdUris, since);
       await markProjectDirty();
     },
     redo: async () => {
