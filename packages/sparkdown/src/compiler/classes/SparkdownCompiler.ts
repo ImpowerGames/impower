@@ -89,6 +89,23 @@ export type SparkdownCompilerEvents = {
   "compiler/didRemove": (params: RemovedCompilerFileParams) => void;
 };
 
+// Cached per-flow location entries for the incremental location-map cache
+// (Design A). Tuples are [scriptIndex, startLine, startColumn, endLine,
+// endColumn] in 0-based document coordinates.
+type FlowLocCacheEntry = {
+  // The flow's 0-based source start line at the time these entries were
+  // captured — the reference for computing the line delta on reuse.
+  startLine0: number;
+  pathEntries: Array<{
+    path: string;
+    tuple: [number, number, number, number, number];
+  }>;
+  dataEntries: Array<{
+    key: string;
+    tuple: [number, number, number, number, number];
+  }>;
+};
+
 export class SparkdownCompiler {
   protected _profilerId?: string;
   get profilerId() {
@@ -131,6 +148,36 @@ export class SparkdownCompiler {
     number,
     Map<number, Array<[path: string, startColumn: number]>>
   >;
+
+  // ---- Incremental location-map cache (Design A) ------------------------
+  // Per top-level flow (knot/scene/function name = its key in the runtime
+  // mainContentContainer.namedOnlyContent), the pathLocations + dataLocations
+  // entries that flow's subtree contributed last compile, plus the flow's
+  // 0-based source start line. On a warm compile, a flow whose source is
+  // unchanged (no changed chunk overlaps its span) and whose scriptIndex is
+  // unchanged can have its entries REUSED with a single additive line delta
+  // (newStart - oldStart) instead of re-walking its subtree — populateLocations'
+  // per-leaf body (~29ms) is the cost being skipped. ExportRuntime + ToJson
+  // still run fully, so program.compiled is untouched and byte-identical.
+  protected _locCache?: Map<string, FlowLocCacheEntry>;
+  // Signature of the resolved script set+order; cleared cache when it changes
+  // (scriptIndex — tuple[0] of every entry — is derived from it).
+  protected _locCacheScriptsKey?: string;
+  // CompiledBlock identities seen in the PREVIOUS compile; a chunk is unchanged
+  // iff its identity is still present (carried forward by the annotation
+  // RangeSet for chunks outside the reparse window).
+  protected _prevCompilationIds?: Set<object>;
+  // Accumulated during the current compile's chunk walk.
+  protected _compilationIds?: Set<object>;
+  // 0-based [startLine, endLine] source ranges of chunks that are NEW/changed
+  // this compile (identity not in `_prevCompilationIds`).
+  protected _changedChunkRanges?: Array<[number, number]>;
+  // While recomputing a non-reusable flow's subtree, populateLocations tees the
+  // entries it commits here so they can be cached for next compile.
+  protected _locCaptureTarget?: {
+    pathEntries: FlowLocCacheEntry["pathEntries"];
+    dataEntries: FlowLocCacheEntry["dataEntries"];
+  } | null;
 
   protected _builtinStructs: {
     [type: string]: {
@@ -482,6 +529,13 @@ export class SparkdownCompiler {
 
     this.populateBuiltins(state, program);
 
+    // Begin a fresh per-compile record of chunk identities + changed ranges
+    // for the incremental location cache (see `_locCache`). Populated by the
+    // recursive `parseIncrementally` chunk walk(s), consumed by
+    // `populateAllLocations`, finalized below.
+    this._compilationIds = new Set();
+    this._changedChunkRanges = [];
+
     try {
       profile("start", this._profilerId, "ink/parse", uri);
       const parsedStory = this.parseIncrementally(
@@ -527,6 +581,9 @@ export class SparkdownCompiler {
           Object.keys(program.scripts).map((u, i) => [u, i]),
         );
         this.populateAllLocations(program, story);
+        // Carry this compile's chunk-identity set forward so the next compile
+        // can tell which chunks are unchanged.
+        this._prevCompilationIds = this._compilationIds;
         profile("end", this._profilerId, "populateLocations", uri);
       }
     } catch (e) {
@@ -664,6 +721,18 @@ export class SparkdownCompiler {
         hoistedKnots,
       } = cur.value.type;
       const lineNumberOffset = document?.lineAt(cur.from) ?? 0;
+      // Track chunk identity for the incremental location cache. A chunk whose
+      // CompiledBlock object is carried forward from the previous compile (same
+      // identity) is unchanged; a new identity means it was re-lowered. Record
+      // changed chunks' 0-based source line ranges so `populateAllLocations` can
+      // tell which flows' subtrees must be recomputed vs reused.
+      const compiledBlock = cur.value.type as object;
+      this._compilationIds?.add(compiledBlock);
+      if (this._prevCompilationIds && !this._prevCompilationIds.has(compiledBlock)) {
+        const chunkStart = lineNumberOffset;
+        const chunkEnd = document?.lineAt(cur.to) ?? chunkStart;
+        this._changedChunkRanges?.push([chunkStart, chunkEnd]);
+      }
       // Anonymous function literals lowered at chunk-top-level (i.e.
       // outside any enclosing function definition) produce synthetic
       // FlowBase objects that need to land at the story's top level.
@@ -1166,13 +1235,22 @@ export class SparkdownCompiler {
         if (varAss.variableName && !varAss.isNewDeclaration) {
           if (varAss.isGlobal) {
             program.dataLocations ??= {};
-            program.dataLocations[varAss.variableName] ??= [
-              scriptIndex,
-              startLine,
-              startColumn,
-              endLine,
-              endColumn,
-            ];
+            // Explicit first-write check (was `??=`) so we capture into the
+            // flow cache ONLY the entry this call actually committed.
+            if (!(varAss.variableName in program.dataLocations)) {
+              const tuple: [number, number, number, number, number] = [
+                scriptIndex,
+                startLine,
+                startColumn,
+                endLine,
+                endColumn,
+              ];
+              program.dataLocations[varAss.variableName] = tuple;
+              this._locCaptureTarget?.dataEntries.push({
+                key: varAss.variableName,
+                tuple,
+              });
+            }
           } else {
             const containerPath = (precomputedPath ?? varAss.path.toString())
               .split(".")
@@ -1184,8 +1262,18 @@ export class SparkdownCompiler {
               )
               .join(".");
             program.dataLocations ??= {};
-            program.dataLocations[containerPath + "." + varAss.variableName] ??=
-              [scriptIndex, startLine, startColumn, endLine, endColumn];
+            const dataKey = containerPath + "." + varAss.variableName;
+            if (!(dataKey in program.dataLocations)) {
+              const tuple: [number, number, number, number, number] = [
+                scriptIndex,
+                startLine,
+                startColumn,
+                endLine,
+                endColumn,
+              ];
+              program.dataLocations[dataKey] = tuple;
+              this._locCaptureTarget?.dataEntries.push({ key: dataKey, tuple });
+            }
           }
         }
       }
@@ -1248,13 +1336,15 @@ export class SparkdownCompiler {
           }
           program.pathLocations ??= {};
           if (!(path in program.pathLocations)) {
-            program.pathLocations[path] = [
+            const tuple: [number, number, number, number, number] = [
               scriptIndex,
               startLine,
               startColumn,
               endLine,
               endColumn,
             ];
+            program.pathLocations[path] = tuple;
+            this._locCaptureTarget?.pathEntries.push({ path, tuple });
             // Record creation order, bucketed by (scriptIndex, startLine), for
             // the linear-time `sortPathLocations`. Only the first write per
             // path creates an entry (matching the previous `??=`), so a path is
@@ -1303,6 +1393,9 @@ export class SparkdownCompiler {
     // Fresh creation-order index for this compile; consumed by
     // `sortPathLocations` to avoid a comparison sort over every entry.
     this._pathLocationOrder = new Map();
+
+    // Generic recursive walk (unchanged behavior) — used for the root's inline
+    // content and for recomputing non-reusable top-level flow subtrees.
     const walk = (
       container: Container,
       parentPath: string,
@@ -1349,7 +1442,206 @@ export class SparkdownCompiler {
         }
       }
     };
-    walk(root, "", null);
+
+    // --- Incremental location cache (Design A) ---------------------------
+    // Reuse cached per-flow entries (line-shifted) for top-level flows whose
+    // source is unchanged this compile, skipping the per-leaf populateLocations
+    // body for their subtrees. ExportRuntime + ToJson are untouched, so
+    // program.compiled stays byte-identical; only the *Locations maps are
+    // affected and the union is always re-sorted by `sortPathLocations`.
+    const scriptsKey = Object.keys(program.scripts).join(" ");
+    if (this._locCacheScriptsKey !== scriptsKey) {
+      this._locCache = undefined;
+      this._locCacheScriptsKey = scriptsKey;
+    }
+    const prevCache = this._locCache;
+    const changed = this._changedChunkRanges ?? [];
+    const nextCache: NonNullable<typeof this._locCache> = new Map();
+
+    const rootMeta = root.ownDebugMetadata ?? null;
+
+    // 1) Root inline content (index-addressed positional prefix) — always
+    //    recomputed (small; never cached).
+    const rootContent = root.content;
+    for (let i = 0; i < rootContent.length; i++) {
+      const child = rootContent[i];
+      const named = asINamedContentOrNull(child);
+      const comp = named != null && named.hasValidName ? named.name! : i;
+      const childPath = `${comp}`;
+      const childContainer = asOrNull(child, Container);
+      if (childContainer) {
+        walk(childContainer, childPath, rootMeta);
+      } else {
+        this.populateLocations(
+          program,
+          child,
+          childPath,
+          child.ownDebugMetadata ?? rootMeta,
+        );
+      }
+    }
+
+    // 2) Top-level named flows — reuse-with-delta or recompute-and-capture.
+    const named = root.namedOnlyContent;
+    if (named) {
+      const flows: Array<{
+        name: string;
+        container: Container | null;
+        value: InkObject;
+        start0: number;
+      }> = [];
+      for (const [name, value] of named) {
+        const container = asOrNull(value, Container);
+        const md = container?.ownDebugMetadata;
+        flows.push({
+          name,
+          container,
+          value,
+          start0: md ? md.startLineNumber - 1 : -1,
+        });
+      }
+      // Sorted start lines → each flow's span end is the next flow's start.
+      const starts = flows
+        .map((f) => f.start0)
+        .filter((s) => s >= 0)
+        .sort((a, b) => a - b);
+      const spanEndOf = (start0: number): number => {
+        for (const s of starts) {
+          if (s > start0) {
+            return s;
+          }
+        }
+        return Number.POSITIVE_INFINITY;
+      };
+      for (const f of flows) {
+        // `global decl`'s source is non-contiguous (scattered declarations), so
+        // it never gets a span — always recompute it (it emits no pathLocations
+        // since its paths start with "global ", only a few dataLocations).
+        const reusable =
+          f.container != null &&
+          f.start0 >= 0 &&
+          f.name !== "global decl" &&
+          prevCache != null;
+        if (reusable) {
+          const cached = prevCache!.get(f.name);
+          if (cached) {
+            const end0 = spanEndOf(f.start0);
+            const guardStart = f.start0 - 1;
+            let overlap = false;
+            for (let i = 0; i < changed.length; i++) {
+              const cs = changed[i]![0];
+              const ce = changed[i]![1];
+              if (ce >= guardStart && cs < end0) {
+                overlap = true;
+                break;
+              }
+            }
+            if (!overlap) {
+              this.spliceCachedFlowLocations(
+                program,
+                f.name,
+                cached,
+                f.start0 - cached.startLine0,
+                nextCache,
+              );
+              continue;
+            }
+          }
+        }
+        // Recompute (and capture, unless it's the uncacheable global decl).
+        if (f.container) {
+          const capture =
+            f.name === "global decl"
+              ? null
+              : { pathEntries: [], dataEntries: [] };
+          const prevTarget = this._locCaptureTarget;
+          this._locCaptureTarget = capture;
+          walk(f.container, f.name, rootMeta);
+          this._locCaptureTarget = prevTarget;
+          if (capture) {
+            nextCache.set(f.name, { startLine0: f.start0, ...capture });
+          }
+        } else {
+          this.populateLocations(
+            program,
+            f.value,
+            f.name,
+            f.value.ownDebugMetadata ?? rootMeta,
+          );
+        }
+      }
+    }
+
+    this._locCache = nextCache;
+  }
+
+  // Splice a flow's cached location entries back into `program`, shifting every
+  // line by `delta` (the flow moved by that many source lines but its content
+  // is unchanged). Reproduces the first-write-wins commit + `_pathLocationOrder`
+  // bucketing that `populateLocations` does, and records the shifted entries
+  // into `nextCache` so the next compile's delta is relative to this one.
+  protected spliceCachedFlowLocations(
+    program: SparkProgram,
+    name: string,
+    cached: FlowLocCacheEntry,
+    delta: number,
+    nextCache: Map<string, FlowLocCacheEntry>,
+  ) {
+    const pathEntries: typeof cached.pathEntries = [];
+    const dataEntries: typeof cached.dataEntries = [];
+    // Create the maps lazily only when this flow actually contributes entries —
+    // the cold path (populateLocations) creates them on first write, so a flow
+    // with zero entries must not materialize an empty {} (which would diverge
+    // from a cold compile of a file that has no path/data locations at all).
+    if (cached.pathEntries.length > 0) program.pathLocations ??= {};
+    const order = this._pathLocationOrder;
+    for (const pe of cached.pathEntries) {
+      const t = pe.tuple;
+      const nt: [number, number, number, number, number] = [
+        t[0],
+        t[1] + delta,
+        t[2],
+        t[3] + delta,
+        t[4],
+      ];
+      if (!(pe.path in program.pathLocations)) {
+        program.pathLocations[pe.path] = nt;
+        if (order) {
+          let byLine = order.get(nt[0]);
+          if (!byLine) {
+            byLine = new Map();
+            order.set(nt[0], byLine);
+          }
+          let bucket = byLine.get(nt[1]);
+          if (!bucket) {
+            bucket = [];
+            byLine.set(nt[1], bucket);
+          }
+          bucket.push([pe.path, nt[2]]);
+        }
+      }
+      pathEntries.push({ path: pe.path, tuple: nt });
+    }
+    if (cached.dataEntries.length > 0) program.dataLocations ??= {};
+    for (const de of cached.dataEntries) {
+      const t = de.tuple;
+      const nt: [number, number, number, number, number] = [
+        t[0],
+        t[1] + delta,
+        t[2],
+        t[3] + delta,
+        t[4],
+      ];
+      if (!(de.key in program.dataLocations)) {
+        program.dataLocations[de.key] = nt;
+      }
+      dataEntries.push({ key: de.key, tuple: nt });
+    }
+    nextCache.set(name, {
+      startLine0: cached.startLine0 + delta,
+      pathEntries,
+      dataEntries,
+    });
   }
 
   populateFiles(program: SparkProgram) {

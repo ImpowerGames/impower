@@ -220,6 +220,27 @@ export abstract class ParsedObject {
       return found;
     };
 
+  // Single-pass equivalent of calling `FindAll` once per type: walks the tree
+  // a single time, pushing each object into the bucket of every type it is an
+  // instance of. `types[i]` matches into `buckets[i]`. Preserves the same
+  // depth-first pre-order FindAll produces, so per-type results are identical
+  // to separate FindAll passes — but with one traversal instead of N.
+  public readonly CollectByType = (
+    types: Array<Function>,
+    buckets: ParsedObject[][],
+  ): void => {
+    for (let i = 0; i < types.length; i += 1) {
+      if (this instanceof (types[i] as any)) {
+        buckets[i].push(this);
+      }
+    }
+    if (this.content !== null) {
+      for (const obj of this.content) {
+        obj.CollectByType && obj.CollectByType(types, buckets);
+      }
+    }
+  };
+
   public ResolveReferences(context: Story) {
     if (this.content !== null) {
       for (const obj of this.content) {
