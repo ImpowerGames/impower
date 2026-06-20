@@ -36,6 +36,33 @@ export class GrammarState {
     this.absolutePos = absolutePos;
   }
 
+  /**
+   * Re-arm this state for a new match window. The per-call scratch (`visited`
+   * recursion guard, `_matchDepth`) is always cleared.
+   *
+   * Phase A: the scope `stack` is also reset to its initial single `None` frame,
+   * so reusing one `GrammarState` across match calls is byte-identical to
+   * allocating a fresh one each time. Phase B will stop resetting the stack so
+   * scope context can persist across lines.
+   */
+  reset(
+    str: string,
+    next?: (absolutePos: number) => string,
+    absolutePos: number = 0,
+  ) {
+    this.str = str;
+    this.next = next;
+    this.absolutePos = absolutePos;
+    this.visited.length = 0;
+    this._matchDepth = 0;
+    this.stack = new GrammarStack([
+      {
+        node: GrammarNode.None,
+        beginCaptures: [],
+      },
+    ]);
+  }
+
   advance() {
     if (!this.next) {
       return;

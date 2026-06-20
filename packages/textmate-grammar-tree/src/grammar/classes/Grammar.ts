@@ -125,12 +125,13 @@ export class Grammar {
    *   `from` position.
    */
   match(
+    state: GrammarState,
     str: string,
     next: (pos: number) => string,
     relativePos: number,
     absolutePos = relativePos,
   ) {
-    const state = new GrammarState(str, next, absolutePos);
+    state.reset(str, next, absolutePos);
 
     const rules = this.rules;
     if (rules) {
