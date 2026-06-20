@@ -123,7 +123,16 @@ export default function FileOptionsButton({
           <DotsVertical class="size-5" />
         </Button>
       </DropdownTrigger>
-      <DropdownContent align="end" sideOffset={4}>
+      <DropdownContent
+        align="end"
+        sideOffset={4}
+        // Don't let Radix yank focus back to the 3-dots trigger when the menu
+        // closes — "Rename" puts the row into inline-edit mode and focuses its
+        // input, and the trigger is unmounted moments later by the lazy-arm
+        // teardown, so the restored focus would land on <body> and the rename
+        // field would lose its selection the instant it opened.
+        onCloseAutoFocus={(e) => e.preventDefault()}
+      >
         <DropdownItem disabled={disabled} onSelect={() => onRename()}>
           <Pencil class="size-4" />
           Rename
