@@ -10,7 +10,7 @@
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
-const SCREEN = `screen main with
+const SCREEN = `layout main with
   title:
     text
   heading:

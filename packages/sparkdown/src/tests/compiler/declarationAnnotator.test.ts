@@ -41,7 +41,7 @@ function greet(who, times)
   const BAR = 2
   local msg = "hi"
 end
-screen hud with
+layout hud with
   text
 end
 `);

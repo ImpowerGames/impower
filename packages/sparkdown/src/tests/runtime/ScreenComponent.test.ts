@@ -11,7 +11,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 function compileUI(source: string): {
-  screen: Record<string, any>;
+  layout: Record<string, any>;
   component: Record<string, any>;
   errors: string[];
 } {
@@ -44,7 +44,7 @@ function compileUI(source: string): {
   }
   const context = result.program.context ?? {};
   return {
-    screen: context["screen"] ?? {},
+    layout: context["layout"] ?? {},
     component: context["component"] ?? {},
     errors,
   };
@@ -52,7 +52,7 @@ function compileUI(source: string): {
 
 describe("screen · named-element tree", () => {
   test("nested elements + scalars + bare markers", () => {
-    const r = compileUI(`screen main with
+    const r = compileUI(`layout main with
   stage:
     backdrop:
       image = "black"
@@ -63,8 +63,8 @@ describe("screen · named-element tree", () => {
 end
 `);
     expect(r.errors).toEqual([]);
-    expect(r.screen["main"]).toEqual({
-      $type: "screen",
+    expect(r.layout["main"]).toEqual({
+      $type: "layout",
       $name: "main",
       $recursive: true,
       stage: {
@@ -87,20 +87,20 @@ describe("screen · reactive content interpolation", () => {
     // surface as a diagnostic here.
     const r = compileUI(`store hp = 100
 store max_hp = 100
-screen hud with
+layout hud with
   text = "HP: {hp} / {max_hp + 0}"
 end
 `);
     expect(r.errors).toEqual([]);
     // Static struct still carries the raw content string (engine path
     // unchanged in Phase 1).
-    expect(r.screen["hud"]["text"]).toBe("HP: {hp} / {max_hp + 0}");
+    expect(r.layout["hud"]["text"]).toBe("HP: {hp} / {max_hp + 0}");
   });
 });
 
 describe("screen · adjacency content", () => {
   test("`tag \"content\"` produces the same context struct as `tag = \"content\"`", () => {
-    const r = compileUI(`screen main with
+    const r = compileUI(`layout main with
   stage:
     backdrop:
       image "black"
@@ -109,7 +109,7 @@ end
     expect(r.errors).toEqual([]);
     // Adjacency `image "black"` lowers to { image: "black" } — identical to the
     // scalar `image = "black"` form (engine static path unchanged).
-    expect(r.screen["main"]["stage"]).toEqual({ backdrop: { image: "black" } });
+    expect(r.layout["main"]["stage"]).toEqual({ backdrop: { image: "black" } });
   });
 });
 
@@ -120,7 +120,7 @@ function use_item()
 end
 function take_damage(n)
 end
-screen hud with
+layout hud with
   row:
     button "Use" @click=use_item
     button "Hit" @click=take_damage(10)
@@ -129,7 +129,7 @@ end
     expect(r.errors).toEqual([]);
     // The reactive `@click` attrs are not in the static context struct — only
     // the element + its content survive.
-    expect(r.screen["hud"]["row"]).toEqual({
+    expect(r.layout["hud"]["row"]).toEqual({
       button: "Hit",
     });
   });
@@ -138,7 +138,7 @@ end
 describe("screen · inline props", () => {
   test("`#prop` is dropped from the static struct; container header keeps its `:`", () => {
     const r = compileUI(`store team_color = "red"
-screen panel with
+layout panel with
   column #gap=16:
     image #src="icon.png"
     text "hi" #color={team_color}
@@ -148,7 +148,7 @@ end
     // `column #gap=16:` stays a container (the `:` survives attribute excision);
     // its inline props are absent from the static struct. `image #src=…` → bare
     // marker {}, `text "hi" #color=…` → { text: "hi" }.
-    expect(r.screen["panel"]["column"]).toEqual({
+    expect(r.layout["panel"]["column"]).toEqual({
       image: {},
       text: "hi",
     });
@@ -157,14 +157,14 @@ end
 
 describe("screen · classes", () => {
   test("classes stay in the static struct key; content is the value", () => {
-    const r = compileUI(`screen main with
+    const r = compileUI(`layout main with
   stage:
     mask shadow_1
     text title "Inventory"
 end
 `);
     expect(r.errors).toEqual([]);
-    expect(r.screen["main"]["stage"]).toEqual({
+    expect(r.layout["main"]["stage"]).toEqual({
       "mask shadow_1": {},
       "text title": "Inventory",
     });
@@ -179,7 +179,7 @@ end
           type: "script",
           name: "m",
           ext: "sd",
-          text: `screen main with
+          text: `layout main with
   stage:
     button text "Oops"
 end
@@ -208,7 +208,7 @@ describe("screen · control flow", () => {
   test("if/elseif/else compiles cleanly (condition evaluators hoisted)", () => {
     const r = compileUI(`store dead = false
 store hp = 100
-screen hud with
+layout hud with
   if dead then
     text "over"
   elseif hp < 10 then
@@ -230,7 +230,7 @@ describe("screen · for loop", () => {
     const r = compileUI(`store inventory = {}
 function use_item()
 end
-screen bag with
+layout bag with
   for item in inventory do
     button "Use" @click=use_item
   else
@@ -245,7 +245,7 @@ end
 describe("screen · match", () => {
   test("match/case/else compiles cleanly (matched expr hoisted)", () => {
     const r = compileUI(`store player_class = "knight"
-screen sheet with
+layout sheet with
   match player_class do
   case "knight"
     text "Knight"
@@ -289,7 +289,7 @@ describe("screen · coexistence", () => {
     const r = compileUI(`style title with
   font_size = lg
 end
-screen s with
+layout s with
   textbox:
     title:
       text
@@ -301,6 +301,6 @@ scene main
 end
 `);
     expect(r.errors).toEqual([]);
-    expect(r.screen["s"]["textbox"]).toEqual({ title: { text: {} } });
+    expect(r.layout["s"]["textbox"]).toEqual({ title: { text: {} } });
   });
 });

@@ -309,6 +309,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       nodeRef.name === "LuauFunctionDefinition" ||
       nodeRef.name === "LuauDefine" ||
       nodeRef.name === "LuauStyle" ||
+      nodeRef.name === "LuauLayout" ||
       nodeRef.name === "LuauScreen" ||
       nodeRef.name === "LuauComponent"
     ) {

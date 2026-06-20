@@ -13,7 +13,7 @@ import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 import { WriteTextMessage } from "../../game/modules/ui/classes/messages/WriteTextMessage";
 
-const SCREEN = `screen main with
+const SCREEN = `layout main with
   action:
     text
 end

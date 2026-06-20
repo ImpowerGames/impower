@@ -3,8 +3,8 @@ import { compileSource } from "./compileSnapshot";
 
 function screenAst(source: string): any {
   const entries = compileSource(source);
-  const screen = entries.find((e) => e.block?.sparkle?.screens);
-  return screen?.block?.sparkle?.screens;
+  const screen = entries.find((e) => e.block?.sparkle?.layouts);
+  return screen?.block?.sparkle?.layouts;
 }
 
 function componentAst(source: string): any {
@@ -15,7 +15,7 @@ function componentAst(source: string): any {
 
 describe("reactive sparkle AST", () => {
   test("screen body lowers to a typed element tree (read from grammar tokens)", () => {
-    const ast = screenAst(`screen main with
+    const ast = screenAst(`layout main with
   stage:
     backdrop:
       image = "black"
@@ -28,7 +28,7 @@ end
 `);
     expect(ast).toEqual({
       main: {
-        kind: "screen",
+        kind: "layout",
         name: "main",
         children: [
           {
@@ -106,7 +106,7 @@ end
   });
 
   test("interpolated content lowers to ordered literal + binding parts", () => {
-    const ast = screenAst(`screen hud with
+    const ast = screenAst(`layout hud with
   text = "HP: {hp} / {max_hp}"
 end
 `);
@@ -139,7 +139,7 @@ end
   });
 
   test("adjacency content `tag \"...\"` lowers to an element with content", () => {
-    const ast = screenAst(`screen main with
+    const ast = screenAst(`layout main with
   stage:
     image "black"
     text "HP: {hp}"
@@ -165,7 +165,7 @@ end
   });
 
   test("`@event=handler` lowers to EventBindings (ref + call)", () => {
-    const ast = screenAst(`screen hud with
+    const ast = screenAst(`layout hud with
   row:
     button "Use" @click=use_item
     button "Hit" @click=take_damage(10)
@@ -196,7 +196,7 @@ end
   });
 
   test("`@event={ ... }` lowers to a closure EventBinding (statements, not a table)", () => {
-    const ast = screenAst(`screen form with
+    const ast = screenAst(`layout form with
   field @input={ name = event.value }
   button "Reset" @click={ score = 0; combo = 0 }
 end
@@ -226,7 +226,7 @@ end
   });
 
   test("`#prop=value` lowers to literal + binding PropValues (header/marker/adjacency)", () => {
-    const ast = screenAst(`screen panel with
+    const ast = screenAst(`layout panel with
   column #gap=16:
     image #src="icon.png"
     text "hi" #opacity=0.5 #color={team_color}
@@ -253,7 +253,7 @@ end
   });
 
   test("classes are bare words; the builtin token is the tag (position-independent)", () => {
-    const ast = screenAst(`screen main with
+    const ast = screenAst(`layout main with
   stage:
     mask shadow_1
     shadow_1 mask
@@ -271,7 +271,7 @@ end
   });
 
   test("class + adjacency content + trailing attribute coexist on one line", () => {
-    const ast = screenAst(`screen main with
+    const ast = screenAst(`layout main with
   stage:
     button primary "Use" @click=use_item
     label big "HP: {hp}" #color={team_color}
@@ -298,7 +298,7 @@ end
   });
 
   test("if/elseif/else lowers to an IfNode (branches + else, grammar children)", () => {
-    const ast = screenAst(`screen hud with
+    const ast = screenAst(`layout hud with
   stage:
     if player.dead then
       text "GAME OVER"
@@ -327,7 +327,7 @@ end
   });
 
   test("`if` with no else omits the else branch", () => {
-    const ast = screenAst(`screen hud with
+    const ast = screenAst(`layout hud with
   if ready then
     text "Go"
   end
@@ -343,7 +343,7 @@ end
   });
 
   test("for...in...do...else lowers to a ForNode (bindings + each + else)", () => {
-    const ast = screenAst(`screen bag with
+    const ast = screenAst(`layout bag with
   for item in inventory do
     text "{item.name}"
   else
@@ -364,7 +364,7 @@ end
   });
 
   test("for with two bindings (`k, v`) and no else", () => {
-    const ast = screenAst(`screen t with
+    const ast = screenAst(`layout t with
   for k, v in scores do
     text "{k}"
   end
@@ -378,7 +378,7 @@ end
   });
 
   test("match/case/else lowers to a MatchNode (expr + case arms + else)", () => {
-    const ast = screenAst(`screen sheet with
+    const ast = screenAst(`layout sheet with
   match player.class do
   case "knight"
     text "Knight"
@@ -417,7 +417,7 @@ end
   });
 
   test("fill lowers to FillNode with a name + children", () => {
-    const ast = screenAst(`screen s with
+    const ast = screenAst(`layout s with
   fill footer:
     button "Sort"
 end
@@ -429,7 +429,7 @@ end
   });
 
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
-    const ast = screenAst(`screen hud with
+    const ast = screenAst(`layout hud with
   text = "literal {{braces}} kept"
 end
 `);
@@ -439,7 +439,7 @@ end
   });
 
   test("`as PARENT` carries inheritance onto the screen node", () => {
-    const ast = screenAst(`screen pause as main with
+    const ast = screenAst(`layout pause as main with
   text
 end
 `);

@@ -1,25 +1,25 @@
 text.source.sparkdown [0..161]
- ├─ meta.screen.luau [0..16]
- │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ ├─ meta.layout.luau [0..16]
+ │   ├─ keyword.control.layout.luau [0..6]: "layout"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
  │   ├─ entity.name.type.define.luau [7..11]: "main"
  │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
  │   └─ keyword.control.as.luau [12..16]: "with"
  ├─ Newline [16..17]: "\n"
- ├─ meta.screen.luau [17..25]
+ ├─ meta.layout.luau [17..25]
  │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
  │   └─ meta.struct.body.luau [19..25]
  │       ├─ entity.name.type.class.view.sd [19..24]: "stage"
  │       └─ meta.template.expression.operator.colon.sd [24..25]: ":"
  ├─ Newline [25..26]: "\n"
- ├─ meta.screen.luau [26..43]
+ ├─ meta.layout.luau [26..43]
  │   ├─ punctuation.whitespace.optional.sd [26..30]: "    "
  │   └─ meta.struct.body.luau [30..43]
  │       ├─ keyword.other.component.builtin.name.sd [30..34]: "mask"
  │       ├─ punctuation.whitespace.optional.sd [34..35]: " "
  │       └─ entity.name.type.class.view.sd [35..43]: "shadow_1"
  ├─ Newline [43..44]: "\n"
- ├─ meta.screen.luau [44..70]
+ ├─ meta.layout.luau [44..70]
  │   ├─ punctuation.whitespace.optional.sd [44..48]: "    "
  │   └─ meta.struct.body.luau [48..70]
  │       ├─ keyword.other.component.builtin.name.sd [48..52]: "text"
@@ -39,7 +39,7 @@ text.source.sparkdown [0..161]
  │           ├─ markup.raw.whitespace.sd [68..69]: "y"
  │           └─ punctuation.definition.string.end.sd [69..70]: "\""
  ├─ Newline [70..71]: "\n"
- ├─ meta.screen.luau [71..111]
+ ├─ meta.layout.luau [71..111]
  │   ├─ punctuation.whitespace.optional.sd [71..75]: "    "
  │   └─ meta.struct.body.luau [75..111]
  │       ├─ keyword.other.component.builtin.name.sd [75..81]: "button"
@@ -58,7 +58,7 @@ text.source.sparkdown [0..161]
  │       ├─ keyword.operator.assignment.sd [102..103]: "="
  │       └─ variable.other.readwrite.luau [103..111]: "use_item"
  ├─ Newline [111..112]: "\n"
- ├─ meta.screen.luau [112..156]
+ ├─ meta.layout.luau [112..156]
  │   ├─ punctuation.whitespace.optional.sd [112..116]: "    "
  │   └─ meta.struct.body.luau [116..156]
  │       ├─ keyword.other.component.builtin.name.sd [116..121]: "label"
@@ -87,6 +87,6 @@ text.source.sparkdown [0..161]
  │           │   └─ variable.other.readwrite.luau [145..155]: "team_color"
  │           └─ punctuation.definition.template-expression.end.sd [155..156]: "}"
  ├─ Newline [156..157]: "\n"
- ├─ meta.screen.luau [157..160]
+ ├─ meta.layout.luau [157..160]
  │   └─ keyword.control.end.luau [157..160]: "end"
  └─ Newline [160..161]: "\n"

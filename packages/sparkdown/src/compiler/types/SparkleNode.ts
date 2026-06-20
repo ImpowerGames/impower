@@ -52,7 +52,7 @@ export interface EventBinding {
     | { kind: "closure"; binding: Binding }; // @click={ ... }
 }
 
-/** Body-level nodes that can appear inside a screen/component element tree. */
+/** Body-level nodes that can appear inside a layout/component element tree. */
 export type BodyNode =
   | ElementNode
   | IfNode
@@ -63,6 +63,7 @@ export type BodyNode =
 
 /** Root block nodes + body nodes. */
 export type SparkleNode =
+  | LayoutNode
   | ScreenNode
   | ComponentNode
   | StyleNode
@@ -70,19 +71,32 @@ export type SparkleNode =
   | ThemeNode
   | BodyNode;
 
-export interface ScreenNode {
-  kind: "screen";
+export interface LayoutNode {
+  kind: "layout";
   name: string;
   extends?: string;
   /**
-   * Navigation container (`screen NAME in CONTAINER`): groups screens for
-   * `[[navigate CONTAINER to NAME]]` routing. Screens in the same container are
-   * mutually exclusive — navigating to one closes the others in that container,
-   * leaving screens in other containers (and uncategorized screens) untouched.
-   * Absent for uncategorized screens.
+   * Navigation screen (`layout NAME in SCREEN`): groups layouts for
+   * `[[navigate SCREEN to NAME]]` routing. Layouts in the same screen are
+   * mutually exclusive — navigating to one closes the others in that screen,
+   * leaving layouts in other screens (and uncategorized layouts) untouched.
+   * Absent for uncategorized layouts.
    */
-  container?: string;
+  screen?: string;
   children: BodyNode[];
+}
+
+/**
+ * A navigation screen (`screen NAME with … end`): a named group that holds
+ * mutually-exclusive layouts (`layout X in NAME`). Explicitly declared so
+ * `in SCREEN` references and `[[navigate SCREEN to LAYOUT]]` validate against
+ * it (undefined screen = error, catching typos). The body is reserved for
+ * future screen-level config (default layout, enter/exit transitions); empty
+ * for now.
+ */
+export interface ScreenNode {
+  kind: "screen";
+  name: string;
 }
 
 export interface ComponentNode {

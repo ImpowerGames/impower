@@ -1,4 +1,4 @@
-screen hud with
+layout hud with
   stage:
     if dead then
       text "over"

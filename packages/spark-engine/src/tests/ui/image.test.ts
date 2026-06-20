@@ -26,7 +26,7 @@ define SHADOW as image with
   src = "https://example.com/shadow.png"
 end
 
-screen main with
+layout main with
   stage:
     backdrop:
       image

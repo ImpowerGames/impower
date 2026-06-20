@@ -15,7 +15,7 @@ define BG as image with
   src = "https://example.com/bg.png"
 end
 
-screen main with
+layout main with
   stage:
     backdrop:
       image
@@ -95,7 +95,7 @@ define SHADOW as image with
   src = "https://example.com/shadow.png"
 end
 
-screen main with
+layout main with
   stage:
     backdrop:
       image
@@ -168,7 +168,7 @@ describe("dom render · image lifecycle", () => {
   });
 });
 
-const CHOICE_SCREEN = `screen main with
+const CHOICE_SCREEN = `layout main with
   dialogue:
     text
   choice 0:

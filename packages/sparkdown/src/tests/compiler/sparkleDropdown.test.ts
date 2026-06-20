@@ -37,7 +37,7 @@ function diagnosticMessages(source: string): string[] {
 describe("dropdown dynamic option lists", () => {
   test("`for` inside a dropdown compiles without a dynamic-options warning", () => {
     const src = `list opts = "a", "b"
-screen form with
+layout form with
   dropdown:
     for o in opts do
       option "{o}"
@@ -51,7 +51,7 @@ end
 
   test("`if` inside a dropdown compiles without a dynamic-options warning", () => {
     const src = `store unlocked = true
-screen form with
+layout form with
   dropdown:
     option "Easy" #value="easy"
     if unlocked then

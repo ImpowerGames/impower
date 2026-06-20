@@ -1,4 +1,4 @@
-screen hud with
+layout hud with
   stage:
     text = "HP: {hp} / {max_hp}"
     label = "score {score + bonus}"

@@ -1,4 +1,4 @@
-screen bag with
+layout bag with
   for item in inventory do
     row:
       text "{item.name}"

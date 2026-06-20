@@ -10,7 +10,7 @@ describe("dom widgets", () => {
   test("dropdown's <option>s are direct children of the <select> and the bound value selects", async () => {
     const h = createDOMHarness(
       `store difficulty = "hard"
-screen form with
+layout form with
   dropdown #value={difficulty}:
     option "Easy" #value="easy"
     option "Normal" #value="normal"
@@ -34,7 +34,7 @@ end
   test("field renders a real <input> whose value follows state", async () => {
     const h = createDOMHarness(
       `store name = "Zelda"
-screen form with
+layout form with
   field #value={name}
 end
 `,
@@ -51,7 +51,7 @@ end
   test("slider gets a --_fill-percentage custom property on the real element", async () => {
     const h = createDOMHarness(
       `store volume = 40
-screen form with
+layout form with
   slider #value={volume} #min=0 #max=100
 end
 `,

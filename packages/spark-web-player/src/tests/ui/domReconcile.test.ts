@@ -14,7 +14,7 @@ import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 // Two nested regions + leaves under one screen. V2 drops `portrait` (a structural
 // edit); everything else is identical, so the unchanged subtrees must keep their
 // node identity across the re-render.
-const V1 = `screen main with
+const V1 = `layout main with
   stage:
     backdrop:
       image
@@ -26,7 +26,7 @@ const V1 = `screen main with
 end
 `;
 
-const V2 = `screen main with
+const V2 = `layout main with
   stage:
     backdrop:
       image
@@ -40,7 +40,7 @@ const BTN = `store hp = 100
 function heal()
   hp = hp + 5
 end
-screen main with
+layout main with
   button "Heal" @click=heal
 end
 `;

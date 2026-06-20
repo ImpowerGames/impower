@@ -1,23 +1,23 @@
 sparkdown [0..145]
- ├─ LuauScreen [0..144]
- │   ├─ LuauScreen_begin [0..7]
- │   │   ├─ LuauScreen_begin_c1 0
+ ├─ LuauLayout [0..144]
+ │   ├─ LuauLayout_begin [0..7]
+ │   │   ├─ LuauLayout_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
- │   │   ├─ LuauScreen_begin_c2 [0..6]
- │   │   │   └─ LuauScreenKeyword [0..6]: "screen"
- │   │   └─ LuauScreen_begin_c3 [6..7]
- │   │       └─ LuauScreen_begin_c3 [6..7]
+ │   │   ├─ LuauLayout_begin_c2 [0..6]
+ │   │   │   └─ LuauLayoutKeyword [0..6]: "layout"
+ │   │   └─ LuauLayout_begin_c3 [6..7]
+ │   │       └─ LuauLayout_begin_c3 [6..7]
  │   │           └─ OptionalWhitespace [6..7]: " "
- │   ├─ LuauScreen_content [7..141]
- │   │   ├─ LuauScreenNameAndInheritance [7..17]
- │   │   │   ├─ LuauScreenNameAndInheritance_begin [7..12]
- │   │   │   │   └─ LuauScreenNameAndInheritance_begin_c1 [7..12]
+ │   ├─ LuauLayout_content [7..141]
+ │   │   ├─ LuauLayoutNameAndInheritance [7..17]
+ │   │   │   ├─ LuauLayoutNameAndInheritance_begin [7..12]
+ │   │   │   │   └─ LuauLayoutNameAndInheritance_begin_c1 [7..12]
  │   │   │   │       └─ LuauDefineName [7..12]: "sheet"
- │   │   │   └─ LuauScreenNameAndInheritance_end [12..17]
- │   │   │       ├─ LuauScreenNameAndInheritance_end_c1 [12..13]
- │   │   │       │   └─ LuauScreenNameAndInheritance_end_c1 [12..13]
+ │   │   │   └─ LuauLayoutNameAndInheritance_end [12..17]
+ │   │   │       ├─ LuauLayoutNameAndInheritance_end_c1 [12..13]
+ │   │   │       │   └─ LuauLayoutNameAndInheritance_end_c1 [12..13]
  │   │   │       │       └─ OptionalWhitespace [12..13]: " "
- │   │   │       └─ LuauScreenNameAndInheritance_end_c2 [13..17]
+ │   │   │       └─ LuauLayoutNameAndInheritance_end_c2 [13..17]
  │   │   │           └─ LuauWithKeyword [13..17]: "with"
  │   │   ├─ Newline [17..18]: "\n"
  │   │   ├─ LuauSparkleMatchBlock [18..140]
@@ -250,10 +250,10 @@ sparkdown [0..145]
  │   │   │       └─ LuauSparkleMatchBlock_end_c2 [137..140]
  │   │   │           └─ LuauEndKeyword [137..140]: "end"
  │   │   └─ Newline [140..141]: "\n"
- │   └─ LuauScreen_end [141..144]
- │       ├─ LuauScreen_end_c1 141
- │       │   └─ LuauScreen_end_c1 141
+ │   └─ LuauLayout_end [141..144]
+ │       ├─ LuauLayout_end_c1 141
+ │       │   └─ LuauLayout_end_c1 141
  │       │       └─ OptionalWhitespace 141
- │       └─ LuauScreen_end_c2 [141..144]
+ │       └─ LuauLayout_end_c2 [141..144]
  │           └─ LuauEndKeyword [141..144]: "end"
  └─ Newline [144..145]: "\n"

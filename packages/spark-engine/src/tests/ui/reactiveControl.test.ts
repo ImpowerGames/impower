@@ -18,14 +18,14 @@ const set = (h: UIHarness, name: string, value: unknown): void =>
   (h.game.story as any).variablesState.$(name, value);
 
 const refresh = (h: UIHarness): void =>
-  (h.game.module.ui as any).refreshScreens();
+  (h.game.module.ui as any).refreshLayouts();
 
 describe("reactive if/match (Phase 3 I3)", () => {
   test("if/elseif/else mounts the active branch and swaps on state change", async () => {
     const h = createHarness(
       `store dead = false
 store hp = 100
-screen hud with
+layout hud with
   if dead then
     text "GAME OVER"
   elseif hp < 10 then
@@ -60,7 +60,7 @@ end
   test("no churn when the selected branch is unchanged", async () => {
     const h = createHarness(
       `store hp = 100
-screen hud with
+layout hud with
   if hp < 10 then
     text "Low"
   else
@@ -82,7 +82,7 @@ end
   test("match/case/else selects the matching arm and swaps on change", async () => {
     const h = createHarness(
       `store cls = "knight"
-screen sheet with
+layout sheet with
   match cls do
   case "knight"
     text "Knight"
@@ -115,7 +115,7 @@ end
   test("reactive bindings inside a branch update without a branch swap", async () => {
     const h = createHarness(
       `store hp = 100
-screen hud with
+layout hud with
   if hp > 0 then
     text "HP: {hp}"
   else

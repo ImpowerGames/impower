@@ -1,4 +1,4 @@
-screen form with
+layout form with
   field @input={ name = event.value }
   checkbox @change={ muted = event.checked }
   button "Reset" @click={ score = 0; combo = 0 }

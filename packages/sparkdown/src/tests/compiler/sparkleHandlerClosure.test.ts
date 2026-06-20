@@ -40,7 +40,7 @@ const unterminated = (source: string): string[] =>
 
 describe("inline handler closure termination", () => {
   test("a single-line closure compiles cleanly (no diagnostic)", () => {
-    const src = `screen form with
+    const src = `layout form with
   field @input={ name = event.value }
 end
 `;
@@ -50,7 +50,7 @@ end
   test("a closure whose `}` is missing on the line is flagged", () => {
     // The `}` is on the next line, so the line-oriented attribute force-closes
     // the closure at the newline — `combo = 0` and the `}` are dropped.
-    const src = `screen form with
+    const src = `layout form with
   button "x" @click={ score = 0
     combo = 0 }
 end

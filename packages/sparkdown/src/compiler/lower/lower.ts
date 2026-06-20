@@ -60,7 +60,7 @@ import { lowerRun } from "./lowerers/lowerRun";
 import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
 import { lowerLuauStyle } from "./lowerers/lowerLuauStyle";
 import { lowerLuauStructDefine } from "./lowerers/lowerLuauStructDefine";
-import { lowerLuauUI } from "./lowerers/lowerLuauUI";
+import { lowerLuauUI, lowerLuauScreen } from "./lowerers/lowerLuauUI";
 import { lowerLuauExternalDeclaration } from "./lowerers/lowerLuauExternalDeclaration";
 import { lowerLuauFunctionDefinition } from "./lowerers/lowerLuauFunctionDefinition";
 import {
@@ -253,8 +253,10 @@ function lowerInner(
       return lowerLuauDefine(nodeRef, ctx);
     case "LuauStyle":
       return lowerLuauStyle(nodeRef, ctx);
+    case "LuauLayout":
+      return lowerLuauUI(nodeRef, ctx, "layout");
     case "LuauScreen":
-      return lowerLuauUI(nodeRef, ctx, "screen");
+      return lowerLuauScreen(nodeRef, ctx);
     case "LuauComponent":
       return lowerLuauUI(nodeRef, ctx, "component");
     case "LuauAnimation":

@@ -34,7 +34,7 @@ define accent as color with
   value = "rgb(10,20,30)"
 end
 
-screen main with
+layout main with
   textbox:
     dialogue:
       text

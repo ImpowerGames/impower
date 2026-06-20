@@ -489,6 +489,7 @@ export const getFormatting = (
               (n) =>
                 n &&
                 (n.name === "LuauStyle_content" ||
+                  n.name === "LuauLayout_content" ||
                   n.name === "LuauScreen_content" ||
                   n.name === "LuauComponent_content" ||
                   n.name === "LuauAnimation_content" ||

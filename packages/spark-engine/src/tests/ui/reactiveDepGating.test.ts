@@ -1,6 +1,6 @@
 // Phase 4 I8: dep-gated refresh.
 //
-// refreshScreens now takes the turn's change-set (globals + tables written since
+// refreshLayouts now takes the turn's change-set (globals + tables written since
 // the last refresh) and re-evaluates a binding only when its read deps intersect
 // it. We prove the GATING (not just the equality-gated output) by spying on
 // EvaluateFunction: a binding whose deps didn't change is never called.
@@ -9,7 +9,7 @@ import { describe, expect, test } from "vitest";
 import { createHarness, type UIHarness } from "./harness/uiTestHarness";
 
 function exprId(program: any, screen: string, childIndex: number): string {
-  const node = program.sparkle.screens[screen].children[childIndex];
+  const node = program.sparkle.layouts[screen].children[childIndex];
   return node.content.find((p: any) => p.kind === "binding").binding.exprId;
 }
 
@@ -28,7 +28,7 @@ function spyEvalFunction(h: UIHarness): Record<string, number> {
 const run = (h: UIHarness, fn: string): void =>
   (h.game.story as any).EvaluateFunction(fn, []);
 const refresh = (h: UIHarness): void =>
-  (h.game.module.ui as any).refreshScreens();
+  (h.game.module.ui as any).refreshLayouts();
 const updates = (h: UIHarness): string[] =>
   h
     .snapshotFiltered("ui/update")
@@ -43,7 +43,7 @@ store b = 2
 function bumpA()
   a = a + 1
 end
-screen hud with
+layout hud with
   text "a={a}"
   text "b={b}"
 end
@@ -75,7 +75,7 @@ store score = 0
 function hurt()
   player.hp = player.hp - 10
 end
-screen hud with
+layout hud with
   text "hp={player.hp}"
   text "score={score}"
 end
@@ -105,7 +105,7 @@ store b = 2
 function bumpHidden()
   b = b
 end
-screen hud with
+layout hud with
   text "a={a}"
 end
 `,

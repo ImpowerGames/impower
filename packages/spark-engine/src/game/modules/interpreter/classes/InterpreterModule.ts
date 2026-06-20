@@ -6,7 +6,7 @@ import {
   AudioInstruction,
   ImageInstruction,
   LoadInstruction,
-  ScreenInstruction,
+  LayoutInstruction,
   TextInstruction,
 } from "../../../core/types/Instruction";
 import type { Instructions } from "../../../core/types/Instructions";
@@ -53,12 +53,12 @@ export class InterpreterModule extends Module<
   ];
 
   // Control verbs that route a `[[...]]` directive to the screen-lifecycle path
-  // (openScreen/closeScreen/navigateScreen) instead of the image path. They reuse
+  // (openLayout/closeLayout/navigateScreen) instead of the image path. They reuse
   // the asset clause parser (with/over/after/ease/wait) verbatim. `open`/`close`
   // are overlay primitives; `navigate <container> to <screen>` routes WITHIN a
   // container (close the open screens in that container, then open the target),
   // leaving other containers / uncategorized screens untouched.
-  SCREEN_CONTROL_KEYWORDS = ["open", "close", "navigate"];
+  LAYOUT_CONTROL_KEYWORDS = ["open", "close", "navigate"];
 
   ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "to", "with", "ease"];
 
@@ -201,15 +201,15 @@ export class InterpreterModule extends Module<
         }
       }
     }
-    if (a.screen || b.screen) {
-      a.screen ??= {};
-      if (b.screen) {
-        for (const [k, v] of Object.entries(b.screen)) {
-          a.screen[k] ??= [];
+    if (a.layout || b.layout) {
+      a.layout ??= {};
+      if (b.layout) {
+        for (const [k, v] of Object.entries(b.layout)) {
+          a.layout[k] ??= [];
           if (prefix) {
-            a.screen[k]!.unshift(...v);
+            a.layout[k]!.unshift(...v);
           } else {
-            a.screen[k]!.push(...v);
+            a.layout[k]!.push(...v);
           }
         }
       }
@@ -474,12 +474,12 @@ export class InterpreterModule extends Module<
   shouldFlush(): boolean {
     // There are worlds to load.
     // Or there is text to display.
-    // Or a screen-lifecycle directive ([[open/close SCREEN]]) to apply.
+    // Or a layout-lifecycle directive ([[open/close/navigate]]) to apply.
     // Or an event takes up time.
     return Boolean(
       this._state.buffer?.[0]?.load ||
       this._state.buffer?.[0]?.text ||
-      this._state.buffer?.[0]?.screen ||
+      this._state.buffer?.[0]?.layout ||
       Number(this._state.buffer?.[0]?.end) > 0,
     );
   }
@@ -638,28 +638,28 @@ export class InterpreterModule extends Module<
     return imageChunk;
   }
 
-  protected createScreenChunk(screenTagContent: string): Chunk {
-    const verb = screenTagContent.replaceAll("\t", " ").trim().split(" ")[0];
-    // `navigate <container> to <screen>` parses differently from open/close:
-    // the FIRST positional token is the CONTAINER (not the screen), and the
-    // destination screen follows `to`.
-    const screenChunk =
+  protected createLayoutChunk(layoutTagContent: string): Chunk {
+    const verb = layoutTagContent.replaceAll("\t", " ").trim().split(" ")[0];
+    // `navigate <screen> to <layout>` parses differently from open/close:
+    // the FIRST positional token is the SCREEN (not the layout), and the
+    // destination layout follows `to`.
+    const layoutChunk =
       verb === "navigate"
-        ? this.createNavigateChunk(screenTagContent)
-        : // `open`/`close` share the asset clause parser. The screen NAME plays
+        ? this.createNavigateChunk(layoutTagContent)
+        : // `open`/`close` share the asset clause parser. The layout NAME plays
           // the role of the asset's `target` (e.g. `[[open hud with fade over
           // 1s]]` → control="open", target="hud", clauses={with:"fade",
           // over:1}). No default target — a nameless directive no-ops downstream.
-          this.createAssetChunk(screenTagContent, "screen", "open", "");
-    this.applyScreenWaitDuration(screenChunk);
-    return screenChunk;
+          this.createAssetChunk(layoutTagContent, "layout", "open", "");
+    this.applyScreenWaitDuration(layoutChunk);
+    return layoutChunk;
   }
 
-  /** Parse `navigate <container> to <screen> [clauses]`. The container is the
-   *  first positional token (→ `chunk.target`, the AssetCommand "target" slot,
+  /** Parse `navigate <screen> to <layout> [clauses]`. The screen is the first
+   *  positional token (→ `chunk.target`, the AssetCommand "target" slot,
    *  mirroring how `[[show <layer> <asset>]]` puts the layer in `target`); the
-   *  destination screen follows `to` (→ `chunk.assets[0]`). A bare
-   *  `navigate <container>` leaves the destination empty (LSP warns it's
+   *  destination layout follows `to` (→ `chunk.assets[0]`). A bare
+   *  `navigate <screen>` leaves the destination empty (LSP warns it's
    *  incomplete; the runtime no-ops). */
   protected createNavigateChunk(navigateTagContent: string): Chunk {
     const tokens = navigateTagContent
@@ -667,11 +667,11 @@ export class InterpreterModule extends Module<
       .split(" ")
       .filter((t) => t !== "");
     // tokens[0] is the `navigate` verb.
-    let container = "";
+    let screen = "";
     let destination = "";
     let i = 1;
     if (tokens[i] && !this.ASSET_ARG_KEYWORDS.includes(tokens[i]!)) {
-      container = tokens[i]!;
+      screen = tokens[i]!;
       i += 1;
     }
     if (tokens[i] === "to") {
@@ -683,9 +683,9 @@ export class InterpreterModule extends Module<
     }
     const clauses = this.parseAssetClauses(tokens.slice(i));
     return {
-      tag: "screen",
+      tag: "layout",
       control: "navigate",
-      target: container,
+      target: screen,
       assets: destination ? [destination] : [],
       clauses,
       duration: 0,
@@ -948,9 +948,9 @@ export class InterpreterModule extends Module<
                       .trimStart()
                       .split(" ")[0];
                     const isScreenDirective =
-                      !!verb && this.SCREEN_CONTROL_KEYWORDS.includes(verb);
+                      !!verb && this.LAYOUT_CONTROL_KEYWORDS.includes(verb);
                     const directiveChunk = isScreenDirective
-                      ? this.createScreenChunk(imageTagContent)
+                      ? this.createLayoutChunk(imageTagContent)
                       : this.createImageChunk(imageTagContent);
                     const phrase = {
                       target: directiveChunk.target,
@@ -1575,27 +1575,27 @@ export class InterpreterModule extends Module<
             result.image[target] ??= [];
             result.image[target]!.push(event);
           }
-          // Screen Event ([[open SCREEN]] / [[close SCREEN]])
-          if (c.tag === "screen") {
-            // For `navigate`, the first positional token is the CONTAINER
-            // (c.target) and the destination screen follows `to` (c.assets[0]);
-            // for `open`/`close`, the first token IS the screen (c.target).
+          // Layout Event ([[open LAYOUT]] / [[close LAYOUT]] / [[navigate SCREEN to LAYOUT]])
+          if (c.tag === "layout") {
+            // For `navigate`, the first positional token is the SCREEN
+            // (c.target) and the destination layout follows `to` (c.assets[0]);
+            // for `open`/`close`, the first token IS the layout (c.target).
             const isNavigate = c.control === "navigate";
-            const container = isNavigate ? c.target || "" : "";
-            const screenName = isNavigate
+            const screen = isNavigate ? c.target || "" : "";
+            const layoutName = isNavigate
               ? c.assets?.[0] || ""
               : c.target || "";
-            // Emit even for an incomplete `[[navigate <container>]]` (empty
-            // destination, container present) so the directive isn't silently
+            // Emit even for an incomplete `[[navigate <screen>]]` (empty
+            // destination, screen present) so the directive isn't silently
             // dropped — the LSP warns and the runtime no-ops. Skip only a truly
             // empty directive.
-            if (screenName || container) {
-              const event: ScreenInstruction = {
-                control: (c.control || "open") as ScreenInstruction["control"],
-                name: screenName,
+            if (layoutName || screen) {
+              const event: LayoutInstruction = {
+                control: (c.control || "open") as LayoutInstruction["control"],
+                name: layoutName,
               };
-              if (container) {
-                event.container = container;
+              if (screen) {
+                event.screen = screen;
               }
               if (time) {
                 event.after = time;
@@ -1622,10 +1622,10 @@ export class InterpreterModule extends Module<
                   event.wait = true;
                 }
               }
-              const key = screenName || container;
-              result.screen ??= {};
-              result.screen[key] ??= [];
-              result.screen[key]!.push(event);
+              const key = layoutName || screen;
+              result.layout ??= {};
+              result.layout[key] ??= [];
+              result.layout[key]!.push(event);
             }
           }
           // Audio Event

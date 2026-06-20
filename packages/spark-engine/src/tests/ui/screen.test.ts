@@ -1,16 +1,16 @@
 // Golden-master: screen construction (the structural element tree) and
 // screen show / hide.
 //
-// `connect()`'s onConnected calls `constructScreens()`, which walks
+// `connect()`'s onConnected calls `constructLayouts()`, which walks
 // `context.screen.<name>` and emits the `ui/create` tree (named structural
 // elements as nested divs; `text`/`stroke` → span content; `image`/`mask` →
-// background spans). `showScreen`/`hideScreen` toggle the `hidden` attribute.
+// background spans). `showLayout`/`hideLayout` toggle the `hidden` attribute.
 // This locks the full creation stream + the visibility toggles.
 
 import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
-const SCREEN = `screen main with
+const SCREEN = `layout main with
   stage:
     backdrop:
       image
@@ -44,8 +44,8 @@ describe("screen", () => {
     const harness = createHarness(STORY);
     await harness.ready;
     harness.reset();
-    harness.game.module.ui.hideScreen("main");
-    harness.game.module.ui.showScreen("main");
+    harness.game.module.ui.hideLayout("main");
+    harness.game.module.ui.showLayout("main");
     await flushMicrotasks();
     expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
   });

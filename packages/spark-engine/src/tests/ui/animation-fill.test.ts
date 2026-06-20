@@ -40,7 +40,7 @@ define slow_pan as animation with
   }
 end
 
-screen main with
+layout main with
   stage:
     backdrop:
       image

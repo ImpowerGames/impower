@@ -1,12 +1,12 @@
 text.source.sparkdown [0..159]
- ├─ meta.screen.luau [0..15]
- │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ ├─ meta.layout.luau [0..15]
+ │   ├─ keyword.control.layout.luau [0..6]: "layout"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
  │   ├─ entity.name.type.define.luau [7..10]: "bag"
  │   ├─ punctuation.whitespace.optional.sd [10..11]: " "
  │   └─ keyword.control.as.luau [11..15]: "with"
  ├─ Newline [15..16]: "\n"
- ├─ meta.screen.luau [16..42]
+ ├─ meta.layout.luau [16..42]
  │   ├─ punctuation.whitespace.optional.sd [16..18]: "  "
  │   ├─ keyword.control.for.luau [18..21]: "for"
  │   ├─ punctuation.whitespace.optional.sd [21..22]: " "
@@ -18,13 +18,13 @@ text.source.sparkdown [0..159]
  │   ├─ punctuation.whitespace.optional.sd [39..40]: " "
  │   └─ keyword.control.do.luau [40..42]: "do"
  ├─ Newline [42..43]: "\n"
- ├─ meta.screen.luau [43..51]
+ ├─ meta.layout.luau [43..51]
  │   ├─ punctuation.whitespace.optional.sd [43..47]: "    "
  │   └─ meta.struct.body.luau [47..51]
  │       ├─ entity.name.type.class.view.sd [47..50]: "row"
  │       └─ meta.template.expression.operator.colon.sd [50..51]: ":"
  ├─ Newline [51..52]: "\n"
- ├─ meta.screen.luau [52..76]
+ ├─ meta.layout.luau [52..76]
  │   ├─ punctuation.whitespace.optional.sd [52..58]: "      "
  │   └─ meta.struct.body.luau [58..76]
  │       ├─ keyword.other.component.builtin.name.sd [58..62]: "text"
@@ -40,7 +40,7 @@ text.source.sparkdown [0..159]
  │           │   └─ punctuation.definition.template-expression.end.sd [74..75]: "}"
  │           └─ punctuation.definition.string.end.sd [75..76]: "\""
  ├─ Newline [76..77]: "\n"
- ├─ meta.screen.luau [77..111]
+ ├─ meta.layout.luau [77..111]
  │   ├─ punctuation.whitespace.optional.sd [77..83]: "      "
  │   └─ meta.struct.body.luau [83..111]
  │       ├─ keyword.other.component.builtin.name.sd [83..89]: "button"
@@ -57,11 +57,11 @@ text.source.sparkdown [0..159]
  │       ├─ keyword.operator.assignment.sd [102..103]: "="
  │       └─ variable.other.readwrite.luau [103..111]: "use_item"
  ├─ Newline [111..112]: "\n"
- ├─ meta.screen.luau [112..118]
+ ├─ meta.layout.luau [112..118]
  │   ├─ punctuation.whitespace.optional.sd [112..114]: "  "
  │   └─ keyword.control.else.luau [114..118]: "else"
  ├─ Newline [118..119]: "\n"
- ├─ meta.screen.luau [119..148]
+ ├─ meta.layout.luau [119..148]
  │   ├─ punctuation.whitespace.optional.sd [119..123]: "    "
  │   └─ meta.struct.body.luau [123..148]
  │       ├─ keyword.other.component.builtin.name.sd [123..127]: "text"
@@ -88,10 +88,10 @@ text.source.sparkdown [0..159]
  │           ├─ markup.raw.whitespace.sd [146..147]: "."
  │           └─ punctuation.definition.string.end.sd [147..148]: "\""
  ├─ Newline [148..149]: "\n"
- ├─ meta.screen.luau [149..154]
+ ├─ meta.layout.luau [149..154]
  │   ├─ punctuation.whitespace.optional.sd [149..151]: "  "
  │   └─ keyword.control.end.luau [151..154]: "end"
  ├─ Newline [154..155]: "\n"
- ├─ meta.screen.luau [155..158]
+ ├─ meta.layout.luau [155..158]
  │   └─ keyword.control.end.luau [155..158]: "end"
  └─ Newline [158..159]: "\n"

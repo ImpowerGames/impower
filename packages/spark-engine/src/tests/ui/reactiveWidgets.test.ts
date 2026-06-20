@@ -18,7 +18,7 @@ describe("interactive widgets", () => {
 function bump()
   n = n + 1
 end
-screen form with
+layout form with
   link "Continue" @click=bump
 end
 `,
@@ -35,7 +35,7 @@ end
   test("dropdown renders a <select> with <option> children", async () => {
     const h = createHarness(
       `store difficulty = "normal"
-screen form with
+layout form with
   dropdown #value={difficulty} @change={ difficulty = event.value }:
     option "Easy" #value="easy"
     option "Normal" #value="normal"
@@ -53,7 +53,7 @@ end
   test("dropdown selects the bound value after its options exist", async () => {
     const h = createHarness(
       `store difficulty = "hard"
-screen form with
+layout form with
   dropdown #value={difficulty}:
     option "Easy" #value="easy"
     option "Hard" #value="hard"
@@ -76,7 +76,7 @@ end
   test("dropdown writes the chosen value back on @change", async () => {
     const h = createHarness(
       `store difficulty = "normal"
-screen form with
+layout form with
   dropdown #value={difficulty} @change={ difficulty = event.value }:
     option "Easy" #value="easy"
     option "Hard" #value="hard"
@@ -95,7 +95,7 @@ end
   test("an option's value defaults to its label text", async () => {
     const h = createHarness(
       `store choice = "Banana"
-screen form with
+layout form with
   dropdown #value={choice}:
     option "Apple"
     option "Banana"
@@ -114,7 +114,7 @@ end
     const h = createHarness(
       `store label = "Apple"
 store choice = "Apple"
-screen form with
+layout form with
   dropdown #value={choice}:
     option "{label}"
     option "Banana"
@@ -126,7 +126,7 @@ end
     await h.ready;
     h.reset();
     (h.game.story as any).variablesState.$("label", "Cherry");
-    (h.game.module.ui as any).refreshScreens();
+    (h.game.module.ui as any).refreshLayouts();
     // The option's value attribute must follow its reactive label, not stay
     // stale at "Apple" (which would mismatch the visible "Cherry").
     const valueUpdate = h
@@ -140,7 +140,7 @@ end
   test("slider exposes an engine-computed --_fill-percentage", async () => {
     const h = createHarness(
       `store volume = 25
-screen form with
+layout form with
   slider #value={volume} #min=0 #max=100
 end
 `,
@@ -159,7 +159,7 @@ end
   test("slider --_fill-percentage follows the value reactively", async () => {
     const h = createHarness(
       `store volume = 25
-screen form with
+layout form with
   slider #value={volume} #min=0 #max=100
 end
 `,
@@ -169,7 +169,7 @@ end
     await h.ready;
     h.reset();
     (h.game.story as any).variablesState.$("volume", 75);
-    (h.game.module.ui as any).refreshScreens();
+    (h.game.module.ui as any).refreshLayouts();
     const fill = h
       .snapshotFiltered("ui/update")
       .find(

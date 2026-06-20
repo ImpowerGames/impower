@@ -12,7 +12,7 @@ describe("two-way binding (input write-back)", () => {
   test("field renders as <input> with its bound value", async () => {
     const h = createHarness(
       `store name = "Zelda"
-screen form with
+layout form with
   field #value={name}
 end
 `,
@@ -34,7 +34,7 @@ end
 function set_name(event)
   name = event.value
 end
-screen form with
+layout form with
   field #value={name} @input=set_name
 end
 `,
@@ -54,7 +54,7 @@ end
 function set_muted(event)
   muted = event.checked
 end
-screen form with
+layout form with
   checkbox #checked={muted} @change=set_muted(event)
 end
 `,
@@ -71,7 +71,7 @@ end
   test("@input inline-closure writes the typed value back (event.value)", async () => {
     const h = createHarness(
       `store name = "Zelda"
-screen form with
+layout form with
   field #value={name} @input={ name = event.value }
 end
 `,
@@ -88,7 +88,7 @@ end
   test("@change inline-closure reading event.checked toggles a boolean", async () => {
     const h = createHarness(
       `store muted = false
-screen form with
+layout form with
   checkbox #checked={muted} @change={ muted = event.checked }
 end
 `,
@@ -106,7 +106,7 @@ end
     const h = createHarness(
       `store score = 10
 store combo = 3
-screen form with
+layout form with
   button "Reset" @click={ score = 0; combo = 0 }
 end
 `,
@@ -127,7 +127,7 @@ end
     // make `volume > 100` lexicographic.
     const h = createHarness(
       `store volume = 50
-screen form with
+layout form with
   slider #value={volume} #min=0 #max=100 @input={ volume = event.value }
 end
 `,
@@ -145,7 +145,7 @@ end
   test("a fractional numeric input writes a float", async () => {
     const h = createHarness(
       `store rate = 1
-screen form with
+layout form with
   slider #value={rate} #min=0 #max=2 @input={ rate = event.value }
 end
 `,
@@ -161,7 +161,7 @@ end
   test("a text input still writes a string", async () => {
     const h = createHarness(
       `store name = "Zelda"
-screen form with
+layout form with
   field #value={name} @input={ name = event.value }
 end
 `,
@@ -181,7 +181,7 @@ end
 function reset_score()
   score = 0
 end
-screen form with
+layout form with
   button "Reset" @click={ reset_score() }
 end
 `,
@@ -202,7 +202,7 @@ end
     // plain JS object, so we assert the binding sees the new value).
     const h = createHarness(
       `store player = { name = "Zelda" }
-screen form with
+layout form with
   field #value={player.name} @input={ player.name = event.value }
 end
 `,
@@ -228,7 +228,7 @@ end
 function clear_name(event)
   name = ""
 end
-screen form with
+layout form with
   field #value={name} @input=set_name
   button "Clear" @click=clear_name
 end
@@ -239,7 +239,7 @@ end
     await h.ready;
     h.reset();
     (h.game.story as any).variablesState.$("name", "Ganon");
-    (h.game.module.ui as any).refreshScreens();
+    (h.game.module.ui as any).refreshLayouts();
     const update = h
       .snapshotFiltered("ui/update")
       .find((m: any) => m.params?.attributes && "value" in m.params.attributes) as any;

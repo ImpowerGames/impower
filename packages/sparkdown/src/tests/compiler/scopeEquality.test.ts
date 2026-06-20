@@ -85,7 +85,7 @@ const TARGETED: Record<string, string> = {
   "struct-attr-selector-with-equals":
     "style shadow with\n  > #image^=raffles_:\n    background_color = #E5323E\nend\n",
   "struct-bare-markers":
-    "screen main with\n  portrait:\n    mask shadow_1\n    image\nend\n",
+    "layout main with\n  portrait:\n    mask shadow_1\n    image\nend\n",
   "struct-array-items":
     "style list with\n  items:\n    - first\n    - second\nend\n",
   "struct-comment-line":

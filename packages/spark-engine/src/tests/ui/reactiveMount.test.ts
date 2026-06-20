@@ -1,6 +1,6 @@
 // Phase 3 I1: the reactive (AST-driven) render path mounts screens from
-// program.sparkle.screens. This increment is a *static* mount — it must
-// reproduce the legacy constructScreen element tree byte-for-byte so the
+// program.sparkle.layouts. This increment is a *static* mount — it must
+// reproduce the legacy constructLayout element tree byte-for-byte so the
 // engine→consumer message stream is unchanged when the flag flips. We prove
 // that by building the SAME source through both paths and asserting the streams
 // are identical (ids normalized in first-seen order, so identical creation
@@ -12,7 +12,7 @@ import { createHarness } from "./harness/uiTestHarness";
 // Mirrors the static golden's fixture (screen.test.ts): a screen that overrides
 // the builtin `main`, plus the builtin `loading` screen (which the prelude now
 // also contributes to program.sparkle, so the AST path renders it too).
-const SCREEN = `screen main with
+const SCREEN = `layout main with
   stage:
     backdrop:
       image
@@ -33,7 +33,7 @@ end
 `;
 
 describe("reactive mount (Phase 3 I1)", () => {
-  test("AST-driven static mount matches the static constructScreen stream", async () => {
+  test("AST-driven static mount matches the static constructLayout stream", async () => {
     const staticH = createHarness(SCREEN);
     const reactiveH = createHarness(SCREEN, 0, { reactive: true });
     await Promise.all([staticH.ready, reactiveH.ready]);

@@ -29,7 +29,7 @@ function findFirstBinding(sparkle: any): any {
     }
     return undefined;
   };
-  for (const screen of Object.values(sparkle?.screens ?? {})) {
+  for (const screen of Object.values(sparkle?.layouts ?? {})) {
     const f = walk((screen as any).children);
     if (f) return f;
   }
@@ -39,7 +39,7 @@ function findFirstBinding(sparkle: any): any {
 describe("UIModule.evalBinding (Phase 3 I0)", () => {
   test("evaluates a hoisted {expr} binding to its live value", async () => {
     const h = createHarness(`store hp = 100
-screen hud with
+layout hud with
   text "HP: {hp}"
 end
 `);
@@ -53,7 +53,7 @@ end
   });
 
   test("returns undefined for a binding the story never hoisted (HasFunction guard)", () => {
-    const h = createHarness(`screen hud with
+    const h = createHarness(`layout hud with
   text "static"
 end
 `);

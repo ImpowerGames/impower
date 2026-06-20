@@ -1,4 +1,4 @@
-screen hud with
+layout hud with
   stage:
     if player.dead then
       text "GAME OVER"

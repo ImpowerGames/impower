@@ -11,7 +11,7 @@ import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
 function bindingAt(program: any, screen: string, childIndex: number): any {
-  const node = program.sparkle.screens[screen].children[childIndex];
+  const node = program.sparkle.layouts[screen].children[childIndex];
   return node.content.find((p: any) => p.kind === "binding").binding;
 }
 
@@ -20,7 +20,7 @@ describe("reactive dependency primitive (Phase 4 I7)", () => {
     const h = createHarness(
       `store hp = 100
 store player = { hp = 50 }
-screen hud with
+layout hud with
   text "{hp}"
   text "{player.hp}"
 end
@@ -50,7 +50,7 @@ end
   test("a global write registers as a global change", async () => {
     const h = createHarness(
       `store hp = 100
-screen hud with
+layout hud with
   text "{hp}"
 end
 `,
@@ -72,7 +72,7 @@ end
 function hurt()
   player.hp = 10
 end
-screen hud with
+layout hud with
   text "{player.hp}"
 end
 `,
@@ -109,7 +109,7 @@ end
     // zero-cost until a mount — but a connected game always mounts.)
     const h = createHarness(
       `store hp = 100
-screen hud with
+layout hud with
   text "{hp}"
 end
 `,

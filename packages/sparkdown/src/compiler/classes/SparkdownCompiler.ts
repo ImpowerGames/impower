@@ -1000,7 +1000,7 @@ export class SparkdownCompiler {
         // rather than deep-merged — merging two element trees would splice the
         // builtin's children into the authored one. (They likewise override by
         // replace in the reactive `sparkle` channel; see mergePreludeSparkle.)
-        const REPLACE_TYPES = new Set(["screen", "component"]);
+        const REPLACE_TYPES = new Set(["layout", "screen", "component"]);
         for (const [type, structs] of Object.entries(context)) {
           for (const [name, struct] of Object.entries(structs)) {
             program.context ??= {};
@@ -1017,7 +1017,7 @@ export class SparkdownCompiler {
         // Merge the reactive Sparkle UI AST onto program.sparkle (additive;
         // not yet consumed — the static screens/components channels still
         // drive rendering until Phase 3).
-        for (const kind of ["screens", "components"] as const) {
+        for (const kind of ["layouts", "screens", "components"] as const) {
           const trees = sparkle[kind];
           if (trees) {
             program.sparkle ??= {};
@@ -1426,9 +1426,13 @@ export class SparkdownCompiler {
   populateEngineChannels(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "populateEngineChannels", uri);
+    const layout = program.context?.["layout"];
     const screen = program.context?.["screen"];
     const component = program.context?.["component"];
     const style = program.context?.["style"];
+    if (layout) {
+      program.layouts = structuredClone(layout);
+    }
     if (screen) {
       program.screens = structuredClone(screen);
     }
@@ -1451,6 +1455,7 @@ export class SparkdownCompiler {
     // i.e. context minus the types carried by the channels above. Lets the Game
     // build its entire context from channels (no program.context dependency).
     const CHANNELED_TYPES = new Set<string>([
+      "layout",
       "screen",
       "component",
       "style",
@@ -1497,7 +1502,7 @@ export class SparkdownCompiler {
     const uri = program.uri;
     profile("start", this._profilerId, "mergePreludeSparkle", uri);
     const { sparkle } = getCompiledPrelude();
-    for (const kind of ["screens", "components"] as const) {
+    for (const kind of ["layouts", "screens", "components"] as const) {
       const trees = sparkle[kind];
       if (trees) {
         program.sparkle ??= {};

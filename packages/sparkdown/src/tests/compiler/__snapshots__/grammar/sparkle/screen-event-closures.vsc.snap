@@ -1,12 +1,12 @@
 text.source.sparkdown [0..231]
- ├─ meta.screen.luau [0..16]
- │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ ├─ meta.layout.luau [0..16]
+ │   ├─ keyword.control.layout.luau [0..6]: "layout"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
  │   ├─ entity.name.type.define.luau [7..11]: "form"
  │   ├─ punctuation.whitespace.optional.sd [11..12]: " "
  │   └─ keyword.control.as.luau [12..16]: "with"
  ├─ Newline [16..17]: "\n"
- ├─ meta.screen.luau [17..54]
+ ├─ meta.layout.luau [17..54]
  │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
  │   └─ meta.struct.body.luau [19..54]
  │       ├─ keyword.other.component.builtin.name.sd [19..24]: "field"
@@ -26,7 +26,7 @@ text.source.sparkdown [0..231]
  │       ├─ punctuation.whitespace.extra.sd [52..53]: " "
  │       └─ punctuation.definition.template-expression.end.sd [53..54]: "}"
  ├─ Newline [54..55]: "\n"
- ├─ meta.screen.luau [55..99]
+ ├─ meta.layout.luau [55..99]
  │   ├─ punctuation.whitespace.optional.sd [55..57]: "  "
  │   └─ meta.struct.body.luau [57..99]
  │       ├─ keyword.other.component.builtin.name.sd [57..65]: "checkbox"
@@ -46,7 +46,7 @@ text.source.sparkdown [0..231]
  │       ├─ punctuation.whitespace.extra.sd [97..98]: " "
  │       └─ punctuation.definition.template-expression.end.sd [98..99]: "}"
  ├─ Newline [99..100]: "\n"
- ├─ meta.screen.luau [100..148]
+ ├─ meta.layout.luau [100..148]
  │   ├─ punctuation.whitespace.optional.sd [100..102]: "  "
  │   └─ meta.struct.body.luau [102..148]
  │       ├─ keyword.other.component.builtin.name.sd [102..108]: "button"
@@ -80,7 +80,7 @@ text.source.sparkdown [0..231]
  │       ├─ punctuation.whitespace.extra.sd [146..147]: " "
  │       └─ punctuation.definition.template-expression.end.sd [147..148]: "}"
  ├─ Newline [148..149]: "\n"
- ├─ meta.screen.luau [149..193]
+ ├─ meta.layout.luau [149..193]
  │   ├─ punctuation.whitespace.optional.sd [149..151]: "  "
  │   └─ meta.struct.body.luau [151..193]
  │       ├─ keyword.other.component.builtin.name.sd [151..156]: "field"
@@ -102,7 +102,7 @@ text.source.sparkdown [0..231]
  │       ├─ punctuation.whitespace.extra.sd [191..192]: " "
  │       └─ punctuation.definition.template-expression.end.sd [192..193]: "}"
  ├─ Newline [193..194]: "\n"
- ├─ meta.screen.luau [194..226]
+ ├─ meta.layout.luau [194..226]
  │   ├─ punctuation.whitespace.optional.sd [194..196]: "  "
  │   └─ meta.struct.body.luau [196..226]
  │       ├─ keyword.other.component.builtin.name.sd [196..202]: "button"
@@ -125,6 +125,6 @@ text.source.sparkdown [0..231]
  │       ├─ punctuation.whitespace.extra.sd [224..225]: " "
  │       └─ punctuation.definition.template-expression.end.sd [225..226]: "}"
  ├─ Newline [226..227]: "\n"
- ├─ meta.screen.luau [227..230]
+ ├─ meta.layout.luau [227..230]
  │   └─ keyword.control.end.luau [227..230]: "end"
  └─ Newline [230..231]: "\n"

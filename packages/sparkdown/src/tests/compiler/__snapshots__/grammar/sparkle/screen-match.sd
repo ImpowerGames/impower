@@ -1,4 +1,4 @@
-screen sheet with
+layout sheet with
   match player.class do
   case "knight"
     text "Knight"

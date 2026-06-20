@@ -48,16 +48,16 @@ export interface AudioInstruction extends IInstruction {
   to?: number;
 }
 
-export interface ScreenInstruction extends IInstruction {
+export interface LayoutInstruction extends IInstruction {
   control: "open" | "close" | "navigate";
-  /** The screen to mount (`open`), tear down (`close`), or navigate TO
+  /** The layout to mount (`open`), tear down (`close`), or navigate TO
    *  (`navigate` — the destination after `to`). May be empty for an incomplete
-   *  `[[navigate <container>]]` (the LSP warns; the runtime no-ops). */
+   *  `[[navigate <screen>]]` (the LSP warns; the runtime no-ops). */
   name: string;
-  /** For `navigate` (`[[navigate <container> to <screen>]]`): the container to
-   *  route within. Closing is scoped to open screens in this container; screens
-   *  in other containers (and uncategorized screens) are left untouched. */
-  container?: string;
+  /** For `navigate` (`[[navigate <screen> to <layout>]]`): the screen to route
+   *  within. Closing is scoped to open layouts in this screen; layouts in other
+   *  screens (and uncategorized layouts) are left untouched. */
+  screen?: string;
   /** The enter/exit animation/transition name (`with` clause). */
   with?: string;
 }
@@ -66,4 +66,4 @@ export type Instruction =
   | TextInstruction
   | ImageInstruction
   | AudioInstruction
-  | ScreenInstruction;
+  | LayoutInstruction;

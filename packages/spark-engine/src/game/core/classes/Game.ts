@@ -412,6 +412,9 @@ export class Game<T extends M = {}> {
     };
     assignChannel(this._program.defines);
     assignChannel(this._program.assets);
+    if (this._program.layouts) {
+      this._context["layout"] = this._program.layouts;
+    }
     if (this._program.screens) {
       this._context["screen"] = this._program.screens;
     }

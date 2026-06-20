@@ -20,13 +20,13 @@ const spanTexts = (msgs: unknown[]): unknown[] =>
 const run = (h: UIHarness, fn: string): void =>
   (h.game.story as any).EvaluateFunction(fn, []);
 const refresh = (h: UIHarness): void =>
-  (h.game.module.ui as any).refreshScreens();
+  (h.game.module.ui as any).refreshLayouts();
 
 describe("reactive for (Phase 3 I4)", () => {
   test("mounts one item per element, binding the loop variable", async () => {
     const h = createHarness(
       `store items = {10, 20, 30}
-screen bag with
+layout bag with
   for n in items do
     text "n={n}"
   end
@@ -44,7 +44,7 @@ end
   test("iterates a table of tables with member access", async () => {
     const h = createHarness(
       `store items = { {name = "sword"}, {name = "shield"} }
-screen bag with
+layout bag with
   for it in items do
     text "{it.name}"
   end
@@ -62,7 +62,7 @@ end
   test("two-variable `for k, v` binds key + value", async () => {
     const h = createHarness(
       `store scores = { alice = 10, bob = 20 }
-screen board with
+layout board with
   for name, pts in scores do
     text "{name}={pts}"
   end
@@ -82,7 +82,7 @@ end
 function reverse()
   items = { items[3], items[2], items[1] }
 end
-screen bag with
+layout bag with
   for it in items do
     text "n={it.n}"
   end
@@ -112,7 +112,7 @@ store items = { {n = 1}, {n = 2}, {n = 3} }
 function nudge()
   tick = tick + 1
 end
-screen bag with
+layout bag with
   for it in items do
     text "a{it.n}"
     text "b{it.n}"
@@ -137,7 +137,7 @@ end
 function reverse()
   items = { items[3], items[2], items[1] }
 end
-screen bag with
+layout bag with
   for it in items do
     text "a{it.n}"
     text "b{it.n}"
@@ -162,7 +162,7 @@ end
 function bump()
   items[1].n = 99
 end
-screen bag with
+layout bag with
   for it in items do
     text "n={it.n}"
   end
@@ -197,7 +197,7 @@ end
 function shrink()
   items = {10}
 end
-screen bag with
+layout bag with
   for n in items do
     text "n={n}"
   end
@@ -226,7 +226,7 @@ end
 function fill()
   items = {10}
 end
-screen bag with
+layout bag with
   for n in items do
     text "n={n}"
   else

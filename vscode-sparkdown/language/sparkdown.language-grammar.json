@@ -43,7 +43,7 @@
       "unmute",
       "now"
     ],
-    "SCREEN_CONTROL_KEYWORDS": [
+    "LAYOUT_CONTROL_KEYWORDS": [
       "open",
       "close",
       "navigate"
@@ -4575,6 +4575,9 @@
           "include": "#LuauStyle"
         },
         {
+          "include": "#LuauLayout"
+        },
+        {
           "include": "#LuauScreen"
         },
         {
@@ -7956,6 +7959,73 @@
       ],
       "end": "(?=$)"
     },
+    "LuauLayout": {
+      "tag": "meta",
+      "name": "meta.layout.luau",
+      "begin": "((?:[^\\S\\n\\r])*)(layout)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauLayoutKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauLayoutNameAndInheritance"
+        },
+        {
+          "include": "#LuauSparkleControlBlock"
+        },
+        {
+          "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(end)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
     "LuauScreen": {
       "tag": "meta",
       "name": "meta.screen.luau",
@@ -7989,10 +8059,7 @@
           "include": "#LuauComment"
         },
         {
-          "include": "#LuauScreenNameAndInheritance"
-        },
-        {
-          "include": "#LuauSparkleControlBlock"
+          "include": "#LuauScreenNameHeader"
         },
         {
           "include": "#LuauStructBodyLine"
@@ -8018,6 +8085,41 @@
           "patterns": [
             {
               "include": "#LuauEndKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "LuauScreenNameHeader": {
+      "begin": "(?<=screen\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauDefineName"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#ExtraWhitespace"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "endCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauWithKeyword"
             }
           ]
         }
@@ -8090,8 +8192,8 @@
         }
       }
     },
-    "LuauScreenNameAndInheritance": {
-      "begin": "(?<=screen\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
+    "LuauLayoutNameAndInheritance": {
+      "begin": "(?<=layout\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -8106,7 +8208,7 @@
           "include": "#LuauInheritanceOperation"
         },
         {
-          "include": "#LuauScreenContainerOperation"
+          "include": "#LuauLayoutScreenOperation"
         },
         {
           "include": "#ExtraWhitespace"
@@ -8169,7 +8271,7 @@
         }
       }
     },
-    "LuauScreenContainerOperation": {
+    "LuauLayoutScreenOperation": {
       "match": "((?:[^\\S\\n\\r])*)(in)\\b((?:[^\\S\\n\\r])*)($|(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))($|(?:[^\\S\\n\\r])*)",
       "captures": {
         "1": {
@@ -8197,7 +8299,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#LuauScreenContainerName"
+              "include": "#LuauLayoutScreenName"
             }
           ]
         },
@@ -8337,6 +8439,11 @@
         }
       }
     },
+    "LuauLayoutKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.layout.luau",
+      "match": "(layout)\\b"
+    },
     "LuauScreenKeyword": {
       "tag": "controlKeyword",
       "name": "keyword.control.screen.luau",
@@ -8446,9 +8553,9 @@
       "name": "entity.name.type.define.parent.luau",
       "match": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))"
     },
-    "LuauScreenContainerName": {
+    "LuauLayoutScreenName": {
       "tag": "typeName",
-      "name": "entity.name.type.screen.container.luau",
+      "name": "entity.name.type.layout.screen.luau",
       "match": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))"
     },
     "LuauFunctionDefinition": {

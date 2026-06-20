@@ -2,7 +2,7 @@ import {
   AudioInstruction,
   ImageInstruction,
   LoadInstruction,
-  ScreenInstruction,
+  LayoutInstruction,
   TextInstruction,
 } from "./Instruction";
 
@@ -11,10 +11,10 @@ export interface Instructions {
   text?: Record<string, TextInstruction[]>;
   image?: Record<string, ImageInstruction[]>;
   audio?: Record<string, AudioInstruction[]>;
-  /** `[[open SCREEN]]` / `[[close SCREEN]]` screen-lifecycle directives, in
-   *  source order. Keyed by screen name so multiple opens/closes of distinct
-   *  screens in one beat all survive a merge. */
-  screen?: Record<string, ScreenInstruction[]>;
+  /** `[[open LAYOUT]]` / `[[close LAYOUT]]` / `[[navigate SCREEN to LAYOUT]]`
+   *  layout-lifecycle directives, in source order. Keyed by layout name so
+   *  multiple opens/closes of distinct layouts in one beat all survive a merge. */
+  layout?: Record<string, LayoutInstruction[]>;
   choices?: string[];
   uuids?: string[];
   auto?: boolean;

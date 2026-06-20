@@ -1,18 +1,18 @@
 text.source.sparkdown [0..186]
- ├─ meta.screen.luau [0..15]
- │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ ├─ meta.layout.luau [0..15]
+ │   ├─ keyword.control.layout.luau [0..6]: "layout"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
  │   ├─ entity.name.type.define.luau [7..10]: "hud"
  │   ├─ punctuation.whitespace.optional.sd [10..11]: " "
  │   └─ keyword.control.as.luau [11..15]: "with"
  ├─ Newline [15..16]: "\n"
- ├─ meta.screen.luau [16..24]
+ ├─ meta.layout.luau [16..24]
  │   ├─ punctuation.whitespace.optional.sd [16..18]: "  "
  │   └─ meta.struct.body.luau [18..24]
  │       ├─ entity.name.type.class.view.sd [18..23]: "stage"
  │       └─ meta.template.expression.operator.colon.sd [23..24]: ":"
  ├─ Newline [24..25]: "\n"
- ├─ meta.screen.luau [25..48]
+ ├─ meta.layout.luau [25..48]
  │   ├─ punctuation.whitespace.optional.sd [25..29]: "    "
  │   ├─ keyword.control.if.luau [29..31]: "if"
  │   ├─ punctuation.whitespace.optional.sd [31..32]: " "
@@ -22,7 +22,7 @@ text.source.sparkdown [0..186]
  │   ├─ punctuation.whitespace.optional.sd [43..44]: " "
  │   └─ keyword.control.then.luau [44..48]: "then"
  ├─ Newline [48..49]: "\n"
- ├─ meta.screen.luau [49..71]
+ ├─ meta.layout.luau [49..71]
  │   ├─ punctuation.whitespace.optional.sd [49..55]: "      "
  │   └─ meta.struct.body.luau [55..71]
  │       ├─ keyword.other.component.builtin.name.sd [55..59]: "text"
@@ -40,7 +40,7 @@ text.source.sparkdown [0..186]
  │           ├─ markup.raw.whitespace.sd [69..70]: "R"
  │           └─ punctuation.definition.string.end.sd [70..71]: "\""
  ├─ Newline [71..72]: "\n"
- ├─ meta.screen.luau [72..102]
+ ├─ meta.layout.luau [72..102]
  │   ├─ punctuation.whitespace.optional.sd [72..76]: "    "
  │   ├─ keyword.control.elseif.luau [76..82]: "elseif"
  │   ├─ punctuation.whitespace.optional.sd [82..83]: " "
@@ -54,7 +54,7 @@ text.source.sparkdown [0..186]
  │   ├─ punctuation.whitespace.optional.sd [97..98]: " "
  │   └─ keyword.control.then.luau [98..102]: "then"
  ├─ Newline [102..103]: "\n"
- ├─ meta.screen.luau [103..135]
+ ├─ meta.layout.luau [103..135]
  │   ├─ punctuation.whitespace.optional.sd [103..109]: "      "
  │   └─ meta.struct.body.luau [109..135]
  │       ├─ keyword.other.component.builtin.name.sd [109..113]: "text"
@@ -76,11 +76,11 @@ text.source.sparkdown [0..186]
  │           ├─ markup.raw.whitespace.sd [133..134]: "!"
  │           └─ punctuation.definition.string.end.sd [134..135]: "\""
  ├─ Newline [135..136]: "\n"
- ├─ meta.screen.luau [136..144]
+ ├─ meta.layout.luau [136..144]
  │   ├─ punctuation.whitespace.optional.sd [136..140]: "    "
  │   └─ keyword.control.else.luau [140..144]: "else"
  ├─ Newline [144..145]: "\n"
- ├─ meta.screen.luau [145..173]
+ ├─ meta.layout.luau [145..173]
  │   ├─ punctuation.whitespace.optional.sd [145..151]: "      "
  │   └─ meta.struct.body.luau [151..173]
  │       ├─ keyword.other.component.builtin.name.sd [151..155]: "text"
@@ -100,10 +100,10 @@ text.source.sparkdown [0..186]
  │           │   └─ punctuation.definition.template-expression.end.sd [171..172]: "}"
  │           └─ punctuation.definition.string.end.sd [172..173]: "\""
  ├─ Newline [173..174]: "\n"
- ├─ meta.screen.luau [174..181]
+ ├─ meta.layout.luau [174..181]
  │   ├─ punctuation.whitespace.optional.sd [174..178]: "    "
  │   └─ keyword.control.end.luau [178..181]: "end"
  ├─ Newline [181..182]: "\n"
- ├─ meta.screen.luau [182..185]
+ ├─ meta.layout.luau [182..185]
  │   └─ keyword.control.end.luau [182..185]: "end"
  └─ Newline [185..186]: "\n"

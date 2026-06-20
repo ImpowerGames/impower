@@ -18,7 +18,7 @@ define beep as audio with
   src = "https://example.com/beep.wav"
 end
 
-screen main with
+layout main with
   textbox:
     character_info:
       character_name:

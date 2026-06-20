@@ -1544,12 +1544,12 @@ define screen with
   ["$recursive"] = true
 end
 
-screen loading with
+layout loading with
   loading_bar:
     loading_fill:
 end
 
-screen main with
+layout main with
   stage:
     animation:
     backdrop:

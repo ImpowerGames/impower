@@ -10,7 +10,7 @@ import {
   flushMicrotasks,
 } from "./harness/uiTestHarness";
 
-const SCREEN = `screen main with
+const SCREEN = `layout main with
   textbox:
     character_info:
       character_name:

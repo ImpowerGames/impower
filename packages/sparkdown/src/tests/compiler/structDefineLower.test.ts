@@ -94,17 +94,17 @@ describe("screen/component structural lowering (static context channel)", () => 
   // (e.g. as a bogus key/value or a malformed selector).
   test("static screen body excises inline `@event` / `#prop` attributes", () => {
     const struct = ctxOf(
-      `screen hud with
+      `layout hud with
   column #gap=16:
     button "Use" @click=use_item
     text "HP: {hp}" #color=red
 end
 `,
-      "screen",
+      "layout",
       "hud",
     );
     expect(struct).toEqual({
-      $type: "screen",
+      $type: "layout",
       $name: "hud",
       $recursive: true,
       // `#gap=16` excised from the header key; `@click` / `#color` excised from

@@ -1,4 +1,4 @@
-screen panel with
+layout panel with
   column #gap=16:
     text "Inventory"
     row #background-color={team_color}:

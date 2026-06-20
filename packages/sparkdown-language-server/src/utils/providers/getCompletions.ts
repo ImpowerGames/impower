@@ -78,6 +78,7 @@ const isPrefilteredName = (name: string) => name.includes("~");
 // Top-level structural-define keyword node → the engine type it declares.
 const STRUCTURAL_DEFINE_TYPE: Record<string, string> = {
   LuauStyle: "style",
+  LuauLayout: "layout",
   LuauScreen: "screen",
   LuauComponent: "component",
   LuauAnimation: "animation",
@@ -436,7 +437,7 @@ const addScreenElementReferenceCompletions = (
   insertTextSuffix = "",
 ) => {
   for (const contentType of contentTypes) {
-    const structs = program?.context?.["screen"];
+    const structs = program?.context?.["layout"];
     if (structs) {
       for (const v of Object.values(structs)) {
         traverse(v, (fieldPath) => {

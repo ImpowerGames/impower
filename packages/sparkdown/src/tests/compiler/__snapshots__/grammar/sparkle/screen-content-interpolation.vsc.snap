@@ -1,18 +1,18 @@
 text.source.sparkdown [0..155]
- ├─ meta.screen.luau [0..15]
- │   ├─ keyword.control.screen.luau [0..6]: "screen"
+ ├─ meta.layout.luau [0..15]
+ │   ├─ keyword.control.layout.luau [0..6]: "layout"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
  │   ├─ entity.name.type.define.luau [7..10]: "hud"
  │   ├─ punctuation.whitespace.optional.sd [10..11]: " "
  │   └─ keyword.control.as.luau [11..15]: "with"
  ├─ Newline [15..16]: "\n"
- ├─ meta.screen.luau [16..24]
+ ├─ meta.layout.luau [16..24]
  │   ├─ punctuation.whitespace.optional.sd [16..18]: "  "
  │   └─ meta.struct.body.luau [18..24]
  │       ├─ entity.name.type.class.view.sd [18..23]: "stage"
  │       └─ meta.template.expression.operator.colon.sd [23..24]: ":"
  ├─ Newline [24..25]: "\n"
- ├─ meta.screen.luau [25..57]
+ ├─ meta.layout.luau [25..57]
  │   ├─ punctuation.whitespace.optional.sd [25..29]: "    "
  │   └─ meta.struct.body.luau [29..57]
  │       ├─ keyword.other.component.builtin.name.sd [29..33]: "text"
@@ -40,7 +40,7 @@ text.source.sparkdown [0..155]
  │           │   └─ punctuation.definition.template-expression.end.sd [55..56]: "}"
  │           └─ punctuation.definition.string.end.sd [56..57]: "\""
  ├─ Newline [57..58]: "\n"
- ├─ meta.screen.luau [58..93]
+ ├─ meta.layout.luau [58..93]
  │   ├─ punctuation.whitespace.optional.sd [58..62]: "    "
  │   └─ meta.struct.body.luau [62..93]
  │       ├─ keyword.other.component.builtin.name.sd [62..67]: "label"
@@ -66,7 +66,7 @@ text.source.sparkdown [0..155]
  │           │   └─ punctuation.definition.template-expression.end.sd [91..92]: "}"
  │           └─ punctuation.definition.string.end.sd [92..93]: "\""
  ├─ Newline [93..94]: "\n"
- ├─ meta.screen.luau [94..130]
+ ├─ meta.layout.luau [94..130]
  │   ├─ punctuation.whitespace.optional.sd [94..98]: "    "
  │   └─ meta.struct.body.luau [98..130]
  │       ├─ variable.other.property.define.sd [98..102]: "note"
@@ -100,7 +100,7 @@ text.source.sparkdown [0..155]
  │           ├─ markup.raw.whitespace.sd [128..129]: "y"
  │           └─ punctuation.definition.string.end.sd [129..130]: "\""
  ├─ Newline [130..131]: "\n"
- ├─ meta.screen.luau [131..150]
+ ├─ meta.layout.luau [131..150]
  │   ├─ punctuation.whitespace.optional.sd [131..135]: "    "
  │   └─ meta.struct.body.luau [135..150]
  │       ├─ variable.other.property.define.sd [135..140]: "color"
@@ -116,6 +116,6 @@ text.source.sparkdown [0..155]
  │           ├─ markup.raw.whitespace.sd [148..149]: "e"
  │           └─ punctuation.definition.string.end.sd [149..150]: "\""
  ├─ Newline [150..151]: "\n"
- ├─ meta.screen.luau [151..154]
+ ├─ meta.layout.luau [151..154]
  │   └─ keyword.control.end.luau [151..154]: "end"
  └─ Newline [154..155]: "\n"

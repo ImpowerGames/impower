@@ -11,7 +11,7 @@ const setGlobal = (h: any, name: string, value: unknown): void => {
   h.game.story.variablesState.$(name, value);
 };
 const refresh = async (h: any): Promise<void> => {
-  h.game.module.ui.refreshScreens();
+  h.game.module.ui.refreshLayouts();
   await flushMicrotasks();
 };
 /** Visible rendered text in document order, excluding the injected stylesheet
@@ -27,7 +27,7 @@ describe("dom control flow (wrapperless)", () => {
   test("an `if` toggling true inserts its content BETWEEN its siblings", async () => {
     const h = createDOMHarness(
       `store show = false
-screen s with
+layout s with
   text "A"
   if show then
     text "B"
@@ -56,7 +56,7 @@ end
   test("a `for`'s items render in order between its siblings", async () => {
     const h = createDOMHarness(
       `store items = { "x", "y", "z" }
-screen s with
+layout s with
   text "<"
   for it in items do
     text "{it}"
@@ -79,7 +79,7 @@ end
     const h = createDOMHarness(
       `store outer = true
 store inner = false
-screen s with
+layout s with
   text "<"
   if outer then
     text "O"
@@ -109,7 +109,7 @@ end
       `store outer = true
 store inner = false
 store never = false
-screen s with
+layout s with
   if outer then
     text "O"
     if inner then
@@ -142,7 +142,7 @@ end
     const h = createDOMHarness(
       `store mode = 1
 store inner = false
-screen s with
+layout s with
   text "<"
   if mode == 1 then
     text "A"
@@ -176,7 +176,7 @@ end
   test("no display:contents wrapper elements are emitted", async () => {
     const h = createDOMHarness(
       `store show = true
-screen s with
+layout s with
   if show then
     text "B"
   end
@@ -197,7 +197,7 @@ end
     const h = createDOMHarness(
       `store choice = "b"
 store opts = { "a", "b", "c" }
-screen s with
+layout s with
   dropdown #value={choice}:
     for o in opts do
       option "{o}"

@@ -43,10 +43,10 @@ export interface CompiledBlock {
   context?: {
     [type: string]: { [name: string]: any };
   };
-  // Reactive Sparkle UI AST contributed by a screen/component block, merged
-  // into `program.sparkle` (docs/sparkle/reactive-sparkle-spec.md §6). Additive
-  // and not yet consumed by the engine.
+  // Reactive Sparkle UI AST contributed by a layout/screen/component block,
+  // merged into `program.sparkle` (docs/sparkle/reactive-sparkle-spec.md §6).
   sparkle?: {
+    layouts?: { [name: string]: any };
     screens?: { [name: string]: any };
     components?: { [name: string]: any };
   };

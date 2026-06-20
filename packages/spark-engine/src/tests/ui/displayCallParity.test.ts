@@ -16,7 +16,7 @@ const SCREEN = `define HERO as character with
   name = "HERO"
 end
 
-screen main with
+layout main with
   title:
     text
   heading:
@@ -146,7 +146,7 @@ define BG as image with
   src = "https://example.com/bg.png"
 end
 
-screen main with
+layout main with
   stage:
     backdrop:
       image

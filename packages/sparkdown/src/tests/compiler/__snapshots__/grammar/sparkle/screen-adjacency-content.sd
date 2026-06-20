@@ -1,4 +1,4 @@
-screen main with
+layout main with
   stage:
     backdrop:
       image "black"

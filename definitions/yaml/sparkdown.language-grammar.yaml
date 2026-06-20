@@ -20,7 +20,7 @@ variables:
   # the image path. `open`/`close` are overlay primitives; `navigate <container>
   # to <screen>` routes within a container (close that container's open screens,
   # open the target), leaving other containers / uncategorized screens untouched.
-  SCREEN_CONTROL_KEYWORDS: ["open", "close", "navigate"]
+  LAYOUT_CONTROL_KEYWORDS: ["open", "close", "navigate"]
 
   FLOW_BEAT_KEYWORDS: ["scene", "branch"]
   FLOW_MODULE_KEYWORDS: ["include", "run"]
@@ -2313,7 +2313,7 @@ repository:
           - { include: "#NameValue" }
 
   AssetCommandInstruction:
-    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{SCREEN_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
+    match: (?:({{IMAGE_CONTROL_KEYWORDS}}|{{AUDIO_CONTROL_KEYWORDS}}|{{LAYOUT_CONTROL_KEYWORDS}})({{WS}}*)($|\S+)({{WS}}*))?(.*)
     captures:
       1:
         patterns:
@@ -2881,6 +2881,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauShebang" }
       - { include: "#LuauStyle" }
+      - { include: "#LuauLayout" }
       - { include: "#LuauScreen" }
       - { include: "#LuauComponent" }
       - { include: "#LuauAnimation" }
@@ -4978,6 +4979,50 @@ repository:
   # element's indentation column. See lowerLuauUI.
   # ----------------------------------------------------------------------------
 
+  LuauLayout:
+    tag: meta
+    name: meta.layout.luau
+    begin: ({{WS}}*)(layout)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauLayoutKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauLayoutNameAndInheritance" }
+      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauStructBodyLine" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  # ----------------------------------------------------------------------------
+  # Screen (navigation group for layouts)
+  #
+  # `screen NAME with <optional config> end` — a named group that holds
+  # mutually-exclusive layouts (`layout X in NAME`). Explicitly declared so
+  # `in SCREEN` references and `[[navigate SCREEN to LAYOUT]]` validate against
+  # it (undefined screen = error, catching typos). The body is reserved for
+  # future screen-level config; empty is allowed but `with` is required. Lowers
+  # to a compile-time `screen` struct in program.context.screen.<name>. See
+  # lowerLuauScreen.
+  # ----------------------------------------------------------------------------
+
   LuauScreen:
     tag: meta
     name: meta.screen.luau
@@ -4995,8 +5040,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauScreenNameAndInheritance" }
-      - { include: "#LuauSparkleControlBlock" }
+      - { include: "#LuauScreenNameHeader" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -5009,6 +5053,26 @@ repository:
       2:
         patterns:
           - { include: "#LuauEndKeyword" }
+
+  # `screen NAME`, ending at `with`. Reuses LuauDefineName so the lowerer reads
+  # the name through the same node as define / style / layout.
+  LuauScreenNameHeader:
+    begin: (?<=screen\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauDefineName" }
+    patterns:
+      - { include: "#ExtraWhitespace" }
+    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauWithKeyword" }
 
   LuauComponent:
     tag: meta
@@ -5049,16 +5113,16 @@ repository:
   # shared rule (Golden Rule: distinct contexts → distinct grammar). Reuses
   # LuauDefineName / LuauInheritanceOperation → LuauDefineParentName so the
   # lowerer reads name/parent through the same node names as `define` / `style`;
-  # adds LuauScreenContainerOperation → LuauScreenContainerName for `in`.
-  LuauScreenNameAndInheritance:
-    begin: (?<=screen\b{{WS}}*)({{LUAU_IDENTIFIER}})
+  # adds LuauLayoutScreenOperation → LuauLayoutScreenName for `in`.
+  LuauLayoutNameAndInheritance:
+    begin: (?<=layout\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
           - { include: "#LuauDefineName" }
     patterns:
       - { include: "#LuauInheritanceOperation" }
-      - { include: "#LuauScreenContainerOperation" }
+      - { include: "#LuauLayoutScreenOperation" }
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|({{WS}}*)(with)\b
     endCaptures:
@@ -5095,8 +5159,8 @@ repository:
   # `in CONTAINER` — the screen's navigation container. Mirrors
   # LuauInheritanceOperation (`as PARENT`): the space before `in` is a SEPARATOR
   # (normalize to one space) so the formatter doesn't eat it (`hudin`). The
-  # container name lowers through LuauScreenContainerName.
-  LuauScreenContainerOperation:
+  # container name lowers through LuauLayoutScreenName.
+  LuauLayoutScreenOperation:
     match: ({{WS}}*)(in)\b({{WS}}*)($|{{LUAU_IDENTIFIER}})($|{{WS}}*)
     captures:
       1:
@@ -5111,7 +5175,7 @@ repository:
           - { include: "#OptionalWhitespace" }
       4:
         patterns:
-          - { include: "#LuauScreenContainerName" }
+          - { include: "#LuauLayoutScreenName" }
       5:
         emit: true
         patterns:
@@ -5189,6 +5253,11 @@ repository:
       4:
         patterns:
           - { include: "#LuauUIQuote" }
+
+  LuauLayoutKeyword:
+    tag: controlKeyword
+    name: keyword.control.layout.luau
+    match: (layout)\b
 
   LuauScreenKeyword:
     tag: controlKeyword
@@ -5292,9 +5361,9 @@ repository:
     match: ({{LUAU_IDENTIFIER}})
 
   # The screen's navigation container name (from `screen NAME in CONTAINER`).
-  LuauScreenContainerName:
+  LuauLayoutScreenName:
     tag: typeName
-    name: entity.name.type.screen.container.luau
+    name: entity.name.type.layout.screen.luau
     match: ({{LUAU_IDENTIFIER}})
 
   # ----------------------------------------------------------------------------

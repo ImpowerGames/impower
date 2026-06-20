@@ -134,19 +134,19 @@ end
   });
 
   test("screen: layer names emit layer ids + interdependent style ids", () => {
-    const refs = collectReferences(`screen title_screen with
+    const refs = collectReferences(`layout title_screen with
   stage:
     backdrop:
       image = "bg"
 end
 `);
     const screenName = find(refs, "title_screen", "define_variable_name");
-    expect(screenName?.symbolIds).toContain("screen.title_screen");
+    expect(screenName?.symbolIds).toContain("layout.title_screen");
 
     const backdrop = find(refs, "backdrop", "property");
     expect(backdrop?.symbolIds).toContain("layer.backdrop");
     expect(backdrop?.symbolIds).toContain(
-      "screen.title_screen.stage.backdrop",
+      "layout.title_screen.stage.backdrop",
     );
     expect(backdrop?.interdependentIds).toContain("style.backdrop");
   });
@@ -154,7 +154,7 @@ end
   test("screen layer interdependency links to a same-named style block", () => {
     // The screen layer `backdrop` (interdependent style.backdrop) and the
     // `style backdrop` block name (style.backdrop) share a resolvable id.
-    const refs = collectReferences(`screen s with
+    const refs = collectReferences(`layout s with
   backdrop:
     image = "bg"
 end

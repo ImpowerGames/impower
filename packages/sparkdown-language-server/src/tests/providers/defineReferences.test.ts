@@ -94,7 +94,7 @@ raffles: Hello.
 });
 
 describe("provider · screen/style layer interdependency (D2)", () => {
-  const source = `screen s with
+  const source = `layout s with
   backdrop:
     image = "bg"
 end

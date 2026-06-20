@@ -101,6 +101,7 @@ const STRUCT_KEY_TOKENS = new Set([
 // `as PARENT` is `$extends` (a sibling of the SAME type), not the type itself.
 const STRUCTURAL_TYPE_BY_NODE: Record<string, string> = {
   LuauStyle: "style",
+  LuauLayout: "layout",
   LuauScreen: "screen",
   LuauComponent: "component",
   LuauAnimation: "animation",
@@ -110,8 +111,8 @@ const STRUCTURAL_TYPE_BY_NODE: Record<string, string> = {
 // `[[open hud]]` / `[[close hud]]` — the directive's target is a SCREEN name, so
 // it references the `screen <name>` define (symbolId `screen.<name>`) rather than
 // an image layer.
-const SCREEN_CONTROL_KEYWORDS: string[] =
-  GRAMMAR_DEFINITION.variables.SCREEN_CONTROL_KEYWORDS || [];
+const LAYOUT_CONTROL_KEYWORDS: string[] =
+  GRAMMAR_DEFINITION.variables.LAYOUT_CONTROL_KEYWORDS || [];
 
 export class ReferenceAnnotator extends SparkdownAnnotator<
   SparkdownAnnotation<Reference>
@@ -453,14 +454,14 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const classWords = key.split(" ").filter(Boolean);
       const symbolIds = [
         `${this.defineType}.${this.defineName}.${propertyPath}`,
-        ...(this.defineType === "screen"
+        ...(this.defineType === "layout"
           ? classWords.map((w) => `layer.${w}`)
           : []),
       ];
       const interdependentIds =
         this.defineType === "style"
           ? classWords.map((w) => `layer.${w}`)
-          : this.defineType === "screen"
+          : this.defineType === "layout"
             ? classWords.map((w) => `style.${w}`)
             : [];
       annotations.push(
@@ -530,15 +531,31 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
+    if (nodeRef.name === "LuauLayoutScreenName") {
+      // The `in <screen>` clause on a layout header (`layout X in SCREEN`):
+      // references a defined navigation `screen <name>`. Resolving it warns
+      // "Cannot find screen `X`" when the screen isn't declared — catching typos
+      // in the `in` clause (the whole reason screens are explicitly defined).
+      const name = this.read(nodeRef.from, nodeRef.to).trim();
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          selectors: [{ types: ["screen"], name, displayType: "screen" }],
+          symbolIds: [`screen.${name}`],
+          kind: "read",
+          linkable: true,
+        }).range(nodeRef.from, nodeRef.to),
+      );
+      return annotations;
+    }
     if (nodeRef.name === "AssetCommandTarget") {
       const context = getContextNames(nodeRef.node);
       // Record image target reference
       if (context.includes("ImageCommand")) {
         const name = this.read(nodeRef.from, nodeRef.to);
-        // Screen-lifecycle directive (`[[open/close <screen>]]`): the target is a
-        // screen name, so reference the `screen <name>` define (symbolId
-        // `screen.<name>`) — links to the definition and warns only when the
-        // screen is undefined, instead of validating it as an image layer.
+        // Layout-lifecycle directive (`[[open/close <layout>]]` /
+        // `[[navigate <screen> to <layout>]]`): the FIRST token references a
+        // `layout`/`screen` define (not an image layer) — links to the
+        // definition and warns only when undefined.
         const instruction = ancestorMatching(
           nodeRef.node,
           ASSET_COMMAND_INSTRUCTION,
@@ -550,36 +567,26 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           ? this.read(controlNode.from, controlNode.to).trim()
           : "";
         if (control === "navigate") {
-          // `[[navigate <container> to <screen>]]` — the FIRST token is the
-          // navigation CONTAINER, not a screen. A container "exists" iff some
-          // screen declares `in <container>` (a `$container` property). The
-          // property/value selector resolves against any screen with that
-          // container; if none, it warns "Cannot find container `X`" — which also
-          // flags `[[navigate my_screen]]` (a screen name used where a container
-          // is expected). Not linkable (a container has no single defining node).
-          annotations.push(
-            SparkdownAnnotation.mark<Reference>({
-              selectors: [
-                {
-                  types: ["screen"],
-                  property: "$container",
-                  value: name,
-                  displayName: name,
-                  displayType: "container",
-                },
-              ],
-              kind: "read",
-              linkable: false,
-            }).range(nodeRef.from, nodeRef.to),
-          );
-          return annotations;
-        }
-        if (SCREEN_CONTROL_KEYWORDS.includes(control)) {
-          // `[[open/close <screen>]]` — the target IS a screen name.
+          // `[[navigate <screen> to <layout>]]` — the FIRST token is a defined
+          // navigation SCREEN. Resolve it as a `screen <name>` define; an
+          // undefined one warns "Cannot find screen `X`" (catching e.g. a layout
+          // name typo'd in the screen position).
           annotations.push(
             SparkdownAnnotation.mark<Reference>({
               selectors: [{ types: ["screen"], name, displayType: "screen" }],
               symbolIds: [`screen.${name}`],
+              kind: "read",
+              linkable: true,
+            }).range(nodeRef.from, nodeRef.to),
+          );
+          return annotations;
+        }
+        if (LAYOUT_CONTROL_KEYWORDS.includes(control)) {
+          // `[[open/close <layout>]]` — the target IS a layout name.
+          annotations.push(
+            SparkdownAnnotation.mark<Reference>({
+              selectors: [{ types: ["layout"], name, displayType: "layout" }],
+              symbolIds: [`layout.${name}`],
               kind: "read",
               linkable: true,
             }).range(nodeRef.from, nodeRef.to),
@@ -723,9 +730,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           return annotations;
         }
         if (clauseKeyword === "to") {
-          // `[[navigate <container> to <screen>]]` — the value after `to` is the
-          // destination SCREEN. (`to` only appears in `[[…]]` brackets for
-          // navigate; the screen control is verified before resolving.)
+          // `[[navigate <screen> to <layout>]]` — the value after `to` is the
+          // destination LAYOUT. (`to` only appears in `[[…]]` brackets for
+          // navigate; the control is verified before resolving.)
           const command = ancestorMatching(nodeRef.node, ASSET_COMMAND);
           const controlNode = command
             ? firstDescendant(command, ASSET_COMMAND_CONTROL)
@@ -736,8 +743,8 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           if (control === "navigate") {
             annotations.push(
               SparkdownAnnotation.mark<Reference>({
-                selectors: [{ types: ["screen"], name, displayType: "screen" }],
-                symbolIds: [`screen.${name}`],
+                selectors: [{ types: ["layout"], name, displayType: "layout" }],
+                symbolIds: [`layout.${name}`],
                 kind: "read",
                 linkable: true,
               }).range(nodeRef.from, nodeRef.to),

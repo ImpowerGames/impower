@@ -15,7 +15,7 @@
 //   2. Construct a real `Game` (which instantiates the real `UIModule`,
 //      `AudioModule`, `InterpreterModule`, …) and `connect()` it to a mock
 //      Connection that records every emitted message and replies to requests.
-//   3. Build the screen tree with `game.preview(...)` (the real, instant
+//   3. Build the layout tree with `game.preview(...)` (the real, instant
 //      screen-construction path) and/or drive individual beats through the
 //      same fan-out the `Coordinator.display()` performs
 //      (`ui.text.write` / `ui.image.write` / `audio.schedule` / `ui.observe`),
@@ -302,18 +302,18 @@ export function createHarness(
           ),
         );
       }
-      // Apply [[open/close SCREEN]] lifecycle directives, mirroring
+      // Apply [[open/close/navigate]] layout-lifecycle directives, mirroring
       // Coordinator.display()'s fan-out (mount/destroy + enter/exit transitions).
-      if (instructions.screen) {
+      if (instructions.layout) {
         await Promise.all(
-          Object.values(instructions.screen).map((events) =>
-            ui.applyScreenInstructions(events as any, instant),
+          Object.values(instructions.layout).map((events) =>
+            ui.applyLayoutInstructions(events as any, instant),
           ),
         );
       }
       // Coarse per-turn reactive re-eval, mirroring Coordinator.display()'s
       // updateUI (no-op unless the reactive render path is active).
-      ui.refreshScreens();
+      ui.refreshLayouts();
       // Trigger scheduled audio once its loads have settled (the Coordinator
       // does this from its per-frame tick after `audio.isReady(...)`).
       if (audioTriggerIds.length > 0) {
