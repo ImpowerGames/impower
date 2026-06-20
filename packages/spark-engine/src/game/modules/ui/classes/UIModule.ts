@@ -4,6 +4,7 @@ import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilt
 import type {
   Binding,
   BodyNode,
+  ComponentNode,
   ContentPart,
   ElementNode,
   EventBinding,
@@ -11,6 +12,7 @@ import type {
   IfNode,
   MatchNode,
   PropValue,
+  SlotNode,
   LayoutNode,
 } from "@impower/sparkdown/src/compiler/types/SparkleNode";
 import {
@@ -213,17 +215,52 @@ interface ForRegion {
   owner?: ReactiveRegion;
 }
 
-type ReactiveRegion = CondRegion | ForRegion;
+/** An authored-component instance (`card("x")`, spec §4.7), wrapperless like
+ *  cond/for: the component's body is mounted directly into `parent` at the
+ *  region's slot, in `scope` (whose `env` holds the param values, evaluated in
+ *  the CALLER's env and mutated in place on re-eval). `node` is the call element
+ *  (its `params` are the arg bindings; its children are the default-slot content
+ *  + `fill`s, exposed to the body via `scope.slots`). */
+interface ComponentRegion {
+  kind: "component";
+  parent: Element;
+  node: ElementNode;
+  comp: ComponentNode;
+  scope: ReactiveScope;
+  content: ReactiveGroup;
+  siblings: ReactiveGroup;
+  owner?: ReactiveRegion;
+}
+
+/** A `slot` placeholder inside a component body: the caller's matching content
+ *  (default children or a named `fill`) mounted at this position but registered
+ *  in the CALLER's scope (so it reads caller vars, and refreshes with the
+ *  caller, not the component). Structurally static — refresh is a no-op here. */
+interface SlotRegion {
+  kind: "slot";
+  parent: Element;
+  content: ReactiveGroup;
+  siblings: ReactiveGroup;
+  owner?: ReactiveRegion;
+}
+
+type ReactiveRegion = CondRegion | ForRegion | ComponentRegion | SlotRegion;
+
+/** Caller-supplied content for a component's slots, keyed by slot name (`""` =
+ *  the default slot). Mounted in the CALLER's scope at each matching `slot`. */
+type SlotMap = Map<string, { children: BodyNode[]; scope: ReactiveScope }>;
 
 /** Reactive registrations produced by one mount pass, mirroring the mount tree
  *  so a subtree's spans + nested regions can be torn down together. `env` holds
- *  the loop-var bindings in effect for everything registered in this scope. */
+ *  the loop-var bindings in effect for everything registered in this scope.
+ *  `slots` is set only on a component body scope (caller content per slot). */
 interface ReactiveScope {
   env: ReactiveEnv;
   texts: ReactiveText[];
   regions: ReactiveRegion[];
   attrs: ReactiveAttr[];
   sliderFills: ReactiveSliderFill[];
+  slots?: SlotMap;
 }
 
 /** Builtin form-control tags → the `<input>` type they render as. Their props
@@ -1065,6 +1102,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     before: Element | null,
   ): Element | ReactiveRegion | undefined {
     if (node.kind === "element") {
+      // An element whose tag resolves to an authored `component` is an instance:
+      // expand its body (with the call's args as params + children as slots).
+      if (this._game.program?.sparkle?.components?.[node.tag]) {
+        return this.mountComponent(parent, node, scope, before);
+      }
       return this.mountElement(parent, node, scope, before);
     }
     if (node.kind === "if" || node.kind === "match") {
@@ -1073,7 +1115,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (node.kind === "for") {
       return this.mountForRegion(parent, node, scope, before);
     }
-    // slot/fill are mounted in a later increment (component slot/fill).
+    if (node.kind === "slot") {
+      return this.mountSlot(parent, node, scope, before);
+    }
+    // `fill` is consumed at the call site (into the component's slot map), never
+    // mounted standalone.
     return undefined;
   }
 
@@ -1699,6 +1745,118 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     };
   }
 
+  /** Mount an authored-component instance (`card("Inventory")`, spec §4.7) into
+   *  `parent`. The call's positional args are evaluated in the CALLER's scope and
+   *  bound to the component's declared params in a fresh body scope `env`; the
+   *  body's `{param}` bindings read them via that env (the runtime feeds each as
+   *  the matching evaluator arg — same mechanism as `for`-loop vars). The call's
+   *  children (default content + `fill`s) become the body's slot map. Returns a
+   *  region (the body is wrapperless — multiple top-level nodes), or undefined if
+   *  the tag isn't a component (caller falls back to a plain element). */
+  protected mountComponent(
+    parent: Element,
+    node: ElementNode,
+    callerScope: ReactiveScope,
+    before: Element | null,
+  ): ComponentRegion | undefined {
+    const comp = this._game.program?.sparkle?.components?.[node.tag] as
+      | ComponentNode
+      | undefined;
+    if (!comp) {
+      return undefined;
+    }
+    const env: ReactiveEnv = {};
+    this.applyComponentParams(comp, node, callerScope.env, env);
+    const scope = this.makeScope(env);
+    scope.slots = this.buildSlotMap(node, callerScope);
+    const region: ComponentRegion = {
+      kind: "component",
+      parent,
+      node,
+      comp,
+      scope,
+      content: [],
+      siblings: [],
+    };
+    callerScope.regions.push(region);
+    region.content = this.mountChildren(
+      parent,
+      comp.children,
+      scope,
+      before,
+      region,
+    );
+    return region;
+  }
+
+  /** Evaluate the call's positional args in the caller env and write them onto
+   *  `env` keyed by the component's declared param names (extra args / missing
+   *  args are ignored / left undefined). Mutates `env` IN PLACE so a re-eval
+   *  keeps the same reference live for already-mounted body bindings/handlers. */
+  protected applyComponentParams(
+    comp: ComponentNode,
+    node: ElementNode,
+    callerEnv: ReactiveEnv,
+    env: ReactiveEnv,
+  ): void {
+    const params = comp.params ?? [];
+    for (let i = 0; i < params.length; i += 1) {
+      const arg = node.params?.[i];
+      env[params[i]!] = arg ? this.resolveProp(arg, callerEnv) : undefined;
+    }
+  }
+
+  /** Build a component's slot map from the call's children: each `fill NAME`
+   *  supplies the named slot; all other children supply the default slot (`""`).
+   *  Content is paired with the CALLER scope so it renders with caller vars. */
+  protected buildSlotMap(node: ElementNode, callerScope: ReactiveScope): SlotMap {
+    const map: SlotMap = new Map();
+    const defaultChildren: BodyNode[] = [];
+    for (const child of node.children) {
+      if (child.kind === "fill") {
+        map.set(child.name ?? "", {
+          children: child.children,
+          scope: callerScope,
+        });
+      } else {
+        defaultChildren.push(child);
+      }
+    }
+    if (defaultChildren.length > 0) {
+      map.set("", { children: defaultChildren, scope: callerScope });
+    }
+    return map;
+  }
+
+  /** Mount a `slot` placeholder: the caller's matching content (from the body
+   *  scope's slot map), rendered in the CALLER's scope at this position. No
+   *  caller content → an empty placeholder region. */
+  protected mountSlot(
+    parent: Element,
+    node: SlotNode,
+    scope: ReactiveScope,
+    before: Element | null,
+  ): SlotRegion {
+    const region: SlotRegion = {
+      kind: "slot",
+      parent,
+      content: [],
+      siblings: [],
+    };
+    scope.regions.push(region);
+    const slot = scope.slots?.get(node.name ?? "");
+    if (slot) {
+      region.content = this.mountChildren(
+        parent,
+        slot.children,
+        slot.scope,
+        before,
+        region,
+      );
+    }
+    return region;
+  }
+
   /** Reconciliation key for one iterable entry: the explicit `key` clause is a
    *  follow-up, so default to the entry KEY for `k, v` loops (stable map key),
    *  else the value's identity — a table by its backing Map (so reordering the
@@ -1778,7 +1936,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return item.el;
     }
     const region = item.region;
-    if (region.kind === "cond") {
+    if (region.kind !== "for") {
+      // cond / component / slot: a single content group.
       return this.firstLiveOfGroup(region.content);
     }
     for (const it of region.iterations) {
@@ -1812,15 +1971,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         continue;
       }
       const region = it.region;
-      if (region.kind === "cond") {
-        out.push(...this.collectNodes(region.content));
-      } else {
+      if (region.kind === "for") {
         for (const iter of region.iterations) {
           out.push(...this.collectNodes(iter.content));
         }
         if (region.elseContent) {
           out.push(...this.collectNodes(region.elseContent));
         }
+      } else {
+        // cond / component / slot: a single content group.
+        out.push(...this.collectNodes(region.content));
       }
     }
     return out;
@@ -1930,10 +2090,31 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const region of scope.regions) {
       if (region.kind === "for") {
         this.refreshForRegion(region, scope.env, changes);
+      } else if (region.kind === "component") {
+        this.refreshComponentRegion(region, scope.env, changes);
+      } else if (region.kind === "slot") {
+        // Slot content is registered in the CALLER scope (this scope or an
+        // ancestor) and refreshed there — nothing to do for the placeholder.
       } else {
         this.refreshCondRegion(region, changes, envScope);
       }
     }
+  }
+
+  /** Re-evaluate a component instance's args in the caller env and update its
+   *  body `env` IN PLACE, then refresh the body scope. The body bindings are
+   *  env-scoped (their values come from params, not tracked globals), so they
+   *  re-evaluate every turn (equality-gated) and pick up the new param values —
+   *  giving reactive params (`card(player.title)`) for free. Structure is fixed
+   *  (params change values, not shape; any body `if`/`for` are regions inside the
+   *  body scope and refresh recursively). */
+  protected refreshComponentRegion(
+    region: ComponentRegion,
+    callerEnv: ReactiveEnv,
+    changes: ReactiveDeps,
+  ): void {
+    this.applyComponentParams(region.comp, region.node, callerEnv, region.scope.env);
+    this.refreshScope(region.scope, changes);
   }
 
   protected refreshCondRegion(
