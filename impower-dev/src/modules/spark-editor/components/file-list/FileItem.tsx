@@ -524,8 +524,13 @@ function FileItem({
           )}
           <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5 overflow-hidden pr-2">
             {renaming ? (
+              // Inline-edit swaps ONLY the name line, in place: the input
+              // inherits the row's text-base and is given font-semibold, so it
+              // sits at exactly the static name's size + baseline. The caption
+              // line below renders in BOTH states (outside this branch) so the
+              // column's vertical centering never shifts when editing opens.
               <div
-                class="relative w-full overflow-hidden rounded text-foreground"
+                class="relative flex flex-row items-center overflow-hidden rounded"
                 onPointerDown={(e) => e.stopPropagation()}
               >
                 <input
@@ -551,24 +556,18 @@ function FileItem({
                     }
                   }}
                   onClick={(e) => e.stopPropagation()}
-                  class="w-full bg-transparent text-foreground outline-none"
+                  class="w-full bg-transparent text-base font-semibold text-foreground outline-none"
                 />
                 <Ripple />
               </div>
             ) : (
-              <>
-                <div class="flex flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
-                  <span class="font-semibold">{name}</span>
-                  {showExt && (
-                    <span class="font-normal opacity-30">.{ext}</span>
-                  )}
-                </div>
-                {caption && (
-                  <div class="truncate text-xs text-foreground/60">
-                    {caption}
-                  </div>
-                )}
-              </>
+              <div class="flex flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
+                <span class="font-semibold">{name}</span>
+                {showExt && <span class="font-normal opacity-30">.{ext}</span>}
+              </div>
+            )}
+            {caption && (
+              <div class="truncate text-xs text-foreground/60">{caption}</div>
             )}
             </div>
           </DiagnosticsLabel>
