@@ -174,10 +174,27 @@ export default function LogicScriptEditor({
         }),
         onProtocolMessage(DidWriteFilesMessage.type, (message) => {
           const params = message.params;
-          if (
-            params.remote &&
-            params.files.find((f) => f.uri === uriRef.current)
-          ) {
+          const changed = params.files.find((f) => f.uri === uriRef.current);
+          if (!changed) {
+            return;
+          }
+          // Reload the open buffer when this script changed underneath us:
+          //  • a remote pull (Drive sync) always reloads; OR
+          //  • a LOCAL write whose on-disk text diverged from what the editor
+          //    is showing — an EXTERNAL edit, e.g. a reference-aware asset
+          //    rename rewriting this script via applyWorkspaceEdit from the
+          //    file manager pane.
+          // The editor's OWN writes are skipped because they echo back
+          // identical text (autosave) or update the buffer first (in-editor F2
+          // rename), so `textRef` already matches. Without this reload the
+          // buffer would keep showing the pre-rename reference and its next
+          // autosave would revert the on-disk rewrite.
+          const normalize = (s: string) => s.replace(/\r\n|\r/g, "\n");
+          const diverged =
+            changed.text != null &&
+            textRef.current != null &&
+            normalize(changed.text) !== normalize(textRef.current);
+          if (params.remote || diverged) {
             loadFile();
           }
         }),
