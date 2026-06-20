@@ -228,6 +228,50 @@ describe("compiler incremental equivalence", () => {
     }
   });
 
+  it("incremental == cold location maps when a structural edit changes the flow set", () => {
+    // Breaking the FIRST scene's header removes it from the flow set and shifts
+    // the document-global `dataLocations` ownership (the first `& trust =`, which
+    // is keyed by bare name and owned by the first writer across ALL flows). The
+    // per-flow location cache must detect the flow-set change and full-recompute,
+    // or it drops the entry. Compares the location-map fields only: malformed
+    // input also trips a separate pre-existing parser diagnostics drift.
+    const realWarn = console.warn;
+    const realError = console.error;
+    console.warn = () => {};
+    console.error = () => {};
+    try {
+      const base = coupledScreenplay();
+      const find = "scene scene_0";
+      const offset = base.indexOf(find);
+      expect(offset).toBeGreaterThanOrEqual(0);
+      const start = posAt(base, offset);
+      const end = posAt(base, offset + find.length);
+      const replace = "scen scene_0"; // break the `scene` keyword
+      const after = base.slice(0, offset) + replace + base.slice(offset + find.length);
+      const incr = new SparkdownCompiler();
+      incr.configure({
+        files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: base, version: 1, languageId: "sparkdown" }],
+      });
+      incr.compile({ textDocument: { uri: URI } });
+      incr.updateDocument({
+        textDocument: { uri: URI, version: 2 },
+        contentChanges: [{ range: { start, end }, text: replace }],
+      });
+      const locOf = (p: any) => ({
+        pathLocations: p.pathLocations,
+        dataLocations: p.dataLocations,
+        pathLocationsOrder: p.pathLocationsOrder,
+        dataLocationsOrder: p.dataLocationsOrder,
+      });
+      const incrLoc = locOf(pick(incr.compile({ textDocument: { uri: URI } }).program));
+      const coldLoc = locOf(coldCompile(after));
+      expect(stable(incrLoc)).toBe(stable(coldLoc));
+    } finally {
+      console.warn = realWarn;
+      console.error = realError;
+    }
+  });
+
   it("incremental == cold under randomized single edits (fuzz, each from fresh)", () => {
     // Each random edit is applied as a SINGLE incremental update from a freshly
     // configured compiler (not cumulative), so it exercises the per-flow reuse

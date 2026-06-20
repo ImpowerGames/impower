@@ -1513,6 +1513,31 @@ export class SparkdownCompiler {
         }
         return Number.POSITIVE_INFINITY;
       };
+      // Reuse is only sound while the set of top-level flows is STABLE. A
+      // structural edit (a scene/knot header made/unmade, renamed, added or
+      // removed) can reflow content across flow boundaries and shift the
+      // document-global ownership of GLOBAL dataLocations (a `& global = …`
+      // entry is keyed by bare name and owned by the FIRST writer across all
+      // flows — not flow-local). The per-flow cache freezes that ownership, so
+      // when the flow set changes, fall back to a full recompute this compile.
+      // `_locCache` keys ARE the previous compile's named-flow set (every
+      // non-`global decl` flow is stored), so this is a free comparison.
+      let effPrevCache = prevCache;
+      if (prevCache) {
+        const curNames = flows.filter((f) => f.name !== "global decl");
+        let sameSet = curNames.length === prevCache.size;
+        if (sameSet) {
+          for (const f of curNames) {
+            if (!prevCache.has(f.name)) {
+              sameSet = false;
+              break;
+            }
+          }
+        }
+        if (!sameSet) {
+          effPrevCache = undefined;
+        }
+      }
       for (const f of flows) {
         // `global decl`'s source is non-contiguous (scattered declarations), so
         // it never gets a span — always recompute it (it emits no pathLocations
@@ -1521,9 +1546,9 @@ export class SparkdownCompiler {
           f.container != null &&
           f.start0 >= 0 &&
           f.name !== "global decl" &&
-          prevCache != null;
+          effPrevCache != null;
         if (reusable) {
-          const cached = prevCache!.get(f.name);
+          const cached = effPrevCache!.get(f.name);
           if (cached) {
             const end0 = spanEndOf(f.start0);
             const guardStart = f.start0 - 1;
