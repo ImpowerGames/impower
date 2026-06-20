@@ -533,31 +533,50 @@ function FileItem({
                 class="relative flex flex-row items-center overflow-hidden rounded"
                 onPointerDown={(e) => e.stopPropagation()}
               >
-                <input
-                  ref={inputRef}
-                  value={inputValue}
-                  onInput={(e) =>
-                    setInputValue((e.target as HTMLInputElement).value)
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      commit();
-                    } else if (e.key === "Escape") {
-                      e.preventDefault();
-                      // Canceling a brand-new entry removes the empty file/folder
-                      // (VS Code); canceling a rename of an existing entry just
-                      // reverts to its current name.
-                      if (isNew) {
-                        void deleteEntry();
-                        onEndNewEntry?.();
-                      }
-                      setRenaming(false);
+                {/* Auto-size the input to its text: an invisible mirror in the
+                    same grid cell drives the width, so the preserved extension
+                    below can sit snug right after the name — exactly like the
+                    static row (which is `name` + greyed `.ext`). */}
+                <span class="grid max-w-full grid-cols-[minmax(0,max-content)]">
+                  <span
+                    class="invisible min-w-[1ch] whitespace-pre text-base font-semibold [grid-area:1/1]"
+                    aria-hidden="true"
+                  >
+                    {inputValue || " "}
+                  </span>
+                  <input
+                    ref={inputRef}
+                    value={inputValue}
+                    // size=1 so the input's intrinsic width (default ~20ch)
+                    // doesn't win the grid track's max-content sizing — the
+                    // invisible mirror drives the width, and `w-full` fills it.
+                    size={1}
+                    onInput={(e) =>
+                      setInputValue((e.target as HTMLInputElement).value)
                     }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  class="w-full bg-transparent text-base font-semibold text-foreground outline-none"
-                />
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commit();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        // Canceling a brand-new entry removes the empty
+                        // file/folder (VS Code); canceling a rename of an
+                        // existing entry just reverts to its current name.
+                        if (isNew) {
+                          void deleteEntry();
+                          onEndNewEntry?.();
+                        }
+                        setRenaming(false);
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    class="w-full min-w-0 border-0 bg-transparent p-0 text-base font-semibold text-foreground outline-none [grid-area:1/1]"
+                  />
+                </span>
+                {showExt && (
+                  <span class="flex-none font-normal opacity-30">.{ext}</span>
+                )}
                 <Ripple />
               </div>
             ) : (
