@@ -1,5 +1,5 @@
 {
-  "name": "vscode-sparkdown",
+  "name": "sparkdown",
   "displayName": "Sparkdown",
   "description": "Sparkdown autocomplete, syntax highlighting, and export to PDF",
   "galleryBanner": {
