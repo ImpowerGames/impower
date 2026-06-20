@@ -41,6 +41,10 @@ import workspace from "../../workspace/WorkspaceStore";
 // Type-only import (fully erased at build) — safe despite the protocol package's
 // CJS runtime exports that would otherwise trip Vite SSR (see the file header).
 import type { FileData } from "@impower/spark-editor-protocol/src/types/workspace/FileData";
+import FilePreviewOverlay, {
+  type PreviewItem,
+  type PreviewKind,
+} from "../file-preview/FilePreviewOverlay";
 import FileBreadcrumb from "./FileBreadcrumb";
 import FileItem, {
   BASE_INDENT,
@@ -53,10 +57,6 @@ import FileListHeader, {
   type TypeFilter,
 } from "./FileListHeader";
 import { useTreeDrag } from "./useTreeDrag";
-import FilePreviewOverlay, {
-  type PreviewItem,
-  type PreviewKind,
-} from "../file-preview/FilePreviewOverlay";
 
 // Thumbnail width requested from the SW — keep in sync with FileItem's `?thumb`.
 const THUMB_WIDTH = 144;
@@ -561,7 +561,11 @@ export default function FileList({
       : resolvedScope;
   const rows = diveMode
     ? childrenRows(tree, scope)
-    : flattenVisibleRows(displayRoots, expanded, !!trimmedSearch || !!typeFilter);
+    : flattenVisibleRows(
+        displayRoots,
+        expanded,
+        !!trimmedSearch || !!typeFilter,
+      );
 
   // Previewable list (Assets panes only): the visible FILE rows in display order
   // mapped to preview items. `.url` assets resolve their media kind from the
@@ -708,7 +712,9 @@ export default function FileList({
   // including ones inside collapsed folders), not just the visible rows. Only
   // computed in select mode so the full-tree walk never runs on a scroll frame.
   const allNodePaths = selectMode
-    ? flattenVisibleRows(displayRoots, new Set<string>(), true).map((r) => r.path)
+    ? flattenVisibleRows(displayRoots, new Set<string>(), true).map(
+        (r) => r.path,
+      )
     : [];
   const allSelected =
     allNodePaths.length > 0 && allNodePaths.every((p) => selectedPaths.has(p));
@@ -894,7 +900,7 @@ export default function FileList({
           overflow "more" menu (New Folder) docked right. In dive mode (mobile)
           the breadcrumb sits on its own row above. The bottom FAB stays the
           single primary create action per pane. */}
-      <div class="flex flex-none flex-col gap-1.5 px-8 pt-2">
+      <div class="flex flex-none flex-col gap-1.5 pl-8 pr-3 pt-2">
         {diveMode && (
           // The breadcrumb works in subtree-RELATIVE paths so the pane root
           // (`assets`/`scripts`) isn't shown as a crumb — its own home glyph
@@ -908,7 +914,9 @@ export default function FileList({
                 : scope
             }
             onNavigate={(rel) =>
-              setScopePath(rootDir ? (rel ? `${rootDir}/${rel}` : rootDir) : rel)
+              setScopePath(
+                rootDir ? (rel ? `${rootDir}/${rel}` : rootDir) : rel,
+              )
             }
             class="min-w-0"
           />
