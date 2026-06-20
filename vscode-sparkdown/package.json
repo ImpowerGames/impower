@@ -954,7 +954,7 @@
     "package:screen-webview": "cd ./webviews/screen-webview && npm run package && cd ../../",
     "package:inspector-webview": "cd ./webviews/inspector-webview && npm run package && cd ../../",
     "package:self": "node scripts/esbuild.ts --production",
-    "package": "npm-run-all -p package:* && node scripts/esbuild.js --production --devtool hidden-source-map",
+    "package": "npm-run-all -p package:*",
     "pretest": "npm run build",
     "browser": "npm run build && vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
     "vscode:prepublish": "npm run package",
