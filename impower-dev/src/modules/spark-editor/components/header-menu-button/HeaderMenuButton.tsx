@@ -1,4 +1,10 @@
-import { ArrowLeft, Button, Menu } from "@impower/impower-ui/components";
+import {
+  ArrowLeft,
+  BrandVscode,
+  Button,
+  ExternalLink,
+  Menu,
+} from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { createPortal } from "preact/compat";
 import { useEffect, useState } from "preact/hooks";
@@ -123,6 +129,25 @@ export default function HeaderMenuButton(_p: HeaderMenuButtonProps) {
           <div class="flex flex-1 flex-col">
             <Account />
           </div>
+          {/* Footer pointer to the VS Code extension. The web engine is a
+              zero-install OPFS sandbox; editing real on-disk project files is
+              the extension's job — tucked here, out of day-to-day flow. */}
+          <div class="h-px bg-foreground/[0.12]" />
+          <a
+            href="https://marketplace.visualstudio.com/items?itemName=impowergames.vscode-sparkdown"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex flex-none flex-row items-center gap-3 px-4 py-3 text-foreground/70 transition-colors hover:bg-foreground/5 hover:text-foreground"
+          >
+            <BrandVscode class="size-5 flex-none" />
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span class="text-sm font-medium">Edit files locally</span>
+              <span class="truncate text-xs text-foreground/50">
+                Open your project in VS Code
+              </span>
+            </span>
+            <ExternalLink class="size-4 flex-none opacity-50" />
+          </a>
         </div>
       </div>,
           document.body,

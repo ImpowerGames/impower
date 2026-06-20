@@ -13,6 +13,21 @@ vscode-sparkdown extension. Two headline pain points:
 This document is the design of record. It is paired with the auto-memory entry
 `project_web_file_manager_upgrade`.
 
+> **⚠️ Status update (2026-06-19): pain point #2 (local-folder editing) is DESCOPED.**
+> The File System Access API (`showDirectoryPicker`) is Chromium-desktop-only — no
+> Firefox, Safari, or iOS — and is permission-gated, so building it (and a degraded
+> path for every other browser) is a large surface for a small slice of users.
+> Instead the web engine stays a **zero-install OPFS sandbox**, and users who want to
+> edit their real on-disk project files are directed to the **vscode-sparkdown** VS
+> Code extension (there's a pointer to it in the app's sidebar drawer). Everything in
+> this doc about `FsBackend`/`LocalAsyncBackend` polymorphism, `blob:`-URL local
+> assets, `showDirectoryPicker`/IndexedDB persistence, `FileSystemObserver` watching,
+> and "Phase 2 / Open Local Folder" is therefore **shelved** — kept below only as a
+> record of the investigation, not a plan to execute.
+>
+> Pain point #1 (folders + search/sort/filter + previews + URL assets + responsive
+> mobile UI) shipped and is the active scope.
+
 ---
 
 ## 1. Current state
@@ -134,6 +149,9 @@ windowing). `FileItem.tsx` gains depth/indentation, folder-vs-file rendering,
 `draggable` + drop-target handlers, and `onContextMenu`.
 
 ### 2b. Local-folder editing — chosen approach: backend-polymorphic worker
+
+> **DESCOPED (2026-06-19)** — see the status banner at the top. This section is a
+> record of the investigation; it is not being built. Local editing → vscode-sparkdown.
 
 We adopt **Architecture A: make the worker polymorphic over
 `FileSystemDirectoryHandle`, with a write-path switch.** We reject mirror-to-OPFS and
@@ -273,7 +291,11 @@ No new UI. Make the existing nesting safe to expose, and fix the shipped Drive-s
   breadcrumbs; relaxed `getValidFileName`; `FileDropzone` preserves `webkitRelativePath`;
   persist expansion/sort/filter/search in `WorkspaceStore`. All browsers, pure OPFS.
 
-### Phase 2 — Open Local Folder (Chromium) (effort: L) — pain point #2
+### Phase 2 — Open Local Folder (Chromium) (effort: L) — pain point #2 — ~~DESCOPED~~
+
+> **DESCOPED (2026-06-19)** — not being built (Chromium-only; → vscode-sparkdown). Kept
+> as an investigation record. See the status banner at the top.
+
 - `resolveRoot` + `FsBackend`/`LocalAsyncBackend`; root/mount-prefixed URIs; provider
   registry (`Workspace.sync.active`); `showDirectoryPicker` flow + IDB persistence +
   reconnect; worker-minted `blob:` asset src; feature-detect + graceful fallback; ship
