@@ -104,7 +104,7 @@ export interface UIState {
 }
 
 /** Loop-variable bindings in effect for a scope: each enclosing `for` loop's
- *  variable name → its current iteration value. Empty at the screen root.
+ *  variable name → its current iteration value. Empty at the layout root.
  *  Passed as args to a binding evaluator via {@link Binding.params}. The object
  *  reference is stable per for-iteration and mutated in place on re-eval, so
  *  event-handler closures read the latest values. */
@@ -183,7 +183,7 @@ interface CondRegion {
   /** The region whose content group this region lives in (set when nested in
    *  another region's branch/iteration). `anchorFor` escalates to the owner's
    *  anchor when nothing live follows in the local group. Undefined at a
-   *  real-element parent (screen / element / `<select>` children), where a null
+   *  real-element parent (layout / element / `<select>` children), where a null
    *  anchor correctly means append-to-parent. */
   owner?: ReactiveRegion;
 }
@@ -256,15 +256,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected _clearOnContinue: Set<string> = new Set();
 
-  // Phase 3 reactive runtime: render screens from program.sparkle (the typed AST)
-  // instead of the static context.screen struct, with coarse per-turn binding
+  // Phase 3 reactive runtime: render layouts from program.sparkle (the typed AST)
+  // instead of the static context.layout struct, with coarse per-turn binding
   // re-eval. OFF by default — the static path stays the golden-master fallback
   // until the AST path reaches parity. Flipped per-increment / via config.
   protected _reactive = false;
 
   constructor(game: Game) {
     super(game);
-    this.initScreens();
+    this.initLayouts();
   }
 
   /**
@@ -309,7 +309,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override async onConnected() {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
-    // Reactive screens are the ONLY render path now (the `config.ui.reactive`
+    // Reactive layouts are the ONLY render path now (the `config.ui.reactive`
     // opt-in was retired once `main` auto-opens and `[[open/close]]` mount the
     // rest). The static `constructLayouts` path remains only as a fallback when a
     // program somehow ships no Sparkle AST (program.sparkle.layouts) at all.
@@ -350,27 +350,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         tasks.push(this.attributes.restore(target));
       }
     }
-    // Re-mount author-opened reactive screens recorded in the serialized state
+    // Re-mount author-opened reactive layouts recorded in the serialized state
     // (mirrors image.restore). `onConnected` already mounted `main`; here we add
-    // the screens that `[[open/navigate]]` opened on earlier beats, so a
-    // checkpoint/scrub-preview shows the correct screen set instead of just
+    // the layouts that `[[open/navigate]]` opened on earlier beats, so a
+    // checkpoint/scrub-preview shows the correct layout set instead of just
     // `main`. Mount instantly via constructLayoutFromAst (NOT openLayout) so no
     // enter transition replays during a scrub. The story state is already loaded,
-    // so each screen's reactive bindings resolve against the restored values.
+    // so each layout's reactive bindings resolve against the restored values.
     if (this._state.layout) {
       let remounted = false;
       for (const { name } of this._state.layout) {
         if (name && name !== "main" && !this._mountedLayouts.has(name)) {
-          const screen = this._game.program?.sparkle?.layouts?.[name];
-          if (screen) {
-            this.constructLayoutFromAst(screen);
+          const layout = this._game.program?.sparkle?.layouts?.[name];
+          if (layout) {
+            this.constructLayoutFromAst(layout);
             remounted = true;
           }
         }
       }
       if (remounted) {
         // Settle load-time reactive residue (as openLayout does) and reveal the
-        // screens layer so the re-mounted screens are visible.
+        // layouts layer so the re-mounted layouts are visible.
         this._game.story.variablesState.takeReactiveChanges();
         this.reveal();
       }
@@ -784,9 +784,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected getScreenElement(uiName: string): Element | undefined {
-    const rootScreenElement = this.getOrCreateRootLayoutElement();
-    return rootScreenElement.findChild(uiName);
+  protected getLayoutElement(uiName: string): Element | undefined {
+    const rootLayoutElement = this.getOrCreateRootLayoutElement();
+    return rootLayoutElement.findChild(uiName);
   }
 
   constructStyles(): void {
@@ -883,17 +883,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       : structNames;
     for (const structName of validStructNames) {
       if (structName && !structName.startsWith("$")) {
-        const screen = this.context.layout?.[structName];
-        if (screen) {
-          this.constructLayout(screen);
+        const layout = this.context.layout?.[structName];
+        if (layout) {
+          this.constructLayout(layout);
         }
       }
     }
   }
 
-  protected constructLayout(screen: Record<string, any>): Element {
-    const structName = screen["$name"];
-    const properties = getAllProperties(screen);
+  protected constructLayout(layout: Record<string, any>): Element {
+    const structName = layout["$name"];
+    const properties = getAllProperties(layout);
     const parent = this.getOrCreateRootLayoutElement();
     const uiEl = this.createElement(parent, {
       type: "div",
@@ -955,8 +955,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   // ---------------------------------------------------------------------------
-  // Reactive runtime (Phase 3): mount screens from the typed Sparkle AST
-  // (program.sparkle.layouts) instead of the flattened context.screen struct.
+  // Reactive runtime (Phase 3): mount layouts from the typed Sparkle AST
+  // (program.sparkle.layouts) instead of the flattened context.layout struct.
   //
   // I1 — static mount: reproduce constructLayout's element tree byte-for-byte
   // (named structural divs; text/stroke → inline span; image/mask → background
@@ -994,35 +994,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   > = new Map();
 
   /** Test/preview convenience: when set, {@link constructLayoutsFromAst} mounts
-   *  EVERY screen at connect (instant, no transition) instead of just `main`.
+   *  EVERY layout at connect (instant, no transition) instead of just `main`.
    *  Off in production — only `main` auto-opens; everything else needs `[[open]]`.
-   *  The harness sets this so existing reactive tests keep their "screen is
+   *  The harness sets this so existing reactive tests keep their "layout is
    *  mounted at connect" assumption. */
   _autoOpenAll = false;
 
   constructLayoutsFromAst(...structNames: string[]): void {
     this._mountedLayouts = new Map();
-    const screens = this._game.program?.sparkle?.layouts;
-    if (!screens) {
+    const layouts = this._game.program?.sparkle?.layouts;
+    if (!layouts) {
       return;
     }
     // Enable fine-grained dependency tracking for the whole reactive lifetime;
     // mount captures each binding's read deps (Phase 4).
     this._game.story.variablesState.reactiveDepsEnabled = true;
-    const targetAllScreens = !structNames || structNames.length === 0;
+    const targetAllLayouts = !structNames || structNames.length === 0;
     // Default: ONLY `main` is mounted/visible from the start (implicit auto-open).
-    // Every other screen stays unmounted (zero DOM / zero binding cost) until an
+    // Every other layout stays unmounted (zero DOM / zero binding cost) until an
     // explicit `[[open X]]`. The `_autoOpenAll` test flag mounts them all.
-    const validScreenNames = !targetAllScreens
+    const validLayoutNames = !targetAllLayouts
       ? structNames
       : this._autoOpenAll
-        ? Object.keys(screens)
-        : Object.keys(screens).filter((name) => name === "main");
-    for (const screenName of validScreenNames) {
-      if (screenName && !screenName.startsWith("$")) {
-        const screen = screens[screenName];
-        if (screen) {
-          this.constructLayoutFromAst(screen);
+        ? Object.keys(layouts)
+        : Object.keys(layouts).filter((name) => name === "main");
+    for (const layoutName of validLayoutNames) {
+      if (layoutName && !layoutName.startsWith("$")) {
+        const layout = layouts[layoutName];
+        if (layout) {
+          this.constructLayoutFromAst(layout);
         }
       }
     }
@@ -1377,7 +1377,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   /** Wire a `@event=handler` on a mounted element: observe the DOM event and run
-   *  the handler when it fires, then flush reactive screens. `@e=name` calls the
+   *  the handler when it fires, then flush reactive layouts. `@e=name` calls the
    *  named Luau function; `@e=expr(args)` evaluates the call expression (its
    *  side effects persist). Inline closures (`@e={ … }`) are a follow-up. The
    *  callback is keyed by element id in `_events`, the same registry the static
@@ -2114,19 +2114,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  initScreens(): void {
+  initLayouts(): void {
     for (const structName of Object.keys(this.context?.layout || {})) {
       if (structName && !structName.startsWith("$")) {
-        const screen = this.context.layout?.[structName];
-        if (screen) {
-          this.initScreen(screen);
+        const layout = this.context.layout?.[structName];
+        if (layout) {
+          this.initLayout(layout);
         }
       }
     }
   }
 
-  initScreen(screen: Record<string, any>) {
-    const properties = getAllProperties(screen);
+  initLayout(layout: Record<string, any>) {
+    const properties = getAllProperties(layout);
     for (const [k, v] of Object.entries(properties)) {
       const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
       const isValidNode = !path.at(-1)?.startsWith("$");
@@ -2165,7 +2165,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   hideLayout(...structNames: string[]): void {
     for (const structName of structNames) {
       if (structName) {
-        const structEl = this.getScreenElement(structName);
+        const structEl = this.getLayoutElement(structName);
         if (structEl) {
           this.updateElement(structEl, { attributes: { hidden: "" } });
         }
@@ -2176,7 +2176,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   showLayout(...structNames: string[]): void {
     for (const structName of structNames) {
       if (structName) {
-        const structEl = this.getScreenElement(structName);
+        const structEl = this.getLayoutElement(structName);
         if (structEl) {
           this.updateElement(structEl, { attributes: { hidden: null } });
         }
@@ -2185,18 +2185,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   // ---------------------------------------------------------------------------
-  // Screen lifecycle ([[open SCREEN]] / [[close SCREEN]])
+  // Layout lifecycle ([[open LAYOUT]] / [[close LAYOUT]])
   //
-  // True spawn/destroy on the reactive render path: `[[open X]]` MOUNTS screen X
+  // True spawn/destroy on the reactive render path: `[[open X]]` MOUNTS layout X
   // (constructs its element tree, captures its reactive deps, registers its scope
   // for per-turn refresh) and plays an enter transition; `[[close X]]` plays an
   // exit transition then DESTROYS X's whole element subtree and drops its scope
   // (so refreshLayouts stops touching it — zero binding cost while closed). `main`
   // is auto-opened at connect; openLayout/closeLayout stay independent primitives
-  // (multiple screens can be open) to leave room for a future goto/navigate.
+  // (multiple layouts can be open) to leave room for a future goto/navigate.
   // ---------------------------------------------------------------------------
 
-  /** Resolve a screen's enter (`open`) or exit (`close`) animation from the
+  /** Resolve a layout's enter (`open`) or exit (`close`) animation from the
    *  directive clauses, exactly like the image path: a `with` that names a
    *  `transition` uses its `on_show`/`on_hide`; a `with` that names an `animation`
    *  (or a bare directive defaulting to the builtin `show`/`hide`) uses it
@@ -2231,9 +2231,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  /** Mount + reveal a screen (`[[open X]]`). No-op if already mounted. With
-   *  clauses, plays the resolved enter transition on the screen root; a bare
-   *  `[[open X]]` (or `instant`) just mounts + shows. The screen root is revealed
+  /** Mount + reveal a layout (`[[open X]]`). No-op if already mounted. With
+   *  clauses, plays the resolved enter transition on the layout root; a bare
+   *  `[[open X]]` (or `instant`) just mounts + shows. The layout root is revealed
    *  through the normal `reveal()` flow (root opacity). Returns once the enter
    *  transition has settled, so a `wait` directive can block story advance. */
   async openLayout(
@@ -2242,7 +2242,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     instant = false,
   ): Promise<void> {
     if (!this._reactive) {
-      // Static path: screens are all constructed at connect; just toggle hidden.
+      // Static path: layouts are all constructed at connect; just toggle hidden.
       this.showLayout(name);
       return;
     }
@@ -2253,18 +2253,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       // Already open — no-op (a future goto/navigate may re-run the transition).
       return;
     }
-    const screens = this._game.program?.sparkle?.layouts;
-    const screen = screens?.[name];
-    if (!screen) {
+    const layouts = this._game.program?.sparkle?.layouts;
+    const layout = layouts?.[name];
+    if (!layout) {
       return;
     }
-    // Mount captures the screen's reactive deps; settle the load-time change
+    // Mount captures the layout's reactive deps; settle the load-time change
     // residue afterwards so the first per-turn refresh only sees post-mount
     // changes (mirrors constructLayoutsFromAst).
-    const element = this.constructLayoutFromAst(screen);
+    const element = this.constructLayoutFromAst(layout);
     this._game.story.variablesState.takeReactiveChanges();
-    // The screens layer's root opacity is revealed on the first beat anyway, but
-    // open it here too so a screen opened before any dialogue is visible.
+    // The layouts layer's root opacity is revealed on the first beat anyway, but
+    // open it here too so a layout opened before any dialogue is visible.
     this.reveal();
     const enter = this.resolveLayoutAnimation("enter", clauses ?? {}, instant);
     if (enter && !instant) {
@@ -2272,7 +2272,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     }
   }
 
-  /** Play the exit transition then DESTROY a screen (`[[close X]]`): tears down
+  /** Play the exit transition then DESTROY a layout (`[[close X]]`): tears down
    *  its whole DOM subtree (one `ui/destroy` on the root removes the children)
    *  and drops its reactive scope so refreshLayouts no longer touches it. No-op
    *  if not mounted. A bare `[[close X]]` (or `instant`) destroys immediately.
@@ -2283,7 +2283,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     instant = false,
   ): Promise<void> {
     if (!this._reactive) {
-      // Static path: screens are never torn down; just toggle hidden.
+      // Static path: layouts are never torn down; just toggle hidden.
       this.hideLayout(name);
       return;
     }
