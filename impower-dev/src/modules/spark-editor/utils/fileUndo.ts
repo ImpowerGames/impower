@@ -63,3 +63,84 @@ export async function recordTrashDeletion(
     onAction: () => void undo(),
   });
 }
+
+const basename = (p: string) => p.split("/").pop() || p;
+
+/**
+ * Record a plain rename/move (no reference rewrite) as reversible. Undo moves
+ * it back; redo re-applies. `isDir` picks moveFolder vs moveFile.
+ */
+export function recordMove(
+  projectId: string,
+  fromPath: string,
+  toPath: string,
+  isDir: boolean,
+) {
+  const move = async (from: string, to: string) => {
+    const { Workspace } = await import("../workspace/Workspace");
+    if (isDir) {
+      await Workspace.fs.moveFolder(projectId, from, to);
+    } else {
+      await Workspace.fs.moveFile(projectId, from, to);
+    }
+    await markProjectDirty();
+  };
+  pushUndo({
+    label: `Rename ${basename(toPath)}`,
+    undo: () => move(toPath, fromPath),
+    redo: () => move(fromPath, toPath),
+  });
+}
+
+/**
+ * Record a reference-aware rename as reversible. A rename-with-references is its
+ * own inverse — renaming back rewrites the references back too.
+ */
+export function recordReferenceRename(
+  projectId: string,
+  fromPath: string,
+  toPath: string,
+) {
+  const rename = async (from: string, to: string) => {
+    const { Workspace } = await import("../workspace/Workspace");
+    await Workspace.fs.renameFileWithReferences(projectId, from, to);
+    await markProjectDirty();
+  };
+  pushUndo({
+    label: `Rename ${basename(toPath)}`,
+    undo: () => rename(toPath, fromPath),
+    redo: () => rename(fromPath, toPath),
+  });
+}
+
+/**
+ * Record a create (new file/folder, upload, url) as reversible. Undo moves the
+ * created file(s) to trash (so it stays recoverable even after undo); redo
+ * restores them.
+ */
+export function recordCreate(
+  projectId: string,
+  createdUris: string[],
+  label: string,
+) {
+  let batchIds: string[] = [];
+  pushUndo({
+    label: `Create ${label}`,
+    undo: async () => {
+      const { Workspace } = await import("../workspace/Workspace");
+      await Workspace.fs.deleteFiles({
+        files: createdUris.map((uri) => ({ uri })),
+        mode: "trash",
+      });
+      batchIds = await findBatchesForUris(projectId, createdUris);
+      await markProjectDirty();
+    },
+    redo: async () => {
+      const { Workspace } = await import("../workspace/Workspace");
+      for (const id of batchIds) {
+        await Workspace.fs.restoreTrash(projectId, id);
+      }
+      await markProjectDirty();
+    },
+  });
+}

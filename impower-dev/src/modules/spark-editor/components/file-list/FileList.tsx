@@ -37,7 +37,7 @@ import {
   type FileTreeNode,
 } from "../../utils/fileTree";
 import globToRegex from "../../utils/globToRegex";
-import { recordTrashDeletion } from "../../utils/fileUndo";
+import { recordMove, recordTrashDeletion } from "../../utils/fileUndo";
 import workspace from "../../workspace/WorkspaceStore";
 // Type-only import (fully erased at build) — safe despite the protocol package's
 // CJS runtime exports that would otherwise trip Vite SSR (see the file header).
@@ -860,11 +860,13 @@ export default function FileList({
       const destPath = folderPath ? `${folderPath}/${basename}` : basename;
       if (destPath === src) continue; // already there
       // Folder paths have no FileData entry (only their files / sentinel do).
-      const result = !filesByPath.has(src)
+      const isDir = !filesByPath.has(src);
+      const result = isDir
         ? await Workspace.fs.moveFolder(projectId, src, destPath)
         : await Workspace.fs.moveFile(projectId, src, destPath);
       if (result.some((d) => d.type === "script")) scriptChanged = true;
       else assetChanged = true;
+      recordMove(projectId, src, destPath, isDir);
     }
     if (scriptChanged) await Workspace.window.recordScriptChange();
     if (assetChanged) await Workspace.window.recordAssetChange();

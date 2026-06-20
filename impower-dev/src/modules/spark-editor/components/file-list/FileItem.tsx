@@ -13,7 +13,11 @@ import {
   iconForPath,
   isImagePath,
 } from "../../utils/fileIcon";
-import { recordTrashDeletion } from "../../utils/fileUndo";
+import {
+  recordMove,
+  recordReferenceRename,
+  recordTrashDeletion,
+} from "../../utils/fileUndo";
 import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
@@ -314,6 +318,7 @@ function FileItem({
     } else {
       await Workspace.window.recordAssetChange();
     }
+    recordMove(projectId, oldPath, newPath, false);
   }
 
   async function renameFile(oldPath: string, newPath: string) {
@@ -353,6 +358,7 @@ function FileItem({
     // Scripts changed (references) AND the asset moved.
     await Workspace.window.recordScriptChange();
     await Workspace.window.recordAssetChange();
+    recordReferenceRename(projectId, oldPath, newPath);
   }
 
   // Open the "Used in (N)" panel: ask the language server which script
@@ -386,6 +392,7 @@ function FileItem({
     const { Workspace } = await import("../../workspace/Workspace");
     await Workspace.fs.moveFolder(projectId, oldPath, newPath);
     await Workspace.window.recordAssetChange();
+    recordMove(projectId, oldPath, newPath, true);
   }
 
   // `"trash"` (the default, used by the 3-dots Delete) moves the entry to the

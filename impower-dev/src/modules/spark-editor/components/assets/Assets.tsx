@@ -11,6 +11,7 @@ import {
 import { useComputed } from "@preact/signals";
 import { startTransition } from "preact/compat";
 import { useRef, useState } from "preact/hooks";
+import { recordCreate } from "../../utils/fileUndo";
 import getUniqueFileName from "../../utils/getUniqueFileName";
 import getValidFileName from "../../utils/getValidFileName";
 import { runImport } from "../../utils/importProgress";
@@ -169,6 +170,7 @@ function AssetsFab({
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
     const fileArr = Array.from(fileList);
+    const createdUris: string[] = [];
     // Surface progress: `advance` ticks as each file's bytes load (the bar
     // fills), then it holds full through the single batched OPFS write.
     await runImport(fileArr.length, async (advance) => {
@@ -184,10 +186,19 @@ function AssetsFab({
           };
         }),
       );
+      createdUris.push(...files.map((f) => f.uri));
       await Workspace.fs.createFiles({ files });
       await Workspace.window.recordAssetChange();
     });
     input.value = "";
+    // Undoable upload (Ctrl+Z moves the imported files to trash).
+    if (createdUris.length > 0) {
+      const label =
+        createdUris.length === 1
+          ? (fileArr[0]?.name ?? "file")
+          : `${createdUris.length} files`;
+      recordCreate(projectId, createdUris, label);
+    }
   }
 
   // Create a remote/CDN asset: write a `<name>.url` file whose CONTENT is the
@@ -205,15 +216,17 @@ function AssetsFab({
     const base = getValidFileName(name) || "asset";
     const uniqueFilename = getUniqueFileName(filenames, `${base}.url`);
     const rel = scope ? `${scope}/${uniqueFilename}` : uniqueFilename;
+    const uri = Workspace.fs.getFileUri(projectId, rel);
     await Workspace.fs.createFiles({
       files: [
         {
-          uri: Workspace.fs.getFileUri(projectId, rel),
+          uri,
           data: new TextEncoder().encode(url).buffer,
         },
       ],
     });
     await Workspace.window.recordAssetChange();
+    recordCreate(projectId, [uri], uniqueFilename);
   }
 
   const onClick =
