@@ -736,11 +736,14 @@ export default function FileList({
       // Folder paths have no FileData entry (only their files / sentinel do).
       const isDir = !filesByPath.has(p);
       if (isDir) {
-        await Workspace.fs.deleteFolder(projectId, p);
+        await Workspace.fs.deleteFolder(projectId, p, "trash");
         assetChanged = true;
       } else {
         const uri = Workspace.fs.getFileUri(projectId, p);
-        const deleted = await Workspace.fs.deleteFiles({ files: [{ uri }] });
+        const deleted = await Workspace.fs.deleteFiles({
+          files: [{ uri }],
+          mode: "trash",
+        });
         if (deleted.some((d) => d.type === "script")) scriptChanged = true;
         else assetChanged = true;
       }

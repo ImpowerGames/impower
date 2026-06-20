@@ -55,6 +55,13 @@ const NEWLINE_REGEX = /\r\n|\r|\n/g;
 
 const LANGUAGE_ID = "sparkdown";
 
+// Recycle-bin: a user delete MOVES files here (reversible) instead of hard
+// removeEntry. Lives at `<project>/.trash/<batchId>/<originalRelPath>` with a
+// per-batch `__manifest.json`. Excluded from the normal file pipeline by
+// getAllFilesRecursive([TRASH_DIR]) so it never leaks into bundles/sync/UI.
+const TRASH_DIR = ".trash";
+const TRASH_MANIFEST = "__manifest.json";
+
 // Import-time thumbnail generation. When an image is written we decode + resize
 // it here (off the page's main thread) and stash a webp in the shared
 // `asset-thumbnails` Cache Storage bucket, under the SAME key the service worker
@@ -276,8 +283,15 @@ onmessage = async (e) => {
   }
   if (WillDeleteFilesMessage.type.isRequest(message)) {
     try {
-      const { files } = message.params;
-      const deletedFiles = await deleteFiles(files);
+      const { files, mode } = message.params;
+      // User deletes ("trash") move the bytes to the recycle bin instead of
+      // hard-removing them; everything else (bundle/sync diff-deletes, the
+      // default) permanently removes. Either way the broadcasts below describe
+      // only the originals leaving their project location.
+      const deletedFiles =
+        mode === "trash"
+          ? await moveFilesToTrash(files)
+          : await deleteFiles(files);
       const response = WillDeleteFilesMessage.type.response(
         message.id,
         deletedFiles.filter((d): d is FileData => d != null),
@@ -531,6 +545,9 @@ const readDirectoryFiles = async (directoryUri: string) => {
   const directoryEntries = await getAllFilesRecursive(
     directoryHandle,
     directoryPath,
+    // Trashed files live in `<project>/.trash/`; keep them out of the normal
+    // file pipeline (_files, bundles, sync, UI). The trash is read separately.
+    [TRASH_DIR],
   );
   const files = await Promise.all(
     directoryEntries.map(async (entry) => {
@@ -838,6 +855,46 @@ const createFiles = async (files: (FileCreate & { data?: ArrayBuffer })[]) => {
     }),
   );
   return result;
+};
+
+// Move files into the project trash (a REVERSIBLE delete). The bytes are
+// copied to `<project>/.trash/<batchId>/<originalRelPath>` and the originals
+// hard-removed; a `__manifest.json` records each entry's original uri + type so
+// restore is exact (incl. nested folder substructure). Returns the originals'
+// FileData[] (for the delete response). Does NOT broadcast — the caller
+// (WillDeleteFiles handler) emits the Did* notifications for the originals only,
+// so the trash copies never enter the page's _files cache / LSP / bundles.
+const moveFilesToTrash = async (files: { uri: string }[]) => {
+  const deleted: (FileData | undefined)[] = [];
+  if (files.length === 0) {
+    return deleted;
+  }
+  // One OPFS root for all uris; projectId is the first path segment.
+  const projectId = getPathFromUri(files[0]!.uri).split("/")[0]!;
+  const deletedAt = Date.now();
+  const batchId = `${deletedAt}__${Math.random().toString(36).slice(2, 8)}`;
+  const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
+  const entries: { relPath: string; originalUri: string; type: string }[] = [];
+  for (const file of files) {
+    const relPath = getPathFromUri(file.uri).slice(projectId.length + 1);
+    const existing = State.files.get(file.uri);
+    const type = existing?.type ?? getFileType(file.uri);
+    const data = await readFile(file.uri);
+    const trashUri = getUriFromPath(`${trashPrefix}/${relPath}`);
+    await createFiles([{ uri: trashUri, data }]);
+    await deleteFiles([{ uri: file.uri }]);
+    entries.push({ relPath, originalUri: file.uri, type });
+    deleted.push(existing);
+  }
+  const manifest = JSON.stringify({ deletedAt, entries });
+  const manifestUri = getUriFromPath(`${trashPrefix}/${TRASH_MANIFEST}`);
+  await createFiles([
+    {
+      uri: manifestUri,
+      data: new TextEncoder().encode(manifest).buffer as ArrayBuffer,
+    },
+  ]);
+  return deleted;
 };
 
 const deleteFiles = async (files: { uri: string }[]) => {

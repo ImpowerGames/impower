@@ -387,17 +387,21 @@ function FileItem({
     await Workspace.window.recordAssetChange();
   }
 
-  async function deleteEntry() {
+  // `"trash"` (the default, used by the 3-dots Delete) moves the entry to the
+  // recycle bin (reversible); `"permanent"` is used to discard a brand-new
+  // empty entry on Escape — there's nothing worth keeping, so don't clutter
+  // the trash with it.
+  async function deleteEntry(mode: "trash" | "permanent" = "trash") {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
     if (isDirectory) {
-      await Workspace.fs.deleteFolder(projectId, path);
+      await Workspace.fs.deleteFolder(projectId, path, mode);
       await Workspace.window.recordAssetChange();
       return;
     }
     const uri = Workspace.fs.getFileUri(projectId, path);
-    const deleted = await Workspace.fs.deleteFiles({ files: [{ uri }] });
+    const deleted = await Workspace.fs.deleteFiles({ files: [{ uri }], mode });
     if (deleted.some((d) => d.type === "script")) {
       await Workspace.window.recordScriptChange();
     } else {
@@ -564,7 +568,7 @@ function FileItem({
                         // file/folder (VS Code); canceling a rename of an
                         // existing entry just reverts to its current name.
                         if (isNew) {
-                          void deleteEntry();
+                          void deleteEntry("permanent");
                           onEndNewEntry?.();
                         }
                         setRenaming(false);

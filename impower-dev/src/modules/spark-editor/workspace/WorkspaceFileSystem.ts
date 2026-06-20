@@ -629,8 +629,16 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  /** Delete a folder and everything beneath it (the empty dir then disappears). */
-  async deleteFolder(projectId: string, folderPath: string) {
+  /**
+   * Delete a folder and everything beneath it (the empty dir then disappears).
+   * `mode` forwards to {@link deleteFiles} — user folder deletes pass `"trash"`
+   * so the whole subtree moves to the recycle bin as one restorable batch.
+   */
+  async deleteFolder(
+    projectId: string,
+    folderPath: string,
+    mode?: "trash" | "permanent",
+  ) {
     const files = await this.getFiles(projectId);
     const prefix = `${folderPath.replace(/\/+$/, "")}/`;
     const toDelete = Object.keys(files)
@@ -639,7 +647,7 @@ export default class WorkspaceFileSystem {
     if (toDelete.length === 0) {
       return [];
     }
-    return this.deleteFiles({ files: toDelete });
+    return this.deleteFiles({ files: toDelete, mode });
   }
 
   async writeTextDocument(params: {
