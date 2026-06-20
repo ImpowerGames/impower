@@ -18,11 +18,25 @@ const SUITES: { suite: string; files: string[] }[] = [
 
 function runAll(): CaseResult[] {
   const results: CaseResult[] = [];
+  const trace = process.env.CONFORMANCE_TRACE;
   for (const { suite, files } of SUITES) {
     const dir = suiteDirFor(import.meta.url, suite);
     for (const file of files) {
       const cases = loadSuite(dir, file);
-      cases.forEach((c, i) => results.push(runCase(suite, dir, i, c)));
+      cases.forEach((c, i) => {
+        if (trace) {
+          // crash-surviving progress log to find a runaway grammar
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          require("node:fs").appendFileSync(
+            trace,
+            `START ${suite}#${i} ${c.grammarPath ?? c.grammarScopeName}\n`,
+          );
+        }
+        results.push(runCase(suite, dir, i, c));
+        if (trace) {
+          require("node:fs").appendFileSync(trace, `  done ${suite}#${i}\n`);
+        }
+      });
     }
   }
   return results;

@@ -37,13 +37,12 @@ export class GrammarState {
   }
 
   /**
-   * Re-arm this state for a new match window. The per-call scratch (`visited`
-   * recursion guard, `_matchDepth`) is always cleared.
+   * Re-arm this state for a new match window (one line). The per-call scratch
+   * (`visited` recursion guard, `_matchDepth`) is cleared every call.
    *
-   * Phase A: the scope `stack` is also reset to its initial single `None` frame,
-   * so reusing one `GrammarState` across match calls is byte-identical to
-   * allocating a fresh one each time. Phase B will stop resetting the stack so
-   * scope context can persist across lines.
+   * The scope `stack` PERSISTS across calls — this is what makes the tokenizer
+   * line-at-a-time: a scope opened on one line stays on the stack so the next
+   * line continues it (and can be snapshot/restored for incremental reuse).
    */
   reset(
     str: string,
@@ -55,12 +54,6 @@ export class GrammarState {
     this.absolutePos = absolutePos;
     this.visited.length = 0;
     this._matchDepth = 0;
-    this.stack = new GrammarStack([
-      {
-        node: GrammarNode.None,
-        beginCaptures: [],
-      },
-    ]);
   }
 
   advance() {

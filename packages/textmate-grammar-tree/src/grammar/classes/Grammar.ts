@@ -133,6 +133,19 @@ export class Grammar {
   ) {
     state.reset(str, next, absolutePos);
 
+    const top = state.stack.at(-1);
+
+    // If a line-spanning scope is open, continue IT for this line rather than
+    // restarting from the root rules. This is the line+stack model: the scope
+    // stays on the stack across lines and resumes here.
+    if (top && top.node !== GrammarNode.None && top.scopedRule) {
+      const result = top.scopedRule.matchLine(state, relativePos);
+      if (result && absolutePos !== relativePos) {
+        result.offset(absolutePos);
+      }
+      return result;
+    }
+
     const rules = this.rules;
     if (rules) {
       for (let i = 0; i < rules.length; i++) {

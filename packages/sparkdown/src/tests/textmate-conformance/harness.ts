@@ -122,8 +122,14 @@ function flatten(
 
   let hasErrors = false;
 
+  // Adversarial fixtures (e.g. the upstream infinite-loop grammar) can yield a
+  // pathologically deep/large tree; bound the walk so the harness never hangs.
+  let visits = 0;
   function walk(node: any, chain: string[]) {
     if (!node || !node.type) return;
+    if (++visits > 500000) {
+      throw new Error("node blowup (pathological grammar)");
+    }
     if (node.type.id === UNRECOGNIZED_ID || node.type.id === INCOMPLETE_ID) {
       hasErrors = true;
     }
