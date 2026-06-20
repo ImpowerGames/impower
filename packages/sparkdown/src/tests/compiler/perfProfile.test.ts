@@ -115,7 +115,15 @@ describe("compiler perf profile", () => {
     let doc = source;
     for (let e = 0; e < WARMUP + EDITS; e++) {
       version += 1;
-      const insertOffset = doc.indexOf(marker) + marker.length - 1;
+      // Insert immediately AFTER the marker so the marker string itself stays
+      // intact across iterations (inserting inside it would break indexOf on the
+      // next pass and silently relocate the edit to the top of the document,
+      // which would invalidate the const guard and stop exercising flow reuse).
+      const markerIndex = doc.indexOf(marker);
+      if (markerIndex < 0) {
+        throw new Error("perf marker not found — edit relocated unexpectedly");
+      }
+      const insertOffset = markerIndex + marker.length;
       const before = doc.slice(0, insertOffset);
       const line = before.split("\n").length - 1;
       const character = insertOffset - (before.lastIndexOf("\n") + 1);

@@ -87,7 +87,16 @@ function programSnapshot(source: string): string {
     diagnostics: p.diagnostics,
     ui: p.ui,
   });
-  return stableStringify({ cold: pick(cold), warm: pick(warm) });
+  // Clone each program independently before the combined stringify. The warm
+  // compile reuses cold's flow JS values by reference (the safe aliasing
+  // optimization — `compiled` is sent via structured-clone and never mutated),
+  // so without this the shared-`seen` walk would flag those legitimately-shared
+  // objects as [Circular]. Independent clones break the cross-program identity
+  // so both programs expand fully (matching the original snapshot bytes).
+  return stableStringify({
+    cold: structuredClone(pick(cold)),
+    warm: structuredClone(pick(warm)),
+  });
 }
 
 describe("compiler perf equivalence gate", () => {

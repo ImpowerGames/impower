@@ -609,6 +609,106 @@ export class JsonSerialisation {
     throw new Error("Failed to convert runtime object to Json token: " + obj);
   }
 
+  // Fingerprint of ONLY a flow's CROSS-FLOW-MUTABLE serialized bits: the `#f`
+  // count flags on every (sub)container and the resolved `targetPath` of every
+  // divert. These are the parts of a flow's serialized bytecode that can change
+  // even when the flow's own SOURCE is unchanged — a remote read-count / TURNS_SINCE
+  // sets this flow's `visitsShouldBeCounted` (changing `#f`), `countAllVisits` flips
+  // all `#f`, and renaming/restructuring a divert target changes the resolved path.
+  //
+  // The incremental ToJson cache (Design B') reuses a flow's serialized JSON iff
+  // its source CHUNK is unchanged (which covers all the OTHER serialized bytes —
+  // string/value/control content) AND this cross-flow fingerprint is unchanged.
+  // Walking only containers+diverts (skipping every string/value/control object and
+  // the JS-tree build) makes this ~7x cheaper than re-serializing. The encoding is
+  // injective (length-prefixed variable text + structural brackets), so equal
+  // fingerprints guarantee equal cross-flow bytes (compared as full strings, no hash).
+  public static FingerprintCrossFlow(container: Container): string {
+    const out: string[] = [];
+    JsonSerialisation.fingerprintCrossFlowInto(container, out);
+    return out.join("");
+  }
+
+  // Reuse precondition: the flow's source CHUNK is unchanged since the cached
+  // compile, so its container STRUCTURE (shape, object order, object kinds, all
+  // OWN-content bytes) is byte-identical — only cross-flow-RESOLVED values can
+  // differ. So the fingerprint records ONLY those values, in pre-order, and emits
+  // NOTHING for pure-content objects (no per-object structural skeleton). Two
+  // same-structure flows therefore align positionally, so a changed cross-flow
+  // value at any position shifts the string. This keeps fingerprints short (a
+  // handful of values, not one marker per object), so building, storing, and
+  // string-comparing them is cheap — the earlier per-object skeleton made the
+  // walk cost ~60% of a full re-serialize, defeating the point.
+  //
+  // `countFlags` is emitted for EVERY container (even 0) so its position in the
+  // pre-order stream is anchored: a remote edit that moves a non-zero `#f` from
+  // one container to another must change the string, which requires every
+  // container to contribute a token.
+  private static fingerprintCrossFlowInto(obj: InkObject, out: string[]): void {
+    const container = asOrNull(obj, Container);
+    if (container) {
+      out.push("f" + container.countFlags);
+      const content = container.content;
+      for (let i = 0; i < content.length; i++) {
+        JsonSerialisation.fingerprintCrossFlowInto(content[i]!, out);
+      }
+      const named = container.namedOnlyContent;
+      if (named != null) {
+        for (const [, value] of named) {
+          JsonSerialisation.fingerprintCrossFlowInto(value, out);
+        }
+      }
+      return;
+    }
+    const divert = asOrNull(obj, Divert);
+    if (divert) {
+      const target = divert.hasVariableTarget
+        ? divert.variableDivertName
+        : divert.targetPathString;
+      const t = target ?? "";
+      out.push("D" + t.length + ":" + t);
+      return;
+    }
+    // VariableReference serializes as {CNT?: readCountPath} when its target is a
+    // counted FLOW, else {VAR?: name}. Whether a bare reference resolves to a
+    // read-count depends on whether the named flow exists — a CROSS-FLOW fact: a
+    // remote edit that adds/removes/renames a scene flips this reference's form
+    // even though the referencing flow's own source is unchanged.
+    const varRef = asOrNull(obj, VariableReference);
+    if (varRef) {
+      const cnt = varRef.pathStringForCount;
+      if (cnt != null) {
+        out.push("rC" + cnt.length + ":" + cnt);
+      } else {
+        const n = varRef.name ?? "";
+        out.push("rV" + n.length + ":" + n);
+      }
+      return;
+    }
+    // Resolved divert-target value (`{^->: path}`) and choice target path are
+    // also resolved cross-flow.
+    const divTargetVal = asOrNull(obj, DivertTargetValue);
+    if (divTargetVal) {
+      const p = divTargetVal.value?.componentsString ?? "";
+      out.push("T" + p.length + ":" + p);
+      return;
+    }
+    const choicePoint = asOrNull(obj, ChoicePoint);
+    if (choicePoint) {
+      const p = choicePoint.pathStringOnChoice ?? "";
+      out.push("P" + p.length + ":" + p + ":" + choicePoint.flags);
+      return;
+    }
+    const varPtrVal = asOrNull(obj, VariablePointerValue);
+    if (varPtrVal) {
+      const p = varPtrVal.value ?? "";
+      out.push("p" + p.length + ":" + p + ":" + varPtrVal.contextIndex);
+      return;
+    }
+    // Pure-content object (string/value/control/glue/...): part of the flow's OWN
+    // content, covered by the chunk-unchanged precondition. Emits nothing.
+  }
+
   public static JObjectToDictionaryRuntimeObjs(jObject: Record<string, any>) {
     let dict: Map<string, InkObject> = new Map();
 
@@ -988,6 +1088,17 @@ export class JsonSerialisation {
     );
   }
 
+  // Serialize a runtime container to a standalone JS value (the array a nested
+  // WriteRuntimeContainer call would produce). Used to memoize a flow subtree.
+  public static serializeContainerToValue(
+    container: Container,
+    onWriteRuntimeObject?: (writer: SimpleJson.Writer, obj: InkObject) => boolean,
+  ): any {
+    const w = new SimpleJson.Writer();
+    JsonSerialisation.WriteRuntimeContainer(w, container, true, onWriteRuntimeObject);
+    return w.toObject();
+  }
+
   public static WriteRuntimeContainer(
     writer: SimpleJson.Writer,
     container: Container | null,
@@ -996,6 +1107,18 @@ export class JsonSerialisation {
       writer: SimpleJson.Writer,
       obj: InkObject,
     ) => boolean,
+    // Per-flow memo, consulted ONLY at this (root) level's named-content loop —
+    // never forwarded to recursive calls, so it applies to the story's top-level
+    // named flows only. `resolve` returns the (cached or freshly serialized) JS
+    // value for a named flow; the incremental ToJson cache backs it. A memo MISS
+    // produces output identical to the non-memo path.
+    flowMemo?: {
+      resolve: (
+        name: string,
+        container: Container,
+        serialize: () => any,
+      ) => any;
+    },
   ) {
     writer.WriteArrayStart();
     if (container === null) {
@@ -1019,12 +1142,22 @@ export class JsonSerialisation {
         let name = key;
         let namedContainer = asOrNull(value, Container);
         writer.WritePropertyStart(name);
-        this.WriteRuntimeContainer(
-          writer,
-          namedContainer,
-          true,
-          onWriteRuntimeObject,
-        );
+        if (flowMemo && namedContainer) {
+          const v = flowMemo.resolve(name, namedContainer, () =>
+            JsonSerialisation.serializeContainerToValue(
+              namedContainer!,
+              onWriteRuntimeObject,
+            ),
+          );
+          writer.WriteInjected(v);
+        } else {
+          this.WriteRuntimeContainer(
+            writer,
+            namedContainer,
+            true,
+            onWriteRuntimeObject,
+          );
+        }
         writer.WritePropertyEnd();
       }
     }
