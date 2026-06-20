@@ -151,9 +151,8 @@ describe("compiler incremental equivalence", () => {
   // Each diverse edit is applied as a SINGLE minimal-range incremental update
   // from a freshly-configured compiler, then compared to a cold compile of the
   // resulting text. This isolates per-edit-type correctness (exactly what the
-  // per-chunk caching must preserve) without conflating it with any pre-existing
-  // accumulated incremental-parser state drift across long edit sequences (the
-  // cumulative path is separately stressed by the fuzz test below).
+  // per-chunk caching must preserve). The cumulative path (many edits on ONE
+  // persistent compiler) is separately stressed by the sequential + fuzz tests.
   for (const edit of edits) {
     it(`incremental == cold for edit: ${edit.name}`, () => {
       const realWarn = console.warn;
@@ -186,6 +185,44 @@ describe("compiler incremental equivalence", () => {
       }
     });
   }
+
+  it("incremental == cold across the full diverse edit sequence on ONE compiler", () => {
+    // Drives all diverse edits SEQUENTIALLY through one persistent compiler,
+    // comparing to a cold compile after each. This is the cumulative path that
+    // exposed the `reparsedTo` append-drift bug (any reuse-ahead edit followed
+    // by an end-of-document append diverged); it fails without that fix.
+    const realWarn = console.warn;
+    const realError = console.error;
+    console.warn = () => {};
+    console.error = () => {};
+    try {
+      let text = coupledScreenplay();
+      const incr = new SparkdownCompiler();
+      incr.configure({
+        files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+      });
+      incr.compile({ textDocument: { uri: URI } });
+      let version = 1;
+      for (const edit of edits) {
+        const offset = text.indexOf(edit.find);
+        expect(offset, `find "${edit.find}" present`).toBeGreaterThanOrEqual(0);
+        const start = posAt(text, offset);
+        const end = posAt(text, offset + edit.find.length);
+        version += 1;
+        incr.updateDocument({
+          textDocument: { uri: URI, version },
+          contentChanges: [{ range: { start, end }, text: edit.replace }],
+        });
+        text = text.slice(0, offset) + edit.replace + text.slice(offset + edit.find.length);
+        const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+        const coldProg = coldCompile(text);
+        expect(stable(incrProg), `after sequential edit "${edit.name}"`).toBe(stable(coldProg));
+      }
+    } finally {
+      console.warn = realWarn;
+      console.error = realError;
+    }
+  });
 
   it("incremental == cold under randomized single-char edits (fuzz)", () => {
     const realWarn = console.warn;
