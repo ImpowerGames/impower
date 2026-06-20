@@ -1,7 +1,7 @@
 {
   "name": "sparkdown",
   "displayName": "Sparkdown",
-  "description": "Sparkdown autocomplete, syntax highlighting, and export to PDF",
+  "description": "Sparkdown language support, live previews, and export — syntax highlighting, autocomplete, diagnostics, live previews as screenplays or playable games, and export to PDF, HTML, or HTML5 games.",
   "galleryBanner": {
     "color": "#053155",
     "theme": "dark"
