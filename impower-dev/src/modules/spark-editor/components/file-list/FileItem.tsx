@@ -145,7 +145,7 @@ function FileItem({
   // A thumbnail that 404s / fails to decode falls back to the type glyph.
   const [thumbFailed, setThumbFailed] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const rowRef = useRef<HTMLButtonElement | null>(null);
+  const rowRef = useRef<HTMLDivElement | null>(null);
 
   const basename = path.split("/").slice(-1)[0] ?? path;
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
@@ -355,27 +355,33 @@ function FileItem({
   void _;
 
   return (
-    <Button
-      ref={rowRef}
-      variant="ghost"
-      class={`h-16 w-full justify-start gap-0 rounded-none px-5 text-left text-base font-normal text-foreground/80 ${
-        selectMode
-          ? bulkSelected
-            ? "bg-primary/15"
-            : ""
-          : selected
-            ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
-            : ""
-      }`}
-      onClick={onRowClick}
-      onContextMenu={onRowContextMenu}
-    >
-      <div
-        class="relative flex flex-1 flex-row items-center overflow-hidden"
-        style={{
-          paddingLeft: `${BASE_INDENT + Math.min(depth, MAX_INDENT_DEPTH) * INDENT_PER_DEPTH}px`,
-        }}
+    // The row button and the 3-dots options button are SIBLINGS (not nested),
+    // so hover/ripple land only on whichever is topmost under the pointer — a
+    // <button> inside a <button> would share `:hover` (ancestor highlight) and
+    // funnel the inner press's pointerdown up to the row's ripple.
+    <div ref={rowRef} class="relative">
+      <Button
+        variant="ghost"
+        class={`h-16 w-full justify-start gap-0 rounded-none pl-5 text-left text-base font-normal text-foreground/80 ${
+          selectMode ? "pr-5" : "pr-14"
+        } ${
+          selectMode
+            ? bulkSelected
+              ? "bg-primary/15"
+              : ""
+            : selected
+              ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
+              : ""
+        }`}
+        onClick={onRowClick}
+        onContextMenu={onRowContextMenu}
       >
+        <div
+          class="relative flex flex-1 flex-row items-center overflow-hidden"
+          style={{
+            paddingLeft: `${BASE_INDENT + Math.min(depth, MAX_INDENT_DEPTH) * INDENT_PER_DEPTH}px`,
+          }}
+        >
         <DiagnosticsLabel filename={path}>
           {/* Icon column: FILES sit in a rounded tile holding the type glyph or
               a live image thumbnail; FOLDERS show a rotating disclosure chevron
@@ -482,16 +488,21 @@ function FileItem({
                 )}
               </>
             )}
-          </div>
-        </DiagnosticsLabel>
-      </div>
+            </div>
+          </DiagnosticsLabel>
+        </div>
+      </Button>
+      {/* Sibling overlay over the row's reserved right padding (pr-14): its own
+          hover/ripple, isolated from the row button beneath it. */}
       {!selectMode && (
-        <FileOptionsButton
-          onRename={() => setRenaming(true)}
-          onDelete={() => void deleteEntry()}
-        />
+        <div class="absolute inset-y-0 right-0 flex items-center">
+          <FileOptionsButton
+            onRename={() => setRenaming(true)}
+            onDelete={() => void deleteEntry()}
+          />
+        </div>
       )}
-    </Button>
+    </div>
   );
 }
 
