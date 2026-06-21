@@ -49,7 +49,7 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       const projectId = store?.project?.id;
       if (!projectId) return;
       if (!items || items.length === 0) return;
-      if (items.length === 1 && items[0]?.name.endsWith(".zip")) {
+      if (items.length === 1 && /\.zip$/i.test(items[0]?.name ?? "")) {
         const item = items[0]!;
         await Workspace.window.importLocalProject(
           item.name,
@@ -84,21 +84,32 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       return items.length === 1 && /zip/i.test(items[0]?.type ?? "");
     };
 
+    // The overlay is kept alive by the continuous `dragover` stream and cleared by
+    // a short idle timeout. This is robust against BOTH the interior-boundary
+    // flicker (every element the cursor crosses fires a spurious `dragleave`, which
+    // a naive setDragging(false) would flash off) AND an abandoned drag (ESC /
+    // leaving the window fire no `drop`) — dragover simply stops and the timer
+    // clears it. So there's no native `dragleave` handler at all.
+    let overlayTimer = 0;
+    const refreshOverlay = (e: DragEvent) => {
+      const zip = isZipDrag(e);
+      setDragging(zip);
+      if (overlayTimer) clearTimeout(overlayTimer);
+      overlayTimer = zip
+        ? window.setTimeout(() => setDragging(false), 150)
+        : 0;
+    };
     const onDragEnter = (e: DragEvent) => {
       if (!carriesFiles(e)) return;
       e.preventDefault();
-      setDragging(isZipDrag(e));
-    };
-    const onDragLeave = (e: DragEvent) => {
-      if (!carriesFiles(e)) return;
-      setDragging(false);
+      refreshOverlay(e);
     };
     const onDragOver = (e: DragEvent) => {
       if (!carriesFiles(e)) return;
       // preventDefault keeps window a valid drop target for files that miss every
       // list (so the browser doesn't navigate to the dropped file).
       e.preventDefault();
-      setDragging(isZipDrag(e));
+      refreshOverlay(e);
     };
     const onDrop = async (e: DragEvent) => {
       if (!carriesFiles(e)) return;
@@ -110,10 +121,13 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     };
     // Capture phase so the overlay always clears even when a list claims the drop
     // and stops it from bubbling up to the window `drop` handler above.
-    const clearOverlay = () => setDragging(false);
+    const clearOverlay = () => {
+      if (overlayTimer) clearTimeout(overlayTimer);
+      overlayTimer = 0;
+      setDragging(false);
+    };
 
     window.addEventListener("dragenter", onDragEnter);
-    window.addEventListener("dragleave", onDragLeave);
     window.addEventListener("dragover", onDragOver);
     window.addEventListener("drop", onDrop);
     window.addEventListener("drop", clearOverlay, true);
@@ -154,8 +168,8 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     );
 
     return () => {
+      if (overlayTimer) clearTimeout(overlayTimer);
       window.removeEventListener("dragenter", onDragEnter);
-      window.removeEventListener("dragleave", onDragLeave);
       window.removeEventListener("dragover", onDragOver);
       window.removeEventListener("drop", onDrop);
       window.removeEventListener("drop", clearOverlay, true);

@@ -42,11 +42,16 @@ function requestResolution(
 // Serialize whole uploads. A single global `conflictRequest` slot can hold only
 // one prompt; without this, a second upload starting while the first is still
 // awaiting the user would overwrite the slot and strand the first promise
-// forever (and a concurrent replace-of-the-same-file could double-trash). The
-// chain also makes each upload's existence snapshot (getFiles) + its trash-move
-// atomic w.r.t. other uploads.
+// forever (and a concurrent replace-of-the-same-file could double-trash).
+//
+// CRITICAL: the caller (importDroppedFiles) holds this across BOTH the existence
+// snapshot/trash (resolveUploadConflicts) AND its subsequent createFiles write.
+// If the lock released between the two, a second drop of the same path could
+// snapshot the half-applied state of the first — original already trashed, new
+// file not yet written — see no conflict, and both writes coalesce last-wins,
+// losing one file's bytes unrecoverably.
 let uploadChain: Promise<unknown> = Promise.resolve();
-function withUploadLock<T>(fn: () => Promise<T>): Promise<T> {
+export function withUploadLock<T>(fn: () => Promise<T>): Promise<T> {
   const run = uploadChain.then(fn, fn);
   // A rejection in one upload must not poison the chain for the next.
   uploadChain = run.then(
@@ -91,16 +96,12 @@ export interface ResolvedUpload<T> {
  * incoming files that collide with each other (no existing file to replace)
  * auto-Keep-both. Generic over the write payload (a File or an ArrayBuffer).
  *
- * Whole uploads are serialized (one prompt at a time; snapshot + trash atomic).
+ * NOTE: this does NOT acquire the upload lock itself. The caller
+ * (importDroppedFiles) wraps this AND its write in `withUploadLock`, so the
+ * snapshot, the Replace-trash, and the write form one critical section. Calling
+ * it outside that lock reopens the same-path concurrent-drop data-loss race.
  */
-export function resolveUploadConflicts<T>(
-  projectId: string,
-  items: { rel: string; payload: T }[],
-): Promise<ResolvedUpload<T>> {
-  return withUploadLock(() => resolveUploadConflictsInner(projectId, items));
-}
-
-async function resolveUploadConflictsInner<T>(
+export async function resolveUploadConflicts<T>(
   projectId: string,
   items: { rel: string; payload: T }[],
 ): Promise<ResolvedUpload<T>> {

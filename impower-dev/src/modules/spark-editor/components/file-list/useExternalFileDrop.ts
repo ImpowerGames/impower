@@ -101,15 +101,27 @@ export function useExternalFileDrop(
       if (files.length > 0) onDropRef.current(folder, files);
     };
 
+    // Abandon safety nets (mirroring useTreeDrag's blur/cancel guards): an OS file
+    // drag fires no in-page `dragend`, and an ESC-cancel / drop-elsewhere / window
+    // blur leaves no balancing `dragleave` — so without these the highlight could
+    // stay stuck until the next drag enters. `drop` is capture-phase so a drop
+    // anywhere (incl. one a list claims + stops bubbling) still clears it.
+    const onAbandon = () => reset();
     el.addEventListener("dragenter", onEnter);
     el.addEventListener("dragover", onOver);
     el.addEventListener("dragleave", onLeave);
     el.addEventListener("drop", onDropEvent);
+    window.addEventListener("dragend", onAbandon);
+    window.addEventListener("blur", onAbandon);
+    window.addEventListener("drop", onAbandon, true);
     return () => {
       el.removeEventListener("dragenter", onEnter);
       el.removeEventListener("dragover", onOver);
       el.removeEventListener("dragleave", onLeave);
       el.removeEventListener("drop", onDropEvent);
+      window.removeEventListener("dragend", onAbandon);
+      window.removeEventListener("blur", onAbandon);
+      window.removeEventListener("drop", onAbandon, true);
     };
   }, [containerRef, enabled]);
 

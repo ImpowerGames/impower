@@ -922,7 +922,7 @@ export default function FileList({
   const handleExternalDrop = useCallback(
     (targetFolder: string | null, files: ExternalDropFile[]) => {
       if (!projectId) return;
-      if (files.length === 1 && files[0]!.name.endsWith(".zip")) {
+      if (files.length === 1 && /\.zip$/i.test(files[0]!.name)) {
         void (async () => {
           const { Workspace } = await import("../../workspace/Workspace");
           await Workspace.window.importLocalProject(
@@ -1120,6 +1120,13 @@ export default function FileList({
                 <button
                   key={s.path}
                   type="button"
+                  // Mark as a folder drop target too — a pinned sticky header
+                  // occludes the real row, so an external file dropped on it must
+                  // resolve to this folder (folderAt() reads these attrs) instead
+                  // of falling through to the pane root.
+                  data-tree-row
+                  data-dir="1"
+                  data-path={s.path}
                   aria-label={`Scroll to ${s.name}`}
                   // A sticky header OCCLUDES the rows scrolling behind it, so the
                   // opaque base (bg-engine-900) must stay put — swapping it for a
