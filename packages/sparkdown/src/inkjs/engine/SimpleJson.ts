@@ -99,15 +99,13 @@ export namespace SimpleJson {
         this._collectionStack.push(newObject);
       }
 
-      this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Object),
-      );
+      this._pushState(SimpleJson.Writer.State.Object);
     }
 
     public WriteObjectEnd() {
       this.Assert(this.state === SimpleJson.Writer.State.Object);
       this._collectionStack.pop();
-      this._stateStack.pop();
+      this._popState();
     }
 
     // Write a property name / value pair to the current object.
@@ -151,15 +149,13 @@ export namespace SimpleJson {
 
       this.IncrementChildCount();
 
-      this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Property),
-      );
+      this._pushState(SimpleJson.Writer.State.Property);
     }
 
     public WritePropertyEnd() {
       this.Assert(this.state === SimpleJson.Writer.State.Property);
       this.Assert(this.childCount === 1);
-      this._stateStack.pop();
+      this._popState();
     }
 
     // Prepare a new property name, except this time, the property name
@@ -171,14 +167,8 @@ export namespace SimpleJson {
 
       this._currentPropertyName = "";
 
-      this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Property),
-      );
-      this._stateStack.push(
-        new SimpleJson.Writer.StateElement(
-          SimpleJson.Writer.State.PropertyName,
-        ),
-      );
+      this._pushState(SimpleJson.Writer.State.Property);
+      this._pushState(SimpleJson.Writer.State.PropertyName);
     }
 
     public WritePropertyNameEnd() {
@@ -186,7 +176,7 @@ export namespace SimpleJson {
       this.Assert(this._currentPropertyName !== null);
       this._propertyNameStack.push(this._currentPropertyName!);
       this._currentPropertyName = null;
-      this._stateStack.pop();
+      this._popState();
     }
 
     public WritePropertyNameInner(str: string) {
@@ -223,15 +213,13 @@ export namespace SimpleJson {
         this._collectionStack.push(newObject);
       }
 
-      this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.Array),
-      );
+      this._pushState(SimpleJson.Writer.State.Array);
     }
 
     public WriteArrayEnd() {
       this.Assert(this.state === SimpleJson.Writer.State.Array);
       this._collectionStack.pop();
-      this._stateStack.pop();
+      this._popState();
     }
 
     // Add the value to the appropriate collection (array / object), given the current
@@ -332,14 +320,12 @@ export namespace SimpleJson {
     public WriteStringStart() {
       this.StartNewObject(false);
       this._currentString = "";
-      this._stateStack.push(
-        new SimpleJson.Writer.StateElement(SimpleJson.Writer.State.String),
-      );
+      this._pushState(SimpleJson.Writer.State.String);
     }
 
     public WriteStringEnd() {
       this.Assert(this.state == SimpleJson.Writer.State.String);
-      this._stateStack.pop();
+      this._popState();
       this._addToCurrentObject(this._currentString);
       this._currentString = null;
     }
@@ -397,19 +383,35 @@ export namespace SimpleJson {
       }
     }
 
+    // The state stack is stored as two parallel arrays (type + childCount)
+    // rather than an array of `StateElement` objects, so pushing a new state
+    // doesn't allocate — this path is hit once per object/array/property/string
+    // written, i.e. once per runtime object in the whole story.
+    private _pushState(type: SimpleJson.Writer.State) {
+      this._stateTypeStack.push(type);
+      this._stateChildCountStack.push(0);
+    }
+
+    private _popState() {
+      this._stateTypeStack.pop();
+      this._stateChildCountStack.pop();
+    }
+
     // These getters peek all the different stacks.
 
     private get state() {
-      if (this._stateStack.length > 0) {
-        return this._stateStack[this._stateStack.length - 1].type;
+      const len = this._stateTypeStack.length;
+      if (len > 0) {
+        return this._stateTypeStack[len - 1];
       } else {
         return SimpleJson.Writer.State.None;
       }
     }
 
     private get childCount() {
-      if (this._stateStack.length > 0) {
-        return this._stateStack[this._stateStack.length - 1].childCount;
+      const len = this._stateChildCountStack.length;
+      if (len > 0) {
+        return this._stateChildCountStack[len - 1];
       } else {
         return 0;
       }
@@ -432,10 +434,9 @@ export namespace SimpleJson {
     }
 
     private IncrementChildCount() {
-      this.Assert(this._stateStack.length > 0);
-      let currEl = this._stateStack.pop()!;
-      currEl.childCount++;
-      this._stateStack.push(currEl);
+      const len = this._stateChildCountStack.length;
+      this.Assert(len > 0);
+      this._stateChildCountStack[len - 1]++;
     }
 
     private Assert(condition: boolean) {
@@ -459,9 +460,9 @@ export namespace SimpleJson {
       }
     }
 
-    // In addition to `_stateStack` present in the original code,
-    // this implementation of SimpleJson use two other stacks and two
-    // temporary variables holding the current context.
+    // In addition to the state stack present in the original code, this
+    // implementation of SimpleJson uses two other stacks and two temporary
+    // variables holding the current context.
 
     // Used to keep track of the current property name being built
     // with `WritePropertyNameStart`, `WritePropertyNameInner` and
@@ -473,7 +474,10 @@ export namespace SimpleJson {
     // `WriteStringEnd`.
     private _currentString: string | null = null;
 
-    private _stateStack: SimpleJson.Writer.StateElement[] = [];
+    // Parallel state stacks (see `_pushState`). `_stateTypeStack[i]` is the
+    // State at depth i; `_stateChildCountStack[i]` its child count.
+    private _stateTypeStack: SimpleJson.Writer.State[] = [];
+    private _stateChildCountStack: number[] = [];
 
     // Keep track of the current collection being built (either an array
     // or an object). For instance, at the '?' step during the hiarchy
@@ -500,15 +504,6 @@ export namespace SimpleJson {
       Property,
       PropertyName,
       String,
-    }
-
-    export class StateElement {
-      public type: SimpleJson.Writer.State = SimpleJson.Writer.State.None;
-      public childCount: number = 0;
-
-      constructor(type: SimpleJson.Writer.State) {
-        this.type = type;
-      }
     }
   }
 }

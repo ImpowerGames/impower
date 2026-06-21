@@ -49,6 +49,7 @@ const contextMenuTheme = EditorView.baseTheme({
     position: "relative",
     cursor: "pointer",
     display: "flex",
+    flexDirection: "row",
     alignItems: "center",
     transition: "background-color 0.1s ease",
   },
