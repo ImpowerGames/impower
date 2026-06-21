@@ -22,6 +22,37 @@ even with TreeBuffer conversion disabled (so it is NOT `copyToTreeBuffer`). The
 defect is somewhere in the `Compiler.step`/`finish` global assembly or the
 `Tree.build` interaction, and it was never isolated.
 
+> **✅ SPIKE RESOLVED (2026-06-20) — GO.** The prerequisite spike isolated the
+> defect and proved the fix. Harness:
+> `packages/sparkdown/src/tests/incremental/crossChunkAssemblySpike.test.ts`
+> (no real grammar / no real parse — hand-crafted per-line tokens for
+> `for…do…end` and `function…end`, fed through the REAL `Compiler` +
+> `Tree.build`, TreeBuffer conversion disabled via `isSplitPoint`).
+>
+> **Root cause:** a scope's parent node is emitted on CLOSE with a baked
+> `size = children*4 + 4`, and `children` is counted by `CompileStack.increment`
+> over each Chunk's OWN fresh stack. When a scope spans chunks, the closing
+> chunk's parent gets correct *from/to* (so the root "spans all its bytes" and
+> the buffer validates) but a child-COUNT that covers only the closing chunk →
+> `Tree.build` nests only the trailing `end`, and every body node in earlier
+> chunks detaches into a top-level sibling. **It is a baked-count bug, not a
+> position bug and not `copyToTreeBuffer`.** The spike reproduces both modes:
+> (A) no inherit → `stack.last(c)` null → parents never emitted, fully flat;
+> (B) inherit scopes but reset counts → parents emitted, mis-sized, children
+> detached (the exact never-isolated defect).
+>
+> **Fix (proven byte-identical to the whole-block parse):** carry open scope
+> frames across the chunk boundary with their **absolute open-position** (push
+> them onto the next chunk's stack at `absOpen − chunk.from`, so the
+> `Compiler.step` `chunk.from + relative` recombination recovers the absolute
+> position — negative relatives are fine) **and their accumulated child-count**
+> (seed `CompileStack.push`'s `children` arg with the running total, not 0). The
+> per-line global buffer then equals the whole-block buffer token-for-token.
+> Production must also keep these spanning chunks out of TreeBuffer conversion
+> (they are not self-contained) — the committed `canConvertToTreeBuffer` already
+> excludes non-`endsPure` chunks; the reverted C5 work added the
+> `inheritedOpenScopes` exclusion for the same reason.
+
 **REDESIGN PREREQUISITE (do this in isolation, BEFORE touching the real parser):**
 1. Build a tiny synthetic harness: hand-construct the per-line token stream for a
    small `for…do…end` (and `function…end`) block, feed it to `Compiler` +
