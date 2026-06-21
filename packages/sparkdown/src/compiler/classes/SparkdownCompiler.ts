@@ -560,6 +560,10 @@ export class SparkdownCompiler {
       if (params.countAllVisits) {
         parsedStory.countAllVisits = true;
       }
+      // Canonicalize offset-derived synthetic names over the fully-assembled
+      // tree so incremental compiles emit byte-identical bytecode to cold ones
+      // (see method doc) — must run before ExportRuntime resolves references.
+      this.canonicalizeSyntheticFlowNames(parsedStory);
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
       profile("end", this._profilerId, "ink/compile", uri);
@@ -1191,6 +1195,132 @@ export class SparkdownCompiler {
     );
 
     return combinedParsedStory;
+  }
+
+  // Canonicalize compiler-synthesized identifier names that are minted from a
+  // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
+  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
+  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
+  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Those
+  // offset-based names are FROZEN into the per-chunk lowered IR that the
+  // incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
+  // `debugMetadata` line numbers are rebased). So a carried-forward shifted
+  // chunk keeps a stale offset (`__define_fn_143`) while a cold compile of the
+  // same text re-derives the current one (`__define_fn_144`) — and since these
+  // names become runtime container names (keys/paths in `program.compiled`),
+  // the bytecode diverges between an incremental and a cold compile.
+  //
+  // This pass runs over the FULLY-ASSEMBLED tree on EVERY compile (both cold
+  // and incremental, before ExportRuntime) and renumbers each distinct synthetic
+  // name to `__synth_<n>` by DOCUMENT-ORDER of first appearance. Numbering by
+  // ORDER (not by the offset value) is what makes the result identical between a
+  // cold parse and an incremental parse of the same text: a carried node sits at
+  // the same tree position either way, so it gets the same ordinal regardless of
+  // any stale offset baked into its name. A given synthetic name's definition
+  // and all of its references share the exact same string and are emitted within
+  // the same chunk, so a uniform string→string remap suffices (no need to link
+  // references back to definitions).
+  protected canonicalizeSyntheticFlowNames(root: ParsedObject): void {
+    // Every offset-derived synthetic family minted in the lowerers.
+    const SYNTH =
+      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_)\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\d+_[A-Za-z]+$|__redef_\d+$/;
+    const remap = new Map<string, string>();
+
+    const consider = (id: Identifier) => {
+      const name = id.name;
+      if (name && SYNTH.test(name) && !remap.has(name)) {
+        remap.set(name, `__synth_${remap.size}`);
+      }
+    };
+    const rewrite = (id: Identifier) => {
+      const next = id.name ? remap.get(id.name) : undefined;
+      if (next) {
+        id.name = next;
+      }
+    };
+    // Apply `fn` to every Identifier-valued own-property of a node — covers
+    // `identifier`, `pathIdentifiers`, `variableIdentifier`, MultiVariableAssignment
+    // `targets`, etc. — without recursing into the Identifiers themselves.
+    const visitNames = (node: any, fn: (id: Identifier) => void) => {
+      for (const key of Object.keys(node)) {
+        const val = node[key];
+        if (val instanceof Identifier) {
+          fn(val);
+        } else if (Array.isArray(val)) {
+          for (const el of val) {
+            if (el instanceof Identifier) {
+              fn(el);
+            }
+          }
+        }
+      }
+    };
+    // A few nodes hold a synthetic name as a PLAIN STRING (not an Identifier) and
+    // emit runtime variable refs straight from it — `StashAndRereadExpression.tempName`
+    // (the `__mcall_<from>` receiver stash) and `VariablePointerExpression.variableName`.
+    // Their Identifier-shaped counterparts get renamed above, so the string side
+    // must be kept in lockstep or the temp's declaration and its read diverge.
+    // Only SYNTH-matching values are touched, so user strings/display text are safe.
+    const NAME_STRING_FIELDS = ["tempName", "variableName"];
+    const considerStrings = (node: any) => {
+      for (const f of NAME_STRING_FIELDS) {
+        const v = node[f];
+        if (typeof v === "string" && SYNTH.test(v) && !remap.has(v)) {
+          remap.set(v, `__synth_${remap.size}`);
+        }
+      }
+    };
+    const rewriteStrings = (node: any) => {
+      for (const f of NAME_STRING_FIELDS) {
+        const v = node[f];
+        if (typeof v === "string") {
+          const next = remap.get(v);
+          if (next) {
+            node[f] = next;
+          }
+        }
+      }
+    };
+
+    // Pass 1: assign ordinals in document (pre-order content) traversal order.
+    const collect = (node: ParsedObject) => {
+      visitNames(node, consider);
+      considerStrings(node);
+      const content = node.content;
+      if (content) {
+        for (const c of content) {
+          collect(c);
+        }
+      }
+    };
+    collect(root);
+    if (remap.size === 0) {
+      return;
+    }
+
+    // Pass 2: rewrite names; re-key each FlowBase's `_subFlowsByName` index,
+    // which was built from the pre-rename identifiers at lowering time.
+    const apply = (node: ParsedObject) => {
+      visitNames(node, rewrite);
+      rewriteStrings(node);
+      const content = node.content;
+      if (content) {
+        for (const c of content) {
+          apply(c);
+        }
+      }
+      if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
+        const next = new Map<string, FlowBase>();
+        for (const [, sub] of node._subFlowsByName) {
+          const nm = sub.identifier?.name;
+          if (nm) {
+            next.set(nm, sub);
+          }
+        }
+        node._subFlowsByName = next;
+      }
+    };
+    apply(root);
   }
 
   populateLocations(
