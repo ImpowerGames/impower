@@ -11,11 +11,10 @@ import {
 import { useComputed } from "@preact/signals";
 import { startTransition } from "preact/compat";
 import { useRef, useState } from "preact/hooks";
-import { recordCreate, recordResolvedUpload } from "../../utils/fileUndo";
+import { recordCreate } from "../../utils/fileUndo";
 import getUniqueFileName from "../../utils/getUniqueFileName";
 import getValidFileName from "../../utils/getValidFileName";
-import { runImport } from "../../utils/importProgress";
-import { resolveUploadConflicts } from "../../utils/uploadConflicts";
+import { importDroppedFiles } from "../../utils/importDroppedFiles";
 import workspace from "../../workspace/WorkspaceStore";
 import FileList from "../file-list/FileList";
 import FileListBorder from "../file-list/FileListBorder";
@@ -169,54 +168,22 @@ function AssetsFab({
     if (!fileList) return;
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
-    const { Workspace } = await import("../../workspace/Workspace");
     const fileArr = Array.from(fileList);
-    // Resolve same-path conflicts (Replace -> trash / Keep both / Skip) BEFORE
-    // the progress-tracked write — the prompt awaits the user, which would
-    // otherwise freeze the determinate bar.
-    const { survivors, trashedOldUris, since } = await resolveUploadConflicts(
+    // Clear the input first so re-picking the same file fires `change` again; the
+    // File objects stay valid (importDroppedFiles reads bytes lazily).
+    input.value = "";
+    // Upload into the panel's current folder (`scope`). importDroppedFiles owns
+    // conflict resolution, the progress bar, the write, and the undo record.
+    await importDroppedFiles(
       projectId,
       fileArr.map((file) => {
         const name = getValidFileName(file.name);
-        return { rel: scope ? `${scope}/${name}` : name, payload: file };
+        return {
+          rel: scope ? `${scope}/${name}` : name,
+          getBuffer: () => file.arrayBuffer(),
+        };
       }),
     );
-    input.value = "";
-    const newUris = survivors.map((s) => s.uri);
-    let wrote = false;
-    try {
-      if (survivors.length > 0) {
-        // Surface progress: `advance` ticks as each file's bytes load, then holds
-        // full through the single batched OPFS write.
-        await runImport(survivors.length, async (advance) => {
-          const files = await Promise.all(
-            survivors.map(async (s) => {
-              const data = await s.payload.arrayBuffer();
-              advance();
-              return { uri: s.uri, data };
-            }),
-          );
-          await Workspace.fs.createFiles({ files });
-          await Workspace.window.recordAssetChange();
-        });
-        wrote = true;
-      }
-    } finally {
-      // One undoable action covering the new files + any replaced originals.
-      // Runs even if the write threw AFTER the originals were trashed, so they
-      // stay recoverable via Undo (no-ops if nothing was trashed or written).
-      const label =
-        newUris.length === 1
-          ? (newUris[0]!.split("/").pop() ?? "file")
-          : `${newUris.length} files`;
-      await recordResolvedUpload(
-        projectId,
-        wrote ? newUris : [],
-        trashedOldUris,
-        since,
-        label,
-      );
-    }
   }
 
   // Create a remote/CDN asset: write a `<name>.url` file whose CONTENT is the

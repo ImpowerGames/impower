@@ -1,23 +1,26 @@
 import { Download } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { recordResolvedUpload } from "../../utils/fileUndo";
 import getValidFileName from "../../utils/getValidFileName";
-import { runImport } from "../../utils/importProgress";
-import { resolveUploadConflicts } from "../../utils/uploadConflicts";
+import { importDroppedFiles } from "../../utils/importDroppedFiles";
 
 export const propDefaults = {};
 export type FileDropzoneProps = Partial<typeof propDefaults>;
 
 /**
- * Window-level file-drop catcher. Listens for drag/drop on window so the
- * user can drop a zip or asset files anywhere in the editor and they'll
- * be imported into the active workspace project. Shows a centered
- * "Import Project Files" overlay while a drag is in progress.
+ * Window-level file-drop catcher. Two jobs:
  *
- * Two event sources funnel into the same state machine:
- *   1. Native HTML5 DnD on `window`
- *   2. DraggedFilesIn / Over / Out / DroppedFiles protocol messages
- *      (used when the parent VS Code host or similar relays drags)
+ *  1. ZIP = whole-project import. A single `.zip` dragged anywhere shows the
+ *     full-page "Import Project Files" overlay and imports the project on drop.
+ *  2. Loose files = fallback. A drop ONTO a file list is claimed by that list
+ *     (it routes the files into the hovered folder / current scope — see
+ *     useExternalFileDrop). This window handler only catches loose-file drops
+ *     that land OUTSIDE any list (e.g. on the preview pane), routing them by
+ *     type: scripts -> `scripts/`, everything else -> `assets/`. No overlay for
+ *     loose files — the list shows a folder highlight instead.
+ *
+ * Also handles DraggedFilesIn/Over/Out/DroppedFiles protocol messages relayed by
+ * an embedding host (e.g. VS Code), which can't carry MIME info, so those keep
+ * the overlay + the by-type fallback routing.
  */
 export default function FileDropzone(_props: FileDropzoneProps) {
   const [dragging, setDragging] = useState(false);
@@ -33,12 +36,9 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     const dragLeave = () => setDragging(false);
     const dragOver = () => setDragging(true);
 
-    // Buffers are read lazily (`getBuffer`) so the conflict prompt — which may
-    // await the user for a while — runs BEFORE we touch the bytes, and a Skip
-    // never reads a file we're going to drop. Owns the whole import pipeline:
-    // zip-check, conflict resolution, the progress bar, the write, and the
-    // undoable record. Both the native-DnD and protocol call sites are thin
-    // adapters that just map their inputs into this `{ name, getBuffer }` shape.
+    // Loose-file fallback (drops outside any list, + host-relayed protocol
+    // drops). A single .zip is a whole-project import; otherwise route by type so
+    // the file lands in the folder whose pane shows it.
     const handleDrop = async (
       items: { name: string; getBuffer: () => Promise<ArrayBuffer> }[],
     ) => {
@@ -49,9 +49,6 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       const projectId = store?.project?.id;
       if (!projectId) return;
       if (!items || items.length === 0) return;
-      // A single .zip is a whole-project import — importLocalProject owns its
-      // own 'importing' status, so route it straight there (not through the
-      // per-file conflict/progress path).
       if (items.length === 1 && items[0]?.name.endsWith(".zip")) {
         const item = items[0]!;
         await Workspace.window.importLocalProject(
@@ -60,95 +57,66 @@ export default function FileDropzone(_props: FileDropzoneProps) {
         );
         return;
       }
-      // Route loose dropped files into the folder whose panel actually shows
-      // them — a bare project-root path (the old behavior) matches no pane's
-      // rootDir, so an imported asset never appeared until... never (only a
-      // re-import into a folder would). Scripts go to `scripts/`, everything
-      // else to `assets/`, mirroring the per-pane upload buttons.
       const targetRel = (name: string) => {
         const valid = getValidFileName(name);
         return valid.endsWith(".sd") ? `scripts/${valid}` : `assets/${valid}`;
       };
-      // Resolve same-path conflicts (Replace -> trash / Keep both / Skip) BEFORE
-      // the progress-tracked write — the prompt awaits the user, which would
-      // otherwise freeze the determinate bar.
-      const { survivors, trashedOldUris, since } = await resolveUploadConflicts(
+      await importDroppedFiles(
         projectId,
-        items.map((it) => ({ rel: targetRel(it.name), payload: it })),
+        items.map((it) => ({ rel: targetRel(it.name), getBuffer: it.getBuffer })),
       );
-      const newUris = survivors.map((s) => s.uri);
-      let wrote = false;
-      try {
-        if (survivors.length > 0) {
-          await runImport(survivors.length, async (advance) => {
-            const created = await Promise.all(
-              survivors.map(async (s) => {
-                const data = await s.payload.getBuffer();
-                advance();
-                return { uri: s.uri, data };
-              }),
-            );
-            await Workspace.fs.createFiles({ files: created });
-            await Workspace.window.recordAssetChange();
-          });
-          wrote = true;
-        }
-      } finally {
-        // One undoable action covering the new files + any replaced originals.
-        // Runs even if the write threw AFTER the originals were trashed, so they
-        // stay recoverable via Undo (no-ops if nothing was trashed or written).
-        const label =
-          newUris.length === 1
-            ? (newUris[0]!.split("/").pop() ?? "file")
-            : `${newUris.length} files`;
-        await recordResolvedUpload(
-          projectId,
-          wrote ? newUris : [],
-          trashedOldUris,
-          since,
-          label,
-        );
-      }
     };
 
     // Only react to drags carrying OS files. An INTERNAL element drag (e.g.
     // dragging a row to move it within the file tree) advertises `text/plain`,
-    // not `Files`, so it must not trigger the import overlay or steal the drop.
-    const hasFiles = (e: DragEvent) =>
+    // not `Files`, so it must not trigger the overlay or steal the drop.
+    const carriesFiles = (e: DragEvent) =>
       Array.from(e.dataTransfer?.types ?? []).includes("Files");
 
+    // Best-effort "single .zip" check from the only thing readable mid-drag —
+    // each item's MIME `type` (filenames are hidden until drop). A zip with an
+    // empty/unknown MIME falls through (no overlay), but the drop still imports
+    // it as a project by filename. Drives the full-page overlay: zips only.
+    const isZipDrag = (e: DragEvent) => {
+      const dt = e.dataTransfer;
+      if (!dt) return false;
+      const items = Array.from(dt.items).filter((i) => i.kind === "file");
+      return items.length === 1 && /zip/i.test(items[0]?.type ?? "");
+    };
+
     const onDragEnter = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
+      if (!carriesFiles(e)) return;
       e.preventDefault();
-      e.stopPropagation();
-      dragEnter();
+      setDragging(isZipDrag(e));
     };
     const onDragLeave = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
-      e.preventDefault();
-      e.stopPropagation();
-      dragLeave();
+      if (!carriesFiles(e)) return;
+      setDragging(false);
     };
     const onDragOver = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
+      if (!carriesFiles(e)) return;
+      // preventDefault keeps window a valid drop target for files that miss every
+      // list (so the browser doesn't navigate to the dropped file).
       e.preventDefault();
-      e.stopPropagation();
-      dragOver();
+      setDragging(isZipDrag(e));
     };
     const onDrop = async (e: DragEvent) => {
-      if (!hasFiles(e)) return;
+      if (!carriesFiles(e)) return;
       e.preventDefault();
-      e.stopPropagation();
       const files = Array.from(e.dataTransfer?.files || []);
       await handleDrop(
         files.map((f) => ({ name: f.name, getBuffer: () => f.arrayBuffer() })),
       );
     };
+    // Capture phase so the overlay always clears even when a list claims the drop
+    // and stops it from bubbling up to the window `drop` handler above.
+    const clearOverlay = () => setDragging(false);
 
     window.addEventListener("dragenter", onDragEnter);
     window.addEventListener("dragleave", onDragLeave);
     window.addEventListener("dragover", onDragOver);
     window.addEventListener("drop", onDrop);
+    window.addEventListener("drop", clearOverlay, true);
 
     // Lazy-load protocol message types — workspace transports them when a
     // hosting parent (e.g. an embedding window) relays drag state to us.
@@ -172,8 +140,7 @@ export default function FileDropzone(_props: FileDropzoneProps) {
           onProtocolMessage(DraggedFilesOverMessage.type, () => dragOver()),
           onProtocolMessage(DroppedFilesMessage.type, (m) => {
             // Host relayed already-read buffers — wrap each as a resolved
-            // getBuffer so handleDrop can run its uniform pipeline (zip-check,
-            // conflict resolution, progress, undo).
+            // getBuffer so handleDrop runs its uniform pipeline.
             void handleDrop(
               m.params.files.map((f) => ({
                 name: f.name,
@@ -191,6 +158,7 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       window.removeEventListener("dragleave", onDragLeave);
       window.removeEventListener("dragover", onDragOver);
       window.removeEventListener("drop", onDrop);
+      window.removeEventListener("drop", clearOverlay, true);
       disposeProtocol?.();
     };
   }, []);

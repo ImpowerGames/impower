@@ -38,7 +38,9 @@ import {
   subtreeChildren,
   type FileTreeNode,
 } from "../../utils/fileTree";
+import getValidFileName from "../../utils/getValidFileName";
 import globToRegex from "../../utils/globToRegex";
+import { importDroppedFiles } from "../../utils/importDroppedFiles";
 import { recordMove, recordTrashDeletion } from "../../utils/fileUndo";
 import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 import workspace from "../../workspace/WorkspaceStore";
@@ -60,6 +62,10 @@ import FileListHeader, {
   type SortOrder,
   type TypeFilter,
 } from "./FileListHeader";
+import {
+  useExternalFileDrop,
+  type ExternalDropFile,
+} from "./useExternalFileDrop";
 import { useTreeDrag } from "./useTreeDrag";
 
 // Thumbnail width requested from the SW — keep in sync with FileItem's `?thumb`.
@@ -906,6 +912,45 @@ export default function FileList({
     onDropToRoot: (srcPaths) => void handleDropToRoot(srcPaths),
   });
 
+  // External OS-file drops onto this list (native HTML5 DnD, separate from the
+  // pointer-based row drag above). Loose files land in the hovered folder, else
+  // the current scope (dive mode) / pane root (tree mode). A single .zip is a
+  // whole-project import. The window-level FileDropzone owns the full-page
+  // "Import Project" overlay for zips and is the fallback for drops outside any
+  // pane.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const handleExternalDrop = useCallback(
+    (targetFolder: string | null, files: ExternalDropFile[]) => {
+      if (!projectId) return;
+      if (files.length === 1 && files[0]!.name.endsWith(".zip")) {
+        void (async () => {
+          const { Workspace } = await import("../../workspace/Workspace");
+          await Workspace.window.importLocalProject(
+            files[0]!.name,
+            await files[0]!.getBuffer(),
+          );
+        })();
+        return;
+      }
+      const dir = targetFolder ?? (diveMode ? scope : rootDir);
+      void importDroppedFiles(
+        projectId,
+        files.map((f) => ({
+          rel: dir
+            ? `${dir}/${getValidFileName(f.name)}`
+            : getValidFileName(f.name),
+          getBuffer: f.getBuffer,
+        })),
+      );
+    },
+    [projectId, diveMode, scope, rootDir],
+  );
+  const external = useExternalFileDrop(
+    containerRef,
+    !!projectId,
+    handleExternalDrop,
+  );
+
   // VS Code "sticky scroll": the expanded ancestor folders of the row at the top
   // of the scroller, pinned as headers. Tree mode (desktop) only — never in dive
   // mode (mobile uses the breadcrumb) or while multi-selecting.
@@ -915,7 +960,17 @@ export default function FileList({
       : computeStickyRows(rows, rowVirtualizer.scrollOffset ?? 0, ITEM_HEIGHT);
 
   return (
-    <div class="relative flex h-full w-full flex-col">
+    <div
+      ref={containerRef}
+      class={`relative flex h-full w-full flex-col rounded ${
+        // A loose-file drag hovering empty space (not a folder) targets the
+        // current scope / pane root — ring the whole list to say so. When over a
+        // specific folder, that row rings instead (below) and this stays quiet.
+        external.active && external.targetFolder == null
+          ? "ring-2 ring-inset ring-primary/60"
+          : ""
+      }`}
+    >
       {/* Toolbar — search / Type filter / sort (the FileListHeader), with the
           overflow "more" menu (New Folder) docked right. In dive mode (mobile)
           the breadcrumb sits on its own row above. The bottom FAB stays the
@@ -1136,7 +1191,9 @@ export default function FileList({
                   class={`absolute left-0 top-0 w-full ${
                     drag.dropTarget === row.path
                       ? "rounded bg-foreground/10 ring-1 ring-inset ring-foreground/40"
-                      : ""
+                      : external.targetFolder === row.path
+                        ? "rounded bg-primary/10 ring-1 ring-inset ring-primary/60"
+                        : ""
                   } ${drag.draggingPath === row.path ? "opacity-50" : ""}`}
                   style={{
                     height: `${virtualRow.size}px`,
