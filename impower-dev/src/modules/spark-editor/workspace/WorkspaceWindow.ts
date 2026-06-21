@@ -35,14 +35,17 @@ import {
   PreviewMode,
   Range,
   SyncStatus,
+  DebugSessionState,
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
+import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { StartGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StartGameMessage";
 import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
+import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
@@ -147,6 +150,9 @@ export default class WorkspaceWindow {
     copy.debug.pinpoints = {};
     // Reset highlights state
     copy.debug.highlights = {};
+    // Reset debug-session state (frame ids / variablesReferences are only valid
+    // while suspended, so they must never survive a reload)
+    copy.debug.session = undefined;
     // Reset game preview state
     copy.preview.modes.game = {};
     return copy;
@@ -379,6 +385,33 @@ export default class WorkspaceWindow {
       })),
     );
     sendProtocolMessage(SetEditorHighlightsMessage.type.request({ locations }));
+  }
+
+  // ===========================================================================
+  // Debug session (suspended-at-breakpoint snapshot, set by PreviewGame which
+  // owns the game iframe channel; read reactively by the debug panel)
+  // ===========================================================================
+
+  /** Record the suspended debug-session snapshot (stack + scopes). */
+  setDebugStop(snapshot: Omit<DebugSessionState, "paused">) {
+    this.update({
+      ...this.store,
+      debug: {
+        ...this.store.debug,
+        session: { paused: true, ...snapshot },
+      },
+    });
+  }
+
+  /** Clear the debug-session snapshot (on resume/continue/exit) — frame ids and
+      variablesReferences are invalid once execution resumes. */
+  clearDebugStop() {
+    if (this.store.debug.session) {
+      this.update({
+        ...this.store,
+        debug: { ...this.store.debug, session: undefined },
+      });
+    }
   }
 
   setPinpoints(pinpoints: Record<string, number[]>) {
@@ -910,6 +943,17 @@ export default class WorkspaceWindow {
       }
     }
     sendProtocolMessage(StepGameClockMessage.type.request({ seconds }));
+  }
+
+  // DAP-style resume/step: the resulting game/stepped or game/hitBreakpoint
+  // notification re-drives PreviewGame's fetch-on-stop, repopulating the panel.
+  continueGame() {
+    this.clearDebugStop();
+    sendProtocolMessage(ContinueGameMessage.type.request({}));
+  }
+
+  stepGame(traversal: "in" | "out" | "over") {
+    sendProtocolMessage(StepGameMessage.type.request({ traversal }));
   }
 
   toggleGameRunning() {

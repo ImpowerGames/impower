@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { SparkProgram } from "../../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
+import DebugPanel from "../debug-panel/DebugPanel";
 import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
 import { installPreviewInspector } from "./previewInspect";
 
@@ -212,6 +213,21 @@ export default function PreviewGame(_props: PreviewGameProps) {
         "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage"
       ),
       import(
+        "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage"
+      ),
+      import(
+        "@impower/spark-engine/src/game/core/classes/messages/GameSteppedMessage"
+      ),
+      import(
+        "@impower/spark-engine/src/game/core/classes/messages/GetGameThreadsMessage"
+      ),
+      import(
+        "@impower/spark-engine/src/game/core/classes/messages/GetGameStackTraceMessage"
+      ),
+      import(
+        "@impower/spark-engine/src/game/core/classes/messages/GetGameVariablesMessage"
+      ),
+      import(
         "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"
       ),
       import(
@@ -243,6 +259,11 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { GameExitedMessage },
         { GameStartedMessage },
         { SetGameBreakpointsMessage },
+        { GameHitBreakpointMessage },
+        { GameSteppedMessage },
+        { GetGameThreadsMessage },
+        { GetGameStackTraceMessage },
+        { GetGameVariablesMessage },
         { GameToggledFullscreenModeMessage },
         { DEFAULT_BUILTIN_DEFINITIONS },
         { DEFAULT_DESCRIPTION_DEFINITIONS },
@@ -280,8 +301,105 @@ export default function PreviewGame(_props: PreviewGameProps) {
           };
         };
 
+        // When the game suspends (breakpoint or step), pull the full debug
+        // snapshot through the iframe channel (the only request/response path)
+        // and write it to the store for the debug panel. This MUST complete
+        // before any resume — the engine invalidates variablesReferences when
+        // continue()/step() runs.
+        const DEBUG_CHILD_MAX_DEPTH = 3;
+        const resolveChildVariables = async (
+          channel: any,
+          variables: any[],
+          childrenByRef: Record<number, any[]>,
+          depth: number,
+        ) => {
+          if (depth >= DEBUG_CHILD_MAX_DEPTH) return;
+          for (const v of variables) {
+            const ref = v?.variablesReference;
+            if (ref && ref > 0 && !(ref in childrenByRef)) {
+              const res = await channel.sendRequest(
+                GetGameVariablesMessage.type,
+                { scope: "children", variablesReference: ref },
+              );
+              const children = res?.variables ?? [];
+              childrenByRef[ref] = children;
+              await resolveChildVariables(channel, children, childrenByRef, depth + 1);
+            }
+          }
+        };
+        const fetchDebugStateOnStop = async (location?: any) => {
+          const channel = iframeChannelRef.current;
+          if (!channel) return;
+          try {
+            const { threads } = await channel.sendRequest(
+              GetGameThreadsMessage.type,
+              {},
+            );
+            const threadId = threads?.[0]?.id ?? 0;
+            const { stackFrames } = await channel.sendRequest(
+              GetGameStackTraceMessage.type,
+              { threadId },
+            );
+            const [vars, temps, lists, defines] = await Promise.all([
+              channel.sendRequest(GetGameVariablesMessage.type, { scope: "vars" }),
+              channel.sendRequest(GetGameVariablesMessage.type, { scope: "temps" }),
+              channel.sendRequest(GetGameVariablesMessage.type, { scope: "lists" }),
+              channel.sendRequest(GetGameVariablesMessage.type, {
+                scope: "defines",
+              }),
+            ]);
+            const childrenByRef: Record<number, any[]> = {};
+            await resolveChildVariables(
+              channel,
+              [
+                ...(vars?.variables ?? []),
+                ...(temps?.variables ?? []),
+                ...(lists?.variables ?? []),
+                ...(defines?.variables ?? []),
+              ],
+              childrenByRef,
+              0,
+            );
+            const stoppedLocation = location ?? stackFrames?.[0]?.location;
+            Workspace.window.setDebugStop({
+              threadId,
+              stoppedLocation,
+              threads,
+              stackFrames,
+              scopes: {
+                vars: vars?.variables,
+                temps: temps?.variables,
+                lists: lists?.variables,
+                defines: defines?.variables,
+              },
+              childrenByRef,
+            });
+            if (stoppedLocation?.uri && stoppedLocation.range) {
+              Workspace.window.showDocument(
+                stoppedLocation.uri,
+                {
+                  start: {
+                    line: stoppedLocation.range.start.line,
+                    character: 0,
+                  },
+                  end: { line: stoppedLocation.range.start.line, character: 0 },
+                },
+                false,
+              );
+            }
+          } catch (e) {
+            console.error("Failed to fetch debug state on stop", e);
+          }
+        };
+
         const onChannelMessage = async (e: MessageEvent) => {
           const message = e.data;
+          if (
+            GameHitBreakpointMessage.type.is(message) ||
+            GameSteppedMessage.type.is(message)
+          ) {
+            await fetchDebugStateOnStop((message.params as any)?.location);
+          }
           if (ExecuteCommandMessage.type.is(message)) {
             const result = await Workspace.fs.executeCommand(message.params);
             iframeChannelRef.current?.sendResponse(message, result);
@@ -463,6 +581,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
           if (GameExitedMessage.type.is(message)) {
             Workspace.window.setHighlights({});
+            Workspace.window.clearDebugStop();
           }
           if (ChangedEditorBreakpointsMessage.type.is(message)) {
             // Forward the full breakpoint set to the running game. setBreakpoints
@@ -584,6 +703,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }}
         />
       </div>
+      <DebugPanel />
     </>
   );
 }

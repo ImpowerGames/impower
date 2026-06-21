@@ -3,6 +3,31 @@ import type {
   MarkupContent,
   Range,
 } from "vscode-languageserver-protocol";
+// Type-only imports (erased at build) — keep the protocol package free of a
+// runtime dependency on spark-engine.
+import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
+import type { StackFrame } from "@impower/spark-engine/src/game/core/types/StackFrame";
+import type { Thread } from "@impower/spark-engine/src/game/core/types/Thread";
+import type { Variable } from "@impower/spark-engine/src/game/core/types/Variable";
+
+/** Live debug-session snapshot while the game is suspended at a breakpoint or
+    step. Session-only (never persisted): StackFrame ids and Variable
+    `variablesReference`s are only valid while execution remains suspended. */
+export interface DebugSessionState {
+  paused: boolean;
+  threadId?: number;
+  stoppedLocation?: DocumentLocation;
+  threads?: Thread[];
+  stackFrames?: StackFrame[];
+  scopes?: {
+    vars?: Variable[];
+    temps?: Variable[];
+    lists?: Variable[];
+    defines?: Variable[];
+  };
+  /** Pre-fetched children for structured values, keyed by variablesReference. */
+  childrenByRef?: Record<number, Variable[]>;
+}
 
 export type PanelType =
   | "main"
@@ -147,6 +172,8 @@ export interface DebugState {
     string,
     (Omit<Diagnostic, "message"> & { message: string | MarkupContent })[]
   >;
+  /** Live debug-session state (set while suspended; never persisted). */
+  session?: DebugSessionState;
 }
 
 export interface WorkspaceCache extends PanesState<PaneType> {
