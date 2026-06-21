@@ -4,7 +4,6 @@
 
 import { GrammarToken, NodeID } from "../../core";
 import { Grammar } from "../../grammar";
-import { GrammarState } from "../../grammar/classes/GrammarState";
 
 import { SpecialRecord } from "../enums/SpecialRecord";
 import { ITreeBuffer } from "../types/ITreeBuffer";
@@ -217,11 +216,10 @@ export class Compiler {
 
   compile(source: string) {
     this.reset();
-    const state = new GrammarState("");
     let pos = 0;
     while (pos < source.length) {
       const next = () => "";
-      const match = this.grammar.match(state, source, next, pos, pos);
+      const match = this.grammar.match(source, next, pos, pos);
       let matchTokens: GrammarToken[] | null = null;
       let matchLength = 0;
       if (match) {

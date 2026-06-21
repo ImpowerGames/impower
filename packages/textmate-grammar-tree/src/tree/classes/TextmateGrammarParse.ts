@@ -10,7 +10,6 @@ import { Compiler } from "../../compiler/classes/Compiler";
 import { NodeID } from "../../core/enums/NodeID";
 import { GrammarToken } from "../../core/types/GrammarToken";
 import { Grammar } from "../../grammar/classes/Grammar";
-import { GrammarState } from "../../grammar/classes/GrammarState";
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { TextmateParseRegion } from "./TextmateParseRegion";
 
@@ -42,13 +41,6 @@ export class TextmateGrammarParse implements PartialParse {
 
   /** The current position of the parser. */
   declare parsedPos: number;
-
-  /**
-   * Persistent tokenizer state, threaded across `nextChunk` iterations. Phase A
-   * resets it fully per match (byte-identical to allocating fresh); Phase B will
-   * let its scope stack persist across lines for intra-block incrementality.
-   */
-  protected state: GrammarState = new GrammarState("");
 
   /**
    * The position the parser will be stopping at early, if given a location
@@ -223,7 +215,7 @@ export class TextmateGrammarParse implements PartialParse {
 
       const str = next(startCompensated);
 
-      const match = this.grammar.match(this.state, str, next, pos - start, pos);
+      const match = this.grammar.match(str, next, pos - start, pos);
 
       let matchTokens: GrammarToken[] | null = null;
       let matchLength = 0;

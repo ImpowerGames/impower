@@ -5,12 +5,12 @@ Total cases: 95
 ## Summary by axis
 
 - pass: 1
-- mismatch: 5
-- incomplete: 4
+- mismatch: 1
+- incomplete: 11
 - capture-model: 4
-- while-rule: 16
+- while-rule: 18
 - regex-invalid: 11
-- throw-other: 8
+- throw-other: 3
 - external-includes: 46
 - load-error: 0
 
@@ -19,17 +19,20 @@ Total cases: 95
 ### pass (1)
 - first-mate#10 [fixtures/coffee-script.json] TEST #13
 
-### mismatch (5)
-- first-mate#14 [fixtures/content-name.json] TEST #17 — line 1 "#if": token[0] ("#if") scopes got ["source.test"] want ["source.test","pre"]
-- first-mate#18 [fixtures/coffee-script.json] TEST #21 — line 1 "'''single-quoted heredoc'''": token[0] ("'''") scopes got ["source.coffee","punctuation.definition.string.begin.coffee"] want ["source.coffee","string.quoted.heredoc.coffee","punctuation.definition.string.begin.coffee"]
-- first-mate#19 [fixtures/coffee-script.json] TEST #22 — line 1 "'''single-quoted": token[0] ("'''") scopes got ["source.coffee","punctuation.definition.string.begin.coffee"] want ["source.coffee","string.quoted.heredoc.coffee","punctuation.definition.string.begin.coffee"]
-- first-mate#31 [fixtures/multiline.json] TEST #34 — line 1 "Xy\\": token[0] ("X") scopes got ["source.multilineLanguage","start"] want ["source.multilineLanguage","outside-x","start"]
+### mismatch (1)
 - suite1#19 [fixtures/147.grammar.json] Issue #147 — line 1 "Function": token[0] ("Function") scopes got ["source.test","storage.type.$0 keyword.declaration.$0"] want ["source.test","storage.type.Function","keyword.declaration.Function"]
 
-### incomplete (4)
+### incomplete (11)
 - first-mate#3 [fixtures/text.json] TEST #6 — line 1 "abc def": token[0] ("abc def") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
+- first-mate#11 [fixtures/text.json] TEST #14 — line 1 "hoo": token[0] ("hoo") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
 - first-mate#12 [fixtures/text.json] TEST #15 — line 1 "ok, cool": token[0] ("ok, cool") scopes got ["text.plain"] want ["text.plain","meta.paragraph.text"]
-- first-mate#21 [fixtures/apply-end-pattern-last.json] TEST #24 — line 1 "last": token[0] ("last") scopes got ["source.apply-end-pattern-last"] want ["source.apply-end-pattern-last","end-pattern-last-env"]
+- first-mate#14 [fixtures/content-name.json] TEST #17 — line 2 "test": token[0] ("test") scopes got ["source.test"] want ["source.test","pre","nested"]
+- first-mate#15 [fixtures/content-name.json] TEST #18 — line 1 "test": token[0] ("test") scopes got ["source.test"] want ["source.test","all","middle"]
+- first-mate#16 [fixtures/content-name.json] TEST #19 — line 1 " test": token[1] ("test") scopes got ["source.test"] want ["source.test","all","middle"]
+- first-mate#21 [fixtures/apply-end-pattern-last.json] TEST #24 — line 2 "{ some }excentricSyntax }": token[0] value got "{ some }excentricSyntax }" want "{"
+- first-mate#30 [fixtures/imaginary.json] TEST #33 — line 1 "// a singleLineComment": token[1] (" a singleLineComment") scopes got ["source.imaginaryLanguage"] want ["source.imaginaryLanguage","comment-body"]
+- first-mate#31 [fixtures/multiline.json] TEST #34 — line 1 "Xy\\": token[1] value got "y\\" want "y"
+- first-mate#35 [fixtures/infinite-loop.json] TEST #38 — line 1 "abc": token[0] value got "abc" want "a"
 - first-mate#63 [fixtures/loops.json] TEST #74 — tokens matched but tree has error nodes
 
 ### capture-model (4)
@@ -38,7 +41,7 @@ Total cases: 95
 - first-mate#38 [fixtures/nested-captures.json] TEST #44 — Invalid capturing group lengths: (a(b))
 - suite1#9 [fixtures/testlang12.plist] Issue #12 — Invalid capturing group lengths: ^([ \t]*)(?=(.*?)\|$)
 
-### while-rule (16)
+### while-rule (18)
 - first-mate#1 [fixtures/coffee-script.json] TEST #4 — Invalid RegExp: (?x)
 				\b(?<![\.\$])(
 					break|by|catch|continue|else|finally|for|in|of|if|return|switch|
@@ -76,6 +79,18 @@ Total cases: 95
 				)(?!\s*:)\b
 			
 - first-mate#9 [fixtures/coffee-script.json] TEST #12 — Invalid RegExp: (?x)
+				\b(?<![\.\$])(
+					break|by|catch|continue|else|finally|for|in|of|if|return|switch|
+					then|throw|try|unless|when|while|until|loop|do|(?<=for)\s+own
+				)(?!\s*:)\b
+			
+- first-mate#18 [fixtures/coffee-script.json] TEST #21 — Invalid RegExp: (?x)
+				\b(?<![\.\$])(
+					break|by|catch|continue|else|finally|for|in|of|if|return|switch|
+					then|throw|try|unless|when|while|until|loop|do|(?<=for)\s+own
+				)(?!\s*:)\b
+			
+- first-mate#19 [fixtures/coffee-script.json] TEST #22 — Invalid RegExp: (?x)
 				\b(?<![\.\$])(
 					break|by|catch|continue|else|finally|for|in|of|if|return|switch|
 					then|throw|try|unless|when|while|until|loop|do|(?<=for)\s+own
@@ -151,12 +166,7 @@ Total cases: 95
 - suite1#21 [fixtures/239.tmLanguage.json] Issue #239 Wrong backreference escaping — Invalid RegExp: (?x)\1
 [\2]+
 
-### throw-other (8)
-- first-mate#11 [fixtures/text.json] TEST #14 — flatten: Cannot read properties of undefined (reading 'isAnonymous')
-- first-mate#15 [fixtures/content-name.json] TEST #18 — flatten: Cannot read properties of undefined (reading 'isAnonymous')
-- first-mate#16 [fixtures/content-name.json] TEST #19 — flatten: Cannot read properties of undefined (reading 'isAnonymous')
-- first-mate#30 [fixtures/imaginary.json] TEST #33 — flatten: Cannot read properties of undefined (reading 'isAnonymous')
-- first-mate#35 [fixtures/infinite-loop.json] TEST #38 — flatten: Cannot read properties of undefined (reading 'isAnonymous')
+### throw-other (3)
 - first-mate#42 [fixtures/forever.json] TEST #48 — no includes defined
 - suite1#15 [fixtures/66.plist] Issue #66 — Cannot set properties of undefined (setting 'backReferences')
 - suite1#20 [fixtures/251.tmLanguage.json] Issue #251 empty `end` match immediately — Cannot set properties of undefined (setting 'backReferences')
