@@ -2,7 +2,47 @@
 
 **Branch:** `dev/parser-intra-scope-incremental`
 **Package:** `packages/textmate-grammar-tree/` (no grammar-definition or lowerer changes)
-**Status of prior work:** Phase A/B (line-at-a-time tokenizer + persistent restorable scope stack) and C5 (cross-chunk scope nesting) are committed and byte-identical. Phase C's first attempt is stashed and broken (`git stash@{0}`).
+
+---
+
+## ⚠️ STATUS (post-revert) — READ BEFORE RE-ATTEMPTING
+
+The line+stack tokenizer (Phase A/B + C5 + C1) **was reverted** (commit
+`9f131806d`). It was byte-identical only for `string` input (a whole-rest chunk
+= the legacy whole-block path the snapshot suites use), but a **production
+regression** for the real `SparkdownDocument` input (one-line chunks → per-line
+path → mis-assembled nested block trees), and it delivered no perf gain yet. The
+parser is back on the production-correct whole-block model.
+
+**Why it failed, precisely (the bug to crack first):** with the per-line fixes in
+place the matcher was correct and each chunk's suffix buffer was *structurally
+valid* (validator: 0 problems; the block's root node spanned all its nodes), yet
+the assembled `Tree` still **detached** the block's children — and this happened
+even with TreeBuffer conversion disabled (so it is NOT `copyToTreeBuffer`). The
+defect is somewhere in the `Compiler.step`/`finish` global assembly or the
+`Tree.build` interaction, and it was never isolated.
+
+**REDESIGN PREREQUISITE (do this in isolation, BEFORE touching the real parser):**
+1. Build a tiny synthetic harness: hand-construct the per-line token stream for a
+   small `for…do…end` (and `function…end`) block, feed it to `Compiler` +
+   `Tree.build`, and get a **correct nested tree**. Solve the "valid suffix
+   buffer → detached tree" defect here, with nothing else moving. This is the
+   linchpin; the whole approach is invalid until it's green.
+2. From day one, make `productionInputParity.test.ts` (parse every fixture via
+   BOTH `string` and `SparkdownDocument`, assert identical trees) part of the net
+   — it is the guard that would have caught the regression. Snapshot tests using
+   `string` input alone are NOT sufficient: they exercise a different code path
+   than production (`lineChunks=true`, one-line chunks).
+3. Only then re-attempt the tokenizer change (start from the matcher fixes:
+   `lineEnd` = first newline; boundary `reachedEof = pos >= state.str.length`;
+   the §2 cascade-close). Consider whether the design's C1 (tokenization
+   memoization) can even deliver the in-block win without a correct per-line
+   path — it cannot, so the prerequisite above is unavoidable for the headline
+   goal.
+
+The design below is preserved as the analysis of record; treat §2 (cascade-close)
+and §1 (the C1/C2/rejected-alternatives reasoning) as inputs to the redesign, not
+as a ready-to-build plan.
 
 ---
 
