@@ -215,7 +215,13 @@ export async function recordResolvedUpload(
     },
   });
   showSnackbar({
-    message: `Imported ${label}`,
+    // When nothing new was written but originals WERE trashed, this is recording
+    // a failed upload so the replaced files stay undoable — say so rather than
+    // claim a successful import.
+    message:
+      newUris.length > 0
+        ? `Imported ${label}`
+        : `Import failed — replaced files moved to recycle bin`,
     actionLabel: "Undo",
     onAction: () => void undo(),
   });

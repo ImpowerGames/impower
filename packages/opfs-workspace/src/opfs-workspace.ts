@@ -927,25 +927,42 @@ const moveFilesToTrash = async (files: { uri: string }[]) => {
   if (files.length === 0) {
     return deleted;
   }
+  // De-dup uris defensively: trashing the same path twice would read a
+  // now-deleted source on the second pass (and previously aborted the whole
+  // batch before its manifest was written — see the try/catch + finally below).
+  const seen = new Set<string>();
+  const uniqueFiles = files.filter((f) =>
+    seen.has(f.uri) ? false : (seen.add(f.uri), true),
+  );
   // One OPFS root for all uris; projectId is the first path segment.
-  const projectId = getPathFromUri(files[0]!.uri).split("/")[0]!;
+  const projectId = getPathFromUri(uniqueFiles[0]!.uri).split("/")[0]!;
   const deletedAt = Date.now();
   // `<deletedAt>__<uuid>` — the uuid makes two deletes in the same millisecond
   // collision-proof (deletedAt is still parseable for purge).
   const batchId = `${deletedAt}__${crypto.randomUUID()}`;
   const trashPrefix = `${projectId}/${TRASH_DIR}/${batchId}`;
   const entries: { relPath: string; originalUri: string; type: string }[] = [];
-  for (const file of files) {
-    const relPath = getPathFromUri(file.uri).slice(projectId.length + 1);
-    const existing = State.files.get(file.uri);
-    const type = existing?.type ?? getFileType(file.uri);
-    const data = await readFile(file.uri);
-    const trashUri = getUriFromPath(`${trashPrefix}/${relPath}`);
-    await createFiles([{ uri: trashUri, data }]);
-    await deleteFiles([{ uri: file.uri }]);
-    entries.push({ relPath, originalUri: file.uri, type });
-    deleted.push(existing);
+  for (const file of uniqueFiles) {
+    // Tolerate a missing/unreadable source (a stale or duplicate uri): skip it
+    // rather than abort the batch. An abort here used to escape BEFORE the
+    // manifest write, stranding a manifest-less batch — listTrash skips those,
+    // so every already-copied original became unrestorable (data loss).
+    try {
+      const relPath = getPathFromUri(file.uri).slice(projectId.length + 1);
+      const existing = State.files.get(file.uri);
+      const type = existing?.type ?? getFileType(file.uri);
+      const data = await readFile(file.uri);
+      const trashUri = getUriFromPath(`${trashPrefix}/${relPath}`);
+      await createFiles([{ uri: trashUri, data }]);
+      await deleteFiles([{ uri: file.uri }]);
+      entries.push({ relPath, originalUri: file.uri, type });
+      deleted.push(existing);
+    } catch (e) {
+      console.error(`moveFilesToTrash: skipping ${file.uri}`, e);
+    }
   }
+  // Always write the manifest (even if some entries were skipped) so the batch is
+  // listable/restorable and never stranded.
   const manifest = JSON.stringify({ deletedAt, entries });
   const manifestUri = getUriFromPath(`${trashPrefix}/${TRASH_MANIFEST}`);
   await createFiles([

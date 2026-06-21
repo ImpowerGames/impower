@@ -183,27 +183,40 @@ function AssetsFab({
     );
     input.value = "";
     const newUris = survivors.map((s) => s.uri);
-    if (survivors.length > 0) {
-      // Surface progress: `advance` ticks as each file's bytes load, then holds
-      // full through the single batched OPFS write.
-      await runImport(survivors.length, async (advance) => {
-        const files = await Promise.all(
-          survivors.map(async (s) => {
-            const data = await s.payload.arrayBuffer();
-            advance();
-            return { uri: s.uri, data };
-          }),
-        );
-        await Workspace.fs.createFiles({ files });
-        await Workspace.window.recordAssetChange();
-      });
+    let wrote = false;
+    try {
+      if (survivors.length > 0) {
+        // Surface progress: `advance` ticks as each file's bytes load, then holds
+        // full through the single batched OPFS write.
+        await runImport(survivors.length, async (advance) => {
+          const files = await Promise.all(
+            survivors.map(async (s) => {
+              const data = await s.payload.arrayBuffer();
+              advance();
+              return { uri: s.uri, data };
+            }),
+          );
+          await Workspace.fs.createFiles({ files });
+          await Workspace.window.recordAssetChange();
+        });
+        wrote = true;
+      }
+    } finally {
+      // One undoable action covering the new files + any replaced originals.
+      // Runs even if the write threw AFTER the originals were trashed, so they
+      // stay recoverable via Undo (no-ops if nothing was trashed or written).
+      const label =
+        newUris.length === 1
+          ? (newUris[0]!.split("/").pop() ?? "file")
+          : `${newUris.length} files`;
+      await recordResolvedUpload(
+        projectId,
+        wrote ? newUris : [],
+        trashedOldUris,
+        since,
+        label,
+      );
     }
-    // One undoable action covering the new files + any replaced originals.
-    const label =
-      newUris.length === 1
-        ? (newUris[0]!.split("/").pop() ?? "file")
-        : `${newUris.length} files`;
-    await recordResolvedUpload(projectId, newUris, trashedOldUris, since, label);
   }
 
   // Create a remote/CDN asset: write a `<name>.url` file whose CONTENT is the

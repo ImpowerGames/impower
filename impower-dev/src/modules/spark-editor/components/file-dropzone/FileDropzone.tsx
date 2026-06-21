@@ -71,31 +71,38 @@ export default function FileDropzone(_props: FileDropzoneProps) {
         })),
       );
       const newUris = survivors.map((s) => s.uri);
-      if (survivors.length > 0) {
-        await runImport(survivors.length, async (advance) => {
-          const created = await Promise.all(
-            survivors.map(async (s) => {
-              const data = await s.payload.getBuffer();
-              advance();
-              return { uri: s.uri, data };
-            }),
-          );
-          await Workspace.fs.createFiles({ files: created });
-          await Workspace.window.recordAssetChange();
-        });
+      let wrote = false;
+      try {
+        if (survivors.length > 0) {
+          await runImport(survivors.length, async (advance) => {
+            const created = await Promise.all(
+              survivors.map(async (s) => {
+                const data = await s.payload.getBuffer();
+                advance();
+                return { uri: s.uri, data };
+              }),
+            );
+            await Workspace.fs.createFiles({ files: created });
+            await Workspace.window.recordAssetChange();
+          });
+          wrote = true;
+        }
+      } finally {
+        // One undoable action covering the new files + any replaced originals.
+        // Runs even if the write threw AFTER the originals were trashed, so they
+        // stay recoverable via Undo (no-ops if nothing was trashed or written).
+        const label =
+          newUris.length === 1
+            ? (newUris[0]!.split("/").pop() ?? "file")
+            : `${newUris.length} files`;
+        await recordResolvedUpload(
+          projectId,
+          wrote ? newUris : [],
+          trashedOldUris,
+          since,
+          label,
+        );
       }
-      // One undoable action covering the new files + any replaced originals.
-      const label =
-        newUris.length === 1
-          ? (newUris[0]!.split("/").pop() ?? "file")
-          : `${newUris.length} files`;
-      await recordResolvedUpload(
-        projectId,
-        newUris,
-        trashedOldUris,
-        since,
-        label,
-      );
     };
 
     // Only react to drags carrying OS files. An INTERNAL element drag (e.g.
