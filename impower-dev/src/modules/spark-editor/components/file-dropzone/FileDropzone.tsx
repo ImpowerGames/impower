@@ -60,15 +60,21 @@ export default function FileDropzone(_props: FileDropzoneProps) {
         );
         return;
       }
+      // Route loose dropped files into the folder whose panel actually shows
+      // them — a bare project-root path (the old behavior) matches no pane's
+      // rootDir, so an imported asset never appeared until... never (only a
+      // re-import into a folder would). Scripts go to `scripts/`, everything
+      // else to `assets/`, mirroring the per-pane upload buttons.
+      const targetRel = (name: string) => {
+        const valid = getValidFileName(name);
+        return valid.endsWith(".sd") ? `scripts/${valid}` : `assets/${valid}`;
+      };
       // Resolve same-path conflicts (Replace -> trash / Keep both / Skip) BEFORE
       // the progress-tracked write — the prompt awaits the user, which would
       // otherwise freeze the determinate bar.
       const { survivors, trashedOldUris, since } = await resolveUploadConflicts(
         projectId,
-        items.map((it) => ({
-          rel: getValidFileName(it.name),
-          payload: it,
-        })),
+        items.map((it) => ({ rel: targetRel(it.name), payload: it })),
       );
       const newUris = survivors.map((s) => s.uri);
       let wrote = false;
