@@ -1,3 +1,4 @@
+import { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
@@ -49,6 +50,10 @@ import {
   AnimateElementsMessage,
   AnimateElementsMessageMap,
 } from "./messages/AnimateElementsMessage";
+import {
+  BatchElementsMessage,
+  BatchElementsMessageMap,
+} from "./messages/BatchElementsMessage";
 import {
   CreateElementMessage,
   CreateElementMessageMap,
@@ -277,6 +282,7 @@ const INPUT_WIDGETS: Record<string, { inputType: string }> = {
 };
 
 export type UIMessageMap = AnimateElementsMessageMap &
+  BatchElementsMessageMap &
   CreateElementMessageMap &
   DestroyElementMessageMap &
   MoveElementMessageMap &
@@ -289,6 +295,15 @@ export type UIMessageMap = AnimateElementsMessageMap &
 
 export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected _root?: Element;
+
+  // Fire-and-forget UI ops (create/update/destroy/move/observe/unobserve/
+  // set-theme) accumulate here and flush as a single `ui/batch` notification —
+  // cutting the per-turn message volume the reactive runtime emits. A microtask
+  // is armed when the buffer goes empty→non-empty as a safety-net flush; the hot
+  // paths also flush synchronously (end of refreshLayouts, and before each
+  // AWAITED op so create-before-use ordering holds). See enqueueUI/flushUIBatch.
+  protected _uiBatch: IMessage[] = [];
+  protected _uiBatchScheduled = false;
 
   protected _events: Partial<
     Record<string, Record<string, (event: Event) => void>>
@@ -451,6 +466,31 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${parent.id}-${base}-${index}`;
   }
 
+  /** Buffer a fire-and-forget UI op for the next `ui/batch` flush. Arms a
+   *  microtask safety-net flush on the empty→non-empty transition so an op never
+   *  lingers past the synchronous turn even on a path that forgets to flush. */
+  protected enqueueUI(msg: IMessage): void {
+    this._uiBatch.push(msg);
+    if (!this._uiBatchScheduled) {
+      this._uiBatchScheduled = true;
+      queueMicrotask(() => this.flushUIBatch());
+    }
+  }
+
+  /** Emit the buffered ops as one `ui/batch` notification, in order. Called
+   *  synchronously at the hot boundaries (end of refreshLayouts; before each
+   *  AWAITED op, so the consumer applies create/update before a write/animate
+   *  targets them) and by the microtask net. No-op when the buffer is empty. */
+  protected flushUIBatch(): void {
+    this._uiBatchScheduled = false;
+    if (this._uiBatch.length === 0) {
+      return;
+    }
+    const messages = this._uiBatch;
+    this._uiBatch = [];
+    this.emit(BatchElementsMessage.type.notification({ messages }));
+  }
+
   protected createElement(
     parent: Element | null,
     state?: ElementState,
@@ -468,7 +508,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (isRootElement) {
       this._root = el;
     }
-    this.emit(
+    this.enqueueUI(
       CreateElementMessage.type.request({
         parent: parent?.id ?? null,
         element: id,
@@ -517,7 +557,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this._root = undefined;
     }
     element.remove();
-    this.emit(
+    this.enqueueUI(
       DestroyElementMessage.type.request({
         element: element.id,
       }),
@@ -552,7 +592,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     parent.moveChildBefore(element, before);
-    this.emit(
+    this.enqueueUI(
       MoveElementMessage.type.request({
         element: element.id,
         before: before?.id ?? null,
@@ -565,7 +605,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style = state?.style;
     const attributes = state?.attributes;
     const breakpoints = this.context.config?.ui?.breakpoints;
-    this.emit(
+    this.enqueueUI(
       UpdateElementMessage.type.request({
         element: element.id,
         content,
@@ -582,6 +622,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (effects.length === 0) {
       return [];
     }
+    // Flush pending create/update ops so the elements this animation targets
+    // exist on the consumer before the animate request arrives.
+    this.flushUIBatch();
     return this.emit(
       AnimateElementsMessage.type.request({
         effects: effects.map((e) => ({
@@ -1471,7 +1514,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // Make the element clickable + ask the renderer to forward the DOM event
     // (mirrors setEventListener's observe).
     this.updateElement(el, { style: { pointer_events: "auto" } });
-    this.emit(
+    this.enqueueUI(
       ObserveElementMessage.type.notification({
         element: el.id,
         event: ev.event as keyof EventMap,
@@ -2049,6 +2092,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     for (const { scope } of this._mountedLayouts.values()) {
       this.refreshScope(scope, changes);
     }
+    // Flush this turn's reactive ops synchronously so callers (and tests) see
+    // the `ui/batch` immediately after the refresh, not on a later microtask.
+    this.flushUIBatch();
   }
 
   protected refreshScope(scope: ReactiveScope, changes: ReactiveDeps): void {
@@ -2351,7 +2397,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   loadTheme(): void {
     const breakpoints = this.context?.config?.ui?.breakpoints;
     if (breakpoints) {
-      this.emit(
+      this.enqueueUI(
         SetThemeMessage.type.request({
           breakpoints,
         }),
@@ -2771,7 +2817,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const style = { pointer_events: "auto" };
       this.updateElement(targetEl, { style });
       if (callback) {
-        this.emit(
+        this.enqueueUI(
           ObserveElementMessage.type.notification({
             element: targetEl.id,
             event,
@@ -2783,7 +2829,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         this._events[event]![targetEl.id] = callback as (event: Event) => any;
       } else {
         delete this._events[event]?.[targetEl.id];
-        this.emit(
+        this.enqueueUI(
           UnobserveElementMessage.type.notification({
             element: targetEl.id,
             event,
@@ -2887,6 +2933,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // children and drives the reveal from each instruction's after/over
         // timing. `await` here preserves the prior `await animateElements()`
         // lifecycle: the write completes only once the reveal has finished.
+        // Flush pending create/update ops first so the target exists before the
+        // (awaited) write arrives.
+        $.flushUIBatch();
         await $.emit(
           WriteTextMessage.type.request({
             target,
@@ -3261,7 +3310,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // children and drives the enter/exit/destroy lifecycle. `await` here
         // preserves the prior `await animateElements()` lifecycle: the write
         // completes only once the crossfade animations have finished (so
-        // auto-advance still waits on the reveal).
+        // auto-advance still waits on the reveal). Flush pending create/update
+        // ops first so the target exists before the (awaited) write arrives.
+        $.flushUIBatch();
         await $.emit(
           WriteImageMessage.type.request({
             target,

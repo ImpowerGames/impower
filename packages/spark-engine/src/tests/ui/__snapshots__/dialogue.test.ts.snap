@@ -3,25 +3,33 @@
 exports[`dialogue > animated dialogue line (per-glyph create + per-letter animate) 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "Hi.",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "Hi.",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -50,25 +58,33 @@ exports[`dialogue > animated dialogue line (per-glyph create + per-letter animat
     },
   },
   {
-    "id": "req-3",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "HERO",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-3",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "HERO",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -92,25 +108,33 @@ exports[`dialogue > animated dialogue line (per-glyph create + per-letter animat
 exports[`dialogue > character name + parenthetical routing > messages 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "Hi there.",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "Hi there.",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -169,25 +193,33 @@ exports[`dialogue > character name + parenthetical routing > messages 1`] = `
     },
   },
   {
-    "id": "req-3",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "HERO",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-3",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "HERO",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -218,25 +250,33 @@ exports[`dialogue > character name + parenthetical routing > text-targets 1`] = 
 exports[`dialogue > inline-styled chunks (bold / italic) 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "This is bold and italic text.",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "This is bold and italic text.",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -425,25 +465,33 @@ exports[`dialogue > inline-styled chunks (bold / italic) 1`] = `
     },
   },
   {
-    "id": "req-3",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "HERO",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-3",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "HERO",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -467,25 +515,33 @@ exports[`dialogue > inline-styled chunks (bold / italic) 1`] = `
 exports[`dialogue > instant dialogue line (no per-letter timing) 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "Hi.",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "Hi.",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -514,25 +570,33 @@ exports[`dialogue > instant dialogue line (no per-letter timing) 1`] = `
     },
   },
   {
-    "id": "req-3",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "HERO",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-3",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "HERO",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -556,25 +620,33 @@ exports[`dialogue > instant dialogue line (no per-letter timing) 1`] = `
 exports[`dialogue > multi-line dialogue with whitespace + centered alignment 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "Line one.",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "Line one.",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -633,25 +705,33 @@ exports[`dialogue > multi-line dialogue with whitespace + centered alignment 1`]
     },
   },
   {
-    "id": "req-3",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "HERO",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-3",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "HERO",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {

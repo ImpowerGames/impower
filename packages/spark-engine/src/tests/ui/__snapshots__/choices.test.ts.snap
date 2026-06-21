@@ -3,115 +3,123 @@
 exports[`choices > N choices render (text + per-choice observe) 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "pointer_events": "auto",
-      },
-    },
-  },
-  {
     "kind": "notification",
-    "method": "ui/observe",
+    "method": "ui/batch",
     "params": {
-      "element": "e-1",
-      "event": "click",
-      "once": false,
-      "stopPropagation": true,
-    },
-  },
-  {
-    "id": "req-2",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "pointer_events": "auto",
-      },
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/observe",
-    "params": {
-      "element": "e-2",
-      "event": "click",
-      "once": false,
-      "stopPropagation": true,
-    },
-  },
-  {
-    "id": "req-3",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-3",
-      "style": {
-        "pointer_events": "auto",
-      },
-    },
-  },
-  {
-    "kind": "notification",
-    "method": "ui/observe",
-    "params": {
-      "element": "e-3",
-      "event": "click",
-      "once": false,
-      "stopPropagation": true,
-    },
-  },
-  {
-    "id": "req-4",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": {
-        "text": "Apple",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "pointer_events": "auto",
+            },
+          },
+        },
+        {
+          "kind": "notification",
+          "method": "ui/observe",
+          "params": {
+            "element": "e-1",
+            "event": "click",
+            "once": false,
+            "stopPropagation": true,
+          },
+        },
+        {
+          "id": "req-2",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "pointer_events": "auto",
+            },
+          },
+        },
+        {
+          "kind": "notification",
+          "method": "ui/observe",
+          "params": {
+            "element": "e-2",
+            "event": "click",
+            "once": false,
+            "stopPropagation": true,
+          },
+        },
+        {
+          "id": "req-3",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-3",
+            "style": {
+              "pointer_events": "auto",
+            },
+          },
+        },
+        {
+          "kind": "notification",
+          "method": "ui/observe",
+          "params": {
+            "element": "e-3",
+            "event": "click",
+            "once": false,
+            "stopPropagation": true,
+          },
+        },
+        {
+          "id": "req-4",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "Apple",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -130,25 +138,33 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
     },
   },
   {
-    "id": "req-6",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "Banana",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-6",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "Banana",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -167,25 +183,33 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
     },
   },
   {
-    "id": "req-8",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": "Cherry",
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-3",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-8",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "Cherry",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-3",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -209,25 +233,33 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
 exports[`choices > click first choice → clear + advance round-trip > ui-after-click 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": null,
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -241,25 +273,33 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-3",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": null,
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-3",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -273,25 +313,33 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-5",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": null,
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-3",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-5",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-3",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -305,23 +353,31 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-7",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-7",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -335,23 +391,31 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-9",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-9",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -365,23 +429,31 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-11",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-3",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-11",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-3",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -395,113 +467,121 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-13",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "pointer_events": "auto",
-      },
-    },
-  },
-  {
     "kind": "notification",
-    "method": "ui/unobserve",
+    "method": "ui/batch",
     "params": {
-      "element": "e-1",
-      "event": "click",
-    },
-  },
-  {
-    "id": "req-14",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": "none",
-      },
-    },
-  },
-  {
-    "id": "req-15",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": "none",
-      },
-    },
-  },
-  {
-    "id": "req-16",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-3",
-      "style": {
-        "display": "none",
-      },
-    },
-  },
-  {
-    "id": "req-17",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": {
-        "text": null,
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-4",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-13",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "pointer_events": "auto",
+            },
+          },
+        },
+        {
+          "kind": "notification",
+          "method": "ui/unobserve",
+          "params": {
+            "element": "e-1",
+            "event": "click",
+          },
+        },
+        {
+          "id": "req-14",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+        {
+          "id": "req-15",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+        {
+          "id": "req-16",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-3",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+        {
+          "id": "req-17",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-4",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -515,25 +595,33 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-19",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": null,
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-19",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -547,25 +635,33 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-21",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": null,
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-21",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -579,25 +675,33 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-23",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "text": null,
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-3",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-23",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-3",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -611,23 +715,31 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-25",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-4",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-25",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-4",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -641,23 +753,31 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-27",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-27",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -671,23 +791,31 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-29",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-2",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-29",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-2",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -701,23 +829,31 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-31",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-3",
-      "style": {
-        "display": "none",
-      },
+      "messages": [
+        {
+          "id": "req-31",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-3",
+            "style": {
+              "display": "none",
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -731,43 +867,51 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-33",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": {
-        "hidden": null,
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-5",
-      "style": undefined,
-    },
-  },
-  {
-    "id": "req-34",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-6",
-      "style": {
-        "opacity": "1",
-      },
+      "messages": [
+        {
+          "id": "req-33",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "hidden": null,
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-5",
+            "style": undefined,
+          },
+        },
+        {
+          "id": "req-34",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-6",
+            "style": {
+              "opacity": "1",
+            },
+          },
+        },
+      ],
     },
   },
 ]

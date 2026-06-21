@@ -57,24 +57,24 @@ async function runInstant(body: string) {
 describe("image", () => {
   test("show backdrop", async () => {
     const harness = await runInstant(`  [[show backdrop BG]]`);
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("hide backdrop", async () => {
     const harness = await runInstant(`  [[show backdrop BG]]\n  [[hide backdrop]]`);
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("show then re-show (crossfade: hide+destroy previous layer)", async () => {
     const harness = await runInstant(
       `  [[show backdrop BG]]\n  [[show backdrop BG2]]`,
     );
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("show with fade transition", async () => {
     const harness = await runInstant(`  [[show backdrop BG with fade]]`);
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("animated (non-instant) show emits per-layer animate", async () => {
@@ -85,18 +85,18 @@ describe("image", () => {
     const beat = harness.nextBeat();
     await harness.display(beat!, /* instant */ false);
     await flushMicrotasks();
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("layered images (multi-asset SPRITE+SHADOW) stack background_image", async () => {
     const harness = await runInstant(`  [[show portrait SPRITE+SHADOW]]`);
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("image animate directive", async () => {
     const harness = await runInstant(
       `  [[show portrait SPRITE]]\n  [[animate portrait with shake]]`,
     );
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 });

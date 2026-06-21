@@ -78,11 +78,10 @@ end
       { reactive: true },
     );
     await h.ready;
+    // `ui/observe` is coalesced into a `ui/batch`; snapshotFiltered flattens it.
     const observe = h
-      .snapshot()
-      .find(
-        (m: any) => m.method === "ui/observe" && m.params?.event === "click",
-      ) as any;
+      .snapshotFiltered("ui/observe")
+      .find((m: any) => m.params?.event === "click") as any;
     expect(observe).toBeTruthy();
   });
 });

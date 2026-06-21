@@ -3,23 +3,31 @@
 exports[`image > animated (non-instant) show emits per-layer animate 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -112,23 +120,31 @@ exports[`image > animated (non-instant) show emits per-layer animate 1`] = `
 exports[`image > hide backdrop 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -247,23 +263,31 @@ exports[`image > hide backdrop 1`] = `
 exports[`image > image animate directive 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -412,23 +436,31 @@ exports[`image > image animate directive 1`] = `
 exports[`image > layered images (multi-asset SPRITE+SHADOW) stack background_image 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -521,23 +553,31 @@ exports[`image > layered images (multi-asset SPRITE+SHADOW) stack background_ima
 exports[`image > show backdrop 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -630,23 +670,31 @@ exports[`image > show backdrop 1`] = `
 exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {
@@ -812,23 +860,31 @@ exports[`image > show then re-show (crossfade: hide+destroy previous layer) 1`] 
 exports[`image > show with fade transition 1`] = `
 [
   {
-    "id": "req-1",
-    "kind": "request",
-    "method": "ui/update",
+    "kind": "notification",
+    "method": "ui/batch",
     "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-1",
-      "style": {
-        "display": null,
-      },
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": undefined,
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
     },
   },
   {

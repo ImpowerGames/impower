@@ -64,8 +64,13 @@ export interface UIHarness {
   observedElementIds(): string[];
   /** Snapshot-ready, id-normalized view of the captured stream. */
   snapshot(): unknown[];
-  /** Snapshot-ready, id-normalized view filtered to a method prefix. */
+  /** Snapshot-ready view filtered to a method prefix, with `ui/batch`
+   *  envelopes FLATTENED into their inner ops — for per-op assertions
+   *  (`snapshotFiltered("ui/create")`). */
   snapshotFiltered(prefix: string): unknown[];
+  /** Snapshot-ready view filtered to a method prefix, preserving `ui/batch`
+   *  envelopes — the faithful wire shape, for golden-master `toMatchSnapshot`. */
+  snapshotWire(prefix: string): unknown[];
 }
 
 // The golden-master compiles the builtins .sd PRELUDE into the program (which
@@ -329,7 +334,7 @@ export function createHarness(
       } as any);
     },
     observedElementIds() {
-      return messages
+      return flattenMessages(messages)
         .filter((m) => m.method === "ui/observe")
         .map((m) => m.params.element as string);
     },
@@ -337,7 +342,17 @@ export function createHarness(
       return normalizeMessages(messages);
     },
     snapshotFiltered(prefix: string) {
-      return normalizeMessages(messages.filter((m) => m.method?.startsWith(prefix)));
+      // Flatten ui/batch so a per-op query (e.g. "ui/create") sees the inner
+      // ops, not just the envelope.
+      return normalizeMessages(
+        flattenMessages(messages).filter((m) => m.method?.startsWith(prefix)),
+      );
+    },
+    snapshotWire(prefix: string) {
+      // Faithful wire: keep ui/batch envelopes intact (don't flatten).
+      return normalizeMessages(
+        messages.filter((m) => m.method?.startsWith(prefix)),
+      );
     },
   };
 
@@ -453,21 +468,48 @@ export function normalizeMessages(messages: any[]): unknown[] {
     return value;
   };
 
-  return messages.map((m) => {
+  const normalizeOne = (m: any): any => {
     const out: any = { method: m.method };
     if ("id" in m && m.id != null) {
       out.id = typeof m.id === "string" ? mapRequestId(m.id) : m.id;
     }
     if ("params" in m) {
-      out.kind = "request" in m || "id" in m ? "request" : "notification";
-      out.params = normalizeValue(m.params);
-    }
-    if (!("params" in m)) {
+      out.kind = "id" in m ? "request" : "notification";
+      if (
+        m.method === "ui/batch" &&
+        m.params &&
+        Array.isArray(m.params.messages)
+      ) {
+        // A `ui/batch` carries inner op messages whose own `id`s (uuids) and
+        // element ids must be normalized too — recurse so the envelope is fully
+        // deterministic, preserving first-seen numbering across the burst.
+        out.params = { messages: m.params.messages.map(normalizeOne) };
+      } else {
+        out.params = normalizeValue(m.params);
+      }
+    } else {
       out.kind = "notification";
     }
     if ("result" in m) {
       out.result = normalizeValue(m.result);
     }
     return out;
-  });
+  };
+  return messages.map(normalizeOne);
+}
+
+/** Expand any `ui/batch` envelope into its inner op messages, in order, leaving
+ *  every other message untouched. The golden `snapshot()` keeps batches intact
+ *  (faithful wire); the per-op query helpers (`snapshotFiltered`,
+ *  `observedElementIds`) flatten first so they see through batching. */
+export function flattenMessages(messages: any[]): any[] {
+  const out: any[] = [];
+  for (const m of messages) {
+    if (m && m.method === "ui/batch" && Array.isArray(m.params?.messages)) {
+      out.push(...m.params.messages);
+    } else {
+      out.push(m);
+    }
+  }
+  return out;
 }

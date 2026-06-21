@@ -37,7 +37,7 @@ describe("screen", () => {
     const harness = createHarness(STORY);
     await harness.ready;
     // The whole captured stream IS the construction (styles + screen tree).
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("hide then show screen toggles hidden attribute", async () => {
@@ -47,6 +47,6 @@ describe("screen", () => {
     harness.game.module.ui.hideLayout("main");
     harness.game.module.ui.showLayout("main");
     await flushMicrotasks();
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 });

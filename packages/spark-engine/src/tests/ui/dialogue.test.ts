@@ -45,7 +45,7 @@ describe("dialogue", () => {
     expect(beat).toBeTruthy();
     await harness.display(beat!, /* instant */ false);
     await flushMicrotasks();
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("instant dialogue line (no per-letter timing)", async () => {
@@ -56,7 +56,7 @@ describe("dialogue", () => {
     const beat = harness.nextBeat();
     await harness.display(beat!, /* instant */ true);
     await flushMicrotasks();
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("character name + parenthetical routing", async () => {
@@ -69,7 +69,7 @@ describe("dialogue", () => {
     expect(Object.keys(beat?.text ?? {}).sort()).toMatchSnapshot("text-targets");
     await harness.display(beat!, true);
     await flushMicrotasks();
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot("messages");
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot("messages");
   });
 
   test("inline-styled chunks (bold / italic)", async () => {
@@ -82,7 +82,7 @@ describe("dialogue", () => {
     const beat = harness.nextBeat();
     await harness.display(beat!, true);
     await flushMicrotasks();
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("multi-line dialogue with whitespace + centered alignment", async () => {
@@ -95,7 +95,7 @@ describe("dialogue", () => {
     const beat = harness.nextBeat();
     await harness.display(beat!, true);
     await flushMicrotasks();
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   // Routing now reads the compiler's per-beat routing TAG, not a `<prefix>:`

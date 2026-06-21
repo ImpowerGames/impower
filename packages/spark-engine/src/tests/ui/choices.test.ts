@@ -51,7 +51,7 @@ describe("choices", () => {
     expect(beat?.choices).toEqual(["choice 0", "choice 1", "choice 2"]);
     await harness.display(beat!, true);
     await flushMicrotasks();
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot();
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot();
   });
 
   test("click first choice → clear + advance round-trip", async () => {
@@ -70,7 +70,7 @@ describe("choices", () => {
     harness.reset();
     harness.emitEvent("click", observed[0]!, { button: 0 });
     await flushMicrotasks();
-    expect(harness.snapshotFiltered("ui/")).toMatchSnapshot("ui-after-click");
+    expect(harness.snapshotWire("ui/")).toMatchSnapshot("ui-after-click");
     // The story advanced (chosePathToContinue fired).
     expect(
       harness.messages.some((m) => m.method === "game/chosePathToContinue"),

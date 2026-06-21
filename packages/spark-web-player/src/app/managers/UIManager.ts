@@ -10,6 +10,7 @@ import { getRevealAnimation } from "../../../../spark-dom/src/utils/getRevealAni
 import { TextInstruction } from "../../../../spark-engine/src/game/core/types/Instruction";
 import { Animation } from "../../../../spark-engine/src/game/modules/ui/types/Animation";
 import { AnimateElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementsMessage";
+import { BatchElementsMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/BatchElementsMessage";
 import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
 import { MoveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/MoveElementMessage";
@@ -455,6 +456,21 @@ export default class UIManager extends Manager {
   // callback per call in the connection — and reactive keyed-`for` reconcile
   // observes/unobserves on every mount.
   override onReceiveNotification(msg: NotificationMessage) {
+    // A `ui/batch` coalesces a synchronous run of fire-and-forget ops. Dispatch
+    // each inner message IN ORDER through the normal per-op handling: requests
+    // (create/update/destroy/move/set-theme — all synchronous handlers, so their
+    // returned promise is unused) via onReceiveRequest, and notifications
+    // (observe/unobserve) recursively via onReceiveNotification.
+    if (BatchElementsMessage.type.isNotification(msg)) {
+      for (const inner of msg.params.messages as any[]) {
+        if (inner && typeof inner === "object" && "id" in inner) {
+          void this.onReceiveRequest(inner as RequestMessage);
+        } else {
+          this.onReceiveNotification(inner as NotificationMessage);
+        }
+      }
+      return;
+    }
     if (ObserveElementMessage.type.isNotification(msg)) {
       const params = msg.params;
       const el = this.getElement(params.element);
