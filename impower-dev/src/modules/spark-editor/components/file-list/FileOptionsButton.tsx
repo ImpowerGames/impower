@@ -5,6 +5,7 @@ import {
   DropdownItem,
   DropdownRoot,
   DropdownTrigger,
+  Files,
   Pencil,
   Search,
   Trash,
@@ -18,6 +19,8 @@ export type FileOptionsButtonProps = {
   onDelete: () => void;
   /** Show a "Find usages" item (assets only) — lists scripts referencing it. */
   onFindUsages?: () => void;
+  /** Show a "Duplicate" item (files only) — copies it under a unique name. */
+  onDuplicate?: () => void;
 };
 
 // Identity of the row whose options menu is currently open — only one at a time.
@@ -45,6 +48,7 @@ export default function FileOptionsButton({
   onRename,
   onDelete,
   onFindUsages,
+  onDuplicate,
 }: FileOptionsButtonProps) {
   const [armed, setArmed] = useState(false);
   // Stable per-instance key for the single-open coordination above.
@@ -141,6 +145,12 @@ export default function FileOptionsButton({
           <DropdownItem disabled={disabled} onSelect={() => onFindUsages()}>
             <Search class="size-4" />
             Find usages
+          </DropdownItem>
+        )}
+        {onDuplicate && (
+          <DropdownItem disabled={disabled} onSelect={() => onDuplicate()}>
+            <Files class="size-4" />
+            Duplicate
           </DropdownItem>
         )}
         <DropdownItem disabled={disabled} onSelect={() => onDelete()}>
