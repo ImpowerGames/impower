@@ -3,6 +3,7 @@ import {
   Download,
   Logout,
   Ripple,
+  Trash,
   Upload,
 } from "@impower/impower-ui/components";
 import type { ComponentChildren, JSX } from "preact";
@@ -109,6 +110,30 @@ export default function Account(_p: AccountProps) {
       const name = Workspace.window.store.project.name;
       downloadFile(`${name}.zip`, "application/x-zip", zip);
     }
+  };
+
+  // DEV-ONLY: nuke the origin's OPFS (the local editor project) and reload.
+  // A replacement for the now-broken "OPFS Explorer" browser extension.
+  // Gated by `import.meta.env.DEV` at the render site below so it is tree-
+  // shaken out of production bundles.
+  const handleClearOpfs = async () => {
+    if (
+      !window.confirm(
+        "Clear OPFS? This permanently deletes the local editor project in this browser.",
+      )
+    )
+      return;
+    try {
+      const root = await navigator.storage.getDirectory();
+      const names: string[] = [];
+      for await (const [name] of root.entries()) names.push(name);
+      for (const name of names) {
+        await root.removeEntry(name, { recursive: true });
+      }
+    } catch (e) {
+      console.error("Failed to clear OPFS", e);
+    }
+    location.reload();
   };
 
   const handleSignIn = async () => {
@@ -275,6 +300,15 @@ export default function Account(_p: AccountProps) {
           </Row>
         </>
       )}
+      {/* DEV-ONLY utility: clear this origin's OPFS workspace and reload.
+          `import.meta.env.DEV` is Vite's build-time boolean — `false` in
+          production page builds, so this branch is tree-shaken out and the
+          button never ships. Replaces the broken "OPFS Explorer" extension. */}
+      {import.meta.env.DEV ? (
+        <Row icon={<Trash class="size-5" />} onClick={handleClearOpfs}>
+          Clear OPFS (dev)
+        </Row>
+      ) : null}
     </div>
   );
 }
