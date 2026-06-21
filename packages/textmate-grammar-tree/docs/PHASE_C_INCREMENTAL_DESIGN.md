@@ -41,6 +41,40 @@ defect is somewhere in the `Compiler.step`/`finish` global assembly or the
 > (B) inherit scopes but reset counts → parents emitted, mis-sized, children
 > detached (the exact never-isolated defect).
 >
+> **✅ MATCHER-RESUME SPIKE RESOLVED (2026-06-20) — GO.** Second isolated spike
+> proves the OTHER half (the reverted regression lived here):
+> `packages/sparkdown/src/tests/incremental/matcherResumeSpike.test.ts` (10
+> tests). A small synthetic grammar through the REAL `Grammar`/`ScopedRule`/
+> `RegExpMatcher` machinery; oracle = real whole-block `grammar.match().compile()`.
+> A flat, stack-driven per-line tokenizer (reusing the real
+> `ScopedRule.begin`/`content`/`end` primitives) proves:
+> - **per-line dispatch == whole-block token stream, byte-for-byte** — incl. the
+>   cross-line content wrapper (closes on the LAST content token via end-
+>   lookahead, a line before `end`), nested scopes, the end sub-scope, zero-width
+>   captures, and single-child FULL wrap;
+> - **mid-block RESTART from a stack snapshot reproduces the suffix byte-for-byte**
+>   (the exact `Compiler.reuse` scenario) — the resume state is precisely
+>   `GrammarState.stack` (nodes + **`beginCaptures`**, cloned) **plus a per-scope
+>   `contentOpened` flag** (load-bearing: restart must not re-emit the wrapper
+>   open). `beginCaptures` backreferences (M1's #1 regression vector) survive;
+> - **cascade-close needs NO explicit §2 discriminator** — the per-line loop
+>   checks each frame's end in stack order at the iteration top; a consuming
+>   enclosing end cannot misfire because its keyword was already consumed, and
+>   zero-width ends match at their position. This SIMPLIFIES §2.
+>
+> Production consideration surfaced: `$`/`(?=$)` end-arms (multiline flag) match
+> at EVERY line end; the real `ForLoop` avoids premature close only because its
+> `ForCondition`/`DoBlock` structure keeps it INACTIVE at body line-ends — the
+> per-line matcher must preserve that (the whole-block matcher already does).
+>
+> **Both halves now proven in isolation.** The production rewrite: (a) flat
+> per-line/resumable matcher (model the content wrapper as a lazily-opened
+> scope; defer EOF/incomplete to `Compiler.finish`); (b) snapshot the resume
+> state at each per-line split point; (c) restore on `Compiler.reuse` mid-block
+> restart; (d) assemble via the proven inherit (absolute pos + accumulated
+> counts). Guard with `productionInputParity` + a NEW SparkdownDocument-
+> incremental net + restart-position / mid-block-token nets.
+
 > **Fix (proven byte-identical to the whole-block parse):** carry open scope
 > frames across the chunk boundary with their **absolute open-position** (push
 > them onto the next chunk's stack at `absOpen − chunk.from`, so the
