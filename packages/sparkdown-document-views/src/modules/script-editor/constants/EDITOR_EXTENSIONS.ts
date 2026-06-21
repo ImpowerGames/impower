@@ -17,9 +17,9 @@ import {
   highlightActiveLine,
   highlightActiveLineGutter,
   keymap,
-  lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
+import { breakpointGutter } from "../../../cm-breakpoints/breakpoints";
 import { highlightExtraWhitespace } from "../../../cm-highlight-extra-whitespace/highlightExtraWhitespace";
 import { highlightLines } from "../../../cm-highlight-lines/highlightLines";
 import { indentationGuides } from "../../../cm-indentation-guides/indentationGuides";
@@ -28,9 +28,12 @@ import { pinpoints } from "../../../cm-pinpoints/pinpoints";
 
 const EDITOR_EXTENSIONS = [
   history(),
-  // TODO: breakpoints({}),
+  // `breakpointGutter()` provides the breakpoint gutter AND the line-number
+  // gutter (with click-to-toggle), so it replaces a standalone lineNumbers().
+  // The breakpointsField itself is registered by createEditorView via
+  // breakpointsField.init(...), so we add only the gutter UI here.
+  breakpointGutter({}),
   pinpoints(),
-  lineNumbers(),
   indentUnit.of("  "),
   indentationGuides(),
   indentedLineWrapping(),

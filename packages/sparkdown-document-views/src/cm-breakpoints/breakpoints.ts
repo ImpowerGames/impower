@@ -106,9 +106,12 @@ export const breakpointsChanged = (update: ViewUpdate): boolean => {
   );
 };
 
-export const breakpoints = (config: BreakpointsConfiguration = {}) => [
+// The gutter UI only (config facet + breakpoint gutter + click-to-toggle line
+// numbers + theme), WITHOUT `breakpointsField`. Use this when the field is
+// registered separately (e.g. via `breakpointsField.init(...)` in
+// createEditorView) to avoid a "Duplicate use of field" error.
+export const breakpointGutter = (config: BreakpointsConfiguration = {}) => [
   breakpointsConfig.of(config),
-  breakpointsField,
   gutter({
     class: "cm-breakpoint-gutter",
     markers: (v) => v.state.field(breakpointsField),
@@ -135,4 +138,10 @@ export const breakpoints = (config: BreakpointsConfiguration = {}) => [
       cursor: "default",
     },
   }),
+];
+
+// Self-contained bundle (field + gutter UI) for standalone use.
+export const breakpoints = (config: BreakpointsConfiguration = {}) => [
+  breakpointsField,
+  ...breakpointGutter(config),
 ];

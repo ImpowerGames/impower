@@ -209,6 +209,9 @@ export default function PreviewGame(_props: PreviewGameProps) {
         "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"
       ),
       import(
+        "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage"
+      ),
+      import(
         "@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"
       ),
       import(
@@ -239,6 +242,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { GameExecutedMessage },
         { GameExitedMessage },
         { GameStartedMessage },
+        { SetGameBreakpointsMessage },
         { GameToggledFullscreenModeMessage },
         { DEFAULT_BUILTIN_DEFINITIONS },
         { DEFAULT_DESCRIPTION_DEFINITIONS },
@@ -247,6 +251,21 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { Workspace },
       ]) => {
         if (cancelled) return;
+
+        // Editor breakpoint lines are 1-based (CodeMirror); the engine uses
+        // 0-based source lines. Flatten the per-document cache into the engine's
+        // {file, line}[] shape.
+        const getGameBreakpoints = () => {
+          const breakpointsByUri =
+            Workspace.window.store.debug?.breakpoints ?? {};
+          const breakpoints: { file: string; line: number }[] = [];
+          for (const [uri, lines] of Object.entries(breakpointsByUri)) {
+            for (const line of lines ?? []) {
+              breakpoints.push({ file: uri, line: line - 1 });
+            }
+          }
+          return breakpoints;
+        };
 
         const getGameConfiguration = () => {
           const editor = Workspace.window.getActiveEditorForPane("logic");
@@ -339,6 +358,15 @@ export default function PreviewGame(_props: PreviewGameProps) {
           });
           initializedRef.current = true;
           initializingResolveRef.current?.();
+          // Apply any breakpoints already set (e.g. restored from a previous
+          // session) so they're stashed before the first Run. Live toggles go
+          // through the ChangedEditorBreakpointsMessage handler below.
+          const initialBreakpoints = getGameBreakpoints();
+          if (initialBreakpoints.length > 0) {
+            await connection.sendRequest(SetGameBreakpointsMessage.type, {
+              breakpoints: initialBreakpoints,
+            });
+          }
           setupInFlight = false;
         };
 
@@ -437,7 +465,17 @@ export default function PreviewGame(_props: PreviewGameProps) {
             Workspace.window.setHighlights({});
           }
           if (ChangedEditorBreakpointsMessage.type.is(message)) {
-            // TODO: forward breakpoints to player
+            // Forward the full breakpoint set to the running game. setBreakpoints
+            // replaces the whole map, so we always send every document's
+            // breakpoints (WorkspaceWindow has already updated the cache from
+            // this same message). The player stashes them if no game exists yet.
+            if (!initializedRef.current) {
+              await initializingRef.current;
+            }
+            await iframeChannelRef.current?.sendRequest(
+              SetGameBreakpointsMessage.type,
+              { breakpoints: getGameBreakpoints() },
+            );
           }
           if (ChangedEditorPinpointsMessage.type.is(message)) {
             // TODO: forward pinpoints to player
