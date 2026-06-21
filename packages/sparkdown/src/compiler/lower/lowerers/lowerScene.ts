@@ -5,14 +5,14 @@ import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
 import { lowerArguments } from "../utils/lowerArguments";
-import { validateScene } from "../utils/validateSceneBranchScope";
 
 // `Scene` is a boundary-only Scoped rule (see docs/compiler/GRAMMAR.md) — it
 // covers the declaration line only. The scene's body lives at root,
-// so this lowerer just builds the Knot from the declaration and
-// validates that a matching `end` keyword appears later at root
-// level (the lowerer pairs declarations with their `LuauEndKeyword`
-// siblings — see `validateSceneBranchScope`).
+// so this lowerer just builds the Knot from the declaration. The
+// scene/`end` pairing check is NOT done here: it depends on LATER
+// root-level siblings (the matching `end`), so per-chunk lowering would
+// go stale when only the `end` chunk is edited. It runs as a fresh
+// whole-document pass each compile — see `SparkdownCompiler.validateSceneStructure`.
 export function lowerScene(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -24,8 +24,5 @@ export function lowerScene(
   const identifier = new Identifier(ctx.read(nameNode.from, nameNode.to));
   const args = lowerArguments(nodeRef.node, ctx);
   const knot = new Knot(identifier, [], args, false);
-  const diagnostics = validateScene(nodeRef.node, ctx);
-  const block: CompiledBlock = { content: [knot] };
-  if (diagnostics.length > 0) block.diagnostics = diagnostics;
-  return block;
+  return { content: [knot] };
 }

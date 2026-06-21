@@ -5,11 +5,12 @@ import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
 import { lowerArguments } from "../utils/lowerArguments";
-import { validateBranch } from "../utils/validateSceneBranchScope";
 
 // `Branch` is a boundary-only Scoped rule (see docs/compiler/GRAMMAR.md). The
-// body lives at root; the lowerer validates that the branch sits
-// inside an active scene AND has a matching `end` keyword later.
+// body lives at root. The inside-a-scene / matching-`end` checks depend on
+// other root-level siblings, so they run as a fresh whole-document pass each
+// compile (see `SparkdownCompiler.validateSceneStructure`), not here — per-chunk
+// lowering would go stale when only a sibling `end`/scene is edited.
 export function lowerBranch(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -21,8 +22,5 @@ export function lowerBranch(
   const identifier = new Identifier(ctx.read(nameNode.from, nameNode.to));
   const args = lowerArguments(nodeRef.node, ctx);
   const stitch = new Stitch(identifier, [], args, false);
-  const diagnostics = validateBranch(nodeRef.node, ctx);
-  const block: CompiledBlock = { content: [stitch] };
-  if (diagnostics.length > 0) block.diagnostics = diagnostics;
-  return block;
+  return { content: [stitch] };
 }

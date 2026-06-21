@@ -20,9 +20,7 @@ const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
 // DEV-ONLY same-origin preview: when the editor proxies this app under its own
 // origin (see impower-dev/build.ts + vite base "/__player/"), our origin equals
 // the editor's. The postMessage handshake then matches exactly with no origin
-// relaxation needed. We also skip registering our own service worker: the
-// editor already runs a root-scoped SW that intercepts /file:/ and serves game
-// assets straight from its OPFS, so it controls this iframe too.
+// relaxation needed.
 const SAME_ORIGIN = window.location.origin === SPARKDOWN_EDITOR_ORIGIN;
 
 // Otherwise, when served CROSS-origin from localhost (the default local dev:
@@ -37,6 +35,19 @@ const IS_LOCALHOST =
 const RELAX_ORIGIN = IS_LOCALHOST && !SAME_ORIGIN;
 const EDITOR_SEND_ORIGIN = RELAX_ORIGIN ? "*" : SPARKDOWN_EDITOR_ORIGIN;
 const EDITOR_ACCEPT_ORIGIN = RELAX_ORIGIN ? undefined : SPARKDOWN_EDITOR_ORIGIN;
+
+// Whether the editor is proxying us same-origin under "/__player/". Derived from
+// the BUILD BASE (vite.config sets base "/__player/" iff same-origin preview is
+// on), NOT the port-fragile baked VITE_SPARKDOWN_EDITOR_ORIGIN: that env can
+// drift from the editor's real port (per-worktree dev ports), and when it does
+// the origin compare above goes wrongly false. We use this robust signal ONLY to
+// gate service-worker registration (below): registering our own /sw.js while the
+// editor already controls this origin mints a SECOND, competing root-scoped SW
+// at the editor's scope, whose install→claim fires `controllerchange` in the
+// editor top frame → its reload handler → endless reload loop. The editor's
+// root-scoped SW already intercepts /file:/ and serves game assets from its OPFS,
+// so under the proxy we must NOT register our own.
+const SAME_ORIGIN_PROXY = import.meta.env.BASE_URL.startsWith("/__player");
 
 const connection = new Port2MessageConnection(
   (message: any, transfer?: Transferable[]) =>
@@ -115,7 +126,12 @@ window.addEventListener("drop", async (e) => {
   );
 });
 
-if (!SAME_ORIGIN && "serviceWorker" in navigator) {
+// Register our own SW only when we are genuinely a SEPARATE origin from the
+// editor: neither the (prod-correct) origin compare nor the (dev-proxy-robust)
+// build-base signal says same-origin. Skipping when EITHER is true keeps the
+// production same-origin behavior intact while fixing the dev case where a
+// stale baked editor origin made `SAME_ORIGIN` wrongly false.
+if (!SAME_ORIGIN && !SAME_ORIGIN_PROXY && "serviceWorker" in navigator) {
   navigator.serviceWorker
     .register("/sw.js", { type: "module" })
     .catch((err) => console.error("SW register failed:", err));

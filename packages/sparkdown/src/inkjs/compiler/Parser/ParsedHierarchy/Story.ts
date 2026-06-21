@@ -183,10 +183,22 @@ export class Story extends FlowBase {
   ): RuntimeStory | null => {
     this._errorHandler = errorHandler;
 
+    // Collect constants, list definitions and struct definitions in a single
+    // top-down traversal instead of three separate full-tree `FindAll` passes.
+    // CollectByType preserves FindAll's depth-first pre-order per type, so each
+    // bucket is identical to the corresponding FindAll result.
+    const constDecls: ConstantDeclaration[] = [];
+    const listDecls: ListDefinition[] = [];
+    const structDecls: StructDefinition[] = [];
+    this.CollectByType(
+      [ConstantDeclaration, ListDefinition, StructDefinition],
+      [constDecls, listDecls, structDecls] as ParsedObject[][],
+    );
+
     // Find all constants before main export begins, so that VariableReferences know
     // whether to generate a runtime variable reference or the literal value
     this.constants = new Map();
-    for (const constDecl of this.FindAll(ConstantDeclaration)()) {
+    for (const constDecl of constDecls) {
       // Check for duplicate definitions
       const existingDefinition = this.constants.get(constDecl.constantName!);
 
@@ -203,7 +215,7 @@ export class Story extends FlowBase {
     // List definitions are treated like constants too - they should be usable
     // from other variable declarations.
     this._listDefs = new Map();
-    for (const listDef of this.FindAll<ListDefinition>(ListDefinition)()) {
+    for (const listDef of listDecls) {
       if (listDef.identifier?.name) {
         this._listDefs.set(listDef.identifier?.name, listDef);
       }
@@ -213,7 +225,7 @@ export class Story extends FlowBase {
     // from other variable declarations.
     this._structDefs = new Map();
     const runtimeStructs: RuntimeStructDefinition[] = [];
-    for (const structDef of this.FindAll(StructDefinition)()) {
+    for (const structDef of structDecls) {
       if (structDef.identifier?.name) {
         this._structDefs.set(structDef.identifier?.name, structDef);
         runtimeStructs.push(structDef.runtimeStructDefinition);
@@ -279,7 +291,9 @@ export class Story extends FlowBase {
       }
     }
     const implicitParentNames = new Set<string>();
-    for (const structDef of this.FindAll(StructDefinition)()) {
+    // Reuse the struct bucket collected above (same parsed nodes — the tree
+    // gains no StructDefinitions between collection and here).
+    for (const structDef of structDecls) {
       const parentName = structDef.type?.name;
       if (
         parentName &&

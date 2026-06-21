@@ -81,6 +81,16 @@ export class Compiler {
   }
 
   reuse(editedFrom: number, editedTo: number, editedOffset: number) {
+    // Clear any `reparsedTo` left over from a PREVIOUS incremental parse.
+    // `reparsedTo` is only meaningful when this parse reuses chunks AHEAD
+    // of the edit (set by `append`). If it isn't reset here, an edit that
+    // reuses-ahead (e.g. a mid-document change) leaves `reparsedTo`
+    // populated, and a subsequent edit that does NOT reuse ahead (e.g. an
+    // append at end-of-document) would inherit that stale value. The
+    // annotator then re-annotates the inverted/empty range
+    // `[reparsedFrom, staleReparsedTo]` instead of `[reparsedFrom, end]`,
+    // silently dropping every annotation for the newly appended content.
+    this.reparsedTo = undefined;
     const splitPointBeforeEdit = this.packet.findBehindSplitPoint(editedFrom);
     const splitBehind = this.packet.findBehindSplitPoint(
       splitPointBeforeEdit.chunk?.from ?? 0,
