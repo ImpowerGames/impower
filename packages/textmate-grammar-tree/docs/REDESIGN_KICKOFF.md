@@ -24,7 +24,12 @@ this matters. The non-negotiable contract: the incremental tree must be
 ## What's already here (don't rebuild)
 
 - **Production-correct whole-block engine** — `textmate-grammar-tree/src` is
-  byte-identical to `main`. (The line+stack work was reverted.)
+  byte-identical to `main`. (The line+stack work was reverted.) This branch was
+  merged up to `main` at kickoff (it had diverged 28 commits, including
+  `48e067c4b` — a fix in the incremental-reuse path itself, *clear stale
+  `reparsedTo`* — plus the merged Ink-compiler location-cache work). Re-merge
+  `main` before you start if time has passed; the redesign must build on
+  current-main, not the branch-point.
 - **vscode-textmate conformance suite** — `packages/sparkdown/src/tests/
   textmate-conformance/` (vendored upstream fixtures + harness; baseline 1/95,
   bucketed by divergence axis: regex/Oniguruma, while-rules, captures, includes).
