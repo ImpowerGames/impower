@@ -12,6 +12,7 @@ import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { ObjectValue } from "@impower/sparkdown/src/inkjs/engine/Value";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
 import { Breakpoint } from "../types/Breakpoint";
@@ -1366,6 +1367,25 @@ export class Game<T extends M = {}> {
   getChildVariables(varRef: number): Variable[] {
     const variables: Variable[] = [];
     const value = this._objectVariableRefMap.get(varRef);
+    if (value instanceof ObjectValue) {
+      // Luau table: iterate the Map<string, AbstractValue>, unboxing each child
+      // (nested tables come back as ObjectValues for further lazy expansion).
+      for (const [k, child] of value.value.entries()) {
+        if (k.startsWith("$") || k.startsWith("__")) {
+          continue;
+        }
+        const childValue = this.getRuntimeValue(k, child);
+        if (childValue !== undefined) {
+          variables.push(
+            this.getVariableInfo(k, childValue, {
+              kind: "property",
+              visibility: "public",
+            }),
+          );
+        }
+      }
+      return variables;
+    }
     if (typeof value === "object" && Array.isArray(value)) {
       value.forEach((v, index) => {
         variables.push(
@@ -1437,9 +1457,30 @@ export class Game<T extends M = {}> {
         }
         return listValue;
       }
+      // Luau table: post-luau, table values are ObjectValue (a
+      // Map<string, AbstractValue>). Return the ObjectValue itself so it flows
+      // through as a structured value and is expanded lazily in
+      // getChildVariables — never unwrap to the raw Map (Object.entries/keys
+      // return [] for a Map, which is why tables used to render as "{}").
+      if (valueObj instanceof ObjectValue) {
+        return valueObj;
+      }
       return valueObj.value;
     }
     return undefined;
+  }
+
+  // Author-facing keys of a luau table, excluding synthetic ($-prefixed) and
+  // internal runtime bookkeeping (__-prefixed: metatable links, store/closure
+  // markers, etc.).
+  protected getObjectChildKeys(obj: ObjectValue): string[] {
+    const keys: string[] = [];
+    for (const k of obj.value.keys()) {
+      if (!k.startsWith("$") && !k.startsWith("__")) {
+        keys.push(k);
+      }
+    }
+    return keys;
   }
 
   getVariableInfo(
@@ -1448,6 +1489,25 @@ export class Game<T extends M = {}> {
     presentationHint?: VariablePresentationHint,
     scopePath?: string,
   ): Variable {
+    // Luau table (ObjectValue): structured value expanded lazily via
+    // getChildVariables. Handled explicitly because Object.keys/entries do not
+    // see a Map's contents.
+    if (value instanceof ObjectValue) {
+      const variablesReference = this._nextObjectVariableRef;
+      this._objectVariableRefMap.set(variablesReference, value);
+      this._nextObjectVariableRef++;
+      const childKeys = this.getObjectChildKeys(value);
+      return {
+        scopePath,
+        name,
+        value: childKeys.length > 0 ? "{...}" : "{}",
+        type: "object",
+        variablesReference,
+        indexedVariables: 0,
+        namedVariables: childKeys.length,
+        presentationHint,
+      };
+    }
     let variablesReference = 0;
     if (typeof value === "object" && value != null) {
       variablesReference = this._nextObjectVariableRef;
