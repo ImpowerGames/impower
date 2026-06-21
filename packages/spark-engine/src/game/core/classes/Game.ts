@@ -11,6 +11,7 @@ import {
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
+import { JsonSerialisation } from "@impower/sparkdown/src/inkjs/engine/JsonSerialisation";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { ObjectValue } from "@impower/sparkdown/src/inkjs/engine/Value";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
@@ -1267,6 +1268,15 @@ export class Game<T extends M = {}> {
       )?.result;
       if (!listDefinition) {
         const valueObj = variableState.GetVariableWithName(name);
+        // Keep the Vars scope to author variables: defines belong in the
+        // Defines scope, and closures/stdlib/iterator tables are internal.
+        if (
+          valueObj instanceof ObjectValue &&
+          (JsonSerialisation.defineSerializationInfo(valueObj) != null ||
+            this.isInternalRuntimeTable(valueObj))
+        ) {
+          continue;
+        }
         const value = this.getRuntimeValue(name, valueObj);
         if (value !== undefined) {
           variables.push(
@@ -1308,14 +1318,24 @@ export class Game<T extends M = {}> {
 
   getDefineVariables(): Variable[] {
     const variables: Variable[] = [];
-    for (const [type, structs] of Object.entries(this.context)) {
-      if (type !== "system") {
-        variables.push(
-          this.getVariableInfo(type, structs, {
-            kind: "interface",
-            visibility: "public",
-          }),
-        );
+    const variableState = this._story.state.variablesState;
+    // Source defines from the LIVE __def tables in the runtime (not the
+    // compile-time program.context, which is LSP-only and never reflects
+    // runtime state). A define type table is a global whose metatable carries
+    // the __define marker (kind "named"); `new` instances live in frames, not
+    // here.
+    for (const name of variableState["_globalVariables"].keys()) {
+      const valueObj = variableState.GetVariableWithName(name);
+      if (valueObj instanceof ObjectValue) {
+        const info = JsonSerialisation.defineSerializationInfo(valueObj);
+        if (info?.kind === "named") {
+          variables.push(
+            this.getVariableInfo(name, valueObj, {
+              kind: "interface",
+              visibility: "public",
+            }),
+          );
+        }
       }
     }
     return variables;
@@ -1481,6 +1501,19 @@ export class Game<T extends M = {}> {
       }
     }
     return keys;
+  }
+
+  // True for internal runtime tables that are not author data: luau closures,
+  // stdlib function refs, and builtin iterators. These carry their marker in
+  // their OWN value map (defines, by contrast, are marked on the metatable —
+  // detect those with JsonSerialisation.defineSerializationInfo).
+  protected isInternalRuntimeTable(obj: ObjectValue): boolean {
+    const map = obj.value;
+    return (
+      map.has("__closure_fn") ||
+      map.has("__stdlib_fn") ||
+      map.has("__builtin_iter")
+    );
   }
 
   getVariableInfo(
