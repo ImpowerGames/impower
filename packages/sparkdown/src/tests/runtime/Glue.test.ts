@@ -23,6 +23,19 @@ describe("Glue (ported from inkjs)", () => {
     expect(runToEnd(ctx.story)).toBe("Some content with glue.\n");
   });
 
+  test("trailing glue across multiple lines", () => {
+    // The mirror of the leading-`..` fixture above: each line ends with a
+    // trailing ` ..` glue marker instead of opening with one. The grammar
+    // recognizes (and highlights) trailing `..` as a `Glue` node, but the
+    // display lowerer used to read its raw `..` characters as literal text,
+    // so the lines never joined. Both forms must produce the same joined
+    // output, with the single space before `..` preserved as the word
+    // separator (`Some ..` + `content` → `Some content`).
+    const ctx = makeRuntimeStoryFromFile("glue", "trailing-glue");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(runToEnd(ctx.story)).toBe("Some content with glue.\n");
+  });
+
   test("multi-line content inside `if cond then ... end` (left-right glue)", () => {
     // Ink fixture wraps text in `{ f(): Another line. }` — sparkdown
     // maps the inline `{cond: text}` shorthand to the block form
