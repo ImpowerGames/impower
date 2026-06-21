@@ -560,6 +560,11 @@ export class SparkdownCompiler {
       if (params.countAllVisits) {
         parsedStory.countAllVisits = true;
       }
+      // Clear per-compile ExportRuntime state (the `_alreadyHad{Error,Warning}`
+      // dedup flags + cached runtime objects) on every reused parsed node, so a
+      // carried-forward chunk re-emits the same diagnostics a cold compile would
+      // (see method doc) — must run before ExportRuntime.
+      this.resetParsedRuntimeState(parsedStory);
       // Canonicalize offset-derived synthetic names over the fully-assembled
       // tree so incremental compiles emit byte-identical bytecode to cold ones
       // (see method doc) — must run before ExportRuntime resolves references.
@@ -1195,6 +1200,56 @@ export class SparkdownCompiler {
     );
 
     return combinedParsedStory;
+  }
+
+  // Reset the mutable per-compile state that `ExportRuntime` writes onto parsed
+  // nodes — the `_alreadyHad{Error,Warning}` diagnostic-dedup flags and the
+  // cached `_runtimeObject` — over the WHOLE assembled tree before re-running
+  // `ExportRuntime`. The incremental pipeline reuses parsed objects from prior
+  // compiles, and a node whose dedup flag is still set from a previous
+  // `ExportRuntime` gets its diagnostic SKIPPED this time, so an incremental
+  // compile drops warnings a cold compile emits (e.g. the DivertTarget
+  // "Can't use a divert target like that" hint). `remapContent` already resets
+  // nodes reachable via `.content`, but warning-bearing nodes (DivertTargets in
+  // expression-operand positions, etc.) sit on non-`content` properties; this
+  // pass reaches them by also recursing object/array-valued own-properties, with
+  // a visited set to stop at parent back-edges and the runtime tree. Calling
+  // `ResetRuntime` again on already-reset nodes is idempotent. Kept separate from
+  // `remapContent` because that pass ALSO offsets debugMetadata line numbers, so
+  // visiting a node twice there would double-shift its positions.
+  protected resetParsedRuntimeState(root: ParsedObject): void {
+    const seen = new WeakSet<object>();
+    const walk = (node: any): void => {
+      if (!node || typeof node !== "object" || seen.has(node)) {
+        return;
+      }
+      seen.add(node);
+      if (Array.isArray(node)) {
+        for (const el of node) {
+          walk(el);
+        }
+        return;
+      }
+      if (node instanceof Identifier) {
+        node.ResetRuntime();
+        return;
+      }
+      if (!(node instanceof ParsedObject)) {
+        // DebugMetadata, runtime objects, Maps, plain data — nothing to reset and
+        // nothing parsed below them; don't descend.
+        return;
+      }
+      node.ResetRuntime();
+      for (const key of Object.keys(node)) {
+        // `parent` is a back-edge (the visited set would catch the cycle anyway,
+        // but skipping avoids walking the whole tree upward from every node).
+        if (key === "parent") {
+          continue;
+        }
+        walk((node as any)[key]);
+      }
+    };
+    walk(root);
   }
 
   // Canonicalize compiler-synthesized identifier names that are minted from a

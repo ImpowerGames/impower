@@ -1,18 +1,24 @@
-// Cumulative-path byte-identity oracle for the compiled bytecode.
+// Cumulative-path equivalence oracle: incremental == cold over MANY edits.
 //
 // The existing `incrementalEquivalence` oracle applies each edit from a FRESHLY
-// configured compiler (single-edit reuse). This one drives MANY edits through
+// configured compiler (single-edit reuse). This one drives many edits through
 // ONE persistent compiler — the real editor HMR pattern — and after each edit
-// compares the emitted `program.compiled` to a cold compile of the same text.
+// compares the FULL emitted program (compiled bytecode + every *Locations map +
+// diagnostics + context + ui) to a cold compile of the same text.
 //
-// This is the path that exposed the synthetic-name drift: compiler-synthesized
-// identifiers (`__anon_fn_<from>`, `__define_fn_<from>`, loop vars/labels, …)
-// were minted from absolute source offsets and frozen into per-chunk lowered IR
-// that the incremental pipeline reuses-and-shifts without re-lowering, so a
-// carried-forward chunk kept a stale offset while a cold compile re-derived the
-// current one — diverging the bytecode. `SparkdownCompiler.canonicalizeSyntheticFlowNames`
-// renumbers these names by document order over the assembled tree every compile,
-// which this test pins (it fails ~25/400 edits without that pass).
+// It pins two cumulative-only drift classes that single-edit reuse never hit:
+//   1. compiled (bytecode): compiler-synthesized identifiers (`__anon_fn_<from>`,
+//      `__define_fn_<from>`, `__mcall_<from>`, loop vars/labels) were minted from
+//      ABSOLUTE source offsets and frozen into per-chunk lowered IR the pipeline
+//      reuses-and-shifts without re-lowering — so a carried chunk kept a stale
+//      offset while a cold compile re-derived the current one. Fixed by
+//      `SparkdownCompiler.canonicalizeSyntheticFlowNames` (renumber by document
+//      order). Was ~25/400 edits divergent.
+//   2. diagnostics: `ExportRuntime` sets `_alreadyHad{Error,Warning}` dedup flags
+//      on parsed nodes; reused nodes kept them set, so an incremental compile
+//      SKIPPED warnings a cold compile emits (e.g. the DivertTarget "Can't use a
+//      divert target like that" hint). Fixed by `resetParsedRuntimeState`. Was
+//      ~185/400 edits divergent.
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -56,12 +62,55 @@ function coupledScreenplay(): string {
   return L.join("\n");
 }
 
-function coldCompiledJson(text: string): string {
+// Per-field stable stringify (sorted keys; arrays kept in order). Each program
+// field is compared independently so a failure names the diverging field.
+const FIELDS = [
+  "compiled",
+  "pathLocations",
+  "dataLocations",
+  "functionLocations",
+  "sceneLocations",
+  "knotLocations",
+  "stitchLocations",
+  "branchLocations",
+  "labelLocations",
+  "context",
+  "diagnostics",
+  "ui",
+] as const;
+
+function stable(value: unknown): string {
+  const seen = new WeakSet();
+  const walk = (v: any): any => {
+    if (v && typeof v === "object") {
+      if (seen.has(v)) return "[Circular]";
+      seen.add(v);
+      if (Array.isArray(v)) return v.map(walk);
+      const out: Record<string, any> = {};
+      for (const k of Object.keys(v).sort()) out[k] = walk(v[k]);
+      return out;
+    }
+    return v;
+  };
+  return JSON.stringify(walk(value));
+}
+
+function fieldSig(program: any): Record<string, string> {
+  const sig: Record<string, string> = {};
+  for (const f of FIELDS) sig[f] = stable(program[f]);
+  // Emission ORDER of pathLocations/dataLocations matters (Game.ts iterates it)
+  // and stable() sorts keys, so capture order explicitly.
+  sig.pathLocationsOrder = JSON.stringify(Object.keys(program.pathLocations ?? {}));
+  sig.dataLocationsOrder = JSON.stringify(Object.keys(program.dataLocations ?? {}));
+  return sig;
+}
+
+function coldProgram(text: string) {
   const c = new SparkdownCompiler();
   c.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
   });
-  return JSON.stringify(c.compile({ textDocument: { uri: URI } }).program.compiled);
+  return c.compile({ textDocument: { uri: URI } }).program;
 }
 
 function posAt(text: string, offset: number) {
@@ -76,8 +125,8 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
-describe("compiler cumulative incremental equivalence (compiled)", () => {
-  it("incremental compiled == cold across many cumulative edits on ONE compiler", () => {
+describe("compiler cumulative incremental equivalence", () => {
+  it("incremental == cold (full program) across many cumulative edits on ONE compiler", () => {
     const realWarn = console.warn;
     const realError = console.error;
     console.warn = () => {};
@@ -114,14 +163,14 @@ describe("compiler cumulative incremental equivalence (compiled)", () => {
           contentChanges: [{ range: { start, end }, text: insert }],
         });
         text = text.slice(0, offset) + insert + text.slice(offset + delLen);
-        const incrJson = JSON.stringify(
-          incr.compile({ textDocument: { uri: URI } }).program.compiled,
-        );
-        if (incrJson !== coldCompiledJson(text)) {
-          failures.push(`#${n} insert=${JSON.stringify(insert)} del=${delLen} @${offset}`);
+        const incrSig = fieldSig(incr.compile({ textDocument: { uri: URI } }).program);
+        const coldSig = fieldSig(coldProgram(text));
+        const diverged = Object.keys(incrSig).filter((f) => incrSig[f] !== coldSig[f]);
+        if (diverged.length) {
+          failures.push(`#${n} insert=${JSON.stringify(insert)} del=${delLen} @${offset} fields={${diverged.join(",")}}`);
         }
       }
-      expect(failures, `compiled divergences:\n${failures.join("\n")}`).toEqual([]);
+      expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
     } finally {
       console.warn = realWarn;
       console.error = realError;
