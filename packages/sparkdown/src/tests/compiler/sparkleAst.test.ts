@@ -499,4 +499,58 @@ end
     expect(statRow.params[0].binding.source).toBe("hero.name");
     expect(statRow.params[1].binding.source).toBe("hero.hp");
   });
+
+  test("an interpolated quoted-string arg lowers to a `content` PropValue", () => {
+    const ast = screenAst(`layout sheet with
+  card("Score is {score}!")
+  card("Inventory")
+end
+`);
+    // `"Score is {score}!"` → content parts (literal + {expr} binding), so the
+    // quoted string interpolates like display content (spec D3).
+    const interp = ast.sheet.children[0].params[0];
+    expect(interp.kind).toBe("content");
+    expect(interp.content).toEqual([
+      { kind: "literal", text: "Score is " },
+      {
+        kind: "binding",
+        binding: {
+          exprId: expect.stringMatching(/^__binding_\d+$/),
+          source: "{score}",
+          span: expect.objectContaining({ from: expect.any(Number) }),
+        },
+      },
+      { kind: "literal", text: "!" },
+    ]);
+    // A PLAIN quoted arg (no `{}`) stays a literal Luau-string binding.
+    const plain = ast.sheet.children[1].params[0];
+    expect(plain.kind).toBe("binding");
+  });
+
+  test("an interpolated #prop value lowers to a `content` PropValue", () => {
+    const ast = screenAst(`layout hud with
+  text "x" #label="HP: {hp}"
+end
+`);
+    const el = ast.hud.children[0];
+    expect(el.props.label.kind).toBe("content");
+    expect(el.props.label.content).toEqual([
+      { kind: "literal", text: "HP: " },
+      {
+        kind: "binding",
+        binding: expect.objectContaining({ source: "{hp}" }),
+      },
+    ]);
+  });
+
+  test("a plain #prop value (no interpolation) stays a literal", () => {
+    const ast = screenAst(`layout hud with
+  text "x" #color="red"
+end
+`);
+    expect(ast.hud.children[0].props.color).toEqual({
+      kind: "literal",
+      value: "red",
+    });
+  });
 });

@@ -148,4 +148,31 @@ end
     const texts = spanTexts(h.snapshotFiltered("ui/create"));
     expect(texts).toEqual(expect.arrayContaining(["item: a", "item: b"]));
   });
+
+  test("an interpolated quoted-string arg renders + reacts", async () => {
+    const h = createHarness(
+      `store score = 0
+function inc()
+  score = score + 1
+end
+component card(title) with
+  text "{title}"
+layout main with
+  card("Score is {score}")
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    // `"Score is {score}"` interpolated at the call site → passed to the param.
+    expect(spanTexts(h.snapshotFiltered("ui/create"))).toContain("Score is 0");
+
+    h.reset();
+    run(h, "inc");
+    refresh(h);
+    const upd = h
+      .snapshotFiltered("ui/update")
+      .find((m: any) => m.params?.content?.text === "Score is 1");
+    expect(upd).toBeTruthy();
+  });
 });

@@ -1,0 +1,3 @@
+layout hud with
+  text "x" #label="HP: {hp}"
+end

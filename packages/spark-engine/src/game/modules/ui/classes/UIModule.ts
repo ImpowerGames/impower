@@ -130,12 +130,15 @@ interface ReactiveText {
 }
 
 /** A reactive element attribute (an input widget's `value`/`checked`) bound to a
- *  `{expr}` — one-way (UI follows state); user write-back is via `@input`/
- *  `@change`. `last` is the last applied value for equality-gated updates. */
+ *  `{expr}` or an interpolated `"…{expr}…"` string — one-way (UI follows state);
+ *  user write-back is via `@input`/`@change`. `propValue` is the whole bound
+ *  value (a `binding` or interpolated `content`) re-resolved through
+ *  {@link UIModule.resolveProp}. `last` is the last applied value for
+ *  equality-gated updates. */
 interface ReactiveAttr {
   element: Element;
   prop: string;
-  binding: Binding;
+  propValue: PropValue;
   boolean: boolean;
   last: string | null;
   deps: ReactiveDeps;
@@ -1216,8 +1219,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const deps = vs.endReactiveRead();
       const attrVal = this.propToAttr(resolved, boolean);
       attributes[prop] = attrVal;
-      if (propValue.kind === "binding") {
-        reactive.push({ prop, binding: propValue.binding, boolean, last: attrVal, deps });
+      if (this.isReactiveProp(propValue)) {
+        reactive.push({ prop, propValue, boolean, last: attrVal, deps });
       }
     }
     const el = this.createElement(parent, { type: "input", name, attributes }, before);
@@ -1304,7 +1307,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const vs = this._game.story.variablesState;
     const attributes: Record<string, string | null> = {};
     const reactive: Omit<ReactiveAttr, "element">[] = [];
-    let selected: { binding?: Binding; last: string | null; deps: ReactiveDeps } | null = null;
+    let selected: { propValue?: PropValue; last: string | null; deps: ReactiveDeps } | null = null;
     for (const [prop, propValue] of Object.entries(node.props)) {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
@@ -1314,15 +1317,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // Defer until options are mounted (a <select>.value can't select an
         // option that doesn't exist yet).
         selected = {
-          ...(propValue.kind === "binding" ? { binding: propValue.binding } : {}),
+          ...(this.isReactiveProp(propValue) ? { propValue } : {}),
           last: attrVal,
           deps,
         };
         continue;
       }
       attributes[prop] = attrVal;
-      if (propValue.kind === "binding") {
-        reactive.push({ prop, binding: propValue.binding, boolean: false, last: attrVal, deps });
+      if (this.isReactiveProp(propValue)) {
+        reactive.push({ prop, propValue, boolean: false, last: attrVal, deps });
       }
     }
     const el = this.createElement(parent, { type: "select", name, attributes }, before);
@@ -1331,11 +1334,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.mountChildren(el, node.children, scope, null);
     if (selected) {
       this.updateElement(el, { attributes: { value: selected.last } });
-      if (selected.binding) {
+      if (selected.propValue) {
         scope.attrs.push({
           element: el,
           prop: "value",
-          binding: selected.binding,
+          propValue: selected.propValue,
           boolean: false,
           last: selected.last,
           deps: selected.deps,
@@ -1373,8 +1376,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const attrVal = this.propToAttr(resolved, boolean);
       attributes[prop] = attrVal;
       if (prop === "value") hasValue = true;
-      if (propValue.kind === "binding") {
-        reactive.push({ prop, binding: propValue.binding, boolean, last: attrVal, deps });
+      if (this.isReactiveProp(propValue)) {
+        reactive.push({ prop, propValue, boolean, last: attrVal, deps });
       }
     }
     if (!hasValue && node.content) {
@@ -1383,12 +1386,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       // reactive path) so the selected value never desyncs from the shown text.
       const only = node.content.length === 1 ? node.content[0] : undefined;
       if (only && only.kind === "binding") {
+        const propValue: PropValue = { kind: "binding", binding: only.binding };
         vs.beginReactiveRead();
-        const resolved = this.resolveProp({ kind: "binding", binding: only.binding }, scope.env);
+        const resolved = this.resolveProp(propValue, scope.env);
         const deps = vs.endReactiveRead();
         const attrVal = this.propToAttr(resolved, false);
         attributes["value"] = attrVal;
-        reactive.push({ prop: "value", binding: only.binding, boolean: false, last: attrVal, deps });
+        reactive.push({ prop: "value", propValue, boolean: false, last: attrVal, deps });
       } else {
         attributes["value"] = this.resolveContent(node.content, scope.env);
       }
@@ -1407,9 +1411,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   /** Resolve a `#prop=value` to its current value (literal, or a live binding
    *  eval with the scope's loop env). */
   protected resolveProp(propValue: PropValue, env: ReactiveEnv): unknown {
-    return propValue.kind === "literal"
-      ? propValue.value
-      : this.evalBinding(propValue.binding, env);
+    if (propValue.kind === "literal") {
+      return propValue.value;
+    }
+    if (propValue.kind === "content") {
+      // Interpolated quoted string (`"Score is {score}"`): concatenate the
+      // literal + `{expr}` parts to a string, exactly like element display
+      // content (resolveContent). Each binding was lowered with the caller's
+      // loop vars, so it evaluates against the same `env` passed here.
+      return this.resolveContent(propValue.content, env);
+    }
+    return this.evalBinding(propValue.binding, env);
+  }
+
+  /** A prop is reactive (needs a {@link ReactiveAttr} so it re-resolves on
+   *  refresh) when it holds a live `{expr}` binding or an interpolated
+   *  `"…{expr}…"` content string — a plain literal never changes. */
+  protected isReactiveProp(propValue: PropValue): boolean {
+    return propValue.kind === "binding" || propValue.kind === "content";
   }
 
   /** Map a resolved prop value to an attribute string: a boolean (checkbox
@@ -2054,10 +2073,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       if (envScope || this.depsChanged(entry.deps, changes)) {
         const vs = this._game.story.variablesState;
         vs.beginReactiveRead();
-        const resolved = this.resolveProp(
-          { kind: "binding", binding: entry.binding },
-          scope.env,
-        );
+        const resolved = this.resolveProp(entry.propValue, scope.env);
         entry.deps = vs.endReactiveRead();
         const next = this.propToAttr(resolved, entry.boolean);
         if (next !== entry.last) {

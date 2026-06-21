@@ -4532,6 +4532,12 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
+      # A quoted arg with a `{expr}` interpolates like display content (spec D3:
+      # "quoted = text, braces = code") — tokenized via the same interp string
+      # rule content uses, so the lowerer builds it as a `content` PropValue. A
+      # PLAIN quoted arg (no lone `{`) falls through to LuauExpression unchanged
+      # (a literal Luau string); a bare expr (`hero.name`) is LuauExpression.
+      - { include: "#LuauElementContentStringInterpolated" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
     end: ([)])({{WS}}*)(:?)({{WS}}*)$
@@ -4695,6 +4701,10 @@ repository:
           - { include: "#EqualOperator" }
     patterns:
       - { include: "#LuauInterpolatedStringExpression" }
+      # A quoted value with a `{expr}` interpolates like display content (spec D3:
+      # `#label="HP: {hp}"`), tried before the plain quoted value so a string with
+      # only literal text (or `{{`/`}}`) still falls through to InlinePropQuotedValue.
+      - { include: "#LuauElementContentStringInterpolated" }
       - { include: "#InlinePropQuotedValue" }
       - { include: "#InlinePropLiteralValue" }
     end: (?=$|{{WS}}+[@#])

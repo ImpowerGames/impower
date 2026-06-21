@@ -7232,6 +7232,9 @@
           "include": "#LuauCommaSeparator"
         },
         {
+          "include": "#LuauElementContentStringInterpolated"
+        },
+        {
           "include": "#LuauExpression"
         },
         {
@@ -7468,6 +7471,9 @@
       "patterns": [
         {
           "include": "#LuauInterpolatedStringExpression"
+        },
+        {
+          "include": "#LuauElementContentStringInterpolated"
         },
         {
           "include": "#InlinePropQuotedValue"

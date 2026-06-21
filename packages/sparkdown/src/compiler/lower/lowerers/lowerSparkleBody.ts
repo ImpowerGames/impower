@@ -350,6 +350,18 @@ function lowerComponentArg(
   argNodes: SyntaxNode[],
   ctx: LowerContext,
 ): PropValue {
+  // A lone quoted string with `{expr}` interpolates like display content
+  // (spec D3: "quoted = text, braces = code"): lower it to a `content` PropValue
+  // (literal + binding parts) the runtime concatenates to a string. Bindings
+  // capture the caller's loop vars (readContentParts → lowerBinding), matching
+  // how a bare-expression arg is evaluated in the caller scope.
+  if (
+    argNodes.length === 1 &&
+    (INTERP_CONTENT_NODES.has(argNodes[0]!.name) ||
+      PLAIN_CONTENT_NODES.has(argNodes[0]!.name))
+  ) {
+    return { kind: "content", content: readContentParts(argNodes[0]!, ctx) };
+  }
   const first = argNodes[0]!;
   const last = argNodes[argNodes.length - 1]!;
   const exprId = `__binding_${first.from}`;
@@ -553,8 +565,10 @@ function parsePropLiteral(text: string): string | number | boolean {
 }
 
 /** Build the inline `#prop=value` map (spec §4.2/§4.4) from a line's prop
- *  attributes. `{expr}` → a reactive binding; `"string"`/literal → a literal
- *  PropValue. The reactive runtime re-applies bound props on dep change. */
+ *  attributes. A `{expr}` value → a reactive binding; an interpolated quoted
+ *  value (`"HP: {hp}"`) → a `content` PropValue (concatenated to a string at
+ *  runtime, so quoted props interpolate like display content, spec D3); a plain
+ *  `"string"`/literal → a literal. The runtime re-applies bound props on change. */
 function readProps(
   lineNode: SyntaxNode,
   ctx: LowerContext,
@@ -564,6 +578,14 @@ function readProps(
     const nameNode = firstDescendant(attr, PROP_NAME);
     const name = nameNode ? ctx.read(nameNode.from, nameNode.to).trim() : "";
     if (!name) continue;
+    // Interpolated quoted value (`"HP: {hp}"`) — checked BEFORE the bare-`{expr}`
+    // case, since the content-string node CONTAINS LuauInterpolatedStringExpression
+    // children that would otherwise be mistaken for a lone binding.
+    const contentStr = firstDescendant(attr, INTERP_CONTENT_NODES);
+    if (contentStr) {
+      props[name] = { kind: "content", content: readContentParts(contentStr, ctx) };
+      continue;
+    }
     const interp = firstDescendant(attr, PROP_INTERP);
     if (interp) {
       props[name] = { kind: "binding", binding: lowerBinding(interp, ctx) };

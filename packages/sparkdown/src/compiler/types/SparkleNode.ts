@@ -37,10 +37,17 @@ export type ContentPart =
   | { kind: "literal"; text: string }
   | { kind: "binding"; binding: Binding };
 
-/** An inline `#prop=value`: a literal, or a `{expr}` reactive binding. */
+/** A value at a `#prop=value` / component-arg site:
+ *  - `literal`  — a plain unquoted/quoted constant (`16`, `"Inventory"`).
+ *  - `binding`  — a `{expr}` reactive binding (the value is the expr's type).
+ *  - `content`  — an interpolated quoted string (`"Score is {score}"`): ordered
+ *    literal + `{expr}` parts the runtime concatenates to a STRING. This is what
+ *    makes quoted strings interpolate everywhere in the UI tree (spec D3:
+ *    "quoted = text, braces = code"), matching element display content. */
 export type PropValue =
   | { kind: "literal"; value: string | number | boolean }
-  | { kind: "binding"; binding: Binding };
+  | { kind: "binding"; binding: Binding }
+  | { kind: "content"; content: ContentPart[] };
 
 /** An `@event=handler` binding. */
 export interface EventBinding {

@@ -137,6 +137,34 @@ end
     expect(valueUpdate).toBeTruthy();
   });
 
+  test("an interpolated `\"…{expr}…\"` prop renders + reacts", async () => {
+    const h = createHarness(
+      `store who = "World"
+function rename()
+  who = "Friend"
+end
+layout form with
+  field #placeholder="Hi {who}"
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    // The interpolated prop is applied as an attribute on create.
+    const input = created(h, "input")[0];
+    expect(input?.params?.attributes?.placeholder).toBe("Hi World");
+
+    h.reset();
+    (h.game.story as any).EvaluateFunction("rename", []);
+    (h.game.module.ui as any).refreshLayouts();
+    // …and re-evaluates its `{who}` part on refresh (not stuck at "Hi World").
+    const update = h
+      .snapshotFiltered("ui/update")
+      .find((m: any) => m.params?.attributes?.placeholder === "Hi Friend");
+    expect(update).toBeTruthy();
+  });
+
   test("slider exposes an engine-computed --_fill-percentage", async () => {
     const h = createHarness(
       `store volume = 25
