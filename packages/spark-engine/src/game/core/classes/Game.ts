@@ -1120,7 +1120,16 @@ export class Game<T extends M = {}> {
           // Continue without user interaction
           continue;
         }
-        // DONE - waiting for user interaction (or auto advance)
+        // DONE - waiting for user interaction (or auto advance).
+        // If this run produced NO content beat (`_coordinator` was never created
+        // — e.g. a UI-only project with no dialogue), the per-beat reveal
+        // (Coordinator.updateUI → ui.reveal) will never fire and the layouts
+        // layer would stay hidden (opacity:0). Reveal it here now that the run
+        // has settled. Idempotent; a real game has `_coordinator` set here and
+        // skips this, keeping its flash-free, asset-gated beat-time reveal.
+        if (!this._coordinator) {
+          this.module.ui.reveal();
+        }
         return true;
       } else if (this._story.canContinue) {
         this._story.ContinueAsync(Infinity);
