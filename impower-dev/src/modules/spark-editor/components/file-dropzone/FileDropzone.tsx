@@ -1,7 +1,9 @@
 import { Download } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { recordResolvedUpload } from "../../utils/fileUndo";
 import getValidFileName from "../../utils/getValidFileName";
 import { runImport } from "../../utils/importProgress";
+import { resolveUploadConflicts } from "../../utils/uploadConflicts";
 
 export const propDefaults = {};
 export type FileDropzoneProps = Partial<typeof propDefaults>;
@@ -31,8 +33,14 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     const dragLeave = () => setDragging(false);
     const dragOver = () => setDragging(true);
 
+    // Buffers are read lazily (`getBuffer`) so the conflict prompt — which may
+    // await the user for a while — runs BEFORE we touch the bytes, and a Skip
+    // never reads a file we're going to drop. Owns the whole import pipeline:
+    // zip-check, conflict resolution, the progress bar, the write, and the
+    // undoable record. Both the native-DnD and protocol call sites are thin
+    // adapters that just map their inputs into this `{ name, getBuffer }` shape.
     const handleDrop = async (
-      files: { name: string; buffer: ArrayBuffer }[],
+      items: { name: string; getBuffer: () => Promise<ArrayBuffer> }[],
     ) => {
       setDragging(false);
       const { Workspace } = await import("../../workspace/Workspace");
@@ -40,21 +48,54 @@ export default function FileDropzone(_props: FileDropzoneProps) {
         .state.value;
       const projectId = store?.project?.id;
       if (!projectId) return;
-      if (!files || files.length === 0) return;
-      if (files.length === 1 && files[0]?.name.endsWith(".zip")) {
-        const file = files[0];
-        await Workspace.window.importLocalProject(file.name, file.buffer);
-      } else {
-        const created = files.map((file) => {
-          const validFileName = getValidFileName(file.name);
-          return {
-            uri: Workspace.fs.getFileUri(projectId, validFileName),
-            data: file.buffer,
-          };
-        });
-        await Workspace.fs.createFiles({ files: created });
-        await Workspace.window.recordAssetChange();
+      if (!items || items.length === 0) return;
+      // A single .zip is a whole-project import — importLocalProject owns its
+      // own 'importing' status, so route it straight there (not through the
+      // per-file conflict/progress path).
+      if (items.length === 1 && items[0]?.name.endsWith(".zip")) {
+        const item = items[0]!;
+        await Workspace.window.importLocalProject(
+          item.name,
+          await item.getBuffer(),
+        );
+        return;
       }
+      // Resolve same-path conflicts (Replace -> trash / Keep both / Skip) BEFORE
+      // the progress-tracked write — the prompt awaits the user, which would
+      // otherwise freeze the determinate bar.
+      const { survivors, trashedOldUris, since } = await resolveUploadConflicts(
+        projectId,
+        items.map((it) => ({
+          rel: getValidFileName(it.name),
+          payload: it,
+        })),
+      );
+      const newUris = survivors.map((s) => s.uri);
+      if (survivors.length > 0) {
+        await runImport(survivors.length, async (advance) => {
+          const created = await Promise.all(
+            survivors.map(async (s) => {
+              const data = await s.payload.getBuffer();
+              advance();
+              return { uri: s.uri, data };
+            }),
+          );
+          await Workspace.fs.createFiles({ files: created });
+          await Workspace.window.recordAssetChange();
+        });
+      }
+      // One undoable action covering the new files + any replaced originals.
+      const label =
+        newUris.length === 1
+          ? (newUris[0]!.split("/").pop() ?? "file")
+          : `${newUris.length} files`;
+      await recordResolvedUpload(
+        projectId,
+        newUris,
+        trashedOldUris,
+        since,
+        label,
+      );
     };
 
     // Only react to drags carrying OS files. An INTERNAL element drag (e.g.
@@ -86,25 +127,9 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       e.preventDefault();
       e.stopPropagation();
       const files = Array.from(e.dataTransfer?.files || []);
-      // A single .zip is a whole-project import — handleDrop routes it to
-      // importLocalProject, which owns its own 'importing' status. Don't wrap
-      // it in the per-file bar (it would show a misleading "1 of 1" that hits
-      // 100% before the unzip/load even begins).
-      if (files.length === 1 && files[0]?.name.endsWith(".zip")) {
-        const f = files[0];
-        await handleDrop([{ name: f.name, buffer: await f.arrayBuffer() }]);
-        return;
-      }
-      await runImport(files.length, async (advance) => {
-        const fileArray = await Promise.all(
-          files.map(async (f) => {
-            const buffer = await f.arrayBuffer();
-            advance();
-            return { name: f.name, buffer };
-          }),
-        );
-        await handleDrop(fileArray);
-      });
+      await handleDrop(
+        files.map((f) => ({ name: f.name, getBuffer: () => f.arrayBuffer() })),
+      );
     };
 
     window.addEventListener("dragenter", onDragEnter);
@@ -133,21 +158,15 @@ export default function FileDropzone(_props: FileDropzoneProps) {
           onProtocolMessage(DraggedFilesOutMessage.type, () => dragLeave()),
           onProtocolMessage(DraggedFilesOverMessage.type, () => dragOver()),
           onProtocolMessage(DroppedFilesMessage.type, (m) => {
-            const files = m.params.files;
-            // Single-.zip = whole-project import; let importLocalProject own
-            // the feedback rather than a misleading per-file "1 of 1" bar.
-            if (files.length === 1 && files[0]?.name.endsWith(".zip")) {
-              void handleDrop(files);
-              return;
-            }
-            // Host relayed already-read buffers — no per-file read phase, so
-            // count them up front and let the bar hold full during the write.
-            void runImport(files.length, async (advance) => {
-              for (let i = 0; i < files.length; i++) {
-                advance();
-              }
-              await handleDrop(files);
-            });
+            // Host relayed already-read buffers — wrap each as a resolved
+            // getBuffer so handleDrop can run its uniform pipeline (zip-check,
+            // conflict resolution, progress, undo).
+            void handleDrop(
+              m.params.files.map((f) => ({
+                name: f.name,
+                getBuffer: () => Promise.resolve(f.buffer),
+              })),
+            );
           }),
         ];
         disposeProtocol = () => disposers.forEach((d) => d());

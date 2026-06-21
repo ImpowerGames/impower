@@ -155,3 +155,68 @@ export function recordCreate(
     },
   });
 }
+
+/**
+ * Record a conflict-resolved UPLOAD as ONE undoable action + an "Imported X ·
+ * Undo" snackbar: undo trashes the newly-written files AND restores any
+ * originals that "Replace" moved to trash (their paths free up once the new
+ * files are trashed); redo re-applies. `since` is the timestamp captured just
+ * before the replace-trash, used to locate those originals' batch(es).
+ */
+export async function recordResolvedUpload(
+  projectId: string,
+  newUris: string[],
+  trashedOldUris: string[],
+  since: number,
+  label: string,
+) {
+  if (newUris.length === 0 && trashedOldUris.length === 0) {
+    return;
+  }
+  let replacedBatchIds =
+    trashedOldUris.length > 0
+      ? await findBatchesForUris(projectId, trashedOldUris, since)
+      : [];
+  let newBatchIds: string[] = [];
+  pushUndo({
+    label: `Import ${label}`,
+    undo: async () => {
+      const { Workspace } = await import("../workspace/Workspace");
+      // Trash the new files first (frees their paths), then restore the
+      // originals they replaced.
+      const t = Date.now();
+      if (newUris.length > 0) {
+        await Workspace.fs.deleteFiles({
+          files: newUris.map((uri) => ({ uri })),
+          mode: "trash",
+        });
+        newBatchIds = await findBatchesForUris(projectId, newUris, t);
+      }
+      for (const id of replacedBatchIds) {
+        await Workspace.fs.restoreTrash(projectId, id);
+      }
+      await markProjectDirty();
+    },
+    redo: async () => {
+      const { Workspace } = await import("../workspace/Workspace");
+      // Re-trash the originals, then restore the uploaded files.
+      const t = Date.now();
+      if (trashedOldUris.length > 0) {
+        await Workspace.fs.deleteFiles({
+          files: trashedOldUris.map((uri) => ({ uri })),
+          mode: "trash",
+        });
+        replacedBatchIds = await findBatchesForUris(projectId, trashedOldUris, t);
+      }
+      for (const id of newBatchIds) {
+        await Workspace.fs.restoreTrash(projectId, id);
+      }
+      await markProjectDirty();
+    },
+  });
+  showSnackbar({
+    message: `Imported ${label}`,
+    actionLabel: "Undo",
+    onAction: () => void undo(),
+  });
+}

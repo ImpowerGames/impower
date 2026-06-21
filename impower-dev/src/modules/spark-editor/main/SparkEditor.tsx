@@ -1,3 +1,4 @@
+import ConflictDialogHost from "../components/conflict-dialog/ConflictDialogHost";
 import FileDropzone from "../components/file-dropzone/FileDropzone";
 import MainWindow from "../components/main-window/MainWindow";
 import SnackbarHost from "../components/snackbar-host/SnackbarHost";
@@ -39,6 +40,8 @@ export default function SparkEditor(_props: SparkEditorProps) {
       {/* Project-wide recycle bin overlay — a single global instance toggled by
           workspace.trashOpen (opened from the file-list toolbar). */}
       <TrashPanel />
+      {/* Upload "file already exists" prompt (Replace / Keep both / Skip). */}
+      <ConflictDialogHost />
       {/* Transient toasts (e.g. "Deleted X · Undo"). */}
       <SnackbarHost />
     </>
