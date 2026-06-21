@@ -11,28 +11,27 @@ The web app at **impower.dev** — the Sparkdown screenplay/game editor. A
 ## Quick start
 
 This package lives in an npm-workspaces monorepo. Install once from the **repo
-root** (not from here):
+root**, then start everything with the root launcher (also from the root):
 
 ```sh
-npm install            # at the monorepo root — sets up all workspaces
+npm install        # at the monorepo root — sets up all workspaces
+npm run web:dev    # at the monorepo root — starts BOTH servers, prints the URL
 ```
 
-Then run two dev servers in separate terminals:
+`web:dev` launches the editor **and** the game-preview player together, picks
+free ports, wires the editor↔player handshake consistently, waits for both to be
+ready, and prints the editor URL to open. `Ctrl+C` stops both. It defaults to
+**same-origin** mode (the editor proxies the player under its own origin, so the
+live game DOM is reachable from the editor page); use `npm run web:dev:cross-origin`
+for a separate-origin iframe. See the [root README](../README.md).
 
-```sh
-# Terminal 1 — the editor, on http://localhost:8080
-cd impower-dev
-npm run dev
-
-# Terminal 2 — the game player that the preview <iframe> loads, on http://localhost:5173
-cd sparkdown-player-app
-npm run dev
-```
-
-Open <http://localhost:8080>. You only need the player (terminal 2) if you want
-the **game preview** to render; editing works with just the editor. The two
-origins are wired by `.env.development` in each package (editor → player at
-`:5173`, player → editor at `:8080`), so no extra env vars are needed.
+> **Don't hand-launch the editor and player in two terminals** unless you fully
+> understand the handshake. The editor embeds the player as an `<iframe>` and the
+> two connect over a postMessage/MessageChannel handshake. If the
+> cross-referencing origins/ports don't agree — or collide with another running
+> checkout — the **Game Preview silently stays black** even on PLAY (the editor
+> never finishes connecting). `web:dev` exists precisely so you never have to get
+> this wiring right by hand.
 
 > Editing a **worker** (LSP, screenplay-PDF, OPFS) hot-reloads automatically —
 > the dev server runs each worker's esbuild in `--watch` mode and reloads the
@@ -42,7 +41,7 @@ origins are wired by `.env.development` in each package (editor → player at
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Dev server with HMR (`tsx ./build.ts --watch`). |
+| `npm run dev` | The editor server alone (`tsx ./build.ts --watch`). The root `web:dev` launches this **plus** the player with consistent config — prefer that. |
 | `npm run build` | Production build to `out/` (minified). |
 | `npm start` | Serve a built `out/` (`node ./out/api/index.js`) — what the Docker image runs. |
 | `npm test` | Run the vitest suite (`test/**/*.test.ts`). |
