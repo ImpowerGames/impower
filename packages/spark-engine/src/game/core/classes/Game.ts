@@ -1341,43 +1341,59 @@ export class Game<T extends M = {}> {
     return variables;
   }
 
-  getTempVariables(): Variable[] {
+  getTempVariables(threadId?: number, frameId?: number): Variable[] {
     const variables: Variable[] = [];
     const variableState = this._story.state.variablesState;
-    const contextIndex = variableState.callStack.currentElementIndex + 1;
-    let contextElement =
-      variableState.callStack.currentThread.callstack[contextIndex - 1];
-    if (contextElement?.temporaryVariables) {
-      for (const [
-        name,
-        valueObj,
-      ] of contextElement?.temporaryVariables.entries()) {
-        if (!name.startsWith("$")) {
-          const value = this.getRuntimeValue(name, valueObj);
-          const scopePath = this._executingPath
-            ? this._executingPath
-                .split(".")
-                .filter(
-                  (p) =>
-                    Number.isNaN(Number(p)) &&
-                    !p.includes("-") &&
-                    !p.includes("$"),
-                )
-                .join(".")
-            : undefined;
-          if (value !== undefined) {
-            variables.push(
-              this.getVariableInfo(
-                name,
-                value,
-                {
-                  kind: "data",
-                  visibility: "private",
-                },
-                scopePath,
-              ),
-            );
-          }
+    const callStack = variableState.callStack;
+    const thread =
+      threadId != null
+        ? callStack.ThreadWithIndex(threadId)
+        : callStack.currentThread;
+    if (!thread) {
+      return variables;
+    }
+    // Default to the current (top) frame; honor an explicit DAP frameId, which
+    // is a call-stack index (as assigned by getStackTrace), so inspecting a
+    // selected stack frame shows THAT frame's locals, not always the top.
+    const frameIndex = frameId ?? callStack.currentElementIndex;
+    const element = thread.callstack[frameIndex];
+    if (!element) {
+      return variables;
+    }
+    const scopePath = this._executingPath
+      ? this._executingPath
+          .split(".")
+          .filter(
+            (p) =>
+              Number.isNaN(Number(p)) && !p.includes("-") && !p.includes("$"),
+          )
+          .join(".")
+      : undefined;
+    // Walk EVERY block scope of the frame (the temporaryVariables getter only
+    // exposes the innermost one), innermost-first so inner scopes shadow outer
+    // ones; dedupe by name so a shadowed local appears once at its live value.
+    const scopes = element.temporaryScopes ?? [];
+    const seen = new Set<string>();
+    for (let s = scopes.length - 1; s >= 0; s--) {
+      const scope = scopes[s];
+      if (!scope) {
+        continue;
+      }
+      for (const [name, valueObj] of scope.entries()) {
+        if (name.startsWith("$") || seen.has(name)) {
+          continue;
+        }
+        seen.add(name);
+        const value = this.getRuntimeValue(name, valueObj);
+        if (value !== undefined) {
+          variables.push(
+            this.getVariableInfo(
+              name,
+              value,
+              { kind: "data", visibility: "private" },
+              scopePath,
+            ),
+          );
         }
       }
     }
