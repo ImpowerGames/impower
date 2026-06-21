@@ -1592,7 +1592,7 @@ export class Game<T extends M = {}> {
   }
 
   stopDebugging() {
-    this._context.system.debugging = true;
+    this._context.system.debugging = false;
   }
 
   preview(file: string, line: number): string | null {
