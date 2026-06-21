@@ -1472,7 +1472,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // (mirrors setEventListener's observe).
     this.updateElement(el, { style: { pointer_events: "auto" } });
     this.emit(
-      ObserveElementMessage.type.request({
+      ObserveElementMessage.type.notification({
         element: el.id,
         event: ev.event as keyof EventMap,
         stopPropagation: true,
@@ -2772,7 +2772,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       this.updateElement(targetEl, { style });
       if (callback) {
         this.emit(
-          ObserveElementMessage.type.request({
+          ObserveElementMessage.type.notification({
             element: targetEl.id,
             event,
             stopPropagation,
@@ -2784,7 +2784,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       } else {
         delete this._events[event]?.[targetEl.id];
         this.emit(
-          UnobserveElementMessage.type.request({
+          UnobserveElementMessage.type.notification({
             element: targetEl.id,
             event,
           }),

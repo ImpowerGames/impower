@@ -221,11 +221,16 @@ export function createDOMHarness(
   // persists across the swap).
   let ui = new UIManager(stubApp);
 
-  // Wire the engine's output straight into the real consumer: every emitted
-  // request is handed to `UIManager.onReceiveRequest`, and the response is fed
-  // back so the engine's awaited promises (ui/animate, …) resolve.
+  // Wire the engine's output straight into the real consumer, mirroring
+  // `Application.processMessage`: REQUESTS (with an `id`) go to
+  // `onReceiveRequest` and the response is fed back so the engine's awaited
+  // promises (ui/animate, …) resolve; NOTIFICATIONS (no `id`, e.g.
+  // ui/observe + ui/unobserve) go to `onReceiveNotification` fire-and-forget.
   const sendToConsumer = (msg: any) => {
-    if (msg && typeof msg === "object" && "id" in msg && "params" in msg) {
+    if (!msg || typeof msg !== "object" || !("params" in msg)) {
+      return;
+    }
+    if ("id" in msg) {
       // Deferred: the emitter registers its resolve callback after send().
       void ui.onReceiveRequest(msg).then((response) => {
         queueMicrotask(() => {
@@ -237,6 +242,8 @@ export function createDOMHarness(
           } as any);
         });
       });
+    } else {
+      ui.onReceiveNotification(msg);
     }
   };
 

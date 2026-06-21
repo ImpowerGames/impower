@@ -1,3 +1,4 @@
+import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import AnimationPlayer from "../../../../spark-dom/src/classes/AnimationPlayer";
@@ -445,7 +446,16 @@ export default class UIManager extends Manager {
       await player.play();
       return AnimateElementsMessage.type.result(validEffects);
     }
-    if (ObserveElementMessage.type.isRequest(msg)) {
+    return undefined;
+  }
+
+  // `ui/observe` + `ui/unobserve` are NOTIFICATIONS (the consumer attaches /
+  // detaches a DOM listener and never replies; fired events come back via the
+  // separate `event` notification). Handling them as requests leaked a resolve
+  // callback per call in the connection — and reactive keyed-`for` reconcile
+  // observes/unobserves on every mount.
+  override onReceiveNotification(msg: NotificationMessage) {
+    if (ObserveElementMessage.type.isNotification(msg)) {
       const params = msg.params;
       const el = this.getElement(params.element);
       if (el) {
@@ -465,7 +475,7 @@ export default class UIManager extends Manager {
         el.addEventListener(params.event, listener);
       }
     }
-    if (UnobserveElementMessage.type.isRequest(msg)) {
+    if (UnobserveElementMessage.type.isNotification(msg)) {
       const params = msg.params;
       const el = this.getElement(params.element);
       const byEvent = this._listeners[params.element];
@@ -475,7 +485,6 @@ export default class UIManager extends Manager {
         delete byEvent[params.event];
       }
     }
-    return undefined;
   }
 
   /**

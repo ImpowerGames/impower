@@ -23,11 +23,40 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
     },
   },
   {
-    "id": "req-2",
-    "kind": "request",
+    "kind": "notification",
     "method": "ui/observe",
     "params": {
       "element": "e-1",
+      "event": "click",
+      "once": false,
+      "stopPropagation": true,
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-2",
+      "style": {
+        "pointer_events": "auto",
+      },
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/observe",
+    "params": {
+      "element": "e-2",
       "event": "click",
       "once": false,
       "stopPropagation": true,
@@ -47,56 +76,24 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
         "xs": 400,
       },
       "content": undefined,
-      "element": "e-2",
+      "element": "e-3",
       "style": {
         "pointer_events": "auto",
       },
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/observe",
+    "params": {
+      "element": "e-3",
+      "event": "click",
+      "once": false,
+      "stopPropagation": true,
     },
   },
   {
     "id": "req-4",
-    "kind": "request",
-    "method": "ui/observe",
-    "params": {
-      "element": "e-2",
-      "event": "click",
-      "once": false,
-      "stopPropagation": true,
-    },
-  },
-  {
-    "id": "req-5",
-    "kind": "request",
-    "method": "ui/update",
-    "params": {
-      "attributes": undefined,
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-3",
-      "style": {
-        "pointer_events": "auto",
-      },
-    },
-  },
-  {
-    "id": "req-6",
-    "kind": "request",
-    "method": "ui/observe",
-    "params": {
-      "element": "e-3",
-      "event": "click",
-      "once": false,
-      "stopPropagation": true,
-    },
-  },
-  {
-    "id": "req-7",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -118,7 +115,7 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
     },
   },
   {
-    "id": "req-8",
+    "id": "req-5",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -133,7 +130,7 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
     },
   },
   {
-    "id": "req-9",
+    "id": "req-6",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -155,7 +152,7 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
     },
   },
   {
-    "id": "req-10",
+    "id": "req-7",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -170,7 +167,7 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
     },
   },
   {
-    "id": "req-11",
+    "id": "req-8",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -192,7 +189,7 @@ exports[`choices > N choices render (text + per-choice observe) 1`] = `
     },
   },
   {
-    "id": "req-12",
+    "id": "req-9",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -418,12 +415,31 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-14",
-    "kind": "request",
+    "kind": "notification",
     "method": "ui/unobserve",
     "params": {
       "element": "e-1",
       "event": "click",
+    },
+  },
+  {
+    "id": "req-14",
+    "kind": "request",
+    "method": "ui/update",
+    "params": {
+      "attributes": undefined,
+      "breakpoints": {
+        "lg": 1024,
+        "md": 768,
+        "sm": 640,
+        "xl": 1280,
+        "xs": 400,
+      },
+      "content": undefined,
+      "element": "e-1",
+      "style": {
+        "display": "none",
+      },
     },
   },
   {
@@ -440,7 +456,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
         "xs": 400,
       },
       "content": undefined,
-      "element": "e-1",
+      "element": "e-2",
       "style": {
         "display": "none",
       },
@@ -460,7 +476,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
         "xs": 400,
       },
       "content": undefined,
-      "element": "e-2",
+      "element": "e-3",
       "style": {
         "display": "none",
       },
@@ -471,7 +487,9 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     "kind": "request",
     "method": "ui/update",
     "params": {
-      "attributes": undefined,
+      "attributes": {
+        "text": null,
+      },
       "breakpoints": {
         "lg": 1024,
         "md": 768,
@@ -480,7 +498,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
         "xs": 400,
       },
       "content": undefined,
-      "element": "e-3",
+      "element": "e-4",
       "style": {
         "display": "none",
       },
@@ -489,38 +507,16 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
   {
     "id": "req-18",
     "kind": "request",
-    "method": "ui/update",
+    "method": "ui/write-text",
     "params": {
-      "attributes": {
-        "text": null,
-      },
-      "breakpoints": {
-        "lg": 1024,
-        "md": 768,
-        "sm": 640,
-        "xl": 1280,
-        "xs": 400,
-      },
-      "content": undefined,
-      "element": "e-4",
-      "style": {
-        "display": "none",
-      },
+      "instant": true,
+      "instructions": [],
+      "target": "dialogue",
     },
   },
   {
     "id": "req-19",
     "kind": "request",
-    "method": "ui/write-text",
-    "params": {
-      "instant": true,
-      "instructions": [],
-      "target": "dialogue",
-    },
-  },
-  {
-    "id": "req-20",
-    "kind": "request",
     "method": "ui/update",
     "params": {
       "attributes": {
@@ -541,7 +537,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-21",
+    "id": "req-20",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -551,7 +547,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-22",
+    "id": "req-21",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -573,7 +569,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-23",
+    "id": "req-22",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -583,7 +579,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-24",
+    "id": "req-23",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -605,7 +601,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-25",
+    "id": "req-24",
     "kind": "request",
     "method": "ui/write-text",
     "params": {
@@ -615,7 +611,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-26",
+    "id": "req-25",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -635,7 +631,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-27",
+    "id": "req-26",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -645,7 +641,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-28",
+    "id": "req-27",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -665,7 +661,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-29",
+    "id": "req-28",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -675,7 +671,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-30",
+    "id": "req-29",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -695,7 +691,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-31",
+    "id": "req-30",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -705,7 +701,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-32",
+    "id": "req-31",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -725,7 +721,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-33",
+    "id": "req-32",
     "kind": "request",
     "method": "ui/write-image",
     "params": {
@@ -735,7 +731,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-34",
+    "id": "req-33",
     "kind": "request",
     "method": "ui/update",
     "params": {
@@ -755,7 +751,7 @@ exports[`choices > click first choice → clear + advance round-trip > ui-after-
     },
   },
   {
-    "id": "req-35",
+    "id": "req-34",
     "kind": "request",
     "method": "ui/update",
     "params": {
