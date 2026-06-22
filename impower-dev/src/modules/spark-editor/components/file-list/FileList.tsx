@@ -32,7 +32,12 @@ import {
   useRef,
   useState,
 } from "preact/hooks";
-import { extOf, fileCategory, isImagePath } from "../../utils/fileIcon";
+import {
+  extOf,
+  fileCategory,
+  iconForCategory,
+  isImagePath,
+} from "../../utils/fileIcon";
 import {
   buildFileTree,
   childrenRows,
@@ -59,6 +64,7 @@ import FilePreviewOverlay, {
   type PreviewKind,
 } from "../file-preview/FilePreviewOverlay";
 import FileBreadcrumb from "./FileBreadcrumb";
+import FileListBorder from "./FileListBorder";
 import FileItem, {
   BASE_INDENT,
   INDENT_PER_DEPTH,
@@ -773,6 +779,21 @@ export default function FileList({
   }, [revealPath, rows]);
 
   const isEmpty = uris !== null && rows.length === 0;
+  // When a Type filter hides everything, say which type came up empty ("No Image
+  // Files") with that type's own glyph — clearer than the pane's generic "No
+  // Files" empty state, which reads as "this pane has nothing at all".
+  const TypeFilterIcon = iconForCategory(typeFilter);
+  const emptyContent =
+    isEmpty && typeFilter ? (
+      <FileListBorder>
+        <TypeFilterIcon class="size-12 m-2" />
+        <span class="text-sm">
+          No {typeFilter[0]!.toUpperCase() + typeFilter.slice(1)} Files
+        </span>
+      </FileListBorder>
+    ) : (
+      emptyState
+    );
 
   // Multi-select derived state. Select-all covers EVERY node (files + folders,
   // including ones inside collapsed folders), not just the visible rows.
@@ -1304,7 +1325,7 @@ export default function FileList({
           </div>
         )}
         {isEmpty ? (
-          <div class="flex h-full flex-col">{emptyState}</div>
+          <div class="flex h-full flex-col">{emptyContent}</div>
         ) : (
           <div
             class="relative"
