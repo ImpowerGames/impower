@@ -89,3 +89,78 @@ describe("P5 prerequisite: prelude compiled story carries builtin __def globals"
     });
   });
 });
+
+const USER_URI = "file:///main.sd";
+
+/** Compile a user program with the builtins prelude; `seed` toggles the P1
+ *  source-injection (seedBuiltinsIntoStory). */
+function compileUser(source: string, seed: boolean) {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    useBuiltinsPrelude: true,
+    seedBuiltinsIntoStory: seed,
+    files: [
+      {
+        uri: USER_URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 0,
+        languageId: "sparkdown",
+      } as any,
+    ],
+  });
+  return compiler.compile({ textDocument: { uri: USER_URI } });
+}
+
+const USER_SRC = `define my_anim as animation with
+  keyframes = {
+    background_position = "right"
+  }
+end
+
+-> start
+scene start
+  Hello.
+end
+`;
+
+describe("P5 P1: seedBuiltinsIntoStory source-injects the prelude", () => {
+  test("flag ON: authored `as animation` inherits the builtin timing at runtime", () => {
+    const off = compileUser(USER_SRC, false);
+    const on = compileUser(USER_SRC, true);
+
+    expect(off.program.compiled).toBeTruthy();
+    expect(on.program.compiled).toBeTruthy();
+
+    // Non-perturbation: the static program.defines channel (derived from
+    // program.context via mergePreludeContext) is byte-identical — the flag
+    // only adds builtin globals to program.compiled.
+    expect(JSON.stringify(on.program.defines)).toBe(
+      JSON.stringify(off.program.defines),
+    );
+
+    // Flag OFF (today's gap): the user story's `animation` type table is empty,
+    // so the authored animation inherits NO timing.
+    const offCtx = buildDefinesContext(new Story(off.program.compiled as any));
+    expect((offCtx["animation"]?.["my_anim"] as any)?.timing).toBeUndefined();
+
+    // Flag ON: the builtin `animation` define now runs in the SAME story, so the
+    // authored animation inherits its timing via the runtime __index chain.
+    const onCtx = buildDefinesContext(new Story(on.program.compiled as any));
+    const myAnim = onCtx["animation"]?.["my_anim"] as any;
+    expect(myAnim?.keyframes).toMatchObject({ background_position: "right" });
+    expect(myAnim?.timing).toMatchObject({ fill: "both", direction: "normal" });
+  });
+
+  test("flag ON: builtin instances are present in the user story too", () => {
+    const on = compileUser(USER_SRC, true);
+    const ctx = buildDefinesContext(new Story(on.program.compiled as any));
+    // A builtin instance authored in the prelude now lives in the user story.
+    expect(ctx["color"]?.["red"]).toMatchObject({ value: "rgb(220,38,38)" });
+    expect((ctx["config"]?.["ui"] as any)?.breakpoints).toMatchObject({
+      sm: 640,
+    });
+  });
+});

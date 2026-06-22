@@ -233,6 +233,12 @@ export class SparkdownCompiler {
   protected _prevCompilationIds?: Set<object>;
   // Accumulated during the current compile's chunk walk.
   protected _compilationIds?: Set<object>;
+  // True while parsing the SOURCE-INJECTED builtins prelude (seedBuiltinsIntoStory):
+  // its chunks contribute their runtime FlowBase (the builtin `__def` global
+  // declarations → program.compiled) but MUST NOT re-merge context/sparkle —
+  // those already came from mergePreludeContext, and re-merging would perturb
+  // program.context (and the derived program.defines channel) vs the flag-off path.
+  protected _injectingPrelude = false;
   // 0-based [startLine, endLine] source ranges of chunks that are NEW/changed
   // this compile (identity not in `_prevCompilationIds`).
   protected _changedChunkRanges?: Array<[number, number]>;
@@ -319,6 +325,12 @@ export class SparkdownCompiler {
       config.useBuiltinsPrelude !== this._config.useBuiltinsPrelude
     ) {
       this._config.useBuiltinsPrelude = config.useBuiltinsPrelude;
+    }
+    if (
+      config.seedBuiltinsIntoStory !== undefined &&
+      config.seedBuiltinsIntoStory !== this._config.seedBuiltinsIntoStory
+    ) {
+      this._config.seedBuiltinsIntoStory = config.seedBuiltinsIntoStory;
     }
     if (
       config.experimentalDisplayCalls !== undefined &&
@@ -765,6 +777,47 @@ export class SparkdownCompiler {
     const topLevelWeaveObjs: ParsedObject[] = [];
     const topLevelContent: (FlowBase | Weave)[] = [];
 
+    // SOURCE-INJECT the builtins prelude (P5 prerequisite). For the ROOT parse
+    // only, prepend the prelude as a synthetic leading `include` so its builtin
+    // `__def` global declarations execute in THIS program's runtime story VM —
+    // one coherent `global decl`, prelude FIRST (so an authored define reusing a
+    // builtin name re-registers/overrides in place), with all paths/indices
+    // resolved by the single trusted codegen pass. The prelude's chunks
+    // contribute only runtime FlowBase here (`_injectingPrelude` suppresses their
+    // context/sparkle re-merge), so `program.context`/`program.defines` are
+    // unchanged vs the flag-off path; only `program.compiled` gains the builtins.
+    if (
+      !isInclude &&
+      this._config.seedBuiltinsIntoStory &&
+      this._config.useBuiltinsPrelude
+    ) {
+      if (!this.documents.has(BUILTINS_PRELUDE_URI)) {
+        this.documents.add({
+          textDocument: {
+            uri: BUILTINS_PRELUDE_URI,
+            languageId: LANGUAGE_NAME,
+            version: 0,
+            text: BUILTINS_PRELUDE,
+          },
+        });
+      }
+      const wasInjecting = this._injectingPrelude;
+      this._injectingPrelude = true;
+      try {
+        const preludeStory = this.parseIncrementally(
+          BUILTINS_PRELUDE_URI,
+          fileHandler,
+          true,
+          state,
+          program,
+          onDiagnostic,
+        );
+        topLevelIncludedFileObjs.push(new IncludedFile(preludeStory));
+      } finally {
+        this._injectingPrelude = wasInjecting;
+      }
+    }
+
     while (cur.value) {
       const {
         include,
@@ -1088,7 +1141,7 @@ export class SparkdownCompiler {
           }
         }
       }
-      if (context) {
+      if (context && !this._injectingPrelude) {
         // Copy pre-built structs to program context. An authored define that
         // reuses a builtin name (seeded earlier by mergePreludeContext) OVERRIDES
         // IN PLACE: its properties win, but the builtin's *unspecified* siblings
@@ -1116,7 +1169,7 @@ export class SparkdownCompiler {
           }
         }
       }
-      if (sparkle) {
+      if (sparkle && !this._injectingPrelude) {
         // Merge the reactive Sparkle UI AST onto program.sparkle (additive;
         // not yet consumed — the static screens/components channels still
         // drive rendering until Phase 3).
@@ -1129,7 +1182,7 @@ export class SparkdownCompiler {
           }
         }
       }
-      if (defaultDefinitions) {
+      if (defaultDefinitions && !this._injectingPrelude) {
         // Copy default definitions to state
         for (const [type, struct] of Object.entries(defaultDefinitions)) {
           state.defaultDefinitions ??= {};
