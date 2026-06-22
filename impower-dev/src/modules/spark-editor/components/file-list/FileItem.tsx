@@ -627,12 +627,13 @@ function FileItem({
           selectMode ? "pr-5" : "pr-14"
         } ${
           // Hover/press render as an ::after OVERLAY rather than a background-color
-          // swap, so they layer OVER the selection / context-menu tint instead of
-          // replacing it (the ghost variant's `hover:bg-foreground/5` would
-          // otherwise clobber the `bg-primary/15` highlight). Mirrors how the
-          // filled Button variants do their hover. The `before:` pseudo is left
-          // for the open-file accent below.
-          "hover:bg-transparent active:bg-transparent after:pointer-events-none after:absolute after:inset-0 after:bg-foreground after:opacity-0 after:transition-opacity after:content-[''] hover:after:opacity-[0.05] active:after:opacity-[0.12]"
+          // swap (mirroring the filled Button variants), so they layer OVER the
+          // selection / context-menu tint instead of replacing it. Each state
+          // below ALSO pins its own bg through :hover/:active — the ghost
+          // variant's `hover:bg-foreground/5` (and a bare `hover:bg-transparent`)
+          // would otherwise swap the resting background out on hover. The
+          // `before:` pseudo is left for the open-file accent.
+          "after:pointer-events-none after:absolute after:inset-0 after:bg-foreground after:opacity-0 after:transition-opacity after:content-[''] hover:after:opacity-[0.05] active:after:opacity-[0.12]"
         } ${
           // Multi-select highlight (mobile checkbox OR desktop modifier-click) —
           // or the row whose desktop right-click context menu is open — wins;
@@ -641,10 +642,10 @@ function FileItem({
           // WHICH row the menu acts on (and matches the selection look the user
           // gets from Ctrl/Shift+click); it clears when the menu closes.
           bulkSelected || contextMenu
-            ? "bg-primary/15"
+            ? "bg-primary/15 hover:bg-primary/15 active:bg-primary/15"
             : selected
-              ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
-              : ""
+              ? "bg-engine-800/40 hover:bg-engine-800/40 active:bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
+              : "hover:bg-transparent active:bg-transparent"
         }`}
         onClick={onRowClick}
         onContextMenu={onRowContextMenu}
