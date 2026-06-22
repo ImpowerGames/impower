@@ -12,6 +12,7 @@ import {
   Checkbox,
   ChevronRight,
   DotsVertical,
+  Download,
   DropdownContent,
   DropdownItem,
   DropdownRoot,
@@ -775,6 +776,39 @@ export default function FileList({
     await reload();
   };
 
+  // Save the selected files to the user's device. A single file downloads as-is;
+  // multiple files (or a selected folder's contents) download as one zip. Folders
+  // expand to their files (folder entries themselves aren't downloadable).
+  const downloadSelected = async () => {
+    if (!projectId || selectedPaths.size === 0) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    const { downloadFile } = await import("../../utils/downloadFile");
+    const sel = [...selectedPaths];
+    const filePaths = [...filesByPath.keys()].filter((fp) =>
+      sel.some((s) => fp === s || fp.startsWith(`${s}/`)),
+    );
+    if (filePaths.length === 0) return;
+    if (filePaths.length === 1) {
+      const fp = filePaths[0]!;
+      const uri = Workspace.fs.getFileUri(projectId, fp);
+      const data = await Workspace.fs.readFile({ file: { uri } });
+      downloadFile(fp.split("/").pop()!, "application/octet-stream", data);
+    } else {
+      // Zip with pane-relative paths (drop the `assets/` etc. prefix) so the
+      // archive mirrors what the user sees, not the project's internal layout.
+      const files = filePaths.map((fp) => ({
+        uri: Workspace.fs.getFileUri(projectId, fp),
+        path:
+          rootDir && fp.startsWith(`${rootDir}/`)
+            ? fp.slice(rootDir.length + 1)
+            : fp,
+      }));
+      const zip = await Workspace.fs.zipFiles({ files });
+      downloadFile(`${rootDir || "files"}.zip`, "application/zip", zip);
+    }
+    exitSelectMode();
+  };
+
   const newFolder = async () => {
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
@@ -1078,6 +1112,15 @@ export default function FileList({
                   ({selectedPaths.size})
                 </span>
                 <div class="flex-1" />
+                <Button
+                  variant="ghost"
+                  disabled={selectedPaths.size === 0}
+                  onClick={() => void downloadSelected()}
+                  class="h-8 gap-1.5 rounded-md px-2 text-sm font-normal text-foreground/80 hover:text-foreground"
+                >
+                  <Download class="size-4" />
+                  Download
+                </Button>
                 <Button
                   variant="ghost"
                   disabled={selectedPaths.size === 0}

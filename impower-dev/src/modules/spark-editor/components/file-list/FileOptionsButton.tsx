@@ -2,26 +2,15 @@ import {
   Button,
   DotsVertical,
   DropdownContent,
-  DropdownItem,
   DropdownRoot,
   DropdownTrigger,
-  Files,
-  Pencil,
-  Search,
-  Trash,
 } from "@impower/impower-ui/components";
 import { signal, useComputed, useSignalEffect } from "@preact/signals";
 import { useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
+import FileMenuItems, { type FileMenuItemsProps } from "./FileMenuItems";
 
-export type FileOptionsButtonProps = {
-  onRename: () => void;
-  onDelete: () => void;
-  /** Show a "Find usages" item (assets only) — lists scripts referencing it. */
-  onFindUsages?: () => void;
-  /** Show a "Duplicate" item (files only) — copies it under a unique name. */
-  onDuplicate?: () => void;
-};
+export type FileOptionsButtonProps = FileMenuItemsProps;
 
 // Identity of the row whose options menu is currently open — only one at a time.
 // Opening a row reassigns this; every other instance's `useSignalEffect` then
@@ -35,8 +24,9 @@ const TRIGGER_CLASS =
   "mr-3 rounded-full text-foreground/50 hover:text-foreground";
 
 /**
- * Per-row 3-dots options menu with Rename + Delete. Both items are disabled
- * while the workspace is syncing.
+ * Per-row 3-dots options menu (Rename / Find usages / Duplicate / Download /
+ * Delete — see FileMenuItems). Both the 3-dots and the desktop right-click
+ * context menu (FileItem) render the same items.
  *
  * PERF: a full Radix DropdownMenu per row was the dominant cost when scrolling
  * a large list (each row mount set up Radix context/refs/portal). Since the
@@ -44,12 +34,7 @@ const TRIGGER_CLASS =
  * it's first activated, then mount the real Radix menu (which opens itself via
  * `defaultOpen`) and unmount it again when it closes.
  */
-export default function FileOptionsButton({
-  onRename,
-  onDelete,
-  onFindUsages,
-  onDuplicate,
-}: FileOptionsButtonProps) {
+export default function FileOptionsButton(props: FileOptionsButtonProps) {
   const [armed, setArmed] = useState(false);
   // Stable per-instance key for the single-open coordination above.
   const keyRef = useRef<symbol | null>(null);
@@ -137,26 +122,7 @@ export default function FileOptionsButton({
         // field would lose its selection the instant it opened.
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
-        <DropdownItem disabled={disabled} onSelect={() => onRename()}>
-          <Pencil class="size-4" />
-          Rename
-        </DropdownItem>
-        {onFindUsages && (
-          <DropdownItem disabled={disabled} onSelect={() => onFindUsages()}>
-            <Search class="size-4" />
-            Find usages
-          </DropdownItem>
-        )}
-        {onDuplicate && (
-          <DropdownItem disabled={disabled} onSelect={() => onDuplicate()}>
-            <Files class="size-4" />
-            Duplicate
-          </DropdownItem>
-        )}
-        <DropdownItem disabled={disabled} onSelect={() => onDelete()}>
-          <Trash class="size-4" />
-          Delete
-        </DropdownItem>
+        <FileMenuItems {...props} />
       </DropdownContent>
     </DropdownRoot>
   );

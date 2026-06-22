@@ -2,11 +2,14 @@ import {
   Button,
   Check,
   ChevronRight,
+  DropdownContent,
+  DropdownRoot,
+  DropdownTrigger,
   FolderFill,
   Ripple,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
-import { memo } from "preact/compat";
+import { createPortal, memo } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
   iconForCategory,
@@ -22,6 +25,7 @@ import {
 import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
+import FileMenuItems from "./FileMenuItems";
 import FileOptionsButton from "./FileOptionsButton";
 import FileUsagesPanel, { type UsageLocation } from "./FileUsagesPanel";
 import RenameReferencesDialog from "./RenameReferencesDialog";
@@ -168,6 +172,11 @@ function FileItem({
   } | null>(null);
   // A thumbnail that 404s / fails to decode falls back to the type glyph.
   const [thumbFailed, setThumbFailed] = useState(false);
+  // Desktop right-click context menu position (viewport px), or null when closed.
+  // Lazily mounted (like the 3-dots menu) so idle rows carry no Radix root.
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(
+    null,
+  );
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
 
@@ -477,6 +486,19 @@ function FileItem({
     recordCreate(projectId, [newUri], copyName);
   }
 
+  // Save this file to the user's device. Reads the raw bytes and hands them to a
+  // throwaway download anchor. Files only (a folder would need a zip — that's the
+  // multi-select "Download"). For a `.url` ref this saves the `.url` text itself.
+  async function downloadEntry() {
+    const projectId = workspace.signals.projectId.value;
+    if (!projectId || isDirectory) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    const { downloadFile } = await import("../../utils/downloadFile");
+    const uri = Workspace.fs.getFileUri(projectId, path);
+    const data = await Workspace.fs.readFile({ file: { uri } });
+    downloadFile(basename, "application/octet-stream", data);
+  }
+
   async function onRowClick(e: MouseEvent) {
     if (renaming) return;
     e.stopPropagation();
@@ -498,11 +520,29 @@ function FileItem({
   }
 
   function onRowContextMenu(e: MouseEvent) {
-    // Right-click enters multi-select mode (if not already) and selects this row.
     e.preventDefault();
     e.stopPropagation();
-    onContextSelect?.(path, isDirectory);
+    // Mobile (dive mode): a long-press fires `contextmenu` — enter multi-select,
+    // the touch-friendly way to act on several files. Already selecting? keep
+    // toggling. Desktop: open the options menu as a context menu at the cursor.
+    if (diveMode || selectMode) {
+      onContextSelect?.(path, isDirectory);
+    } else {
+      setContextMenu({ x: e.clientX, y: e.clientY });
+    }
   }
+
+  // The row's actions — shared by the 3-dots menu and the desktop right-click
+  // context menu. Find-usages keys off the flat asset name (`image.foo`), so it's
+  // assets only (not scripts/folders); Duplicate/Download are files only.
+  const menuItemProps = {
+    onRename: () => setRenaming(true),
+    onDelete: () => void deleteEntry(),
+    onFindUsages:
+      !isDirectory && ext !== "sd" ? () => void openUsages() : undefined,
+    onDuplicate: !isDirectory ? () => void duplicateEntry() : undefined,
+    onDownload: !isDirectory ? () => void downloadEntry() : undefined,
+  };
 
   // Re-render on diagnostics change (DiagnosticsLabel reads the same signal).
   const _ = useComputed(() => workspace.state.value.debug?.diagnostics).value;
@@ -668,21 +708,46 @@ function FileItem({
           hover/ripple, isolated from the row button beneath it. */}
       {!selectMode && (
         <div class="absolute inset-y-0 right-0 flex items-center">
-          <FileOptionsButton
-            onRename={() => setRenaming(true)}
-            onDelete={() => void deleteEntry()}
-            // Find-usages keys off the flat asset name (`image.foo`), so it's
-            // offered for assets only — not scripts (`.sd`) or folders.
-            onFindUsages={
-              !isDirectory && ext !== "sd" ? () => void openUsages() : undefined
-            }
-            // Files only — folders would need a recursive copy.
-            onDuplicate={
-              !isDirectory ? () => void duplicateEntry() : undefined
-            }
-          />
+          <FileOptionsButton {...menuItemProps} />
         </div>
       )}
+      {/* Desktop right-click context menu — the SAME items as the 3-dots, popped
+          at the cursor. Lazily mounted (only while open) so idle rows carry no
+          Radix root, and anchored to a 0-size element at the click point.
+          PORTALED to <body>: the row lives inside the virtualizer's transformed
+          container, where `position: fixed` resolves relative to that transform
+          (not the viewport) — so the cursor anchor would be offset by the row's
+          scroll translate without this. */}
+      {contextMenu &&
+        createPortal(
+          <DropdownRoot
+            defaultOpen
+            onOpenChange={(open) => {
+              if (!open) {
+                window.setTimeout(() => setContextMenu(null), 250);
+              }
+            }}
+          >
+            <DropdownTrigger asChild>
+              <span
+                aria-hidden="true"
+                class="pointer-events-none fixed h-0 w-0"
+                style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
+              />
+            </DropdownTrigger>
+            <DropdownContent
+              align="start"
+              side="bottom"
+              sideOffset={2}
+              // See FileOptionsButton — "Rename" focuses the inline input, so
+              // don't let Radix pull focus back to the (about-to-unmount) trigger.
+              onCloseAutoFocus={(e) => e.preventDefault()}
+            >
+              <FileMenuItems {...menuItemProps} />
+            </DropdownContent>
+          </DropdownRoot>,
+          document.body,
+        )}
       {renameConfirm && (
         <RenameReferencesDialog
           open
