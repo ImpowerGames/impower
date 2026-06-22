@@ -904,6 +904,9 @@ export class Game<T extends M = {}> {
   }
 
   continue(preserveExecutionInfo?: boolean) {
+    // Resuming execution lifts any breakpoint pause so the realtime clock +
+    // auto-advance run again; the next breakpoint will re-pause.
+    this.unpause();
     if (!preserveExecutionInfo) {
       this._runtimeState = new RuntimeState();
     }
@@ -1071,6 +1074,9 @@ export class Game<T extends M = {}> {
               this._dataBreakpointMap[currScriptIndex]?.has(currLine)
             ) {
               this._lastHitBreakpointLocation = this._executingLocation;
+              // Pause the running game so it halts AT the breakpoint instead of
+              // letting the realtime clock auto-advance past it.
+              this.pause();
               this.notifyHitBreakpoint();
               // DONE - hit breakpoint
               return true;

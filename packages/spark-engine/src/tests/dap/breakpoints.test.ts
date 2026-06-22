@@ -35,13 +35,18 @@ describe("DAP engine debug core — breakpoints + scalar globals", () => {
     // First stop: initial value, before the line-2 mutation has run.
     h.game.start();
     expect(h.messagesOfMethod("hitBreakpoint").length).toBe(1);
+    // The game must PAUSE on the breakpoint (so it halts there instead of
+    // auto-advancing past it once a realtime clock is driving playback).
+    expect(h.game.paused).toBe(true);
     const before = h.game.getVarVariables().find((v) => v.name === "health");
     expect(before).toBeDefined();
     expect(before?.value).toBe("100");
 
-    // Resume: the intervening mutation runs and we stop at the second breakpoint.
+    // Resume: continue() lifts the pause, the intervening mutation runs, and we
+    // stop (and re-pause) at the second breakpoint.
     h.game.continue();
     expect(h.messagesOfMethod("hitBreakpoint").length).toBe(2);
+    expect(h.game.paused).toBe(true);
     const after = h.game.getVarVariables().find((v) => v.name === "health");
     expect(after?.value).toBe("75");
   });
