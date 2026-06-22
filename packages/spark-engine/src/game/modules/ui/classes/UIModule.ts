@@ -1742,12 +1742,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     parentEnv: ReactiveEnv,
     before: Element | null,
   ): void {
-    if (!region.node.each) {
-      return; // numeric `for i = a, b` is a follow-up
-    }
-    const entries = this.iterableEntries(
-      this.evalBinding(region.node.each, parentEnv),
-    );
+    const entries = this.forEntries(region.node, parentEnv);
     if (entries.length === 0) {
       this.mountForElse(region, parentEnv, before);
       return;
@@ -1950,6 +1945,55 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       env[bindings[0]!] = key;
       env[bindings[1]!] = value;
     }
+  }
+
+  /** The ordered `[key, value]` entries a `for` iterates this turn — numeric
+   *  (`for i = from, to[, step]`) or generic (`for … in expr`). Both feed the
+   *  same keyed reconcile, so numeric `for` gets reuse/move/dep-gating for free. */
+  protected forEntries(
+    node: ForNode,
+    env: ReactiveEnv,
+  ): [unknown, unknown][] {
+    if (node.numeric) {
+      return this.numericEntries(node.numeric, env);
+    }
+    if (node.each) {
+      return this.iterableEntries(this.evalBinding(node.each, env));
+    }
+    return [];
+  }
+
+  /** Expand a numeric range to `[i, i]` entries (key = value = the counter, so a
+   *  single-binding `for i` binds `i` and reconciles by the number). `step`
+   *  defaults to 1; a zero/non-finite bound yields no iterations. Capped to guard
+   *  against an accidental runaway range mounting unbounded DOM. */
+  protected numericEntries(
+    numeric: NonNullable<ForNode["numeric"]>,
+    env: ReactiveEnv,
+  ): [unknown, unknown][] {
+    const from = Number(this.evalBinding(numeric.from, env));
+    const to = Number(this.evalBinding(numeric.to, env));
+    const step = numeric.step ? Number(this.evalBinding(numeric.step, env)) : 1;
+    const entries: [unknown, unknown][] = [];
+    if (
+      !Number.isFinite(from) ||
+      !Number.isFinite(to) ||
+      !Number.isFinite(step) ||
+      step === 0
+    ) {
+      return entries;
+    }
+    const CAP = 100000;
+    if (step > 0) {
+      for (let i = from; i <= to && entries.length < CAP; i += step) {
+        entries.push([i, i]);
+      }
+    } else {
+      for (let i = from; i >= to && entries.length < CAP; i += step) {
+        entries.push([i, i]);
+      }
+    }
+    return entries;
   }
 
   /** Normalize a `for` iterable's evaluated value to ordered `[key, value]`
@@ -2230,12 +2274,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     parentEnv: ReactiveEnv,
     changes: ReactiveDeps,
   ): void {
-    if (!region.node.each) {
-      return;
-    }
-    const entries = this.iterableEntries(
-      this.evalBinding(region.node.each, parentEnv),
-    );
+    const entries = this.forEntries(region.node, parentEnv);
 
     if (entries.length === 0) {
       // Becoming empty: drop all iterations, then show the `else` arm.

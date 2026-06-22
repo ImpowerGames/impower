@@ -1021,6 +1021,7 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
     : null;
   let bindings: string[] = [];
   let each: Binding | undefined;
+  let numeric: ForNode["numeric"] | undefined;
   if (condContent) {
     const inKw = firstDescendant(condContent, new Set(["LuauInKeyword"]));
     if (inKw) {
@@ -1040,6 +1041,14 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
       if (iterableNodes.length > 0) {
         each = lowerBindingFromNodes(iterableNodes, ctx);
       }
+    } else {
+      // Numeric `for i = from, to[, step] do` (no `in`). All three bounds are
+      // lowered OUTSIDE the loop scope (the loop var isn't in scope for them).
+      const parsed = parseNumericForHeader(condContent, ctx);
+      if (parsed) {
+        bindings = [parsed.loopVar];
+        numeric = parsed.numeric;
+      }
     }
   }
   const elseBlock = content
@@ -1057,6 +1066,7 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
     kind: "for",
     bindings,
     ...(each ? { each } : {}),
+    ...(numeric ? { numeric } : {}),
     children,
   };
   if (elseBlock) {
@@ -1067,6 +1077,74 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
     forNode.else = buildBranchChildren(elseContent, ctx);
   }
   return forNode;
+}
+
+/** Parse a numeric `for` header (`i = from, to[, step]`, no `in`) from its
+ *  `LuauForCondition_content`. The loop var is the text before the `= from`
+ *  assignment; `from` is the assignment's value; `to`/`step` are the
+ *  comma-separated expressions after it. Returns null if it doesn't look
+ *  numeric (no assignment / no `to`). */
+function parseNumericForHeader(
+  condContent: SyntaxNode,
+  ctx: LowerContext,
+): { loopVar: string; numeric: NonNullable<ForNode["numeric"]> } | null {
+  const asn = firstDescendant(
+    condContent,
+    new Set(["LuauAssignmentOperation"]),
+  );
+  if (!asn) {
+    return null;
+  }
+  const loopVar = ctx.read(condContent.from, asn.from).trim();
+  if (!loopVar) {
+    return null;
+  }
+  // `from` = the assignment value: its content nodes after the `=` operator.
+  const asnContent = firstDescendant(
+    asn,
+    new Set(["LuauAssignmentOperation_content"]),
+  );
+  const fromNodes: SyntaxNode[] = [];
+  let cc = asnContent?.firstChild ?? null;
+  while (cc) {
+    if (cc.name !== "LuauAssignmentOperator" && !WS_NODE_NAMES.has(cc.name)) {
+      fromNodes.push(cc);
+    }
+    cc = cc.nextSibling;
+  }
+  // `to` / optional `step` = comma-separated expression groups after the
+  // assignment operation.
+  const groups: SyntaxNode[][] = [];
+  let cur: SyntaxNode[] = [];
+  let c = condContent.firstChild;
+  while (c) {
+    if (c.from >= asn.to && !WS_NODE_NAMES.has(c.name)) {
+      if (c.name === "LuauCommaSeparator") {
+        groups.push(cur);
+        cur = [];
+      } else {
+        cur.push(c);
+      }
+    }
+    c = c.nextSibling;
+  }
+  groups.push(cur);
+  const nonEmpty = groups.filter((g) => g.length > 0);
+  const toNodes = nonEmpty[0];
+  const stepNodes = nonEmpty[1];
+  if (fromNodes.length === 0 || !toNodes || toNodes.length === 0) {
+    return null;
+  }
+  return {
+    loopVar,
+    numeric: {
+      from: lowerBindingFromNodes(fromNodes, ctx),
+      to: lowerBindingFromNodes(toNodes, ctx),
+      ...(stepNodes && stepNodes.length > 0
+        ? { step: lowerBindingFromNodes(stepNodes, ctx) }
+        : {}),
+    },
+  };
 }
 
 /** `LuauSparkleIfBlock` → IfNode: the `if` + each `elseif` are branches

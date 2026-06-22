@@ -245,4 +245,67 @@ end
     refresh(h);
     expect(spanTexts(h.snapshotFiltered("ui/create"))).toContain("n=10");
   });
+
+  test("numeric `for i = 1, 3` mounts one row per counter value (D6)", async () => {
+    const h = createHarness(
+      `layout bag with
+  for i = 1, 3 do
+    text "n={i}"
+  end
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    expect(spanTexts(h.snapshotFiltered("ui/create"))).toEqual(
+      expect.arrayContaining(["n=1", "n=2", "n=3"]),
+    );
+  });
+
+  test("numeric `for i = 0, 10, 5` honors the step", async () => {
+    const h = createHarness(
+      `layout bag with
+  for i = 0, 10, 5 do
+    text "n={i}"
+  end
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    const rows = spanTexts(h.snapshotFiltered("ui/create")).filter((t: any) =>
+      /^n=/.test(t),
+    );
+    expect(rows).toEqual(["n=0", "n=5", "n=10"]);
+  });
+
+  test("numeric `for i = 1, count` reacts to its bound (grow appends, no rebuild)", async () => {
+    const h = createHarness(
+      `store count = 2
+function grow()
+  count = count + 2
+end
+layout bag with
+  for i = 1, count do
+    text "n={i}"
+  end
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    expect(spanTexts(h.snapshotFiltered("ui/create"))).toEqual(
+      expect.arrayContaining(["n=1", "n=2"]),
+    );
+
+    h.reset();
+    run(h, "grow"); // count 2 -> 4
+    refresh(h);
+    // The two new tail rows are created; the existing rows are reused (no rebuild).
+    expect(spanTexts(h.snapshotFiltered("ui/create"))).toEqual(["n=3", "n=4"]);
+    expect(h.snapshotFiltered("ui/destroy")).toEqual([]);
+  });
 });

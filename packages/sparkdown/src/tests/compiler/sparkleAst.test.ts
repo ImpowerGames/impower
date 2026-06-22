@@ -14,6 +14,37 @@ function componentAst(source: string): any {
 }
 
 describe("reactive sparkle AST", () => {
+  test("numeric `for i = from, to` lowers to a ForNode.numeric (no `each`)", () => {
+    const ast = screenAst(`layout main with
+  for i = 1, 3 do
+    text "n={i}"
+  end
+end
+`);
+    const forNode = ast?.main?.children?.[0];
+    expect(forNode.kind).toBe("for");
+    expect(forNode.bindings).toEqual(["i"]);
+    expect(forNode.each).toBeUndefined();
+    expect(forNode.numeric?.from?.source).toBe("1");
+    expect(forNode.numeric?.to?.source).toBe("3");
+    expect(forNode.numeric?.step).toBeUndefined();
+    // The body binding captures the loop var as an evaluator param.
+    expect(forNode.children?.[0]?.content?.[1]?.binding?.params).toEqual(["i"]);
+  });
+
+  test("numeric `for i = from, to, step` captures the step bound", () => {
+    const ast = screenAst(`layout main with
+  for i = 0, 10, 2 do
+    text "n={i}"
+  end
+end
+`);
+    const forNode = ast?.main?.children?.[0];
+    expect(forNode.numeric?.from?.source).toBe("0");
+    expect(forNode.numeric?.to?.source).toBe("10");
+    expect(forNode.numeric?.step?.source).toBe("2");
+  });
+
   test("screen body lowers to a typed element tree (read from grammar tokens)", () => {
     const ast = screenAst(`layout main with
   stage:
