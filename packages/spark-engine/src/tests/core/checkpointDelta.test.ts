@@ -15,6 +15,9 @@ function compileSrc(src: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
+    // The Game sources defines from the live runtime __def tables, so seed the
+    // builtins prelude into the story VM (the production player does the same).
+    seedBuiltinsIntoStory: true,
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text: src, version: 1, languageId: "sparkdown" },
     ],

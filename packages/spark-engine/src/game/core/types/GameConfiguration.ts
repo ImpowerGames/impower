@@ -16,11 +16,4 @@ export interface GameConfiguration {
   verifyCheckpoints?: boolean;
   /** Beats between full keyframes in incremental mode. Default 50. */
   checkpointBaseInterval?: number;
-  /** P5: source the define context from the LIVE runtime `__def` tables
-   *  (buildDefinesContext) deep-merged OVER the static `program.defines` channel,
-   *  instead of the static channel alone. Requires the program to have been
-   *  compiled with `seedBuiltinsIntoStory` so builtin defaults are present in the
-   *  story VM. Default off (the static channel is the proven path); flipped on
-   *  once the golden-master confirms byte-identical output. */
-  runtimeSourcedDefines?: boolean;
 }

@@ -48,6 +48,9 @@ function compile(source: string) {
     // Builtins come from the implicitly-imported builtins prelude (the compiler
     // default), exactly like the production player.
     useBuiltinsPrelude: true,
+    // The engine sources defines from the live runtime __def tables, so seed the
+    // builtins prelude into the story VM (the production player does the same).
+    seedBuiltinsIntoStory: true,
     // The DOM goldens guard the PRODUCTION render path, which lowers display
     // statements to native `display(<table>)` calls (the editor enables this).
     experimentalDisplayCalls: true,

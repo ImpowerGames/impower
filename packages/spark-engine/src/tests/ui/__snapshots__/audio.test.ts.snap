@@ -29,8 +29,8 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
     "method": "audio/load",
     "params": {
       "channel": "typewriter",
-      "key": "synth.typewriter~t0s1b0",
-      "name": "typewriter",
+      "key": "typewriter.action~t0s1b0",
+      "name": "action",
       "synth": {
         "$link": {
           "audio": {},
@@ -38,10 +38,12 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
           "image": {},
           "inflection": {},
           "prosody": {},
+          "synth": {},
           "typewriter": {},
         },
-        "$name": "typewriter",
-        "$type": "synth",
+        "$name": "action",
+        "$type": "typewriter",
+        "animation_offset": 0.06,
         "arpeggio": {
           "direction": "up",
           "glide": 0,
@@ -85,6 +87,7 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
           "grit_ramp": 0,
           "on": false,
         },
+        "em_dash_pause_scale": 16,
         "envelope": {
           "attack": 0.01,
           "decay": 0.003,
@@ -93,6 +96,7 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
           "release": 0.01,
           "sustain": 0.04,
         },
+        "fade_duration": 0,
         "fm": {
           "on": false,
           "ratio": 1,
@@ -112,19 +116,24 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
           "cutoff_ramp": 0,
           "on": true,
         },
+        "letter_pause": 0.025,
         "lowpass": {
           "cutoff": 4000,
           "cutoff_ramp": 0,
           "on": false,
           "resonance": 0.5,
         },
+        "min_syllable_length": 3,
         "phase": 0,
+        "phrase_pause_scale": 5,
         "pitch": {
           "frequency": 3465,
           "frequency_jerk": 0,
           "frequency_ramp": 0,
           "frequency_torque": 0,
         },
+        "punctuated": "/(?:^|\\s)(?:[.]\\s*?)+(?:$|\\s)/u",
+        "punctuated_pause_scale": 15,
         "reverb": {
           "damping": 0.5,
           "mix": 0.5,
@@ -140,6 +149,7 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
           "strength_ramp": 0,
         },
         "shape": "tangent",
+        "stressed_pause_scale": 10,
         "tremolo": {
           "on": false,
           "rate": 10,
@@ -156,6 +166,7 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
           "strength": 0.5,
           "strength_ramp": 0,
         },
+        "voiced": "/([\\p{L}\\p{N}']+)/u",
         "volume": 0.5,
         "wahwah": {
           "on": false,
@@ -165,6 +176,7 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
           "strength": 0.5,
           "strength_ramp": 0,
         },
+        "yelled": "/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u",
       },
       "tones": [
         {
@@ -173,7 +185,7 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
           "time": 0,
         },
       ],
-      "type": "synth",
+      "type": "typewriter",
       "volume": 0.5,
     },
   },
@@ -206,7 +218,7 @@ exports[`audio > explicit SFX directive schedules audio/load + audio/update 1`] 
         {
           "after": undefined,
           "control": "start",
-          "key": "synth.typewriter~t0s1b0",
+          "key": "typewriter.action~t0s1b0",
           "loop": undefined,
           "now": undefined,
           "over": undefined,
@@ -226,8 +238,8 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
     "method": "audio/load",
     "params": {
       "channel": "typewriter",
-      "key": "synth.character~t0s1b0~t0.07500000000000001s1b0",
-      "name": "character",
+      "key": "character.HERO~t0s1b0~t0.07500000000000001s1b0",
+      "name": "HERO",
       "synth": {
         "$link": {
           "audio": {},
@@ -237,8 +249,8 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
           "prosody": {},
           "typewriter": {},
         },
-        "$name": "character",
-        "$type": "synth",
+        "$name": "HERO",
+        "$type": "character",
         "arpeggio": {
           "direction": "up",
           "glide": 0,
@@ -309,6 +321,7 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
           "on": false,
           "resonance": 0.5,
         },
+        "name": "HERO",
         "phase": 0,
         "pitch": {
           "frequency": 440,
@@ -369,7 +382,7 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
           "time": 0.07500000000000001,
         },
       ],
-      "type": "synth",
+      "type": "character",
       "volume": 0.5,
     },
   },
@@ -383,7 +396,7 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
         {
           "after": undefined,
           "control": "start",
-          "key": "synth.character~t0s1b0~t0.07500000000000001s1b0",
+          "key": "character.HERO~t0s1b0~t0.07500000000000001s1b0",
           "loop": undefined,
           "now": undefined,
           "over": undefined,

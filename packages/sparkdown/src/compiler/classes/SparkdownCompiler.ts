@@ -237,7 +237,7 @@ export class SparkdownCompiler {
   // its chunks contribute their runtime FlowBase (the builtin `__def` global
   // declarations → program.compiled) but MUST NOT re-merge context/sparkle —
   // those already came from mergePreludeContext, and re-merging would perturb
-  // program.context (and the derived program.defines channel) vs the flag-off path.
+  // program.context vs the flag-off path.
   protected _injectingPrelude = false;
   // The parsed builtins prelude (a constant), cached after its first parse so
   // seedBuiltinsIntoStory reuses it across compiles instead of re-lowering
@@ -818,8 +818,8 @@ export class SparkdownCompiler {
     // builtin name re-registers/overrides in place), with all paths/indices
     // resolved by the single trusted codegen pass. The prelude's chunks
     // contribute only runtime FlowBase here (`_injectingPrelude` suppresses their
-    // context/sparkle re-merge), so `program.context`/`program.defines` are
-    // unchanged vs the flag-off path; only `program.compiled` gains the builtins.
+    // context/sparkle re-merge), so `program.context` is unchanged vs the
+    // flag-off path; only `program.compiled` gains the builtins.
     if (
       !isInclude &&
       this._config.seedBuiltinsIntoStory &&
@@ -2087,21 +2087,12 @@ export class SparkdownCompiler {
         program.assets[type] = structuredClone(structs);
       }
     }
-    // Every remaining define-typed context entry (animation/character/ease/…) —
-    // i.e. context minus the types carried by the channels above. Lets the Game
-    // build its entire context from channels (no program.context dependency).
-    const CHANNELED_TYPES = new Set<string>([
-      "layout",
-      "screen",
-      "component",
-      "style",
-      ...ASSET_TYPES,
-    ]);
-    for (const [type, structs] of Object.entries(program.context ?? {})) {
-      if (CHANNELED_TYPES.has(type)) continue;
-      program.defines ??= {};
-      program.defines[type] = structuredClone(structs);
-    }
+    // Define-typed context entries (animation/character/ease/config/…) are NOT
+    // emitted as a static channel: the Game sources them from the live runtime
+    // `__def` tables (buildDefinesContext) so authored→builtin inheritance is
+    // resolved by the VM __index chain. Only the structural/asset channels above
+    // remain. (The retired `program.defines` channel was a lossy compile-time
+    // snapshot; runtime-sourcing proved byte-identical and supersedes it.)
     profile("end", this._profilerId, "populateEngineChannels", uri);
   }
 

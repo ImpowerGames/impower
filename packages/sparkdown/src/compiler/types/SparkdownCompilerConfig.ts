@@ -16,10 +16,12 @@ export interface SparkdownCompilerConfig {
   // `include`, so the builtin `__def` global declarations run in the SAME VM as
   // the authored defines — making `buildDefinesContext(story)` resolve authored
   // defines' inheritance from builtin types (e.g. `as animation` → builtin
-  // `timing`) via the runtime `__index` chain. P5 prerequisite for true
-  // runtime-sourcing of defines. Only affects `program.compiled` — `program.context`
-  // (and the derived `program.defines` channel) still come from mergePreludeContext,
-  // unchanged. Default OFF (the prelude parse adds cost; see the perf-cache follow-up).
+  // `timing`) via the runtime `__index` chain. This is how the Game sources its
+  // define context (the static `program.defines` channel was retired). Only
+  // affects `program.compiled` — `program.context` still comes from
+  // mergePreludeContext, unchanged. Default OFF (the prelude parse adds cost, so
+  // the pure-LSP diagnostics path leaves it off; any compile feeding a Game must
+  // turn it on — the player worker and the test harnesses do).
   seedBuiltinsIntoStory?: boolean;
   // When true, the lowerer emits SIMPLE display statements (plain text, single
   // beat, no interpolation/divert/alternator/tag) as a native `display(<table>)`

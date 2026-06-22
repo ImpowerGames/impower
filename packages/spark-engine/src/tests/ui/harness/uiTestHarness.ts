@@ -84,7 +84,10 @@ export function compileUI(
   compiler.configure({
     useBuiltinsPrelude: true,
     experimentalDisplayCalls: opts?.experimentalDisplayCalls ?? false,
-    seedBuiltinsIntoStory: opts?.seedBuiltinsIntoStory ?? false,
+    // The engine sources defines from the live runtime __def tables, so every
+    // Game-feeding compile must seed the builtins prelude into the story VM
+    // (the production player does the same). Default on.
+    seedBuiltinsIntoStory: opts?.seedBuiltinsIntoStory ?? true,
     files: [
       {
         uri: MAIN_URI,
@@ -151,11 +154,6 @@ export function createHarness(
      *  the workspace.worker route-simulation game that builds scrub checkpoints
      *  without ever connecting. */
     connect?: boolean;
-    /** P5: compile with the builtins prelude source-injected AND source the
-     *  engine's defines from the live runtime __def tables. Used to prove the
-     *  runtime-sourced path emits a message stream identical to the static
-     *  channel (the golden-master equivalence gate). */
-    runtimeSourcedDefines?: boolean;
   },
 ): UIHarness {
   const { program } = compileUI(source, {
@@ -164,15 +162,14 @@ export function createHarness(
     // characterization net tracks production; a test can still pass `false` to
     // exercise the legacy routing-tag path (e.g. displayCallParity).
     experimentalDisplayCalls: opts?.experimentalDisplayCalls ?? true,
-    // Runtime-sourcing needs the builtins seeded into the story VM.
-    seedBuiltinsIntoStory: opts?.runtimeSourcedDefines ?? false,
+    // `compileUI` seeds the builtins prelude by default (the engine sources
+    // defines from the live runtime __def tables).
   });
   const messages: any[] = [];
 
   const game = new Game({
     program: program as any,
     previewFrom: { file: MAIN_URI, line: startLine },
-    runtimeSourcedDefines: opts?.runtimeSourcedDefines ?? false,
     now: () => 0,
     // Synchronous: the Coordinator's audio-latency setTimeout fires inline,
     // removing the only source of real-time flakiness.

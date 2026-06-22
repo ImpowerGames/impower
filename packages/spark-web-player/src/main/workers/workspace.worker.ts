@@ -30,11 +30,6 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
       program: params.program,
       story: params.story,
       ...gameState.systemConfiguration,
-      // P5: source defines from the live runtime __def tables (the program is
-      // compiled with seedBuiltinsIntoStory above, so builtin defaults are in
-      // the story VM). Equivalent to the static channel (golden-master byte-
-      // identical) but resolves authored→builtin inheritance at runtime.
-      runtimeSourcedDefines: true,
       // This is the live-preview / HMR route-simulation game: it saves a
       // checkpoint at every beat while replaying to the edited line, which is
       // the O(n^2) cost incremental checkpoints exist to remove. Deltas store

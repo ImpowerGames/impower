@@ -856,23 +856,6 @@ exports[`style > style + variables construction stream 1`] = `
       },
       "content": {
         "animations": {
-          "$default": {
-            "$name": "$default",
-            "$type": "animation",
-            "keyframes": {},
-            "target": {
-              "$name": "self",
-              "$type": "layer",
-            },
-            "timing": {
-              "delay": 0,
-              "direction": "normal",
-              "duration": 0,
-              "easing": "ease",
-              "fill": "both",
-              "iterations": 1,
-            },
-          },
           "align_center": {
             "$name": "align_center",
             "$type": "animation",

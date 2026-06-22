@@ -1,11 +1,12 @@
 // Unit tests for the runtime `__def` → JS context converter.
 //
-// These validate the converter against AUTHORED defines only — the runtime
-// implicit parents are empty here (builtin `$default`s are not yet seeded into
-// the runtime; that arrives with the builtins-as-Luau-prelude work), so e.g.
-// `pan_right` has no inherited `timing`. Full builtin-inheritance coverage
-// comes once the prelude populates the type tables; equivalence with the engine
-// is ultimately proven by the UI golden-master.
+// `createHarness` seeds the builtins prelude into the runtime story (the engine
+// sources defines from there now), so authored defines inherit their type's
+// builtin `$default` — e.g. `pan_right` inherits the animation `timing`/`target`,
+// `companion` inherits the character defaults. These tests therefore assert the
+// AUTHORED props convert correctly (and meta/methods are stripped) with
+// `toMatchObject`, tolerating the inherited builtin props deep-merged in.
+// Equivalence with the engine is ultimately proven by the UI golden-master.
 
 import { describe, expect, test } from "vitest";
 import { createHarness } from "../ui/harness/uiTestHarness";
@@ -50,9 +51,10 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
     await harness.ready;
     const ctx = buildDefinesContext(story);
 
-    // animation instance: own keyframes preserved (object form), no inherited
-    // timing (runtime parent is empty until the prelude seeds builtins).
-    expect(ctx["animation"]?.["pan_right"]).toEqual({
+    // animation instance: own keyframes preserved (object form), PLUS the
+    // builtin animation `$default` (timing/target) deep-merged in via the seeded
+    // runtime __index chain.
+    expect(ctx["animation"]?.["pan_right"]).toMatchObject({
       keyframes: { background_position: "right" },
       $type: "animation",
       $name: "pan_right",
@@ -61,7 +63,7 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
     // character with a store prop + a method: store prop copied in, method
     // (closure) skipped, hidden __storeProps/__readProps meta stripped. (A
     // method mid-list must NOT halt the defines after it — `O`/`stack` below.)
-    expect(ctx["character"]?.["companion"]).toEqual({
+    expect(ctx["character"]?.["companion"]).toMatchObject({
       trust: 0,
       $type: "character",
       $name: "companion",
@@ -81,9 +83,10 @@ describe("buildDefinesContext (runtime __def → JS)", () => {
       $type: "companion",
       $name: "O",
     };
-    // Registered under the immediate parent AND the grandparent type.
-    expect(ctx["companion"]?.["O"]).toEqual(expected);
-    expect(ctx["character"]?.["O"]).toEqual(expected);
+    // Registered under the immediate parent AND the grandparent type. (Also
+    // carries the inherited builtin character defaults — toMatchObject tolerates.)
+    expect(ctx["companion"]?.["O"]).toMatchObject(expected);
+    expect(ctx["character"]?.["O"]).toMatchObject(expected);
   });
 
   test("array-valued prop (struct refs) converts to a JS array of inert refs", async () => {

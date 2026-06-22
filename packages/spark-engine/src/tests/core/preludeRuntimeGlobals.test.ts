@@ -134,11 +134,11 @@ describe("P5 P1: seedBuiltinsIntoStory source-injects the prelude", () => {
     expect(off.program.compiled).toBeTruthy();
     expect(on.program.compiled).toBeTruthy();
 
-    // Non-perturbation: the static program.defines channel (derived from
-    // program.context via mergePreludeContext) is byte-identical — the flag
-    // only adds builtin globals to program.compiled.
-    expect(JSON.stringify(on.program.defines)).toBe(
-      JSON.stringify(off.program.defines),
+    // Non-perturbation: program.context (the LSP-only superset the channels are
+    // derived from) is byte-identical — the flag only adds builtin globals to
+    // program.compiled, never to the static context.
+    expect(JSON.stringify(on.program.context)).toBe(
+      JSON.stringify(off.program.context),
     );
 
     // Flag OFF (today's gap): the user story's `animation` type table is empty,

@@ -217,7 +217,7 @@ function containsStructRef(value: unknown): boolean {
 // global — nil unless some define inherits from it — and throw at init).
 // This matches the legacy colon-form, where a struct property's references
 // were always compile-time `{ $type, $name }` data, never runtime lookups.
-function contextValueToExpression(value: unknown): Expression {
+export function contextValueToExpression(value: unknown): Expression {
   if (typeof value === "boolean") {
     return new NumberExpression(value, "bool");
   }
