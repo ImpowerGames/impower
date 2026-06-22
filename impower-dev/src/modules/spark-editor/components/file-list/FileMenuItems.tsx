@@ -1,7 +1,6 @@
 import {
   Download,
   DropdownItem,
-  Files,
   Pencil,
   Search,
   Trash,
@@ -14,8 +13,6 @@ export type FileMenuItemsProps = {
   onDelete: () => void;
   /** Assets only — lists scripts referencing it. */
   onFindUsages?: () => void;
-  /** Files only — copies it under a unique name. */
-  onDuplicate?: () => void;
   /** Files only — saves it to the user's device. */
   onDownload?: () => void;
 };
@@ -29,7 +26,6 @@ export default function FileMenuItems({
   onRename,
   onDelete,
   onFindUsages,
-  onDuplicate,
   onDownload,
 }: FileMenuItemsProps) {
   const disabled = useComputed(() => {
@@ -51,12 +47,6 @@ export default function FileMenuItems({
         <DropdownItem disabled={disabled} onSelect={() => onFindUsages()}>
           <Search class="size-4" />
           Find usages
-        </DropdownItem>
-      )}
-      {onDuplicate && (
-        <DropdownItem disabled={disabled} onSelect={() => onDuplicate()}>
-          <Files class="size-4" />
-          Duplicate
         </DropdownItem>
       )}
       {onDownload && (

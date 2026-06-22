@@ -20,7 +20,6 @@ import {
   isImagePath,
 } from "../../utils/fileIcon";
 import {
-  recordCreate,
   recordMove,
   recordReferenceRename,
   recordTrashDeletion,
@@ -478,50 +477,6 @@ function FileItem({
     }
   }
 
-  // Copy this file under a unique name in the SAME folder — `photo.png` ->
-  // `photo copy.png` -> `photo copy 2.png` (Finder/VS Code convention). NOT the
-  // getUniqueFileName/Keep-both scheme: that increments the FIRST embedded digit
-  // (`mg1_changes.mid` -> `mg3_changes.mid`), which reads as a different asset.
-  // Files only — folders would need a recursive copy. Reversible (undo trashes
-  // the copy).
-  async function duplicateEntry() {
-    const projectId = workspace.signals.projectId.value;
-    if (!projectId || isDirectory) return;
-    const { Workspace } = await import("../../workspace/Workspace");
-    const srcUri = Workspace.fs.getFileUri(projectId, path);
-    const data = await Workspace.fs.readFile({ file: { uri: srcUri } });
-    const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
-    // Sibling basenames (case-folded) in the original's folder, so the copy never
-    // collides with an existing file there (or a same-named file in another folder).
-    const files = await Workspace.fs.getFiles(projectId);
-    const takenLc = new Set(
-      Object.keys(files)
-        .map((u) => Workspace.fs.getRelativePath(projectId, u))
-        .filter(
-          (rel) =>
-            (rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/") + 1) : "") ===
-            dir,
-        )
-        .map((rel) =>
-          (rel.includes("/") ? rel.slice(rel.lastIndexOf("/") + 1) : rel).toLowerCase(),
-        ),
-    );
-    const dotIdx = basename.lastIndexOf(".");
-    const stem = dotIdx > 0 ? basename.slice(0, dotIdx) : basename;
-    const fileExt = dotIdx > 0 ? basename.slice(dotIdx) : "";
-    let copyName = `${stem} copy${fileExt}`;
-    for (let n = 2; takenLc.has(copyName.toLowerCase()); n += 1) {
-      copyName = `${stem} copy ${n}${fileExt}`;
-    }
-    const newUri = Workspace.fs.getFileUri(projectId, `${dir}${copyName}`);
-    await Workspace.fs.createFiles({ files: [{ uri: newUri, data }] });
-    if (ext === "sd") {
-      await Workspace.window.recordScriptChange();
-    } else {
-      await Workspace.window.recordAssetChange();
-    }
-    recordCreate(projectId, [newUri], copyName);
-  }
 
   // Save this file to the user's device. Reads the raw bytes and hands them to a
   // throwaway download anchor. Files only (a folder would need a zip — that's the
@@ -607,7 +562,6 @@ function FileItem({
     onDelete: () => void deleteEntry(),
     onFindUsages:
       !isDirectory && ext !== "sd" ? () => void openUsages() : undefined,
-    onDuplicate: !isDirectory ? () => void duplicateEntry() : undefined,
     onDownload: !isDirectory ? () => void downloadEntry() : undefined,
   };
 
