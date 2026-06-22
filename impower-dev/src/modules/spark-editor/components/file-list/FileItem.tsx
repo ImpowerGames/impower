@@ -108,9 +108,13 @@ export type FileItemProps = {
    * keeps {@link FileItem}'s props referentially stable for `memo`.
    */
   onToggle?: (path: string) => void;
-  /** Toggle this row's selection (multi-select mode). Folders cascade to their
-   * contents in the parent. */
+  /** Toggle this row's selection (mobile checkbox tap / desktop Ctrl+click).
+   * Folders cascade to their contents in the parent. */
   onToggleSelect?: (path: string, isDirectory: boolean) => void;
+  /** Desktop Shift+click: select the range from the anchor row to this one. */
+  onRangeSelect?: (path: string, isDirectory: boolean) => void;
+  /** Desktop plain click: clear any multi-selection before opening this row. */
+  onReplaceSelect?: (path: string) => void;
   /** Right-click / long-press: enter multi-select mode and select this row. */
   onContextSelect?: (path: string, isDirectory: boolean) => void;
   /** A new-entry rename session ended (committed, kept default, or canceled). */
@@ -148,6 +152,8 @@ function FileItem({
   isNew = false,
   onToggle,
   onToggleSelect,
+  onRangeSelect,
+  onReplaceSelect,
   onContextSelect,
   onEndNewEntry,
   onOpenFile,
@@ -502,11 +508,28 @@ function FileItem({
   async function onRowClick(e: MouseEvent) {
     if (renaming) return;
     e.stopPropagation();
-    // Multi-select mode: a row click toggles its checkbox instead of opening it.
+    // Mobile multi-select mode: a plain tap toggles this row's checkbox.
     if (selectMode) {
       onToggleSelect?.(path, isDirectory);
       return;
     }
+    // Desktop file-explorer multi-selection — no mode toggle needed. Shift =
+    // range from the anchor, Ctrl/Cmd = toggle one. Neither opens the row.
+    // (On macOS, Ctrl+click is a right-click — handled by onRowContextMenu — so
+    // Cmd is the multi-select modifier there; Ctrl covers Windows/Linux.)
+    if (e.shiftKey) {
+      e.preventDefault();
+      onRangeSelect?.(path, isDirectory);
+      return;
+    }
+    if (e.metaKey || e.ctrlKey) {
+      e.preventDefault();
+      onToggleSelect?.(path, isDirectory);
+      return;
+    }
+    // Plain click: drop any multi-selection, then open the file / toggle the
+    // folder.
+    onReplaceSelect?.(path);
     if (isDirectory) {
       onToggle?.(path);
       return;
@@ -559,10 +582,11 @@ function FileItem({
         class={`h-16 w-full justify-start gap-0 rounded-none pl-5 text-left text-base font-normal text-foreground/80 ${
           selectMode ? "pr-5" : "pr-14"
         } ${
-          selectMode
-            ? bulkSelected
-              ? "bg-primary/15"
-              : ""
+          // Multi-select highlight (mobile checkbox OR desktop modifier-click)
+          // wins; otherwise the open-file accent. Desktop shows no checkbox, so
+          // this tint is the only selection cue there.
+          bulkSelected
+            ? "bg-primary/15"
             : selected
               ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
               : ""

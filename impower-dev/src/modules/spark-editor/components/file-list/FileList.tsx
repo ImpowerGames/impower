@@ -258,6 +258,10 @@ export default function FileList({
   // Latest built tree, read by the stable select handlers to cascade a folder's
   // selection to its descendants (set after the tree is built below).
   const treeRef = useRef<FileTreeNode[]>([]);
+  // Desktop file-explorer selection: the anchor row for Shift+click ranges, and
+  // the latest visible rows (read by the stable range handler for their order).
+  const selectionAnchorRef = useRef<string | null>(null);
+  const rowsRef = useRef<{ path: string; isDirectory: boolean }[]>([]);
   // Latest previewable list, read by the stable `onOpenFile` handler.
   const previewItemsRef = useRef<PreviewItem[]>([]);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -577,6 +581,8 @@ export default function FileList({
         expanded,
         !!trimmedSearch || !!typeFilter,
       );
+  // Keep the visible-row order reachable from the stable Shift+range handler.
+  rowsRef.current = rows;
 
   // Previewable list (Assets panes only): the visible FILE rows in display order
   // mapped to preview items. `.url` assets resolve their media kind from the
@@ -634,7 +640,10 @@ export default function FileList({
   }, []);
   // Toggle a row; a folder cascades to ALL its descendants (files + subfolders),
   // so checking a folder checks everything inside it (and unchecking clears it).
+  // Used by the mobile checkbox tap AND desktop Ctrl/Cmd+click; either way the
+  // clicked row becomes the anchor for a subsequent Shift+click range.
   const toggleSelected = useCallback((rowPath: string, isDir: boolean) => {
+    selectionAnchorRef.current = rowPath;
     setSelectedPaths((prev) => {
       const next = new Set(prev);
       const group = isDir
@@ -647,6 +656,46 @@ export default function FileList({
       }
       return next;
     });
+  }, []);
+  // Desktop Shift+click: select the contiguous range of visible rows between the
+  // anchor and the clicked row (replacing the selection with that range, Explorer
+  // style); folders in the range cascade to their contents. No anchor yet → just
+  // select the clicked row and make it the anchor.
+  const rangeSelect = useCallback((rowPath: string, isDir: boolean) => {
+    const order = rowsRef.current;
+    const ci = order.findIndex((r) => r.path === rowPath);
+    const anchor = selectionAnchorRef.current;
+    const ai = anchor ? order.findIndex((r) => r.path === anchor) : -1;
+    if (ci < 0 || ai < 0) {
+      selectionAnchorRef.current = rowPath;
+      setSelectedPaths(() => {
+        const next = new Set<string>([rowPath]);
+        if (isDir) {
+          for (const p of descendantPaths(treeRef.current, rowPath)) next.add(p);
+        }
+        return next;
+      });
+      return;
+    }
+    const [lo, hi] = ai <= ci ? [ai, ci] : [ci, ai];
+    setSelectedPaths(() => {
+      const next = new Set<string>();
+      for (const r of order.slice(lo, hi + 1)) {
+        next.add(r.path);
+        if (r.isDirectory) {
+          for (const p of descendantPaths(treeRef.current, r.path)) next.add(p);
+        }
+      }
+      return next;
+    });
+    // Keep the anchor so successive Shift+clicks re-range from the same origin.
+  }, []);
+  // Desktop plain click: drop any multi-selection (clicking opens the row) and
+  // remember it as the anchor for a follow-up Shift+click. Returns the same Set
+  // when already empty so a normal click never forces a re-render.
+  const replaceSelect = useCallback((rowPath: string) => {
+    selectionAnchorRef.current = rowPath;
+    setSelectedPaths((prev) => (prev.size === 0 ? prev : new Set()));
   }, []);
   // Right-click a row: enter select mode (if needed) and select it — a folder
   // also selects its contents.
@@ -721,8 +770,10 @@ export default function FileList({
 
   // Multi-select derived state. Select-all covers EVERY node (files + folders,
   // including ones inside collapsed folders), not just the visible rows. Only
-  // computed in select mode so the full-tree walk never runs on a scroll frame.
-  const allNodePaths = selectMode
+  // computed when a selection UI is up (mobile select mode, or a desktop
+  // modifier-click selection) so the full-tree walk never runs on a scroll frame.
+  const hasSelection = selectMode || selectedPaths.size > 0;
+  const allNodePaths = hasSelection
     ? flattenVisibleRows(displayRoots, new Set<string>(), true).map(
         (r) => r.path,
       )
@@ -1071,10 +1122,14 @@ export default function FileList({
                   <FolderPlus class="size-4" />
                   New Folder
                 </DropdownItem>
-                <DropdownItem onSelect={() => setSelectMode(true)}>
-                  <Checkbox class="size-4" />
-                  Select
-                </DropdownItem>
+                {/* Mobile only — desktop multi-selects via Ctrl/Cmd+click and
+                    Shift+click, so the explicit mode toggle isn't needed there. */}
+                {diveMode && (
+                  <DropdownItem onSelect={() => setSelectMode(true)}>
+                    <Checkbox class="size-4" />
+                    Select
+                  </DropdownItem>
+                )}
                 <DropdownItem
                   onSelect={() => {
                     workspace.trashOpen.value = true;
@@ -1087,10 +1142,12 @@ export default function FileList({
             </DropdownRoot>
           }
           selectionRow={
-            selectMode ? (
+            hasSelection ? (
               // Multi-editing controls: select-all + count, then Delete + exit.
-              // Swapped in for the Filter/Sort row (same h-8) so the search bar
-              // above stays mounted and the list never shifts.
+              // Shown whenever there's a selection — mobile select mode OR a
+              // desktop Ctrl/Shift+click selection. Swapped in for the Filter/Sort
+              // row (same h-8) so the search bar above stays mounted and the list
+              // never shifts.
               <div class="flex h-8 flex-row items-center gap-2">
                 <Button
                   variant="ghost"
@@ -1250,12 +1307,11 @@ export default function FileList({
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                   onPointerDown={(e) => {
-                    // In select mode, dragging a SELECTED row drags the whole
-                    // selection; a non-selected row (or normal mode) drags just
-                    // itself. A plain tap still toggles selection (the drag only
-                    // arms on movement / long-press).
-                    const dragSelection =
-                      selectMode && selectedPaths.has(row.path);
+                    // Dragging a SELECTED row drags the whole selection (mobile
+                    // select mode OR a desktop modifier-click selection); a
+                    // non-selected row drags just itself. A plain tap still
+                    // toggles/opens (the drag only arms on movement / long-press).
+                    const dragSelection = selectedPaths.has(row.path);
                     const paths = dragSelection
                       ? [...selectedPaths]
                       : undefined;
@@ -1289,6 +1345,8 @@ export default function FileList({
                     isNew={editingNewPath === row.path}
                     onToggle={onItemActivate}
                     onToggleSelect={toggleSelected}
+                    onRangeSelect={rangeSelect}
+                    onReplaceSelect={replaceSelect}
                     onContextSelect={contextSelect}
                     onEndNewEntry={onEndNewEntry}
                     onOpenFile={onOpenFile}
