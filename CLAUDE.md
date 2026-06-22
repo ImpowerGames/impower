@@ -1,78 +1,44 @@
 # Working in this repo
 
-## Running the dev environment (editor + game preview)
+## Running the live editor / game preview
 
-The editor and the game preview are **two separate dev servers**, and the editor
-embeds the player as a **cross-origin iframe** over `postMessage` RPC:
+To see a change in the running editor or game preview, launch BOTH dev servers
+with one command from the repo root:
 
-- **`impower-dev`** → the editor / IDE (`<spark-editor>`). Default port **8080**
-  (honors `PORT`).
-- **`sparkdown-player-app`** → the game preview (`<spark-web-player>`). Default
-  port **5173** (Vite). This is the iframe the editor drives — opening it
-  directly just shows a blank player waiting for a program.
-
-**You open the EDITOR**, not the player. The player only renders a game once the
-editor compiles a project and pushes it over the RPC bridge.
-
-### Launch a matched pair
-
-```bash
-# 1. Player (pick a port PP):
-cd sparkdown-player-app
-npx vite --port <PP> --strictPort
-
-# 2. Editor (pick a port EP + a unique HMR port HP); point it at the player's port:
-cd impower-dev
-PORT=<EP> HMR_PORT=<HP> VITE_SPARKDOWN_PLAYER_ORIGIN=http://localhost:<PP> npm run dev
-
-# 3. Open the editor:
-http://localhost:<EP>      # use this exact host (see below)
+```sh
+npm run web:dev                # same-origin (default)
+npm run web:dev:cross-origin   # separate-origin iframe
 ```
 
-`VITE_SPARKDOWN_PLAYER_ORIGIN` **must** point at the player's actual port — it's
-the iframe `src`. If it's wrong, the iframe loads nothing.
+It auto-picks free ports (never colliding with another worktree's servers),
+wires every cross-referencing env var consistently, waits for readiness, and
+prints the editor URL. `Ctrl+C` stops both. Override ports with `EDITOR_PORT` /
+`PLAYER_PORT` / `HMR_PORT` if needed. Same-origin mode (the default) lets you
+inspect the live game DOM from the editor page via `window.__preview`.
 
-### The recurring "black preview" trap (origin mismatch)
+**Do NOT hand-launch the editor (`impower-dev`) and player (`sparkdown-player-app`)
+separately** unless you fully understand the handshake below — it's a footgun.
 
-The player accepts/sends RPC only to an **exact** origin
-(`scheme://host:port`). If the player's `VITE_SPARKDOWN_EDITOR_ORIGIN` doesn't
-exactly match the editor's real origin — e.g. `127.0.0.1` vs `localhost`, or a
-stale/default editor port — the browser **silently drops** the handshake. Result:
-**black preview, no error anywhere**. This is the #1 cause of "the preview won't
-show up".
+### Failure signature & why it happens
 
-- As of the player dev-origin fix, the player **relaxes this on localhost**: when
-  served from `localhost`/`127.0.0.1` it accepts the editor on any origin and
-  posts back with `"*"`. So for local dev you mainly just need
-  `VITE_SPARKDOWN_PLAYER_ORIGIN` → the correct player port. Prod stays strict.
-- Still **use one host consistently** (prefer `localhost`): the editor's
-  workspace storage (**OPFS**) is **per-origin**, so a project loaded under
-  `localhost:<EP>` is invisible under `127.0.0.1:<EP>`.
+The editor embeds the player as an `<iframe>` and they connect over a
+postMessage + MessageChannel handshake. The wiring that must agree:
 
-### Multiple checkouts
+- Editor needs `VITE_SPARKDOWN_PLAYER_ORIGIN` = the player's real origin (it's
+  the iframe `src`), plus a unique `HMR_PORT` (the default collides when another
+  editor is already running → its Vite HMR websocket fails → the page reloads in
+  a loop).
+- Player needs `VITE_SPARKDOWN_EDITOR_ORIGIN` = the editor's origin so its
+  handshake replies `postMessage` to the right place. (On `localhost` the player
+  now relaxes this — it learns the editor's origin from the first message — but
+  prod stays strict.)
 
-Each clone/worktree (`impower`, `impower-main`, `impower.worktrees/*`) runs its
-**own** pair from its **own** `packages/`, so give each distinct ports (e.g.
-`8080/5173`, `8081/5174`, `8082/5175`). A server launched from one checkout does
-**not** reflect another checkout's code — to test changes in a worktree, run the
-servers **from that worktree** (and `npm install` its `sparkdown-player-app` if
-needed). Confirm which checkout serves a port with the process command line, not
-assumptions.
+These are **build-time** Vite vars baked into each bundle, so a page reload
+won't fix a wrong value — you must restart the server. Get any of them wrong and
+the **Game Preview is fully black, even on PLAY** (the editor never completes
+`connect`/`Initialize`, so the game never runs); the editor pane itself looks
+fine. `npm run dev:preview` exists precisely so you never have to get this right
+by hand.
 
-### Other gotchas
-
-- **HMR port** defaults to **24679** but is overridable via `HMR_PORT`
-  (`impower-dev/build.ts`). Give each concurrently-running editor a unique
-  `HMR_PORT` — otherwise the 2nd one can't bind 24679 and the browser floods with
-  thousands of `WebSocket closed without opened` exceptions that also EVICT real
-  logs from the console buffer (making console debugging useless). With a unique
-  `HMR_PORT`, HMR works and the console stays clean.
-- **Worker bundle hot-reload (since `90fefc737`):** `sparkdown-player-app`'s
-  `viteInlineWorkerPlugin` now watches the worker's transitively-bundled dep
-  graph (esbuild metafile → `addWatchFile`), so editing `packages/*` engine/
-  compiler code hot-reloads the player worker on a normal reload — **no full
-  restart needed**. (Historically this required a full player-server restart;
-  a reload / `--force` would not pick it up.) The `sw.ts` service worker still
-  rebuilds only when `sw.ts` itself changes.
-- The `?raw` "Failed to scan for dependencies" errors in the editor startup log
-  are benign on this setup; the server still comes up (`Server ready at ...`).
+OPFS project storage is **per-origin**, so a project saved at one editor port is
+invisible at another — use the URL the launcher prints.

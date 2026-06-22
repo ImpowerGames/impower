@@ -9,7 +9,21 @@
 // divergence flagged in `Newlines.test.ts` and `CallStack.test.ts`.
 
 import { describe, expect, test } from "vitest";
-import { makeRuntimeStoryFromFile, runToEnd } from "./runtimeTestHarness";
+import {
+  makeRuntimeStoryFromFile,
+  makeRuntimeStoryFromSource,
+  runToEnd,
+} from "./runtimeTestHarness";
+import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+
+// Drive `Continue()` one beat at a time. A correctly-glued continuation
+// joins onto the previous line's beat, so the whole join is a SINGLE
+// `Continue()` boundary (mirrors `ChainedDialogueBreak.test.ts`).
+function continueBeats(story: RuntimeStory): string[] {
+  const beats: string[] = [];
+  while (story.canContinue) beats.push(story.Continue() ?? "");
+  return beats;
+}
 
 describe("Glue (ported from inkjs)", () => {
   test("simple glue across multiple lines", () => {
@@ -19,6 +33,19 @@ describe("Glue (ported from inkjs)", () => {
     // pattern as the multiline-glue logic test, exercising the
     // `Glue` runtime marker's newline-suppression behavior.
     const ctx = makeRuntimeStoryFromFile("glue", "simple-glue");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(runToEnd(ctx.story)).toBe("Some content with glue.\n");
+  });
+
+  test("trailing glue across multiple lines", () => {
+    // The mirror of the leading-`..` fixture above: each line ends with a
+    // trailing ` ..` glue marker instead of opening with one. The grammar
+    // recognizes (and highlights) trailing `..` as a `Glue` node, but the
+    // display lowerer used to read its raw `..` characters as literal text,
+    // so the lines never joined. Both forms must produce the same joined
+    // output, with the single space before `..` preserved as the word
+    // separator (`Some ..` + `content` → `Some content`).
+    const ctx = makeRuntimeStoryFromFile("glue", "trailing-glue");
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story)).toBe("Some content with glue.\n");
   });
@@ -74,6 +101,78 @@ describe("Glue — ported from ink fixture rewrites", () => {
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("A\nX\n");
+  });
+});
+
+// Glue is not action-only: a `..` marker joins consecutive display lines of
+// EVERY type (action, dialogue, heading, title, transitional, write), in both
+// the leading (`.. text`) and trailing (`text ..`) positions. A correct join
+// collapses the two lines into a SINGLE `Continue()` beat whose routing
+// prefix appears ONCE — the continuation inherits the first line's display
+// target. The raw beat text still carries the prefix (`ALICE:`, `$:`, …)
+// because the prefix-stripping interpreter is a separate layer; the runtime
+// concern here is the join + single beat + intact trailing newline.
+describe("Glue — across all display statement types", () => {
+  // [label, first-line text incl. prefix, raw joined beat]. The second line
+  // re-uses the same prefix; the join drops it.
+  const TYPES: { label: string; prefix: string; joined: string }[] = [
+    { label: "action", prefix: "", joined: "first second.\n" },
+    { label: "dialogue", prefix: "ALICE:", joined: "ALICE: first second.\n" },
+    { label: "heading", prefix: "$:", joined: "$: first second.\n" },
+    { label: "title", prefix: "^:", joined: "^: first second.\n" },
+    { label: "transitional", prefix: "%:", joined: "%: first second.\n" },
+    { label: "write", prefix: "@hud:", joined: "@hud: first second.\n" },
+  ];
+
+  for (const { label, prefix, joined } of TYPES) {
+    const p = prefix ? `${prefix} ` : "";
+
+    test(`trailing \`..\` joins two ${label} lines into one beat`, () => {
+      const ctx = makeRuntimeStoryFromSource(`${p}first ..\n${p}second.\n`);
+      expect(ctx.errorMessages).toEqual([]);
+      const beats = continueBeats(ctx.story);
+      expect(beats).toEqual([joined]);
+    });
+
+    test(`leading \`..\` joins a continuation onto a ${label} line`, () => {
+      // The continuation `.. second.` carries no prefix of its own (a
+      // leading-`..` line is always parsed as a bare continuation) and
+      // inherits the previous line's display target.
+      const ctx = makeRuntimeStoryFromSource(`${p}first\n.. second.\n`);
+      expect(ctx.errorMessages).toEqual([]);
+      const beats = continueBeats(ctx.story);
+      expect(beats).toEqual([joined]);
+    });
+  }
+
+  test("a chain of trailing `..` joins three dialogue lines into one beat", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      "ALICE: a ..\nALICE: b ..\nALICE: c.\n",
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(continueBeats(ctx.story)).toEqual(["ALICE: a b c.\n"]);
+  });
+
+  test("trailing `..` joins mid-body lines within a block dialogue", () => {
+    const ctx = makeRuntimeStoryFromSource("ALICE:\n  first ..\n  second.\n");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(continueBeats(ctx.story)).toEqual(["ALICE: first second.\n"]);
+  });
+
+  test("leading `..` joins mid-body lines within a block dialogue", () => {
+    // The separator space (after `.. `) must survive block-mode indentation
+    // stripping, so the words don't fuse into `firstsecond`.
+    const ctx = makeRuntimeStoryFromSource("ALICE:\n  first\n  .. second.\n");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(continueBeats(ctx.story)).toEqual(["ALICE: first second.\n"]);
+  });
+
+  test("a non-glued multi-line block dialogue still keeps its line breaks", () => {
+    // Guard the block-mode fix: without a `..`, body lines stay on separate
+    // lines (one beat, newline preserved between them).
+    const ctx = makeRuntimeStoryFromSource("ALICE:\n  one.\n  two.\n");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(continueBeats(ctx.story)).toEqual(["ALICE: one.\ntwo.\n"]);
   });
 });
 

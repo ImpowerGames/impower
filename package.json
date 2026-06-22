@@ -2,6 +2,12 @@
   "name": "impower-monorepo",
   "type": "module",
   "private": true,
+  "scripts": {
+    "web:dev": "node scripts/dev-preview.mjs --mode same-origin",
+    "web:dev:same-origin": "node scripts/dev-preview.mjs --mode same-origin",
+    "web:dev:cross-origin": "node scripts/dev-preview.mjs --mode cross-origin",
+    "vscode:dev": "npm --prefix vscode-sparkdown run watch"
+  },
   "workspaces": [
     "packages/*",
     "!packages/concept-generator",
