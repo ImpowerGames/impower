@@ -610,10 +610,13 @@ function FileItem({
         class={`h-16 w-full justify-start gap-0 rounded-none pl-5 text-left text-base font-normal text-foreground/80 ${
           selectMode ? "pr-5" : "pr-14"
         } ${
-          // Multi-select highlight (mobile checkbox OR desktop modifier-click)
-          // wins; otherwise the open-file accent. Desktop shows no checkbox, so
-          // this tint is the only selection cue there.
-          bulkSelected
+          // Multi-select highlight (mobile checkbox OR desktop modifier-click) —
+          // or the row whose desktop right-click context menu is open — wins;
+          // otherwise the open-file accent. Desktop shows no checkbox, so this
+          // tint is the only selection cue there. The context-menu tint shows
+          // WHICH row the menu acts on (and matches the selection look the user
+          // gets from Ctrl/Shift+click); it clears when the menu closes.
+          bulkSelected || contextMenu
             ? "bg-primary/15"
             : selected
               ? "bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
