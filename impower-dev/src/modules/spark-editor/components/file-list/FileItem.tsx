@@ -11,7 +11,7 @@ import {
   Ripple,
   Trash,
 } from "@impower/impower-ui/components";
-import { useComputed } from "@preact/signals";
+import { useComputed, useSignalEffect } from "@preact/signals";
 import { createPortal, memo } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
@@ -29,6 +29,7 @@ import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
 import FileMenuItems from "./FileMenuItems";
+import { openRowMenu } from "./openRowMenu";
 import FileOptionsButton from "./FileOptionsButton";
 import FileUsagesPanel, { type UsageLocation } from "./FileUsagesPanel";
 import RenameReferencesDialog from "./RenameReferencesDialog";
@@ -198,6 +199,18 @@ function FileItem({
     y: number;
     bulk: boolean;
   } | null>(null);
+  // Stable key for the cross-menu single-open coordination (shared with the
+  // 3-dots dropdowns via `openRowMenu`): close this context menu the moment any
+  // other menu claims the slot.
+  const ctxMenuKeyRef = useRef<symbol | null>(null);
+  if (!ctxMenuKeyRef.current) {
+    ctxMenuKeyRef.current = Symbol();
+  }
+  useSignalEffect(() => {
+    if (openRowMenu.value !== ctxMenuKeyRef.current) {
+      setContextMenu(null);
+    }
+  });
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
 
@@ -580,6 +593,9 @@ function FileItem({
     if (!bulkSelected) {
       onReplaceSelect?.(path);
     }
+    // Claim the single open slot so any other open menu (a 3-dots, or another
+    // row's context menu) closes.
+    openRowMenu.value = ctxMenuKeyRef.current;
     setContextMenu({ x: e.clientX, y: e.clientY, bulk: inMultiSelection });
   }
 
@@ -609,6 +625,14 @@ function FileItem({
         variant="ghost"
         class={`h-16 w-full justify-start gap-0 rounded-none pl-5 text-left text-base font-normal text-foreground/80 ${
           selectMode ? "pr-5" : "pr-14"
+        } ${
+          // Hover/press render as an ::after OVERLAY rather than a background-color
+          // swap, so they layer OVER the selection / context-menu tint instead of
+          // replacing it (the ghost variant's `hover:bg-foreground/5` would
+          // otherwise clobber the `bg-primary/15` highlight). Mirrors how the
+          // filled Button variants do their hover. The `before:` pseudo is left
+          // for the open-file accent below.
+          "hover:bg-transparent active:bg-transparent after:pointer-events-none after:absolute after:inset-0 after:bg-foreground after:opacity-0 after:transition-opacity after:content-[''] hover:after:opacity-[0.05] active:after:opacity-[0.12]"
         } ${
           // Multi-select highlight (mobile checkbox OR desktop modifier-click) —
           // or the row whose desktop right-click context menu is open — wins;
@@ -779,7 +803,14 @@ function FileItem({
             defaultOpen
             onOpenChange={(open) => {
               if (!open) {
-                window.setTimeout(() => setContextMenu(null), 250);
+                window.setTimeout(() => {
+                  setContextMenu(null);
+                  // Release the shared slot if we still hold it (another menu may
+                  // have claimed it meanwhile — then leave it alone).
+                  if (openRowMenu.value === ctxMenuKeyRef.current) {
+                    openRowMenu.value = null;
+                  }
+                }, 250);
               }
             }}
           >

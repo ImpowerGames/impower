@@ -5,20 +5,13 @@ import {
   DropdownRoot,
   DropdownTrigger,
 } from "@impower/impower-ui/components";
-import { signal, useComputed, useSignalEffect } from "@preact/signals";
+import { useComputed, useSignalEffect } from "@preact/signals";
 import { useRef, useState } from "preact/hooks";
 import workspace from "../../workspace/WorkspaceStore";
 import FileMenuItems, { type FileMenuItemsProps } from "./FileMenuItems";
+import { openRowMenu } from "./openRowMenu";
 
 export type FileOptionsButtonProps = FileMenuItemsProps;
-
-// Identity of the row whose options menu is currently open — only one at a time.
-// Opening a row reassigns this; every other instance's `useSignalEffect` then
-// sees its key no longer matches and disarms (closing its menu). This is needed
-// because the trigger stops event propagation (so the row click doesn't open the
-// file), which also prevents Radix's outside-click from dismissing a sibling
-// row's menu — without coordination they'd stack open.
-const openOptionsKey = signal<symbol | null>(null);
 
 const TRIGGER_CLASS =
   "mr-3 rounded-full text-foreground/50 hover:text-foreground";
@@ -41,10 +34,11 @@ export default function FileOptionsButton(props: FileOptionsButtonProps) {
   if (!keyRef.current) {
     keyRef.current = Symbol();
   }
-  // Close this menu when another row claims the open slot. (Reading no local
-  // state keeps it correct: setArmed(false) is a no-op when already closed.)
+  // Close this menu when another menu (any row's 3-dots, or a right-click context
+  // menu) claims the open slot. (Reading no local state keeps it correct:
+  // setArmed(false) is a no-op when already closed.)
   useSignalEffect(() => {
-    if (openOptionsKey.value !== keyRef.current) {
+    if (openRowMenu.value !== keyRef.current) {
       setArmed(false);
     }
   });
@@ -71,8 +65,9 @@ export default function FileOptionsButton(props: FileOptionsButtonProps) {
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
-          // Claim the single open slot (closes any other row's menu), then arm.
-          openOptionsKey.value = keyRef.current;
+          // Claim the single open slot (closes any other row's menu OR an open
+          // right-click context menu), then arm.
+          openRowMenu.value = keyRef.current;
           setArmed(true);
         }}
       >
@@ -92,8 +87,8 @@ export default function FileOptionsButton(props: FileOptionsButtonProps) {
           // mid-exit (it disarms when the slot key no longer matches).
           window.setTimeout(() => {
             setArmed(false);
-            if (openOptionsKey.value === keyRef.current) {
-              openOptionsKey.value = null;
+            if (openRowMenu.value === keyRef.current) {
+              openRowMenu.value = null;
             }
           }, 250);
         }
