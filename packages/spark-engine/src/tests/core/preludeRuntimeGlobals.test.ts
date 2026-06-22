@@ -154,6 +154,37 @@ describe("P5 P1: seedBuiltinsIntoStory source-injects the prelude", () => {
     expect(myAnim?.timing).toMatchObject({ fill: "both", direction: "normal" });
   });
 
+  test("cached prelude reuse: warm compiles are byte-identical to a fresh compile", () => {
+    // Fresh compiler → cold compile (parses + caches the prelude).
+    const fresh = compileUser(USER_SRC, true);
+    const freshJson = JSON.stringify(fresh.program.compiled);
+    expect(freshJson).toBeTruthy();
+
+    // One long-lived compiler, compiled repeatedly: the 2nd+ compiles reuse the
+    // cached prelude parse. The output must stay byte-identical to a fresh parse
+    // (proves resetParsedRuntime + re-splice is sound, no cross-compile bleed).
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      useBuiltinsPrelude: true,
+      seedBuiltinsIntoStory: true,
+      files: [
+        {
+          uri: USER_URI,
+          type: "script",
+          name: "main",
+          ext: "sd",
+          text: USER_SRC,
+          version: 0,
+          languageId: "sparkdown",
+        } as any,
+      ],
+    });
+    for (let i = 0; i < 3; i += 1) {
+      const r = compiler.compile({ textDocument: { uri: USER_URI } });
+      expect(JSON.stringify(r.program.compiled)).toBe(freshJson);
+    }
+  });
+
   test("flag ON: builtin instances are present in the user story too", () => {
     const on = compileUser(USER_SRC, true);
     const ctx = buildDefinesContext(new Story(on.program.compiled as any));

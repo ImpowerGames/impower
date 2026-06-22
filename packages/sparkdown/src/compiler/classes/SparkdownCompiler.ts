@@ -239,6 +239,13 @@ export class SparkdownCompiler {
   // those already came from mergePreludeContext, and re-merging would perturb
   // program.context (and the derived program.defines channel) vs the flag-off path.
   protected _injectingPrelude = false;
+  // The parsed builtins prelude (a constant), cached after its first parse so
+  // seedBuiltinsIntoStory reuses it across compiles instead of re-lowering
+  // hundreds of builtin defines every keystroke. Reused by resetting only its
+  // per-compile RUNTIME state (the same thing the incremental path does for
+  // unchanged chunks); PreProcessTopLevelObjects re-parents the content on each
+  // splice. Per-instance (mutated/reset per compile), so never shared.
+  protected _cachedPreludeParsedStory?: Story;
   // 0-based [startLine, endLine] source ranges of chunks that are NEW/changed
   // this compile (identity not in `_prevCompilationIds`).
   protected _changedChunkRanges?: Array<[number, number]>;
@@ -691,6 +698,33 @@ export class SparkdownCompiler {
     return result;
   }
 
+  /** Recursively clear the per-compile RUNTIME state of parsed objects (their
+   *  generated runtime objects + identifier runtime), mirroring the reset
+   *  `remapContent` does for reused incremental chunks but WITHOUT re-offsetting
+   *  debug metadata. Lets the cached, constant prelude parse be reused across
+   *  compiles; PreProcessTopLevelObjects re-parents the content on each splice. */
+  protected resetParsedRuntime(content: ParsedObject[]) {
+    for (const c of content) {
+      c.ResetRuntime();
+      if (
+        "identifier" in c &&
+        c.identifier instanceof Identifier
+      ) {
+        c.identifier.ResetRuntime();
+      }
+      if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
+        for (const p of c.pathIdentifiers) {
+          if (p instanceof Identifier) {
+            p.ResetRuntime();
+          }
+        }
+      }
+      if (c.content) {
+        this.resetParsedRuntime(c.content);
+      }
+    }
+  }
+
   parseIncrementally(
     uri: string,
     fileHandler: IFileHandler,
@@ -791,31 +825,40 @@ export class SparkdownCompiler {
       this._config.seedBuiltinsIntoStory &&
       this._config.useBuiltinsPrelude
     ) {
-      if (!this.documents.has(BUILTINS_PRELUDE_URI)) {
-        this.documents.add({
-          textDocument: {
-            uri: BUILTINS_PRELUDE_URI,
-            languageId: LANGUAGE_NAME,
-            version: 0,
-            text: BUILTINS_PRELUDE,
-          },
-        });
+      let preludeStory = this._cachedPreludeParsedStory;
+      if (preludeStory) {
+        // Reuse the cached parse: reset only the per-compile RUNTIME state on the
+        // constant prelude objects so ExportRuntime regenerates them cleanly
+        // (re-lowering hundreds of builtin defines every compile is too costly).
+        this.resetParsedRuntime(preludeStory.content);
+      } else {
+        if (!this.documents.has(BUILTINS_PRELUDE_URI)) {
+          this.documents.add({
+            textDocument: {
+              uri: BUILTINS_PRELUDE_URI,
+              languageId: LANGUAGE_NAME,
+              version: 0,
+              text: BUILTINS_PRELUDE,
+            },
+          });
+        }
+        const wasInjecting = this._injectingPrelude;
+        this._injectingPrelude = true;
+        try {
+          preludeStory = this.parseIncrementally(
+            BUILTINS_PRELUDE_URI,
+            fileHandler,
+            true,
+            state,
+            program,
+            onDiagnostic,
+          );
+        } finally {
+          this._injectingPrelude = wasInjecting;
+        }
+        this._cachedPreludeParsedStory = preludeStory;
       }
-      const wasInjecting = this._injectingPrelude;
-      this._injectingPrelude = true;
-      try {
-        const preludeStory = this.parseIncrementally(
-          BUILTINS_PRELUDE_URI,
-          fileHandler,
-          true,
-          state,
-          program,
-          onDiagnostic,
-        );
-        topLevelIncludedFileObjs.push(new IncludedFile(preludeStory));
-      } finally {
-        this._injectingPrelude = wasInjecting;
-      }
+      topLevelIncludedFileObjs.push(new IncludedFile(preludeStory));
     }
 
     while (cur.value) {
