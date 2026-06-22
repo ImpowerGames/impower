@@ -1,3 +1,8 @@
+import {
+  ArrowBackUp,
+  ArrowForwardUp,
+  Button,
+} from "@impower/impower-ui/components";
 import { useEffect } from "preact/hooks";
 import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 import HeaderMenuButton from "../header-menu-button/HeaderMenuButton";
@@ -87,6 +92,32 @@ export default function HeaderNavigation() {
             <HeaderTitleCaption />
           </div>
           <HeaderSyncToolbar />
+          {/* Global file-op undo/redo — mobile only. On desktop these are bound
+              to the Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z shortcuts handled above, so
+              the buttons are hidden (same ≥960px breakpoint as the preview
+              toggle). Disabled when there's nothing to (un/re)do. */}
+          <div class="flex flex-row items-center min-[960px]:hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Undo"
+              disabled={!canUndo.value}
+              onClick={() => void undo()}
+              class="rounded-full text-foreground/60 hover:text-foreground"
+            >
+              <ArrowBackUp class="size-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Redo"
+              disabled={!canRedo.value}
+              onClick={() => void redo()}
+              class="rounded-full text-foreground/60 hover:text-foreground"
+            >
+              <ArrowForwardUp class="size-5" />
+            </Button>
+          </div>
           {/* The preview toggle only needs to be visible while the
               SplitPane has collapsed and is showing a single pane at a
               time. Above 960px the split fits both panels side-by-side

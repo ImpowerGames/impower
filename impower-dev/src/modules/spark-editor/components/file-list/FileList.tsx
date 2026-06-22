@@ -5,8 +5,6 @@
 // module load. Both must be deferred — see memory:
 // feedback_defer_cjs_imports_in_ssr_loaded_modules.
 import {
-  ArrowBackUp,
-  ArrowForwardUp,
   Button,
   Check,
   Checkbox,
@@ -54,7 +52,6 @@ import getValidFileName from "../../utils/getValidFileName";
 import globToRegex from "../../utils/globToRegex";
 import { importDroppedFiles } from "../../utils/importDroppedFiles";
 import { recordMove, recordTrashDeletion } from "../../utils/fileUndo";
-import { canRedo, canUndo, redo, undo } from "../../utils/undoManager";
 import workspace from "../../workspace/WorkspaceStore";
 // Type-only import (fully erased at build) — safe despite the protocol package's
 // CJS runtime exports that would otherwise trip Vite SSR (see the file header).
@@ -1156,20 +1153,6 @@ export default function FileList({
                 </Button>
               </DropdownTrigger>
               <DropdownContent align="end" sideOffset={4}>
-                <DropdownItem
-                  disabled={!canUndo.value}
-                  onSelect={() => void undo()}
-                >
-                  <ArrowBackUp class="size-4" />
-                  Undo
-                </DropdownItem>
-                <DropdownItem
-                  disabled={!canRedo.value}
-                  onSelect={() => void redo()}
-                >
-                  <ArrowForwardUp class="size-4" />
-                  Redo
-                </DropdownItem>
                 <DropdownItem onSelect={() => void newFolder()}>
                   <FolderPlus class="size-4" />
                   New Folder
