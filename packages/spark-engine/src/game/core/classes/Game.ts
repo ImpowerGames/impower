@@ -26,6 +26,7 @@ import { StackFrame } from "../types/StackFrame";
 import { SystemConfiguration } from "../types/SystemConfiguration";
 import { Thread } from "../types/Thread";
 import { Variable, VariablePresentationHint } from "../types/Variable";
+import { buildDefinesContext } from "../utils/buildContextFromStory";
 import { findClosestPath } from "../utils/findClosestPath";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
 import { CheckpointStore } from "./CheckpointStore";
@@ -189,6 +190,9 @@ export class Game<T extends M = {}> {
     return this._restarted;
   }
 
+  // P5: overlay live runtime __def tables on the static defines channel.
+  protected _runtimeSourcedDefines = false;
+
   protected _state: GameState = "initial";
   get state() {
     return this._state;
@@ -241,6 +245,7 @@ export class Game<T extends M = {}> {
     });
 
     this._restarted = options?.restarted ?? false;
+    this._runtimeSourcedDefines = options?.runtimeSourcedDefines ?? false;
     const modules = options?.modules;
     const previewing = options?.previewFrom ? true : undefined;
     this._state = previewing ? "previewing" : "initial";
@@ -411,6 +416,14 @@ export class Game<T extends M = {}> {
       }
     };
     assignChannel(this._program.defines);
+    // P5: overlay the LIVE runtime define tables on the static channel. The
+    // runtime tables (built by the story's __def calls) resolve authored→builtin
+    // inheritance via the VM __index chain and carry the richer values the lossy
+    // compile-time channel drops. Merged OVER program.defines per type+name so
+    // any define type the runtime doesn't carry falls back to the static channel.
+    if (this._runtimeSourcedDefines) {
+      this.assignRuntimeDefines();
+    }
     assignChannel(this._program.assets);
     if (this._program.layouts) {
       this._context["layout"] = this._program.layouts;
@@ -423,6 +436,25 @@ export class Game<T extends M = {}> {
     }
     if (this._program.styles) {
       this._context["style"] = this._program.styles;
+    }
+  }
+
+  /** P5: overlay the live runtime `__def` tables onto the static defines already
+   *  on `_context`. Per type, runtime structs override static ones by name, while
+   *  static-only types/names are preserved (fallback). No-op when the story has no
+   *  globals yet (e.g. an uncompiled program). */
+  protected assignRuntimeDefines() {
+    const globals = this._story?.state?.variablesState?.["_globalVariables"];
+    if (!globals || globals.size === 0) {
+      return;
+    }
+    const runtime = buildDefinesContext(this._story);
+    for (const [type, structs] of Object.entries(runtime)) {
+      const existing = this._context[type];
+      this._context[type] =
+        existing && typeof existing === "object"
+          ? { ...existing, ...structs }
+          : structs;
     }
   }
 
