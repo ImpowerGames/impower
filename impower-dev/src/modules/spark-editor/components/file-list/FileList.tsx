@@ -509,6 +509,31 @@ export default function FileList({
     });
   }, []);
 
+  // A folder's path changed (inline rename or drag-move) — rewrite any expand
+  // state under the old path to the new one so the folder, and its expanded
+  // descendants, stay open. Expansion is keyed by path (there's no stable folder
+  // id), so each move site must call this; the renamed paths share the old
+  // prefix exactly, so a prefix swap covers the whole subtree.
+  const remapExpanded = useCallback((oldPath: string, newPath: string) => {
+    if (oldPath === newPath) return;
+    setExpanded((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const p of prev) {
+        if (p === oldPath) {
+          next.add(newPath);
+          changed = true;
+        } else if (p.startsWith(`${oldPath}/`)) {
+          next.add(`${newPath}${p.slice(oldPath.length)}`);
+          changed = true;
+        } else {
+          next.add(p);
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, []);
+
   // Project-relative path -> FileData (thumbnail src + size/modified for the
   // caption + the sort/filter keys), plus the flat path list for the tree.
   const filesByPath = new Map<string, FileData>();
@@ -1011,6 +1036,9 @@ export default function FileList({
         : await Workspace.fs.moveFile(projectId, src, destPath);
       if (result.some((d) => d.type === "script")) scriptChanged = true;
       else assetChanged = true;
+      // Keep a dragged folder's expand state across the move (same fix as the
+      // inline rename — expansion is keyed by path).
+      if (isDir) remapExpanded(src, destPath);
       recordMove(projectId, src, destPath, isDir);
     }
     if (scriptChanged) await Workspace.window.recordScriptChange();
@@ -1387,6 +1415,7 @@ export default function FileList({
                     onDownloadSelected={onDownloadSelected}
                     onContextSelect={contextSelect}
                     onEndNewEntry={onEndNewEntry}
+                    onFolderRenamed={remapExpanded}
                     onOpenFile={onOpenFile}
                   />
                 </div>

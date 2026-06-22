@@ -129,6 +129,12 @@ export type FileItemProps = {
   /** A new-entry rename session ended (committed, kept default, or canceled). */
   onEndNewEntry?: () => void;
   /**
+   * A folder finished renaming (its path changed). The parent remaps any
+   * expand state keyed by the old path so the folder — and any expanded
+   * descendants — stay open under the new path instead of collapsing.
+   */
+  onFolderRenamed?: (oldPath: string, newPath: string) => void;
+  /**
    * Open a FILE on click. When provided it replaces the default "open in editor"
    * behavior — the Assets panes pass a handler that opens the preview overlay
    * instead. (Folders still toggle/navigate; this is files only.)
@@ -168,6 +174,7 @@ function FileItem({
   onDownloadSelected,
   onContextSelect,
   onEndNewEntry,
+  onFolderRenamed,
   onOpenFile,
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
@@ -437,6 +444,10 @@ function FileItem({
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
     await Workspace.fs.moveFolder(projectId, oldPath, newPath);
+    // Expand state is keyed by path, so without this the renamed folder (and any
+    // expanded descendants) would collapse. Remap BEFORE the reload that
+    // recordAssetChange triggers, so the new tree renders already-expanded.
+    onFolderRenamed?.(oldPath, newPath);
     await Workspace.window.recordAssetChange();
     recordMove(projectId, oldPath, newPath, true);
   }
