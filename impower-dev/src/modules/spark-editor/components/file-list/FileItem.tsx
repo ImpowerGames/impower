@@ -492,7 +492,22 @@ function FileItem({
   }
 
   async function onRowClick(e: MouseEvent) {
-    if (renaming) return;
+    if (renaming) {
+      // The name <input> stops its own clicks (see its onClick), so a click that
+      // reaches here while renaming landed on the row OUTSIDE the input. Treat it
+      // like clicking away: commit the pending name. For a folder, follow through
+      // with the expand/collapse in the SAME click — a freshly-created folder
+      // opens straight into rename mode, and without this its very first click
+      // was swallowed (you had to click elsewhere to commit, then click the
+      // folder again, before the chevron would rotate).
+      e.stopPropagation();
+      commit();
+      if (isDirectory) {
+        onReplaceSelect?.(path);
+        onToggle?.(path);
+      }
+      return;
+    }
     e.stopPropagation();
     // Mobile multi-select mode: a plain tap toggles this row's checkbox.
     if (selectMode) {
