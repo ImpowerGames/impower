@@ -43,6 +43,40 @@ function isEditableFocus(): boolean {
   return !!el.closest?.(".cm-editor");
 }
 
+const IS_MAC =
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || "");
+
+// Make the mobile Undo/Redo buttons behave EXACTLY like the desktop Ctrl+Z /
+// Ctrl+Shift+Z: replay the shortcut as a synthetic keydown on the DEEPEST focused
+// element (descending shadow roots). If a script editor (CodeMirror) is focused,
+// its own keymap performs a TEXT undo; otherwise the event bubbles (composed) to
+// the window handler below, which inverts the last FILE operation. The buttons
+// fire on pointerdown + preventDefault so they don't steal focus from the editor
+// first (which would otherwise misroute it to the file-op undo).
+function replayUndoShortcut(isRedo: boolean): void {
+  let el: Element | null = document.activeElement;
+  while (el && el.shadowRoot && el.shadowRoot.activeElement) {
+    el = el.shadowRoot.activeElement;
+  }
+  const init: KeyboardEventInit = {
+    key: "z",
+    code: "KeyZ",
+    shiftKey: isRedo,
+    bubbles: true,
+    composed: true,
+    cancelable: true,
+  };
+  // CodeMirror's "Mod" is Cmd on macOS/iOS, Ctrl elsewhere — match it so the
+  // editor's keymap fires; the window handler accepts either (ctrlKey || metaKey).
+  if (IS_MAC) {
+    init.metaKey = true;
+  } else {
+    init.ctrlKey = true;
+  }
+  (el ?? document.body).dispatchEvent(new KeyboardEvent("keydown", init));
+}
+
 export default function HeaderNavigation() {
   useEffect(() => {
     const onKey = async (e: KeyboardEvent) => {
@@ -92,17 +126,23 @@ export default function HeaderNavigation() {
             <HeaderTitleCaption />
           </div>
           <HeaderSyncToolbar />
-          {/* Global file-op undo/redo — mobile only. On desktop these are bound
-              to the Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z shortcuts handled above, so
-              the buttons are hidden (same ≥960px breakpoint as the preview
-              toggle). Disabled when there's nothing to (un/re)do. */}
+          {/* Undo/redo — mobile only. On desktop these are bound to the Ctrl+Z /
+              Ctrl+Y / Ctrl+Shift+Z shortcuts handled above, so the buttons are
+              hidden (same ≥960px breakpoint as the preview toggle). They REPLAY
+              the shortcut (see replayUndoShortcut) so they route exactly like it —
+              text undo in a focused script editor, file-op undo otherwise. Acting
+              on pointerdown + preventDefault keeps the editor focused, and (like
+              the shortcut) they stay pressable — a no-op when there's nothing to
+              undo. */}
           <div class="flex flex-row items-center min-[960px]:hidden">
             <Button
               variant="ghost"
               size="icon"
               aria-label="Undo"
-              disabled={!canUndo.value}
-              onClick={() => void undo()}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                replayUndoShortcut(false);
+              }}
               class="rounded-full text-foreground/60 hover:text-foreground"
             >
               <ArrowBackUp class="size-5" />
@@ -111,8 +151,10 @@ export default function HeaderNavigation() {
               variant="ghost"
               size="icon"
               aria-label="Redo"
-              disabled={!canRedo.value}
-              onClick={() => void redo()}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                replayUndoShortcut(true);
+              }}
               class="rounded-full text-foreground/60 hover:text-foreground"
             >
               <ArrowForwardUp class="size-5" />
