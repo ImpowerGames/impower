@@ -25,7 +25,13 @@ import {
 import { useComputed } from "@preact/signals";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { ComponentChildren } from "preact";
-import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "preact/hooks";
 import { extOf, fileCategory, isImagePath } from "../../utils/fileIcon";
 import {
   buildFileTree,
@@ -769,17 +775,26 @@ export default function FileList({
   const isEmpty = uris !== null && rows.length === 0;
 
   // Multi-select derived state. Select-all covers EVERY node (files + folders,
-  // including ones inside collapsed folders), not just the visible rows. Only
-  // computed when a selection UI is up (mobile select mode, or a desktop
-  // modifier-click selection) so the full-tree walk never runs on a scroll frame.
+  // including ones inside collapsed folders), not just the visible rows.
   const hasSelection = selectMode || selectedPaths.size > 0;
-  const allNodePaths = hasSelection
-    ? flattenVisibleRows(displayRoots, new Set<string>(), true).map(
-        (r) => r.path,
-      )
-    : [];
-  const allSelected =
-    allNodePaths.length > 0 && allNodePaths.every((p) => selectedPaths.has(p));
+  // Memoized so the full-tree walk never runs on a scroll frame: the node SET is
+  // determined by the loaded files + the active filter/search (+ pane root) —
+  // sort order and expand state don't change which nodes exist. (`displayRoots`
+  // is rebuilt every render but is deterministic from these deps.)
+  const allNodePaths = useMemo(
+    () =>
+      hasSelection
+        ? flattenVisibleRows(displayRoots, new Set<string>(), true).map(
+            (r) => r.path,
+          )
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hasSelection, uris, typeFilter, trimmedSearch, rootDir],
+  );
+  const allSelected = useMemo(
+    () => allNodePaths.length > 0 && allNodePaths.every((p) => selectedPaths.has(p)),
+    [allNodePaths, selectedPaths],
+  );
   const toggleSelectAll = () => {
     setSelectedPaths(allSelected ? new Set() : new Set(allNodePaths));
   };
@@ -859,6 +874,22 @@ export default function FileList({
     }
     exitSelectMode();
   };
+
+  // Stable wrappers so the bulk handlers can be passed to memo()'d FileItems (for
+  // the desktop right-click-on-a-multi-selection menu) without breaking their
+  // memo — the real handlers close over volatile state, so route through a ref.
+  const deleteSelectedRef = useRef(deleteSelected);
+  deleteSelectedRef.current = deleteSelected;
+  const downloadSelectedRef = useRef(downloadSelected);
+  downloadSelectedRef.current = downloadSelected;
+  const onDeleteSelected = useCallback(
+    () => void deleteSelectedRef.current(),
+    [],
+  );
+  const onDownloadSelected = useCallback(
+    () => void downloadSelectedRef.current(),
+    [],
+  );
 
   const newFolder = async () => {
     if (!projectId) return;
@@ -1343,10 +1374,13 @@ export default function FileList({
                     selectMode={selectMode}
                     bulkSelected={selectedPaths.has(row.path)}
                     isNew={editingNewPath === row.path}
+                    selectionCount={selectedPaths.size}
                     onToggle={onItemActivate}
                     onToggleSelect={toggleSelected}
                     onRangeSelect={rangeSelect}
                     onReplaceSelect={replaceSelect}
+                    onDeleteSelected={onDeleteSelected}
+                    onDownloadSelected={onDownloadSelected}
                     onContextSelect={contextSelect}
                     onEndNewEntry={onEndNewEntry}
                     onOpenFile={onOpenFile}

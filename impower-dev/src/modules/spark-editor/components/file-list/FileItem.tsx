@@ -2,11 +2,14 @@ import {
   Button,
   Check,
   ChevronRight,
+  Download,
   DropdownContent,
+  DropdownItem,
   DropdownRoot,
   DropdownTrigger,
   FolderFill,
   Ripple,
+  Trash,
 } from "@impower/impower-ui/components";
 import { useComputed } from "@preact/signals";
 import { createPortal, memo } from "preact/compat";
@@ -115,6 +118,12 @@ export type FileItemProps = {
   onRangeSelect?: (path: string, isDirectory: boolean) => void;
   /** Desktop plain click: clear any multi-selection before opening this row. */
   onReplaceSelect?: (path: string) => void;
+  /** How many rows are currently selected — for the right-click bulk menu. */
+  selectionCount?: number;
+  /** Bulk delete the current selection (desktop right-click on a selected row). */
+  onDeleteSelected?: () => void;
+  /** Bulk download the current selection (desktop right-click on a selected row). */
+  onDownloadSelected?: () => void;
   /** Right-click / long-press: enter multi-select mode and select this row. */
   onContextSelect?: (path: string, isDirectory: boolean) => void;
   /** A new-entry rename session ended (committed, kept default, or canceled). */
@@ -154,6 +163,9 @@ function FileItem({
   onToggleSelect,
   onRangeSelect,
   onReplaceSelect,
+  selectionCount = 0,
+  onDeleteSelected,
+  onDownloadSelected,
   onContextSelect,
   onEndNewEntry,
   onOpenFile,
@@ -180,9 +192,12 @@ function FileItem({
   const [thumbFailed, setThumbFailed] = useState(false);
   // Desktop right-click context menu position (viewport px), or null when closed.
   // Lazily mounted (like the 3-dots menu) so idle rows carry no Radix root.
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(
-    null,
-  );
+  // `bulk` = right-clicked a row inside a multi-selection → show bulk actions.
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    bulk: boolean;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const rowRef = useRef<HTMLDivElement | null>(null);
 
@@ -278,7 +293,10 @@ function FileItem({
     return () => cancelAnimationFrame(id);
   }, [renaming, name]);
 
-  // Click-outside commits (if changed) and exits rename mode.
+  // Click-outside commits (if changed) and exits rename mode. CAPTURE phase so it
+  // runs BEFORE another row's onRowClick `stopPropagation` (which would otherwise
+  // swallow the bubble before it reached document) — clicking/Ctrl-clicking
+  // another row to start a selection now commits the open rename first.
   useEffect(() => {
     if (!renaming) return;
     const onDoc = (e: MouseEvent) => {
@@ -288,8 +306,8 @@ function FileItem({
         commit();
       }
     };
-    document.addEventListener("click", onDoc);
-    return () => document.removeEventListener("click", onDoc);
+    document.addEventListener("click", onDoc, true);
+    return () => document.removeEventListener("click", onDoc, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renaming, inputValue]);
 
@@ -517,12 +535,14 @@ function FileItem({
     // range from the anchor, Ctrl/Cmd = toggle one. Neither opens the row.
     // (On macOS, Ctrl+click is a right-click — handled by onRowContextMenu — so
     // Cmd is the multi-select modifier there; Ctrl covers Windows/Linux.)
-    if (e.shiftKey) {
+    // Gated to desktop (!diveMode) so a hardware-modifier held during a touch tap
+    // on a mobile/narrow layout still falls through to open/navigate.
+    if (!diveMode && e.shiftKey) {
       e.preventDefault();
       onRangeSelect?.(path, isDirectory);
       return;
     }
-    if (e.metaKey || e.ctrlKey) {
+    if (!diveMode && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       onToggleSelect?.(path, isDirectory);
       return;
@@ -547,12 +567,20 @@ function FileItem({
     e.stopPropagation();
     // Mobile (dive mode): a long-press fires `contextmenu` — enter multi-select,
     // the touch-friendly way to act on several files. Already selecting? keep
-    // toggling. Desktop: open the options menu as a context menu at the cursor.
+    // toggling.
     if (diveMode || selectMode) {
       onContextSelect?.(path, isDirectory);
-    } else {
-      setContextMenu({ x: e.clientX, y: e.clientY });
+      return;
     }
+    // Desktop: open the options menu as a context menu at the cursor. Match the
+    // selection to what the menu acts on (Explorer/Finder): right-clicking INSIDE
+    // a multi-selection shows bulk actions; right-clicking an UNSELECTED row drops
+    // the selection so the single-row menu is unambiguous.
+    const inMultiSelection = bulkSelected && selectionCount > 1;
+    if (!bulkSelected) {
+      onReplaceSelect?.(path);
+    }
+    setContextMenu({ x: e.clientX, y: e.clientY, bulk: inMultiSelection });
   }
 
   // The row's actions — shared by the 3-dots menu and the desktop right-click
@@ -767,7 +795,21 @@ function FileItem({
               // don't let Radix pull focus back to the (about-to-unmount) trigger.
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
-              <FileMenuItems {...menuItemProps} />
+              {contextMenu.bulk ? (
+                // Right-clicked inside a multi-selection → act on the whole group.
+                <>
+                  <DropdownItem onSelect={() => onDownloadSelected?.()}>
+                    <Download class="size-4" />
+                    Download {selectionCount} items
+                  </DropdownItem>
+                  <DropdownItem onSelect={() => onDeleteSelected?.()}>
+                    <Trash class="size-4" />
+                    Delete {selectionCount} items
+                  </DropdownItem>
+                </>
+              ) : (
+                <FileMenuItems {...menuItemProps} />
+              )}
             </DropdownContent>
           </DropdownRoot>,
           document.body,
