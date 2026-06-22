@@ -637,10 +637,12 @@ const zipFiles = async (files: { uri: string; path?: string }[]) => {
     files.map(async ({ uri, path }) => {
       const fileHandle = await getFileHandleFromUri(root, uri, false);
       const fileRef = await fileHandle.getFile();
-      const arrayBuffer = await fileRef.arrayBuffer();
+      const data = await fileRef.arrayBuffer();
       // Key by the caller-provided project-relative path so folders survive;
-      // fall back to the bare filename for path-less (legacy) callers.
-      return { path: path || fileRef.name, arrayBuffer };
+      // fall back to the bare filename for path-less (legacy) callers. NOTE: the
+      // field MUST be `data` — buildZippable reads `entry.data`; a `{arrayBuffer}`
+      // here silently zipped EMPTY entries (new Uint8Array(undefined)).
+      return { path: path || fileRef.name, data };
     }),
   );
   const zipped = zipSync(buildZippable(refs), {
