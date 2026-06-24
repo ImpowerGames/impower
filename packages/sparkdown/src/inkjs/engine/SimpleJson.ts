@@ -314,6 +314,15 @@ export namespace SimpleJson {
       this._addToCurrentObject(null);
     }
 
+    // Inject a pre-built JS value (object/array/scalar) into the current array or
+    // property context as-is. Used by the incremental ToJson cache to splice a
+    // memoized, already-serialized flow subtree instead of re-walking it. The value
+    // is stored by reference; callers must treat it as immutable.
+    public WriteInjected(value: any) {
+      this.StartNewObject(false);
+      this._addToCurrentObject(value);
+    }
+
     // Prepare a string before adding it to the current collection in
     // WriteStringEnd(). The string will be a concatenation of all the
     // strings passed to WriteStringInner.
