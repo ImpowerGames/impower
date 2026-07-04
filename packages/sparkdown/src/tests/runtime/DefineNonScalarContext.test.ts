@@ -116,4 +116,36 @@ end
     expect(errors).toEqual([]);
     expect(out).toContain("Hello.");
   });
+
+  test("a SCALAR bare reference emits a {$type,$name} object, not a string", () => {
+    // Regression: a `filtered_image`'s `image = bunny_realization` is a struct
+    // reference, but `coerceScalarLiteral` used to claim the bare identifier as
+    // a plain string "bunny_realization". The engine's `filterImage` reads
+    // `image.$name`, so a string left it unable to find the base image and the
+    // portrait silently rendered nothing. It must reach context as a reference
+    // object, matching `schema_filtered_image` / `default_filtered_image`.
+    const result = compile(`define bunny_angry as filtered_image with
+  image = bunny_realization
+  filters = {
+    face_angry,
+  }
+end
+`);
+    const fi = result.program.context?.["filtered_image"]?.["bunny_angry"];
+    expect(fi).toBeDefined();
+    expect(fi!["image"]).toEqual({ $type: "", $name: "bunny_realization" });
+    // Non-scalar table refs still compile to references too.
+    expect(fi!["filters"]).toEqual([{ $type: "", $name: "face_angry" }]);
+  });
+
+  test("a quoted string scalar stays a string (reference fix must not capture it)", () => {
+    const result = compile(`define panel as character with
+  name = "PANEL"
+  color = "surface"
+end
+`);
+    const c = result.program.context?.["character"]?.["panel"];
+    expect(c!["name"]).toBe("PANEL");
+    expect(c!["color"]).toBe("surface");
+  });
 });
