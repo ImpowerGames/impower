@@ -2127,11 +2127,19 @@ export class SparkdownCompiler {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.implicits.iter();
         while (cur.value) {
-          const text = doc.read(cur.from, cur.to);
+          // Trim the read text AND each `~`-separated part: when an asset
+          // command is followed by a clause (e.g. `[[hero~a~b with flip]]`),
+          // the `AssetCommandName` node greedily includes the trailing space
+          // before the clause, so the last filter would otherwise be `"b "`.
+          // That produced a filtered_image keyed `hero~a~b ` (with a space),
+          // which never matched the reference's clean `sortFilteredName` key —
+          // so the image "could not be found" whenever a `with`/`over`/etc.
+          // clause was present.
+          const text = doc.read(cur.from, cur.to).trim();
           if (!resolvedImplicits.has(text)) {
             resolvedImplicits.add(text);
             const type = cur.value.type;
-            const parts = text.split("~");
+            const parts = text.split("~").map((part) => part.trim());
             const [fileName, ...filterNames] = parts;
             const sortedFilterNames = filterNames.sort();
             const name = [fileName, ...sortedFilterNames].join("~");
