@@ -85193,7 +85193,11 @@
     },
     "context": {
       "character": {
-        "char_0": "[Circular]"
+        "char_0": {
+          "$name": "char_0",
+          "$type": "character",
+          "color": "#000000"
+        }
       },
       "script": {
         "main": {

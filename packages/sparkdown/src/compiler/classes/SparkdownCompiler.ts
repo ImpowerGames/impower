@@ -38,6 +38,7 @@ import {
 import { LowerContext } from "../lower/context";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
+import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { asINamedContentOrNull, asOrNull } from "../../inkjs/engine/TypeAssertion";
 import { Container } from "../../inkjs/engine/Container";
@@ -177,6 +178,14 @@ export class SparkdownCompiler {
   // 0-based [startLine, endLine] source ranges of chunks that are NEW/changed
   // this compile (identity not in `_prevCompilationIds`).
   protected _changedChunkRanges?: Array<[number, number]>;
+
+  // Incremental ToJson cache: per top-level flow name, its serialized JS subtree
+  // (the value under `program.compiled.root`'s terminating object) plus the
+  // cross-flow fingerprint of the resolved runtime container it was serialized
+  // from. A flow's cached JSON is reused iff its source CHUNK is unchanged AND its
+  // cross-flow fingerprint matches AND no header/global chunk changed (const
+  // inlining / global decl) — see the `flowMemo` in `compile`.
+  protected _flowJsonCache?: Map<string, { fp: string; value: any }>;
   // While recomputing a non-reusable flow's subtree, populateLocations tees the
   // entries it commits here so they can be cached for next compile.
   protected _locCaptureTarget?: {
@@ -566,7 +575,50 @@ export class SparkdownCompiler {
       if (story) {
         profile("start", this._profilerId, "ink/json", uri);
         const writer = new SimpleJson.Writer();
-        story.ToJson(writer);
+        // Incremental ToJson: reuse the serialized subtree of each top-level flow
+        // whose source content is unchanged AND whose cross-flow fingerprint
+        // (#f flags + resolved divert/reference paths) is unchanged. Content is
+        // covered by the chunk-unchanged signal; the fingerprint covers the
+        // cross-flow bits that change without the flow's own source changing.
+        const { reusable: reusableFlows, ok: flowReuseOk } =
+          this.computeFlowReuse(story);
+        if (!flowReuseOk) {
+          // The global guard failed (a changed chunk sits before the first flow,
+          // so an inlined const may have shifted): no flow can be reused this
+          // compile. Take the exact baseline path — no fingerprinting, which
+          // would otherwise be pure overhead — and let the cache lapse so the
+          // next reuse-eligible edit reseeds from a fresh serialization.
+          story.ToJson(writer);
+          this._flowJsonCache = undefined;
+        } else {
+          const prevFlowCache = this._flowJsonCache;
+          const nextFlowCache = new Map<string, { fp: string; value: any }>();
+          const flowMemo = {
+            resolve: (
+              name: string,
+              container: Container,
+              serialize: () => any,
+            ) => {
+              // `global decl` is non-contiguous (scattered declarations) and
+              // cheap; always serialize it fresh, never cache.
+              if (name === "global decl") {
+                return serialize();
+              }
+              const fp = JsonSerialisation.FingerprintCrossFlow(container);
+              let value: any;
+              if (reusableFlows.has(name) && prevFlowCache) {
+                const cached = prevFlowCache.get(name);
+                value = cached && cached.fp === fp ? cached.value : serialize();
+              } else {
+                value = serialize();
+              }
+              nextFlowCache.set(name, { fp, value });
+              return value;
+            },
+          };
+          story.ToJson(writer, flowMemo);
+          this._flowJsonCache = nextFlowCache;
+        }
         const json = writer.toObject();
         if (json) {
           program.compiled = json;
@@ -1440,6 +1492,82 @@ export class SparkdownCompiler {
       }
       cur = cur.nextSibling;
     }
+  }
+
+  // Decide which top-level flows the incremental ToJson cache may reuse this
+  // compile. A flow is a reuse CANDIDATE when its source content is unchanged —
+  // no changed chunk overlaps its source span (same span/changed-chunk logic the
+  // location cache uses). The caller additionally requires the flow's cross-flow
+  // fingerprint to match before actually reusing.
+  //
+  // `ok` is the GLOBAL guard: only `const` values get INLINED into flow bytecode
+  // (vars/stores are referenced by name; defines/lists go to structDefs/listDefs,
+  // which ToJson always re-serializes), and consts are top-level declarations
+  // that sit before the first named flow. So if any changed chunk lies before the
+  // first flow's span, a referenced const may have changed and every flow must be
+  // re-serialized; otherwise per-flow content+fingerprint reuse is sound.
+  protected computeFlowReuse(story: RuntimeStory): {
+    reusable: Set<string>;
+    ok: boolean;
+  } {
+    const reusable = new Set<string>();
+    const root = story.mainContentContainer;
+    const named = root?.namedOnlyContent;
+    const changed = this._changedChunkRanges ?? [];
+    if (!named) {
+      return { reusable, ok: true };
+    }
+    const flows: Array<{ name: string; start0: number }> = [];
+    for (const [name, value] of named) {
+      if (name === "global decl") {
+        continue;
+      }
+      const c = asOrNull(value, Container);
+      const md = c?.ownDebugMetadata;
+      flows.push({ name, start0: md ? md.startLineNumber - 1 : -1 });
+    }
+    const starts = flows
+      .map((f) => f.start0)
+      .filter((s) => s >= 0)
+      .sort((a, b) => a - b);
+    const firstStart = starts.length ? starts[0]! : Number.POSITIVE_INFINITY;
+    let ok = true;
+    for (let i = 0; i < changed.length; i++) {
+      if (changed[i]![0] < firstStart) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) {
+      const spanEndOf = (start0: number): number => {
+        for (const s of starts) {
+          if (s > start0) {
+            return s;
+          }
+        }
+        return Number.POSITIVE_INFINITY;
+      };
+      for (const f of flows) {
+        if (f.start0 < 0) {
+          continue;
+        }
+        const end0 = spanEndOf(f.start0);
+        const guardStart = f.start0 - 1;
+        let overlap = false;
+        for (let i = 0; i < changed.length; i++) {
+          const cs = changed[i]![0];
+          const ce = changed[i]![1];
+          if (ce >= guardStart && cs < end0) {
+            overlap = true;
+            break;
+          }
+        }
+        if (!overlap) {
+          reusable.add(f.name);
+        }
+      }
+    }
+    return { reusable, ok };
   }
 
   populateAllLocations(program: SparkProgram, story: RuntimeStory) {
