@@ -126,9 +126,9 @@ host_record(h.title)`,
 describe("store-only · named define globals", () => {
   test("store change persists; own non-store prop survives via merge", () => {
     const { errors, recorded } = roundTrip(
-      `O.trust = O.trust - 1`,
-      `host_record(O.trust)
-host_record(O.name)`,
+      `companion.O.trust = companion.O.trust - 1`,
+      `host_record(companion.O.trust)
+host_record(companion.O.name)`,
       `
 define companion with
   store trust = 5

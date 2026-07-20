@@ -14563,7 +14563,7 @@
             "/str",
             "stdlib:__def:3",
             {
-              "VAR=": "char_0"
+              "VAR=": "$character_char_0"
             },
             "/ev",
             "end",
@@ -86966,7 +86966,7 @@
             "/str",
             "stdlib:__def:3",
             {
-              "VAR=": "char_0"
+              "VAR=": "$character_char_0"
             },
             "/ev",
             "end",

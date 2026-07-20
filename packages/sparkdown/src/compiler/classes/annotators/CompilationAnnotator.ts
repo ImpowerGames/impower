@@ -118,6 +118,40 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     return set;
   }
 
+  // Cache the set of names used as a TYPE per parse tree — every
+  // `define`/`animation`/`theme` PARENT (`LuauDefineParentName`) AND every
+  // `new <Class>()` target (`LuauNewClassName`). These names keep their bare
+  // global; `lowerLuauDefine` scopes only LEAF-instance defines (typed,
+  // never used as a type) to a synthetic `$<type>_<name>` key. Needs a FULL
+  // tree traversal (unlike `computeGlobalCallableNames`, which only walks
+  // top-level children) because `new <Class>()` appears deep inside function
+  // bodies. Same per-tree caching contract.
+  private _defineTypeNames?: Set<string>;
+  private _defineTypeNamesTree?: unknown;
+
+  private computeDefineTypeNames(): Set<string> {
+    if (this.tree === this._defineTypeNamesTree && this._defineTypeNames) {
+      return this._defineTypeNames;
+    }
+    const set = new Set<string>();
+    const tree = this.tree;
+    if (tree) {
+      const cursor = tree.cursor();
+      // Pre-order full traversal: `cursor.next()` visits every node.
+      do {
+        if (
+          cursor.name === "LuauDefineParentName" ||
+          cursor.name === "LuauNewClassName"
+        ) {
+          set.add(this.read(cursor.from, cursor.to).trim());
+        }
+      } while (cursor.next());
+    }
+    this._defineTypeNames = set;
+    this._defineTypeNamesTree = this.tree;
+    return set;
+  }
+
   private collectGlobalNameAt(
     node: import("@lezer/common").SyntaxNode,
     set: Set<string>,
@@ -251,6 +285,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         loopStack,
         diagnostics: chunkDiagnostics,
         globalCallableNames: this.computeGlobalCallableNames(),
+        defineTypeNames: this.computeDefineTypeNames(),
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,

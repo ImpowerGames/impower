@@ -77,7 +77,7 @@ done
 function run()
 host_record(companion.O.name)
 host_record(companion.O.color)
-host_record(N.name)
+host_record(character.N.name)
 end
 `);
     expect(errors).toEqual([]);
@@ -106,10 +106,10 @@ end
 done
 
 function run()
-host_record(O.trust)
-host_record(rawget(O, "trust"))
-O.trust = O.trust + 1
-host_record(O.trust)
+host_record(companion.O.trust)
+host_record(rawget(companion.O, "trust"))
+companion.O.trust = companion.O.trust + 1
+host_record(companion.O.trust)
 host_record(companion.trust)
 end
 `);
@@ -181,11 +181,11 @@ end
 done
 
 function run()
-O.trust = 5
+companion.O.trust = 5
 for k, v in instances(companion) do
   v.trust = 0
 end
-host_record(O.trust)
+host_record(companion.O.trust)
 end
 `);
     expect(errors).toEqual([]);
@@ -203,7 +203,7 @@ host_record(c.trust)
 c.trust = 7
 host_record(c.trust)
 host_record(companion.trust)
-host_record(O.trust)
+host_record(companion.O.trust)
 end
 `);
     expect(errors).toEqual([]);
@@ -231,7 +231,7 @@ done
 
 function run()
 local seen = {}
-for k, v in props(Hero) do
+for k, v in props(Actor.Hero) do
   seen[k] = v
 end
 -- own prop + inherited store default; the greet() METHOD and the
@@ -265,8 +265,8 @@ done
 
 function run()
 host_record(Actor.Hero.name)
-Hero:greet()
-host_record(Hero.hp)
+Actor.Hero:greet()
+host_record(Actor.Hero.hp)
 host_record(character.Hero.name)
 end
 `);

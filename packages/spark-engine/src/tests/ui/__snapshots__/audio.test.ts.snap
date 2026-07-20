@@ -238,8 +238,8 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
     "method": "audio/load",
     "params": {
       "channel": "typewriter",
-      "key": "character.HERO~t0s1b0~t0.07500000000000001s1b0",
-      "name": "HERO",
+      "key": "synth.character~t0s1b0~t0.07500000000000001s1b0",
+      "name": "character",
       "synth": {
         "$link": {
           "audio": {},
@@ -249,8 +249,8 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
           "prosody": {},
           "typewriter": {},
         },
-        "$name": "HERO",
-        "$type": "character",
+        "$name": "character",
+        "$type": "synth",
         "arpeggio": {
           "direction": "up",
           "glide": 0,
@@ -321,7 +321,6 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
           "on": false,
           "resonance": 0.5,
         },
-        "name": "HERO",
         "phase": 0,
         "pitch": {
           "frequency": 440,
@@ -382,7 +381,7 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
           "time": 0.07500000000000001,
         },
       ],
-      "type": "character",
+      "type": "synth",
       "volume": 0.5,
     },
   },
@@ -396,7 +395,7 @@ exports[`audio > typewriter synth tones scheduled for voiced dialogue 1`] = `
         {
           "after": undefined,
           "control": "start",
-          "key": "character.HERO~t0s1b0~t0.07500000000000001s1b0",
+          "key": "synth.character~t0s1b0~t0.07500000000000001s1b0",
           "loop": undefined,
           "now": undefined,
           "over": undefined,

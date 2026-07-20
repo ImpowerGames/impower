@@ -48,6 +48,22 @@ interface LoweredEntry {
 export function compileSource(source: string): LoweredEntry[] {
   const tree = parseSource(source);
   const ctx = createLowerContextFromSource(source);
+  // Pre-scan the whole tree for define/animation/theme parent names AND
+  // `new <Class>()` targets — the type / namespace-root names that stay bare
+  // globals. `lowerLuauDefine` uses this to scope only leaf-instance defines.
+  // Mirrors the annotator's `computeDefineTypeNames` so the snapshot path
+  // matches production. Full traversal: `new` targets live deep in bodies.
+  const defineTypeNames = new Set<string>();
+  for (const cursor = tree.cursor(); ; ) {
+    if (
+      cursor.name === "LuauDefineParentName" ||
+      cursor.name === "LuauNewClassName"
+    ) {
+      defineTypeNames.add(source.slice(cursor.from, cursor.to).trim());
+    }
+    if (!cursor.next()) break;
+  }
+  ctx.defineTypeNames = defineTypeNames;
   const entries: LoweredEntry[] = [];
   let child = tree.topNode.firstChild;
   while (child) {

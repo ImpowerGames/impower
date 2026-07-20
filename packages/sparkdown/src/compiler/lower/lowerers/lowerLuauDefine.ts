@@ -392,8 +392,36 @@ export function lowerLuauDefine(
     structDef.identifier = nameIdentifier;
   }
 
+  // NAMESPACE-SCOPED leaf instances. A typed define (`define D as T`) whose
+  // own name is NEVER used as a type — not an `as`-parent, not a `new D()`
+  // target (see ctx.defineTypeNames) — is a LEAF INSTANCE (e.g. `define red as
+  // color`, a character `as character`, a named singleton `O as companion`).
+  // Bind its runtime table to a synthetic `$<type>_<name>` global key instead
+  // of the bare name, so the bare name stays free for user `store`/vars (the
+  // `store show` vs builtin `animation show` clash class) — `$` is illegal in a
+  // script identifier so it can never collide. `__def(table, "D", "T")` still
+  // registers `T.D` into the type table (the engine's source of truth, read via
+  // buildDefinesContext + program.context), and the StructDefinition /
+  // block.context stay keyed by the bare name, so `context.T.D` and dialogue
+  // cue resolution are unchanged. TYPE defines (a ROOT `define T`, a define
+  // that is itself a parent like `companion`, or a `new`-instantiated class
+  // like `Penguin`) keep the bare global, because `T.member` access, `new T()`,
+  // and `instances(T)` all resolve the type NAME as a bare global. In Luau
+  // expressions a leaf instance must be referenced in longform (`color.red`,
+  // `companion.O`) — the bare name no longer resolves there (the directive /
+  // cue world is unaffected: it resolves through program.context selectors).
+  // Mirrors lowerLuauStructDefine's animation/theme slice. See
+  // [[project_define_namespace_scoping]].
+  const defineName = nameIdentifier.name ?? "";
+  const parentTypeName = parentIdentifier?.name ?? "";
+  const isLeafInstance =
+    !!parentIdentifier && !(ctx.defineTypeNames?.has(defineName) ?? false);
+  const variableIdentifier = isLeafInstance
+    ? new Identifier(`$${parentTypeName}_${defineName}`)
+    : nameIdentifier;
+
   const declaration = new VariableAssignment({
-    variableIdentifier: nameIdentifier,
+    variableIdentifier,
     assignedExpression: defineExpr,
     ...(structDef ? { structDef } : {}),
     isGlobalDeclaration: true,

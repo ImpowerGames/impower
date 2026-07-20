@@ -127,6 +127,24 @@ export interface LowerContext {
    */
   globalCallableNames?: ReadonlySet<string>;
   /**
+   * Names that are used as a TYPE somewhere in the document — every
+   * `define`/`animation`/`theme` PARENT (`LuauDefineParentName`) AND every
+   * `new <Class>()` target (`LuauNewClassName`). These are the type /
+   * namespace-root names that must keep their BARE global, because `type.name`
+   * member access, `new T()`, and `instances(T)` all resolve the type name as
+   * a bare global. Populated by a whole-tree pre-scan (alongside
+   * `globalCallableNames`). `lowerLuauDefine` consults it to decide whether a
+   * typed define is a **leaf instance** (has a parent AND its own name is NOT
+   * in this set → scope its runtime global under a synthetic `$<type>_<name>`
+   * key so the bare name stays free for user `store`/vars — the `store show`
+   * vs builtin `animation show` clash class) or a **type** (a root, an
+   * as-parent, or a new-target → keep the bare global). `instances(T)` needs
+   * no scan: a `T` with members is always an as-parent. See
+   * [[project_define_namespace_scoping]]. When absent, treated as the empty
+   * set (every typed define is a leaf → scoped).
+   */
+  defineTypeNames?: ReadonlySet<string>;
+  /**
    * Stack of per-enclosing-function-scope local declarations. Each
    * frame holds the names declared via `local` / `store` / `const`
    * (and nested `function NAME(...) end` declarations) in that
