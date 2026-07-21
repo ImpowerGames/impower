@@ -392,36 +392,21 @@ export function lowerLuauDefine(
     structDef.identifier = nameIdentifier;
   }
 
-  // NAMESPACE-SCOPED leaf instances. A typed define (`define D as T`) whose
-  // own name is NEVER used as a type — not an `as`-parent, not a `new D()`
-  // target (see ctx.defineTypeNames) — is a LEAF INSTANCE (e.g. `define red as
-  // color`, a character `as character`, a named singleton `O as companion`).
-  // Bind its runtime table to a synthetic `$<type>_<name>` global key instead
-  // of the bare name, so the bare name stays free for user `store`/vars (the
-  // `store show` vs builtin `animation show` clash class) — `$` is illegal in a
-  // script identifier so it can never collide. `__def(table, "D", "T")` still
-  // registers `T.D` into the type table (the engine's source of truth, read via
-  // buildDefinesContext + program.context), and the StructDefinition /
-  // block.context stay keyed by the bare name, so `context.T.D` and dialogue
-  // cue resolution are unchanged. TYPE defines (a ROOT `define T`, a define
-  // that is itself a parent like `companion`, or a `new`-instantiated class
-  // like `Penguin`) keep the bare global, because `T.member` access, `new T()`,
-  // and `instances(T)` all resolve the type NAME as a bare global. In Luau
-  // expressions a leaf instance must be referenced in longform (`color.red`,
-  // `companion.O`) — the bare name no longer resolves there (the directive /
-  // cue world is unaffected: it resolves through program.context selectors).
-  // Mirrors lowerLuauStructDefine's animation/theme slice. See
-  // [[project_define_namespace_scoping]].
-  const defineName = nameIdentifier.name ?? "";
-  const parentTypeName = parentIdentifier?.name ?? "";
-  const isLeafInstance =
-    !!parentIdentifier && !(ctx.defineTypeNames?.has(defineName) ?? false);
-  const variableIdentifier = isLeafInstance
-    ? new Identifier(`$${parentTypeName}_${defineName}`)
-    : nameIdentifier;
-
+  // Emit the define bound to its BARE name here. Whether it ends up on the bare
+  // global or a synthetic `$<type>_<name>` key is decided later, by the
+  // whole-program `scopeDefineInstances` post-pass in SparkdownCompiler (before
+  // ExportRuntime): a typed define whose name is NEVER used as a type — not an
+  // `as`-parent, not a `new D()` target — is a LEAF INSTANCE and gets scoped so
+  // the bare name stays free for user `store`/vars (the `store show` vs builtin
+  // `animation show` clash class). That classification is a whole-PROGRAM
+  // property (`define X` and `new X()`/`as X` can live in different included
+  // files), so it can't be decided during per-document lowering — hence the
+  // post-pass. The `__def(table, "D", "T")` args and the StructDefinition (which
+  // the post-pass reads as the stable bare source, and which feeds
+  // `context.T.D` + dialogue-cue resolution) stay keyed by the bare name.
+  // See [[project_define_namespace_scoping]].
   const declaration = new VariableAssignment({
-    variableIdentifier,
+    variableIdentifier: nameIdentifier,
     assignedExpression: defineExpr,
     ...(structDef ? { structDef } : {}),
     isGlobalDeclaration: true,

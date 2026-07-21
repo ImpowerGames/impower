@@ -32,6 +32,8 @@ import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/
 import { VariableReference } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { CompiledBlock } from "../../compiler/classes/annotators/CompilationAnnotator";
+import { collectDefineTypeNames } from "../../compiler/utils/collectDefineTypeNames";
+import { scopeDefineInstances } from "../../compiler/utils/scopeDefineInstances";
 import { createLowerContextFromSource } from "../../compiler/lower/context";
 import { lower } from "../../compiler/lower/lower";
 import { SparkdownSyntaxNodeRef } from "../../compiler/types/SparkdownSyntaxNodeRef";
@@ -48,21 +50,13 @@ interface LoweredEntry {
 export function compileSource(source: string): LoweredEntry[] {
   const tree = parseSource(source);
   const ctx = createLowerContextFromSource(source);
-  // Pre-scan the whole tree for define/animation/theme parent names AND
-  // `new <Class>()` targets — the type / namespace-root names that stay bare
-  // globals. `lowerLuauDefine` uses this to scope only leaf-instance defines.
-  // Mirrors the annotator's `computeDefineTypeNames` so the snapshot path
-  // matches production. Full traversal: `new` targets live deep in bodies.
-  const defineTypeNames = new Set<string>();
-  for (const cursor = tree.cursor(); ; ) {
-    if (
-      cursor.name === "LuauDefineParentName" ||
-      cursor.name === "LuauNewClassName"
-    ) {
-      defineTypeNames.add(source.slice(cursor.from, cursor.to).trim());
-    }
-    if (!cursor.next()) break;
-  }
+  // Whole-file scan for define TYPE names (`as`-parents + `new X()` targets).
+  // Kept on `ctx.defineTypeNames` so the P2 shadow-warning path matches
+  // production, AND reused below for the leaf-instance scoping post-pass —
+  // mirroring the compiler's whole-program pass (single-file here).
+  const defineTypeNames = collectDefineTypeNames(tree, (f, t) =>
+    source.slice(f, t),
+  );
   ctx.defineTypeNames = defineTypeNames;
   const entries: LoweredEntry[] = [];
   let child = tree.topNode.firstChild;
@@ -85,6 +79,14 @@ export function compileSource(source: string): LoweredEntry[] {
       });
     }
     child = child.nextSibling;
+  }
+  // Leaf-instance scoping is a whole-program post-pass in production
+  // (SparkdownCompiler, before ExportRuntime); mirror it here over the lowered
+  // blocks so the snapshot shows the scoped `$<type>_<name>` global keys.
+  for (const entry of entries) {
+    if (entry.block?.content) {
+      scopeDefineInstances(entry.block.content, defineTypeNames);
+    }
   }
   return entries;
 }

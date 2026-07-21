@@ -53,6 +53,8 @@ import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import { SparkProgram } from "../types/SparkProgram";
 import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
+import { collectDefineTypeNames } from "../utils/collectDefineTypeNames";
+import { scopeDefineInstances } from "../utils/scopeDefineInstances";
 import { formatList } from "../utils/formatList";
 import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
 import { getPossibleStringIdentifiers } from "../utils/getPossibleStringIdentifiers";
@@ -650,6 +652,53 @@ export class SparkdownCompiler {
       if (params.countAllVisits) {
         parsedStory.countAllVisits = true;
       }
+      // Whole-program namespace scoping (P1). Scope leaf-instance defines to a
+      // synthetic `$<type>_<name>` global here — after assembly, before
+      // ExportRuntime bakes each define's global key — rather than in
+      // per-document lowering, so a `define X` and its `as X`/`new X()` sites in
+      // DIFFERENT files classify consistently. `scopeDefineInstances` is
+      // idempotent, so re-running each compile on cached define objects is safe.
+      //
+      // Two passes with SEPARATE type sets. The source-injected builtins prelude
+      // is classified by its OWN type names (as if compiled in isolation) — NOT
+      // the user's — so the `character` duality survives: the prelude's `define
+      // character as synth` scopes to `$synth_character` even though user files
+      // use `character` as a type (`as character`). If the user's type set leaked
+      // in, `character` would stay bare and the synth-instance view would
+      // collapse into the character type table. The user pass then scopes the
+      // rest with the union across all USER files (root + includes), and skips
+      // the prelude VAs the first pass already handled.
+      const collectTypeNamesFor = (uris: Iterable<string>): Set<string> => {
+        const names = new Set<string>();
+        for (const scanUri of uris) {
+          const scanTree = this.documents.tree(scanUri);
+          const scanDoc = this.documents.get(scanUri);
+          if (scanTree && scanDoc) {
+            const scanText = scanDoc.getText();
+            for (const name of collectDefineTypeNames(scanTree, (f, t) =>
+              scanText.slice(f, t),
+            )) {
+              names.add(name);
+            }
+          }
+        }
+        return names;
+      };
+      const preludeVAs = new Set<ParsedObject>();
+      const preludeStory = this._cachedPreludeParsedStory;
+      if (preludeStory && this.documents.has(BUILTINS_PRELUDE_URI)) {
+        const preludeTypeNames = collectTypeNamesFor([BUILTINS_PRELUDE_URI]);
+        scopeDefineInstances([preludeStory], preludeTypeNames, {
+          collect: preludeVAs,
+        });
+      }
+      // User files: the root + resolved includes (`program.scripts`), excluding
+      // the prelude — its defines were just scoped with the prelude's own types.
+      const userUris = new Set<string>(Object.keys(program.scripts));
+      userUris.add(uri);
+      userUris.delete(BUILTINS_PRELUDE_URI);
+      const userTypeNames = collectTypeNamesFor(userUris);
+      scopeDefineInstances([parsedStory], userTypeNames, { skip: preludeVAs });
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
       profile("end", this._profilerId, "ink/compile", uri);

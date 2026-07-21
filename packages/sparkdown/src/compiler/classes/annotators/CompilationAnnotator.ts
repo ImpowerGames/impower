@@ -11,6 +11,7 @@ import { Range } from "@codemirror/state";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { SourceMetadata } from "../../../inkjs/engine/Error";
+import { collectDefineTypeNames } from "../../utils/collectDefineTypeNames";
 import { lower } from "../../lower/lower";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
@@ -133,20 +134,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     if (this.tree === this._defineTypeNamesTree && this._defineTypeNames) {
       return this._defineTypeNames;
     }
-    const set = new Set<string>();
     const tree = this.tree;
-    if (tree) {
-      const cursor = tree.cursor();
-      // Pre-order full traversal: `cursor.next()` visits every node.
-      do {
-        if (
-          cursor.name === "LuauDefineParentName" ||
-          cursor.name === "LuauNewClassName"
-        ) {
-          set.add(this.read(cursor.from, cursor.to).trim());
-        }
-      } while (cursor.next());
-    }
+    const set = tree
+      ? collectDefineTypeNames(tree, (from, to) => this.read(from, to))
+      : new Set<string>();
     this._defineTypeNames = set;
     this._defineTypeNamesTree = this.tree;
     return set;
