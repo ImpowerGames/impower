@@ -51,6 +51,7 @@ import {
 import getValidFileName from "../../utils/getValidFileName";
 import globToRegex from "../../utils/globToRegex";
 import { importDroppedFiles } from "../../utils/importDroppedFiles";
+import { inspectAsset } from "../../utils/assetInspector";
 import { recordMove, recordTrashDeletion } from "../../utils/fileUndo";
 import { onFolderPathChanged } from "../../utils/folderPathChanges";
 import workspace from "../../workspace/WorkspaceStore";
@@ -274,6 +275,9 @@ export default function FileList({
   const rowsRef = useRef<{ path: string; isDirectory: boolean }[]>([]);
   // Latest previewable list, read by the stable `onOpenFile` handler.
   const previewItemsRef = useRef<PreviewItem[]>([]);
+  // Latest path -> FileData, read by `onOpenFile` to enrich the desktop
+  // inspector selection with size/modified.
+  const filesByPathRef = useRef<Map<string, FileData>>(new Map());
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // Report scroll-off-top so the parent can collapse the FAB.
@@ -502,6 +506,9 @@ export default function FileList({
       setScopePath(folderPath);
       return;
     }
+    // Desktop: clicking a folder isn't inspecting an asset — drop any inspector
+    // selection so the right pane falls back to the game preview.
+    inspectAsset(null);
     setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(folderPath)) next.delete(folderPath);
@@ -541,6 +548,14 @@ export default function FileList({
   // through undo/redo, same as a forward rename. Broadcast is pane-agnostic:
   // if the path isn't in our set, remapExpanded no-ops.
   useEffect(() => onFolderPathChanged(remapExpanded), [remapExpanded]);
+
+  // Clear any inspector selection when a preview-enabled list unmounts (e.g. a
+  // project switch tears down the Assets pane), so the right pane doesn't strand
+  // a stale asset.
+  useEffect(() => {
+    if (!enablePreview) return;
+    return () => inspectAsset(null);
+  }, [enablePreview]);
 
   // Project-relative path -> FileData (thumbnail src + size/modified for the
   // caption + the sort/filter keys), plus the flat path list for the tree.
@@ -650,6 +665,7 @@ export default function FileList({
       })
     : [];
   previewItemsRef.current = previewItems;
+  filesByPathRef.current = filesByPath;
 
   // Recover the scope state when the scoped folder vanishes, and report the
   // active scope (`""` in tree mode) to the parent so its create FAB targets the
@@ -993,7 +1009,25 @@ export default function FileList({
       if (enablePreview) {
         const idx = previewItemsRef.current.findIndex((i) => i.path === path);
         if (idx >= 0) {
-          setPreviewIndex(idx);
+          const item = previewItemsRef.current[idx]!;
+          if (diveModeRef.current) {
+            // Mobile: no room for a side pane — open the fullscreen overlay.
+            setPreviewIndex(idx);
+          } else {
+            // Desktop: select-to-inspect. Route the right pane to the inspector
+            // (MainWindow shows it in place of the game preview) instead of
+            // going fullscreen — the inspector's own preview click expands.
+            const fd = filesByPathRef.current.get(path);
+            inspectAsset({
+              path: item.path,
+              name: item.name,
+              src: item.src,
+              kind: item.kind,
+              url: item.url,
+              size: fd?.size,
+              modified: fd?.modified,
+            });
+          }
           return;
         }
       }
