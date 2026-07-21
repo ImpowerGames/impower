@@ -618,6 +618,14 @@ export default function FileList({
   // field (name / modified / size) + direction takes over.
   const sortDir = sortOrder === "asc" ? 1 : -1;
   const compareFiles = (a: FileTreeNode, b: FileTreeNode): number => {
+    // A just-created file being named pins to the TOP of its siblings, so the
+    // blank name field appears first rather than wherever its throwaway
+    // placeholder name (e.g. `script00`) happens to sort. Once committed,
+    // editingNewPath clears and it sorts normally.
+    if (editingNewPath) {
+      if (a.path === editingNewPath) return -1;
+      if (b.path === editingNewPath) return 1;
+    }
     const ea = extOf(a.path);
     const eb = extOf(b.path);
     if (ea !== eb) {

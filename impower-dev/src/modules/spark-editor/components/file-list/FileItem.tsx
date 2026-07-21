@@ -308,7 +308,10 @@ function FileItem({
   // that's actually in the DOM.
   useEffect(() => {
     if (!renaming) return;
-    setInputValue(name ?? "");
+    // A brand-new file starts BLANK (VS Code: a new file's name field is empty,
+    // not prefilled with a placeholder like `script00`). Existing renames start
+    // from the current name (selected below, so a keystroke replaces it).
+    setInputValue(isNew && !isDirectory ? "" : (name ?? ""));
     const id = requestAnimationFrame(() => {
       const el = inputRef.current;
       if (el) {
@@ -317,7 +320,7 @@ function FileItem({
       }
     });
     return () => cancelAnimationFrame(id);
-  }, [renaming, name]);
+  }, [renaming, name, isNew, isDirectory]);
 
   // Click-outside commits (if changed) and exits rename mode. CAPTURE phase so it
   // runs BEFORE another row's onRowClick `stopPropagation` (which would otherwise
@@ -352,9 +355,16 @@ function FileItem({
     // moveFile's re-sort broadcast — the re-sort lands behind the editor instead
     // of visibly reordering the still-shown list.
     if (isNew && !isDirectory) {
-      if (renamed) setCommittedName(newName);
       setRenaming(false);
-      onEndNewEntry?.();
+      // No name given → discard the just-created placeholder file instead of
+      // keeping it (VS Code: an unnamed new file is never created). Same as
+      // Escape — a blur/Enter with an empty field cancels the creation.
+      if (!newName) {
+        void deleteEntry("permanent");
+        onEndNewEntry?.();
+        return;
+      }
+      if (renamed) setCommittedName(newName);
       const { Workspace } = await import("../../workspace/Workspace");
       const projectId = workspace.signals.projectId.value;
       // Open the editor at its FINAL path FIRST — this zoom-fades the scripts
@@ -373,6 +383,11 @@ function FileItem({
         }
         recordMove(projectId, path, finalPath, false);
       }
+      // Clear the new-entry pin AFTER the move — until the reload replaces the
+      // placeholder row, keeping editingNewPath holds it pinned at the top so it
+      // doesn't briefly un-pin and jump to the placeholder's sort slot on the
+      // way out (all behind the editor's zoom).
+      onEndNewEntry?.();
       return;
     }
     // Close the input immediately so dismissal feels snappy; the rename proceeds
@@ -743,7 +758,11 @@ function FileItem({
                     static row (which is `name` + greyed `.ext`). */}
                 <span class="grid max-w-full grid-cols-[minmax(0,max-content)]">
                   <span
-                    class="invisible min-w-[1ch] whitespace-pre text-base font-semibold [grid-area:1/1]"
+                    class={`invisible whitespace-pre text-base font-semibold [grid-area:1/1] ${
+                      // A blank new-file field gets a wider minimum so it reads as
+                      // an editable field (not a 1ch sliver) before you type.
+                      isNew && !isDirectory ? "min-w-[10ch]" : "min-w-[1ch]"
+                    }`}
                     aria-hidden="true"
                   >
                     {inputValue || " "}
