@@ -275,9 +275,6 @@ export default function FileList({
   const rowsRef = useRef<{ path: string; isDirectory: boolean }[]>([]);
   // Latest previewable list, read by the stable `onOpenFile` handler.
   const previewItemsRef = useRef<PreviewItem[]>([]);
-  // Latest path -> FileData, read by `onOpenFile` to enrich the desktop
-  // inspector selection with size/modified.
-  const filesByPathRef = useRef<Map<string, FileData>>(new Map());
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // Report scroll-off-top so the parent can collapse the FAB.
@@ -660,12 +657,13 @@ export default function FileList({
             src: file?.src,
             kind,
             url: isUrl ? file?.text : undefined,
+            size: file?.size,
+            modified: file?.modified,
           },
         ];
       })
     : [];
   previewItemsRef.current = previewItems;
-  filesByPathRef.current = filesByPath;
 
   // Recover the scope state when the scoped folder vanishes, and report the
   // active scope (`""` in tree mode) to the parent so its create FAB targets the
@@ -1017,15 +1015,14 @@ export default function FileList({
             // Desktop: select-to-inspect. Route the right pane to the inspector
             // (MainWindow shows it in place of the game preview) instead of
             // going fullscreen — the inspector's own preview click expands.
-            const fd = filesByPathRef.current.get(path);
             inspectAsset({
               path: item.path,
               name: item.name,
               src: item.src,
               kind: item.kind,
               url: item.url,
-              size: fd?.size,
-              modified: fd?.modified,
+              size: item.size,
+              modified: item.modified,
             });
           }
           return;

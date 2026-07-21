@@ -27,6 +27,12 @@ export type AssetInspectorPanelProps = {
   defaultCollapsed?: boolean;
   /** Fill the height and scroll the body (desktop right pane). */
   fill?: boolean;
+  /**
+   * Called after a jump-to-usage navigates to a script. The mobile host (the
+   * fullscreen preview) passes its close so jumping reveals the editor; the
+   * desktop host omits it (the inspector stays beside the editor).
+   */
+  onNavigateAway?: () => void;
 };
 
 const humanBytes = (n: number): string => {
@@ -126,6 +132,7 @@ export default function AssetInspectorPanel({
   modified,
   defaultCollapsed = false,
   fill = false,
+  onNavigateAway,
 }: AssetInspectorPanelProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [dims, setDims] = useState<string | null>(null);
@@ -183,6 +190,7 @@ export default function AssetInspectorPanel({
     void (async () => {
       const { Workspace } = await import("../../workspace/Workspace");
       await Workspace.window.showDocument(uri, range, true);
+      onNavigateAway?.();
     })();
   };
 

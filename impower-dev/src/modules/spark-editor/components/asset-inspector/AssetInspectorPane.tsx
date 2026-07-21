@@ -32,6 +32,8 @@ export default function AssetInspectorPane() {
     src: asset.src,
     kind: asset.kind,
     url: asset.url,
+    size: asset.size,
+    modified: asset.modified,
   };
 
   return (
@@ -81,6 +83,9 @@ export default function AssetInspectorPane() {
         index={0}
         onIndexChange={() => {}}
         onClose={() => setFullscreen(false)}
+        // The inspector already shows Details beside the media; the fullscreen
+        // here is purely to enlarge the preview.
+        showDetails={false}
       />
     </div>
   );

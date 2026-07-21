@@ -9,6 +9,7 @@ import {
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { useMountTransition } from "../../hooks/useMountTransition";
+import AssetInspectorPanel from "../asset-inspector/AssetInspectorPanel";
 import AudioPreview from "./AudioPreview";
 import ImagePreview from "./ImagePreview";
 import TextPreview from "./TextPreview";
@@ -26,6 +27,10 @@ export type PreviewItem = {
   kind: PreviewKind;
   /** For a `.url` asset: the remote URL, shown under the title. */
   url?: string;
+  /** Bytes on disk (absent for remote `.url` assets) — for the Details panel. */
+  size?: number;
+  /** Last-modified epoch ms — for the Details panel. */
+  modified?: number;
 };
 
 export type FilePreviewOverlayProps = {
@@ -43,6 +48,13 @@ export type FilePreviewOverlayProps = {
    * URL back to the `.url` file and re-resolves the asset.
    */
   onEditUrl?: (item: PreviewItem, newUrl: string) => void;
+  /**
+   * Show the docked "Details" panel (the shared asset inspector). Default true —
+   * this is the mobile host, where the overlay IS the inspector. The desktop
+   * right-pane inspector opens this overlay only to enlarge the media (it already
+   * shows Details beside it), so it passes `false` to avoid a redundant panel.
+   */
+  showDetails?: boolean;
 };
 
 /**
@@ -59,6 +71,7 @@ export default function FilePreviewOverlay({
   onIndexChange,
   onClose,
   onEditUrl,
+  showDetails = true,
 }: FilePreviewOverlayProps) {
   const { mounted, visible } = useMountTransition(open, 200);
   // Keep showing the last item while animating out (the parent clears its index
@@ -227,6 +240,26 @@ export default function FilePreviewOverlay({
             <ChevronRight class="size-5" />
           </Button>
         </div>
+      )}
+
+      {/* Details — the shared collapsible inspector panel, docked at the bottom
+          (this is the mobile host; the desktop host is the right-pane inspector).
+          Starts collapsed so the media stays prominent; pull up for metadata /
+          where-used / download. A jump-to-usage closes the overlay so the editor
+          it navigates to is revealed. */}
+      {showDetails && (
+      <div class="flex-none text-white">
+        <AssetInspectorPanel
+          path={item.path}
+          name={item.name}
+          kind={item.kind}
+          src={item.src}
+          size={item.size}
+          modified={item.modified}
+          defaultCollapsed
+          onNavigateAway={onClose}
+        />
+      </div>
       )}
       </div>
     </div>,
