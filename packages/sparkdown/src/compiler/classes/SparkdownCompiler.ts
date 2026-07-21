@@ -51,6 +51,7 @@ import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import { SparkProgram } from "../types/SparkProgram";
+import { setBuiltinTypeNames } from "../utils/builtinTypeNames";
 import { cloneBuiltinStructs } from "../utils/cloneBuiltinStructs";
 import { formatList } from "../utils/formatList";
 import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
@@ -141,6 +142,12 @@ function getCompiledPrelude(): {
     compiled: result.program.compiled,
     sparkle: result.program.sparkle ?? {},
   };
+  // Publish the builtin type/namespace ROOT names (the context's top-level
+  // keys — color, character, animation, …) so the lowerer's shadow-warning
+  // (validateDefineTypeShadow) can flag a user `store`/`const` that reuses a
+  // reserved builtin name. Runs once (cached prelude); before any user
+  // compile's lowering, since mergePreludeContext calls this first.
+  setBuiltinTypeNames(Object.keys(_cachedPrelude.context));
   return _cachedPrelude;
 }
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
@@ -383,6 +390,18 @@ export class SparkdownCompiler {
     }
     if (config.files !== undefined && config.files !== this._config.files) {
       this._config.files = config.files;
+      // Populate the builtin type-name registry BEFORE `documents.add` — the
+      // registry adds trigger the annotator's lowering pass, which reads
+      // `getBuiltinTypeNames()` for the shadow warning. `mergePreludeContext`
+      // (which normally publishes them) doesn't run until the later
+      // `compile()`, so without this eager call a fresh document's first
+      // lowering would miss the builtin shadow warnings until the next edit.
+      // `getCompiledPrelude` is cached, so this pays only once. Guarded on
+      // `useBuiltinsPrelude` so the prelude's own isolated compile (which sets
+      // it false) doesn't recurse.
+      if (this._config.useBuiltinsPrelude) {
+        getCompiledPrelude();
+      }
       for (const file of config.files) {
         if (
           file.type === "script" &&
