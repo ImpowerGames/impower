@@ -1,3 +1,4 @@
+import { notifyFolderPathChanged } from "./folderPathChanges";
 import { showSnackbar } from "./snackbar";
 import { pushUndo, undo } from "./undoManager";
 
@@ -90,6 +91,11 @@ export function recordMove(
     const { Workspace } = await import("../workspace/Workspace");
     if (isDir) {
       await Workspace.fs.moveFolder(projectId, from, to);
+      // Forward renames/moves remap their own pane inline; the undo/redo
+      // inversions run here (outside any FileList), so broadcast the path
+      // change to keep expanded folders open. Before markProjectDirty so the
+      // remap is queued ahead of the reload that re-renders the tree.
+      notifyFolderPathChanged(from, to);
     } else {
       await Workspace.fs.moveFile(projectId, from, to);
     }

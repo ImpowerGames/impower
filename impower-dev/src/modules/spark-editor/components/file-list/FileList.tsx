@@ -52,6 +52,7 @@ import getValidFileName from "../../utils/getValidFileName";
 import globToRegex from "../../utils/globToRegex";
 import { importDroppedFiles } from "../../utils/importDroppedFiles";
 import { recordMove, recordTrashDeletion } from "../../utils/fileUndo";
+import { onFolderPathChanged } from "../../utils/folderPathChanges";
 import workspace from "../../workspace/WorkspaceStore";
 // Type-only import (fully erased at build) — safe despite the protocol package's
 // CJS runtime exports that would otherwise trip Vite SSR (see the file header).
@@ -533,6 +534,13 @@ export default function FileList({
       return changed ? next : prev;
     });
   }, []);
+
+  // Undo/redo of a folder rename/move runs in the module-level undo manager,
+  // which can't reach this component's state — it broadcasts the path change
+  // instead. Subscribe so the folder (and its expanded descendants) stay open
+  // through undo/redo, same as a forward rename. Broadcast is pane-agnostic:
+  // if the path isn't in our set, remapExpanded no-ops.
+  useEffect(() => onFolderPathChanged(remapExpanded), [remapExpanded]);
 
   // Project-relative path -> FileData (thumbnail src + size/modified for the
   // caption + the sort/filter keys), plus the flat path list for the tree.
