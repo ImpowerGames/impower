@@ -846,8 +846,16 @@ function FileItem({
               </div>
             ) : (
               <div class="flex flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
-                <span class="font-semibold">{committedName ?? name}</span>
-                {showExt && <span class="font-normal opacity-30">.{ext}</span>}
+                {/* A new file's real name is blank until typed; its `name` here is
+                    the throwaway placeholder (a draft's is the pseudo sentinel,
+                    which renders as stray "new"). Render blank so the one frame
+                    before the rename input mounts shows nothing, not that text. */}
+                <span class="font-semibold">
+                  {committedName ?? (isNew && !isDirectory ? "" : name)}
+                </span>
+                {showExt && !(isNew && !isDirectory) && (
+                  <span class="font-normal opacity-30">.{ext}</span>
+                )}
               </div>
             )}
             {caption && (
