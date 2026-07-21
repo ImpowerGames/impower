@@ -154,6 +154,7 @@ export default function LogicList(_props: LogicListProps) {
                 defaultFilename="script00.sd"
                 collapsed={fabCollapsed}
                 targetDir={scriptsScope}
+                deferred
               >
                 New Script
               </FileAddButton>

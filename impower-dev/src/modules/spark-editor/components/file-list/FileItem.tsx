@@ -106,6 +106,12 @@ export type FileItemProps = {
    */
   isNew?: boolean;
   /**
+   * This new entry is an in-memory DRAFT (deferred create): it backs no file on
+   * disk. Committing a name writes the file for the first time; discarding just
+   * drops the row (no delete). Always accompanies {@link isNew}.
+   */
+  isDraft?: boolean;
+  /**
    * Folder rows: toggle expand/collapse. Receives the row's own path so the
    * parent can pass a single STABLE callback (not a per-row closure), which
    * keeps {@link FileItem}'s props referentially stable for `memo`.
@@ -165,6 +171,7 @@ function FileItem({
   selectMode = false,
   bulkSelected = false,
   isNew = false,
+  isDraft = false,
   onToggle,
   onToggleSelect,
   onRangeSelect,
@@ -349,6 +356,40 @@ function FileItem({
         ? `${dir}/${newBasename}`
         : newBasename
       : path;
+    // In-memory DRAFT (deferred create): nothing exists on disk yet. An empty
+    // name just drops the virtual row (no delete); a name writes the file for
+    // the FIRST time here. Open the editor before the write so the list
+    // zoom-fades away ahead of the create's re-sort broadcast.
+    if (isDraft) {
+      setRenaming(false);
+      if (!newName) {
+        onEndNewEntry?.();
+        return;
+      }
+      setCommittedName(newName);
+      const { Workspace } = await import("../../workspace/Workspace");
+      const projectId = workspace.signals.projectId.value;
+      if (!projectId) {
+        onEndNewEntry?.();
+        return;
+      }
+      Workspace.window.openFileEditor(finalPath);
+      onEndNewEntry?.();
+      await Workspace.fs.createFiles({
+        files: [
+          {
+            uri: Workspace.fs.getFileUri(projectId, finalPath),
+            data: new ArrayBuffer(0),
+          },
+        ],
+      });
+      if (ext === "sd") {
+        await Workspace.window.recordScriptChange();
+      } else {
+        await Workspace.window.recordAssetChange();
+      }
+      return;
+    }
     // A brand-new script (blank .sd) opens once named. Show the typed name
     // immediately (optimistic) so the row never flashes back to the placeholder,
     // and open the editor BEFORE the move so the list zoom-fades away ahead of
@@ -783,11 +824,12 @@ function FileItem({
                         commit();
                       } else if (e.key === "Escape") {
                         e.preventDefault();
-                        // Canceling a brand-new entry removes the empty
-                        // file/folder (VS Code); canceling a rename of an
-                        // existing entry just reverts to its current name.
+                        // Canceling a brand-new entry removes it (VS Code);
+                        // canceling a rename of an existing entry just reverts to
+                        // its current name. A draft backs no file, so there's
+                        // nothing on disk to delete — just drop the row.
                         if (isNew) {
-                          void deleteEntry("permanent");
+                          if (!isDraft) void deleteEntry("permanent");
                           onEndNewEntry?.();
                         }
                         setRenaming(false);

@@ -54,6 +54,7 @@ import { importDroppedFiles } from "../../utils/importDroppedFiles";
 import { inspectAsset, inspectedAsset } from "../../utils/assetInspector";
 import { recordMove, recordTrashDeletion } from "../../utils/fileUndo";
 import { onFolderPathChanged } from "../../utils/folderPathChanges";
+import { newEntryDraftRequest } from "../../utils/newEntryDraft";
 import workspace from "../../workspace/WorkspaceStore";
 // Type-only import (fully erased at build) — safe despite the protocol package's
 // CJS runtime exports that would otherwise trip Vite SSR (see the file header).
@@ -143,10 +144,6 @@ function prewarmThumbnails(urls: string[], signal: AbortSignal): void {
   schedule(pump);
 }
 
-// Pure helper that doesn't need Workspace (Workspace.fs.getFilename used
-// to be the source of truth, but it's literally `uri.split('/').pop()`).
-const getFilenameFromUri = (uri: string) => uri.split("/").pop() ?? "";
-
 // Project-relative path of a file uri (`file://<projectId>/<path>` -> `<path>`).
 // Falls back to the basename for uris outside the project dir. This path is the
 // row identity threaded into FileItem so nested files sharing a basename never
@@ -225,6 +222,15 @@ const ITEM_HEIGHT = 64;
  * Subscribes to LSP `DidChangeWatchedFiles` so the tree stays in sync with
  * disk; newly created `.sd` scripts auto-open in the editor.
  */
+// Basename for the in-memory new-file draft's pseudo-path. The ``
+// (Private Use Area) prefix guarantees it can't collide with a real filename,
+// so injecting it into the tree can never shadow an actual file.
+const DRAFT_SENTINEL = "new";
+
+/** The pseudo-path a draft occupies in the tree (pinned to the top of `dir`). */
+const draftPseudoPath = (dir: string, ext: string) =>
+  dir ? `${dir}/${DRAFT_SENTINEL}.${ext}` : `${DRAFT_SENTINEL}.${ext}`;
+
 export default function FileList({
   include = "*",
   exclude,
@@ -263,6 +269,13 @@ export default function FileList({
   // FileItem's `isNew` (auto-edit + Escape removes the empty new entry). NOT set
   // for imports/uploads, which arrive already named. Cleared when the session ends.
   const [editingNewPath, setEditingNewPath] = useState<string | null>(null);
+  // An in-memory NEW-FILE draft (from the deferred "Add" button): a blank name
+  // field pinned to the top of `dir` that only becomes a real file once named.
+  // Unlike `editingNewPath` above (which tracks a real placeholder on disk), a
+  // draft writes NOTHING until commit and leaves NOTHING behind if discarded.
+  const [draftNew, setDraftNew] = useState<{ dir: string; ext: string } | null>(
+    null,
+  );
   // Index into `previewItems` of the file shown in the fullscreen preview
   // overlay (`null` = closed). Only used when `enablePreview` is set.
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -446,22 +459,16 @@ export default function FileList({
           // already closed), and the tree MUST refresh so a moved file lands in
           // its new folder.
           const firstUri = changes[0]?.uri || "";
-          const firstFilename = getFilenameFromUri(firstUri);
           // Reveal a newly-created file (upload / drop / Add / new script) so an
           // add to a long list is obviously there — the same one-shot scroll as a
           // new folder. Skip `.folder` sentinels: a folder create reveals itself
           // via newFolder() (revealing the sentinel uri here would hijack it).
           if (isCreate && !isSentinelUri(firstUri)) {
-            const rel = relativePathFromUri(firstUri, projectId);
-            setRevealPath(rel);
-            // A single brand-new `.sd` is a from-scratch script (the "Add"
-            // button) with a placeholder name → open it straight into rename like
-            // a new folder (Escape removes it; commit names it AND opens it in the
-            // editor — see FileItem). A bulk create is a project import → leave
-            // those alone (they're already named).
-            if (changes.length === 1 && firstFilename?.endsWith(".sd")) {
-              setEditingNewPath(rel);
-            }
+            // Reveal a newly-created file (upload / drop / committed new script)
+            // so an add to a long list is obviously there. New scripts are now
+            // named up-front via an in-memory draft (see newEntryDraft), so a
+            // `.sd` create no longer re-enters rename mode here.
+            setRevealPath(relativePathFromUri(firstUri, projectId));
           }
           void reload();
         },
@@ -585,6 +592,24 @@ export default function FileList({
     }
   }, [enablePreview, uris, filesByUri]);
 
+  // Claim a deferred new-file request if it targets THIS pane's subtree: begin
+  // an in-memory draft (blank name field pinned to the top of the folder). The
+  // request is consumed (nulled) so exactly one FileList takes it, and remounts
+  // don't resurrect a stale draft.
+  const draftReq = newEntryDraftRequest.value;
+  useEffect(() => {
+    if (!draftReq) return;
+    const mine =
+      !!rootDir &&
+      (draftReq.dir === rootDir || draftReq.dir.startsWith(`${rootDir}/`));
+    if (!mine) return;
+    newEntryDraftRequest.value = null;
+    setDraftNew({ dir: draftReq.dir, ext: draftReq.ext });
+    const pseudo = draftPseudoPath(draftReq.dir, draftReq.ext);
+    setEditingNewPath(pseudo);
+    setRevealPath(pseudo);
+  }, [draftReq, rootDir]);
+
   // Project-relative path -> FileData (thumbnail src + size/modified for the
   // caption + the sort/filter keys), plus the flat path list for the tree.
   const filesByPath = new Map<string, FileData>();
@@ -610,6 +635,14 @@ export default function FileList({
   }
   if (trimmedSearch) {
     visiblePaths = filterPaths(visiblePaths, trimmedSearch);
+  }
+  // Inject the in-memory draft's pseudo-path so it renders as a real tree row
+  // (pinned to the top of its folder by compareFiles + editingNewPath). It backs
+  // no file — filesByPath has no entry — and is dropped the moment the draft
+  // ends. Added AFTER filter/search so the blank new row is never filtered out.
+  const draftPath = draftNew ? draftPseudoPath(draftNew.dir, draftNew.ext) : null;
+  if (draftPath && !visiblePaths.includes(draftPath)) {
+    visiblePaths = [...visiblePaths, draftPath];
   }
 
   // Sort comparator for FILE siblings (folders always sort first, by name).
@@ -1036,6 +1069,9 @@ export default function FileList({
   const onEndNewEntry = useCallback(() => {
     setEditingNewPath(null);
     setRevealPath(null);
+    // Drop any in-memory draft row (committed → its real file now exists;
+    // discarded → nothing was ever written).
+    setDraftNew(null);
   }, []);
 
   // File click: in preview-enabled panes (Assets) a previewable file opens the
@@ -1484,6 +1520,7 @@ export default function FileList({
                     selectMode={selectMode}
                     bulkSelected={selectedPaths.has(row.path)}
                     isNew={editingNewPath === row.path}
+                    isDraft={draftPath === row.path}
                     selectionCount={selectedPaths.size}
                     onToggle={onItemActivate}
                     onToggleSelect={toggleSelected}
