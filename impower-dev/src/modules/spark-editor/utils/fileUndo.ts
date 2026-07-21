@@ -163,6 +163,45 @@ export function recordCreate(
 }
 
 /**
+ * Replace an asset's bytes IN PLACE with `data`, keeping its path (name + ext)
+ * so its asset id and every `[[...]]`/reference to it still resolve. The write
+ * overwrites the same path (createFiles truncates + rewrites), so the asset is
+ * never momentarily absent from the tree — a trash-then-write would flicker it
+ * out and, e.g., collapse the inspector selection watching it.
+ *
+ * Undoable by snapshotting the old bytes in the closure: undo writes them back,
+ * redo re-writes the new bytes. Shows a "Replaced X · Undo" snackbar.
+ */
+export async function replaceAssetFile(
+  projectId: string,
+  path: string,
+  data: ArrayBuffer,
+  label: string,
+) {
+  const { Workspace } = await import("../workspace/Workspace");
+  const uri = Workspace.fs.getFileUri(projectId, path);
+  const oldData = await Workspace.fs.readFile({ file: { uri } });
+  const write = async (bytes: ArrayBuffer) => {
+    const { Workspace } = await import("../workspace/Workspace");
+    // Pass a COPY — if the worker RPC transfers the buffer it would detach the
+    // snapshot we keep for a later undo/redo, leaving a zero-length write.
+    await Workspace.fs.createFiles({ files: [{ uri, data: bytes.slice(0) }] });
+    await markProjectDirty();
+  };
+  await write(data);
+  pushUndo({
+    label: `Replace ${label}`,
+    undo: () => write(oldData),
+    redo: () => write(data),
+  });
+  showSnackbar({
+    message: `Replaced ${label}`,
+    actionLabel: "Undo",
+    onAction: () => void undo(),
+  });
+}
+
+/**
  * Record a conflict-resolved UPLOAD as ONE undoable action + an "Imported X ·
  * Undo" snackbar: undo trashes the newly-written files AND restores any
  * originals that "Replace" moved to trash (their paths free up once the new

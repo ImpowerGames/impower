@@ -2,9 +2,10 @@ import {
   Button,
   ChevronRight,
   Download,
+  Repeat,
   Search,
 } from "@impower/impower-ui/components";
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { PreviewKind } from "../file-preview/FilePreviewOverlay";
 import type { UsageLocation } from "../file-list/FileUsagesPanel";
 
@@ -207,6 +208,41 @@ export default function AssetInspectorPanel({
     })();
   };
 
+  // Replace: swap this asset's bytes for a picked file, keeping the path (so its
+  // id and references still resolve). A `.url` asset has no local bytes to swap
+  // (its URL is edited in the preview), so Replace is hidden for it.
+  const replaceInputRef = useRef<HTMLInputElement | null>(null);
+  const [replacing, setReplacing] = useState(false);
+  const isUrlAsset = path.endsWith(".url");
+  const acceptFor =
+    kind === "image"
+      ? "image/*"
+      : kind === "audio"
+        ? "audio/*"
+        : kind === "video"
+          ? "video/*"
+          : undefined;
+
+  const onPickReplacement = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ""; // allow re-picking the same file next time
+    if (!file) return;
+    setReplacing(true);
+    void (async () => {
+      try {
+        const store = (await import("../../workspace/WorkspaceStore")).default;
+        const pid = store.signals.projectId.value;
+        if (!pid) return;
+        const data = await file.arrayBuffer();
+        const { replaceAssetFile } = await import("../../utils/fileUndo");
+        await replaceAssetFile(pid, path, data, name);
+      } finally {
+        setReplacing(false);
+      }
+    })();
+  };
+
   const usageCount = usages?.length ?? 0;
 
   return (
@@ -291,6 +327,24 @@ export default function AssetInspectorPanel({
               <Download class="size-4" />
               Download
             </Button>
+            {!isUrlAsset && (
+              <Button
+                variant="outline"
+                onClick={() => replaceInputRef.current?.click()}
+                disabled={replacing}
+                class="h-9 flex-none gap-2 px-3 text-sm"
+              >
+                <Repeat class="size-4" />
+                {replacing ? "Replacing…" : "Replace"}
+              </Button>
+            )}
+            <input
+              ref={replaceInputRef}
+              type="file"
+              accept={acceptFor}
+              class="hidden"
+              onChange={onPickReplacement}
+            />
           </div>
         </div>
       )}

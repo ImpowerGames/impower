@@ -51,7 +51,7 @@ import {
 import getValidFileName from "../../utils/getValidFileName";
 import globToRegex from "../../utils/globToRegex";
 import { importDroppedFiles } from "../../utils/importDroppedFiles";
-import { inspectAsset } from "../../utils/assetInspector";
+import { inspectAsset, inspectedAsset } from "../../utils/assetInspector";
 import { recordMove, recordTrashDeletion } from "../../utils/fileUndo";
 import { onFolderPathChanged } from "../../utils/folderPathChanges";
 import workspace from "../../workspace/WorkspaceStore";
@@ -553,6 +553,37 @@ export default function FileList({
     if (!enablePreview) return;
     return () => inspectAsset(null);
   }, [enablePreview]);
+
+  // Keep the desktop inspector's selection in sync with reloads: after an edit
+  // (e.g. Replace) the asset's src/size/modified change, and after a delete it
+  // vanishes. Reconcile the inspected asset against the freshly-built
+  // previewItems so the right pane refreshes (or closes) without a re-click.
+  useEffect(() => {
+    if (!enablePreview) return;
+    const cur = inspectedAsset.value;
+    if (!cur) return;
+    const fresh = previewItemsRef.current.find((i) => i.path === cur.path);
+    if (!fresh) {
+      inspectAsset(null);
+      return;
+    }
+    if (
+      fresh.src !== cur.src ||
+      fresh.size !== cur.size ||
+      fresh.modified !== cur.modified ||
+      fresh.name !== cur.name
+    ) {
+      inspectAsset({
+        path: fresh.path,
+        name: fresh.name,
+        src: fresh.src,
+        kind: fresh.kind,
+        url: fresh.url,
+        size: fresh.size,
+        modified: fresh.modified,
+      });
+    }
+  }, [enablePreview, uris, filesByUri]);
 
   // Project-relative path -> FileData (thumbnail src + size/modified for the
   // caption + the sort/filter keys), plus the flat path list for the tree.
