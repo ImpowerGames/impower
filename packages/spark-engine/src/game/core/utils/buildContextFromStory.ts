@@ -203,14 +203,22 @@ export function convertDefine(
 }
 
 /** Build the `{ type: { name: struct } }` context view of every AUTHORED
- *  define currently present in the story's runtime globals.
+ *  define currently present in the story's runtime.
+ *
+ *  Discovery walks TYPE TABLES and descends into their member maps rather than
+ *  scanning every global by key: `__def` registers each instance INTO its parent
+ *  and every ancestor type table's map, so a type table's members already are
+ *  its registered instances. This decouples discovery from the global-variable
+ *  scheme — a leaf instance no longer needs a bare/`$type_name` global to be
+ *  found (see project_define_namespace_scoping); it just needs to be registered
+ *  under a type, which it always is.
  *
  *  Only INSTANCE tables (those with a `__defineParent`) are emitted, under
- *  `context[parentType][name]` — matching `program.context`. Pure type-namespace
- *  tables (implicit parents like `animation`, which carry only registered
- *  instances) are skipped. A define registered under multiple ancestors is
- *  emitted under each ancestor type so `context.character.O` and
- *  `context.companion.O` both resolve. */
+ *  `context[type][name]`. Pure type-namespace roots (implicit parents like
+ *  `animation`) are never registered as members, so they're naturally skipped.
+ *  Because an instance is registered under every ancestor, iterating all type
+ *  tables emits it under each — so `context.character.O` and `context.companion.O`
+ *  both resolve, matching `program.context`. */
 export function buildDefinesContext(
   story: Story,
 ): Record<string, Record<string, unknown>> {
@@ -221,26 +229,43 @@ export function buildDefinesContext(
     | undefined;
   if (!globals) return context;
 
+  // Descend every distinct GLOBAL define table's member map, emitting the
+  // registered INSTANCE members under that table's own type name. `__def`
+  // registers each instance into its parent AND every ancestor type table, and
+  // types (roots + `as`-parents) always keep a bare global, so iterating all
+  // global define tables reaches every type and emits each instance under every
+  // type it descends from -- `context.character.O` and `context.companion.O`
+  // both resolve, matching `program.context`.
+  //
+  // Dedupe on OBJECT IDENTITY (`processed`), NOT the `__define` name: two
+  // different tables can share a name (the `character` type root, members
+  // companion/O, vs the `define character as synth` instance `$synth_character`,
+  // whose members are synth props). Name-keying would let one shadow the other
+  // and drop its members. A table whose members hold no instances (a leaf
+  // instance, the synth-instance view of character) simply emits nothing.
+  // `(typeName, instanceName)` dedupe (`emitted`) keeps an instance to one entry
+  // per type. This is why discovery no longer depends on an instance having its
+  // own global key -- it just needs to be registered under a type.
+  const processed = new Set<AnyVal>();
+  const emitted = new Set<string>();
   for (const name of globals.keys()) {
-    const valueObj = variablesState.GetVariableWithName(name);
-    if (!isDefineTable(valueObj)) continue;
-    const parent = metaString(valueObj, DEFINE_PARENT_MARKER);
-    if (!parent) continue; // root type-namespace table — not a context entry
-    const struct = convertDefine(valueObj, story);
-    const defName = metaString(valueObj, DEFINE_MARKER);
-
-    // Emit under the immediate parent type AND every ancestor type, mirroring
-    // __def's multi-ancestor registration.
-    const chain = defineChain(valueObj);
-    const ancestorTypes = new Set<string>([parent]);
-    for (const level of chain) {
-      const levelName = metaString(level, DEFINE_MARKER);
-      if (levelName && levelName !== defName) {
-        ancestorTypes.add(levelName);
-      }
-    }
-    for (const type of ancestorTypes) {
-      (context[type] ??= {})[defName] = struct;
+    const typeTable = variablesState.GetVariableWithName(name);
+    if (!isDefineTable(typeTable) || processed.has(typeTable)) continue;
+    processed.add(typeTable);
+    const map = asMap(typeTable.value);
+    if (!map) continue;
+    const typeName = metaString(typeTable, DEFINE_MARKER);
+    if (!typeName) continue;
+    for (const [key, member] of map) {
+      if (META_PROP_KEYS.has(key)) continue;
+      if (!isDefineTable(member)) continue; // a real prop/method, not an instance
+      const parent = metaString(member, DEFINE_PARENT_MARKER);
+      if (!parent) continue; // a root type-namespace table — not a context entry
+      const defName = metaString(member, DEFINE_MARKER);
+      const dedupeKey = `${typeName} ${defName}`;
+      if (emitted.has(dedupeKey)) continue;
+      emitted.add(dedupeKey);
+      (context[typeName] ??= {})[defName] = convertDefine(member, story);
     }
   }
   return context;
