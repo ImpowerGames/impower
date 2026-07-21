@@ -142,6 +142,41 @@ end
     expect(recorded).toEqual([4, "Orion"]);
   });
 
+  // Namespace-scoping (P4 verification): a leaf-instance define now binds a
+  // synthetic `$<type>_<name>` global instead of the bare name. Save/load must
+  // be transparent to that — `defself` merges by GLOBAL KEY (not the name),
+  // and `defref` relinks via the class NAME which is always a bare type. This
+  // round-trip stresses both paths plus grandparent-qualified access at once.
+  // See project_define_namespace_scoping.
+  test("scoped leaf instance + new-instance of a type both survive one round-trip", () => {
+    const { errors, recorded } = roundTrip(
+      `companion.O.trust = 1
+inst = new companion()
+inst.trust = 9`,
+      `host_record(companion.O.trust)
+host_record(companion.O.name)
+host_record(character.O.name)
+host_record(inst.trust)
+host_record(rawequal(getmetatable(inst).__index, companion))`,
+      `
+define companion as character with
+  store trust = 5
+end
+define O as companion with
+  name = "Orion"
+end
+`,
+    );
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([
+      1, // leaf `$companion_O` store delta merged by global key (defself)
+      "Orion", // leaf non-store prop reconstructed at init, survives merge
+      "Orion", // grandparent-qualified access resolves the scoped instance
+      9, // `new companion()` store prop survived (defref instance)
+      true, // defref relinked __index to the live bare `companion` type
+    ]);
+  });
+
   test("a define with no store props contributes nothing to the save", () => {
     const { errors, savedJson } = roundTrip(
       `local _ = 1`,
