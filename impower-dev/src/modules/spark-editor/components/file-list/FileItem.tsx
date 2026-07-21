@@ -179,6 +179,12 @@ function FileItem({
 }: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  // Optimistic display name: shown the instant a new script's rename commits, so
+  // the row doesn't flash back to the placeholder (`script00`) while the async
+  // move is in flight. Cleared on `path` change (below), when the reloaded real
+  // name takes over — essential since this row is recycled by slot, not keyed by
+  // path, so a stale committed name must never leak to whatever file lands here.
+  const [committedName, setCommittedName] = useState<string | null>(null);
   // A pending asset rename whose name is referenced by scripts — the confirm
   // dialog (update refs vs rename-only) acts on these stored paths.
   const [renameConfirm, setRenameConfirm] = useState<{
@@ -285,6 +291,7 @@ function FileItem({
   // the input jump to a different file.
   useEffect(() => {
     setRenaming(false);
+    setCommittedName(null);
   }, [path]);
 
   // A freshly-created folder opens straight into rename mode (VS Code "New
@@ -333,31 +340,56 @@ function FileItem({
   async function commit() {
     const newName = inputValue.trim();
     const renamed = !!newName && newName !== name;
-    let finalPath = path;
-    // Close the input immediately so dismissal feels snappy; the rename (and,
-    // for a new script, the open) proceed underneath.
+    const newBasename = ext ? `${newName}.${ext}` : newName;
+    const finalPath = renamed
+      ? dir
+        ? `${dir}/${newBasename}`
+        : newBasename
+      : path;
+    // A brand-new script (blank .sd) opens once named. Show the typed name
+    // immediately (optimistic) so the row never flashes back to the placeholder,
+    // and open the editor BEFORE the move so the list zoom-fades away ahead of
+    // moveFile's re-sort broadcast — the re-sort lands behind the editor instead
+    // of visibly reordering the still-shown list.
+    if (isNew && !isDirectory) {
+      if (renamed) setCommittedName(newName);
+      setRenaming(false);
+      onEndNewEntry?.();
+      const { Workspace } = await import("../../workspace/Workspace");
+      const projectId = workspace.signals.projectId.value;
+      // Open the editor at its FINAL path FIRST — this zoom-fades the scripts
+      // list away, and moveFile's re-sort broadcast (which fires while the list
+      // is still mounted) then lands behind the editor instead of visibly
+      // reordering the list. openFileEditor only sets state (it doesn't read the
+      // file), and the script is blank, so the path resolving a beat later shows
+      // an identical empty editor — no missing-file flash.
+      Workspace.window.openFileEditor(finalPath);
+      if (renamed && projectId) {
+        const moved = await Workspace.fs.moveFile(projectId, path, finalPath);
+        if (moved.some((d) => d.type === "script")) {
+          await Workspace.window.recordScriptChange();
+        } else {
+          await Workspace.window.recordAssetChange();
+        }
+        recordMove(projectId, path, finalPath, false);
+      }
+      return;
+    }
+    // Close the input immediately so dismissal feels snappy; the rename proceeds
+    // underneath.
     setRenaming(false);
     if (renamed) {
       if (isDirectory) {
         // Folder: rename in place (same parent), moving everything beneath it.
         void renameFolder(path, dir ? `${dir}/${newName}` : newName);
       } else {
-        const newBasename = ext ? `${newName}.${ext}` : newName;
-        finalPath = dir ? `${dir}/${newBasename}` : newBasename;
-        // Await so the file exists at its new path before we open it below.
+        // Await so the file exists at its new path before anything reads it.
         await renameFile(path, finalPath);
       }
     }
     if (isNew) {
-      // The create session is over (named, kept the default, or clicked away).
+      // A new FOLDER's create session is over (it opens no editor).
       onEndNewEntry?.();
-      // A freshly-created FILE (a blank script) opens for editing once it's
-      // named — the create flow defers the open until after the inline rename
-      // so the editor never steals focus from the name input.
-      if (!isDirectory) {
-        const { Workspace } = await import("../../workspace/Workspace");
-        Workspace.window.openFileEditor(finalPath);
-      }
     }
   }
 
@@ -753,7 +785,7 @@ function FileItem({
               </div>
             ) : (
               <div class="flex flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
-                <span class="font-semibold">{name}</span>
+                <span class="font-semibold">{committedName ?? name}</span>
                 {showExt && <span class="font-normal opacity-30">.{ext}</span>}
               </div>
             )}
