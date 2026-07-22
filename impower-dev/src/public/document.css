@@ -60,7 +60,9 @@
 
 @font-face {
   font-family: "Noto Color Emoji";
-  font-display: block;
+  /* swap (not block) + no preload: the 24MB font is fetched lazily, only when
+     an emoji is actually rendered, and the system emoji font shows meanwhile. */
+  font-display: swap;
   src: local(""),
     url("/fonts/noto-color-emoji.ttf") format("truetype");
 }
