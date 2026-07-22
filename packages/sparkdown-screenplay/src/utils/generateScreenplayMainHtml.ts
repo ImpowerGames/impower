@@ -8,6 +8,8 @@ export const generateScreenplayMainHtml = (
   const html: string[] = [];
   bodySpans.forEach((span) => {
     if (span.tag === "meta") {
+    } else if (span.tag === "separator") {
+      html.push("<br>");
     } else if (span.tag === "page_break") {
       html.push("<hr>");
     } else if (span.tag === "dual") {

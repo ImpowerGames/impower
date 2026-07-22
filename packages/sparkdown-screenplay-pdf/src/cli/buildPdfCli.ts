@@ -61,6 +61,7 @@ const loadFontsFrom = (dir: string) => {
     bold: read("courier-prime-bold.ttf"),
     italic: read("courier-prime-italic.ttf"),
     bolditalic: read("courier-prime-bold-italic.ttf"),
+    emoji: read("noto-color-emoji.ttf"),
   };
 };
 

@@ -58,6 +58,13 @@
   src: url("/fonts/courier-prime-bold-italic.ttf") format("truetype");
 }
 
+@font-face {
+  font-family: "Noto Color Emoji";
+  font-display: block;
+  src: local(""),
+    url("/fonts/noto-color-emoji.ttf") format("truetype");
+}
+
 :root {
   color-scheme: dark;
   --screenplay-preview-texture: url("/noisetexture.png");

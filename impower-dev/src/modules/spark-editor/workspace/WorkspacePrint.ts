@@ -3,10 +3,12 @@ import {
   ExportPDFMessage,
   ExportPDFParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportPDFMessage";
+import {
+  ExportHTMLMessage,
+  ExportHTMLParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ExportHTMLMessage";
 import { ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
-import ScreenplayParser from "../../../../../packages/sparkdown-screenplay/src/classes/ScreenplayParser";
 import { ScreenplayConfig } from "../../../../../packages/sparkdown-screenplay/src/types/ScreenplayConfig";
-import { generateScreenplayHtmlData } from "../../../../../packages/sparkdown-screenplay/src/utils/generateScreenplayHtmlData";
 
 export default class WorkspacePrint {
   protected _worker: Worker;
@@ -55,11 +57,16 @@ export default class WorkspacePrint {
       cache: "force-cache",
     });
     const bolditalic = await boldItalicResp.arrayBuffer();
+    const emojiResp = await fetch("/fonts/noto-color-emoji.ttf", {
+      cache: "force-cache",
+    });
+    const emoji = await emojiResp.arrayBuffer();
     return {
       normal,
       bold,
       italic,
       bolditalic,
+      emoji
     };
   }
 
@@ -97,7 +104,10 @@ export default class WorkspacePrint {
     return new Promise((resolve, reject) => {
       const request = type.request(params);
       this._messageQueue[request.id] = { resolve, reject };
-      if (type.method === "workspace/exportPDF") {
+      if (
+        type.method === "workspace/exportPDF" ||
+        type.method === "workspace/exportHTML"
+      ) {
         this._worker.postMessage(request, transfer);
       }
     });
@@ -118,6 +128,7 @@ export default class WorkspacePrint {
       params.fonts.bold,
       params.fonts.italic,
       params.fonts.bolditalic,
+      params.fonts.emoji,
     ]);
   }
 
@@ -125,9 +136,20 @@ export default class WorkspacePrint {
     scripts: string[],
     onProgress?: (value: ProgressValue) => void,
   ) {
+    // Runs in the worker (see sparkdown-screenplay-pdf.ts) so fontkit's Buffer
+    // shim is available to embed only the emoji this script uses as inline SVG.
     const fonts = await this.getFonts();
-    const parser = new ScreenplayParser();
-    const tokens = parser.parseAll(scripts);
-    return generateScreenplayHtmlData(tokens, this.config, fonts);
+    const params: ExportHTMLParams = { scripts, fonts, config: this.config };
+    if (onProgress) {
+      params.workDoneToken = ExportHTMLMessage.type.uuid();
+      this._progressQueue[params.workDoneToken] = onProgress;
+    }
+    return this.sendRequest(ExportHTMLMessage.type, params, [
+      params.fonts.normal,
+      params.fonts.bold,
+      params.fonts.italic,
+      params.fonts.bolditalic,
+      params.fonts.emoji,
+    ]);
   }
 }
