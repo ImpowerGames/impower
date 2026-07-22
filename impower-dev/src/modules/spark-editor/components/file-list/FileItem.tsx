@@ -112,11 +112,12 @@ export type FileItemProps = {
    */
   isDraft?: boolean;
   /**
-   * A draft committed to a real file at the given path (its editor is opening).
-   * The parent drops the draft row and briefly pins the new file at the top so
-   * the list doesn't visibly re-sort it during the create→open transition.
+   * A draft's name was committed (`finalPath` is where its file will be written).
+   * The parent moves the draft onto that final path — so its row stays in place
+   * and merges with the real file when the reload lands — and keeps it pinned at
+   * the top through the create→open transition.
    */
-  onDraftCommitted?: (finalPath: string) => void;
+  onDraftCommitting?: (name: string, finalPath: string) => void;
   /**
    * Folder rows: toggle expand/collapse. Receives the row's own path so the
    * parent can pass a single STABLE callback (not a per-row closure), which
@@ -187,7 +188,7 @@ function FileItem({
   onDownloadSelected,
   onContextSelect,
   onEndNewEntry,
-  onDraftCommitted,
+  onDraftCommitting,
   onFolderRenamed,
   onOpenFile,
 }: FileItemProps) {
@@ -380,10 +381,11 @@ function FileItem({
         onEndNewEntry?.();
         return;
       }
+      // Move the draft onto its final path (so its row holds its place until the
+      // real file lands) and keep it pinned at the top through the open
+      // transition — BEFORE writing, so there's no frame where the row is gone.
+      onDraftCommitting?.(newName, finalPath);
       Workspace.window.openFileEditor(finalPath);
-      // Drop the draft but keep the new file pinned at the top through the
-      // open transition (so it doesn't visibly re-sort behind the fading list).
-      onDraftCommitted?.(finalPath);
       await Workspace.fs.createFiles({
         files: [
           {

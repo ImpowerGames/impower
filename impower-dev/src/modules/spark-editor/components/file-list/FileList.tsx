@@ -273,16 +273,22 @@ export default function FileList({
   // field pinned to the top of `dir` that only becomes a real file once named.
   // Unlike `editingNewPath` above (which tracks a real placeholder on disk), a
   // draft writes NOTHING until commit and leaves NOTHING behind if discarded.
-  const [draftNew, setDraftNew] = useState<{ dir: string; ext: string } | null>(
-    null,
-  );
-  // A just-committed new file kept pinned to the TOP of its siblings for a beat
-  // after it opens, so the list doesn't visibly re-sort it into place during the
-  // create→open transition — it settles off-screen once the editor covers the
-  // list. Sort-only (unlike editingNewPath, this does NOT put the row in rename
-  // mode). Released by a timer (below).
+  // `name` is unset while the field is blank (pseudo sentinel path); on commit it
+  // holds the typed name so the draft's path becomes the FINAL path — the row
+  // then dedups with the real file the moment createFiles' reload lands, so it
+  // stays in place with no empty gap between the draft vanishing and the file
+  // appearing.
+  const [draftNew, setDraftNew] = useState<{
+    dir: string;
+    ext: string;
+    name?: string;
+  } | null>(null);
+  // A just-committed new file kept pinned to the TOP of its siblings so the list
+  // doesn't visibly re-sort it into place during the create→open transition. It
+  // settles into its sorted spot only when the list remounts (the pin is state,
+  // so opening the editor — which unmounts the list — resets it). Sort-only:
+  // unlike editingNewPath, this does NOT put the row in rename mode.
   const [pinnedPath, setPinnedPath] = useState<string | null>(null);
-  const pinReleaseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Index into `previewItems` of the file shown in the fullscreen preview
   // overlay (`null` = closed). Only used when `enablePreview` is set.
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -647,7 +653,15 @@ export default function FileList({
   // (pinned to the top of its folder by compareFiles + editingNewPath). It backs
   // no file — filesByPath has no entry — and is dropped the moment the draft
   // ends. Added AFTER filter/search so the blank new row is never filtered out.
-  const draftPath = draftNew ? draftPseudoPath(draftNew.dir, draftNew.ext) : null;
+  // Before commit the draft occupies its sentinel pseudo-path; once named it
+  // occupies its FINAL path (so it merges with the real file on the next reload).
+  const draftPath = draftNew
+    ? draftNew.name != null
+      ? draftNew.dir
+        ? `${draftNew.dir}/${draftNew.name}.${draftNew.ext}`
+        : `${draftNew.name}.${draftNew.ext}`
+      : draftPseudoPath(draftNew.dir, draftNew.ext)
+    : null;
   if (draftPath && !visiblePaths.includes(draftPath)) {
     visiblePaths = [...visiblePaths, draftPath];
   }
@@ -1083,33 +1097,40 @@ export default function FileList({
     setDraftNew(null);
   }, []);
 
-  // A draft committed to a real file at `finalPath` (and its editor is opening).
-  // Drop the draft, but keep the new file pinned to the top for a beat so it
-  // doesn't visibly re-sort while the list is still fading behind the editor;
-  // release the pin off-screen once the transition is done.
-  const onDraftCommitted = useCallback((finalPath: string) => {
-    setDraftNew(null);
+  // A draft's name was committed (its editor is opening + createFiles is about to
+  // run). Move the draft onto its FINAL path — so its row stays in place while
+  // the file is written, then merges with the real file when the reload lands
+  // (no empty gap) — stop rename mode, and pin it to the top of its siblings so
+  // it doesn't visibly re-sort during the create→open transition.
+  //
+  // The pin is held (no timer) until this list UNMOUNTS — opening the editor
+  // zoom-removes the whole list from the tree, and it remounts fresh (pin reset,
+  // so the file sorts normally) when the user returns. A fixed release timer was
+  // unreliable: the editor-mount work can outrun it, releasing the pin while the
+  // list is still visible and letting the file re-sort in view.
+  const onDraftCommitting = useCallback((name: string, finalPath: string) => {
+    setDraftNew((prev) => (prev ? { ...prev, name } : prev));
     setEditingNewPath(null);
     setRevealPath(finalPath);
     setPinnedPath(finalPath);
-    if (pinReleaseRef.current) {
-      clearTimeout(pinReleaseRef.current);
-    }
-    pinReleaseRef.current = setTimeout(() => {
-      setPinnedPath((p) => (p === finalPath ? null : p));
-      setRevealPath((p) => (p === finalPath ? null : p));
-    }, 450);
   }, []);
 
-  // Cancel a pending pin-release if the list unmounts first.
-  useEffect(
-    () => () => {
-      if (pinReleaseRef.current) {
-        clearTimeout(pinReleaseRef.current);
-      }
-    },
-    [],
-  );
+  // Once a committed draft's real file appears in the reload, drop the in-memory
+  // pseudo. Until then the pseudo (now on the SAME final path) holds the row in
+  // place, so there's no frame where the item is missing between the draft
+  // vanishing and the real file arriving.
+  useEffect(() => {
+    if (!draftNew?.name) return;
+    const fp = draftNew.dir
+      ? `${draftNew.dir}/${draftNew.name}.${draftNew.ext}`
+      : `${draftNew.name}.${draftNew.ext}`;
+    const landed = (uris ?? []).some(
+      (u) => relativePathFromUri(u, projectId) === fp,
+    );
+    if (landed) {
+      setDraftNew(null);
+    }
+  }, [draftNew, uris, projectId]);
 
   // File click: in preview-enabled panes (Assets) a previewable file opens the
   // fullscreen overlay at its position; otherwise it routes to the editor.
@@ -1567,7 +1588,7 @@ export default function FileList({
                     onDownloadSelected={onDownloadSelected}
                     onContextSelect={contextSelect}
                     onEndNewEntry={onEndNewEntry}
-                    onDraftCommitted={onDraftCommitted}
+                    onDraftCommitting={onDraftCommitting}
                     onFolderRenamed={remapExpanded}
                     onOpenFile={onOpenFile}
                   />
