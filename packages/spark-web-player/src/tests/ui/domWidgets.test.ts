@@ -66,4 +66,50 @@ end
     expect(slider).toBeTruthy();
     expect(slider!.style.getPropertyValue("--_fill-percentage")).toBe("40%");
   });
+
+  // D8: the interactive widget builtins ship DEFAULT STYLES from the builtins
+  // prelude (packages/sparkdown/src/compiler/builtins/builtins.sd — the
+  // authoritative source; the legacy JS uiBuiltinDefinitions.ts is not the
+  // render path). This drives the real getStyleContent pipeline and asserts the
+  // emitted stylesheet so the widget-styling contract is guarded end to end.
+  test("widget builtins emit their default styles into the stylesheet", async () => {
+    const h = createDOMHarness(
+      `store name = "Zelda"
+store on = true
+store vol = 40
+layout form with
+  button "Go" @click=noop
+  link "More" @click=noop
+  field #value={name}
+  checkbox #checked={on}
+  slider #value={vol} #min=0 #max=100
+end
+function noop()
+end
+`,
+      0,
+      { reactive: true },
+    );
+    await h.ready;
+    await flushMicrotasks();
+    const styleEl = h.overlay.ownerDocument.querySelector(
+      ".style-styles",
+    ) as HTMLElement | null;
+    expect(styleEl).toBeTruthy();
+    const css = styleEl!.textContent ?? "";
+
+    // button — styled clickable with a hover state
+    expect(css).toContain(".button");
+    expect(css).toContain("cursor: pointer");
+    expect(css).toContain(":hover");
+    // link — underlined
+    expect(css).toContain(".link");
+    expect(css).toContain("text-decoration: underline");
+    // field — has a background fill (styled input, not the OS default)
+    expect(css).toContain(".field");
+    // checkbox / slider — native controls tinted via accent-color
+    expect(css).toContain(".checkbox");
+    expect(css).toContain(".slider");
+    expect(css).toContain("accent-color");
+  });
 });
