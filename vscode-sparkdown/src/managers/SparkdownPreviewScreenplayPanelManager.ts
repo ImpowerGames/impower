@@ -357,7 +357,7 @@ export class SparkdownPreviewScreenplayPanelManager {
               font-family: "${fontFamilyEmoji}";
               font-style: normal;
               font-weight: normal;
-              font-display: block;
+              font-display: swap;
               src: url("${fontPathEmoji}") format("${fontFormatEmoji}");
             }
 
