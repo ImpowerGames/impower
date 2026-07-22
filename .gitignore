@@ -1,5 +1,6 @@
 .vercel
 .claude
+.spark
 **/node_modules/
 **/dist/
 **/out/

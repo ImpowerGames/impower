@@ -1,9 +1,18 @@
 export default null;
 declare var self: ServiceWorkerGlobalScope;
 
-const SW_VERSION: string = process?.env?.["SW_VERSION"] || "v1";
-const SW_CACHE_NAME: string =
-  process?.env?.["SW_CACHE_NAME"] || `cache-${SW_VERSION}`;
+// Build-time values injected via Vite `define` (see getServiceWorkerDefine).
+// Read through a `typeof` guard so (a) an un-injected build falls back safely
+// instead of throwing, and (b) — crucially — the value can't be folded away by
+// an ambient `process.env` → `{}` replacement. The old `process?.env?.[...]`
+// reads minified to `{}.SW_VERSION` → always "v1", so the SW looked byte-
+// identical on every deploy and PWA auto-update silently never fired.
+declare const SW_VERSION_INJECTED: string | undefined;
+declare const SW_RESOURCES_INJECTED: string | undefined;
+declare const SW_NODE_ENV_INJECTED: string | undefined;
+const SW_VERSION: string =
+  typeof SW_VERSION_INJECTED !== "undefined" ? SW_VERSION_INJECTED : "v1";
+const SW_CACHE_NAME: string = `cache-${SW_VERSION}`;
 // Generated image thumbnails. A FIXED (not version-scoped) cache name so the
 // opfs-workspace worker can write into the same bucket at import time without
 // knowing the SW version, and so thumbnails survive SW updates (they're keyed
@@ -13,8 +22,12 @@ const SW_CACHE_NAME: string =
 const SW_THUMB_CACHE_NAME: string = "asset-thumbnails";
 const THUMB_VERSION = 1;
 const SW_RESOURCES: string[] = JSON.parse(
-  process?.env?.["SW_RESOURCES"] || "[]",
+  typeof SW_RESOURCES_INJECTED !== "undefined" ? SW_RESOURCES_INJECTED : "[]",
 );
+const SW_NODE_ENV: string =
+  typeof SW_NODE_ENV_INJECTED !== "undefined"
+    ? SW_NODE_ENV_INJECTED
+    : "development";
 const RESOURCE_PROTOCOL: string = "/file:/";
 
 // Thumbnail max-width bounds (px). A request for ?thumb=144 yields a webp no
@@ -215,7 +228,7 @@ self.addEventListener("fetch", async (event) => {
     event.respondWith(handleLocalAssetRequest(url));
     return;
   }
-  if (process?.env?.["NODE_ENV"] === "production") {
+  if (SW_NODE_ENV === "production") {
     if (event.request.mode === "navigate") {
       // Fetching a page route
       event.respondWith(cacheThenNetwork("/"));

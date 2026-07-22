@@ -872,6 +872,17 @@ export class ScriptEditorController {
         'url("/fonts/courier-prime-bold-italic.ttf") format("truetype")',
         { style: "italic", weight: "700", display: "block" },
       );
+      const notoColorEmoji = new FontFace(
+        '"Noto Color Emoji"',
+        'url("/fonts/noto-color-emoji.ttf") format("truetype")',
+        { style: "normal", weight: "normal", display: "swap" },
+      );
+      // Register the emoji font so it is available, but do NOT eagerly load it:
+      // the 24MB file would block editor startup. The browser fetches it lazily,
+      // only when an emoji is actually rendered (system emoji shows meanwhile).
+      if ("add" in document.fonts && typeof document.fonts.add === "function") {
+        document.fonts.add(notoColorEmoji);
+      }
       await Promise.all(
         [
           courierPrimeSans,

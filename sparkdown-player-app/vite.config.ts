@@ -1,8 +1,36 @@
 import * as esbuild from "esbuild";
+import fs from "node:fs";
 import path from "node:path";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 
 const PRODUCTION = process.env.NODE_ENV === "production";
+
+/**
+ * Honor Vite's `?raw` query inside the nested esbuild builds (the inline-worker
+ * and dev-service-worker bundles). Vite itself supports `?raw` for the app
+ * graph, but the *.worker.ts / sw.ts bundles are produced by standalone esbuild
+ * calls that don't inherit Vite's loaders — without this plugin a `?raw` import
+ * reachable from a worker would fail to resolve. Resolves a `*?raw` import to
+ * the real file in a dedicated namespace, then loads it with the text loader.
+ */
+const rawPlugin = (): esbuild.Plugin => ({
+  name: "raw",
+  setup(build) {
+    build.onResolve({ filter: /\?raw$/ }, (args) => {
+      const target = args.path.slice(0, -4);
+      return {
+        path: path.isAbsolute(target)
+          ? target
+          : path.join(args.resolveDir, target),
+        namespace: "raw-loader",
+      };
+    });
+    build.onLoad({ filter: /.*/, namespace: "raw-loader" }, (args) => ({
+      contents: fs.readFileSync(args.path, "utf8"),
+      loader: "text",
+    }));
+  },
+});
 
 function viteInlineWorkerPlugin(extraConfig?: esbuild.BuildOptions): Plugin {
   return {
@@ -16,6 +44,7 @@ function viteInlineWorkerPlugin(extraConfig?: esbuild.BuildOptions): Plugin {
           minify: PRODUCTION,
           format: "esm",
           target: "esnext",
+          plugins: [rawPlugin()],
           ...(extraConfig || {}),
           // Emit a metafile so we can watch the worker's transitively-bundled
           // deps. esbuild bundles them opaquely, so without this Vite only
@@ -35,7 +64,16 @@ function viteInlineWorkerPlugin(extraConfig?: esbuild.BuildOptions): Plugin {
           if (input.includes("node_modules")) {
             continue;
           }
-          this.addWatchFile(path.resolve(input));
+          // esbuild lists namespaced inputs as `<namespace>:<path>` — e.g. a
+          // `?raw` import resolved into the rawPlugin's `raw-loader` namespace.
+          // Strip the namespace to recover the real file path; otherwise
+          // path.resolve mangles `raw-loader:C:\…` into a bogus path that Vite's
+          // import-analysis then fails to resolve. (The real file, e.g.
+          // builtins.sd, still gets watched so editing it hot-reloads the worker.)
+          const real = input.startsWith("raw-loader:")
+            ? input.slice("raw-loader:".length)
+            : input;
+          this.addWatchFile(path.resolve(real));
         }
 
         let code = result.outputFiles?.[0]?.text || "";
@@ -75,6 +113,7 @@ function devServiceWorkerPlugin(options: {
         platform: "browser",
         sourcemap: "inline",
         write: false,
+        plugins: [rawPlugin()],
       });
       let result = await ctx.rebuild();
       code = result.outputFiles?.[0]?.text ?? "";
@@ -112,9 +151,29 @@ function devServiceWorkerPlugin(options: {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  // DEV-ONLY same-origin game preview. When VITE_SAME_ORIGIN_PREVIEW is set, the
+  // editor reverse-proxies this dev server under its own origin at /__player/
+  // (see impower-dev/build.ts). Serving under base "/__player/" makes the
+  // emitted HTML/asset URLs (/__player/@vite/client, /__player/src/main.ts, …)
+  // route back through that proxy. HMR connects directly to this server's port
+  // (not through the proxy) so no websocket proxying is needed. Defaults OFF
+  // (base "/"). Gated on `mode !== "production"` so an ambient flag can never
+  // flip a prod build onto the /__player/ base.
+  const env = loadEnv(mode, process.cwd(), "");
+  const SAME_ORIGIN_PREVIEW =
+    mode !== "production" && !!env["VITE_SAME_ORIGIN_PREVIEW"];
+  // Keep the served port and the HMR client port in one knob so they can't drift
+  // (and so multiple worktrees can run players without colliding). The editor's
+  // SPARKDOWN_PLAYER_DEV_ORIGIN must point at this same port.
+  const PLAYER_PORT = Number(env["SPARKDOWN_PLAYER_PORT"] || 5173);
+  return {
+  base: SAME_ORIGIN_PREVIEW ? "/__player/" : "/",
   server: {
     host: true,
+    ...(SAME_ORIGIN_PREVIEW
+      ? { port: PLAYER_PORT, hmr: { clientPort: PLAYER_PORT } }
+      : {}),
   },
   // Use Preact's automatic JSX runtime for the .tsx in spark-web-player.
   esbuild: {
@@ -145,4 +204,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });

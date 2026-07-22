@@ -14,7 +14,7 @@
 // inspection ("does the line have display:none? are all its children
 // visibility:hidden width:0?") to infer visible/invisible.
 
-import { language } from "@codemirror/language";
+import { forceParsing, language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
@@ -101,6 +101,72 @@ export const renderPreview = (source: string): RenderResult => {
     });
     view.destroy();
     return { contentHTML, lines };
+  } finally {
+    parent.remove();
+  }
+};
+
+// Extract the text a reader actually SEES in the rendered preview, in
+// document order, one entry per visible line.
+//
+// Unlike `extractPreviewText` (helpers/previewText.ts), which reconstructs
+// visibility from `decorate()`'s source-range decorations, this walks the
+// real rendered DOM and honours computed CSS (`display:none` /
+// `visibility:hidden`). That matters because dialogue blocks render via a
+// `DialogueWidget` whose DOM lives OUTSIDE the `.cm-line` elements and so is
+// invisible to a source-range extractor — which is exactly why a missing
+// vs. present dialogue can't be told apart by `extractPreviewText`. Use this
+// when a test must assert that widget-rendered content (dialogue) actually
+// shows, or that flow-block logic (conditions/diverts/labels) actually hides.
+export const extractVisibleText = (source: string): string[] => {
+  if (typeof document === "undefined") {
+    throw new Error(
+      "extractVisibleText requires a DOM. Set vitest environment: 'jsdom'.",
+    );
+  }
+  const parent = document.createElement("div");
+  parent.style.width = "800px";
+  document.body.appendChild(parent);
+  try {
+    const state = EditorState.create({
+      doc: source,
+      extensions: [
+        language.of(SCREENPLAY_LANGUAGE_SUPPORT.language),
+        screenplayFormatting(),
+      ],
+    });
+    const view = new EditorView({ state, parent });
+    // Force a COMPLETE parse on the live view. A freshly-mounted EditorView
+    // only gets whatever partial tree the parser produces synchronously within
+    // its time budget — when cold, that can stop mid-document, leaving trailing
+    // nodes (e.g. a scene-closing `end`) un-decorated and so leaking as raw
+    // text. forceParsing finishes the parse AND updates the view, so the
+    // decoration field recomputes from the full tree — making the rendered DOM
+    // deterministic regardless of parser warm-up state.
+    forceParsing(view, source.length, 30_000);
+    const win = parent.ownerDocument!.defaultView as any;
+    const visibleTextOf = (el: Element): string => {
+      const cs = win.getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden") return "";
+      let out = "";
+      el.childNodes.forEach((n: ChildNode) => {
+        if (n.nodeType === 3 /* Text */) out += n.textContent ?? "";
+        else if (n.nodeType === 1 /* Element */)
+          out += visibleTextOf(n as Element);
+      });
+      return out;
+    };
+    const content = parent.querySelector(".cm-content");
+    // `.cm-content`'s direct children are the per-line `.cm-line` elements
+    // interleaved with block widgets (e.g. dialogue). Both are visible content
+    // sources, so walk every child rather than only `.cm-line`.
+    const lines = content
+      ? Array.from(content.children)
+          .map((el) => visibleTextOf(el).replace(/\s+/g, " ").trim())
+          .filter((t) => t.length > 0)
+      : [];
+    view.destroy();
+    return lines;
   } finally {
     parent.remove();
   }

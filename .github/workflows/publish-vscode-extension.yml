@@ -1,0 +1,76 @@
+name: Publish VS Code Extension
+
+# Auto-publishes the Sparkdown VS Code extension (impowergames.sparkdown) to the
+# Microsoft Marketplace whenever a push to main touches the extension or one of
+# the packages it bundles.
+#
+# Versioning: the Marketplace rejects republishing an existing version, so each
+# run publishes <major>.<minor>.<run_number>, computed at build time. The patch
+# is the workflow run number (always increasing), so versions never collide and
+# nothing is committed back to the (protected) main branch. Bump major/minor by
+# editing version in vscode-sparkdown/package.json; the patch is CI-derived.
+#
+# Setup required (one-time):
+#   - Repo secret VSCE_PAT: an Azure DevOps Personal Access Token for the
+#     "impowergames" publisher, scoped to Marketplace > Manage.
+#     See https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "vscode-sparkdown/**"
+      - "packages/**"
+      - ".github/workflows/publish-vscode-extension.yml"
+
+# Never let two publishes overlap.
+concurrency:
+  group: publish-vscode-extension
+  cancel-in-progress: false
+
+# Read-only: this workflow never writes back to the repo.
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # >= 23.6 required: the esbuild build scripts are run as .ts via
+          # Node's native type-stripping (node scripts/esbuild.ts).
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Patch = workflow run number (monotonic), so published versions are
+      # always unique and increasing without committing anything back to main.
+      - name: Compute version
+        id: ver
+        run: |
+          base=$(node -p "require('./vscode-sparkdown/package.json').version")
+          major_minor=$(echo "$base" | cut -d. -f1,2)
+          version="${major_minor}.${{ github.run_number }}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Publishing $version"
+
+      # Set the version in-place for the build only (not committed).
+      - name: Set version
+        run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version -w vscode-sparkdown
+
+      # vsce publish runs the extension's vscode:prepublish script, which does
+      # the full production build (npm run package). --no-dependencies skips
+      # vsce's own dependency walk, which chokes on the monorepo's file: deps
+      # (everything is bundled by esbuild anyway).
+      - name: Publish to VS Code Marketplace
+        working-directory: vscode-sparkdown
+        run: npx --yes @vscode/vsce@^3 publish --no-dependencies
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}

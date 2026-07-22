@@ -1,8 +1,34 @@
-import * as chokidar from "chokidar";
 import * as esbuild from "esbuild";
+import fs from "fs";
 import path from "path";
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
+
+/**
+ * Honor Vite's `?raw` query in esbuild: resolve a `*?raw` import to the real
+ * file in a dedicated namespace, then load its contents as a text string.
+ * Gives esbuild parity with Vite/vitest (which support `?raw` natively) so the
+ * same `import text from "./some.file?raw"` works in code bundled by either.
+ * @type {import('esbuild').Plugin}
+ */
+const rawPlugin = {
+  name: "raw",
+  setup(build) {
+    build.onResolve({ filter: /\?raw$/ }, (args) => {
+      const target = args.path.slice(0, -4);
+      return {
+        path: path.isAbsolute(target)
+          ? target
+          : path.join(args.resolveDir, target),
+        namespace: "raw-loader",
+      };
+    });
+    build.onLoad({ filter: /.*/, namespace: "raw-loader" }, (args) => ({
+      contents: fs.readFileSync(args.path, "utf8"),
+      loader: "text",
+    }));
+  },
+};
 
 const args = process.argv.slice(2);
 const OUTDIR_ARG = args.find((a) => a.startsWith("--outdir="));
@@ -12,8 +38,6 @@ const WATCH = process.argv.includes("--watch");
 
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
-
-const OPFS_WORKSPACE_SRC_PATH = "../opfs-workspace/src";
 
 /** @type {import('esbuild').Plugin} **/
 const esbuildProblemMatcher = () => ({
@@ -44,29 +68,18 @@ const config = {
   sourcemap: !PRODUCTION,
   mainFields: ["module", "main"],
   external: ["commonjs"],
-  plugins: [esbuildProblemMatcher()],
+  plugins: [rawPlugin, esbuildProblemMatcher()],
 };
 
 async function main() {
   const ctx = await esbuild.context(config);
   if (WATCH) {
+    // esbuild's native watch already tracks this worker's full input graph —
+    // its own src AND its @impower deps (imported via /src/ subpaths, so they
+    // resolve to source). The old extra chokidar on its OWN src was redundant
+    // and, lacking error handling, crashed the whole watcher on any build error
+    // (e.g. a syntax error mid-edit) — silently ending hot-reload.
     await ctx.watch();
-
-    const rebuild = async () => {
-      console.log(
-        LOG_PREFIX +
-          `detected change in ${OPFS_WORKSPACE_SRC_PATH}, rebuilding...`,
-      );
-      await ctx.rebuild();
-    };
-
-    chokidar
-      .watch(OPFS_WORKSPACE_SRC_PATH, {
-        ignoreInitial: true,
-        persistent: true,
-        depth: 99,
-      })
-      .on("all", rebuild);
   } else {
     await ctx.rebuild();
     await ctx.dispose();

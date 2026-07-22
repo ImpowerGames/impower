@@ -31,10 +31,16 @@ import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
 import { DebugMetadata } from "../../inkjs/engine/DebugMetadata";
 import { SourceMetadata } from "../../inkjs/engine/Error";
+import {
+  validateScene,
+  validateBranch,
+} from "../lower/utils/validateSceneBranchScope";
+import { LowerContext } from "../lower/context";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { asOrNull } from "../../inkjs/engine/TypeAssertion";
+import { asINamedContentOrNull, asOrNull } from "../../inkjs/engine/TypeAssertion";
+import { Container } from "../../inkjs/engine/Container";
 import { StringValue } from "../../inkjs/engine/Value";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import { SparkDeclaration } from "../types/SparkDeclaration";
@@ -88,6 +94,23 @@ export type SparkdownCompilerEvents = {
   "compiler/didRemove": (params: RemovedCompilerFileParams) => void;
 };
 
+// Cached per-flow location entries for the incremental location-map cache
+// (Design A). Tuples are [scriptIndex, startLine, startColumn, endLine,
+// endColumn] in 0-based document coordinates.
+type FlowLocCacheEntry = {
+  // The flow's 0-based source start line at the time these entries were
+  // captured — the reference for computing the line delta on reuse.
+  startLine0: number;
+  pathEntries: Array<{
+    path: string;
+    tuple: [number, number, number, number, number];
+  }>;
+  dataEntries: Array<{
+    key: string;
+    tuple: [number, number, number, number, number];
+  }>;
+};
+
 export class SparkdownCompiler {
   protected _profilerId?: string;
   get profilerId() {
@@ -114,6 +137,52 @@ export class SparkdownCompiler {
   get files() {
     return this._files;
   }
+
+  // uri -> index in `program.scripts`, rebuilt per compile before the JSON
+  // emit pass so `populateLocations` can look up the script index in O(1).
+  protected _scriptIndices?: Map<string, number>;
+
+  // Insertion-order index of `pathLocations` entries, bucketed by scriptIndex
+  // then startLine as they're created during the location walk. Lets
+  // `sortPathLocations` emit entries in (scriptIndex, startLine, startColumn)
+  // order via a linear bucket merge instead of an O(n log n) comparison sort
+  // over every entry. Within a bucket, entries keep DFS insertion order, so a
+  // stable per-line tie-break on startColumn reproduces the comparison sort
+  // exactly. Rebuilt per compile in `populateAllLocations`.
+  protected _pathLocationOrder?: Map<
+    number,
+    Map<number, Array<[path: string, startColumn: number]>>
+  >;
+
+  // ---- Incremental location-map cache (Design A) ------------------------
+  // Per top-level flow (knot/scene/function name = its key in the runtime
+  // mainContentContainer.namedOnlyContent), the pathLocations + dataLocations
+  // entries that flow's subtree contributed last compile, plus the flow's
+  // 0-based source start line. On a warm compile, a flow whose source is
+  // unchanged (no changed chunk overlaps its span) and whose scriptIndex is
+  // unchanged can have its entries REUSED with a single additive line delta
+  // (newStart - oldStart) instead of re-walking its subtree — populateLocations'
+  // per-leaf body (~29ms) is the cost being skipped. ExportRuntime + ToJson
+  // still run fully, so program.compiled is untouched and byte-identical.
+  protected _locCache?: Map<string, FlowLocCacheEntry>;
+  // Signature of the resolved script set+order; cleared cache when it changes
+  // (scriptIndex — tuple[0] of every entry — is derived from it).
+  protected _locCacheScriptsKey?: string;
+  // CompiledBlock identities seen in the PREVIOUS compile; a chunk is unchanged
+  // iff its identity is still present (carried forward by the annotation
+  // RangeSet for chunks outside the reparse window).
+  protected _prevCompilationIds?: Set<object>;
+  // Accumulated during the current compile's chunk walk.
+  protected _compilationIds?: Set<object>;
+  // 0-based [startLine, endLine] source ranges of chunks that are NEW/changed
+  // this compile (identity not in `_prevCompilationIds`).
+  protected _changedChunkRanges?: Array<[number, number]>;
+  // While recomputing a non-reusable flow's subtree, populateLocations tees the
+  // entries it commits here so they can be cached for next compile.
+  protected _locCaptureTarget?: {
+    pathEntries: FlowLocCacheEntry["pathEntries"];
+    dataEntries: FlowLocCacheEntry["dataEntries"];
+  } | null;
 
   protected _builtinStructs: {
     [type: string]: {
@@ -465,6 +534,13 @@ export class SparkdownCompiler {
 
     this.populateBuiltins(state, program);
 
+    // Begin a fresh per-compile record of chunk identities + changed ranges
+    // for the incremental location cache (see `_locCache`). Populated by the
+    // recursive `parseIncrementally` chunk walk(s), consumed by
+    // `populateAllLocations`, finalized below.
+    this._compilationIds = new Set();
+    this._changedChunkRanges = [];
+
     try {
       profile("start", this._profilerId, "ink/parse", uri);
       const parsedStory = this.parseIncrementally(
@@ -489,8 +565,6 @@ export class SparkdownCompiler {
       profile("end", this._profilerId, "ink/compile", uri);
       if (story) {
         profile("start", this._profilerId, "ink/json", uri);
-        story.onWriteRuntimeObject = (_, obj) =>
-          this.populateLocations(program, obj);
         const writer = new SimpleJson.Writer();
         story.ToJson(writer);
         const json = writer.toObject();
@@ -499,6 +573,23 @@ export class SparkdownCompiler {
         }
         state.story = story;
         profile("end", this._profilerId, "ink/json", uri);
+        // Gather source-location maps in a single top-down walk of the
+        // runtime tree (see `populateAllLocations`). Done AFTER `ToJson`
+        // rather than as its `onWriteRuntimeObject` callback so the path of
+        // each object is derived incrementally from the traversal instead of
+        // recomputed per object via the O(n²) `Object.path` getter.
+        profile("start", this._profilerId, "populateLocations", uri);
+        // Precompute uri -> scriptIndex once so `populateLocations` can look
+        // it up in O(1) instead of re-running `Object.keys().indexOf()` per
+        // object.
+        this._scriptIndices = new Map(
+          Object.keys(program.scripts).map((u, i) => [u, i]),
+        );
+        this.populateAllLocations(program, story);
+        // Carry this compile's chunk-identity set forward so the next compile
+        // can tell which chunks are unchanged.
+        this._prevCompilationIds = this._compilationIds;
+        profile("end", this._profilerId, "populateLocations", uri);
       }
     } catch (e) {
       console.error(e);
@@ -635,6 +726,18 @@ export class SparkdownCompiler {
         hoistedKnots,
       } = cur.value.type;
       const lineNumberOffset = document?.lineAt(cur.from) ?? 0;
+      // Track chunk identity for the incremental location cache. A chunk whose
+      // CompiledBlock object is carried forward from the previous compile (same
+      // identity) is unchanged; a new identity means it was re-lowered. Record
+      // changed chunks' 0-based source line ranges so `populateAllLocations` can
+      // tell which flows' subtrees must be recomputed vs reused.
+      const compiledBlock = cur.value.type as object;
+      this._compilationIds?.add(compiledBlock);
+      if (this._prevCompilationIds && !this._prevCompilationIds.has(compiledBlock)) {
+        const chunkStart = lineNumberOffset;
+        const chunkEnd = document?.lineAt(cur.to) ?? chunkStart;
+        this._changedChunkRanges?.push([chunkStart, chunkEnd]);
+      }
       // Anonymous function literals lowered at chunk-top-level (i.e.
       // outside any enclosing function definition) produce synthetic
       // FlowBase objects that need to land at the story's top level.
@@ -1022,6 +1125,14 @@ export class SparkdownCompiler {
       cur.next();
     }
 
+    // Scene/`end` (and branch) pairing validation. This is a CROSS-CHUNK
+    // structural check — a scene's validity depends on a LATER root-level `end`
+    // sibling — so it runs fresh over the whole parse tree each compile rather
+    // than per-chunk during lowering. A per-chunk check would go stale when only
+    // the matching `end` chunk is edited (the earlier scene chunk isn't
+    // re-lowered), silently dropping the "missing `end`" diagnostic incrementally.
+    this.validateSceneStructure(uri, onDiagnostic);
+
     // Auto-terminate non-function scenes / branches whose body doesn't end
     // with an explicit terminator. Sparkdown narrative flows (`scene` /
     // `branch`) are story content — running off the end without a
@@ -1082,7 +1193,21 @@ export class SparkdownCompiler {
     return combinedParsedStory;
   }
 
-  populateLocations(program: SparkProgram, obj: InkObject) {
+  populateLocations(
+    program: SparkProgram,
+    obj: InkObject,
+    // Path string computed by the caller's single top-down traversal
+    // (`populateAllLocations`). Equivalent to `obj.path.toString()` but
+    // avoids the per-object `Object.path` getter, whose
+    // `container.content.indexOf(child)` makes computing every child's path
+    // O(n²) in a container's size. Falls back to the getter when omitted.
+    precomputedPath?: string,
+    // Resolved debug metadata (the object's own, or the nearest ancestor's),
+    // threaded down by `populateAllLocations` so leaves without their own
+    // metadata don't re-walk the parent chain via the `debugMetadata` getter.
+    // Only consulted when `precomputedPath` is provided (DFS caller).
+    precomputedMetadata?: DebugMetadata | null,
+  ) {
     // Prefer the object's OWN metadata when set — it's the most
     // specific source range. Fall back to inherited metadata (walks
     // parent chain) so every path in the bytecode gets a location
@@ -1105,10 +1230,15 @@ export class SparkdownCompiler {
     // for inner items. Until that's untangled, the `error()`
     // formatter reports the enclosing function's start line rather
     // than the actual call site.
-    const metadata = obj?.ownDebugMetadata ?? obj?.debugMetadata;
+    const metadata =
+      precomputedPath !== undefined
+        ? precomputedMetadata ?? null
+        : obj?.ownDebugMetadata ?? obj?.debugMetadata;
     if (metadata) {
       const uri = metadata.filePath ?? program.uri;
-      const scriptIndex = Object.keys(program.scripts).indexOf(uri || "");
+      const scriptIndex =
+        this._scriptIndices?.get(uri || "") ??
+        Object.keys(program.scripts).indexOf(uri || "");
       let startLine = metadata.startLineNumber - 1;
       let startColumn = metadata.startCharacterNumber - 1;
       let endLine = metadata.endLineNumber - 1;
@@ -1118,16 +1248,24 @@ export class SparkdownCompiler {
         if (varAss.variableName && !varAss.isNewDeclaration) {
           if (varAss.isGlobal) {
             program.dataLocations ??= {};
-            program.dataLocations[varAss.variableName] ??= [
-              scriptIndex,
-              startLine,
-              startColumn,
-              endLine,
-              endColumn,
-            ];
+            // Explicit first-write check (was `??=`) so we capture into the
+            // flow cache ONLY the entry this call actually committed.
+            if (!(varAss.variableName in program.dataLocations)) {
+              const tuple: [number, number, number, number, number] = [
+                scriptIndex,
+                startLine,
+                startColumn,
+                endLine,
+                endColumn,
+              ];
+              program.dataLocations[varAss.variableName] = tuple;
+              this._locCaptureTarget?.dataEntries.push({
+                key: varAss.variableName,
+                tuple,
+              });
+            }
           } else {
-            const containerPath = varAss.path
-              .toString()
+            const containerPath = (precomputedPath ?? varAss.path.toString())
               .split(".")
               .filter(
                 (p) =>
@@ -1137,8 +1275,18 @@ export class SparkdownCompiler {
               )
               .join(".");
             program.dataLocations ??= {};
-            program.dataLocations[containerPath + "." + varAss.variableName] ??=
-              [scriptIndex, startLine, startColumn, endLine, endColumn];
+            const dataKey = containerPath + "." + varAss.variableName;
+            if (!(dataKey in program.dataLocations)) {
+              const tuple: [number, number, number, number, number] = [
+                scriptIndex,
+                startLine,
+                startColumn,
+                endLine,
+                endColumn,
+              ];
+              program.dataLocations[dataKey] = tuple;
+              this._locCaptureTarget?.dataEntries.push({ key: dataKey, tuple });
+            }
           }
         }
       }
@@ -1150,7 +1298,7 @@ export class SparkdownCompiler {
         ) &&
         !(obj instanceof StringValue && obj.isNewline)
       ) {
-        let path = obj.path.toString();
+        let path = precomputedPath ?? obj.path.toString();
         if (!path.startsWith("global ")) {
           const [
             _,
@@ -1200,17 +1348,382 @@ export class SparkdownCompiler {
             }
           }
           program.pathLocations ??= {};
-          program.pathLocations[path] ??= [
-            scriptIndex,
-            startLine,
-            startColumn,
-            endLine,
-            endColumn,
-          ];
+          if (!(path in program.pathLocations)) {
+            const tuple: [number, number, number, number, number] = [
+              scriptIndex,
+              startLine,
+              startColumn,
+              endLine,
+              endColumn,
+            ];
+            program.pathLocations[path] = tuple;
+            this._locCaptureTarget?.pathEntries.push({ path, tuple });
+            // Record creation order, bucketed by (scriptIndex, startLine), for
+            // the linear-time `sortPathLocations`. Only the first write per
+            // path creates an entry (matching the previous `??=`), so a path is
+            // bucketed exactly once with its final coordinates.
+            const order = this._pathLocationOrder;
+            if (order) {
+              let byLine = order.get(scriptIndex);
+              if (!byLine) {
+                byLine = new Map();
+                order.set(scriptIndex, byLine);
+              }
+              let bucket = byLine.get(startLine);
+              if (!bucket) {
+                bucket = [];
+                byLine.set(startLine, bucket);
+              }
+              bucket.push([path, startColumn]);
+            }
+          }
         }
       }
     }
     return false;
+  }
+
+  // Walk the runtime container tree once, computing each leaf object's path
+  // string incrementally (parent path + name-or-index component) and feeding
+  // it to `populateLocations`. This replaces the previous approach of running
+  // `populateLocations` as the `onWriteRuntimeObject` callback during
+  // `ToJson`, which recomputed `obj.path` per object via the `Object.path`
+  // getter — whose `container.content.indexOf(child)` is O(n) per level,
+  // making path computation across a container O(n²) in its size.
+  //
+  // The traversal mirrors `JsonSerialisation.WriteRuntimeContainer` exactly:
+  // it visits `content` (indexed children) in order, then `namedOnlyContent`
+  // (named-only children); the callback only ever fired for NON-container
+  // objects, so containers themselves are recursed into but not recorded.
+  // Path components match `Object.path`: a child with a valid name uses its
+  // name, otherwise its index within `content`. Paths are relative to
+  // `mainContentContainer`, which is the serialized root and the path root.
+  // Whole-document scene/`end` + branch pairing validation. Walks the file's
+  // root-level Scene/Branch nodes and runs the same forward/backward `end`
+  // pairing checks the lowerer used to do per-chunk — but freshly, over the full
+  // tree, every compile. Because it never relies on a stale per-chunk result, an
+  // edit that breaks only the matching `end` keyword now correctly re-emits the
+  // "missing `end`" diagnostic incrementally. Source positions are absolute (the
+  // doc-level ctx returns document line/column directly), matching what the
+  // previous chunk-relative + lineNumberOffset path produced.
+  validateSceneStructure(
+    uri: string,
+    onDiagnostic: (
+      message: string,
+      type: ErrorType,
+      source: SourceMetadata | null,
+      tags?: number[],
+    ) => void,
+  ) {
+    const tree = this.documents.tree(uri);
+    const doc = this.documents.get(uri);
+    if (!tree || !doc) {
+      return;
+    }
+    const ctx = {
+      filePath: uri,
+      read: (from: number, to: number) => doc.read(from, to),
+      lineNumber: (pos: number) => doc.positionAt(pos).line,
+      characterNumber: (pos: number) => doc.positionAt(pos).character,
+    } as unknown as LowerContext;
+    const emit = (diags: ReturnType<typeof validateScene>) => {
+      for (const d of diags) {
+        onDiagnostic(d.message, d.severity, d.source ?? null);
+      }
+    };
+    let cur = tree.topNode.firstChild;
+    while (cur) {
+      if (cur.name === "Scene") {
+        emit(validateScene(cur, ctx));
+      } else if (cur.name === "Branch") {
+        emit(validateBranch(cur, ctx));
+      }
+      cur = cur.nextSibling;
+    }
+  }
+
+  populateAllLocations(program: SparkProgram, story: RuntimeStory) {
+    const root = story.mainContentContainer;
+    if (!root) {
+      return;
+    }
+    // Fresh creation-order index for this compile; consumed by
+    // `sortPathLocations` to avoid a comparison sort over every entry.
+    this._pathLocationOrder = new Map();
+
+    // Generic recursive walk (unchanged behavior) — used for the root's inline
+    // content and for recomputing non-reusable top-level flow subtrees.
+    const walk = (
+      container: Container,
+      parentPath: string,
+      inherited: DebugMetadata | null,
+    ) => {
+      // Metadata inherited by this container's children: the container's own
+      // stamped metadata, else whatever it inherited. Mirrors the recursive
+      // `debugMetadata` getter (own ?? parent.debugMetadata) but resolved once
+      // per container instead of re-walked per descendant.
+      const containerMeta = container.ownDebugMetadata ?? inherited;
+      const content = container.content;
+      for (let i = 0; i < content.length; i++) {
+        const child = content[i];
+        const named = asINamedContentOrNull(child);
+        const comp = named != null && named.hasValidName ? named.name! : i;
+        const childPath = parentPath ? `${parentPath}.${comp}` : `${comp}`;
+        const childContainer = asOrNull(child, Container);
+        if (childContainer) {
+          walk(childContainer, childPath, containerMeta);
+        } else {
+          this.populateLocations(
+            program,
+            child,
+            childPath,
+            child.ownDebugMetadata ?? containerMeta,
+          );
+        }
+      }
+      const namedOnly = container.namedOnlyContent;
+      if (namedOnly) {
+        for (const [key, value] of namedOnly) {
+          const childPath = parentPath ? `${parentPath}.${key}` : key;
+          const childContainer = asOrNull(value, Container);
+          if (childContainer) {
+            walk(childContainer, childPath, containerMeta);
+          } else {
+            this.populateLocations(
+              program,
+              value,
+              childPath,
+              value.ownDebugMetadata ?? containerMeta,
+            );
+          }
+        }
+      }
+    };
+
+    // --- Incremental location cache (Design A) ---------------------------
+    // Reuse cached per-flow entries (line-shifted) for top-level flows whose
+    // source is unchanged this compile, skipping the per-leaf populateLocations
+    // body for their subtrees. ExportRuntime + ToJson are untouched, so
+    // program.compiled stays byte-identical; only the *Locations maps are
+    // affected and the union is always re-sorted by `sortPathLocations`.
+    const scriptsKey = Object.keys(program.scripts).join(" ");
+    if (this._locCacheScriptsKey !== scriptsKey) {
+      this._locCache = undefined;
+      this._locCacheScriptsKey = scriptsKey;
+    }
+    const prevCache = this._locCache;
+    const changed = this._changedChunkRanges ?? [];
+    const nextCache: NonNullable<typeof this._locCache> = new Map();
+
+    const rootMeta = root.ownDebugMetadata ?? null;
+
+    // 1) Root inline content (index-addressed positional prefix) — always
+    //    recomputed (small; never cached).
+    const rootContent = root.content;
+    for (let i = 0; i < rootContent.length; i++) {
+      const child = rootContent[i];
+      const named = asINamedContentOrNull(child);
+      const comp = named != null && named.hasValidName ? named.name! : i;
+      const childPath = `${comp}`;
+      const childContainer = asOrNull(child, Container);
+      if (childContainer) {
+        walk(childContainer, childPath, rootMeta);
+      } else {
+        this.populateLocations(
+          program,
+          child,
+          childPath,
+          child.ownDebugMetadata ?? rootMeta,
+        );
+      }
+    }
+
+    // 2) Top-level named flows — reuse-with-delta or recompute-and-capture.
+    const named = root.namedOnlyContent;
+    if (named) {
+      const flows: Array<{
+        name: string;
+        container: Container | null;
+        value: InkObject;
+        start0: number;
+      }> = [];
+      for (const [name, value] of named) {
+        const container = asOrNull(value, Container);
+        const md = container?.ownDebugMetadata;
+        flows.push({
+          name,
+          container,
+          value,
+          start0: md ? md.startLineNumber - 1 : -1,
+        });
+      }
+      // Sorted start lines → each flow's span end is the next flow's start.
+      const starts = flows
+        .map((f) => f.start0)
+        .filter((s) => s >= 0)
+        .sort((a, b) => a - b);
+      const spanEndOf = (start0: number): number => {
+        for (const s of starts) {
+          if (s > start0) {
+            return s;
+          }
+        }
+        return Number.POSITIVE_INFINITY;
+      };
+      // Reuse is only sound while the set of top-level flows is STABLE. A
+      // structural edit (a scene/knot header made/unmade, renamed, added or
+      // removed) can reflow content across flow boundaries and shift the
+      // document-global ownership of GLOBAL dataLocations (a `& global = …`
+      // entry is keyed by bare name and owned by the FIRST writer across all
+      // flows — not flow-local). The per-flow cache freezes that ownership, so
+      // when the flow set changes, fall back to a full recompute this compile.
+      // `_locCache` keys ARE the previous compile's named-flow set (every
+      // non-`global decl` flow is stored), so this is a free comparison.
+      let effPrevCache = prevCache;
+      if (prevCache) {
+        const curNames = flows.filter((f) => f.name !== "global decl");
+        let sameSet = curNames.length === prevCache.size;
+        if (sameSet) {
+          for (const f of curNames) {
+            if (!prevCache.has(f.name)) {
+              sameSet = false;
+              break;
+            }
+          }
+        }
+        if (!sameSet) {
+          effPrevCache = undefined;
+        }
+      }
+      for (const f of flows) {
+        // `global decl`'s source is non-contiguous (scattered declarations), so
+        // it never gets a span — always recompute it (it emits no pathLocations
+        // since its paths start with "global ", only a few dataLocations).
+        const reusable =
+          f.container != null &&
+          f.start0 >= 0 &&
+          f.name !== "global decl" &&
+          effPrevCache != null;
+        if (reusable) {
+          const cached = effPrevCache!.get(f.name);
+          if (cached) {
+            const end0 = spanEndOf(f.start0);
+            const guardStart = f.start0 - 1;
+            let overlap = false;
+            for (let i = 0; i < changed.length; i++) {
+              const cs = changed[i]![0];
+              const ce = changed[i]![1];
+              if (ce >= guardStart && cs < end0) {
+                overlap = true;
+                break;
+              }
+            }
+            if (!overlap) {
+              this.spliceCachedFlowLocations(
+                program,
+                f.name,
+                cached,
+                f.start0 - cached.startLine0,
+                nextCache,
+              );
+              continue;
+            }
+          }
+        }
+        // Recompute (and capture, unless it's the uncacheable global decl).
+        if (f.container) {
+          const capture =
+            f.name === "global decl"
+              ? null
+              : { pathEntries: [], dataEntries: [] };
+          const prevTarget = this._locCaptureTarget;
+          this._locCaptureTarget = capture;
+          walk(f.container, f.name, rootMeta);
+          this._locCaptureTarget = prevTarget;
+          if (capture) {
+            nextCache.set(f.name, { startLine0: f.start0, ...capture });
+          }
+        } else {
+          this.populateLocations(
+            program,
+            f.value,
+            f.name,
+            f.value.ownDebugMetadata ?? rootMeta,
+          );
+        }
+      }
+    }
+
+    this._locCache = nextCache;
+  }
+
+  // Splice a flow's cached location entries back into `program`, shifting every
+  // line by `delta` (the flow moved by that many source lines but its content
+  // is unchanged). Reproduces the first-write-wins commit + `_pathLocationOrder`
+  // bucketing that `populateLocations` does, and records the shifted entries
+  // into `nextCache` so the next compile's delta is relative to this one.
+  protected spliceCachedFlowLocations(
+    program: SparkProgram,
+    name: string,
+    cached: FlowLocCacheEntry,
+    delta: number,
+    nextCache: Map<string, FlowLocCacheEntry>,
+  ) {
+    const pathEntries: typeof cached.pathEntries = [];
+    const dataEntries: typeof cached.dataEntries = [];
+    // Create the maps lazily only when this flow actually contributes entries —
+    // the cold path (populateLocations) creates them on first write, so a flow
+    // with zero entries must not materialize an empty {} (which would diverge
+    // from a cold compile of a file that has no path/data locations at all).
+    if (cached.pathEntries.length > 0) program.pathLocations ??= {};
+    const order = this._pathLocationOrder;
+    for (const pe of cached.pathEntries) {
+      const t = pe.tuple;
+      const nt: [number, number, number, number, number] = [
+        t[0],
+        t[1] + delta,
+        t[2],
+        t[3] + delta,
+        t[4],
+      ];
+      if (!(pe.path in program.pathLocations)) {
+        program.pathLocations[pe.path] = nt;
+        if (order) {
+          let byLine = order.get(nt[0]);
+          if (!byLine) {
+            byLine = new Map();
+            order.set(nt[0], byLine);
+          }
+          let bucket = byLine.get(nt[1]);
+          if (!bucket) {
+            bucket = [];
+            byLine.set(nt[1], bucket);
+          }
+          bucket.push([pe.path, nt[2]]);
+        }
+      }
+      pathEntries.push({ path: pe.path, tuple: nt });
+    }
+    if (cached.dataEntries.length > 0) program.dataLocations ??= {};
+    for (const de of cached.dataEntries) {
+      const t = de.tuple;
+      const nt: [number, number, number, number, number] = [
+        t[0],
+        t[1] + delta,
+        t[2],
+        t[3] + delta,
+        t[4],
+      ];
+      if (!(de.key in program.dataLocations)) {
+        program.dataLocations[de.key] = nt;
+      }
+      dataEntries.push({ key: de.key, tuple: nt });
+    }
+    nextCache.set(name, {
+      startLine0: cached.startLine0 + delta,
+      pathEntries,
+      dataEntries,
+    });
   }
 
   populateFiles(program: SparkProgram) {
@@ -1279,16 +1792,43 @@ export class SparkdownCompiler {
   sortPathLocations(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "sortPathLocations", uri);
-    if (program.pathLocations) {
+    const order = this._pathLocationOrder;
+    if (program.pathLocations && order) {
+      // Linear bucket merge: entries were bucketed by (scriptIndex, startLine)
+      // in DFS/creation order as they were added. Emit scriptIndices then lines
+      // in ascending numeric order; within each line, a stable sort on
+      // startColumn (only when a line holds 2+ entries) reproduces the
+      // (scriptIndex, startLine, startColumn) ordering — and the DFS-insertion
+      // bucket order matches the prior comparison sort's stable tie-break.
+      const entries = program.pathLocations;
+      const sorted: typeof entries = {};
+      const scriptIndices = [...order.keys()].sort((a, b) => a - b);
+      for (const scriptIndex of scriptIndices) {
+        const byLine = order.get(scriptIndex)!;
+        const lines = [...byLine.keys()].sort((a, b) => a - b);
+        for (const line of lines) {
+          const bucket = byLine.get(line)!;
+          if (bucket.length > 1) {
+            bucket.sort((a, b) => a[1] - b[1]);
+          }
+          for (let i = 0; i < bucket.length; i++) {
+            const path = bucket[i][0];
+            sorted[path] = entries[path];
+          }
+        }
+      }
+      program.pathLocations = sorted;
+    } else if (program.pathLocations) {
+      // Fallback (no creation-order index, e.g. if locations weren't gathered
+      // via `populateAllLocations`): comparison sort. Index into the
+      // [scriptIndex, startLine, startColumn, ...] tuples directly rather than
+      // array-destructuring inside the comparator — destructuring allocates an
+      // iterator per comparison, hot across tens of thousands of entries.
       const sortedEntries = Object.entries(program.pathLocations).sort(
-        ([, a], [, b]) => {
-          const [scriptIndexA, startLineA, startColumnA] = a;
-          const [scriptIndexB, startLineB, startColumnB] = b;
-          return (
-            scriptIndexA - scriptIndexB ||
-            startLineA - startLineB ||
-            startColumnA - startColumnB
-          );
+        (a, b) => {
+          const av = a[1];
+          const bv = b[1];
+          return av[0] - bv[0] || av[1] - bv[1] || av[2] - bv[2];
         },
       );
       program.pathLocations = {};
@@ -1655,11 +2195,19 @@ export class SparkdownCompiler {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.implicits.iter();
         while (cur.value) {
-          const text = doc.read(cur.from, cur.to);
+          // Trim the read text AND each `~`-separated part: when an asset
+          // command is followed by a clause (e.g. `[[hero~a~b with flip]]`),
+          // the `AssetCommandName` node greedily includes the trailing space
+          // before the clause, so the last filter would otherwise be `"b "`.
+          // That produced a filtered_image keyed `hero~a~b ` (with a space),
+          // which never matched the reference's clean `sortFilteredName` key —
+          // so the image "could not be found" whenever a `with`/`over`/etc.
+          // clause was present.
+          const text = doc.read(cur.from, cur.to).trim();
           if (!resolvedImplicits.has(text)) {
             resolvedImplicits.add(text);
             const type = cur.value.type;
-            const parts = text.split("~");
+            const parts = text.split("~").map((part) => part.trim());
             const [fileName, ...filterNames] = parts;
             const sortedFilterNames = filterNames.sort();
             const name = [fileName, ...sortedFilterNames].join("~");

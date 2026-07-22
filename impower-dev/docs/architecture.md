@@ -198,3 +198,60 @@ component (`spark-editor/preact-registry.ts`) into `<div id="root">`, and the
 build inlines the editor's CSS (normalize + theme + compiled Tailwind) into a
 `<style id="ssg-css">` block. The same root component then mounts on the client.
 Details in [`build-pipeline.md`](./build-pipeline.md).
+
+## Same-origin game preview (dev-only)
+
+By default the editor (`localhost:8080`) embeds the game-preview player
+(`sparkdown-player-app`, `localhost:5173`) as a **cross-origin** iframe and
+drives it over `postMessage` RPC. That isolation makes debugging hard: the
+editor page can't reach into the iframe's DOM
+(`document.querySelector('#iframe').contentDocument` is `null`) or its
+performance entries.
+
+Set **`VITE_SAME_ORIGIN_PREVIEW=1`** (commented opt-in lines exist in both
+`.env.development` files) to serve the player **same-origin** under the editor in
+dev. To enable it you must set the flag in **both** apps and restart **both** dev
+servers (`impower-dev` and `sparkdown-player-app`), since it's a build-time var:
+
+- `impower-dev/.env.development` — gates the dev proxy in `build.ts`, which
+  reverse-proxies `http://localhost:8080/__player/` → the player's Vite dev
+  server (override its origin with `SPARKDOWN_PLAYER_DEV_ORIGIN`). It also flips
+  `PreviewGame.tsx` to point the iframe `src` at `/__player/` and the RPC target
+  origin at the editor's own origin.
+- `sparkdown-player-app/.env.development` — sets the player's Vite `base` to
+  `/__player/` so its HTML/asset URLs route back through the proxy, and makes
+  `main.ts` skip its own service-worker registration (the editor's root-scoped SW
+  already intercepts `/file:/` and serves game assets straight from OPFS, so it
+  controls the same-origin iframe too). HMR connects directly to the player's port
+  (not through the proxy).
+
+If you run the player on a non-default port, set `SPARKDOWN_PLAYER_PORT` for the
+player (it drives both the served port and the HMR client port) and point the
+editor's `SPARKDOWN_PLAYER_DEV_ORIGIN` at the same `http://localhost:<port>`.
+
+Because the iframe is now same-origin, the `postMessage` handshake matches
+exactly with no origin relaxation, and the live game DOM is reachable from the
+editor page / devtools / automation. **Production stays strict** (cross-origin
+iframe + exact-origin RPC); this flag only affects the dev server and defaults
+OFF.
+
+Verify with the flag on: load `http://localhost:8080`, open the preview, then in
+the editor page console
+`document.querySelector('#iframe').contentDocument` is non-null.
+
+### `window.__preview` inspector
+
+When the flag is on, `PreviewGame` installs a small **`window.__preview`** helper
+(`previewInspect.ts`) on the editor page so the live game DOM is ergonomic to
+inspect from the console or automation (it's only installed in same-origin mode;
+cross-origin it would be blocked anyway). It resolves the iframe lazily, so it
+keeps working across preview reloads:
+
+```js
+__preview.summary()        // { mounted, sameOrigin, url, readyState, gameChildren, resourceEntries }
+__preview.game()           // the live #game element
+__preview.$('#game-ui')    // querySelector into the game document
+__preview.deep('canvas')   // querySelectorAll that descends open shadow roots
+__preview.perf('resource') // the iframe's performance entries
+await __preview.ready()    // resolves once #game has rendered
+```

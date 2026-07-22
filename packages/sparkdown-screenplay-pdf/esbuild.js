@@ -1,7 +1,34 @@
 import { context } from "esbuild";
+import fs from "fs";
 import path from "path";
 
 /** @typedef {import('esbuild').BuildOptions} BuildOptions **/
+
+/**
+ * Honor Vite's `?raw` query in esbuild: resolve a `*?raw` import to the real
+ * file in a dedicated namespace, then load its contents as a text string.
+ * Gives esbuild parity with Vite/vitest (which support `?raw` natively) so the
+ * same `import text from "./some.file?raw"` works in code bundled by either.
+ * @type {import('esbuild').Plugin}
+ */
+const rawPlugin = {
+  name: "raw",
+  setup(build) {
+    build.onResolve({ filter: /\?raw$/ }, (args) => {
+      const target = args.path.slice(0, -4);
+      return {
+        path: path.isAbsolute(target)
+          ? target
+          : path.join(args.resolveDir, target),
+        namespace: "raw-loader",
+      };
+    });
+    build.onLoad({ filter: /.*/, namespace: "raw-loader" }, (args) => ({
+      contents: fs.readFileSync(args.path, "utf8"),
+      loader: "text",
+    }));
+  },
+};
 
 const args = process.argv.slice(2);
 const OUTDIR_ARG = args.find((a) => a.startsWith("--outdir="));
@@ -62,7 +89,7 @@ if (typeof window !== "undefined") { window.global = {}; };
 if (typeof self !== "undefined") { self.global = {}; };
 `.trim(),
   },
-  plugins: [esbuildProblemMatcher()],
+  plugins: [rawPlugin, esbuildProblemMatcher()],
 };
 
 async function main() {

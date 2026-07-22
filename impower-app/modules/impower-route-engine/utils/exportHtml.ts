@@ -10,6 +10,7 @@ import bolditalic from "../../../public/fonts/courier-prime-bold-italic.ttf";
 import bold from "../../../public/fonts/courier-prime-bold.ttf";
 import italic from "../../../public/fonts/courier-prime-italic.ttf";
 import normal from "../../../public/fonts/courier-prime.ttf";
+import emoji from "../../../public/fonts/noto-color-emoji.ttf";
 import { SPARK_SCREENPLAY_CONFIG } from "../constants/SPARK_SCREENPLAY_CONFIG";
 import { downloadFile } from "./downloadFile";
 
@@ -35,6 +36,7 @@ export const exportHtml = async (
     bold: decodeBase64(bold),
     italic: decodeBase64(italic),
     bolditalic: decodeBase64(bolditalic),
+    emoji: decodeBase64(emoji),
   });
   downloadFile(`${name}.html`, "text/html", html);
 };

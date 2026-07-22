@@ -140,9 +140,18 @@ for (const file of envFiles) {
   dotenv.config({ path: path.join(process.cwd(), file), override: false });
 }
 
+// Dev-only browser flags that must never be baked into a production bundle —
+// even if they happen to be present in the build environment. VITE_SAME_ORIGIN_PREVIEW
+// only makes sense against the dev proxy (see build.ts / docs/architecture.md);
+// leaking it into prod would point the preview iframe at a non-existent /__player/.
+const DEV_ONLY_ENV_KEYS = new Set(["VITE_SAME_ORIGIN_PREVIEW"]);
+
 const BROWSER_VARIABLES_ENV: Record<string, string> = {};
 Object.entries(process.env).forEach(([key, value]) => {
   if (value && (key.startsWith("BROWSER_") || key.startsWith("VITE_"))) {
+    if (PRODUCTION && DEV_ONLY_ENV_KEYS.has(key)) {
+      return;
+    }
     BROWSER_VARIABLES_ENV[key] = value;
   }
 });
@@ -168,20 +177,33 @@ const __dirname = path.dirname(__filename);
 process.env.NODE_ENV = process.env.NODE_ENV || '${PRODUCTION ? "production" : "development"}';
 `.trim();
 
-const getServiceWorkerProcessEnvBanner = (options?: {
+// Build-time `define` for the service-worker bundle: replaces the SW_*_INJECTED
+// tokens in sw.ts with string literals (esbuild/Vite define), which SURVIVE
+// minification. Replaces the old prepended-`var process` banner, which was dead
+// code: `process.env.SW_VERSION` folded to `{}.SW_VERSION` ("v1") before the
+// banner applied, so the SW looked byte-identical every deploy and PWA
+// auto-update never fired. Using non-`process` tokens avoids that ambient fold.
+const getServiceWorkerDefine = (options?: {
   swVersion?: string | number;
   swResources?: string[];
-}) =>
-  `
-var process = {
-  env: {
-    NODE_ENV: '${PRODUCTION ? "production" : "development"}',
-    SW_VERSION: ${options?.swVersion ? `'${options.swVersion}'` : "undefined"},
-    SW_CACHE_NAME: ${options?.swVersion ? `'cache-${options.swVersion}'` : "undefined"},
-    SW_RESOURCES: ${options?.swResources ? `'${JSON.stringify(options.swResources)}'` : "undefined"},
+  production?: boolean;
+}): Record<string, string> => {
+  const define: Record<string, string> = {};
+  if (options?.swVersion != null) {
+    define["SW_VERSION_INJECTED"] = JSON.stringify(String(options.swVersion));
   }
+  if (options?.swResources != null) {
+    // Double-encode: sw.ts does JSON.parse(SW_RESOURCES_INJECTED), so the token
+    // must replace to a JSON-string *literal* (e.g. `"[\"/\"]"`).
+    define["SW_RESOURCES_INJECTED"] = JSON.stringify(
+      JSON.stringify(options.swResources),
+    );
+  }
+  define["SW_NODE_ENV_INJECTED"] = JSON.stringify(
+    options?.production ? "production" : "development",
+  );
+  return define;
 };
-`.trim();
 
 // ----------------------------------------------------------------------------
 // Shared Utilities
@@ -208,15 +230,6 @@ const readEditorGlobalCss = (): string =>
 // ----------------------------------------------------------------------------
 // Vite Plugins
 // ----------------------------------------------------------------------------
-
-
-const viteBannerPlugin = (banner: string): Plugin => ({
-  name: "vite-banner-plugin",
-  renderChunk(code, chunk) {
-    if (chunk.fileName.endsWith(".js")) return banner + "\n" + code;
-    return null;
-  },
-});
 
 const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
   name: "vite-statically-rendered-pages",
@@ -344,7 +357,11 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
               return;
             }
           } else if (!isMap) {
-            const SW_VERSION = Date.now();
+            // Stable per dev-server (NOT Date.now()-per-request): the dev SW
+            // must not look "new" on every fetch, or the controllerchange→reload
+            // (src/pages/index.ts) would churn. Dev code updates ride Vite HMR /
+            // the worker chokidar reload; in dev the SW only serves OPFS.
+            const SW_VERSION = "dev";
             const swResourceSet = new Set(["/"]);
             // outDevDir is only created in the isExternal branch above. For
             // non-external service-worker requests it may not exist yet —
@@ -372,14 +389,11 @@ const viteStaticallyRenderedPagesPlugin = (): Plugin => ({
             console.log("");
             const result = await build({
               configFile: false,
-              plugins: [
-                viteBannerPlugin(
-                  getServiceWorkerProcessEnvBanner({
-                    swVersion: SW_VERSION,
-                    swResources: SW_RESOURCES,
-                  }),
-                ),
-              ],
+              define: getServiceWorkerDefine({
+                swVersion: SW_VERSION,
+                swResources: SW_RESOURCES,
+                production: false,
+              }),
               build: {
                 write: false,
                 rollupOptions: {
@@ -515,10 +529,9 @@ export {
   MINIFY,
   browserEnvDefine,
   PATH_RESOLUTION_BANNER,
-  getServiceWorkerProcessEnvBanner,
+  getServiceWorkerDefine,
   staticallyStylePage,
   readEditorGlobalCss,
-  viteBannerPlugin,
   viteStaticallyRenderedPagesPlugin,
 };
 

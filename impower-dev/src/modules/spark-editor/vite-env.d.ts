@@ -6,6 +6,8 @@ interface ViteTypeOptions {
 
 interface ImportMetaEnv {
   readonly VITE_SPARKDOWN_PLAYER_ORIGIN: string;
+  // DEV-ONLY: when set, embed the game preview same-origin under /__player/.
+  readonly VITE_SAME_ORIGIN_PREVIEW?: string;
 }
 
 interface ImportMeta {

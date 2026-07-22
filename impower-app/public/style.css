@@ -92,6 +92,13 @@
     url("/fonts/courier-prime-sans-bold-italic.ttf") format("truetype");
 }
 
+@font-face {
+  font-family: "Noto Color Emoji";
+  font-display: block;
+  src: local(""),
+    url("/fonts/noto-color-emoji.ttf") format("truetype");
+}
+
 /* WARNING: webkit-scrollbar is not supported in Firefox and IE */
 *::-webkit-scrollbar {
   width: 8px;

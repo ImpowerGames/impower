@@ -1,11 +1,37 @@
 import * as polyfill from "@esbuild-plugins/node-globals-polyfill";
 import esbuild from "esbuild";
 import copy from "esbuild-plugin-copy-watch";
+import fs from "fs";
 import * as glob from "glob";
 import path from "path";
 
 const PRODUCTION = process.argv.includes("--production");
 const WATCH = process.argv.includes("--watch");
+
+/**
+ * Honor Vite's `?raw` query in esbuild: resolve a `*?raw` import to the real
+ * file in a dedicated namespace, then load its contents as a text string.
+ * Gives esbuild parity with Vite/vitest (which support `?raw` natively) so the
+ * same `import text from "./some.file?raw"` works in code bundled by either.
+ */
+const rawPlugin = (): esbuild.Plugin => ({
+  name: "raw",
+  setup(build) {
+    build.onResolve({ filter: /\?raw$/ }, (args) => {
+      const target = args.path.slice(0, -4);
+      return {
+        path: path.isAbsolute(target)
+          ? target
+          : path.join(args.resolveDir, target),
+        namespace: "raw-loader",
+      };
+    });
+    build.onLoad({ filter: /.*/, namespace: "raw-loader" }, (args) => ({
+      contents: fs.readFileSync(args.path, "utf8"),
+      loader: "text",
+    }));
+  },
+});
 
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
@@ -103,6 +129,7 @@ const config: esbuild.BuildOptions = {
   },
 
   plugins: [
+    rawPlugin(),
     polyfill.NodeGlobalsPolyfillPlugin({
       process: true,
       buffer: true,

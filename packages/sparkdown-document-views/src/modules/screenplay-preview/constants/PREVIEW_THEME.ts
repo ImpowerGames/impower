@@ -13,7 +13,8 @@ const PREVIEW_THEME: {
     color: "#333",
   },
   "& .cm-scroller": {
-    fontFamily: "Courier Prime",
+    fontFamily:
+      '"Courier Prime", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", monospace',
     fontSize: "1rem",
     overflow: "visible",
     position: "relative",
