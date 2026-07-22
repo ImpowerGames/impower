@@ -162,6 +162,20 @@ interface ReactiveSliderFill {
   deps: ReactiveDeps;
 }
 
+/** An inline `#prop=value` on a GENERIC element (row/column/box/text/button/…),
+ *  applied as an inline STYLE (spec §4.2: "#prop=value — the inline equivalent
+ *  of a style rule"). The prop keeps its authored sparkle name; the renderer
+ *  de-aliases + prop→CSS (+ px-ifies bare numeric lengths) via
+ *  getCSSPropertyKeyValue/getCssEquivalent. Registered only when the value is a
+ *  binding, so `#background-color={team_color}` re-applies when its deps change. */
+interface ReactiveStyle {
+  element: Element;
+  prop: string;
+  propValue: PropValue;
+  last: string | null;
+  deps: ReactiveDeps;
+}
+
 /** Wrapperless reactive regions (if/for/match) mount their content DIRECTLY
  *  into the real parent — no `display:contents` wrapper — so a constrained
  *  parent like `<select>` sees its `<option>`s as direct children. Positioning
@@ -267,6 +281,7 @@ interface ReactiveScope {
   texts: ReactiveText[];
   regions: ReactiveRegion[];
   attrs: ReactiveAttr[];
+  styles: ReactiveStyle[];
   sliderFills: ReactiveSliderFill[];
   slots?: SlotMap;
 }
@@ -1138,7 +1153,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** A fresh reactive scope with the given loop env. */
   protected makeScope(env: ReactiveEnv): ReactiveScope {
-    return { env, texts: [], regions: [], attrs: [], sliderFills: [] };
+    return { env, texts: [], regions: [], attrs: [], styles: [], sliderFills: [] };
   }
 
   protected mountNode(
@@ -1220,7 +1235,40 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (node.tag === "option") {
       return this.mountOption(parent, node, scope, name, before);
     }
-    const el = this.createElement(parent, { type: "div", name }, before);
+    // Inline `#prop=value` on a generic element → an inline STYLE (spec §4.2:
+    // "the inline equivalent of a style rule"). The widget mounters route props
+    // to ATTRIBUTES; a plain container/leaf routes them to `style` instead (the
+    // spec's HUD/settings examples use `#gap`, `#background-color`,
+    // `#child-justify`, `#width` on containers). The renderer de-aliases +
+    // prop→CSS + px-ifies via getCSSPropertyKeyValue/getCssEquivalent, so the
+    // authored sparkle name is passed through as-is. Reactive props re-apply on
+    // refresh (scope.styles), mirroring scope.attrs.
+    const style: Record<string, string | null> = {};
+    const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
+    const propEntries = Object.entries(node.props);
+    if (propEntries.length > 0) {
+      const vs = this._game.story.variablesState;
+      for (const [prop, propValue] of propEntries) {
+        vs.beginReactiveRead();
+        const resolved = this.resolveProp(propValue, scope.env);
+        const deps = vs.endReactiveRead();
+        const val = resolved == null ? null : String(resolved);
+        style[prop] = val;
+        if (this.isReactiveProp(propValue)) {
+          reactiveStyles.push({ prop, propValue, last: val, deps });
+        }
+      }
+    }
+    const el = this.createElement(
+      parent,
+      Object.keys(style).length > 0
+        ? { type: "div", name, style }
+        : { type: "div", name },
+      before,
+    );
+    for (const r of reactiveStyles) {
+      scope.styles.push({ element: el, ...r });
+    }
     // Builtin leaf semantics: image/mask render a background span; everything
     // else with adjacency content (text/stroke, but also button/label/…) renders
     // it as an inline span. Content-less structural elements get no span
@@ -2170,6 +2218,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           entry.last = next;
           this.updateElement(entry.element, {
             attributes: { [entry.prop]: next },
+          });
+        }
+      }
+    }
+    for (const entry of scope.styles) {
+      if (envScope || this.depsChanged(entry.deps, changes)) {
+        const vs = this._game.story.variablesState;
+        vs.beginReactiveRead();
+        const resolved = this.resolveProp(entry.propValue, scope.env);
+        entry.deps = vs.endReactiveRead();
+        const next = resolved == null ? null : String(resolved);
+        if (next !== entry.last) {
+          entry.last = next;
+          this.updateElement(entry.element, {
+            style: { [entry.prop]: next },
           });
         }
       }
