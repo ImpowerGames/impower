@@ -7,12 +7,21 @@ const SPACE_BEFORE_SELECTOR_OPERATOR_REGEX = /[ ]+(?=[^_\p{L}])/gu;
 const ATTRIBUTE_SELECTOR_REGEX =
   /[#]((?:[_\p{L}][_\p{L}0-9-]*)?(?:(?:[~]|[|]|[\^]|[$]|[*])?[=](?:["](?:\\.|[^"\r\n])*["]|.*?(?=$|[\s"'`<>=:(){}\[\]]))?)?)/gu;
 
+// Fallback breakpoints for when a caller omits the `breakpoints` arg. Kept in
+// sync with the ENGINE's authoritative source — `config.ui.breakpoints` in the
+// builtins prelude (packages/sparkdown/src/compiler/builtins/builtins.sd) — so a
+// caller that ever falls through to this default agrees with the values the
+// engine stamps onto every ui/create message (B1: these two sets had diverged —
+// sm600/md960/lg1280/xl1920 here vs sm640/md768/lg1024/xl1280 in the engine —
+// which would silently apply wrong max-width px to any `@screen-size(...)` rule
+// that reached getStyleContent without breakpoints). The render path always
+// passes the engine's, so this is a guard against a future undefined-arg path.
 export const DEFAULT_BREAKPOINTS = {
   xs: 400,
-  sm: 600,
-  md: 960,
-  lg: 1280,
-  xl: 1920,
+  sm: 640,
+  md: 768,
+  lg: 1024,
+  xl: 1280,
 };
 
 const PSEUDO_ALIASES = {
