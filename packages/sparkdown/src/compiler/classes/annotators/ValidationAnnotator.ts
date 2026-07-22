@@ -165,6 +165,36 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
     }
+    // Dot-prefixed classes on a Sparkle element line (`row.hud`, `text.title`).
+    // Classes are SPACE-separated bare words after the tag (`row hud`), so a `.`
+    // breaks the header parse into `<tag>` + an `ERROR_UNRECOGNIZED` remainder
+    // starting with `.`. Surface a friendly warning pointing at the fix rather
+    // than leaving the class silently dropped. Gated on the Sparkle element
+    // context (a struct body line) + the leading dot so other unrecognized
+    // spans aren't mislabeled.
+    if (nodeRef.name === "ERROR_UNRECOGNIZED") {
+      // A dotted class breaks the header at the `.`, which becomes a lone
+      // ERROR_UNRECOGNIZED node (text `"."`). Warn only for that dot inside a
+      // Sparkle element line so unrelated unrecognized spans aren't mislabeled.
+      const text = this.read(nodeRef.from, nodeRef.to).trim();
+      const context = getContextNames(nodeRef.node);
+      if (
+        text.startsWith(".") &&
+        context.includes("LuauStructBodyLine") &&
+        // Only element-line headers — not a stray `.` inside a `key = value`
+        // style property, where the fix isn't "use a space".
+        !context.includes("LuauStructScalarProperty")
+      ) {
+        const message = `Classes are space-separated, not dot-prefixed — replace the \`.\` with a space\n> e.g. \`row hud\`, not \`row.hud\``;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
     if (nodeRef.name === "IllegalChar") {
       const context = getContextNames(nodeRef.node);
       // Report invalid image name syntax
