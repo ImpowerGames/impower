@@ -276,6 +276,13 @@ export default function FileList({
   const [draftNew, setDraftNew] = useState<{ dir: string; ext: string } | null>(
     null,
   );
+  // A just-committed new file kept pinned to the TOP of its siblings for a beat
+  // after it opens, so the list doesn't visibly re-sort it into place during the
+  // create→open transition — it settles off-screen once the editor covers the
+  // list. Sort-only (unlike editingNewPath, this does NOT put the row in rename
+  // mode). Released by a timer (below).
+  const [pinnedPath, setPinnedPath] = useState<string | null>(null);
+  const pinReleaseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Index into `previewItems` of the file shown in the fullscreen preview
   // overlay (`null` = closed). Only used when `enablePreview` is set.
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -651,13 +658,15 @@ export default function FileList({
   // field (name / modified / size) + direction takes over.
   const sortDir = sortOrder === "asc" ? 1 : -1;
   const compareFiles = (a: FileTreeNode, b: FileTreeNode): number => {
-    // A just-created file being named pins to the TOP of its siblings, so the
-    // blank name field appears first rather than wherever its throwaway
-    // placeholder name (e.g. `script00`) happens to sort. Once committed,
-    // editingNewPath clears and it sorts normally.
-    if (editingNewPath) {
-      if (a.path === editingNewPath) return -1;
-      if (b.path === editingNewPath) return 1;
+    // A file being named (editingNewPath) OR a just-committed new file still in
+    // its open-transition grace period (pinnedPath) pins to the TOP of its
+    // siblings — so the blank field appears first, and a committed new file
+    // doesn't visibly re-sort into place before the editor covers the list.
+    const pinnedTop = (p: string) => p === editingNewPath || p === pinnedPath;
+    const aPinned = pinnedTop(a.path);
+    const bPinned = pinnedTop(b.path);
+    if (aPinned !== bPinned) {
+      return aPinned ? -1 : 1;
     }
     const ea = extOf(a.path);
     const eb = extOf(b.path);
@@ -1073,6 +1082,34 @@ export default function FileList({
     // discarded → nothing was ever written).
     setDraftNew(null);
   }, []);
+
+  // A draft committed to a real file at `finalPath` (and its editor is opening).
+  // Drop the draft, but keep the new file pinned to the top for a beat so it
+  // doesn't visibly re-sort while the list is still fading behind the editor;
+  // release the pin off-screen once the transition is done.
+  const onDraftCommitted = useCallback((finalPath: string) => {
+    setDraftNew(null);
+    setEditingNewPath(null);
+    setRevealPath(finalPath);
+    setPinnedPath(finalPath);
+    if (pinReleaseRef.current) {
+      clearTimeout(pinReleaseRef.current);
+    }
+    pinReleaseRef.current = setTimeout(() => {
+      setPinnedPath((p) => (p === finalPath ? null : p));
+      setRevealPath((p) => (p === finalPath ? null : p));
+    }, 450);
+  }, []);
+
+  // Cancel a pending pin-release if the list unmounts first.
+  useEffect(
+    () => () => {
+      if (pinReleaseRef.current) {
+        clearTimeout(pinReleaseRef.current);
+      }
+    },
+    [],
+  );
 
   // File click: in preview-enabled panes (Assets) a previewable file opens the
   // fullscreen overlay at its position; otherwise it routes to the editor.
@@ -1530,6 +1567,7 @@ export default function FileList({
                     onDownloadSelected={onDownloadSelected}
                     onContextSelect={contextSelect}
                     onEndNewEntry={onEndNewEntry}
+                    onDraftCommitted={onDraftCommitted}
                     onFolderRenamed={remapExpanded}
                     onOpenFile={onOpenFile}
                   />

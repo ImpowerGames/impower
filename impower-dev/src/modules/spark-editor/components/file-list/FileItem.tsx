@@ -112,6 +112,12 @@ export type FileItemProps = {
    */
   isDraft?: boolean;
   /**
+   * A draft committed to a real file at the given path (its editor is opening).
+   * The parent drops the draft row and briefly pins the new file at the top so
+   * the list doesn't visibly re-sort it during the create→open transition.
+   */
+  onDraftCommitted?: (finalPath: string) => void;
+  /**
    * Folder rows: toggle expand/collapse. Receives the row's own path so the
    * parent can pass a single STABLE callback (not a per-row closure), which
    * keeps {@link FileItem}'s props referentially stable for `memo`.
@@ -181,6 +187,7 @@ function FileItem({
   onDownloadSelected,
   onContextSelect,
   onEndNewEntry,
+  onDraftCommitted,
   onFolderRenamed,
   onOpenFile,
 }: FileItemProps) {
@@ -374,7 +381,9 @@ function FileItem({
         return;
       }
       Workspace.window.openFileEditor(finalPath);
-      onEndNewEntry?.();
+      // Drop the draft but keep the new file pinned at the top through the
+      // open transition (so it doesn't visibly re-sort behind the fading list).
+      onDraftCommitted?.(finalPath);
       await Workspace.fs.createFiles({
         files: [
           {
