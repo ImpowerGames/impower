@@ -8,8 +8,9 @@ export const getFonts = async (
   bold: ArrayBuffer;
   italic: ArrayBuffer;
   bolditalic: ArrayBuffer;
+  emoji: ArrayBuffer;
 }> => {
-  const [normal, bold, italic, bolditalic] = await Promise.all([
+  const [normal, bold, italic, bolditalic, emoji] = await Promise.all([
     readFile(
       vscode.Uri.joinPath(
         context.extensionUri,
@@ -42,6 +43,14 @@ export const getFonts = async (
         "courier-prime-bold-italic.ttf",
       ),
     ),
+    readFile(
+      vscode.Uri.joinPath(
+        context.extensionUri,
+        "out",
+        "data",
+        "noto-color-emoji.ttf",
+      ),
+    ),
   ]);
 
   if (!normal) {
@@ -56,10 +65,14 @@ export const getFonts = async (
   if (!bolditalic) {
     throw new Error("Missing 'bolditalic' font");
   }
+  if (!emoji) {
+    throw new Error("Missing 'emoji' font");
+  }
   return {
     normal,
     bold,
     italic,
     bolditalic,
+    emoji
   };
 };

@@ -872,6 +872,11 @@ export class ScriptEditorController {
         'url("/fonts/courier-prime-bold-italic.ttf") format("truetype")',
         { style: "italic", weight: "700", display: "block" },
       );
+      const notoColorEmoji = new FontFace(
+        '"Noto Color Emoji"',
+        'url("/fonts/noto-color-emoji.ttf") format("truetype")',
+        { style: "normal", weight: "normal", display: "block" },
+      );
       await Promise.all(
         [
           courierPrimeSans,
@@ -882,6 +887,7 @@ export class ScriptEditorController {
           courierPrimeBold,
           courierPrimeItalic,
           courierPrimeBoldItalic,
+          notoColorEmoji
         ].map(async (fontFace) => {
           if (
             "add" in document.fonts &&

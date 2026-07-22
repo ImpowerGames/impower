@@ -84,7 +84,7 @@ export const TITLE_CSS = `
 
 export const MAIN_CSS = `
 #workskin {
-  font-family: sparkdown-font, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-family: sparkdown-font, SFMono-Regular, Consolas, "Liberation Mono", Menlo, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", monospace;
   font-size: 16px;
 }
 

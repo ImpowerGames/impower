@@ -86,7 +86,8 @@ const EDITOR_THEME: {
     overscrollBehavior: "none",
   },
   "& .cm-line": {
-    fontFamily: "Courier Prime Sans",
+    fontFamily:
+      '"Courier Prime Sans", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", monospace',
   },
   "& .cm-gutters": {
     fontFamily: "Courier Prime Sans",

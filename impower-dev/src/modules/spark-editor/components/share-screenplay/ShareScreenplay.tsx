@@ -65,9 +65,11 @@ export default function ShareScreenplay(_props: ShareScreenplayProps) {
       const projectName = store.project?.name;
       if (!projectId || !projectName) return;
 
-      const programs = Object.values(
-        (await Workspace.ls.getPrograms()) || {},
-      );
+      // Screenplay export parses the raw .sd text (not the compiled program),
+      // so bundle the project's script files into the script list.
+      const scriptBundle =
+        await Workspace.fs.readProjectScriptBundle(projectId);
+      const programs = [scriptBundle];
       const onProgress = (value?: { percentage?: number }) => {
         const pct = (value?.percentage ?? 0) / 100;
         setProgress((p) => ({ ...p, [format]: pct }));
