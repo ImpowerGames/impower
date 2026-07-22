@@ -18,4 +18,4 @@ Read in order:
 ---
 
 _For the engine/design specification (audience: contributors), see
-[`docs/sparkle/reactive-sparkle-spec.md`](../../../docs/sparkle/reactive-sparkle-spec.md)._
+[`docs/sparkle/reactive-sparkle-spec.md`](../../../../docs/sparkle/reactive-sparkle-spec.md)._
