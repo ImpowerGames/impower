@@ -32,8 +32,16 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
     );
   }).value;
 
-  const [oldName, oldExt] = filename.split(".");
-  const displayName = oldName ?? "";
+  // Split the active filename into folder / basename / ext so the header shows
+  // just the name (e.g. "intro", not "scripts/intro") while a rename still
+  // preserves the folder the script lives in.
+  const lastSlash = filename.lastIndexOf("/");
+  const dir = lastSlash >= 0 ? filename.slice(0, lastSlash) : "";
+  const base = lastSlash >= 0 ? filename.slice(lastSlash + 1) : filename;
+  const lastDot = base.lastIndexOf(".");
+  const oldName = lastDot > 0 ? base.slice(0, lastDot) : base;
+  const oldExt = lastDot > 0 ? base.slice(lastDot + 1) : "";
+  const displayName = oldName;
 
   // Color the rename header in red/yellow when the open script has
   // errors/warnings — same severity → color mapping the sub-tab uses.
@@ -55,7 +63,9 @@ export default function LogicScriptsEditor(_props: LogicScriptsEditorProps) {
 
   const commitRename = async () => {
     if (!draftName || draftName === oldName) return;
-    const newFilename = `${draftName}.${oldExt ?? ""}`;
+    // Rebuild the full path: keep the folder + extension, swap only the name.
+    const newBase = oldExt ? `${draftName}.${oldExt}` : draftName;
+    const newFilename = dir ? `${dir}/${newBase}` : newBase;
     const { Workspace } = await import("../../workspace/Workspace");
     const projectId = workspace.state.peek().project?.id;
     if (!projectId) return;

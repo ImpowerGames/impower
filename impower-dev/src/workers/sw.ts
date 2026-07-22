@@ -13,6 +13,14 @@ declare const SW_NODE_ENV_INJECTED: string | undefined;
 const SW_VERSION: string =
   typeof SW_VERSION_INJECTED !== "undefined" ? SW_VERSION_INJECTED : "v1";
 const SW_CACHE_NAME: string = `cache-${SW_VERSION}`;
+// Generated image thumbnails. A FIXED (not version-scoped) cache name so the
+// opfs-workspace worker can write into the same bucket at import time without
+// knowing the SW version, and so thumbnails survive SW updates (they're keyed
+// by file signature, so they stay valid until the file itself changes). Bump
+// THUMB_VERSION to invalidate every thumbnail when the generation logic
+// changes. Kept across `activate`'s cache sweep.
+const SW_THUMB_CACHE_NAME: string = "asset-thumbnails";
+const THUMB_VERSION = 1;
 const SW_RESOURCES: string[] = JSON.parse(
   typeof SW_RESOURCES_INJECTED !== "undefined" ? SW_RESOURCES_INJECTED : "[]",
 );
@@ -21,6 +29,12 @@ const SW_NODE_ENV: string =
     ? SW_NODE_ENV_INJECTED
     : "development";
 const RESOURCE_PROTOCOL: string = "/file:/";
+
+// Thumbnail max-width bounds (px). A request for ?thumb=144 yields a webp no
+// wider than 144px; clamped so a hostile/garbage value can't ask for a huge
+// canvas. Images are never upscaled past their natural width.
+const THUMB_MIN_WIDTH = 16;
+const THUMB_MAX_WIDTH = 512;
 
 const RESOURCE_URL_REGEX =
   /.*[.](?:css|html|js|mjs|ico|svg|png|ttf|woff|woff2)$/;
@@ -53,6 +67,22 @@ async function handleLocalAssetRequest(url: URL) {
   const contentType = file.type;
   const contentLength = file.size;
 
+  // Image rows can ask for a downscaled thumbnail via `?thumb=<maxWidthPx>`.
+  // We decode + resize here in the SW (its own thread) and cache the tiny webp,
+  // so the page never decodes multi-megapixel art just to paint a ~36px tile —
+  // that full-res decode is what janks the virtualized scroll. SVG is already
+  // vector/small, so it's served as-is. On any decode failure we fall through
+  // to the original bytes (the row's <img> still works or its onError fires).
+  const thumbParam = url.searchParams.get("thumb");
+  const isRaster =
+    contentType.startsWith("image/") && contentType !== "image/svg+xml";
+  if (thumbParam && isRaster) {
+    const thumb = await getOrCreateThumbnail(path, file, thumbParam);
+    if (thumb) {
+      return thumb;
+    }
+  }
+
   const headers = new Headers({
     "Content-Type": contentType,
     "Content-Length": String(contentLength),
@@ -64,6 +94,72 @@ async function handleLocalAssetRequest(url: URL) {
   });
 
   return new Response(file.stream(), { status: 200, headers });
+}
+
+/**
+ * Return a cached or freshly-generated downscaled webp thumbnail for an image
+ * file, or `undefined` if generation fails (caller serves the original).
+ *
+ * Keyed by the file's STABLE signature — `path` + `lastModified` + `size` + the
+ * requested width — NOT the request url. The request url carries a
+ * `?v=${Date.now()}` cache-bust that the workspace re-stamps on every load, so
+ * keying on it would regenerate every thumbnail on every page load (and leak
+ * orphaned cache entries). The signature changes only when the file's bytes
+ * actually change, so a real edit still invalidates the thumbnail.
+ */
+async function getOrCreateThumbnail(
+  path: string,
+  file: File,
+  thumbParam: string,
+): Promise<Response | undefined> {
+  const maxWidth = Math.max(
+    THUMB_MIN_WIDTH,
+    Math.min(THUMB_MAX_WIDTH, Math.floor(Number(thumbParam)) || 0),
+  );
+  if (!Number.isFinite(maxWidth) || maxWidth < THUMB_MIN_WIDTH) {
+    return undefined;
+  }
+  const cacheKey = `${RESOURCE_PROTOCOL}${path}?thumb=${maxWidth}&sig=${file.lastModified}-${file.size}&tv=${THUMB_VERSION}`;
+  try {
+    const cache = await caches.open(SW_THUMB_CACHE_NAME);
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      return cached;
+    }
+    // Decode AND downscale in one pass: `resizeWidth` makes the decoder emit a
+    // small bitmap directly (preserving aspect) instead of allocating the full
+    // multi-megapixel image and scaling it on a canvas afterwards — much less
+    // memory + CPU per thumbnail. (Sources narrower than maxWidth upscale
+    // slightly, which is harmless at thumbnail size.)
+    const bitmap = await createImageBitmap(file, {
+      resizeWidth: maxWidth,
+      resizeQuality: "low",
+    });
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return undefined;
+    }
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const blob = await canvas.convertToBlob({
+      type: "image/webp",
+      quality: 0.75,
+    });
+    const response = new Response(blob, {
+      status: 200,
+      headers: new Headers({
+        "Content-Type": "image/webp",
+        "Content-Length": String(blob.size),
+        "Cache-Control": "max-age=31536000, immutable",
+      }),
+    });
+    await cache.put(cacheKey, response.clone());
+    return response;
+  } catch {
+    return undefined;
+  }
 }
 
 function splitPath(path: string) {
@@ -115,7 +211,7 @@ self.addEventListener("activate", (e) => {
       const names = await caches.keys();
       await Promise.all(
         names.map((name) => {
-          if (name !== SW_CACHE_NAME) {
+          if (name !== SW_CACHE_NAME && name !== SW_THUMB_CACHE_NAME) {
             return caches.delete(name);
           }
           return false;

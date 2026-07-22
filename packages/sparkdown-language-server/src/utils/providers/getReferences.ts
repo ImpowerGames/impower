@@ -31,59 +31,55 @@ const recursivelyGetKeys = (obj: any, keys: string[] = []): string[] => {
   return keys;
 };
 
-export const getReferences = (
-  document: SparkdownDocument | undefined,
-  tree: Tree | undefined,
+export interface ReferenceTarget {
+  /** The bare name token that references write in the document text. */
+  symbolName: string | undefined;
+  /** Candidate symbol ids for the target (e.g. `["image.forest"]`). */
+  symbolIds: string[] | undefined;
+  interdependentIds?: string[] | undefined;
+  /** Scope context of the SEED reference — only used for scoped symbols
+   *  (knots/stitches/vars); undefined for flat/global symbols like assets. */
+  symbolReference?: Reference | undefined;
+  symbolScopePath?: string | undefined;
+  /** When `searchOtherFiles` is false, restrict the search to this uri. */
+  seedUri?: string | undefined;
+}
+
+export type ReferenceSearchContext = ReferenceContext & {
+  searchOtherFiles: boolean;
+  excludeUses?: boolean;
+  includeInterdependent: boolean;
+  includeLinks: boolean;
+  /** Include the asset FILE itself (at range 0,0) in the result. Off by default
+   *  — callers that rewrite reference text (rename) must NOT text-edit a binary
+   *  asset, and find-usages wants only the script locations. */
+  addAssetFiles?: boolean;
+};
+
+/**
+ * The position-less core of reference resolution: given a fully-formed
+ * {@link ReferenceTarget} (a name + candidate symbol ids, plus optional scope
+ * for scoped symbols), find every matching reference across the workspace.
+ * {@link getReferences} is the cursor-driven wrapper; the file-rename /
+ * find-usages providers build the target from a file's (name, type) instead.
+ */
+export const collectReferencesForTarget = (
   program: SparkProgram | undefined,
   workspace: SparkdownLanguageServerWorkspace,
-  position: Position,
-  context: ReferenceContext & {
-    searchOtherFiles: boolean;
-    excludeUses?: boolean;
-    includeInterdependent: boolean;
-    includeLinks: boolean;
-  },
+  target: ReferenceTarget,
+  context: ReferenceSearchContext,
 ): {
-  resolvedSymbolIds?: string[];
-  references?: (Location & DocumentHighlight)[];
+  resolvedSymbolIds: string[];
+  references: (Location & DocumentHighlight)[];
 } => {
-  if (!document) {
-    console.warn("no document available");
-    return {};
-  }
-  if (!tree) {
-    console.warn("no tree available");
-    return {};
-  }
-  const { symbol, nameRange } = getSymbol(document, tree, position);
-  if (!symbol) {
-    return {};
-  }
-
-  const symbolName = document?.getText(nameRange);
-
-  const { symbolIds, interdependentIds } = getSymbolIds(
-    workspace.annotations(document.uri),
-    symbol,
-  );
-  if (!symbolIds && !interdependentIds) {
-    return {
-      references: [
-        {
-          uri: document.uri,
-          range: document.range(symbol.from, symbol.to),
-          kind: DocumentHighlightKind.Text,
-        },
-      ],
-    };
-  }
-
-  const { scopePath: symbolScopePath, reference: symbolReference } =
-    getSymbolContext(
-      document,
-      workspace.annotations(document.uri).references,
-      symbol.from,
-    );
+  const {
+    symbolName,
+    symbolIds,
+    interdependentIds,
+    symbolReference,
+    symbolScopePath,
+    seedUri,
+  } = target;
 
   const references: (Location & DocumentHighlight)[] = [];
   const resolvedSymbolIds: string[] = [];
@@ -91,6 +87,9 @@ export const getReferences = (
   const foundReferences: Record<string, Set<number>> = {};
 
   const addAsset = (type: string) => {
+    if (!context.addAssetFiles) {
+      return;
+    }
     const possibleNameSuffixes =
       type === "font"
         ? ["", "__bolditalic", "__bold_italic", "__bold", "__italic"]
@@ -253,7 +252,9 @@ export const getReferences = (
 
   const searchUris = context.searchOtherFiles
     ? workspace.uris()
-    : [document.uri];
+    : seedUri
+      ? [seedUri]
+      : [];
 
   for (const uri of searchUris) {
     const document = workspace.document(uri);
@@ -314,6 +315,69 @@ export const getReferences = (
     }
   }
 
-  const result = { references, resolvedSymbolIds };
-  return result;
+  return { references, resolvedSymbolIds };
+};
+
+export const getReferences = (
+  document: SparkdownDocument | undefined,
+  tree: Tree | undefined,
+  program: SparkProgram | undefined,
+  workspace: SparkdownLanguageServerWorkspace,
+  position: Position,
+  context: ReferenceSearchContext,
+): {
+  resolvedSymbolIds?: string[];
+  references?: (Location & DocumentHighlight)[];
+} => {
+  if (!document) {
+    console.warn("no document available");
+    return {};
+  }
+  if (!tree) {
+    console.warn("no tree available");
+    return {};
+  }
+  const { symbol, nameRange } = getSymbol(document, tree, position);
+  if (!symbol) {
+    return {};
+  }
+
+  const symbolName = document?.getText(nameRange);
+
+  const { symbolIds, interdependentIds } = getSymbolIds(
+    workspace.annotations(document.uri),
+    symbol,
+  );
+  if (!symbolIds && !interdependentIds) {
+    return {
+      references: [
+        {
+          uri: document.uri,
+          range: document.range(symbol.from, symbol.to),
+          kind: DocumentHighlightKind.Text,
+        },
+      ],
+    };
+  }
+
+  const { scopePath: symbolScopePath, reference: symbolReference } =
+    getSymbolContext(
+      document,
+      workspace.annotations(document.uri).references,
+      symbol.from,
+    );
+
+  return collectReferencesForTarget(
+    program,
+    workspace,
+    {
+      symbolName,
+      symbolIds,
+      interdependentIds,
+      symbolReference,
+      symbolScopePath,
+      seedUri: document.uri,
+    },
+    context,
+  );
 };
