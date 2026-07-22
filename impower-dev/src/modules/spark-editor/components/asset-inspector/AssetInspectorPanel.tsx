@@ -1,9 +1,13 @@
 import {
   Button,
+  Check,
   ChevronRight,
   Download,
+  Link,
+  Pencil,
   Repeat,
   Search,
+  X,
 } from "@impower/impower-ui/components";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { PreviewKind } from "../file-preview/FilePreviewOverlay";
@@ -16,6 +20,18 @@ export type AssetInspectorPanelProps = {
   kind: PreviewKind;
   /** URL to probe for intrinsic dimensions / duration. */
   src?: string;
+  /**
+   * For a remote `.url` asset: its target URL. When set alongside `onEditUrl`,
+   * the Details panel shows an editable "Source URL" field; a host that only
+   * reads (or a non-`.url` asset) omits it and the field doesn't render.
+   */
+  url?: string;
+  /**
+   * Commit a new target URL for a `.url` asset. Present ⇒ the Source URL field
+   * is editable (pencil → input → save). The host writes the `.url` file and
+   * re-resolves the asset (see `writeUrlAsset`).
+   */
+  onEditUrl?: (newUrl: string) => void;
   /** Bytes on disk (absent for a remote `.url` asset). */
   size?: number;
   /** Last-modified epoch ms. */
@@ -55,6 +71,12 @@ const formatDuration = (seconds: number): string => {
   const rem = s % 60;
   return `${m}:${String(rem).padStart(2, "0")}`;
 };
+
+/** Whether a URL is safe to render as a clickable `<a href>` — only http(s)
+ * (and protocol-relative). Guards against `javascript:` / `data:` targets that
+ * would execute on click; such URLs still show as plain (non-link) text. */
+const isSafeHttpUrl = (u: string): boolean =>
+  /^(https?:)?\/\//i.test(u.trim());
 
 const formatModified = (ms: number): string => {
   try {
@@ -129,6 +151,8 @@ export default function AssetInspectorPanel({
   name,
   kind,
   src,
+  url,
+  onEditUrl,
   size,
   modified,
   defaultCollapsed = false,
@@ -138,6 +162,32 @@ export default function AssetInspectorPanel({
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [dims, setDims] = useState<string | null>(null);
   const [usages, setUsages] = useState<UsageLocation[] | null>(null);
+
+  // Source-URL editor (`.url` assets): `null` = not editing; a string = the
+  // in-progress URL. Reset whenever the asset (`path`) or its resolved `url`
+  // changes so a reload — including our own commit landing — shows the fresh
+  // value rather than a stale edit buffer.
+  const [editingUrl, setEditingUrl] = useState<string | null>(null);
+  const urlInputRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    setEditingUrl(null);
+  }, [path, url]);
+  useEffect(() => {
+    if (editingUrl == null) return;
+    const id = requestAnimationFrame(() => {
+      urlInputRef.current?.focus();
+      urlInputRef.current?.select();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [editingUrl]);
+
+  const commitUrl = () => {
+    const next = (editingUrl ?? "").trim();
+    if (next && next !== url) {
+      onEditUrl?.(next);
+    }
+    setEditingUrl(null);
+  };
 
   // Probe intrinsic dimensions / duration for the current asset. Guarded so a
   // late resolve for a previous asset can't overwrite the current one.
@@ -282,6 +332,83 @@ export default function AssetInspectorPanel({
               <MetaRow label="Modified" value={formatModified(modified)} />
             )}
           </div>
+
+          {/* Source URL (`.url` assets only). Read: truncated link (opens the
+              remote target). Edit (when `onEditUrl` is set): pencil → input →
+              save/cancel — the same interaction as the mobile preview header,
+              styled for the panel. Enter saves, Escape cancels. */}
+          {url != null && (
+            <div class="pb-2 pt-1">
+              <div class="flex flex-row items-center gap-2 pb-1 text-xs uppercase tracking-wide text-foreground/40">
+                <Link class="size-3.5 flex-none" />
+                <span>Source URL</span>
+              </div>
+              {editingUrl != null ? (
+                <div class="flex flex-row items-center gap-1">
+                  <input
+                    ref={urlInputRef}
+                    value={editingUrl}
+                    onInput={(e) =>
+                      setEditingUrl((e.target as HTMLInputElement).value)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitUrl();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        setEditingUrl(null);
+                      }
+                    }}
+                    class="min-w-0 flex-1 select-text rounded bg-foreground/10 px-2 py-1 text-sm text-foreground outline-none ring-1 ring-foreground/15 focus:ring-foreground/30"
+                  />
+                  <Button
+                    variant="ghost"
+                    aria-label="Save URL"
+                    onClick={commitUrl}
+                    class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+                  >
+                    <Check class="size-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    aria-label="Cancel"
+                    onClick={() => setEditingUrl(null)}
+                    class="size-7 flex-none rounded-full p-0 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
+                  >
+                    <X class="size-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div class="flex flex-row items-center gap-1">
+                  {isSafeHttpUrl(url) ? (
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="min-w-0 flex-1 truncate text-sm text-sky-400 hover:underline"
+                    >
+                      {url}
+                    </a>
+                  ) : (
+                    <span class="min-w-0 flex-1 truncate text-sm text-foreground/80">
+                      {url}
+                    </span>
+                  )}
+                  {onEditUrl && (
+                    <Button
+                      variant="ghost"
+                      aria-label="Edit URL"
+                      onClick={() => setEditingUrl(url ?? "")}
+                      class="size-7 flex-none rounded-full p-0 text-foreground/50 hover:bg-foreground/10 hover:text-foreground"
+                    >
+                      <Pencil class="size-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Where-used. */}
           <div class="pt-2">

@@ -22,6 +22,18 @@ export default function AssetInspectorPane() {
   const asset = inspectedAsset.value;
   const [fullscreen, setFullscreen] = useState(false);
 
+  // Rewrite a `.url` asset's target. The reload re-resolves the asset and the
+  // FileList sync effect refreshes `inspectedAsset`, so this pane (and its
+  // preview) update to the new URL without a re-select. No-op for a local asset
+  // (they have no `url`, so the edit affordance never shows).
+  const onEditUrl = async (newUrl: string) => {
+    const store = (await import("../../workspace/WorkspaceStore")).default;
+    const pid = store.signals.projectId.value;
+    if (!pid || !asset) return;
+    const { writeUrlAsset } = await import("../../utils/urlAsset");
+    await writeUrlAsset(pid, asset.path, newUrl);
+  };
+
   if (!asset) {
     return null;
   }
@@ -66,12 +78,16 @@ export default function AssetInspectorPane() {
         </span>
       </button>
 
-      {/* Details (bottom half) — the shared collapsible panel. */}
+      {/* Details (bottom half) — the shared collapsible panel. Passing
+          `url`/`onEditUrl` makes the Source URL field editable for `.url`
+          assets (the mobile host edits from the preview header instead). */}
       <AssetInspectorPanel
         path={asset.path}
         name={asset.name}
         kind={asset.kind}
         src={asset.src}
+        url={asset.url}
+        onEditUrl={onEditUrl}
         size={asset.size}
         modified={asset.modified}
         fill={false}
@@ -83,6 +99,9 @@ export default function AssetInspectorPane() {
         index={0}
         onIndexChange={() => {}}
         onClose={() => setFullscreen(false)}
+        // The enlarged view keeps the URL editable too, so a `.url` asset can be
+        // retargeted from fullscreen — consistent with the Details field below.
+        onEditUrl={(_item, newUrl) => onEditUrl(newUrl)}
         // The inspector already shows Details beside the media; the fullscreen
         // here is purely to enlarge the preview.
         showDetails={false}

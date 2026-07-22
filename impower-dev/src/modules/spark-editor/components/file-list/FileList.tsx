@@ -591,7 +591,8 @@ export default function FileList({
       fresh.src !== cur.src ||
       fresh.size !== cur.size ||
       fresh.modified !== cur.modified ||
-      fresh.name !== cur.name
+      fresh.name !== cur.name ||
+      fresh.url !== cur.url
     ) {
       inspectAsset({
         path: fresh.path,
@@ -752,7 +753,9 @@ export default function FileList({
             src: file?.src,
             kind,
             url: isUrl ? file?.text : undefined,
-            size: file?.size,
+            // A `.url` asset's on-disk bytes are just the URL string, not the
+            // remote media — showing that as "Size" is misleading, so omit it.
+            size: isUrl ? undefined : file?.size,
             modified: file?.modified,
           },
         ];
@@ -1174,12 +1177,8 @@ export default function FileList({
   const onEditUrl = useCallback(
     async (item: PreviewItem, newUrl: string) => {
       if (!projectId) return;
-      const { Workspace } = await import("../../workspace/Workspace");
-      const uri = Workspace.fs.getFileUri(projectId, item.path);
-      await Workspace.fs.writeTextDocument({
-        textDocument: { uri, version: 0, text: newUrl },
-      });
-      await Workspace.window.recordAssetChange();
+      const { writeUrlAsset } = await import("../../utils/urlAsset");
+      await writeUrlAsset(projectId, item.path, newUrl);
     },
     [projectId],
   );
