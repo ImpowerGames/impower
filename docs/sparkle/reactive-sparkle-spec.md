@@ -115,12 +115,13 @@ theme     NAME with … end
 The atom of a `layout`/`component` body is an **element line**:
 
 ```
-<tag>[.class[.class…]] [ "content {interp}" ] [ #prop=value … ] [ @event=handler … ] [:]
+<tag>[ class[ class…]] [ "content {interp}" ] [ #prop=value … ] [ @event=handler … ] [:]
 ```
 
 - **`tag`** — a builtin (`text`, `button`, `row`, `image`, …; §7) or an authored
   `component`. A bare authored component name renders that component (`my_card` ≡ `my_card()`).
-- **`.class`** — dotted CSS classes that `style` blocks target (`button.primary.large`).
+- **`class`** — space-separated CSS classes that `style` blocks target (`button primary large`).
+  Classes are bare words after the tag (not dot-prefixed): `button primary`, `text title`.
   Tag-as-class: the tag name is itself a class, so `style button with …` styles every button.
 - **`"content"`** — quoted text content (for text-like elements) or `src`/value for
   `image`/`mask`. May contain `{interp}` (§4.4). Exactly one content string per line.
@@ -140,8 +141,8 @@ Example:
 
 ```
 layout inventory with
-  column.panel #gap=16:
-    text.title "Inventory"
+  column panel #gap=16:
+    text title "Inventory"
     row:
       button "Use"  @click=use_item
       button "Drop" @click=drop_item
@@ -224,7 +225,7 @@ model spans function bodies and UI:
 if player.dead then
   text "GAME OVER"
 elseif player.hp < 10 then
-  text.warning "Low health!"
+  text warning "Low health!"
 else
   text "HP: {player.hp}"
 end
@@ -266,14 +267,14 @@ end
 
 ```
 component stat_row(label, value) with
-  row.stat:
-    text.label "{label}"
-    text.value "{value}"
+  row stat:
+    text label "{label}"
+    text value "{value}"
 end
 
 component card(title) with
-  box.card:
-    text.card_title "{title}"
+  box card:
+    text card_title "{title}"
     slot            # default slot: where children passed to <card> land
     slot footer     # named slot
 end
@@ -395,7 +396,7 @@ type BodyNode = ElementNode | IfNode | ForNode | MatchNode | SlotNode | FillNode
 interface ElementNode {
   kind: "element";
   tag: string;                   // builtin or component name
-  classes: string[];             // dotted classes
+  classes: string[];             // space-separated classes
   name?: string;                 // leading structural name (stage/backdrop/…)
   content?: ContentPart[];       // "..." with interpolation
   props: Record<string, PropValue>;
@@ -693,7 +694,7 @@ The lowerer (rewritten from scratch, L5) must:
 **HUD (interpolation):**
 ```
 layout hud with
-  row.hud #gap=12:
+  row hud #gap=12:
     text "❤ {player.hp}/{player.max_hp}"
     text "⛀ {player.gold}"
 end
@@ -702,8 +703,8 @@ end
 **Settings (events + form controls, one-way):**
 ```
 layout settings with
-  column.menu #gap=16:
-    text.title "Settings"
+  column menu #gap=16:
+    text title "Settings"
     slider   "Master Volume" #min=0 #max=100 value={volume} @input={ volume = event.value }
     checkbox "Mute Music" checked={music_muted} @change={ music_muted = event.checked }
     row #gap=16 #child-justify=space-between:
@@ -715,18 +716,18 @@ end
 **Inventory (control flow + keyed list):**
 ```
 layout inventory with
-  column.panel #gap=8:
-    text.title "Inventory"
+  column panel #gap=8:
+    text title "Inventory"
     for item in player.bag do
-      row.item:
+      row item:
         image src={item.icon} #width=32 #height=32
         text "{item.name}"
         if item.equipped then
-          text.tag "(equipped)"
+          text tag "(equipped)"
         end
         button "Use" @click={ use_item(item) }
     else
-      text.empty "Your bag is empty."
+      text empty "Your bag is empty."
     end
 end
 ```

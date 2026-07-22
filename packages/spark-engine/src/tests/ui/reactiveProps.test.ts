@@ -45,6 +45,35 @@ end
     });
   });
 
+  test("a space-separated class and inline props coexist on the same element", async () => {
+    // Classes are SPACE-separated bare words after the tag (`column panel`), not
+    // dot-prefixed. The class must survive alongside inline props: the element's
+    // name carries `column panel` AND its style carries the props.
+    const h = createHarness(
+      `layout main with
+  column panel #gap=16 #background-color=navy:
+    text title "Hi"
+end
+`,
+      0,
+      { reactive: true } as any,
+    );
+    await h.ready;
+    const panel = createsNamed(h, "column").find(
+      (m) => String(m.params?.name) === "column panel",
+    );
+    expect(panel).toBeTruthy();
+    expect(panel.params.style).toMatchObject({
+      gap: "16",
+      "background-color": "navy",
+    });
+    // The classed leaf keeps its class too.
+    const title = createsNamed(h, "text").find(
+      (m) => String(m.params?.name) === "text title",
+    );
+    expect(title).toBeTruthy();
+  });
+
   test("a reactive #prop re-applies via ui/update when its dep changes", async () => {
     const h = createHarness(
       `store bg = "blue"
