@@ -196,14 +196,6 @@
       }
     },
     {
-      "beforeText": "^.*[{]\\s*$",
-      "afterText": "\\s*[}]",
-      "action": {
-        "indent": "indentOutdent",
-        "appendText": "- "
-      }
-    },
-    {
       "beforeText": "^\\s*[-]\\s+.*?(?<![:])\\s*$",
       "previousLineText": "(?=^.*\\s*[{].*)(?=(?!\\s*[}]))|(?=^.*\\s*[-]\\s+.*?(?<![:])\\s*$)",
       "action": {

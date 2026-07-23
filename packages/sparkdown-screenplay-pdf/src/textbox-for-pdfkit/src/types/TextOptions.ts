@@ -16,6 +16,8 @@ export interface TextOptions {
   links?: boolean;
   link?: string;
   removeTrailingSpaces?: boolean;
+  /** marks a chunk as a single emoji cluster rendered from the SVG table */
+  isEmoji?: boolean;
   align?: string;
   baseline?:
     | number

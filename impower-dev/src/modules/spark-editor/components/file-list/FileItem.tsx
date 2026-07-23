@@ -1,161 +1,986 @@
-import { Button, Ripple } from "@impower/impower-ui/components";
-import { useComputed } from "@preact/signals";
+import {
+  Button,
+  Check,
+  ChevronRight,
+  Download,
+  DropdownContent,
+  DropdownItem,
+  DropdownRoot,
+  DropdownTrigger,
+  FolderFill,
+  Ripple,
+  Trash,
+} from "@impower/impower-ui/components";
+import { useComputed, useSignalEffect } from "@preact/signals";
+import { createPortal, memo } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
+import {
+  iconForCategory,
+  iconForPath,
+  isImagePath,
+} from "../../utils/fileIcon";
+import {
+  recordMove,
+  recordReferenceRename,
+  recordTrashDeletion,
+} from "../../utils/fileUndo";
+import { formatModified, getFileSizeDisplayValue } from "../../utils/fileMeta";
 import workspace from "../../workspace/WorkspaceStore";
 import DiagnosticsLabel from "./DiagnosticsLabel";
+import FileMenuItems from "./FileMenuItems";
+import { openRowMenu } from "./openRowMenu";
 import FileOptionsButton from "./FileOptionsButton";
+import FileUsagesPanel, { type UsageLocation } from "./FileUsagesPanel";
+import RenameReferencesDialog from "./RenameReferencesDialog";
+
+// Per-depth indentation (px). The base padding + the fixed chevron column keep
+// a depth-0 file's name at the same x it sat at in the old flat list. Exported
+// so the sticky-folder headers (FileList) line up with the tree rows.
+export const INDENT_PER_DEPTH = 16;
+export const BASE_INDENT = 12;
+// Cap the visual indent so a pathologically deep tree (the desktop inline view)
+// never pushes the name off-screen. Past this depth the indent plateaus — the
+// data still nests; only the indentation stops growing. On mobile the dive view
+// renders every row at depth 0, so this never applies there.
+export const MAX_INDENT_DEPTH = 8;
 
 export type FileItemProps = {
-  filename: string;
+  /**
+   * Project-relative path — `chapters/intro.sd` for a file, `chapters` for a
+   * folder. The row's identity: rename/delete/open/diagnostics all key off the
+   * full path so same-basename files in different folders never collide.
+   */
+  path: string;
+  /** True for a folder row (click toggles expand instead of opening an editor). */
+  isDirectory?: boolean;
+  /** Tree depth (0 = top level) — drives indentation. */
+  depth?: number;
+  /** Folder has ≥1 child (renders a disclosure chevron). */
+  hasChildren?: boolean;
+  /** Folder is expanded (chevron points down). */
+  expanded?: boolean;
+  /**
+   * Dive mode (mobile): a folder row NAVIGATES into the folder instead of
+   * expanding in place, so it shows a filled folder glyph rather than the
+   * expand/collapse chevron (which would wrongly imply an inline tree).
+   */
+  diveMode?: boolean;
+  /** Row is the file currently open in the editor (gets the selection accent). */
+  selected?: boolean;
+  /**
+   * Service-worker-served URL of the file (`FileData.src`). For image assets
+   * this is rendered as a live thumbnail inside the icon box; ignored for
+   * everything else.
+   */
+  src?: string;
+  /**
+   * A remote/CDN asset (a `.url` file): show a small "remote" badge on the tile,
+   * resolve the glyph/thumbnail from {@link category} (the URL's inferred medium)
+   * rather than the `.url` extension, and load the thumbnail straight from the
+   * remote `src` (the service-worker `?thumb=` resize only applies to local
+   * files).
+   */
+  remote?: boolean;
+  /**
+   * Resolved media category (`image` | `audio` | `video` | `text`) for a
+   * {@link remote} asset, from the worker's inferred `FileData.type`. Ignored
+   * for local files (their category comes from the path extension).
+   */
+  category?: string;
+  /** Last-modified time (epoch ms) — shown as "Modified <age>" in the caption. */
+  modified?: number;
+  /** File size in bytes — shown as a human size in the caption. */
+  size?: number;
+  /**
+   * Multi-select ("multi-editing") mode is active: the icon slot becomes a
+   * checkbox, a row click toggles its selection, and the per-row 3-dots hides.
+   */
+  selectMode?: boolean;
+  /** Whether this row is checked in multi-select mode. */
+  bulkSelected?: boolean;
+  /**
+   * An entry just created from scratch (a "New Folder", or a blank script):
+   * open straight into rename mode with the name preselected (VS Code UX), let
+   * Escape REMOVE the still-empty entry instead of reverting to its placeholder
+   * name, and — for a file (script) — open it in the editor once named.
+   */
+  isNew?: boolean;
+  /**
+   * This new entry is an in-memory DRAFT (deferred create): it backs no file on
+   * disk. Committing a name writes the file for the first time; discarding just
+   * drops the row (no delete). Always accompanies {@link isNew}.
+   */
+  isDraft?: boolean;
+  /**
+   * A draft's name was committed (`finalPath` is where its file will be written).
+   * The parent moves the draft onto that final path — so its row stays in place
+   * and merges with the real file when the reload lands — and keeps it pinned at
+   * the top through the create→open transition.
+   */
+  onDraftCommitting?: (name: string, finalPath: string) => void;
+  /**
+   * Folder rows: toggle expand/collapse. Receives the row's own path so the
+   * parent can pass a single STABLE callback (not a per-row closure), which
+   * keeps {@link FileItem}'s props referentially stable for `memo`.
+   */
+  onToggle?: (path: string) => void;
+  /** Toggle this row's selection (mobile checkbox tap / desktop Ctrl+click).
+   * Folders cascade to their contents in the parent. */
+  onToggleSelect?: (path: string, isDirectory: boolean) => void;
+  /** Desktop Shift+click: select the range from the anchor row to this one. */
+  onRangeSelect?: (path: string, isDirectory: boolean) => void;
+  /** Desktop plain click: clear any multi-selection before opening this row. */
+  onReplaceSelect?: (path: string) => void;
+  /** How many rows are currently selected — for the right-click bulk menu. */
+  selectionCount?: number;
+  /** Bulk delete the current selection (desktop right-click on a selected row). */
+  onDeleteSelected?: () => void;
+  /** Bulk download the current selection (desktop right-click on a selected row). */
+  onDownloadSelected?: () => void;
+  /** Right-click / long-press: enter multi-select mode and select this row. */
+  onContextSelect?: (path: string, isDirectory: boolean) => void;
+  /** A new-entry rename session ended (committed, kept default, or canceled). */
+  onEndNewEntry?: () => void;
+  /**
+   * A folder finished renaming (its path changed). The parent remaps any
+   * expand state keyed by the old path so the folder — and any expanded
+   * descendants — stay open under the new path instead of collapsing.
+   */
+  onFolderRenamed?: (oldPath: string, newPath: string) => void;
+  /**
+   * Open a FILE on click. When provided it replaces the default "open in editor"
+   * behavior — the Assets panes pass a handler that opens the preview overlay
+   * instead. (Folders still toggle/navigate; this is files only.)
+   */
+  onOpenFile?: (path: string) => void;
 };
 
 /**
- * A single row in FileList. Clicking the row body opens the file in the
- * Logic editor. The 3-dots menu offers Rename + Delete. Rename swaps the
- * label for an inline text input — Enter / blur / click-outside commits;
- * Escape (or no-change) cancels.
- *
- * Diagnostics-aware: the filename is wrapped in `<DiagnosticsLabel>` so
- * rows for scripts with errors paint red / warnings paint yellow.
+ * A single row in the file tree. Files open in the editor on click and offer
+ * Rename + Delete; folders expand/collapse on click and Rename (moves the
+ * folder) / Delete (removes the folder and its contents). The 3-dots menu's
+ * Rename swaps the label for an inline input — Enter / blur / click-outside
+ * commits, Escape cancels.
  */
-export default function FileItem({ filename }: FileItemProps) {
+function FileItem({
+  path,
+  isDirectory = false,
+  depth = 0,
+  hasChildren = false,
+  expanded = false,
+  diveMode = false,
+  selected = false,
+  src,
+  remote = false,
+  category,
+  modified,
+  size,
+  selectMode = false,
+  bulkSelected = false,
+  isNew = false,
+  isDraft = false,
+  onToggle,
+  onToggleSelect,
+  onRangeSelect,
+  onReplaceSelect,
+  selectionCount = 0,
+  onDeleteSelected,
+  onDownloadSelected,
+  onContextSelect,
+  onEndNewEntry,
+  onDraftCommitting,
+  onFolderRenamed,
+  onOpenFile,
+}: FileItemProps) {
   const [renaming, setRenaming] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  // Optimistic display name: shown the instant a new script's rename commits, so
+  // the row doesn't flash back to the placeholder (`script00`) while the async
+  // move is in flight. Cleared on `path` change (below), when the reloaded real
+  // name takes over — essential since this row is recycled by slot, not keyed by
+  // path, so a stale committed name must never leak to whatever file lands here.
+  const [committedName, setCommittedName] = useState<string | null>(null);
+  // A pending asset rename whose name is referenced by scripts — the confirm
+  // dialog (update refs vs rename-only) acts on these stored paths.
+  const [renameConfirm, setRenameConfirm] = useState<{
+    oldPath: string;
+    newPath: string;
+    fromName: string;
+    toName: string;
+    referenceCount: number;
+    scriptCount: number;
+  } | null>(null);
+  // The "Used in (N)" panel for this asset — null when closed, else the asset
+  // name + every script location that references it.
+  const [usages, setUsages] = useState<{
+    assetName: string;
+    locations: UsageLocation[];
+  } | null>(null);
+  // A thumbnail that 404s / fails to decode falls back to the type glyph.
+  const [thumbFailed, setThumbFailed] = useState(false);
+  // Desktop right-click context menu position (viewport px), or null when closed.
+  // Lazily mounted (like the 3-dots menu) so idle rows carry no Radix root.
+  // `bulk` = right-clicked a row inside a multi-selection → show bulk actions.
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    bulk: boolean;
+  } | null>(null);
+  // Stable key for the cross-menu single-open coordination (shared with the
+  // 3-dots dropdowns via `openRowMenu`): close this context menu the moment any
+  // other menu claims the slot.
+  const ctxMenuKeyRef = useRef<symbol | null>(null);
+  if (!ctxMenuKeyRef.current) {
+    ctxMenuKeyRef.current = Symbol();
+  }
+  useSignalEffect(() => {
+    if (openRowMenu.value !== ctxMenuKeyRef.current) {
+      setContextMenu(null);
+    }
+  });
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const rowRef = useRef<HTMLButtonElement | null>(null);
+  const rowRef = useRef<HTMLDivElement | null>(null);
 
-  const [name, ext] = filename.split(".");
-  const showExt = ext && ext !== "sd";
+  const basename = path.split("/").slice(-1)[0] ?? path;
+  const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+  // Folders display the whole segment; files split name/ext on the FINAL dot
+  // (so multi-dot names keep interior dots).
+  const dotIndex = basename.lastIndexOf(".");
+  const name =
+    isDirectory || dotIndex <= 0 ? basename : basename.slice(0, dotIndex);
+  const ext = !isDirectory && dotIndex > 0 ? basename.slice(dotIndex + 1) : "";
+  // Hide the extension for the formats that get their own dedicated panel, where
+  // the extension is implied and just noise: `.sd` scripts and `.url` remote
+  // assets (mirrors how the Scripts panel hides `.sd`).
+  const showExt = ext && ext !== "sd" && ext !== "url";
+  // Files show a "Modified <age> | <size>" caption under the name (matching the
+  // legacy engine's file list). Folders carry no such metadata → no caption.
+  const caption = isDirectory
+    ? ""
+    : [formatModified(modified), getFileSizeDisplayValue(size)]
+        .filter(Boolean)
+        .join(" | ");
 
-  // Auto-focus + select the basename when entering rename mode. Match the
-  // legacy behavior: select up to (but not including) the extension.
+  // File-type glyph (folders → Binder). An expanded folder shows its icon at
+  // full weight; everything else is muted to /50 so the icon reads as chrome,
+  // not content. The icon sits inside DiagnosticsLabel so it inherits the
+  // danger/warning color (via currentColor) when the row has a diagnostic.
+  // A remote (`.url`) asset's glyph comes from its resolved medium, not the
+  // `.url` extension (which would always be the generic link glyph).
+  const FileIcon = remote
+    ? iconForCategory(category)
+    : iconForPath(path, isDirectory, expanded);
+  // Show a live thumbnail for image assets once we have a url and it hasn't
+  // failed to load. Thumbnails are pre-generated at import time (and the
+  // <img> decodes async), so they can stay mounted while scrolling — no
+  // deferral burst on settle, which used to wedge the next scroll. Remote
+  // assets resolve image-ness from their inferred category (path ext is `.url`).
+  const isImage = remote ? category === "image" : isImagePath(path);
+  const showThumb = !isDirectory && !!src && !thumbFailed && isImage;
+  // Google-Drive convention: files sit in a rounded tile (glyph or thumbnail);
+  // folders are a bare, prominent icon with no tile. Mute only file *glyphs*
+  // (not thumbnails, not folders) to /50 so they read as quiet chrome.
+  const iconMuted = !isDirectory && !showThumb ? "opacity-50" : "";
+  // Ask the service worker for a downscaled thumbnail (max 144px wide ≈ 4× the
+  // 36px box for retina) so the page never decodes full-res art. The SW falls
+  // back to the original bytes if it can't resize, so this is always safe.
+  // Remote URLs are loaded as-is — the `?thumb=` resize is a service-worker
+  // feature for local `/file:` URLs, and appending it could break a signed CDN
+  // URL — so the browser just downscales the full remote image to the tile.
+  const thumbSrc =
+    showThumb && src
+      ? remote
+        ? src
+        : `${src}${src.includes("?") ? "&" : "?"}thumb=144`
+      : undefined;
+
+  // Re-arm the thumbnail when the row's url changes (e.g. after a cache-bust or
+  // a move) so a previously-broken image gets another chance.
+  useEffect(() => {
+    setThumbFailed(false);
+  }, [src]);
+
+  // The virtualized list RECYCLES this component across rows (keyed by window
+  // slot, not path), so when the underlying file changes — e.g. the user
+  // scrolls while a rename is open — drop the stale rename rather than letting
+  // the input jump to a different file.
+  useEffect(() => {
+    setRenaming(false);
+    setCommittedName(null);
+  }, [path]);
+
+  // A freshly-created folder opens straight into rename mode (VS Code "New
+  // Folder"). Runs AFTER the recycle reset above so it wins on the render where
+  // the new folder's row first appears in this slot.
+  useEffect(() => {
+    if (isNew) setRenaming(true);
+  }, [isNew, path]);
+
+  // Auto-focus + select the ENTIRE editable name when entering rename mode
+  // (files and folders alike). The input value is controlled, so selecting
+  // synchronously here would run against the still-empty input (the new value
+  // lands on the next render) — defer to a rAF so `select()` covers the value
+  // that's actually in the DOM.
   useEffect(() => {
     if (!renaming) return;
-    setInputValue(name ?? "");
-    const el = inputRef.current;
-    if (el) {
-      el.focus();
-      const sel = (name ?? "").length;
-      el.setSelectionRange(0, sel);
-    }
-  }, [renaming, name]);
+    // A brand-new file starts BLANK (VS Code: a new file's name field is empty,
+    // not prefilled with a placeholder like `script00`). Existing renames start
+    // from the current name (selected below, so a keystroke replaces it).
+    setInputValue(isNew && !isDirectory ? "" : (name ?? ""));
+    const id = requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        el.select();
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [renaming, name, isNew, isDirectory]);
 
-  // Click-outside cancels (commits if changed).
+  // Click-outside commits (if changed) and exits rename mode. CAPTURE phase so it
+  // runs BEFORE another row's onRowClick `stopPropagation` (which would otherwise
+  // swallow the bubble before it reached document) — clicking/Ctrl-clicking
+  // another row to start a selection now commits the open rename first.
   useEffect(() => {
     if (!renaming) return;
     const onDoc = (e: MouseEvent) => {
-      const composed = typeof e.composedPath === "function" ? e.composedPath() : [];
+      const composed =
+        typeof e.composedPath === "function" ? e.composedPath() : [];
       if (rowRef.current && !composed.includes(rowRef.current)) {
         commit();
       }
     };
-    document.addEventListener("click", onDoc);
-    return () => document.removeEventListener("click", onDoc);
+    document.addEventListener("click", onDoc, true);
+    return () => document.removeEventListener("click", onDoc, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renaming, inputValue]);
 
-  function commit() {
+  async function commit() {
     const newName = inputValue.trim();
-    if (newName && newName !== name) {
-      const newFilename = ext ? `${newName}.${ext}` : newName;
-      void rename(filename, newFilename);
+    const renamed = !!newName && newName !== name;
+    const newBasename = ext ? `${newName}.${ext}` : newName;
+    const finalPath = renamed
+      ? dir
+        ? `${dir}/${newBasename}`
+        : newBasename
+      : path;
+    // In-memory DRAFT (deferred create): nothing exists on disk yet. An empty
+    // name just drops the virtual row (no delete); a name writes the file for
+    // the FIRST time here. Open the editor before the write so the list
+    // zoom-fades away ahead of the create's re-sort broadcast.
+    if (isDraft) {
+      setRenaming(false);
+      if (!newName) {
+        onEndNewEntry?.();
+        return;
+      }
+      setCommittedName(newName);
+      const { Workspace } = await import("../../workspace/Workspace");
+      const projectId = workspace.signals.projectId.value;
+      if (!projectId) {
+        onEndNewEntry?.();
+        return;
+      }
+      // Move the draft onto its final path (so its row holds its place until the
+      // real file lands) and keep it pinned at the top through the open
+      // transition — BEFORE writing, so there's no frame where the row is gone.
+      onDraftCommitting?.(newName, finalPath);
+      Workspace.window.openFileEditor(finalPath);
+      await Workspace.fs.createFiles({
+        files: [
+          {
+            uri: Workspace.fs.getFileUri(projectId, finalPath),
+            data: new ArrayBuffer(0),
+          },
+        ],
+      });
+      if (ext === "sd") {
+        await Workspace.window.recordScriptChange();
+      } else {
+        await Workspace.window.recordAssetChange();
+      }
+      return;
     }
+    // A brand-new script (blank .sd) opens once named. Show the typed name
+    // immediately (optimistic) so the row never flashes back to the placeholder,
+    // and open the editor BEFORE the move so the list zoom-fades away ahead of
+    // moveFile's re-sort broadcast — the re-sort lands behind the editor instead
+    // of visibly reordering the still-shown list.
+    if (isNew && !isDirectory) {
+      setRenaming(false);
+      // No name given → discard the just-created placeholder file instead of
+      // keeping it (VS Code: an unnamed new file is never created). Same as
+      // Escape — a blur/Enter with an empty field cancels the creation.
+      if (!newName) {
+        void deleteEntry("permanent");
+        onEndNewEntry?.();
+        return;
+      }
+      if (renamed) setCommittedName(newName);
+      const { Workspace } = await import("../../workspace/Workspace");
+      const projectId = workspace.signals.projectId.value;
+      // Open the editor at its FINAL path FIRST — this zoom-fades the scripts
+      // list away, and moveFile's re-sort broadcast (which fires while the list
+      // is still mounted) then lands behind the editor instead of visibly
+      // reordering the list. openFileEditor only sets state (it doesn't read the
+      // file), and the script is blank, so the path resolving a beat later shows
+      // an identical empty editor — no missing-file flash.
+      Workspace.window.openFileEditor(finalPath);
+      if (renamed && projectId) {
+        const moved = await Workspace.fs.moveFile(projectId, path, finalPath);
+        if (moved.some((d) => d.type === "script")) {
+          await Workspace.window.recordScriptChange();
+        } else {
+          await Workspace.window.recordAssetChange();
+        }
+        recordMove(projectId, path, finalPath, false);
+      }
+      // Clear the new-entry pin AFTER the move — until the reload replaces the
+      // placeholder row, keeping editingNewPath holds it pinned at the top so it
+      // doesn't briefly un-pin and jump to the placeholder's sort slot on the
+      // way out (all behind the editor's zoom).
+      onEndNewEntry?.();
+      return;
+    }
+    // Close the input immediately so dismissal feels snappy; the rename proceeds
+    // underneath.
     setRenaming(false);
+    if (renamed) {
+      if (isDirectory) {
+        // Folder: rename in place (same parent), moving everything beneath it.
+        void renameFolder(path, dir ? `${dir}/${newName}` : newName);
+      } else {
+        // Await so the file exists at its new path before anything reads it.
+        await renameFile(path, finalPath);
+      }
+    }
+    if (isNew) {
+      // A new FOLDER's create session is over (it opens no editor).
+      onEndNewEntry?.();
+    }
   }
 
-  async function rename(oldFilename: string, newFilename: string) {
+  async function plainMove(oldPath: string, newPath: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    const oldUri = Workspace.fs.getFileUri(projectId, oldFilename);
-    const newUri = Workspace.fs.getFileUri(projectId, newFilename);
-    const renamed = await Workspace.fs.renameFiles({
-      files: [{ oldUri, newUri }],
-    });
+    const renamed = await Workspace.fs.moveFile(projectId, oldPath, newPath);
     if (renamed.some((d) => d.type === "script")) {
       await Workspace.window.recordScriptChange();
     } else {
       await Workspace.window.recordAssetChange();
     }
+    recordMove(projectId, oldPath, newPath, false);
   }
 
-  async function deleteFile() {
+  async function renameFile(oldPath: string, newPath: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
-    const uri = Workspace.fs.getFileUri(projectId, filename);
-    const deleted = await Workspace.fs.deleteFiles({ files: [{ uri }] });
+    // Does any script reference this asset by name? If so, confirm whether to
+    // rewrite those references along with the rename (the references query and
+    // the rename edits share the same engine, so the count is exact).
+    let refs: { uri: string }[] = [];
+    try {
+      refs = await Workspace.ls.getFileReferences(
+        Workspace.fs.getFileUri(projectId, oldPath),
+      );
+    } catch {
+      refs = [];
+    }
+    if (refs.length === 0) {
+      await plainMove(oldPath, newPath);
+      return;
+    }
+    setRenameConfirm({
+      oldPath,
+      newPath,
+      fromName: oldPath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? oldPath,
+      toName: newPath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? newPath,
+      referenceCount: refs.length,
+      scriptCount: new Set(refs.map((r) => r.uri)).size,
+    });
+  }
+
+  async function renameWithReferences(oldPath: string, newPath: string) {
+    const projectId = workspace.signals.projectId.value;
+    if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    await Workspace.fs.renameFileWithReferences(projectId, oldPath, newPath);
+    // Scripts changed (references) AND the asset moved.
+    await Workspace.window.recordScriptChange();
+    await Workspace.window.recordAssetChange();
+    recordReferenceRename(projectId, oldPath, newPath);
+  }
+
+  // Open the "Used in (N)" panel: ask the language server which script
+  // locations reference this asset by name, then surface them as tappable
+  // jump-to-source rows. Opens even with zero results (shows a "No usages"
+  // empty state) so the action always gives feedback.
+  async function openUsages() {
+    const projectId = workspace.signals.projectId.value;
+    if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    let refs: { uri: string; range: UsageLocation["range"] }[] = [];
+    try {
+      refs = await Workspace.ls.getFileReferences(
+        Workspace.fs.getFileUri(projectId, path),
+      );
+    } catch {
+      refs = [];
+    }
+    const locations: UsageLocation[] = refs.map((r) => ({
+      uri: r.uri,
+      label: Workspace.fs.getRelativePath(projectId, r.uri),
+      line: r.range.start.line + 1,
+      range: r.range,
+    }));
+    setUsages({ assetName: name, locations });
+  }
+
+  async function renameFolder(oldPath: string, newPath: string) {
+    const projectId = workspace.signals.projectId.value;
+    if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    await Workspace.fs.moveFolder(projectId, oldPath, newPath);
+    // Expand state is keyed by path, so without this the renamed folder (and any
+    // expanded descendants) would collapse. Remap BEFORE the reload that
+    // recordAssetChange triggers, so the new tree renders already-expanded.
+    onFolderRenamed?.(oldPath, newPath);
+    await Workspace.window.recordAssetChange();
+    recordMove(projectId, oldPath, newPath, true);
+  }
+
+  // `"trash"` (the default, used by the 3-dots Delete) moves the entry to the
+  // recycle bin (reversible); `"permanent"` is used to discard a brand-new
+  // empty entry on Escape — there's nothing worth keeping, so don't clutter
+  // the trash with it.
+  async function deleteEntry(mode: "trash" | "permanent" = "trash") {
+    const projectId = workspace.signals.projectId.value;
+    if (!projectId) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    // Timestamp BEFORE the delete so the undo records exactly this delete's
+    // trash batch, never an older same-path one.
+    const since = Date.now();
+    if (isDirectory) {
+      const deleted = await Workspace.fs.deleteFolder(projectId, path, mode);
+      await Workspace.window.recordAssetChange();
+      if (mode === "trash") {
+        await recordTrashDeletion(
+          projectId,
+          deleted.map((d) => d.uri),
+          basename,
+          since,
+        );
+      }
+      return;
+    }
+    const uri = Workspace.fs.getFileUri(projectId, path);
+    const deleted = await Workspace.fs.deleteFiles({ files: [{ uri }], mode });
     if (deleted.some((d) => d.type === "script")) {
       await Workspace.window.recordScriptChange();
     } else {
       await Workspace.window.recordAssetChange();
     }
+    if (mode === "trash") {
+      await recordTrashDeletion(projectId, [uri], basename, since);
+    }
+  }
+
+
+  // Save this file to the user's device. Reads the raw bytes and hands them to a
+  // throwaway download anchor. Files only (a folder would need a zip — that's the
+  // multi-select "Download"). For a `.url` ref this saves the `.url` text itself.
+  async function downloadEntry() {
+    const projectId = workspace.signals.projectId.value;
+    if (!projectId || isDirectory) return;
+    const { Workspace } = await import("../../workspace/Workspace");
+    const { downloadFile } = await import("../../utils/downloadFile");
+    const uri = Workspace.fs.getFileUri(projectId, path);
+    const data = await Workspace.fs.readFile({ file: { uri } });
+    downloadFile(basename, "application/octet-stream", data);
   }
 
   async function onRowClick(e: MouseEvent) {
-    if (renaming) return;
+    if (renaming) {
+      // The name <input> stops its own clicks (see its onClick), so a click that
+      // reaches here while renaming landed on the row OUTSIDE the input. Treat it
+      // like clicking away: commit the pending name. For a folder, follow through
+      // with the expand/collapse in the SAME click — a freshly-created folder
+      // opens straight into rename mode, and without this its very first click
+      // was swallowed (you had to click elsewhere to commit, then click the
+      // folder again, before the chevron would rotate).
+      e.stopPropagation();
+      commit();
+      if (isDirectory) {
+        onReplaceSelect?.(path);
+        onToggle?.(path);
+      }
+      return;
+    }
     e.stopPropagation();
+    // Mobile multi-select mode: a plain tap toggles this row's checkbox.
+    if (selectMode) {
+      onToggleSelect?.(path, isDirectory);
+      return;
+    }
+    // Desktop file-explorer multi-selection — no mode toggle needed. Shift =
+    // range from the anchor, Ctrl/Cmd = toggle one. Neither opens the row.
+    // (On macOS, Ctrl+click is a right-click — handled by onRowContextMenu — so
+    // Cmd is the multi-select modifier there; Ctrl covers Windows/Linux.)
+    // Gated to desktop (!diveMode) so a hardware-modifier held during a touch tap
+    // on a mobile/narrow layout still falls through to open/navigate.
+    if (!diveMode && e.shiftKey) {
+      e.preventDefault();
+      onRangeSelect?.(path, isDirectory);
+      return;
+    }
+    if (!diveMode && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      onToggleSelect?.(path, isDirectory);
+      return;
+    }
+    // Plain click: drop any multi-selection, then open the file / toggle the
+    // folder.
+    onReplaceSelect?.(path);
+    if (isDirectory) {
+      onToggle?.(path);
+      return;
+    }
+    if (onOpenFile) {
+      onOpenFile(path);
+      return;
+    }
     const { Workspace } = await import("../../workspace/Workspace");
-    Workspace.window.openFileEditor(filename);
+    Workspace.window.openFileEditor(path);
   }
 
-  // Workspace state derived from signals (re-render on relevant change only).
+  function onRowContextMenu(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    // Mobile (dive mode): a long-press fires `contextmenu` — enter multi-select,
+    // the touch-friendly way to act on several files. Already selecting? keep
+    // toggling.
+    if (diveMode || selectMode) {
+      onContextSelect?.(path, isDirectory);
+      return;
+    }
+    // Desktop: open the options menu as a context menu at the cursor. Match the
+    // selection to what the menu acts on (Explorer/Finder): right-clicking INSIDE
+    // a multi-selection shows bulk actions; right-clicking an UNSELECTED row drops
+    // the selection so the single-row menu is unambiguous.
+    const inMultiSelection = bulkSelected && selectionCount > 1;
+    if (!bulkSelected) {
+      onReplaceSelect?.(path);
+    }
+    // Claim the single open slot so any other open menu (a 3-dots, or another
+    // row's context menu) closes.
+    openRowMenu.value = ctxMenuKeyRef.current;
+    setContextMenu({ x: e.clientX, y: e.clientY, bulk: inMultiSelection });
+  }
+
+  // The row's actions — shared by the 3-dots menu and the desktop right-click
+  // context menu. Find-usages keys off the flat asset name (`image.foo`), so it's
+  // assets only (not scripts/folders); Duplicate/Download are files only.
+  const menuItemProps = {
+    onRename: () => setRenaming(true),
+    onDelete: () => void deleteEntry(),
+    onFindUsages:
+      !isDirectory && ext !== "sd" ? () => void openUsages() : undefined,
+    onDownload: !isDirectory ? () => void downloadEntry() : undefined,
+  };
+
+  // Re-render on diagnostics change (DiagnosticsLabel reads the same signal).
   const _ = useComputed(() => workspace.state.value.debug?.diagnostics).value;
   void _;
 
   return (
-    <Button
-      ref={rowRef}
-      variant="ghost"
-      class="h-14 w-full justify-start gap-0 rounded-none px-5 text-left text-base font-normal text-foreground/80"
-      onClick={onRowClick}
-    >
-      <div class="flex flex-1 flex-row items-center overflow-hidden pl-8">
-        <DiagnosticsLabel filename={filename}>
-          <div class="flex flex-1 flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
+    // The row button and the 3-dots options button are SIBLINGS (not nested),
+    // so hover/ripple land only on whichever is topmost under the pointer — a
+    // <button> inside a <button> would share `:hover` (ancestor highlight) and
+    // funnel the inner press's pointerdown up to the row's ripple.
+    <div ref={rowRef} class="relative">
+      <Button
+        variant="ghost"
+        class={`h-16 w-full justify-start gap-0 rounded-none pl-5 text-left text-base font-normal text-foreground/80 ${
+          selectMode ? "pr-5" : "pr-14"
+        } ${
+          // Hover/press render as an ::after OVERLAY rather than a background-color
+          // swap (mirroring the filled Button variants), so they layer OVER the
+          // selection / context-menu tint instead of replacing it. Each state
+          // below ALSO pins its own bg through :hover/:active — the ghost
+          // variant's `hover:bg-foreground/5` (and a bare `hover:bg-transparent`)
+          // would otherwise swap the resting background out on hover. The
+          // `before:` pseudo is left for the open-file accent.
+          "after:pointer-events-none after:absolute after:inset-0 after:bg-foreground after:opacity-0 after:transition-opacity after:content-[''] hover:after:opacity-[0.05] active:after:opacity-[0.12]"
+        } ${
+          // Multi-select highlight (mobile checkbox OR desktop modifier-click) —
+          // or the row whose desktop right-click context menu is open — wins;
+          // otherwise the open-file accent. Desktop shows no checkbox, so this
+          // tint is the only selection cue there. The context-menu tint shows
+          // WHICH row the menu acts on (and matches the selection look the user
+          // gets from Ctrl/Shift+click); it clears when the menu closes.
+          bulkSelected || contextMenu
+            ? "bg-primary/15 hover:bg-primary/15 active:bg-primary/15"
+            : selected
+              ? "bg-engine-800/40 hover:bg-engine-800/40 active:bg-engine-800/40 before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary before:content-['']"
+              : "hover:bg-transparent active:bg-transparent"
+        }`}
+        onClick={onRowClick}
+        onContextMenu={onRowContextMenu}
+      >
+        <div
+          class="relative flex flex-1 flex-row items-center overflow-hidden"
+          style={{
+            paddingLeft: `${BASE_INDENT + Math.min(depth, MAX_INDENT_DEPTH) * INDENT_PER_DEPTH}px`,
+          }}
+        >
+        <DiagnosticsLabel filename={path}>
+          {/* Icon column: FILES sit in a rounded tile holding the type glyph or
+              a live image thumbnail; FOLDERS show a rotating disclosure chevron
+              in the same slot (no tile) — the chevron IS the folder's glyph. The
+              size-9 footprint is shared so names stay aligned. Inside
+              DiagnosticsLabel so the fallback glyph goes red/amber with the name
+              on a diagnostic (currentColor). */}
+          {selectMode ? (
+            // Multi-select: the icon slot becomes a checkbox.
+            <span class="mr-3 flex size-10 flex-none items-center justify-center text-foreground/60">
+              <span
+                class={`flex size-5 items-center justify-center rounded border-2 transition-colors ${
+                  bulkSelected
+                    ? "border-primary bg-primary text-white"
+                    : "border-foreground/40"
+                }`}
+              >
+                {bulkSelected && <Check class="size-3.5" />}
+              </span>
+            </span>
+          ) : (
+            <span
+              class={`mr-3 flex size-10 flex-none items-center justify-center ${
+                isDirectory
+                  ? "text-foreground/60"
+                  : `overflow-hidden rounded-lg bg-engine-800/60 ring-1 ring-inset ring-foreground/10 ${iconMuted}`
+              }`}
+            >
+              {isDirectory ? (
+                diveMode ? (
+                  // Dive mode: tapping NAVIGATES into the folder — a filled
+                  // folder glyph (not the expand/collapse chevron, which would
+                  // imply an inline tree). Drive convention: folders stay unboxed.
+                  <FolderFill class="size-6" />
+                ) : (
+                  <ChevronRight
+                    class={`size-5 transition-transform ${expanded ? "rotate-90" : ""} ${
+                      hasChildren ? "" : "opacity-40"
+                    }`}
+                  />
+                )
+              ) : showThumb ? (
+                // No loading="lazy": the virtualizer already mounts only
+                // visible+overscan rows (its own windowing), and native lazy
+                // loading fails to trigger inside its transformed rows — leaving
+                // visible thumbnails unloaded. Eager + async decode is correct.
+                <img
+                  src={thumbSrc}
+                  decoding="async"
+                  alt=""
+                  class="size-full object-cover"
+                  onError={() => setThumbFailed(true)}
+                />
+              ) : (
+                <FileIcon class="size-5" />
+              )}
+            </span>
+          )}
+          <div class="flex min-w-0 flex-1 flex-col justify-center gap-0.5 overflow-hidden pr-2">
             {renaming ? (
-              // Ripple wrapper mirrors main's <s-input> tap ripple. stopPropagation
-              // on pointerDown so the wave fires here (not on the enclosing row
-              // Button, which would otherwise double-ripple); text-foreground
-              // (white) pins the wave white like main. The row already supplies
-              // the hover tint underneath, so no hover:bg here.
+              // Inline-edit swaps ONLY the name line, in place: the input
+              // inherits the row's text-base and is given font-semibold, so it
+              // sits at exactly the static name's size + baseline. The caption
+              // line below renders in BOTH states (outside this branch) so the
+              // column's vertical centering never shifts when editing opens.
               <div
-                class="relative w-full overflow-hidden rounded text-foreground"
+                class="relative flex flex-row items-center overflow-hidden rounded"
                 onPointerDown={(e) => e.stopPropagation()}
               >
-                <input
-                  ref={inputRef}
-                  value={inputValue}
-                  onInput={(e) =>
-                    setInputValue((e.target as HTMLInputElement).value)
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      commit();
-                    } else if (e.key === "Escape") {
-                      e.preventDefault();
-                      setRenaming(false);
+                {/* Auto-size the input to its text: an invisible mirror in the
+                    same grid cell drives the width, so the preserved extension
+                    below can sit snug right after the name — exactly like the
+                    static row (which is `name` + greyed `.ext`). */}
+                <span class="grid max-w-full grid-cols-[minmax(0,max-content)]">
+                  <span
+                    class={`invisible whitespace-pre text-base font-semibold [grid-area:1/1] ${
+                      // A blank new-file field gets a wider minimum so it reads as
+                      // an editable field (not a 1ch sliver) before you type.
+                      isNew && !isDirectory ? "min-w-[10ch]" : "min-w-[1ch]"
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {inputValue || " "}
+                  </span>
+                  <input
+                    ref={inputRef}
+                    value={inputValue}
+                    // size=1 so the input's intrinsic width (default ~20ch)
+                    // doesn't win the grid track's max-content sizing — the
+                    // invisible mirror drives the width, and `w-full` fills it.
+                    size={1}
+                    onInput={(e) =>
+                      setInputValue((e.target as HTMLInputElement).value)
                     }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  class="w-full bg-transparent text-foreground outline-none"
-                />
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commit();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        // Canceling a brand-new entry removes it (VS Code);
+                        // canceling a rename of an existing entry just reverts to
+                        // its current name. A draft backs no file, so there's
+                        // nothing on disk to delete — just drop the row.
+                        if (isNew) {
+                          if (!isDraft) void deleteEntry("permanent");
+                          onEndNewEntry?.();
+                        }
+                        setRenaming(false);
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    class="w-full min-w-0 border-0 bg-transparent p-0 text-base font-semibold text-foreground outline-none [grid-area:1/1]"
+                  />
+                </span>
+                {showExt && (
+                  <span class="flex-none font-normal opacity-30">.{ext}</span>
+                )}
                 <Ripple />
               </div>
             ) : (
-              <>
-                <span>{name}</span>
-                {showExt && <span class="opacity-30">.{ext}</span>}
-              </>
+              <div class="flex flex-row items-center overflow-hidden text-ellipsis whitespace-nowrap">
+                {/* A new file's real name is blank until typed; its `name` here is
+                    the throwaway placeholder (a draft's is the pseudo sentinel,
+                    which renders as stray "new"). Render blank so the one frame
+                    before the rename input mounts shows nothing, not that text. */}
+                <span class="font-semibold">
+                  {committedName ?? (isNew && !isDirectory ? "" : name)}
+                </span>
+                {showExt && !(isNew && !isDirectory) && (
+                  <span class="font-normal opacity-30">.{ext}</span>
+                )}
+              </div>
             )}
-          </div>
-        </DiagnosticsLabel>
-      </div>
-      <FileOptionsButton
-        onRename={() => setRenaming(true)}
-        onDelete={() => void deleteFile()}
-      />
-    </Button>
+            {caption && (
+              <div class="truncate text-xs text-foreground/60">{caption}</div>
+            )}
+            </div>
+          </DiagnosticsLabel>
+        </div>
+      </Button>
+      {/* Sibling overlay over the row's reserved right padding (pr-14): its own
+          hover/ripple, isolated from the row button beneath it. */}
+      {!selectMode && (
+        <div class="absolute inset-y-0 right-0 flex items-center">
+          <FileOptionsButton {...menuItemProps} />
+        </div>
+      )}
+      {/* Desktop right-click context menu — the SAME items as the 3-dots, popped
+          at the cursor. Lazily mounted (only while open) so idle rows carry no
+          Radix root, and anchored to a 0-size element at the click point.
+          PORTALED to <body>: the row lives inside the virtualizer's transformed
+          container, where `position: fixed` resolves relative to that transform
+          (not the viewport) — so the cursor anchor would be offset by the row's
+          scroll translate without this. */}
+      {contextMenu &&
+        createPortal(
+          <DropdownRoot
+            defaultOpen
+            onOpenChange={(open) => {
+              if (!open) {
+                window.setTimeout(() => {
+                  setContextMenu(null);
+                  // Release the shared slot if we still hold it (another menu may
+                  // have claimed it meanwhile — then leave it alone).
+                  if (openRowMenu.value === ctxMenuKeyRef.current) {
+                    openRowMenu.value = null;
+                  }
+                }, 250);
+              }
+            }}
+          >
+            <DropdownTrigger asChild>
+              <span
+                aria-hidden="true"
+                class="pointer-events-none fixed h-0 w-0"
+                style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
+              />
+            </DropdownTrigger>
+            <DropdownContent
+              align="start"
+              side="bottom"
+              sideOffset={2}
+              // See FileOptionsButton — "Rename" focuses the inline input, so
+              // don't let Radix pull focus back to the (about-to-unmount) trigger.
+              onCloseAutoFocus={(e) => e.preventDefault()}
+            >
+              {contextMenu.bulk ? (
+                // Right-clicked inside a multi-selection → act on the whole group.
+                <>
+                  <DropdownItem onSelect={() => onDownloadSelected?.()}>
+                    <Download class="size-4" />
+                    Download {selectionCount} items
+                  </DropdownItem>
+                  <DropdownItem onSelect={() => onDeleteSelected?.()}>
+                    <Trash class="size-4" />
+                    Delete {selectionCount} items
+                  </DropdownItem>
+                </>
+              ) : (
+                <FileMenuItems {...menuItemProps} />
+              )}
+            </DropdownContent>
+          </DropdownRoot>,
+          document.body,
+        )}
+      {renameConfirm && (
+        <RenameReferencesDialog
+          open
+          fromName={renameConfirm.fromName}
+          toName={renameConfirm.toName}
+          referenceCount={renameConfirm.referenceCount}
+          scriptCount={renameConfirm.scriptCount}
+          onUpdateAndRename={() => {
+            const c = renameConfirm;
+            setRenameConfirm(null);
+            void renameWithReferences(c.oldPath, c.newPath);
+          }}
+          onRenameOnly={() => {
+            const c = renameConfirm;
+            setRenameConfirm(null);
+            void plainMove(c.oldPath, c.newPath);
+          }}
+          onCancel={() => setRenameConfirm(null)}
+        />
+      )}
+      {usages && (
+        <FileUsagesPanel
+          open
+          assetName={usages.assetName}
+          locations={usages.locations}
+          onJump={(uri, range) => {
+            void (async () => {
+              const { Workspace } = await import("../../workspace/Workspace");
+              await Workspace.window.showDocument(uri, range, true);
+            })();
+          }}
+          onClose={() => setUsages(null)}
+        />
+      )}
+    </div>
   );
 }
+
+// Memoized so a re-render of the (virtualized) FileList — which fires on every
+// scroll frame — only re-renders rows whose props actually changed, instead of
+// re-running all ~24 visible rows. Relies on FileList passing referentially
+// stable props (notably a single `onToggle`, not a per-row closure).
+export default memo(FileItem);

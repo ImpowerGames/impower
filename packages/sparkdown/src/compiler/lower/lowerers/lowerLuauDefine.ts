@@ -434,10 +434,29 @@ export function lowerLuauDefine(
     if (type && name) {
       const struct: Record<string, unknown> = { $type: type, $name: name };
       for (const prop of properties) {
+        // A bare/dotted reference used as a SCALAR value (e.g. a
+        // `filtered_image`'s `image = bunny_realization`) is a struct
+        // reference, not a string — it must reach context as a
+        // `{ $type, $name }` object so the engine's spec system can resolve it
+        // (matching `schema_filtered_image`/`default_filtered_image`, the
+        // implicit filtered_image defs, references inside `{ … }` tables, and
+        // the legacy colon-form). `coerceScalarLiteral` would otherwise claim
+        // the bare identifier as a plain string, leaving `filterImage` unable
+        // to find the base image (its `image.$name` read yields `undefined`),
+        // so the filtered image silently renders nothing. Only a value that
+        // parses as a plain reference takes this path; engine value tokens like
+        // `surface-2` don't (they aren't a single/dotted VariableReference), so
+        // they still fall through to the raw-string scalar coercion below.
+        let value =
+          prop.expr instanceof VariableReference
+            ? expressionToContextValue(prop.expr)
+            : undefined;
         // Scalars (and engine value tokens like `surface-2`) come from the
         // raw source; tables/arrays/references fall back to the parsed
         // expression so a `layered_image`'s `assets = { … }` reaches context.
-        let value = coerceScalarLiteral(prop.rawValue);
+        if (value === undefined) {
+          value = coerceScalarLiteral(prop.rawValue);
+        }
         if (value === undefined) {
           value = expressionToContextValue(prop.expr);
         }

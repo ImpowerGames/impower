@@ -11,16 +11,25 @@ import {
 import { useComputed } from "@preact/signals";
 import { startTransition } from "preact/compat";
 import { useRef, useState } from "preact/hooks";
+import { recordCreate } from "../../utils/fileUndo";
 import getUniqueFileName from "../../utils/getUniqueFileName";
 import getValidFileName from "../../utils/getValidFileName";
+import { importDroppedFiles } from "../../utils/importDroppedFiles";
 import workspace from "../../workspace/WorkspaceStore";
 import FileList from "../file-list/FileList";
 import FileListBorder from "../file-list/FileListBorder";
+import AddUrlDialog from "./AddUrlDialog";
 
 export const propDefaults = {};
 export type AssetsProps = Partial<typeof propDefaults>;
 
 type Panel = "files" | "urls";
+
+// The `.url` refs live in `assets/urls/` (the URLs panel). Hide that nested
+// folder from the Files panel so each panel shows only its own category.
+// Module constant → stable identity (safe as a FileList prop).
+const URLS_DIR = "assets/urls";
+const FILES_EXCLUDE_DIRS = [URLS_DIR];
 
 /**
  * Assets pane wrapper. Top sub-tabs switch between Files and URLs panels.
@@ -38,6 +47,18 @@ export default function Assets(_props: AssetsProps) {
 
   // Collapse the FAB to an icon once the active list is scrolled off the top.
   const [fabCollapsed, setFabCollapsed] = useState(false);
+  // Dive-mode (mobile) folder scope per panel, reported by each FileList, so the
+  // create FAB drops new files INTO the folder the user is currently viewing.
+  // `""` (root) on desktop / when not scoped in. Separate `useState`s (not one
+  // object) so the setters are stable identities AND bail out when unchanged —
+  // FileList's `onScopeChange` effect depends on the callback, so an unstable one
+  // would re-fire and loop.
+  // The Assets pane's two panels map to two folders: local files under
+  // `assets/`, remote `.url` refs under `assets/urls/` (nested, mirroring the
+  // pane/panel hierarchy). Seed each panel's scope to its folder so an upload/add
+  // before the FileList reports its scope still lands in the right place.
+  const [filesScope, setFilesScope] = useState("assets");
+  const [urlsScope, setUrlsScope] = useState("assets/urls");
 
   const onPanelChange = (next: string) => {
     startTransition(() => {
@@ -68,8 +89,12 @@ export default function Assets(_props: AssetsProps) {
         <Router active={panel} mode="slide-x">
           <FileList
             key="files"
-            exclude="*.{sd,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
+            rootDir="assets"
+            enablePreview
+            exclude="*.{sd,url,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
+            excludeDirs={FILES_EXCLUDE_DIRS}
             onScrolledChange={setFabCollapsed}
+            onScopeChange={setFilesScope}
             emptyState={
               <FileListBorder>
                 <Files class="size-12 m-2" />
@@ -79,8 +104,10 @@ export default function Assets(_props: AssetsProps) {
           />
           <FileList
             key="urls"
-            include="*.{url}"
+            rootDir={URLS_DIR}
+            enablePreview
             onScrolledChange={setFabCollapsed}
+            onScopeChange={setUrlsScope}
             emptyState={
               <FileListBorder>
                 <Link class="size-12 m-2" />
@@ -96,7 +123,11 @@ export default function Assets(_props: AssetsProps) {
             stays at 100% opacity so there's no compositing-induced
             brightness dip during the cross-fade. */}
         <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 [&_button]:pointer-events-auto">
-          <AssetsFab panel={panel} collapsed={fabCollapsed} />
+          <AssetsFab
+            panel={panel}
+            collapsed={fabCollapsed}
+            scope={panel === "files" ? filesScope : urlsScope}
+          />
         </div>
       </div>
     </>
@@ -106,14 +137,24 @@ export default function Assets(_props: AssetsProps) {
 function AssetsFab({
   panel,
   collapsed,
+  scope,
 }: {
   panel: Panel;
   collapsed: boolean;
+  /** Current dive-mode folder (`""` = root) new files are created INTO. */
+  scope: string;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [urlDialogOpen, setUrlDialogOpen] = useState(false);
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
     return (
+      // The Files FAB also disables mid-import so a second upload can't restart
+      // the first's progress bar (asset upload doesn't flip sync.status, hence
+      // the extra check). Scoped to `files`: the URLs FAB writes an independent
+      // `.url` metadata file with no contention, so an in-flight upload must
+      // not disable it.
+      (panel === "files" && workspace.importProgress.value != null) ||
       status === "syncing" ||
       status === "loading" ||
       status === "importing" ||
@@ -127,19 +168,29 @@ function AssetsFab({
     if (!fileList) return;
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
-    const { Workspace } = await import("../../workspace/Workspace");
-    const files = await Promise.all(
-      Array.from(fileList).map(async (file) => ({
-        uri: Workspace.fs.getFileUri(projectId, getValidFileName(file.name)),
-        data: await file.arrayBuffer(),
-      })),
-    );
-    await Workspace.fs.createFiles({ files });
-    await Workspace.window.recordAssetChange();
+    const fileArr = Array.from(fileList);
+    // Clear the input first so re-picking the same file fires `change` again; the
+    // File objects stay valid (importDroppedFiles reads bytes lazily).
     input.value = "";
+    // Upload into the panel's current folder (`scope`). importDroppedFiles owns
+    // conflict resolution, the progress bar, the write, and the undo record.
+    await importDroppedFiles(
+      projectId,
+      fileArr.map((file) => {
+        const name = getValidFileName(file.name);
+        return {
+          rel: scope ? `${scope}/${name}` : name,
+          getBuffer: () => file.arrayBuffer(),
+        };
+      }),
+    );
   }
 
-  async function addUrl() {
+  // Create a remote/CDN asset: write a `<name>.url` file whose CONTENT is the
+  // URL the user entered. The engine resolves `.url` files straight to that
+  // remote `src` (opfs-workspace `updateFileCache`), so it renders in-game like
+  // a local import. Goes into the `urls/` subtree (the URLs panel's scope).
+  async function createUrlAsset(url: string, name: string) {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
     const { Workspace } = await import("../../workspace/Workspace");
@@ -147,19 +198,26 @@ function AssetsFab({
     const filenames = Object.keys(files).map((uri) =>
       Workspace.fs.getFilename(uri),
     );
-    const uniqueFilename = getUniqueFileName(filenames, "asset00.url");
+    const base = getValidFileName(name) || "asset";
+    const uniqueFilename = getUniqueFileName(filenames, `${base}.url`);
+    const rel = scope ? `${scope}/${uniqueFilename}` : uniqueFilename;
+    const uri = Workspace.fs.getFileUri(projectId, rel);
     await Workspace.fs.createFiles({
       files: [
         {
-          uri: Workspace.fs.getFileUri(projectId, uniqueFilename),
-          data: new ArrayBuffer(0),
+          uri,
+          data: new TextEncoder().encode(url).buffer,
         },
       ],
     });
     await Workspace.window.recordAssetChange();
+    recordCreate(projectId, [uri], uniqueFilename);
   }
 
-  const onClick = panel === "files" ? () => inputRef.current?.click() : addUrl;
+  const onClick =
+    panel === "files"
+      ? () => inputRef.current?.click()
+      : () => setUrlDialogOpen(true);
 
   // Collapsed: shrink to a 48px circle docked right, icon-only. The two
   // crossfading label overlays keep their icon but collapse their text width
@@ -201,6 +259,11 @@ function AssetsFab({
         multiple
         class="hidden"
         onChange={uploadFiles}
+      />
+      <AddUrlDialog
+        open={urlDialogOpen}
+        onClose={() => setUrlDialogOpen(false)}
+        onSubmit={createUrlAsset}
       />
     </div>
   );

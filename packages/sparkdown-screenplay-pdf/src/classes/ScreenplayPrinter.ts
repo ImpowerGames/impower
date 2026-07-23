@@ -13,6 +13,7 @@ import { getHeightOfTextbox } from "../textbox-for-pdfkit/src/utils/getHeightOfT
 import { getWidthOfTextbox } from "../textbox-for-pdfkit/src/utils/getWidthOfTextbox";
 import { printTextbox } from "../textbox-for-pdfkit/src/utils/printTextbox";
 import { wrapTextbox } from "../textbox-for-pdfkit/src/utils/wrapTextbox";
+import { splitEmojiRuns } from "../emoji/emojiText";
 
 // pdfkit accepts sizes in PDF points (72 per inch)
 // https://pdfkit.org/docs/getting_started.html
@@ -660,21 +661,28 @@ export default class ScreenplayPrinter {
     content: FormattedText[],
     options: TextOptions = {},
   ): FormattedText[] {
-    return content.map((c) => {
-      const augmented = {
+    return content.flatMap((c) => {
+      const base = {
         ...options,
         ...c,
       };
-      augmented.font =
-        augmented.font ??
-        (augmented.bold && augmented.italic
+      const font =
+        base.font ??
+        (base.bold && base.italic
           ? "bolditalic"
-          : augmented.bold
+          : base.bold
             ? "bold"
-            : augmented.italic
+            : base.italic
               ? "italic"
               : "normal");
-      return augmented;
+      // Split emoji clusters into their own chunks so they can be drawn from
+      // the SVG table instead of the (glyph-less) Courier fonts.
+      return splitEmojiRuns(base.text ?? "").map((run) => ({
+        ...base,
+        font,
+        text: run.text,
+        isEmoji: run.isEmoji || undefined,
+      }));
     });
   }
 

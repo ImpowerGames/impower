@@ -4566,9 +4566,6 @@
     "LuauDeclarations": {
       "patterns": [
         {
-          "include": "#LuauComment"
-        },
-        {
           "include": "#LuauShebang"
         },
         {

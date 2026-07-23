@@ -450,7 +450,7 @@ export default class WorkspaceWindow {
   }
 
   getPaneType(filenameOrUri: string) {
-    const [, ext] = filenameOrUri.split(".");
+    const ext = this.extOfBasename(filenameOrUri);
     if (ext === "sd") {
       return "logic";
     }
@@ -458,14 +458,27 @@ export default class WorkspaceWindow {
   }
 
   getPanelType(filenameOrUri: string) {
-    const [name, ext] = filenameOrUri.split(".");
-    if (name === "main") {
+    // Key off the BASENAME (last path segment), not a naive `.`-split: now that
+    // files nest under scripts/ + assets/, a dotted FOLDER name (`act.1/x.sd`)
+    // would otherwise scramble the extension. The root `main.sd` is the "Main"
+    // entry; every other script lives under scripts/ and routes to the list.
+    const base = filenameOrUri.split("/").pop() ?? "";
+    const dot = base.lastIndexOf(".");
+    const name = dot > 0 ? base.slice(0, dot) : base;
+    const ext = dot > 0 ? base.slice(dot + 1) : "";
+    if (name === "main" && ext === "sd") {
       return "main";
     }
     if (ext === "sd") {
       return "scripts";
     }
     return null;
+  }
+
+  private extOfBasename(filenameOrUri: string) {
+    const base = filenameOrUri.split("/").pop() ?? "";
+    const dot = base.lastIndexOf(".");
+    return dot > 0 ? base.slice(dot + 1) : "";
   }
 
   getActiveEditorForFile(filenameOrUri: string):

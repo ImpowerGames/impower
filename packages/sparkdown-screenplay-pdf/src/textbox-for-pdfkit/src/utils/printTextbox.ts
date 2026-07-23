@@ -5,6 +5,7 @@ import { FormattedText } from "../types/FormattedText";
 import { TextOptions } from "../types/TextOptions";
 import { wrapTextbox } from "./wrapTextbox";
 import { getFontAscent } from "./fontHandler";
+import { drawEmojiChunk, getEmojiProvider } from "../../../emoji/emojiText";
 
 // This is the main package of textbox-for-pdfkit. It is the main function
 // which prepares the data by calling all the subfunctions.
@@ -72,7 +73,22 @@ const printLines = (
       if (textPart.color != null) {
         doc.fillColor(textPart.color as keyof PDFKit.Mixins.ColorValue);
       }
-      if (textPart.text != null) {
+      const emojiProvider = textPart.isEmoji ? getEmojiProvider(doc) : undefined;
+      if (emojiProvider && textPart.text) {
+        const fontSize =
+          textPart.fontSize ??
+          (doc as unknown as { _fontSize?: number })._fontSize ??
+          12;
+        drawEmojiChunk(
+          doc,
+          emojiProvider,
+          textPart.text,
+          xPosition,
+          yPosition,
+          fontSize,
+          String(baseline),
+        );
+      } else if (textPart.text != null) {
         doc.text(textPart.text, xPosition, yPosition, {
           link: textPart.link,
           align: "left",

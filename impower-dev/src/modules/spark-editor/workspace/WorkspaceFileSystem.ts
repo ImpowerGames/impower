@@ -36,6 +36,8 @@ import {
   WillRenameFilesMessage,
   WillRenameFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage";
+import { TrashFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/TrashFilesMessage";
+import { TrashBatch } from "@impower/spark-editor-protocol/src/types/workspace/TrashBatch";
 import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
@@ -47,13 +49,13 @@ import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
 import getTextBuffer from "./utils/getTextBuffer";
-
-const FILE_SEPARATOR_PREFIX = "//// ";
-const FILE_SEPARATOR_SUFFIX = " ////";
-const FILE_SPLITTER_REGEX = /^([/]{4,})(\s*)([^/\s]+)(\s*)([/]{4,})(\s*)$/gmu;
-const FILE_SEPARATOR_REGEX =
-  /^((?:[/]{4,})(?:\s*)(?:[^/\s]+)(?:\s*)(?:[/]{4,})(?:\s*))$/;
-const FILE_NAME_CAPTURE_INDEX = 3;
+import { bundleScripts, splitScriptBundle } from "./utils/scriptBundle";
+import {
+  FOLDER_SENTINEL,
+  computeFolderMoves,
+  computeLayoutMigration,
+  rewriteMainIncludesForMigration,
+} from "../utils/fileTree";
 
 const cmp = (a: any, b: any) => {
   if (a > b) return +1;
@@ -96,9 +98,49 @@ export default class WorkspaceFileSystem {
 
   protected async loadInitialFiles(projectId: string) {
     const directoryUri = this.getDirectoryUri(projectId);
-    const files = await this.readDirectoryFiles({
+    let files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
     });
+    // One-time, idempotent migration to the project's category split: every
+    // script (except root `main.sd`) moves under `scripts/`, remote `.url` refs
+    // under `assets/urls/`, and every other asset under `assets/`, preserving
+    // substructure. Already-split projects yield no moves (cheap no-op); a `.url`
+    // left under `assets/` by an earlier layout is re-homed to `assets/urls/`.
+    // Run before the files load into `_files`/the LSP so everything downstream
+    // sees the new layout.
+    const migration = computeLayoutMigration(
+      files.map((f) => this.getRelativePath(projectId, f.uri)),
+      (p) =>
+        p.endsWith(".sd")
+          ? "scripts"
+          : p.endsWith(".url")
+            ? "assets/urls"
+            : "assets",
+    );
+    if (migration.length > 0) {
+      await this.renameFiles({
+        files: migration.map((m) => ({
+          oldUri: this.getFileUri(projectId, m.from),
+          newUri: this.getFileUri(projectId, m.to),
+        })),
+      });
+      // `main.sd` stayed at the root while the scripts it `include`s moved under
+      // scripts/ — rewrite its include paths so they still resolve. No-op if it
+      // has no includes (or they're already rooted).
+      const mainUri = this.getFileUri(projectId, "main.sd");
+      const mainText = files.find((f) => f.uri === mainUri)?.text;
+      if (mainText != null) {
+        const rewritten = rewriteMainIncludesForMigration(mainText);
+        if (rewritten !== mainText) {
+          await this.writeTextDocument({
+            textDocument: { uri: mainUri, version: 0, text: rewritten },
+          });
+        }
+      }
+      files = await this.readDirectoryFiles({
+        directory: { uri: directoryUri },
+      });
+    }
     this._files ??= {};
     const result: Record<string, FileData> = {};
     files.forEach((file) => {
@@ -137,6 +179,10 @@ export default class WorkspaceFileSystem {
       this.getDirectoryUri(projectId),
       Object.values(this._files),
     );
+    // Auto-expire old recycle-bin batches (>30 days). Fire-and-forget — it must
+    // not block the project load, and trash is local-only so there's no remote
+    // coordination.
+    void this.purgeExpiredTrash(projectId);
     return result;
   }
 
@@ -283,7 +329,14 @@ export default class WorkspaceFileSystem {
 
   getDisplayName(uri: string) {
     const fileName = this.getFilename(uri);
-    return fileName.split(".")[0] ?? "";
+    // Drop only the FINAL extension so multi-dot names keep interior dots
+    // (`sprite.idle.001.png` -> `sprite.idle.001`); a leading-dot dotfile has an
+    // empty display name (matches getName).
+    const dot = fileName.lastIndexOf(".");
+    if (dot <= 0) {
+      return dot === 0 ? "" : fileName;
+    }
+    return fileName.slice(0, dot);
   }
 
   async getFiles(projectId: string) {
@@ -327,7 +380,7 @@ export default class WorkspaceFileSystem {
     const files = Object.values(allFiles)
       .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
       .filter((file) => file.name)
-      .map(({ uri }) => ({ uri }));
+      .map(({ uri }) => ({ uri, path: this.getRelativePath(projectId, uri) }));
     return this.zipFiles({ files });
   }
 
@@ -365,23 +418,9 @@ export default class WorkspaceFileSystem {
 
   async bundleProjectText(projectId: string): Promise<string> {
     const files = await this.getFiles(projectId);
-    const mainScriptUri = this.getFileUri(projectId, "main.sd");
-    const mainFile = files[mainScriptUri];
-    let content = "";
-    if (mainFile?.text != null) {
-      content += `${mainFile.text}`;
-    }
-    Object.values(files)
-      .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
-      .forEach((file) => {
-        if (file.uri !== mainScriptUri) {
-          if (file.text != null && file.name) {
-            content += `\n\n${FILE_SEPARATOR_PREFIX}${file.name}.${file.ext}${FILE_SEPARATOR_SUFFIX}`;
-            content += `\n\n${file.text}`;
-          }
-        }
-      });
-    return content.trim();
+    return bundleScripts(Object.values(files), "main.sd", (uri) =>
+      this.getRelativePath(projectId, uri),
+    );
   }
 
   async readProjectAssetBundle(projectId: string): Promise<ArrayBuffer> {
@@ -389,7 +428,7 @@ export default class WorkspaceFileSystem {
     const files = Object.values(allFiles)
       .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
       .filter((file) => file.text == null && file.name)
-      .map(({ uri }) => ({ uri }));
+      .map(({ uri }) => ({ uri, path: this.getRelativePath(projectId, uri) }));
     return this.zipFiles({ files });
   }
 
@@ -457,24 +496,24 @@ export default class WorkspaceFileSystem {
     projectId: string,
     text: string,
   ): Record<string, string> {
+    const byRelativePath = splitScriptBundle(text, "main.sd");
     const chunks: Record<string, string> = {};
-    let filename = "";
-    text.split(FILE_SPLITTER_REGEX).forEach((content, index) => {
-      const isEvenIndex = index % 2 === 0;
-      if (isEvenIndex) {
-        const uri = filename
-          ? this.getFileUri(projectId, filename)
-          : this.getFileUri(projectId, "main.sd");
-        chunks[uri] = content.trim();
-      } else if (FILE_SEPARATOR_REGEX) {
-        const match = content.trim().match(FILE_SEPARATOR_REGEX);
-        filename = match?.[FILE_NAME_CAPTURE_INDEX]?.trim() || "";
-      }
-    });
+    for (const [relativePath, body] of Object.entries(byRelativePath)) {
+      chunks[this.getFileUri(projectId, relativePath)] = body;
+    }
     return chunks;
   }
 
-  async zipFiles(params: { files: { uri: string }[] }) {
+  /**
+   * Project-relative path for a file URI (the path after `file://<projectId>/`).
+   * Falls back to the bare filename for URIs outside the project directory.
+   */
+  getRelativePath(projectId: string, uri: string): string {
+    const prefix = `${this.getDirectoryUri(projectId)}/`;
+    return uri.startsWith(prefix) ? uri.slice(prefix.length) : this.getFilename(uri);
+  }
+
+  async zipFiles(params: { files: { uri: string; path?: string }[] }) {
     const { files } = params;
     const result = await this.sendRequest(ZipFilesMessage.type, { files });
     return result;
@@ -508,6 +547,161 @@ export default class WorkspaceFileSystem {
   async renameFiles(params: WillRenameFilesParams) {
     const result = await this.sendRequest(WillRenameFilesMessage.type, params);
     return result;
+  }
+
+  /**
+   * Create an (otherwise empty) folder by writing a hidden sentinel file —
+   * OPFS directories are implicit, so an empty folder needs a file to persist.
+   * `folderPath` is project-relative (e.g. `chapters` or `art/backgrounds`).
+   */
+  async createFolder(projectId: string, folderPath: string) {
+    const sentinelPath = `${folderPath.replace(/\/+$/, "")}/${FOLDER_SENTINEL}`;
+    return this.createFiles({
+      files: [
+        {
+          uri: this.getFileUri(projectId, sentinelPath),
+          data: new ArrayBuffer(0),
+        },
+      ],
+    });
+  }
+
+  /** Move/rename a single file to a new project-relative path (across folders). */
+  async moveFile(projectId: string, fromPath: string, toPath: string) {
+    return this.renameFiles({
+      files: [
+        {
+          oldUri: this.getFileUri(projectId, fromPath),
+          newUri: this.getFileUri(projectId, toPath),
+        },
+      ],
+    });
+  }
+
+  /**
+   * Rename an asset AND rewrite every script reference to it in one workspace
+   * edit (the language server computes the edit; the worker applies the text
+   * rewrites + the file rename atomically-in-order). Falls back to a plain
+   * {@link moveFile} when the asset has no references. Returns how many
+   * references in how many scripts were updated.
+   */
+  async renameFileWithReferences(
+    projectId: string,
+    fromPath: string,
+    toPath: string,
+  ): Promise<{ referencesUpdated: number; scriptsAffected: number }> {
+    const oldUri = this.getFileUri(projectId, fromPath);
+    const newName = this.getDisplayName(this.getFileUri(projectId, toPath));
+    const edit = await Workspace.ls.getFileRenameEdits(oldUri, newName);
+    const textEdits = (edit?.documentChanges ?? []).filter(
+      (c): c is { textDocument: { uri: string }; edits: unknown[] } =>
+        "edits" in c,
+    );
+    if (!edit || textEdits.length === 0) {
+      // No references to update — a plain move is enough.
+      await this.moveFile(projectId, fromPath, toPath);
+      return { referencesUpdated: 0, scriptsAffected: 0 };
+    }
+    await this.applyWorkspaceEdit(
+      edit,
+      `Rename ${this.getDisplayName(oldUri)} → ${newName}`,
+      { isRefactoring: true },
+    );
+    const referencesUpdated = textEdits.reduce(
+      (n, c) => n + c.edits.length,
+      0,
+    );
+    return { referencesUpdated, scriptsAffected: textEdits.length };
+  }
+
+  /**
+   * Relocate a folder and everything beneath it (e.g. `chapters` ->
+   * `archive/chapters`) by renaming each contained file across directories.
+   */
+  async moveFolder(projectId: string, fromFolder: string, toFolder: string) {
+    const files = await this.getFiles(projectId);
+    const relativePaths = Object.keys(files).map((uri) =>
+      this.getRelativePath(projectId, uri),
+    );
+    const moves = computeFolderMoves(relativePaths, fromFolder, toFolder);
+    if (moves.length === 0) {
+      return [];
+    }
+    return this.renameFiles({
+      files: moves.map((m) => ({
+        oldUri: this.getFileUri(projectId, m.from),
+        newUri: this.getFileUri(projectId, m.to),
+      })),
+    });
+  }
+
+  /**
+   * Delete a folder and everything beneath it (the empty dir then disappears).
+   * `mode` forwards to {@link deleteFiles} — user folder deletes pass `"trash"`
+   * so the whole subtree moves to the recycle bin as one restorable batch.
+   */
+  async deleteFolder(
+    projectId: string,
+    folderPath: string,
+    mode?: "trash" | "permanent",
+  ) {
+    const files = await this.getFiles(projectId);
+    const prefix = `${folderPath.replace(/\/+$/, "")}/`;
+    const toDelete = Object.keys(files)
+      .filter((uri) => this.getRelativePath(projectId, uri).startsWith(prefix))
+      .map((uri) => ({ uri }));
+    if (toDelete.length === 0) {
+      return [];
+    }
+    return this.deleteFiles({ files: toDelete, mode });
+  }
+
+  /** Every recycle-bin batch (newest first). */
+  async listTrash(projectId: string): Promise<TrashBatch[]> {
+    const result = await this.sendRequest(TrashFilesMessage.type, {
+      projectId,
+      action: "list",
+    });
+    return result.batches ?? [];
+  }
+
+  /** Restore a trash batch to its original locations; returns the restored files. */
+  async restoreTrash(projectId: string, batchId: string): Promise<FileData[]> {
+    const result = await this.sendRequest(TrashFilesMessage.type, {
+      projectId,
+      action: "restore",
+      batchId,
+    });
+    return result.restored ?? [];
+  }
+
+  /** Permanently delete one trash batch. */
+  async deleteTrashBatch(projectId: string, batchId: string): Promise<void> {
+    await this.sendRequest(TrashFilesMessage.type, {
+      projectId,
+      action: "deleteBatch",
+      batchId,
+    });
+  }
+
+  /** Permanently empty the whole recycle bin. */
+  async emptyTrash(projectId: string): Promise<void> {
+    await this.sendRequest(TrashFilesMessage.type, {
+      projectId,
+      action: "empty",
+    });
+  }
+
+  /** Purge trash batches older than `retentionMs` (default 30 days). */
+  async purgeExpiredTrash(
+    projectId: string,
+    retentionMs?: number,
+  ): Promise<void> {
+    await this.sendRequest(TrashFilesMessage.type, {
+      projectId,
+      action: "purge",
+      retentionMs,
+    });
   }
 
   async writeTextDocument(params: {

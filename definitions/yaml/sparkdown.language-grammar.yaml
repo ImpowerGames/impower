@@ -2877,8 +2877,21 @@ repository:
       # do-block).
 
   LuauDeclarations:
+    # NOTE: `#LuauComment` is deliberately NOT included here. `LuauDeclarations`
+    # is reached from the top-level (root) patterns and from every mixed
+    # sparkdown+display body (`LuauSparkdownBlockBody`, `LuauSparkdownChooseBlock`,
+    # `LuauSparkdownChooseThenClause`), which is exactly where scene/action/
+    # dialogue prose lives. A `--` there is a display em-dash (and `---` a
+    # front-matter fence / title-page divider), never a comment — the R&B
+    # screenplay opens dozens of action lines with `-- …`. Pulling `#LuauComment`
+    # in here made every such line parse as a `LuauLineComment` and vanish from
+    # the preview. Luau comments belong ONLY to genuine Luau-code contexts, which
+    # each reach comments directly: `LuauExpression` (the sibling in every pure
+    # `LuauBlockBody` / `LuauExplicitStatement` scope) includes `#LuauComment`,
+    # and function/param/define bodies include it themselves. See
+    # [[feedback_grammar_golden_rule]]: separate the two contexts in the grammar
+    # rather than disambiguate downstream. Regression: FrontMatterAndCommentContext.test.ts.
     patterns:
-      - { include: "#LuauComment" }
       - { include: "#LuauShebang" }
       - { include: "#LuauStyle" }
       - { include: "#LuauLayout" }

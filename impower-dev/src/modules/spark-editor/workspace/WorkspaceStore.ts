@@ -80,6 +80,21 @@ class WorkspaceStore {
   // derived `signals.account` / `signals.signinLabel` below.
   readonly account = signal<AccountInfo | null>(null);
 
+  // Transient asset-import progress, or null when no import is running. Like
+  // `account`, kept as a SEPARATE signal rather than a field on `state`: it's
+  // ephemeral UI feedback, not persisted workspace layout. Written via the
+  // `runImport` helper (utils/importProgress.ts) from the upload/drop entry
+  // points; `loaded` counts files read, then holds at `total` through the
+  // batched OPFS write. Read by ImportProgressBar + HeaderTitleCaption.
+  readonly importProgress = signal<{ loaded: number; total: number } | null>(
+    null,
+  );
+
+  // Whether the project-wide recycle-bin overlay is open. Transient UI state
+  // (a single global instance — trash isn't per-pane), toggled by the file-list
+  // toolbar and the TrashPanel's own close/restore.
+  readonly trashOpen = signal<boolean>(false);
+
   // Pre-built derived signals for the shell's most common slices. Each is a
   // ReadonlySignal so consumers can't mutate them directly — write the whole
   // cache via `current =`, or go through the message-protocol handlers.

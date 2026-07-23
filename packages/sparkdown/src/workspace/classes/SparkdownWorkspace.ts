@@ -80,9 +80,14 @@ export abstract class SparkdownWorkspace {
 
   protected _audioFilePattern?: RegExp;
 
+  protected _videoFilePattern?: RegExp;
+
   protected _fontFilePattern?: RegExp;
 
   protected _worldFilePattern?: RegExp;
+
+  /** Memoized HEAD-probed media category per remote URL (`""` = unresolvable). */
+  protected _urlTypeCache = new Map<string, string>();
 
   protected _lastCompiledUri?: string;
 
@@ -176,6 +181,7 @@ export abstract class SparkdownWorkspace {
         scriptFiles?: string;
         imageFiles?: string;
         audioFiles?: string;
+        videoFiles?: string;
         fontFiles?: string;
         worldFiles?: string;
       };
@@ -210,8 +216,14 @@ export abstract class SparkdownWorkspace {
             compilerConfig.files.map(async (file) => {
               const uri = file.uri;
               const name = this.getFileName(file.uri);
-              const ext = this.getFileExtension(file.uri);
-              const type = this.getFileType(file.uri);
+              let ext = this.getFileExtension(file.uri);
+              let type = this.getFileType(file.uri);
+              // Remote/CDN `.url` assets infer their type/ext from the URL text.
+              const urlResolved = await this.resolveUrlAssetType(ext, file.text);
+              if (urlResolved) {
+                type = urlResolved.type;
+                ext = urlResolved.ext;
+              }
               const [src, text, version, languageId] = await Promise.all([
                 file.src ?? this.getFileSrc(file.uri),
                 type === "script" || type === "text" || ext === "svg"
@@ -288,6 +300,10 @@ export abstract class SparkdownWorkspace {
     if (audioFiles) {
       this._audioFilePattern = globToRegex(audioFiles);
     }
+    const videoFiles = settings?.videoFiles;
+    if (videoFiles) {
+      this._videoFilePattern = globToRegex(videoFiles);
+    }
     const fontFiles = settings?.fontFiles;
     if (fontFiles) {
       this._fontFilePattern = globToRegex(fontFiles);
@@ -360,6 +376,9 @@ export abstract class SparkdownWorkspace {
     if (this._audioFilePattern?.test(uri)) {
       return "audio";
     }
+    if (this._videoFilePattern?.test(uri)) {
+      return "video";
+    }
     if (this._fontFilePattern?.test(uri)) {
       return "font";
     }
@@ -373,6 +392,82 @@ export abstract class SparkdownWorkspace {
     return uri.split("/").slice(-1).join("").split(".")[1]!;
   }
 
+  /**
+   * A `.url` file is a remote/CDN asset reference (see
+   * docs/file-manager/url-assets-plan.md): its text content IS the remote URL,
+   * and its media type is inferred from that URL's own extension rather than
+   * the `.url` extension. Returns the inferred `{ type, ext }`, or `null` when
+   * this isn't a resolvable `.url` file. Mirrors the resolution performed in
+   * opfs-workspace `updateFileCache` so the editor and compiler agree on the
+   * asset's identity. Type/ext are inferred from the URL's path only (query and
+   * hash stripped) so signed URLs don't false-match on a token.
+   */
+  protected async resolveUrlAssetType(
+    ext: string,
+    urlText: string | undefined,
+  ): Promise<{ type: string; ext: string } | null> {
+    if (ext !== "url") {
+      return null;
+    }
+    const url = (urlText ?? "").trim();
+    if (!url) {
+      return null;
+    }
+    const urlPath = url.split(/[?#]/)[0] || "";
+    const urlExt = this.getFileExtension(urlPath);
+    let type = this.getFileType(urlPath);
+    // No extension in the URL path (a bare CDN URL): ask the server for the
+    // media type via a HEAD probe and map its Content-Type.
+    if (!urlExt) {
+      const headType = await this.resolveUrlTypeViaHead(url);
+      if (headType) {
+        type = headType;
+      }
+    }
+    return {
+      type,
+      ext: urlExt || ext,
+    };
+  }
+
+  /** Map a `Content-Type` header to a media category (`""` if none matches). */
+  protected categoryFromContentType(contentType: string): string {
+    const t = (contentType.split(";")[0] || "").trim().toLowerCase();
+    if (t.startsWith("image/")) return "image";
+    if (t.startsWith("audio/")) return "audio";
+    if (t.startsWith("video/")) return "video";
+    if (t.startsWith("font/") || t.includes("font")) return "font";
+    if (t.startsWith("text/")) return "text";
+    return "";
+  }
+
+  /**
+   * Resolve a remote URL's media category from a HEAD request's `Content-Type`,
+   * memoized per URL. Bounded by a 4s timeout; swallows all errors (CORS,
+   * network, timeout) and caches `""` so an unresolvable URL is probed once.
+   * Mirrors opfs-workspace `resolveUrlTypeViaHead` so editor and compiler agree.
+   */
+  protected async resolveUrlTypeViaHead(url: string): Promise<string> {
+    const cached = this._urlTypeCache.get(url);
+    if (cached !== undefined) {
+      return cached;
+    }
+    let category = "";
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(url, { method: "HEAD", signal: controller.signal });
+      clearTimeout(timer);
+      category = this.categoryFromContentType(
+        res.headers.get("content-type") || "",
+      );
+    } catch {
+      category = "";
+    }
+    this._urlTypeCache.set(url, category);
+    return category;
+  }
+
   getRenamedUri(uri: string, newName: string): string {
     const ext = this.getFileExtension(uri);
     const directory = this.getDirectoryUri(uri);
@@ -381,7 +476,10 @@ export abstract class SparkdownWorkspace {
 
   findFiles(name: string, type: string): string[] {
     const matchingUris: string[] = [];
-    for (const uri of Object.keys(this._watchedFiles)) {
+    // `_watchedFiles` is a Map — `Object.keys` on it is always empty, which had
+    // silently made every findFiles() return [] (so asset file-renames + the
+    // asset branch of getReferences never matched). Iterate the Map's keys.
+    for (const uri of this._watchedFiles.keys()) {
       const fileName = this.getFileName(uri);
       const fileType = this.getFileType(uri);
       if (fileName === name && fileType === type) {

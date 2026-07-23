@@ -28,12 +28,10 @@ export default class AnimationPlayer {
       animations.forEach((animation) => {
         const convertedKeyframes: Keyframe[] = [];
         // Defensive: an authored `define X as animation with keyframes = {...}`
-        // can resolve to a non-array `keyframes` (object/undefined). Normalize so
-        // one malformed animation can't throw and black out the whole preview.
-        // Defensive net: a lone keyframe object (e.g. authored
-        // `keyframes = {...}`) is one keyframe, not an array. The engine
+        // can resolve to a non-array `keyframes` (object/undefined). A lone
+        // keyframe object is one keyframe, not an array. The engine
         // (getAnimationDefinition) already normalizes this; here we just avoid
-        // crashing if a non-array slips through.
+        // crashing if a non-array slips through and blacks out the whole preview.
         const rawKeyframes: unknown = (animation as { keyframes?: unknown })
           .keyframes;
         const keyframeList: any[] = Array.isArray(rawKeyframes)
