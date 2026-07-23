@@ -39,7 +39,7 @@ class (or as its tag) gets the style.
 ```sparkdown
 style panel with          -- applies to any element with the `panel` class
   background-color = rgb(0 0 0 / 40%)
-  border-radius = 8px
+  corner = 8px
   padding = 16px
 end
 
@@ -62,7 +62,7 @@ and interaction states:
 style dialogue with
   height = 100%
   > text:                 -- direct child `text`
-    color = black
+    text-color = black
   >> image:               -- any descendant `image`
     opacity = 0.5
   @screen-size(sm):       -- responsive: at the `sm` breakpoint and below
@@ -77,7 +77,7 @@ end
 - `@hovered:` / `@focused:` / `@pressed:` / `@checked:` / `@disabled:` target
   interaction states.
 
-> **Inline vs block:** inline props take a `#` and can be dynamic (`#gap={n}`);
+> **Inline vs block:** inline props take a `#` and can be dynamic (`#child-gap={n}`);
 > `style`-block properties use `key = value` and are evaluated once. For a value
 > that changes per frame, use an inline `#prop={expr}` or toggle a class.
 

@@ -14,6 +14,8 @@ Control flow uses the same keywords as the rest of Sparkdown's logic (`then`,
 Show one branch depending on a condition:
 
 ```sparkdown
+store player = { dead = false, hp = 8 }
+
 layout hud with
   if player.dead then
     text "GAME OVER"
@@ -37,6 +39,9 @@ end
 Render one copy of a block per item:
 
 ```sparkdown
+store player = { inventory = { { name = "Potion", icon = "potion" } } }
+function use_item(item)  end
+
 layout bag with
   for item in player.inventory do
     row item:
@@ -87,6 +92,8 @@ When you're branching on the value of a single expression, `match` reads more
 cleanly than a chain of `elseif`s:
 
 ```sparkdown
+store player = { class = "knight" }
+
 layout badge with
   match player.class do
   case "knight"
@@ -110,10 +117,12 @@ Control-flow blocks nest freely inside each other and inside elements — mix an
 match to build exactly the UI your state describes:
 
 ```sparkdown
-layout party with
-  column #gap=8:
+store party = { { name = "Ana", hp = 10 }, { name = "Bo", hp = 0 } }
+
+layout roster with
+  column #child-gap=8:
     for member in party do
-      row #gap=8:
+      row #child-gap=8:
         text "{member.name}"
         if member.hp <= 0 then
           text down "(down)"

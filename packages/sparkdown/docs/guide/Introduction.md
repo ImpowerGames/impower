@@ -10,91 +10,51 @@ You create Sparkle UI using the same language you already know: **Sparkdown**.
 
 Sparkdown lets you structure your UI clearly, style it easily, and focus on what matters — while the system handles the heavy lifting.
 
-Whether you're building an inventory screen, a dialog box, a settings menu, or a full interface system, Sparkle UI helps your UI shine — with less fuss, and more fun.
-
----
-
-### The Problem Sparkle Solves
-
-If you've ever tried to build a game UI, you've probably run into something like this:
-
-- **Tools that get in your way.**
-  You open a visual editor or markup language, and you're immediately wrestling with layers, anchors, containers, and hidden settings you didn't ask for.
-
-- **Layout that doesn't behave.**
-  You just want to line up a few buttons — but instead you're adjusting margins, resizing boxes, or searching forums for fixes.
-
-- **Friction between your idea and the result.**
-  You know what you want — but it feels like there's too much distance between writing it and seeing it work.
-
-Sparkle UI is designed to fix that.
-
----
-
-### What Makes Sparkle Different
-
-| Principle                               | What It Means                                                                      |
-| :-------------------------------------- | :--------------------------------------------------------------------------------- |
-| **Readable first**                      | Your layout reads like a clear, simple outline.                                    |
-| **Structure first, style second**       | You build the shape of your UI before worrying about polish.                       |
-| **Reactive by default**                 | Interpolated values re-render themselves when your game state changes — no wiring. |
-| **Sensible defaults, powerful control** | You can get great results with no tweaking — or customize deeply when you want to. |
-| **Built for games, not websites**       | Sparkle fits game menus, dialogs, inventories, settings — not blog posts.          |
-| **Lightweight by design**               | No installs, no compilers — everything works directly in your browser.             |
-
-**Sparkle bridges the gap between your ideas and the screen — fast, focused, and frustration-free.**
-
 ---
 
 ### A Quick Look at Sparkle with Sparkdown
 
-Here's what building a basic **inventory layout** looks like:
-
 ```sparkdown
+store hp = 0
+
 layout main with
-  column panel #gap=16:
-    text title "Inventory"
-
-    for item in player.inventory do
-      row #gap=8:
-        text "{item.name}"
-        button "Use" @click=use_item(item)
-    else
-      text "No items available."
-    end
-
-    row #margin-top=24:
-      button "Back" @click=go_back
-  end
+  column #child-gap=12:
+    text "Health: {hp}"
+    row #child-gap=8:
+      button "- Damage" @click={ hp = hp - 1 }
+      button "+ Heal" @click={ hp = hp + 1 }
+end
 ```
 
-- **Layouts** hold a tree of UI. A layout named `main` shows automatically.
-- **Elements** (like `text`, `button`, `row`, `column`) organize and lay out your content.
-- **Classes** (like `panel` or `title`) are space-separated words after the element name — `style` blocks target them.
-- **Props** (like `#gap=16` or `#margin-top=24`) style and fine-tune each element.
-- **Events** (like `@click=use_item`) hook into interactivity.
-- **Conditionals and loops** (`if`, `for`, `match`) keep your UI dynamic — and update automatically when state changes.
+Here's what each piece does:
 
-You can read Sparkle Sparkdown almost like a storyboard:
-what appears, how it's arranged, and what happens when players interact.
+- **State** lives in a `store` variable. `hp` starts at `0`.
+- **Layouts** hold a tree of UI. A layout named `main` shows automatically.
+- **Elements** (`text`, `button`, `row`, `column`) arrange and display your content.
+- **Props** (like `#child-gap=12`) fine-tune spacing, size, and style.
+- **Interpolation** (`{hp}`) drops a live value straight into your UI.
+- **Events** (like `@click`) run code when the player interacts.
+
+It's **reactive by default**.
+You never have to tell the counter to redraw.
+Simply change `hp`, and every `{hp}` on screen updates itself — no refresh, no re-render call, no wiring. 
+
+As your UI grows, you'll add **classes** for styling, **components** for reuse,
+and **`if` / `for` / `match`** to show and hide UI as state changes — all covered
+in the pages ahead.
 
 ---
 
 ### What Comes Next
 
-This guide walks through the whole system, one step at a time:
-
-| # | Page | What you'll learn |
-| :-- | :-- | :-- |
-| 2 | **Basic Concepts** | Layouts, elements, classes, content, props, and events. |
-| 3 | **Control Flow** | `if` / `for` / `match` to add and remove UI as state changes. |
-| 4 | **Components** | Build your own reusable elements, with parameters and slots. |
-| 5 | **Interactive Widgets** | Buttons, text fields, sliders, checkboxes, and dropdowns — including two-way input. |
-| 6 | **Screens & Navigation** | Group layouts into screens and move between them. |
-| 7 | **Styling** | `style` blocks, selectors, breakpoints, and the full style-prop reference. |
-| 8 | **Animation & Theme** | Reusable animations and shared design tokens. |
-
-Ready?
-Let's dive in.
+| #   | Page                     | What you'll learn                                                                   |
+| :-- | :----------------------- | :---------------------------------------------------------------------------------- |
+| 2   | **Basic Concepts**       | Layouts, elements, classes, content, props, and events.                             |
+| 3   | **Control Flow**         | `if` / `for` / `match` to add and remove UI as state changes.                       |
+| 4   | **Components**           | Build your own reusable elements, with parameters and slots.                        |
+| 5   | **Interactive Widgets**  | Buttons, text fields, sliders, checkboxes, and dropdowns — including two-way input. |
+| 6   | **Screens & Navigation** | Group layouts into screens and move between them.                                   |
+| 7   | **Styling**              | `style` blocks, selectors, breakpoints, and the full style-prop reference.          |
+| 8   | **Animation & Theme**    | Reusable animations and shared design tokens.                                       |
 
 ---

@@ -50,8 +50,10 @@ end
 Call it with arguments in parentheses:
 
 ```sparkdown
+store player = { str = 14, agi = 12, hp = 8, max_hp = 10 }
+
 layout sheet with
-  column #gap=4:
+  column #child-gap=4:
     stat_row("Strength", player.str)
     stat_row("Agility",  player.agi)
     stat_row("Health",   "{player.hp}/{player.max_hp}")
@@ -95,6 +97,8 @@ A component can expose more than one slot by naming them. The caller targets a
 named slot with `fill`:
 
 ```sparkdown
+function sort_bag()  end
+
 component card(title) with
   box card:
     text card_title "{title}"

@@ -4,13 +4,17 @@
 
 ## ✏️ Sparkle at a Glance
 
-Before we dive in, here's a quick example of how a Sparkle layout looks:
+Here's a quick example of what a Sparkle layout looks like:
 
 ```sparkdown
-layout main with                       -- a layout (a tree of UI)
-  column menu #gap=24:                 -- an element with a class + a prop, opening a child block
+store player = { name = "Hero" }       -- state the UI reads
+function start_game()  end             -- the event's handler
+
+layout main with                       -- a layout named main
+  column #child-gap=24:                -- an element with a class and a prop
     text "Welcome, {player.name}!"     -- content with an interpolated {value}
     button "Begin" @click=start_game   -- content + an event
+end
 ```
 
 - **Layouts** hold your UI.
@@ -20,20 +24,21 @@ layout main with                       -- a layout (a tree of UI)
 - **Props** (`#name=value`) customize layout, style, or behavior.
 - **Events** (`@name=action`) respond to interactions.
 
-You'll learn all of this step-by-step — but you can already picture the shape:
-**clear, structured, and easy to read.**
-
 ---
 
 ## 2.1 Layouts
 
 A **layout** is a tree of UI — a menu, a HUD, a dialog, an inventory panel.
 
-You create one with the `layout` keyword, and everything indented inside `with … end` is what it displays:
+You create one with the `layout` keyword, and everything inside `with … end` is what it displays:
 
 ```sparkdown
+function start_game()    end
+function open_settings() end
+function quit_game()     end
+
 layout main with
-  column #gap=24 #align-items=center:
+  column #child-gap=24 #child-align=center:
     text "Feature Creeper"
     button "Start"   @click=start_game
     button "Options" @click=open_settings
@@ -78,7 +83,7 @@ An element line can carry classes, content, props, events, and children — in t
 A trailing **`:`** opens a child block; the more-indented lines below become its children. Elements with no children omit the `:`.
 
 ```sparkdown
-column #gap=8:            -- has children (note the `:`)
+column #child-gap=8:     -- has children (note the `:`)
   text "Line one"         -- a child (no children of its own, no `:`)
   text "Line two"
 ```
@@ -117,7 +122,7 @@ column panel scrollable:
   text "…"
 ```
 
-> Classes are separated by **spaces**, not dots — write `button primary`, not `button.primary`. (The element name itself is also a class, so `style button with …` styles every button.)
+> Classes are separated by **spaces** (The element name itself is also a class, so `style button with …` styles every button.)
 
 A `style` block then targets the class:
 
@@ -157,7 +162,7 @@ row #background-color={team_color}:
   text "Team {team_name}"
 ```
 
-> Inline props take a leading `#` (`#gap=16`). Properties inside a `style` block use `key = value` instead (`gap = 16`) — see [Styling](./StyleProps.md).
+> Inline props take a leading `#` (`#child-gap=16`). Properties inside a `style` block use `key = value` instead (`child-gap = 16`) — see [Styling](./StyleProps.md).
 
 ---
 

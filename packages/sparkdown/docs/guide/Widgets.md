@@ -102,8 +102,14 @@ dropdown #value={difficulty} @change={ difficulty = event.value }:
 ## 5.7 A settings panel, end to end
 
 ```sparkdown
+store volume = 80
+store music_muted = false
+store difficulty = "normal"
+function go_back()       end
+function save_settings() end
+
 layout settings with
-  column menu #gap=16:
+  column menu #child-gap=16:
     text title "Settings"
 
     slider "Master Volume" #min=0 #max=100 #value={volume} @input={ volume = event.value }
@@ -114,7 +120,7 @@ layout settings with
       option "Normal" #value="normal"
       option "Hard"   #value="hard"
 
-    row #gap=16 #child-justify=space-between:
+    row #child-gap=16 #child-justify=space-between:
       button "Back"  @click=go_back
       button "Apply" @click=save_settings
 end
