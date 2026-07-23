@@ -32,6 +32,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { LowerContext, SiblingSubFlowInfo } from "../context";
+import { stampDebugMetadata } from "../utils/debugMetadata";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments, VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
@@ -2176,7 +2177,19 @@ export function lowerSimpleAccessPath(
         return new NumberExpression(constVal, "bool");
       }
     }
-    return new VariableReference(identifiers);
+    const ref = new VariableReference(identifiers);
+    // In a Sparkle binding, stamp the reference with its own token span so an
+    // unresolved-variable error lands on the identifier, not the whole binding.
+    if (ctx.stampExpressionSpans && parts.length > 0) {
+      stampDebugMetadata(
+        [ref],
+        parts[0]!.from,
+        parts[parts.length - 1]!.to,
+        ctx,
+        true,
+      );
+    }
+    return ref;
   }
   return null;
 }

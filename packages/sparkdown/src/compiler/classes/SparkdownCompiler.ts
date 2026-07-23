@@ -2570,6 +2570,16 @@ export class SparkdownCompiler {
   validateReferences(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateReferences", uri);
+    // Whole-program set of top-level callables a Sparkle `@event` handler ref
+    // can target — mirrors the runtime's story.HasFunction (top-level functions
+    // + knots + scenes). Built across ALL scripts so a handler defined in an
+    // included file isn't falsely flagged. Stdlib names are intentionally NOT
+    // included: they aren't runtime knots, so a bare `@click=print` never fires.
+    const handlerCallables = new Set<string>([
+      ...Object.keys(program.functionLocations ?? {}),
+      ...Object.keys(program.sceneLocations ?? {}),
+      ...Object.keys(program.knotLocations ?? {}),
+    ]);
     for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
       if (doc) {
@@ -2577,6 +2587,34 @@ export class SparkdownCompiler {
         const cur = annotations.references.iter();
         while (cur.value) {
           const reference = cur.value.type;
+          if (reference.usage === "handler") {
+            // A Sparkle `@event=handler` that names a function/knot the runtime
+            // can't invoke — warn (it silently never fires). See ReferenceAnnotator.
+            const name = reference.symbolIds?.[0];
+            if (name && !handlerCallables.has(name)) {
+              const message = `Cannot find function \`${name}\` for this handler — define \`function ${name}() … end\`, or use an inline handler \`{ … }\``;
+              const range = doc.range(cur.from, cur.to);
+              program.diagnostics ??= {};
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push({
+                range,
+                severity: DiagnosticSeverity.Warning,
+                message: {
+                  value: message,
+                  kind: "markdown",
+                },
+                relatedInformation: [
+                  {
+                    location: { uri, range },
+                    message: "",
+                  },
+                ],
+                source: LANGUAGE_NAME,
+              });
+            }
+            cur.next();
+            continue;
+          }
           if (reference.symbolIds) {
             for (const symbolId of reference.symbolIds) {
               if (this._config.definitions?.builtins?.[symbolId]) {

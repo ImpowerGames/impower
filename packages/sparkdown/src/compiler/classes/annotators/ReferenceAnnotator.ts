@@ -10,7 +10,7 @@ import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
 export interface Reference {
-  usage?: "divert";
+  usage?: "divert" | "handler";
   declaration?:
     | "function"
     | "scene"
@@ -76,6 +76,22 @@ const ASSET_COMMAND = new Set(["ImageCommand", "AudioCommand"]);
 // name LuauVariableName must be claimed as a `property` declaration by the
 // LuauPropertyDefinition branch, NOT emitted as a generic variable read.
 const PROPERTY_DEFINITION = new Set(["LuauPropertyDefinition"]);
+
+// A Sparkle `@event=handler` binding and its parts. When the handler is a bare
+// function ref (`@click=go_back`) or a direct call (`@click=use_item(item)`),
+// the target must be a runtime-callable function/knot; an inline closure
+// (`@e={ … }`) or a member/method target (`@click=hero:jump()`) carries no bare
+// function name to resolve.
+const EVENT_ATTR_CONTENT = new Set(["LuauEventAttribute_content"]);
+const EVENT_HANDLER_CLOSURE = new Set(["LuauSparkleHandlerClosure"]);
+// A bare-ref handler (`@e=go_back`) is its own grammar node (highlighted like a
+// divert path); a direct call (`@e=use_item(a)`) keeps the callee as a
+// `LuauFunctionName`. Either is the resolvable handler target.
+const EVENT_HANDLER_NAME = new Set([
+  "LuauSparkleEventHandlerName",
+  "LuauFunctionName",
+  "LuauVariableName",
+]);
 
 // `LuauStructBodyLine` is the per-physical-line wrapper of a structural
 // (style/screen/component/animation/theme) body; the indent is the column of
@@ -186,6 +202,29 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Reference>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Reference>>[] {
+    if (nodeRef.name === "LuauEventAttribute") {
+      // Emit a `handler` reference at the callee name of a bare-ref / direct-call
+      // `@event` handler so validateReferences can warn when it names no defined
+      // function. Skip inline closures and dotted/method targets (no bare name).
+      const content = firstDescendant(nodeRef.node, EVENT_ATTR_CONTENT);
+      const hasClosure = !!firstDescendant(nodeRef.node, EVENT_HANDLER_CLOSURE);
+      if (content && !hasClosure) {
+        const raw = this.read(content.from, content.to).trim();
+        // Strip a trailing call `(...)` so `use_item(item)` resolves `use_item`.
+        const callee = raw.replace(/\s*\([\s\S]*\)\s*$/, "");
+        if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(callee)) {
+          const nameNode = firstDescendant(content, EVENT_HANDLER_NAME) ?? content;
+          annotations.push(
+            SparkdownAnnotation.mark<Reference>({
+              usage: "handler",
+              symbolIds: [callee],
+              kind: "read",
+            }).range(nameNode.from, nameNode.to),
+          );
+        }
+      }
+      return annotations;
+    }
     if (nodeRef.name === "LuauFunctionName") {
       // `LuauFunctionName` fires at both the declaration (`function NAME(...)`,
       // under LuauFunctionDeclarationName) and call/read sites (`& NAME()`).

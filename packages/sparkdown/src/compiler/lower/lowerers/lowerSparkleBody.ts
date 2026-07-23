@@ -24,6 +24,7 @@ import {
   type SlotNode,
 } from "../../types/SparkleNode";
 import { type SparkRange } from "../../types/SparkRange";
+import { stampDebugMetadata } from "../utils/debugMetadata";
 
 // Builds the reactive Sparkle UI AST (docs/sparkle/reactive-sparkle-spec.md §6)
 // for a screen/component body. Unlike the static `lowerStructBody` (which
@@ -296,6 +297,11 @@ function lowerBinding(
       [new ReturnType(expr ?? null)],
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
+    // Stamp the hoisted evaluator with the binding's source span so a compile
+    // error inside it (e.g. an undefined `{player.inventory}`) reports at the
+    // binding, not at line 0 (a Function with no debugMetadata makes the
+    // inner-node error walk hit null → 0:0). remapContent later rebases it.
+    stampDebugMetadata([fn], interpNode.from, interpNode.to, ctx, true);
     ctx.hoistedKnots.push(fn);
   }
   return {
@@ -378,13 +384,13 @@ function lowerComponentArg(
   );
   if (!already && ctx.hoistedKnots) {
     const expr = lowerExpressionFromNodes(argNodes, ctx);
-    ctx.hoistedKnots.push(
-      new Function(
-        new Identifier(exprId),
-        [new ReturnType(expr ?? null)],
-        loopVars.map((n) => new Argument(new Identifier(n), false, false)),
-      ),
+    const fn = new Function(
+      new Identifier(exprId),
+      [new ReturnType(expr ?? null)],
+      loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
+    stampDebugMetadata([fn], first.from, last.to, ctx, true);
+    ctx.hoistedKnots.push(fn);
   }
   return {
     kind: "binding",
@@ -517,13 +523,13 @@ function lowerHandlerClosure(
   if (!already && ctx.hoistedKnots) {
     const body = firstDescendant(closureNode, EVENT_CLOSURE_BODY);
     const stmts = lowerStatements(body, ctx);
-    ctx.hoistedKnots.push(
-      new Function(
-        new Identifier(exprId),
-        stmts,
-        loopVars.map((n) => new Argument(new Identifier(n), false, false)),
-      ),
+    const fn = new Function(
+      new Identifier(exprId),
+      stmts,
+      loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
+    stampDebugMetadata([fn], closureNode.from, closureNode.to, ctx, true);
+    ctx.hoistedKnots.push(fn);
   }
   return {
     exprId,
@@ -991,13 +997,13 @@ function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding 
   );
   if (!already && ctx.hoistedKnots) {
     const expr = lowerExpressionFromNodes(nodes, ctx);
-    ctx.hoistedKnots.push(
-      new Function(
-        new Identifier(exprId),
-        [new ReturnType(expr ?? null)],
-        loopVars.map((n) => new Argument(new Identifier(n), false, false)),
-      ),
+    const fn = new Function(
+      new Identifier(exprId),
+      [new ReturnType(expr ?? null)],
+      loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
+    stampDebugMetadata([fn], first.from, last.to, ctx, true);
+    ctx.hoistedKnots.push(fn);
   }
   return {
     exprId,
@@ -1226,5 +1232,14 @@ export function buildSparkleBody(
 ): BodyNode[] {
   const lines = collectNodeLines(contentNode, ctx);
   if (lines.length === 0) return [];
-  return buildBlock(lines, 0, lines[0]!.indent, ctx).children;
+  // Stamp per-token metadata on binding expression nodes so a resolution error
+  // lands on the exact identifier rather than the whole binding span (scoped to
+  // Sparkle bodies — see LowerContext.stampExpressionSpans).
+  const prevStamp = ctx.stampExpressionSpans;
+  ctx.stampExpressionSpans = true;
+  try {
+    return buildBlock(lines, 0, lines[0]!.indent, ctx).children;
+  } finally {
+    ctx.stampExpressionSpans = prevStamp;
+  }
 }

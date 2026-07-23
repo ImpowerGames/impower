@@ -1,6 +1,7 @@
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
+import VALID_STYLE_PROPS_DATA from "../../constants/validStyleProps.json";
 import { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
@@ -26,6 +27,42 @@ const BRACKET_CONTROL_KEYWORDS = [
 // instruction.
 const ASSET_COMMAND = new Set(["ImageCommand", "AudioCommand"]);
 const ASSET_COMMAND_CONTROL = new Set(["AssetCommandControl"]);
+
+// The closed set of `@event` names a Sparkle element line can bind. Source of
+// truth: the runtime's `EventMap` (packages/spark-engine/src/game/core/types/
+// EventMap.ts) — the renderer only forwards these, and an unknown name silently
+// never fires, so a typo (`@clik`) is always a bug. Keep in sync with EventMap.
+const VALID_SPARKLE_EVENTS = new Set([
+  "click", "mousedown", "mouseenter", "mouseleave", "mousemove", "mouseout",
+  "mouseover", "mouseup",
+  "pointercancel", "pointerdown", "pointerenter", "pointerleave", "pointermove",
+  "pointerout", "pointerover", "pointerup", "gotpointercapture",
+  "lostpointercapture",
+  "touchcancel", "touchend", "touchmove", "touchstart",
+  "drag", "dragend", "dragenter", "dragleave", "dragover", "dragstart", "drop",
+  "wheel",
+  "scroll", "scrollend",
+  "input", "change",
+  "keydown", "keyup", "keypress",
+  "focus", "focusin", "focusout", "blur",
+]);
+
+// The prop names a Sparkle `#prop=value` may use without warning: every real CSS
+// property + the sparkle style vocabulary + widget props (generated into
+// validStyleProps.json from mdn-data + sparkle-style-transformer). Sparkle passes
+// unknown props straight through to CSS, so the value is catching typos
+// (`#colr`) without flagging valid raw CSS or `--custom` props.
+const VALID_STYLE_PROPS = new Set<string>(VALID_STYLE_PROPS_DATA.props);
+
+// Normalize a prop name to the vocabulary's kebab-case form the way the renderer
+// does (`getCSSPropertyName`): camelCase → kebab, `_` → `-`, lowercased. So
+// `#maxWidth` / `#max_width` both match `max-width`.
+function normalizeStylePropName(name: string): string {
+  return name
+    .replace(/_/g, "-")
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .toLowerCase();
+}
 
 // Bounded parent walk: nearest ancestor whose name is in `names`, else null.
 function ancestorMatching(
@@ -186,6 +223,53 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         !context.includes("LuauStructScalarProperty")
       ) {
         const message = `Classes are space-separated, not dot-prefixed — replace the \`.\` with a space\n> e.g. \`row hud\`, not \`row.hud\``;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
+    // Unrecognized `@event` name on a Sparkle element line (`@clik=save`). The
+    // event set is closed (EventMap) and an unknown name silently never fires,
+    // so surface a typo instead of leaving a dead handler. `EventAttributeName`
+    // captures exactly the identifier after `@` (no `@`, no whitespace).
+    if (nodeRef.name === "EventAttributeName") {
+      const name = this.read(nodeRef.from, nodeRef.to).trim();
+      if (name && !VALID_SPARKLE_EVENTS.has(name)) {
+        const message = `Unrecognized event \`@${name}\` — Sparkle dispatches a fixed set of events, so this handler never fires\n> e.g. \`@click\`, \`@input\`, \`@change\`, \`@keydown\``;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
+    // Unrecognized inline `#prop` name on a Sparkle element line (`#colr=red`).
+    // Sparkle passes unknown props straight through to CSS, so a typo silently
+    // does nothing — warn when the name is neither a known style prop / CSS
+    // property / widget prop nor a `--custom` property. `StyleAttributeName`
+    // captures exactly the identifier after `#`.
+    if (nodeRef.name === "StyleAttributeName") {
+      const raw = this.read(nodeRef.from, nodeRef.to).trim();
+      const name = raw.replace(/^#/, "");
+      // `--custom` CSS variables and `data-*` / `aria-*` attributes are always
+      // valid on any element, so they're never flagged.
+      const isPassThrough =
+        name.startsWith("--") ||
+        name.startsWith("data-") ||
+        name.startsWith("aria-");
+      if (
+        name &&
+        !isPassThrough &&
+        !VALID_STYLE_PROPS.has(name) &&
+        !VALID_STYLE_PROPS.has(normalizeStylePropName(name))
+      ) {
+        const message = `Unrecognized prop \`#${name}\` — not a known style property, so it has no effect\n> Sparkle props are CSS-style names (\`background-color\`, \`gap\`, \`padding\`) or short aliases; use \`#--${name}\` for a custom CSS variable`;
         annotations.push(
           SparkdownAnnotation.mark<Diagnostic>({
             message,
