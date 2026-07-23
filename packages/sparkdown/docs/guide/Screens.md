@@ -70,6 +70,11 @@ layout settings in menu with
 end
 ```
 
+> A screen's body is reserved for future screen-level config — leave it empty for
+> now (the `with … end` is still required). Layouts join the screen with
+> `in <screen>`, and referencing a screen you never defined is a compile error,
+> which catches typos.
+
 Move to a layout within a screen with **`[[navigate <screen> to <layout>]]`** — this is full-screen routing: it replaces whatever that screen was showing.
 
 ```sparkdown

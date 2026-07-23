@@ -1,8 +1,8 @@
 # 3. Control Flow
 
-Your UI shouldn't be static. Sparkle's control flow adds and removes elements as
-your game state changes — and it does so **reactively**: when the state a
-condition or loop depends on changes, that part of the UI updates on its own.
+Sparkle's control flow adds and removes elements as your game state changes —
+**reactively**: when the state a condition or loop depends on changes, that part
+of the UI updates on its own.
 
 Control flow uses the same keywords as the rest of Sparkdown's logic (`then`,
 `do`, `end`), so one mental model spans your story and your UI.
@@ -113,8 +113,7 @@ end
 
 ## 3.4 Nesting
 
-Control-flow blocks nest freely inside each other and inside elements — mix and
-match to build exactly the UI your state describes:
+Control-flow blocks nest freely inside each other and inside elements:
 
 ```sparkdown
 store party = { { name = "Ana", hp = 10 }, { name = "Bo", hp = 0 } }

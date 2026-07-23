@@ -17,15 +17,15 @@ clause** when you open, close, or navigate a view (see
 [[navigate menu to settings with slide over 0.25s ease ease_out]]
 ```
 
-Built-in animations you can use out of the box include `fade`, `slide`, `shake`,
+Built-in animations: `fade`, `slide`, `shake`,
 `wavy`, `wave`, `spin`, `bounce`, and `ping`, plus the structural
 `show` / `hide` / `align_left` / `align_center` / `align_right`.
 
 You can also apply an animation to an element through the `animation` style prop
-(see the **Animation Utilities** table in [Styling](./StyleProps.md)):
+(see the **Animation** table in [Styling](./StyleProps.md#animation)):
 
 ```sparkdown
-text "New!" #animation="0.5s infinite bounce"
+text "New!" #animation=bounce #animation-duration=0.5s #animation-iterations=infinite
 ```
 
 ---
@@ -67,27 +67,20 @@ place, so your UI stays consistent and is easy to re-skin. It's static config:
 define it with the `theme` keyword and reference its values from your styles.
 
 ```sparkdown
-theme default with
-  -- shared design tokens
+theme dusk with
+  color = #112233
+  radius = 8px
 end
 ```
 
-> Theming is an advanced, evolving area. For most UIs you'll get far with
-> `style` blocks and the built-in colors — reach for a custom `theme` when you
-> want one source of truth for a whole game's look.
+<!-- TODO(docs): how styles reference theme values isn't documented yet — add it once settled. -->
+
+> Theme bodies are `key = value` pairs, like `style` blocks. How styles reference
+> those values isn't documented yet. For most UIs you'll get far with `style`
+> blocks and the built-in colors — reach for a custom `theme` when you want a
+> whole game's look defined in one place.
 
 ---
 
-## You've got the whole picture
-
-That's the Sparkle UI system end to end:
-
-- **[Basic Concepts](./Structure.md)** — layouts, elements, classes, content, props, events
-- **[Control Flow](./ControlFlow.md)** — `if` / `for` / `match`
-- **[Components](./Components.md)** — reusable UI with parameters and slots
-- **[Interactive Widgets](./Widgets.md)** — buttons, fields, sliders, checkboxes, dropdowns
-- **[Screens & Navigation](./Screens.md)** — `open` / `close` / `navigate`
-- **[Styling](./StyleProps.md)** — `style` blocks and the full prop reference
-- **Animation & Theme** — movement and shared design values
-
-Structure first, style second, and let the engine keep it in sync with your game.
+That's the whole system. Structure first, style second, and let the engine keep
+it in sync with your game.

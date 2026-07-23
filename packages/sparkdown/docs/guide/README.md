@@ -1,6 +1,6 @@
 # Sparkle UI Guide
 
-Build game UI with Sparkdown — readable, reactive, and built for games.
+Build game UI — menus, HUDs, dialogs, inventory panels — in Sparkdown, the same language you write your story in.
 
 Read in order:
 

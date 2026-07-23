@@ -1,18 +1,10 @@
-# Building Sparkle UI with Sparkdown
+# 1. Introduction
 
-## 1. Introduction
-
-### Building Sparkle UI with Sparkdown
-
-**Sparkle UI** is our fast, flexible system for crafting beautiful user interfaces — no complex tools, fiddly editors, or endless setup required.
-
-You create Sparkle UI using the same language you already know: **Sparkdown**.
-
-Sparkdown lets you structure your UI clearly, style it easily, and focus on what matters — while the system handles the heavy lifting.
+**Sparkle UI** is how you build your game's interface in Sparkdown — the same language you're already writing your story in. You declare what the UI looks like, and the engine keeps it in sync with your game state.
 
 ---
 
-### A Quick Look at Sparkle with Sparkdown
+## A quick look
 
 ```sparkdown
 store hp = 0
@@ -28,33 +20,17 @@ end
 
 Here's what each piece does:
 
-- **State** lives in a `store` variable. `hp` starts at `0`.
+- **State** lives in a `store` variable — here, `hp` starts at `0`.
 - **Layouts** hold a tree of UI. A layout named `main` shows automatically.
-- **Elements** (`text`, `button`, `row`, `column`) arrange and display your content.
+- **Elements** (`text`, `button`) build the parts; **layout classes** (`row`, `column`) arrange them.
 - **Props** (like `#child-gap=12`) fine-tune spacing, size, and style.
 - **Interpolation** (`{hp}`) drops a live value straight into your UI.
 - **Events** (like `@click`) run code when the player interacts.
 
-It's **reactive by default**.
-You never have to tell the counter to redraw.
-Simply change `hp`, and every `{hp}` on screen updates itself — no refresh, no re-render call, no wiring. 
+It's **reactive by default**: change `hp` — from a button, from your story logic, from anywhere — and every `{hp}` on screen updates itself. No redraw calls, no wiring.
 
 As your UI grows, you'll add **classes** for styling, **components** for reuse,
 and **`if` / `for` / `match`** to show and hide UI as state changes — all covered
 in the pages ahead.
 
----
-
-### What Comes Next
-
-| #   | Page                     | What you'll learn                                                                   |
-| :-- | :----------------------- | :---------------------------------------------------------------------------------- |
-| 2   | **Basic Concepts**       | Layouts, elements, classes, content, props, and events.                             |
-| 3   | **Control Flow**         | `if` / `for` / `match` to add and remove UI as state changes.                       |
-| 4   | **Components**           | Build your own reusable elements, with parameters and slots.                        |
-| 5   | **Interactive Widgets**  | Buttons, text fields, sliders, checkboxes, and dropdowns — including two-way input. |
-| 6   | **Screens & Navigation** | Group layouts into screens and move between them.                                   |
-| 7   | **Styling**              | `style` blocks, selectors, breakpoints, and the full style-prop reference.          |
-| 8   | **Animation & Theme**    | Reusable animations and shared design tokens.                                       |
-
----
+Next up: [Basic Concepts](./Structure.md) — layouts, elements, classes, content, props, and events.

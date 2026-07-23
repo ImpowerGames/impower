@@ -1,8 +1,8 @@
 # 5. Interactive Widgets
 
 Some elements are **controls** the player operates: buttons, text fields,
-sliders, checkboxes, dropdowns. They come with sensible default styling and the
-behavior you'd expect — you just wire them to your state.
+sliders, checkboxes, dropdowns. They ship with default styling and behavior;
+your job is wiring them to your state.
 
 ---
 
@@ -25,6 +25,9 @@ field #value={player.name} @input={ player.name = event.value }
 
 The `event` payload carries `event.value`, `event.checked`, and `event.key`,
 depending on the control.
+
+A widget's quoted content, when given, is its **label**: `slider "Master Volume"`
+labels the slider.
 
 ---
 

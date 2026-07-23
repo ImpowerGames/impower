@@ -2,7 +2,7 @@
 
 ---
 
-## ✏️ Sparkle at a Glance
+## Sparkle at a glance
 
 Here's a quick example of what a Sparkle layout looks like:
 
@@ -11,7 +11,7 @@ store player = { name = "Hero" }       -- state the UI reads
 function start_game()  end             -- the event's handler
 
 layout main with                       -- a layout named main
-  column #child-gap=24:                -- an element with a class and a prop
+  column menu #child-gap=24:           -- a column, plus a class and a prop
     text "Welcome, {player.name}!"     -- content with an interpolated {value}
     button "Begin" @click=start_game   -- content + an event
 end
@@ -70,9 +70,16 @@ Common built-in elements:
 | :-- | :-- |
 | `text`, `stroke` | Display text |
 | `image`, `mask` | Display an image |
-| `row`, `column`, `box`, `stack`, `overlay` | Lay out and group children |
+| `box`, `scroller` | Group (and scroll) children |
 | `button`, `link` | Clickable controls |
 | `field` / `input`, `slider`, `checkbox`, `dropdown` | Interactive widgets (see [Interactive Widgets](./Widgets.md)) |
+
+> **Layout classes, not elements.** `row`, `column`, `stack`, and `overlay` aren't
+> elements — they're built-in **classes** that set how an element arranges its children
+> (`row` / `column` lay them out in a line; `stack` / `overlay` layer them). Writing
+> `column:` is shorthand for a container carrying the `column` class, which is why they
+> read like elements in the examples. Because they're classes, they work on *any*
+> element — `button column:` is a button that stacks its children.
 
 An element line can carry classes, content, props, events, and children — in that order:
 
@@ -109,6 +116,8 @@ text "Level {player.level} — {player.hp}/{player.max_hp}"
 
 Sparkle automatically re-renders any interpolated value when your game state changes — no wiring required. (Need a literal brace? Write `{{` or `}}`.)
 
+For `image`, the quoted content is the image source. You can also set it with the `#src` prop — handy when the source is dynamic: `image #src={item.icon}`.
+
 ---
 
 ## 2.4 Classes
@@ -122,7 +131,7 @@ column panel scrollable:
   text "…"
 ```
 
-> Classes are separated by **spaces** (The element name itself is also a class, so `style button with …` styles every button.)
+> The element name itself counts as a class, so `style button with …` styles every button.
 
 A `style` block then targets the class:
 

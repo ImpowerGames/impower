@@ -83,25 +83,15 @@ end
 
 ---
 
-### 🧭 Quick Tips For How to Read These Tables
+### How to read these tables
 
-> #### 🔤 Prop Name
->
-> - Some props have **short aliases** like `w` for `width` or `bg-color` for `background-color`. You can use either form.
-
-> #### 🎯 Supported Values
->
-> - The first value listed is the **default**.  
->   If the first value is `<number>`, `<length>`, or `<time>`, the default is `0`.
-> - Keyword values appear as is. For example: `auto`, `bold`.
-> - Data-types appear between angle brackets. For example: `<length>`, `<color>`.
->   (You can find a full list of data-types and their syntax at the end of this page → [Data-Type Syntax](#))
+- Some props have **short aliases** — `w` for `width`, `bg-color` for `background-color`. Either form works.
+- In each Supported Values column, the **first value listed is the default**. If the first value is `<number>`, `<length>`, or `<time>`, the default is `0`.
+- Keyword values appear as-is (`auto`, `bold`); data-types appear in angle brackets (`<length>`, `<color>`) — see [Data-Type Syntax](#data-type-syntax) at the end of this page.
 
 ---
 
-## 👁️ Appearance Utilities
-
-These utilities help you control how elements appear on screen.
+## Appearance
 
 | Prop Name   | What it does                                                           | Supported Values     |
 | ----------- | ---------------------------------------------------------------------- | -------------------- |
@@ -110,13 +100,11 @@ These utilities help you control how elements appear on screen.
 | `overflow`  | Controls if content should overflow or be clipped to its bounding box. | `true`, `false`      |
 | `opacity`   | Controls how transparent the element is.                               | `1`, `0`, `<number>` |
 
-> 💡 Setting `visible` to `false` hides the element, but still reserves space for it. To remove it entirely from the layout so that no space is reserved for it, set `displayed` to `false` instead.
+> Setting `visible` to `false` hides the element, but still reserves space for it. To remove it entirely from the layout so that no space is reserved for it, set `displayed` to `false` instead.
 
 ---
 
-## ☐ Margin Utilities
-
-These utilities let you control the spacing around the exterior of an element.
+## Margin
 
 | Prop Name              | What it does                                                    | Supported Values   |
 | ---------------------- | --------------------------------------------------------------- | ------------------ |
@@ -126,7 +114,7 @@ These utilities let you control the spacing around the exterior of an element.
 | `margin-bottom`, `m-b` | Sets the margin below the element.                              | `<length>`, `auto` |
 | `margin-left`, `m-l`   | Sets the margin to the left of the element.                     | `<length>`, `auto` |
 
-> 💡 Multi-value shorthand can be used for `margin` and `m`:
+> Multi-value shorthand can be used for `margin` and `m`:
 >
 > - `8px` → all sides
 > - `8px 4px` → top/bottom and left/right
@@ -134,9 +122,7 @@ These utilities let you control the spacing around the exterior of an element.
 
 ---
 
-## ☐ Padding Utilities
-
-These utilities let you control the spacing around the interior of an element.
+## Padding
 
 | Prop Name               | What it does                                                    | Supported Values |
 | ----------------------- | --------------------------------------------------------------- | ---------------- |
@@ -146,7 +132,7 @@ These utilities let you control the spacing around the interior of an element.
 | `padding-bottom`, `p-b` | Sets the padding below the content.                             | `<length>`       |
 | `padding-left`, `p-l`   | Sets the padding to the left of the content.                    | `<length>`       |
 
-> 💡 Multi-value shorthand can be used for `padding` and `p`:
+> Multi-value shorthand can be used for `padding` and `p`:
 >
 > - `8px` → all sides
 > - `8px 4px` → top/bottom and left/right
@@ -154,9 +140,7 @@ These utilities let you control the spacing around the interior of an element.
 
 ---
 
-## ↔️ Dimension Utilities
-
-These utilities help you control an element's size.
+## Dimensions
 
 | Prop Name             | What it does                                                          | Supported Values                   |
 | --------------------- | --------------------------------------------------------------------- | ---------------------------------- |
@@ -167,15 +151,13 @@ These utilities help you control an element's size.
 | `height-min`, `h-min` | Sets the minimum amount of vertical space the element will take up.   | `none`, `<length>`, `<percentage>` |
 | `height-max`, `h-max` | Sets the maximum amount of vertical space the element will take up.   | `none`, `<length>`, `<percentage>` |
 
-> 💡 Using percentage values for width and height make an element take up that percentage of their parent's width and height respectively.
+> A percentage width or height makes the element take up that share of its parent's width or height.
 
-> 💡 By default, width and height include the size of the content, padding, and border, but does not include the margin.
+> By default, width and height include the content, padding, and border, but not the margin.
 
 ---
 
-## ⏹️ Border Utilities
-
-These utilities help you style the border around an element.
+## Borders
 
 | Prop Name                          | What it does                                         | Supported Values |
 | ---------------------------------- | ---------------------------------------------------- | ---------------- |
@@ -190,19 +172,17 @@ These utilities help you style the border around an element.
 | `border-color-bottom`, `b-color-b` | Sets the bottom border color.                        | `<color>`        |
 | `border-color-left`, `b-color-l`   | Sets the left border color.                          | `<color>`        |
 
-> 💡 Multi-value shorthand can be used for `border-width`:
+> Multi-value shorthand can be used for `border-width`:
 >
 > - `8px` → all sides
 > - `8px 4px` → top/bottom and left/right
 > - `8px 4px 2px 1px` → top, right, bottom, left (clockwise)
 
-> 💡 An element's border takes up space, contributing to an element's width and height. If you wish to outline an element without the outline taking up space, use the `ring` or `shadow` utility props instead.
+> An element's border takes up space, contributing to an element's width and height. If you wish to outline an element without the outline taking up space, use the `ring` or `shadow` utility props instead.
 
 ---
 
-## 🟡 Corner Utilities
-
-These utilities help you style the shape of an element's corners.
+## Corners
 
 | Prop Name                     | What it does                         | Supported Values             |
 | ----------------------------- | ------------------------------------ | ---------------------------- |
@@ -212,11 +192,11 @@ These utilities help you style the shape of an element's corners.
 | `corner-bottom-left`, `c-bl`  | Rounds just the bottom-left corner.  | `<length>`, `pill`, `circle` |
 | `corner-bottom-right`, `c-br` | Rounds just the bottom-right corner. | `<length>`, `pill`, `circle` |
 
-> 💡 Set `corner` to `circle` to make the element a perfect circle.
+> Set `corner` to `circle` to make the element a perfect circle.
 
-> 💡 Set `corner` to `pill` to make the element pill-shaped.
+> Set `corner` to `pill` to make the element pill-shaped.
 
-> 💡 Multi-value shorthand can be used for `corner`:
+> Multi-value shorthand can be used for `corner`:
 >
 > - `8px` → all corners
 > - `8px 4px` → top-left/top-right and bottom-right/bottom-left
@@ -224,9 +204,7 @@ These utilities help you style the shape of an element's corners.
 
 ---
 
-## 📐 Position Utilities
-
-These utilities help you control how elements are positioned relative to other elements.
+## Position
 
 | Prop Name              | What it does                                                 | Supported Values                   |
 | ---------------------- | ------------------------------------------------------------ | ---------------------------------- |
@@ -237,9 +215,9 @@ These utilities help you control how elements are positioned relative to other e
 | `anchor-bottom`, `a-b` | Anchors the bottom of the element to its parent.             | `auto`, `<length>`, `<percentage>` |
 | `anchor-left`, `a-l`   | Anchors the left side of the element to its parent.          | `auto`, `<length>`, `<percentage>` |
 
-> 💡 Set `position` to `absolute` to remove an element from the layout flow entirely (so it takes up no space in the layout).
+> Set `position` to `absolute` to remove an element from the layout flow entirely (so it takes up no space in the layout).
 
-> 💡 `anchor` supports multi-value shorthand:
+> `anchor` supports multi-value shorthand:
 >
 > - `8px` sets all sides to 8px.
 > - `8px 4px` sets top and bottom to 8px, and sets left and right to 4px.
@@ -247,31 +225,33 @@ These utilities help you control how elements are positioned relative to other e
 > - Use `auto` to skip anchoring a side.
 >   For example, `0 0 auto 0` anchors the element to the top, right, and left sides of its parent, but leaves the bottom unanchored.
 
-> 💡 When using percentages, the direction matters:
+> When using percentages, the direction matters:
 >
 > - `anchor-top` and `anchor-bottom` use a percentage of the element’s height
 > - `anchor-left` and `anchor-right` use a percentage of the element’s width
 
 ---
 
-## 🧱 Layout Utilities
+## Layout
 
-These utilities help you control how element's children are arranged.
+The `child-*` props go on the **parent** and arrange its children; `align`,
+`grow`, `shrink`, `basis`, and `order` go on a **child** and control how it sits
+among its siblings.
 
 | Prop Name        | What it does                                                                                    | Supported Values                                                   |
 | ---------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `child-layout`   | Arranges the children of this element into a row or column.                                     | `column`, `row`                                                    |
-| `child-gap`      | Sets the space between children.                                                                | `<length>`                                                         |
+| `child-gap`, `gap` | Sets the space between children.                                                                | `<length>`                                                         |
 | `child-align`    | Aligns children vertically inside a row or horizontally inside a column.                        | `stretch`, `start`, `end`, `center`                                |
 | `child-justify`  | Aligns children horizontally inside a row or vertically inside a column.                        | `start`, `end`, `center`, `stretch`, `between`, `around`, `evenly` |
 | `child-overflow` | Controls whether or not children will wrap when there isn't enough space.                       | `nowrap`, `wrap`, `wrap-reverse`                                   |
-| `align`          | Aligns this element among its siblings.                                                         | `start`, `end`,`center`,                                           |
+| `align`          | Aligns this element among its siblings.                                                         | `start`, `end`, `center`                                           |
 | `grow`           | Controls how much this element should grow relative to siblings.                                | `0`, `1`, `<number>`                                               |
 | `shrink`         | Controls how much this element should shrink relative to its siblings.                          | `1`, `0`, `<number>`                                               |
 | `basis`          | Sets this element’s initial size before `grow` or `shrink` is applied.                          | `auto`, `0`, `<length>`                                            |
 | `order`          | Controls where this element should appear relative to its siblings (sorted in ascending order). | `<number>`                                                         |
 
-> 💡 `grow`, `shrink`, and `basis` work together to control how elements flexibly share space:
+> `grow`, `shrink`, and `basis` work together to control how elements flexibly share space:
 >
 > - `grow` determines **how much the element should expand** to fill extra space.
 >   - Set `grow` to `1` to make the element grow to fill available space.
@@ -284,9 +264,7 @@ These utilities help you control how element's children are arranged.
 
 ---
 
-## ✍️ Text Utilities
-
-These utilities control how text looks — its font, size, spacing, alignment, decoration, and more.
+## Text
 
 | Prop Name                   | What it does                                                      | Supported Values                       |
 | --------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
@@ -306,13 +284,11 @@ These utilities control how text looks — its font, size, spacing, alignment, d
 | `text-underline-offset`     | Adjusts how far below the text the underline appears.             | `<length>`                             |
 | `text-direction`            | Determines whether text is written left-to-right or right-to-left | `auto`, `ltr`, `rtl`                   |
 
-> 💡 When using `ellipsis` for `text-overflow`, make sure the element has `overflow` set to `false` and a fixed width (not `auto`).
+> When using `ellipsis` for `text-overflow`, make sure the element has `overflow` set to `false` and a fixed width (not `auto`).
 
 ---
 
-## 🌄 Background Utilities
-
-These utilities control how elements are visually filled — using solid colors or background images.
+## Background
 
 | Prop Name                        | What it does                                           | Supported Values                                                                                          |
 | -------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
@@ -322,7 +298,7 @@ These utilities control how elements are visually filled — using solid colors 
 | `background-align`, `bg-align`   | Sets the starting position of the background image.    | `center`, `top`, `left`, `right`, `bottom`                                                                |
 | `background-fit`, `bg-fit`       | Scales the background image to fit inside the element. | `cover`, `fill`, `contain`, `auto`, `<percentage> <percentage>`, `auto <percentage>`, `<percentage> auto` |
 
-> 💡 `background-fit` controls how the image scales:
+> `background-fit` controls how the image scales:
 >
 > - `cover` fills the element, cropping if needed
 > - `fill` stretches to fit (may distort)
@@ -333,9 +309,7 @@ These utilities control how elements are visually filled — using solid colors 
 
 ---
 
-## ✨ Effect Utilities
-
-These utilities add visual flair — shadows, blur, transparency, outlines, and more.
+## Effects
 
 | Prop Name         | What it does                                                   | Supported Values                                                                                                                                                                                                                                                          |
 | ----------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -347,26 +321,24 @@ These utilities add visual flair — shadows, blur, transparency, outlines, and 
 | `filter`          | Applies a visual filter effect (e.g. blur, grayscale).         | `blur(<length>)`, `brightness(<number>)`, `contrast(<percentage>)`, `grayscale(<percentage>)`, `hue-rotate(<angle>)`, `invert(<percentage>)`, `opacity(<percentage>)`, `saturate(<percentage>)`, `sepia(<percentage>)`, `drop-shadow(<length> <length> <length> <color>)` |
 | `backdrop-filter` | Applies filter effects to the background _behind_ the element. | Same as `filter`                                                                                                                                                                                                                                                          |
 
-> 💡 `shadow` uses pre-defined levels (`1`, `2`, `3`, etc.) or a full specification of `<offset-x> <offset-y> <blur-radius> <spread-radius> <color>`. You can specify multiple shadows by separating them with commas like so: `3px 3px 3px 3px red, 4px 4px 4px 4px green`
+> `shadow` uses pre-defined levels (`1`, `2`, `3`, etc.) or a full specification of `<offset-x> <offset-y> <blur-radius> <spread-radius> <color>`. You can specify multiple shadows by separating them with commas like so: `3px 3px 3px 3px red, 4px 4px 4px 4px green`
 
-> 💡 `glow` acts like a soft outline and is defined by specifying a blur-radius and color like so: `4px blue`. (It is shorthand for specifying a single shadow with no offset and no spread-radius)
+> `glow` acts like a soft outline and is defined by specifying a blur-radius and color like so: `4px blue`. (It is shorthand for specifying a single shadow with no offset and no spread-radius)
 
-> 💡 `ring` acts like a solid outline and is defined by specifying a spread-radius and color like so: `4px blue`. (It is shorthand for specifying a single shadow with no offset and no blur-radius)
+> `ring` acts like a solid outline and is defined by specifying a spread-radius and color like so: `4px blue`. (It is shorthand for specifying a single shadow with no offset and no blur-radius)
 
-> 💡 `filter` and `backdrop-filter` accepts a space-separated list of built-in filters like:
+> `filter` and `backdrop-filter` accept a space-separated list of built-in filters like:
 > `brightness(3%) contrast(175%) saturate(30%)`.
 
-> 💡 `blend` controls how an element's colors interact with what's beneath it (like layer blend modes in an image editing program).
+> `blend` controls how an element's colors interact with what's beneath it (like layer blend modes in an image editing program).
 >
 > - `plus-lighter` is the default blend mode for images and allows two similar images to smoothly crossfade between each other without the background leaking through.
 
-> 💡 `mask` can be used to create non-rectangular shapes or image-based reveals.
+> `mask` can be used to create non-rectangular shapes or image-based reveals.
 
 ---
 
-## 🔄 Transform Utilities
-
-These utilities let you move, rotate, scale, and set the anchor point for transformations — great for animations or transitions.
+## Transforms
 
 | Prop Name   | What it does                                                    | Supported Values                                                                                                               |
 | ----------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -376,30 +348,28 @@ These utilities let you move, rotate, scale, and set the anchor point for transf
 | `skew`      | Skews element along the X or Y axes.                            | `0 0`, `<angle> <angle>`                                                                                                       |
 | `pivot`     | Sets the origin point for `rotate` and `scale` transformations. | `center`, `<length> <length>`, `<percentage> <percentage>`, `top left`, `bottom right`, `top`, `left`, `bottom`, `right`, etc. |
 
-> 💡 `translate`, `rotate`, `scale`, and `skew` do **not** affect layout flow — they visually change an element’s appearance without moving surrounding elements.
+> `translate`, `rotate`, `scale`, and `skew` do **not** affect layout flow — they visually change an element’s appearance without moving surrounding elements.
 
-> 💡 When using percentages in `translate`, the values are relative to the **element’s own size**, not its parent.
+> When using percentages in `translate`, the values are relative to the **element’s own size**, not its parent.
 >
 > - For example: setting `translate` to `50% 0` moves the element **half of its own width** to the right.
 > - Setting `translate` to `0 100%` moves it **down by its own height**.
 
-> 💡 `pivot` controls where transformations "originate" from. For example:
+> `pivot` controls where transformations "originate" from. For example:
 >
 > - `pivot: center` rotates from the middle
 > - `pivot: top left` rotates or scales from the top-left corner
 
 ---
 
-## 👆 Interactivity Utilities
-
-These utilities affect how users can interact with an element — whether it’s clickable and how the mouse cursor looks when hovering over it.
+## Interactivity
 
 | Prop Name      | What it does                                                    | Supported Values                             |
 | -------------- | --------------------------------------------------------------- | -------------------------------------------- |
 | `interactable` | Determines if the element responds to mouse/touch input.        | `true`, `false`                              |
 | `cursor`       | Sets what the cursor looks like when hovering over the element. | `default`, `pointer`, `text`, `<image-name>` |
 
-> 💡 `cursor` lets you customize the pointer:
+> `cursor` lets you customize the pointer:
 >
 > - `pointer` indicates the element is clickable (default for buttons)
 > - `text` shows the I-beam cursor (used for text fields)
@@ -407,9 +377,10 @@ These utilities affect how users can interact with an element — whether it’s
 
 ---
 
-## ⏳ Transition Utilities
+## Transitions
 
-Transitions are used for smoothly changing a property's value over time when the state changes.
+A transition smoothly animates a property's change in value when state changes.
+For full keyframed motion sequences, see [Animation](#animation) below.
 
 | Prop Name             | What it does                                          | Supported Values                                                                                            |
 | --------------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -418,43 +389,44 @@ Transitions are used for smoothly changing a property's value over time when the
 | `transition-easing`   | Controls the speed curve of the transition over time. | `ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear`, `cubic-bezier(<number>,<number>,<number>,<number>)` |
 | `transition-property` | Sets which properties will animate on change.         | `<property-name>`                                                                                           |
 
-> 💡 The following properties will be transitioned by default `opacity`, `translate`, `rotate`, `scale`, `filter`, `backdrop-filter`, `mix-blend-mode`, `box-shadow`, `color`, `background-color`, `border-color`, `text-decoration-color`.
+> The following properties will be transitioned by default `opacity`, `translate`, `rotate`, `scale`, `filter`, `backdrop-filter`, `mix-blend-mode`, `box-shadow`, `color`, `background-color`, `border-color`, `text-decoration-color`.
 >
 > - Use `transition-property` to override which properties are transitioned.
 
-> 💡 `transition-property`, `transition-delay`, `transition-duration`, and `transition-easing` can take **multiple comma-separated values** — one for each property.
+> `transition-property`, `transition-delay`, `transition-duration`, and `transition-easing` can take **multiple comma-separated values** — one for each property.
 >
 > - For example, if `transition-property` is set to `background-color, opacity` and `transition-duration` is set to `0.5s, 1s`, the background-color will fade over 0.5 seconds while the opacity fades over 1 second.
 
-> 💡 Transitions only work for numeric or color-based properties — they won't animate layout changes like display or visibility.
+> Transitions only work for numeric or color-based properties — they won't animate layout changes like display or visibility.
 
 ---
 
-## 📽 Animation Utilities
+## Animation
 
-Animations are full motion sequences, defined by an [`animation` declaration](#).
+Animations are full motion sequences, defined by an
+[`animation` declaration](./AnimationTheme.md#82-defining-your-own-animation).
 
 | Prop Name              | What it does                                                           | Supported Values                                                                                            |
 | ---------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `animation`            | Plays a named animation with default timing.                           | `none`, `<animation-name>`                                                                                  |
 | `animation-state`      | Controls whether the animation is running or paused.                   | `running`, `paused`                                                                                         |
-| `animation-delay`      | Overrides how long to wait before starting the animation begins.       | `<time>`                                                                                                    |
+| `animation-delay`      | Overrides how long to wait before the animation begins.       | `<time>`                                                                                                    |
 | `animation-duration`   | Overrides how long each cycle of the animation takes.                  | `<time>`                                                                                                    |
 | `animation-easing`     | Overrides the speed curve of the animation over time.                  | `ease`, `ease-in`, `ease-out`, `ease-in-out`, `linear`, `cubic-bezier(<number>,<number>,<number>,<number>)` |
 | `animation-iterations` | Overrides how many times the animation should repeat.                  | `1`, `<number>`, `infinite`, etc.                                                                           |
 | `animation-direction`  | Overrides whether the animation runs forward, backward, or alternates. | `normal`, `reverse`, `alternate`, `alternate-reverse`                                                       |
 | `animation-fill`       | Overrides whether styles are applied before/after the animation runs.  | `none`, `forwards`, `backwards`, `both`                                                                     |
 
-> 💡 `animation-delay`, `animation-duration`, `animation-easing`, `animation-iterations`, `animation-direction`, and `animation-fill` will override equivalent timing settings defined in an [animation declaration](#) as long as they are set **after** the `animation` property is set.
+> `animation-delay`, `animation-duration`, `animation-easing`, `animation-iterations`, `animation-direction`, and `animation-fill` will override equivalent timing settings defined in an [animation declaration](./AnimationTheme.md#82-defining-your-own-animation) as long as they are set **after** the `animation` property is set.
 
-- `animation=bounce duration=3s` overrides the duration defined in `bounce`'s animation declaration
-- `duration=3s animation=bounce` animation will play with it's default duration **(not 3s)**
+- `animation=bounce animation-duration=3s` overrides the duration defined in `bounce`'s animation declaration
+- `animation-duration=3s animation=bounce` — the animation plays with its default duration **(not 3s)**
 
-> 💡 Set `animation-iterations` to `infinite` for looping effects.
+> Set `animation-iterations` to `infinite` for looping effects.
 
-> 💡 Set `animation-direction` to `alternate` to make the animation reverse on every other cycle.
+> Set `animation-direction` to `alternate` to make the animation reverse on every other cycle.
 
-> 💡 `animation-fill` defines how the element looks **before** or **after** the animation:
+> `animation-fill` defines how the element looks **before** or **after** the animation:
 >
 > - `forwards` keeps the final state
 > - `backwards` shows the first frame even during delay
@@ -462,7 +434,7 @@ Animations are full motion sequences, defined by an [`animation` declaration](#)
 
 ---
 
-## #️⃣ Data-Type Syntax
+## Data-Type Syntax
 
 ### `<number>`
 
@@ -503,7 +475,9 @@ Supports the following literal color values and functions:
 - A Hexadecimal value: `#FFFF00`, `#0F0`
 - The RGB function: `rgb(255, 255, 0)`
 - The RGBA function: `rgba(255, 255, 0, 1.0)`
-- [Color Palette Keywords](#)
+- A named color keyword from the built-in palette (like `blue` or `white`)
+
+<!-- TODO(docs): no reference exists yet for the palette color keywords or for `font`/`image` declarations — add links when one does. -->
 
 ### `<property-name>`
 
@@ -511,19 +485,19 @@ The name of a styling property — e.g. `background-color`, `opacity`, `scale`, 
 
 ### `<font-name>`
 
-The name of a [defined `font`](#).
+The name of a defined `font`.
 
 ### `<image-name>`
 
-The name of a [defined `image`](#).
+The name of a defined `image`.
 
 ### `<animation-name>`
 
-The name of a [defined `animation`](#)
+The name of a [defined `animation`](./AnimationTheme.md#82-defining-your-own-animation).
 
 ---
 
-## 🧩 Advanced Usage & Compatibility Notes
+## Advanced Usage & Compatibility Notes
 
 If you're already familiar with CSS, you can use **standard CSS property names and property values** inside `style` blocks:
 
@@ -540,10 +514,8 @@ You can also use standard CSS names and values **inline** on elements — as lon
 row #max-width=100% #justify-content=space-between
 ```
 
-### ⚠ Portability Warning
+### Portability warning
 
 These raw CSS values will work fine on the web — but they may not work on other platforms like game consoles or mobile devices.
 
 For full cross-platform support, it’s best to stick to the **Sparkle prop names, value keywords, and data-type syntax** listed in this guide (like `width-max=100%`, `child-justify=between`, etc.).
-
-This ensures your styles remain portable even when building for non-web environments.
