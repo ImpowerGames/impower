@@ -1,5 +1,9 @@
 import { type SyntaxNode } from "@lezer/common";
 import { LowerContext } from "../context";
+import {
+  UNQUOTED_VALUE_NODES,
+  stripTrailingLineComment,
+} from "../utils/stripTrailingLineComment";
 
 // Typed struct-body parser for `animation`/`theme` blocks. Same colon/indent
 // struct grammar as `style`, but values are READ FROM THE GRAMMAR'S VALUE NODES
@@ -104,7 +108,11 @@ function readTypedValue(value: SyntaxNode | null, ctx: LowerContext): unknown {
     return ctx.read(value.from, value.to).trim().replace(/^"|"$/g, "");
   }
   // StylingValue / UnquotedStringFieldValue → raw CSS text, or a struct ref.
-  const raw = ctx.read(value.from, value.to).trim();
+  // These greedily include any trailing `--`/`//` comment; drop it first.
+  let raw = ctx.read(value.from, value.to).trim();
+  if (UNQUOTED_VALUE_NODES.has(value.name)) {
+    raw = stripTrailingLineComment(raw);
+  }
   const ref = STRUCT_REFERENCE_RE.exec(raw);
   if (ref) return { $type: ref[1], $name: ref[2] };
   return raw;

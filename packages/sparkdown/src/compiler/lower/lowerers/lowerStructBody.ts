@@ -1,5 +1,9 @@
 import { type SyntaxNode } from "@lezer/common";
 import { LowerContext } from "../context";
+import {
+  UNQUOTED_VALUE_NODES,
+  stripTrailingLineComment,
+} from "../utils/stripTrailingLineComment";
 
 // Shared parser for the colon/indent struct body inside a structural
 // `style`/`screen`/`component … with … end` block. The grammar classifies
@@ -268,7 +272,12 @@ function headerKey(shape: SyntaxNode, ctx: LowerContext): string {
 // shared value coercion) strips them and processes escapes uniformly; all other
 // value tokens (numbers, CSS funcs, struct refs) come through as raw text.
 function readValue(value: SyntaxNode, ctx: LowerContext): string {
-  return ctx.read(value.from, value.to).trim();
+  const text = ctx.read(value.from, value.to).trim();
+  // Unquoted value tokens greedily include any trailing `--`/`//` comment; drop
+  // it so it never leaks into the value. Quoted tokens are left intact.
+  return UNQUOTED_VALUE_NODES.has(value.name)
+    ? stripTrailingLineComment(text)
+    : text;
 }
 
 // Indent of the first child line below line `i`, or null if line `i` is a

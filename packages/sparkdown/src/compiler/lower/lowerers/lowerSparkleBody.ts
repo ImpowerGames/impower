@@ -25,6 +25,10 @@ import {
 } from "../../types/SparkleNode";
 import { type SparkRange } from "../../types/SparkRange";
 import { stampDebugMetadata } from "../utils/debugMetadata";
+import {
+  UNQUOTED_VALUE_NODES,
+  stripTrailingLineComment,
+} from "../utils/stripTrailingLineComment";
 
 // Builds the reactive Sparkle UI AST (docs/sparkle/reactive-sparkle-spec.md §6)
 // for a screen/component body. Unlike the static `lowerStructBody` (which
@@ -682,7 +686,15 @@ function readLiteralValue(value: SyntaxNode | null, ctx: LowerContext): PropValu
   if (value.name === "BooleanFieldValue") {
     return { kind: "literal", value: ctx.read(value.from, value.to).trim() === "true" };
   }
-  return { kind: "literal", value: ctx.read(value.from, value.to).trim() };
+  // StylingValue / UnquotedStringFieldValue greedily include any trailing
+  // `--`/`//` comment; drop it so it never leaks into the value.
+  const raw = ctx.read(value.from, value.to).trim();
+  return {
+    kind: "literal",
+    value: UNQUOTED_VALUE_NODES.has(value.name)
+      ? stripTrailingLineComment(raw)
+      : raw,
+  };
 }
 
 /** Indent of line i's first child line, or null if i has no deeper-indented
