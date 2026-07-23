@@ -181,15 +181,7 @@ sparkdown [0..159]
  │   │   │   │   │   │                       │   └─ LuauEventAttribute_begin_c4 [102..103]
  │   │   │   │   │   │                       │       └─ EqualOperator [102..103]: "="
  │   │   │   │   │   │                       ├─ LuauEventAttribute_content [103..111]
- │   │   │   │   │   │                       │   └─ LuauAccessPath [103..111]
- │   │   │   │   │   │                       │       ├─ LuauAccessPath_begin 103
- │   │   │   │   │   │                       │       ├─ LuauAccessPath_content [103..111]
- │   │   │   │   │   │                       │       │   └─ LuauAccessPart [103..111]
- │   │   │   │   │   │                       │       │       └─ LuauVariable [103..111]
- │   │   │   │   │   │                       │       │           └─ LuauVariable_c1 [103..111]
- │   │   │   │   │   │                       │       │               └─ LuauVariableName [103..111]: "use_item"
- │   │   │   │   │   │                       │       └─ LuauAccessPath_end 111
- │   │   │   │   │   │                       │           └─ LuauAccessPath_end_c1 111
+ │   │   │   │   │   │                       │   └─ LuauSparkleEventHandlerName [103..111]: "use_item"
  │   │   │   │   │   │                       └─ LuauEventAttribute_end 111
  │   │   │   │   │   └─ LuauStructBodyLine_c3 111
  │   │   │   │   │       └─ LuauStructBodyLine_c3 111

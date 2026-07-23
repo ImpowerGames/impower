@@ -349,6 +349,20 @@ export class SemanticAnnotator extends SparkdownAnnotator<
         }).range(nodeRef.from, nodeRef.to),
       );
     }
+    // A bare `@event=NAME` handler identifier. Like a divert path, it targets a
+    // function/beat you "go to" — so resolve it the same way: emit
+    // `possibleDivertPath` and let `getSemanticTokens` color it `function`
+    // (yellow) when NAME resolves to a function (or `class` for a beat), falling
+    // back to the grammar's divert-path TextMate scope when unresolved. (Only the
+    // bare-ref form is a distinct node; `@e=call(args)` keeps its function
+    // call-site highlighting.)
+    if (nodeRef.name === "LuauSparkleEventHandlerName") {
+      annotations.push(
+        SparkdownAnnotation.mark<SemanticInfo>({
+          possibleDivertPath: true,
+        }).range(nodeRef.from, nodeRef.to),
+      );
+    }
     return annotations;
   }
 

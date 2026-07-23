@@ -163,7 +163,7 @@ text.source.sparkdown [0..323]
  │       ├─ entity.name.function.attribute.name.view.sd [272..273]: "@"
  │       ├─ entity.name.function.attribute.name.view.sd [273..278]: "click"
  │       ├─ keyword.operator.assignment.sd [278..279]: "="
- │       └─ variable.other.readwrite.luau [279..287]: "sort_bag"
+ │       └─ keyword.control.divert.path.sd [279..287]: "sort_bag"
  ├─ Newline [287..288]: "\n"
  ├─ meta.layout.luau [288..318]
  │   ├─ punctuation.whitespace.optional.sd [288..290]: "  "

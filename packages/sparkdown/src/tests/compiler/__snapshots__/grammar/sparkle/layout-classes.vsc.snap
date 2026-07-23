@@ -56,7 +56,7 @@ text.source.sparkdown [0..161]
  │       ├─ entity.name.function.attribute.name.view.sd [96..97]: "@"
  │       ├─ entity.name.function.attribute.name.view.sd [97..102]: "click"
  │       ├─ keyword.operator.assignment.sd [102..103]: "="
- │       └─ variable.other.readwrite.luau [103..111]: "use_item"
+ │       └─ keyword.control.divert.path.sd [103..111]: "use_item"
  ├─ Newline [111..112]: "\n"
  ├─ meta.layout.luau [112..156]
  │   ├─ punctuation.whitespace.optional.sd [112..116]: "    "

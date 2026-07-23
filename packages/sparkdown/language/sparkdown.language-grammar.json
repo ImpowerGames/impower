@@ -7276,7 +7276,7 @@
       }
     },
     "LuauStructObjectHeader": {
-      "match": "((?:[^\\S\\n\\r])*)(.+?)((?:[^\\S\\n\\r])*)([:])((?:[^\\S\\n\\r])*)$",
+      "match": "((?:[^\\S\\n\\r])*)(.+?)((?:[^\\S\\n\\r])*)([:])((?:[^\\S\\n\\r])*)(?=(?:--|//)|$)",
       "captures": {
         "1": {
           "patterns": [
@@ -7373,12 +7373,23 @@
           "include": "#RequiredWhitespace"
         },
         {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#SparkdownLineComment"
+        },
+        {
           "include": "#LuauEventAttribute"
         },
         {
           "include": "#LuauPropAttribute"
         }
       ]
+    },
+    "LuauSparkleEventHandlerName": {
+      "tag": "heading",
+      "name": "keyword.control.divert.path.sd",
+      "match": "((?:[_\\p{L}][0-9_\\p{L}]*\\b))(?=(?:[^\\S\\n\\r])*(?:[@#]|--|//|$))"
     },
     "LuauEventAttribute": {
       "begin": "([@])((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*)",
@@ -7408,6 +7419,9 @@
       "patterns": [
         {
           "include": "#LuauSparkleHandlerClosure"
+        },
+        {
+          "include": "#LuauSparkleEventHandlerName"
         },
         {
           "include": "#LuauExpression"

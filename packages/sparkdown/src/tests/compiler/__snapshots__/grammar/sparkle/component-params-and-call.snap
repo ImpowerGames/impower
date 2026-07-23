@@ -485,15 +485,7 @@ sparkdown [0..323]
  │   │   │   │                       │   └─ LuauEventAttribute_begin_c4 [278..279]
  │   │   │   │                       │       └─ EqualOperator [278..279]: "="
  │   │   │   │                       ├─ LuauEventAttribute_content [279..287]
- │   │   │   │                       │   └─ LuauAccessPath [279..287]
- │   │   │   │                       │       ├─ LuauAccessPath_begin 279
- │   │   │   │                       │       ├─ LuauAccessPath_content [279..287]
- │   │   │   │                       │       │   └─ LuauAccessPart [279..287]
- │   │   │   │                       │       │       └─ LuauVariable [279..287]
- │   │   │   │                       │       │           └─ LuauVariable_c1 [279..287]
- │   │   │   │                       │       │               └─ LuauVariableName [279..287]: "sort_bag"
- │   │   │   │                       │       └─ LuauAccessPath_end 287
- │   │   │   │                       │           └─ LuauAccessPath_end_c1 287
+ │   │   │   │                       │   └─ LuauSparkleEventHandlerName [279..287]: "sort_bag"
  │   │   │   │                       └─ LuauEventAttribute_end 287
  │   │   │   └─ LuauStructBodyLine_c3 287
  │   │   │       └─ LuauStructBodyLine_c3 287
