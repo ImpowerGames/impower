@@ -9,3 +9,7 @@
 # per-package lockfiles created by running `npm install` inside a workspace.
 **/package-lock.json
 !/package-lock.json
+
+# Vite writes a transient timestamped copy of a config next to it whenever the
+# config is a TS module; these accumulate and are never source.
+**/*.timestamp-*.mjs
