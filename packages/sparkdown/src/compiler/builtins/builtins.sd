@@ -1154,12 +1154,11 @@ define style with
 end
 
 style main with
-  font_family = "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto,\n    Helvetica, Arial, system-ui, sans-serif, \"Apple Color Emoji\",\n    \"Segoe UI Emoji\", \"Segoe UI Symbol\""
-  font_size = 1.25rem
-  line_height = 1.5
-  color = white
-  @screen_size(sm):
-    font_size = 1.125rem
+  text-font = "system-ui, -apple-system, \"Segoe UI\", Roboto, Oxygen, Ubuntu, Cantarell, Helvetica, Arial, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\""
+  text-size = 1rem
+  text-leading = 1.5
+  text-weight = 400
+  text-color = slate_80
 end
 
 style row with
@@ -1352,61 +1351,81 @@ end
 
 style button with
   display = flex
-  flex_direction = row
-  align_items = center
-  justify_content = center
-  text_align = center
-  padding = 8px 20px
-  border_radius = 8px
-  border = 1px solid rgb(95 95 95)
-  background_color = rgb(52 52 52)
-  color = white
-  font_weight = 600
+  child-layout = row
+  child-align = center
+  child-justify = center
+  text-align = center
+  padding = 0.75rem 1rem
+  corner = 0.25rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = sky_60
+  background-color = sky_60
+  text-color = white
+  text-weight = 500
   cursor = pointer
-  transition = background-color 0.15s linear
+  transition = all 0.2s ease-in-out
   @hovered:
-    background_color = rgb(69 69 69)
+    background-color = sky_70
+    border-color = sky_70
+  @focused:
+    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
 end
 
 style field with
-  padding = 8px 12px
-  border_radius = 6px
-  border = 1px solid rgb(95 95 95)
-  background_color = rgb(37 37 37)
-  color = white
+  padding = 0.75rem 1rem
+  corner = 0.25rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
+  text-color = slate_90
+  transition = all 0.2s ease-in-out
+  @focused:
+    border-color = sky_60
+    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
 end
 
 style checkbox with
-  width = 20px
-  height = 20px
+  width = 1.25rem
+  height = 1.25rem
   cursor = pointer
-  accent_color = rgb(96 165 250)
+  accent-color = sky_60
 end
 
 style slider with
   width = 200px
   cursor = pointer
-  accent_color = rgb(96 165 250)
+  accent-color = sky_60
 end
 
 style link with
-  color = rgb(96 165 250)
-  text_decoration = underline
+  text-color = sky_60
+  text-decoration = underline
   cursor = pointer
+  transition = all 0.2s ease-in-out
+  @hovered:
+    text-color = sky_70
 end
 
 style dropdown with
-  padding = 8px 12px
-  border_radius = 6px
-  border = 1px solid rgb(95 95 95)
-  background_color = rgb(37 37 37)
-  color = white
+  padding = 0.75rem 1rem
+  corner = 0.25rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
+  text-color = slate_90
   cursor = pointer
+  transition = all 0.2s ease-in-out
+  @focused:
+    border-color = sky_60
+    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
 end
 
 style option with
-  background_color = rgb(37 37 37)
-  color = white
+  background-color = slate_30
+  text-color = slate_90
 end
 
 style textbox with
