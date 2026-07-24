@@ -7535,7 +7535,7 @@
               "include": "#NumericLiteral"
             },
             {
-              "include": "#StringCharacter"
+              "include": "#UnquotedString"
             }
           ]
         }

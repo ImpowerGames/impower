@@ -1,5 +1,5 @@
 layout panel with
-  column #gap=16:
+  column #gap=16 #child-align=center:
     text "Inventory"
     row #background-color={team_color}:
       image #src="icon.png"
