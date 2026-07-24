@@ -1428,6 +1428,146 @@ style option with
   text-color = slate_90
 end
 
+-- Pico UI component classes ------------------------------------------------
+
+style h1 with
+  text-size = 2rem
+  text-weight = 700
+  text-leading = 1.125
+end
+
+style h2 with
+  text-size = 1.5rem
+  text-weight = 700
+  text-leading = 1.2
+end
+
+style h3 with
+  text-size = 1.25rem
+  text-weight = 700
+end
+
+style h4 with
+  text-size = 1.125rem
+  text-weight = 700
+end
+
+style h5 with
+  text-size = 1rem
+  text-weight = 700
+end
+
+style h6 with
+  text-size = 0.875rem
+  text-weight = 700
+end
+
+style muted with
+  text-color = slate_60
+end
+
+style small with
+  text-size = 0.875rem
+end
+
+style container with
+  width = 100%
+  width-max = 40rem
+  margin = 0 auto
+  padding = 1rem
+end
+
+style card with
+  display = flex
+  child-layout = column
+  child-gap = 1rem
+  background-color = slate_30
+  corner = 0.5rem
+  padding = 1.5rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = slate_40
+end
+
+style nav with
+  display = flex
+  child-layout = row
+  child-align = center
+  child-gap = 1rem
+end
+
+style secondary with
+  background-color = slate_50
+  border-color = slate_50
+end
+
+style contrast with
+  background-color = slate_90
+  border-color = slate_90
+  text-color = slate_20
+end
+
+style outline with
+  background-color = transparent
+  text-color = sky_60
+end
+
+style badge with
+  display = flex
+  child-layout = row
+  child-align = center
+  child-justify = center
+  padding = 0.125rem 0.5rem
+  corner = 1rem
+  background-color = sky_60
+  text-color = white
+  text-size = 0.75rem
+  text-weight = 600
+end
+
+style group with
+  display = flex
+  child-layout = row
+  child-gap = 0.5rem
+end
+
+style grid with
+  child-layout = grid
+  child-columns = 1fr 1fr
+  child-gap = 1rem
+end
+
+style progress with
+  width = 100%
+  height = 0.5rem
+  corner = 0.25rem
+  background-color = slate_30
+end
+
+style progress_fill with
+  height = 100%
+  corner = 0.25rem
+  background-color = sky_60
+end
+
+style label with
+  text-weight = 500
+  text-size = 0.875rem
+end
+
+style hint with
+  text-color = slate_60
+  text-size = 0.875rem
+end
+
+style invalid with
+  border-color = red_60
+end
+
+style valid with
+  border-color = green_60
+end
+
 style textbox with
   position = absolute
   bottom = 0
