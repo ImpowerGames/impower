@@ -111,6 +111,20 @@ export abstract class SparkdownWorkspace {
 
   omitImageData = false;
 
+  /**
+   * When enabled, the `compiler/didCompile` notification relays a SLIM
+   * projection of the program (uri/scripts/files/pathLocations/diagnostics/
+   * version) instead of the whole thing. On a large project the full program
+   * is huge (~9MB for an ~8kloc script) and re-broadcast on EVERY compile —
+   * the receiving thread pays a structured-clone deserialization of all of it
+   * per keystroke. The impower web editor's main thread only ever reads
+   * diagnostics (WorkspaceWindow debug store) and scripts+pathLocations
+   * (PreviewGame PageUp/PageDown source navigation), so it opts in via
+   * initializationOptions. Defaults to false: the vscode extension consumes
+   * the full program from this notification (SparkProgramManager).
+   */
+  slimProgramNotifications = false;
+
   private _resolveInitializingCompiler!: () => void;
 
   private _initializingCompiler?: Promise<void>;
@@ -187,6 +201,7 @@ export abstract class SparkdownWorkspace {
       };
       uri?: string;
       omitImageData?: boolean;
+      slimProgramNotifications?: boolean;
       files?: Omit<File, "type" | "name" | "ext">[];
     } & Omit<SparkdownCompilerConfig, "files">;
   }): Promise<{
@@ -200,10 +215,20 @@ export abstract class SparkdownWorkspace {
   }> {
     this._clientCapabilities = params.capabilities;
     if (params.initializationOptions) {
-      const { omitImageData, settings, uri, ...compilerConfig } =
-        params.initializationOptions;
+      // (slimProgramNotifications must be destructured out so it doesn't
+      // fall through into compilerConfig.)
+      const {
+        omitImageData,
+        slimProgramNotifications,
+        settings,
+        uri,
+        ...compilerConfig
+      } = params.initializationOptions;
       if (omitImageData != null) {
         this.omitImageData = omitImageData;
+      }
+      if (slimProgramNotifications != null) {
+        this.slimProgramNotifications = slimProgramNotifications;
       }
       if (settings) {
         this.loadConfiguration(settings);
@@ -600,7 +625,31 @@ export abstract class SparkdownWorkspace {
     if (result?.program) {
       const state = this.getProgramState(uri);
       result.program.version = state.version;
-      this.sendNotification(CompiledProgramMessage.method, result);
+      // With slimProgramNotifications, relay only the program fields the
+      // notification's consumers actually read instead of the whole program
+      // (which is ~9MB on a large project and re-broadcast on EVERY compile;
+      // the receiver pays a structured-clone of all of it per keystroke).
+      // The impower web editor's main thread reads only:
+      //   - diagnostics        (WorkspaceWindow → debug store)
+      //   - scripts + pathLocations (PreviewGame PageUp/PageDown navigation)
+      // uri/files/version ride along because they're required/cheap. Add a
+      // field here if a new main-thread consumer ever needs it — or better,
+      // fetch it on demand instead.
+      const notificationParams: CompileProgramResult = this
+        .slimProgramNotifications
+        ? {
+            ...result,
+            program: {
+              uri: result.program.uri,
+              scripts: result.program.scripts,
+              files: result.program.files,
+              pathLocations: result.program.pathLocations,
+              diagnostics: result.program.diagnostics,
+              version: result.program.version,
+            },
+          }
+        : result;
+      this.sendNotification(CompiledProgramMessage.method, notificationParams);
       this.onCompiledTextDocument({
         textDocument: { uri },
         program: result.program,

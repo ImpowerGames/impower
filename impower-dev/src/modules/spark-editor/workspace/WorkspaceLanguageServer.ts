@@ -278,6 +278,11 @@ export default class WorkspaceLanguageServer {
         },
         uri,
         workspace: projectPath,
+        // The editor main thread only reads diagnostics + scripts/pathLocations
+        // from `compiler/didCompile` (see SparkdownWorkspace.compile), so have
+        // the language server relay a slim program instead of the whole ~9MB
+        // per keystroke. The player and vscode keep the full relay.
+        slimProgramNotifications: true,
       },
       workspaceFolders: [
         {
