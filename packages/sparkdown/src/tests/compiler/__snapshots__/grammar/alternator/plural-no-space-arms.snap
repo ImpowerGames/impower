@@ -64,11 +64,11 @@ sparkdown [0..94]
  │   │       │   │   │       ├─ LuauInterpolatedString_content [42..88]
  │   │       │   │   │       │   ├─ Word [42..47]: "There"
  │   │       │   │   │       │   ├─ Space [47..48]: " "
- │   │       │   │   │       │   ├─ LuauInterpolatedStringExpression [48..83]
- │   │       │   │   │       │   │   ├─ LuauInterpolatedStringExpression_begin [48..49]
- │   │       │   │   │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [48..49]
+ │   │       │   │   │       │   ├─ LuauBacktickStringInterpolation [48..83]
+ │   │       │   │   │       │   │   ├─ LuauBacktickStringInterpolation_begin [48..49]
+ │   │       │   │   │       │   │   │   └─ LuauBacktickStringInterpolation_begin_c1 [48..49]
  │   │       │   │   │       │   │   │       └─ PunctuationBraceOpen [48..49]: "{"
- │   │       │   │   │       │   │   ├─ LuauInterpolatedStringExpression_content [49..82]
+ │   │       │   │   │       │   │   ├─ LuauBacktickStringInterpolation_content [49..82]
  │   │       │   │   │       │   │   │   └─ LuauConditionalAlternatorBlock [49..82]
  │   │       │   │   │       │   │   │       ├─ LuauConditionalAlternatorBlock_begin [49..55]
  │   │       │   │   │       │   │   │       │   ├─ LuauConditionalAlternatorBlock_begin_c1 49
@@ -156,15 +156,15 @@ sparkdown [0..94]
  │   │       │   │   │       │   │   │       └─ LuauConditionalAlternatorBlock_end 82
  │   │       │   │   │       │   │   │           ├─ LuauConditionalAlternatorBlock_end_c1 82
  │   │       │   │   │       │   │   │           └─ LuauConditionalAlternatorBlock_end_c2 82
- │   │       │   │   │       │   │   └─ LuauInterpolatedStringExpression_end [82..83]
- │   │       │   │   │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [82..83]
+ │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [82..83]
+ │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [82..83]
  │   │       │   │   │       │   │           └─ PunctuationBraceClose [82..83]: "}"
  │   │       │   │   │       │   ├─ Space [83..84]: " "
- │   │       │   │   │       │   ├─ LuauInterpolatedStringExpression [84..87]
- │   │       │   │   │       │   │   ├─ LuauInterpolatedStringExpression_begin [84..85]
- │   │       │   │   │       │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [84..85]
+ │   │       │   │   │       │   ├─ LuauBacktickStringInterpolation [84..87]
+ │   │       │   │   │       │   │   ├─ LuauBacktickStringInterpolation_begin [84..85]
+ │   │       │   │   │       │   │   │   └─ LuauBacktickStringInterpolation_begin_c1 [84..85]
  │   │       │   │   │       │   │   │       └─ PunctuationBraceOpen [84..85]: "{"
- │   │       │   │   │       │   │   ├─ LuauInterpolatedStringExpression_content [85..86]
+ │   │       │   │   │       │   │   ├─ LuauBacktickStringInterpolation_content [85..86]
  │   │       │   │   │       │   │   │   └─ LuauAccessPath [85..86]
  │   │       │   │   │       │   │   │       ├─ LuauAccessPath_begin 85
  │   │       │   │   │       │   │   │       ├─ LuauAccessPath_content [85..86]
@@ -174,8 +174,8 @@ sparkdown [0..94]
  │   │       │   │   │       │   │   │       │               └─ LuauVariableName [85..86]: "n"
  │   │       │   │   │       │   │   │       └─ LuauAccessPath_end 86
  │   │       │   │   │       │   │   │           └─ LuauAccessPath_end_c1 86
- │   │       │   │   │       │   │   └─ LuauInterpolatedStringExpression_end [86..87]
- │   │       │   │   │       │   │       └─ LuauInterpolatedStringExpression_end_c1 [86..87]
+ │   │       │   │   │       │   │   └─ LuauBacktickStringInterpolation_end [86..87]
+ │   │       │   │   │       │   │       └─ LuauBacktickStringInterpolation_end_c1 [86..87]
  │   │       │   │   │       │   │           └─ PunctuationBraceClose [86..87]: "}"
  │   │       │   │   │       │   └─ Space [87..88]: " "
  │   │       │   │   │       └─ LuauInterpolatedString_end [88..89]

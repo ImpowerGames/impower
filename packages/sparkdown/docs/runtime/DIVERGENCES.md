@@ -562,8 +562,47 @@ unterminated interpolation; the `%b{}` subject `"{x {y} z}"` tried to resolve
 giving the common case — a string with a value spliced into it — the
 convenient quotes.
 
-Related: an empty `{}` is **not** an interpolation in any string form. It is
-two literal characters, so `"a={}; x=3"` keeps its braces.
+Malformed interpolations follow Luau, and are checked against Luau's own
+parser tests (ported to
+[`InterpolatedStringErrors.test.ts`](src/tests/luau-conformance/InterpolatedStringErrors.test.ts)):
+
+| source | diagnostic |
+| --- | --- |
+| `` `{a` `` | Malformed interpolated string; did you forget to add a `}`? |
+| `` `{}` `` | Malformed interpolated string, expected expression inside `{}` |
+
+Both used to be silent. An unterminated `{` escaped its string and consumed
+the rest of the FILE, turning one typo into a cascade of unrelated errors; an
+empty `{}` lowered to nothing and DELETED itself from the value, so
+`` `a={}; x=3` `` became `a=; x=3`. Luau lexes the first as a `BrokenString`,
+which a TextMate grammar cannot reproduce directly, so the equivalent here is
+to bound the scope and report it.
+
+Bounding is per-quote (`LuauDoubleQuotedStringInterpolation`,
+`LuauBacktickStringInterpolation`) rather than on the shared rule, because the
+boundary character differs. The backtick rule sets `applyEndPatternLast` —
+nested backtick strings inside an interpolation are legal Luau
+(`` `Hello {`from inside {"a nested string"}`}` ``, from upstream
+`stringinterp.luau`), so the content patterns must get first refusal before
+the boundary is consulted.
+
+Both diagnostics apply to `"..."` exactly as they do to `` `...` ``: a
+double-quoted string is not a weaker dialect of a backtick one. A string that
+genuinely holds braces — a Lua pattern like `%b{}`, or JSON — uses `'...'` or
+`[[...]]`.
+
+That has a cost worth stating: because Luau never interpolates `"..."`,
+upstream fixtures write brace-containing values with double quotes, and those
+lines now need rewriting to the literal form. They are patched at read time in
+[`upstreamPatches.ts`](src/tests/luau-conformance/upstreamPatches.ts) rather
+than edited in place, because re-vendoring is an `rm -rf` + fresh copy
+(see `upstream/VENDORING.md`) that would silently discard an in-place edit.
+If that patch list grows beyond a handful of lines, treat it as evidence to
+revisit the `"..."` interpolation decision rather than as routine upkeep.
+
+Sparkle CONTENT strings are a separate context with their own rule, where
+`{{` / `}}` are literal-brace escapes per spec decision D3 — Luau instead
+rejects `{{` outright, a divergence sparkdown keeps deliberately.
 
 ### Regex literals: `@/pattern/flags`
 

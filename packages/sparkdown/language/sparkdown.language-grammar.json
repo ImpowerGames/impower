@@ -11817,7 +11817,7 @@
       },
       "patterns": [
         {
-          "include": "#LuauInterpolatedStringExpression"
+          "include": "#LuauBacktickStringInterpolation"
         },
         {
           "include": "#LuauStringEscape"
@@ -11890,7 +11890,7 @@
       "name": "meta.template.expression.luau",
       "contentName": "meta.embedded.line.luau",
       "brackets": true,
-      "begin": "([{])(?![}])",
+      "begin": "([{])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -11921,6 +11921,44 @@
           ]
         }
       }
+    },
+    "LuauBacktickStringInterpolation": {
+      "tag": "meta",
+      "name": "meta.template.expression.luau",
+      "contentName": "meta.embedded.line.luau",
+      "brackets": true,
+      "begin": "([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "([}])|(?=[`])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      },
+      "applyEndPatternLast": true
     },
     "LuauStringEscape": {
       "patterns": [

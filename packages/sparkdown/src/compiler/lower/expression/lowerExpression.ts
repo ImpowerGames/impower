@@ -1956,6 +1956,7 @@ export function processLuauEscapes(s: string): string {
 const INTERPOLATION_NODES = new Set([
   "LuauInterpolatedStringExpression",
   "LuauDoubleQuotedStringInterpolation",
+  "LuauBacktickStringInterpolation",
 ]);
 
 function hasInterpolation(node: SyntaxNode): boolean {

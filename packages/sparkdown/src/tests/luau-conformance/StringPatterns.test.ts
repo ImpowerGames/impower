@@ -653,7 +653,7 @@ done
 
 function run()
 -- Single quotes keep the subject raw; double quotes would interpolate it.
-local result = string.match('{x {y} z}', "%b{}")
+local result = string.match('{x {y} z}', '%b{}')
 host_record(result)
 end
 `);

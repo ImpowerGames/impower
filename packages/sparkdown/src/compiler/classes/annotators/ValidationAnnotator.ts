@@ -249,6 +249,49 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
+    // Unterminated `{` inside an interpolated string.
+    //
+    // Matches Luau, which lexes a `{` that reaches the end of its string as a
+    // BrokenString and reports "Malformed interpolated string; did you forget
+    // to add a '}'?". Without this the mistake is silent: the interpolation
+    // closes at the string boundary and its contents quietly vanish from the
+    // value (and, before the string-bounded rules, it swallowed the rest of
+    // the file).
+    //
+    // Detected on the text rather than on an `_end` child: closing at the
+    // string boundary still produces an `_end` node, just a zero-width one.
+    if (
+      nodeRef.name === "LuauInterpolatedStringExpression" ||
+      nodeRef.name === "LuauDoubleQuotedStringInterpolation" ||
+      nodeRef.name === "LuauBacktickStringInterpolation"
+    ) {
+      const raw = this.read(nodeRef.from, nodeRef.to);
+      // Empty `{}` — Luau: "Malformed interpolated string, expected expression
+      // inside '{}'". It used to lower to nothing and silently DELETE itself
+      // from the string, so `` `a={}; x=3` `` became `a=; x=3`. Use `'...'`
+      // or `[[...]]` for a string that should hold literal braces.
+      if (/^\{\s*\}$/.test(raw.trim())) {
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message:
+              "Malformed interpolated string, expected expression inside `{}`",
+            severity: "error",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+      const closed = raw.trimEnd().endsWith("}");
+      if (!closed) {
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message:
+              "Malformed interpolated string; did you forget to add a `}`?",
+            severity: "error",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
     // Unrecognized inline RICH TEXT tag inside a content string
     // (`text "a <bold>x</bold>"`). The runtime leaves an unknown tag as literal
     // characters — deliberately, so prose like `5 < 6` survives — which means a
