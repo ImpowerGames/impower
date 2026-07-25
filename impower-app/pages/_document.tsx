@@ -160,6 +160,11 @@ export default class MyDocument extends Document {
             as="font"
             crossOrigin="anonymous"
           />
+          <link
+            href="/fonts/noto-color-emoji.ttf"
+            as="font"
+            crossOrigin="anonymous"
+          />
 
           <link rel="stylesheet" href="/style.css" />
 

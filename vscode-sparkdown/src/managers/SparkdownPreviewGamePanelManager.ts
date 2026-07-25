@@ -477,6 +477,13 @@ export class SparkdownPreviewGamePanelManager {
       context.extensionUri,
       ["out", "data", "courier-prime-bold-italic.ttf"],
     );
+    const  fontFamilyEmoji = "Noto Color Emoji"
+    const fontFormatEmoji = "truetype";
+    const fontPathEmoji = getWebviewUri(webview, context.extensionUri, [
+      "out",
+      "data",
+      "noto-color-emoji.ttf",
+    ]);
     const styleNonce = getNonce();
     const scriptNonce = getNonce();
     return /*html*/ `
@@ -513,6 +520,13 @@ export class SparkdownPreviewGamePanelManager {
               font-weight: 700;
               font-display: block;
               src: url("${fontPathMonoBoldItalic}") format("${fontFormatMono}");
+            }
+            @font-face {
+              font-family: "${fontFamilyEmoji}";
+              font-style: normal;
+              font-weight: normal;
+              font-display: swap;
+              src: url("${fontPathEmoji}") format("${fontFormatEmoji}");
             }
 
             html {

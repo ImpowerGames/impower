@@ -8,6 +8,17 @@ import { encodeBase64 } from "./encodeBase64";
 import { generateScreenplayMainHtml } from "./generateScreenplayMainHtml";
 import { generateScreenplayTitleHtml } from "./generateScreenplayTitleHtml";
 
+/**
+ * Optional hook that embeds only the emoji a script actually uses, as inline
+ * vector SVG. Supplied by callers that have the emoji font (see
+ * `createEmojiHtmlInliner` in @impower/sparkdown-screenplay-pdf); kept as a
+ * local interface so this package needs no font tooling dependency.
+ */
+export interface EmojiHtmlInliner {
+  inline(html: string): string;
+  styleAndDefs(): string;
+}
+
 export const generateScreenplayHtmlData = (
   tokens: ScreenplayToken[],
   config?: ScreenplayConfig,
@@ -17,6 +28,7 @@ export const generateScreenplayHtmlData = (
     italic?: ArrayBuffer | Uint8Array;
     bolditalic?: ArrayBuffer | Uint8Array;
   },
+  emoji?: EmojiHtmlInliner,
 ): string => {
   let rawHtml: string = STATIC_HTML;
 
@@ -62,9 +74,12 @@ export const generateScreenplayHtmlData = (
     </style>`,
   );
 
-  const titleHtml = config?.screenplay_print_title_page
+  let titleHtml = config?.screenplay_print_title_page
     ? generateScreenplayTitleHtml(spans, "            ")
     : "";
+  if (emoji && titleHtml) {
+    titleHtml = emoji.inline(titleHtml);
+  }
   if (titleHtml) {
     rawHtml = rawHtml.replace(
       "$TITLEPAGE$",
@@ -78,9 +93,12 @@ export const generateScreenplayHtmlData = (
     rawHtml = rawHtml.replace("$TITLEPAGE$", "");
   }
 
-  const mainHtml = spans
+  let mainHtml = spans
     ? generateScreenplayMainHtml(spans, "            ")
     : "";
+  if (emoji && mainHtml) {
+    mainHtml = emoji.inline(mainHtml);
+  }
   if (mainHtml) {
     rawHtml = rawHtml.replace(
       "$MAINPAGE$",
@@ -92,6 +110,15 @@ export const generateScreenplayHtmlData = (
     );
   } else {
     rawHtml = rawHtml.replace("$MAINPAGE$", "");
+  }
+
+  // Embed the used-emoji styles (must come after inline() has run over both
+  // the title and main HTML so every used glyph is registered).
+  if (emoji) {
+    const emojiStyle = emoji.styleAndDefs();
+    if (emojiStyle) {
+      rawHtml = rawHtml.replace("</head>", `  ${emojiStyle}\n  </head>`);
+    }
   }
 
   return rawHtml;

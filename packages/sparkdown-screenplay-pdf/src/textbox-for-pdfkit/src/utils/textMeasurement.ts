@@ -1,6 +1,7 @@
 import type PDFKit from "pdfkit";
 import { FormattedText } from "../types/FormattedText";
 import { MeasuredText } from "../types/MeasuredText";
+import { getEmojiProvider, measureEmojiWidth } from "../../../emoji/emojiText";
 
 // All these functions here measure some kind of text.
 // What kind of text they measure can easily be taken from
@@ -12,6 +13,16 @@ export const measureTextWidth = (
   textChunk: FormattedText,
   doc: PDFKit.PDFDocument,
 ) => {
+  if (textChunk.isEmoji) {
+    const provider = getEmojiProvider(doc);
+    if (provider) {
+      const fontSize =
+        textChunk.fontSize ??
+        (doc as unknown as { _fontSize?: number })._fontSize ??
+        12;
+      return measureEmojiWidth(provider, textChunk.text, fontSize);
+    }
+  }
   if (textChunk.font != null) {
     doc.font(textChunk.font);
   }

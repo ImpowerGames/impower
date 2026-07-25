@@ -796,7 +796,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const duration = durationOverride ?? animation?.timing?.duration ?? "0s";
       const iterations = loopOverride ?? animation?.timing?.iterations ?? 1;
       const easing = easingOverride ?? animation?.timing?.easing ?? "ease";
-      const fill = animation?.timing?.fill ?? "none";
+      // Default to "both" to match `default_animation` and every builtin
+      // animation (all use fill "both"); the other fallbacks here already
+      // mirror `default_animation`. Defaulting to "none" instead made any
+      // animation authored without an explicit `timing` (e.g. a `flip` that is
+      // just `keyframes = { transform = "scaleX(-1)" }`) apply its end state for
+      // a frame and then revert, so a persistent transform never showed.
+      const fill = animation?.timing?.fill ?? "both";
       const direction = animation?.timing?.direction ?? "normal";
       const keyframes = animation?.keyframes;
       const timing = {

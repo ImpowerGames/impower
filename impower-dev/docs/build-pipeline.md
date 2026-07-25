@@ -37,8 +37,12 @@ needs explicitly.
   `var process = {...}` banner.)
 - **`viteStaticallyRenderedPagesPlugin`** — the dev SSG middleware *and* dev
   worker hot-reload (below).
-- **`viteBannerPlugin`** — prepends the dynamic service-worker env banner
-  (`SW_VERSION` / `SW_RESOURCES`).
+- **`getServiceWorkerDefine()`** — Vite `define` that injects the service-worker
+  build values (`SW_VERSION` / `SW_RESOURCES` / `NODE_ENV`) as `SW_*_INJECTED`
+  token literals in `sw.ts`. Replaced a `renderChunk` banner that was dead code:
+  `process.env.SW_VERSION` folded to `{}.SW_VERSION` ("v1") before the banner
+  applied, so the SW looked unchanged every deploy and PWA auto-update never
+  fired. Tokens (not `process.env`) survive minification + dodge the fold.
 - **`readEditorGlobalCss()`** — reads `normalize.css` + `theme.css` to inline
   into the SSG `<style>` block.
 

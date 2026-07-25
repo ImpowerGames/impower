@@ -45,6 +45,18 @@ export default function LogicScriptEditor({
   const versionRef = useRef<number | undefined>(undefined);
   const textRef = useRef<string | undefined>(undefined);
 
+  // Normalized snapshots of every text THIS editor has written to disk. A
+  // `DidWriteFiles` whose text matches one of these is our own autosave/rename
+  // echo — never an external edit — so it must not trigger a reload. We match
+  // against what we WROTE (not the live buffer) because an in-flight autosave
+  // can lag behind the buffer after further keystrokes; comparing the echo to
+  // the buffer would then misread our own stale write as a divergent external
+  // edit and destroy + rebuild the editor mid-typing, wiping the just-typed
+  // characters (#216). Bounded so a long session can't grow it without limit.
+  const ownWritesRef = useRef<Set<string>>(new Set<string>());
+  const OWN_WRITES_LIMIT = 16;
+  const normalizeText = (s: string) => s.replace(/\r\n|\r/g, "\n");
+
   // Latest props/store values stashed in refs so the listener (mounted
   // once) always reads current values without needing to reattach.
   const filenameRef = useRef(filename);
@@ -149,13 +161,22 @@ export default function LogicScriptEditor({
 
       const debouncedSave = debounce(async () => {
         if (uriRef.current && versionRef.current && textRef.current != null) {
+          const written = textRef.current;
+          // Remember what we're writing so its DidWriteFiles echo is recognized
+          // as our own and never reloads the editor (#216).
+          ownWritesRef.current.add(normalizeText(written));
+          if (ownWritesRef.current.size > OWN_WRITES_LIMIT) {
+            ownWritesRef.current = new Set(
+              [...ownWritesRef.current].slice(-OWN_WRITES_LIMIT),
+            );
+          }
           const { Workspace } = await import("../../workspace/Workspace");
           if (disposed) return;
           await Workspace.fs.writeTextDocument({
             textDocument: {
               uri: uriRef.current,
               version: versionRef.current,
-              text: textRef.current,
+              text: written,
             },
           });
           await Workspace.window.recordScriptChange();
@@ -174,10 +195,35 @@ export default function LogicScriptEditor({
         }),
         onProtocolMessage(DidWriteFilesMessage.type, (message) => {
           const params = message.params;
-          if (
-            params.remote &&
-            params.files.find((f) => f.uri === uriRef.current)
-          ) {
+          const changed = params.files.find((f) => f.uri === uriRef.current);
+          if (!changed) {
+            return;
+          }
+          // Reload the open buffer when this script changed underneath us:
+          //  • a remote pull (Drive sync) always reloads; OR
+          //  • a LOCAL write whose on-disk text diverged from what the editor
+          //    is showing — an EXTERNAL edit, e.g. a reference-aware asset
+          //    rename rewriting this script via applyWorkspaceEdit from the
+          //    file manager pane.
+          // The editor's OWN writes are skipped: they echo back text this
+          // editor wrote, which we track in `ownWritesRef`. We must match the
+          // echo against what we WROTE — not the live buffer — because an
+          // in-flight autosave lags behind the buffer once the user keeps
+          // typing, so a buffer comparison would misclassify our own stale echo
+          // as an external edit and reload (destroying the editor + wiping the
+          // just-typed characters, #216). A genuine external rewrite (e.g. a
+          // reference-aware asset rename rewriting this script via
+          // applyWorkspaceEdit from the file manager pane) is text we never
+          // wrote, so it still diverges and reloads.
+          const changedText =
+            changed.text != null ? normalizeText(changed.text) : null;
+          const isOwnWrite =
+            changedText != null && ownWritesRef.current.has(changedText);
+          const diverged =
+            changedText != null &&
+            textRef.current != null &&
+            changedText !== normalizeText(textRef.current);
+          if (params.remote || (diverged && !isOwnWrite)) {
             loadFile();
           }
         }),

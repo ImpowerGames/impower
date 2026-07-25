@@ -927,7 +927,19 @@ export class Story extends InkObject {
 
   // Merge together `public string ToJson()` and `void ToJson(SimpleJson.Writer writer)`.
   // Will only return a value if writer was not provided.
-  public ToJson(writer?: SimpleJson.Writer): string | void {
+  public ToJson(
+    writer?: SimpleJson.Writer,
+    // Optional per-flow memo for incremental serialization. Applies to the
+    // story's top-level named flows only; listDefs/structDefs/inline content are
+    // always serialized fresh. See JsonSerialisation.WriteRuntimeContainer.
+    flowMemo?: {
+      resolve: (
+        name: string,
+        container: Container,
+        serialize: () => any,
+      ) => any;
+    },
+  ): string | void {
     let shouldReturn = false;
 
     if (!writer) {
@@ -945,6 +957,7 @@ export class Story extends InkObject {
         this._mainContentContainer,
         false,
         this.onWriteRuntimeObject,
+        flowMemo,
       ),
     );
 

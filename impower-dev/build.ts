@@ -19,7 +19,7 @@ import {
   browserEnvDefine,
   dedupe,
   externalWorkerPaths,
-  getServiceWorkerProcessEnvBanner,
+  getServiceWorkerDefine,
   impowerUiStyleCss,
   indir,
   MINIFY,
@@ -32,7 +32,6 @@ import {
   readEditorGlobalCss,
   serviceWorkerPaths,
   staticallyStylePage,
-  viteBannerPlugin,
   viteStaticallyRenderedPagesPlugin,
   WATCH,
 } from "./vite.config.js";
@@ -314,14 +313,11 @@ const buildWorkers = async () => {
   console.log("");
   await build({
     configFile: false,
-    plugins: [
-      viteBannerPlugin(
-        getServiceWorkerProcessEnvBanner({
-          swVersion: SW_VERSION,
-          swResources: SW_RESOURCES,
-        }),
-      ),
-    ],
+    define: getServiceWorkerDefine({
+      swVersion: SW_VERSION,
+      swResources: SW_RESOURCES,
+      production: PRODUCTION,
+    }),
     build: {
       outDir: publicOutDir,
       emptyOutDir: false,

@@ -53,6 +53,10 @@ export default function LogicList(_props: LogicListProps) {
 
   // Collapse the FAB to an icon once the scripts list is scrolled off the top.
   const [fabCollapsed, setFabCollapsed] = useState(false);
+  // Folder a new script is created INTO, reported by the Scripts FileList. Seeded
+  // to "scripts" (the pane's subtree root) so scripts always land under scripts/,
+  // separate from the assets tree — and refined to a subfolder on mobile dive.
+  const [scriptsScope, setScriptsScope] = useState("scripts");
 
   const onPanelChange = (next: string) => {
     startTransition(() => {
@@ -112,9 +116,11 @@ export default function LogicList(_props: LogicListProps) {
             </div>
             <div key="scripts" class="flex flex-1 flex-col min-h-0">
               <FileList
+                rootDir="scripts"
                 include="*.{sd}"
                 exclude="main.sd"
                 onScrolledChange={setFabCollapsed}
+                onScopeChange={setScriptsScope}
                 emptyState={
                   <FileListBorder>
                     <Book class="size-12 m-2" />
@@ -147,6 +153,8 @@ export default function LogicList(_props: LogicListProps) {
               <FileAddButton
                 defaultFilename="script00.sd"
                 collapsed={fabCollapsed}
+                targetDir={scriptsScope}
+                deferred
               >
                 New Script
               </FileAddButton>

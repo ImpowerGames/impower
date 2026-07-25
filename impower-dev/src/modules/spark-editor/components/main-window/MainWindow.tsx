@@ -13,6 +13,8 @@ import {
 import { useComputed } from "@preact/signals";
 import { startTransition } from "preact/compat";
 import workspace from "../../workspace/WorkspaceStore";
+import { inspectedAsset } from "../../utils/assetInspector";
+import AssetInspectorPane from "../asset-inspector/AssetInspectorPane";
 import Assets from "../assets/Assets";
 import HeaderNavigation from "../header-navigation/HeaderNavigation";
 import Logic from "../logic/Logic";
@@ -80,7 +82,18 @@ export default function MainWindow(_props: MainWindowProps) {
             }
             end={
               <div class="relative flex flex-col w-full h-full bg-black">
+                {/* The game preview stays mounted (so inspecting an asset and
+                    closing doesn't reload/restart the game); the asset inspector
+                    overlays it — desktop select-to-inspect — while an asset is
+                    selected in the Assets browser. */}
                 <Preview />
+                {pane === "assets" && inspectedAsset.value && (
+                  // z-10 so it covers Preview's own `sticky z-[1]` header too
+                  // (an unlayered absolute overlay would render UNDER it).
+                  <div class="absolute inset-0 z-10">
+                    <AssetInspectorPane />
+                  </div>
+                )}
               </div>
             }
           />

@@ -37,6 +37,31 @@ This extension contributes the following settings:
 
 > You can modify the look of your exported screenplays from `File > Preferences > Settings > Extensions > Sparkdown > Sparkdown Export`
 
+# Development
+
+> For contributors building the extension from source (not installing it from the
+> Marketplace).
+
+This package lives in an npm-workspaces monorepo. Install once from the **repo
+root**, then start the extension's dev build loop with the root launcher:
+
+```sh
+npm install        # at the monorepo root — sets up all workspaces
+npm run vscode:dev # at the monorepo root — builds + watches the extension
+```
+
+`vscode:dev` runs this package's `watch` (`npm-run-all -p watch:*`), which builds
+and watches everything the extension bundles: the language server, the
+spark-web-player, the screenplay-PDF exporter, and the screenplay / game / screen
+/ inspector webviews, plus the extension host code itself.
+
+With that watcher running, press **F5** in VS Code (the _Run Extension_ launch
+config) to open an Extension Development Host with the extension loaded; rebuilds
+from the watcher are picked up on reload.
+
+> Working on the **web app** instead of the extension? Use `npm run web:dev` from
+> the root — see the [root README](../README.md).
+
 # Known Issues
 
 [Issue Tracker](https://github.com/ImpowerGames/impower/labels/vscode)

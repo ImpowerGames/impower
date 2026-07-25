@@ -12,6 +12,11 @@
       "types": "./src/components/index.ts",
       "import": "./dist/impower-ui.js"
     },
+    "./icons": {
+      "development": "./src/components/icon/icons.generated.tsx",
+      "types": "./src/components/icon/icons.generated.tsx",
+      "import": "./dist/impower-ui.js"
+    },
     "./loading-bar": {
       "development": "./src/components/loading-bar/LoadingBar.tsx",
       "types": "./src/components/loading-bar/LoadingBar.tsx",
@@ -44,7 +49,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.5",
-    "tailwindcss": "^4.2.2"
+    "tailwindcss": "^4.2.2",
+    "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
     "@microsoft/api-extractor": "^7.58.7",

@@ -19,6 +19,8 @@ import { getDocumentFormattingEdits } from "./utils/providers/getDocumentFormatt
 import { applyTextEdits } from "./utils/providers/getFormatDirtyRange";
 import { getDocumentLinks } from "./utils/providers/getDocumentLinks";
 import { getDocumentSymbols } from "./utils/providers/getDocumentSymbols";
+import { getFileReferences } from "./utils/providers/getFileReferences";
+import { getFileRenameEdits } from "./utils/providers/getFileRenameEdits";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
 import { getReferences } from "./utils/providers/getReferences";
@@ -369,6 +371,35 @@ try {
     );
     return result;
   });
+
+  // Custom: file-driven (no cursor) reference queries for the file manager.
+  // "sparkdown/fileReferences" — script locations that reference an asset file
+  // (find-usages). "sparkdown/fileRenameEdits" — the WorkspaceEdit to rename an
+  // asset file AND rewrite every reference to it. The asset has no program of
+  // its own, so resolution uses the nearest main script's program.
+  connection.onRequest(
+    "sparkdown/fileReferences",
+    (params: { uri: string }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      const program = workspace.program(mainUri ?? params.uri);
+      return getFileReferences(workspace, program, params.uri)?.references ?? [];
+    },
+  );
+  connection.onRequest(
+    "sparkdown/fileRenameEdits",
+    async (params: { oldUri: string; newName: string }) => {
+      const settings = await connection.workspace.getConfiguration("sparkdown");
+      workspace.loadConfiguration(settings);
+      const mainUri = workspace.getMainScriptUri(params.oldUri);
+      const program = workspace.program(mainUri ?? params.oldUri);
+      return getFileRenameEdits(
+        workspace,
+        program,
+        params.oldUri,
+        params.newName,
+      );
+    },
+  );
 
   // referencesProvider
   connection.onReferences((params) => {

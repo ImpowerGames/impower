@@ -4,6 +4,8 @@ import type { ScreenplayConfig } from "@impower/sparkdown-screenplay/src/types/S
 import { generateScreenplayPrintData } from "@impower/sparkdown-screenplay/src/utils/generateScreenplayPrintData";
 import PdfWriteStream from "./classes/PdfWriteStream";
 import ScreenplayPrinter from "./classes/ScreenplayPrinter";
+import EmojiSvgProvider from "./emoji/EmojiSvgProvider";
+import { setEmojiProvider } from "./emoji/emojiText";
 
 export const buildPDF = async (
   scripts: string[],
@@ -13,6 +15,7 @@ export const buildPDF = async (
     bold: ArrayBuffer;
     italic: ArrayBuffer;
     bolditalic: ArrayBuffer;
+    emoji?: ArrayBuffer;
   },
   onProgress?: (value: {
     kind: string;
@@ -58,10 +61,26 @@ export const buildPDF = async (
   }
   if (fonts) {
     for (const [fontName, fontBuffer] of Object.entries(fonts)) {
+      // The color emoji font is never used as a pdfkit text font (its glyphs
+      // are empty outlines); it is drawn as vector SVG via EmojiSvgProvider.
+      if (fontName === "emoji" || !fontBuffer) {
+        continue;
+      }
       doc.registerFont(fontName, fontBuffer);
     }
     if (fonts.normal) {
       doc.font(fonts.normal);
+    }
+    if (fonts.emoji) {
+      try {
+        const provider = new EmojiSvgProvider(fonts.emoji);
+        if (provider.hasSvg) {
+          setEmojiProvider(doc, provider);
+        }
+      } catch (e) {
+        // If the emoji font can't be parsed, emoji simply fall back to text.
+        console.warn("Failed to initialize emoji SVG provider:", e);
+      }
     }
   }
   doc.fontSize(fontSize);

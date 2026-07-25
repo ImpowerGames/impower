@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* Tailwind v4 successor to tailwindcss-animate: `animate-in`/`animate-out` plus
+   `fade-*`, `zoom-*`, `slide-in-from-*`, and animation-aware `duration`/`ease`
+   utilities. Drives the Radix dropdown/popover enter+exit (data-state). */
+@import "tw-animate-css";
 @plugin 'tailwind-scrollbar';
 @source ".";
 
@@ -154,6 +158,32 @@
   background-size: 400% 100%;
   animation: s-sheen 8s ease-in-out infinite;
 }
+
+/* Desktop popover open/close (MUI `Grow`): opacity + an asymmetric scale
+   (0.75, 0.5625) from the trigger corner (Radix sets the transform-origin), on
+   MUI's standard easing. Played as a keyframe on Radix's `data-state` — Radix
+   DropdownMenu's Presence handles this fine. (The mobile bottom sheet uses CSS
+   transitions in the Dropdown component instead — see Dropdown.tsx.) */
+@keyframes menu-grow-in {
+  from { opacity: 0; transform: scale(0.75, 0.5625); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes menu-grow-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: scale(0.75, 0.5625); }
+}
+@utility anim-menu-in  { animation: menu-grow-in 200ms cubic-bezier(0.4, 0, 0.2, 1); }
+@utility anim-menu-out { animation: menu-grow-out 150ms cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+
+/* Mobile bottom sheet (MUI Drawer anchor="bottom"): paper slides up on enter,
+   down on exit; backdrop fades. Played as keyframe ANIMATIONS (not transitions)
+   so they fire reliably on mount / on the open→closed class swap — driven by
+   the Dropdown component's own `open` state, with `forwards` holding the closed
+   frame until useMountTransition unmounts. */
+@keyframes menu-sheet-up   { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes menu-sheet-down { from { transform: translateY(0); } to { transform: translateY(100%); } }
+@keyframes menu-fade-in    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes menu-fade-out   { from { opacity: 1; } to { opacity: 0; } }
 
 /* Material-design ripple animation is driven imperatively by the
    <Ripple /> component via element.animate() (Web Animations API) — see

@@ -7,7 +7,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // circular-imports WorkspaceWindow. Stub it; the only method our tested actions
 // reach is fs.writeProjectMetadata (the project-rename path).
 vi.mock("../../src/modules/spark-editor/workspace/Workspace", () => ({
-  Workspace: { fs: { writeProjectMetadata: vi.fn() } },
+  Workspace: {
+    fs: {
+      writeProjectMetadata: vi.fn(),
+      getFileUri: (projectId: string, filename: string) =>
+        `file://${projectId}/${filename}`,
+    },
+  },
 }));
 
 import workspace from "../../src/modules/spark-editor/workspace/WorkspaceStore";
@@ -48,6 +54,32 @@ describe("WorkspaceWindow store transitions", () => {
     expect(workspace.current.panes.logic.panels.main!.activeEditor?.filename).toBe(
       "main.sd",
     );
+  });
+
+  it("openFileEditor stores the full project-relative path for a nested script", () => {
+    win.openFileEditor("chapters/intro.sd");
+    const editor = workspace.current.panes.logic.panels.scripts!.activeEditor;
+    expect(editor?.open).toBe(true);
+    // The path (not just the basename) is the stored identity.
+    expect(editor?.filename).toBe("chapters/intro.sd");
+  });
+
+  it("getActiveEditorForFile distinguishes same-basename scripts in different folders", () => {
+    win.openFileEditor("chapters/intro.sd");
+    const active = win.getActiveEditorForFile("chapters/intro.sd");
+    expect(active?.filename).toBe("chapters/intro.sd");
+    // The reconstructed uri carries the folder, not just the basename.
+    expect(active?.uri.endsWith("/chapters/intro.sd")).toBe(true);
+    // A same-basename file in another folder is NOT the active editor.
+    expect(win.getActiveEditorForFile("acts/intro.sd")).toBeUndefined();
+  });
+
+  it("closeFileEditor by nested path closes that editor", () => {
+    win.openFileEditor("chapters/intro.sd");
+    win.closeFileEditor("chapters/intro.sd");
+    expect(
+      workspace.current.panes.logic.panels.scripts!.activeEditor?.open,
+    ).toBe(false);
   });
 
   it("closeFileEditor marks the editor closed", () => {

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { generateScreenplayHtmlData } from "@impower/sparkdown-screenplay/src/utils/generateScreenplayHtmlData";
+import { createEmojiHtmlInliner } from "@impower/sparkdown-screenplay-pdf/src/emoji/emojiHtml";
 import ScreenplayParser from "@impower/sparkdown-screenplay/src/classes/ScreenplayParser";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
@@ -31,7 +32,15 @@ export const exportHtml = async (
   const tokens = parser.parseAll([script]);
   const config = getSparkdownPreviewConfig(uri);
   const fonts = await getFonts(context);
-  const rawHtml: string = generateScreenplayHtmlData(tokens, config, fonts);
+  const emoji = fonts.emoji
+    ? createEmojiHtmlInliner(fonts.emoji)
+    : undefined;
+  const rawHtml: string = generateScreenplayHtmlData(
+    tokens,
+    config,
+    fonts,
+    emoji,
+  );
   const output =
     process?.platform !== "win32" ? rawHtml.replace(/\r\n/g, "\n") : rawHtml;
   await writeFile(fsPath, output);

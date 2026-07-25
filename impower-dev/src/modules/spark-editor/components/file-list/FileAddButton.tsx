@@ -14,6 +14,18 @@ export type FileAddButtonProps = {
    * mirroring main's `<s-collapsible collapsed="scrolled">`.
    */
   collapsed?: boolean;
+  /**
+   * Folder the new file is created INTO (`""`/undefined = project root). Set on
+   * mobile so a script created while scoped into a folder lands in that folder.
+   */
+  targetDir?: string;
+  /**
+   * Defer the file's creation: instead of writing an empty placeholder to disk
+   * and renaming it, ask the FileList to show an in-memory draft row (blank name
+   * field) and only write the file once a name is committed. A discarded draft
+   * never touches disk. Used by Logic > Scripts.
+   */
+  deferred?: boolean;
 };
 
 /**
@@ -25,6 +37,8 @@ export default function FileAddButton({
   defaultFilename,
   children,
   collapsed = false,
+  targetDir = "",
+  deferred = false,
 }: FileAddButtonProps) {
   const disabledSig = useComputed(() => {
     const status = workspace.signals.syncStatus.value;
@@ -39,16 +53,26 @@ export default function FileAddButton({
   async function onClick() {
     const projectId = workspace.signals.projectId.value;
     if (!projectId) return;
+    if (deferred) {
+      // Hand off to the FileList as an in-memory draft — no file is written
+      // until the user commits a name (a canceled draft never hits disk).
+      const dot = defaultFilename.lastIndexOf(".");
+      const ext = dot >= 0 ? defaultFilename.slice(dot + 1) : "";
+      const { requestNewEntry } = await import("../../utils/newEntryDraft");
+      requestNewEntry(targetDir, ext);
+      return;
+    }
     const { Workspace } = await import("../../workspace/Workspace");
     const files = await Workspace.fs.getFiles(projectId);
     const filenames = Object.keys(files).map((uri) =>
       Workspace.fs.getFilename(uri),
     );
     const uniqueFilename = getUniqueFileName(filenames, defaultFilename);
+    const rel = targetDir ? `${targetDir}/${uniqueFilename}` : uniqueFilename;
     await Workspace.fs.createFiles({
       files: [
         {
-          uri: Workspace.fs.getFileUri(projectId, uniqueFilename),
+          uri: Workspace.fs.getFileUri(projectId, rel),
           data: new ArrayBuffer(0),
         },
       ],

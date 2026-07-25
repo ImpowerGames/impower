@@ -58,6 +58,15 @@
   src: url("/fonts/courier-prime-bold-italic.ttf") format("truetype");
 }
 
+@font-face {
+  font-family: "Noto Color Emoji";
+  /* swap (not block) + no preload: the 24MB font is fetched lazily, only when
+     an emoji is actually rendered, and the system emoji font shows meanwhile. */
+  font-display: swap;
+  src: local(""),
+    url("/fonts/noto-color-emoji.ttf") format("truetype");
+}
+
 :root {
   color-scheme: dark;
   --screenplay-preview-texture: url("/noisetexture.png");

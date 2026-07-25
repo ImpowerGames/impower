@@ -74,9 +74,38 @@ describe("front matter vs luau comment context", () => {
     expect(tree).not.toContain("LuauCommentMark");
   });
 
+  test("an action line that STARTS with `--` is an em-dash, not a comment", () => {
+    // Real R&B screenplay case: action lines routinely open (and close) with
+    // `--` em-dashes, e.g. `-- He closes the app.   Pockets the smartphone. --`.
+    // These live at the scene body (which parses at root), where the
+    // `LuauDeclarations → LuauComment` include used to eat the whole line as a
+    // `LuauLineComment`, so it vanished from the preview.
+    const { tree } = compile(
+      `-> main\n\nscene main\n  -- He closes the app.   Pockets the smartphone. --\n  done\nend\n`,
+    );
+    expect(tree).not.toContain("LuauLineComment");
+    expect(tree).not.toContain("LuauCommentMark");
+    expect(tree).not.toContain("LuauDocLineComment");
+  });
+
+  test("a `--`-led line inside a sparkdown `if` block is still prose", () => {
+    const { tree } = compile(
+      `-> main\n\nscene main\n  if true then\n    -- Reaches toward it --\n  end\n  done\nend\n`,
+    );
+    expect(tree).not.toContain("LuauLineComment");
+    expect(tree).not.toContain("LuauCommentMark");
+  });
+
   test("`--` comment still works inside a function body", () => {
     const { tree } = compile(
       `function greet()\n  local x = 5 -- a real comment\n  return x\nend\n`,
+    );
+    expect(tree).toContain("LuauLineComment");
+  });
+
+  test("a whole-line `--` comment still works inside a function body", () => {
+    const { tree } = compile(
+      `function greet()\n  -- a standalone comment line\n  local x = 5\n  return x\nend\n`,
     );
     expect(tree).toContain("LuauLineComment");
   });
