@@ -278,6 +278,11 @@ export default class WorkspaceLanguageServer {
         },
         uri,
         workspace: projectPath,
+        // The editor main thread only reads diagnostics + scripts/pathLocations
+        // from `compiler/didCompile` (see SparkdownWorkspace.compile), so have
+        // the language server relay a slim program instead of the whole ~9MB
+        // per keystroke. The player and vscode keep the full relay.
+        slimProgramNotifications: true,
       },
       workspaceFolders: [
         {
@@ -361,6 +366,24 @@ export default class WorkspaceLanguageServer {
     return this._connection.sendRequest<WorkspaceEdit | null>(
       "sparkdown/fileRenameEdits",
       { oldUri, newName },
+    );
+  }
+
+  /**
+   * The source position `offset` beats away from (`uri`, `line`) — used by
+   * PageUp/PageDown navigation in the game preview. Resolved on demand by the
+   * language server so the program's `pathLocations` (~12k entries) never has
+   * to be shipped to the main thread with every compile.
+   */
+  async getOffsetSourceLocation(
+    uri: string,
+    line: number,
+    offset: number,
+  ): Promise<{ file: string; line: number } | null> {
+    await this.initialization();
+    return this._connection.sendRequest<{ file: string; line: number } | null>(
+      "sparkdown/offsetSourceLocation",
+      { uri, line, offset },
     );
   }
 

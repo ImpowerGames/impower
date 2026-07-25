@@ -142,7 +142,7 @@ export default class WorkspaceWindow {
     // Reset sync state
     copy.sync = {};
     // Reset diagnostics state
-    copy.debug.diagnostics = {};
+    copy.debug.diagnosticsSummary = {};
     // Reset pinpoints state
     copy.debug.pinpoints = {};
     // Reset highlights state
@@ -339,12 +339,34 @@ export default class WorkspaceWindow {
   protected handleCompiledProgram = (
     message: CompiledProgramMessage.Notification,
   ) => {
-    const { program } = message.params;
+    const { program, diagnosticsSummary } = message.params;
+    // The main thread only needs per-file severity counts (to color file
+    // rows/tabs); the slim relay provides them pre-rolled-up. Fall back to
+    // summarizing full diagnostics if a non-slim relay ever sends them.
+    const summary =
+      diagnosticsSummary ??
+      Object.fromEntries(
+        Object.entries(program.diagnostics ?? {}).map(
+          ([uri, fileDiagnostics]) => {
+            const counts = { errors: 0, warnings: 0, infos: 0 };
+            for (const d of fileDiagnostics) {
+              if (d.severity === 1) {
+                counts.errors++;
+              } else if (d.severity === 2) {
+                counts.warnings++;
+              } else {
+                counts.infos++;
+              }
+            }
+            return [uri, counts];
+          },
+        ),
+      );
     this.update({
       ...this.store,
       debug: {
         ...this.store.debug,
-        diagnostics: program.diagnostics,
+        diagnosticsSummary: summary,
       },
     });
   };

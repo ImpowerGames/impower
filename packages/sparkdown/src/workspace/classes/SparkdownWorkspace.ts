@@ -2,7 +2,11 @@ import { Port1MessageConnection } from "@impower/jsonrpc/src/browser/classes/Por
 import { WorkerMessageConnection } from "@impower/jsonrpc/src/browser/classes/WorkerMessageConnection";
 import { File, Range } from "../../compiler";
 import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
-import { CompiledProgramMessage } from "../../compiler/classes/messages/CompiledProgramMessage";
+import {
+  CompiledProgramMessage,
+  type CompiledProgramParams,
+  type DiagnosticsSummary,
+} from "../../compiler/classes/messages/CompiledProgramMessage";
 import {
   CompileProgramMessage,
   CompileProgramResult,
@@ -21,6 +25,34 @@ import { profile } from "../utils/logging/profile";
 import { debounce } from "../utils/timing/debounce";
 
 const DEBOUNCE_DELAY = 600;
+
+/**
+ * Roll program diagnostics up into per-file severity counts (LSP severities:
+ * 1=Error, 2=Warning, 3=Information, 4=Hint — hints count as infos). Used by
+ * the slim `compiler/didCompile` relay so file badges/colors don't require
+ * shipping the diagnostics themselves.
+ */
+const summarizeDiagnostics = (
+  diagnostics: SparkProgram["diagnostics"],
+): DiagnosticsSummary => {
+  const summary: DiagnosticsSummary = {};
+  if (diagnostics) {
+    for (const [uri, fileDiagnostics] of Object.entries(diagnostics)) {
+      const counts = { errors: 0, warnings: 0, infos: 0 };
+      for (const d of fileDiagnostics) {
+        if (d.severity === 1) {
+          counts.errors++;
+        } else if (d.severity === 2) {
+          counts.warnings++;
+        } else {
+          counts.infos++;
+        }
+      }
+      summary[uri] = counts;
+    }
+  }
+  return summary;
+};
 
 const globToRegex = (glob: string) => {
   return RegExp(
@@ -111,6 +143,20 @@ export abstract class SparkdownWorkspace {
 
   omitImageData = false;
 
+  /**
+   * When enabled, the `compiler/didCompile` notification relays a SLIM
+   * projection of the program (uri/scripts/files/pathLocations/diagnostics/
+   * version) instead of the whole thing. On a large project the full program
+   * is huge (~9MB for an ~8kloc script) and re-broadcast on EVERY compile —
+   * the receiving thread pays a structured-clone deserialization of all of it
+   * per keystroke. The impower web editor's main thread only ever reads
+   * diagnostics (WorkspaceWindow debug store) and scripts+pathLocations
+   * (PreviewGame PageUp/PageDown source navigation), so it opts in via
+   * initializationOptions. Defaults to false: the vscode extension consumes
+   * the full program from this notification (SparkProgramManager).
+   */
+  slimProgramNotifications = false;
+
   private _resolveInitializingCompiler!: () => void;
 
   private _initializingCompiler?: Promise<void>;
@@ -187,6 +233,7 @@ export abstract class SparkdownWorkspace {
       };
       uri?: string;
       omitImageData?: boolean;
+      slimProgramNotifications?: boolean;
       files?: Omit<File, "type" | "name" | "ext">[];
     } & Omit<SparkdownCompilerConfig, "files">;
   }): Promise<{
@@ -200,10 +247,20 @@ export abstract class SparkdownWorkspace {
   }> {
     this._clientCapabilities = params.capabilities;
     if (params.initializationOptions) {
-      const { omitImageData, settings, uri, ...compilerConfig } =
-        params.initializationOptions;
+      // (slimProgramNotifications must be destructured out so it doesn't
+      // fall through into compilerConfig.)
+      const {
+        omitImageData,
+        slimProgramNotifications,
+        settings,
+        uri,
+        ...compilerConfig
+      } = params.initializationOptions;
       if (omitImageData != null) {
         this.omitImageData = omitImageData;
+      }
+      if (slimProgramNotifications != null) {
+        this.slimProgramNotifications = slimProgramNotifications;
       }
       if (settings) {
         this.loadConfiguration(settings);
@@ -600,7 +657,35 @@ export abstract class SparkdownWorkspace {
     if (result?.program) {
       const state = this.getProgramState(uri);
       result.program.version = state.version;
-      this.sendNotification(CompiledProgramMessage.method, result);
+      // With slimProgramNotifications, relay only what the notification's
+      // consumers actually read instead of the whole program (which is ~9MB on
+      // a large project and re-broadcast on EVERY compile; the receiver pays a
+      // structured-clone of all of it per keystroke).
+      //
+      // The impower web editor's main thread needs just `diagnosticsSummary`
+      // (file/tab error+warning colors). Everything else is fetched on demand
+      // or delivered through a dedicated channel:
+      //   - full diagnostics    → textDocument/publishDiagnostics
+      //   - prev/next beat      → sparkdown/offsetSourceLocation
+      // uri/scripts/files/version ride along because they're small and
+      // identify the compile. Resist adding heavy fields back here — prefer an
+      // on-demand request.
+      const notificationParams: CompiledProgramParams = this
+        .slimProgramNotifications
+        ? {
+            ...result,
+            program: {
+              uri: result.program.uri,
+              scripts: result.program.scripts,
+              files: result.program.files,
+              version: result.program.version,
+            },
+            diagnosticsSummary: summarizeDiagnostics(
+              result.program.diagnostics,
+            ),
+          }
+        : result;
+      this.sendNotification(CompiledProgramMessage.method, notificationParams);
       this.onCompiledTextDocument({
         textDocument: { uri },
         program: result.program,
