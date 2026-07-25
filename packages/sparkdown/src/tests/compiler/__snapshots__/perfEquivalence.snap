@@ -17854,25 +17854,58 @@
           "inset": "0",
           "position": "absolute"
         },
+        "badge": {
+          "$name": "badge",
+          "$type": "style",
+          "background-color": "sky_60",
+          "child-align": "center",
+          "child-justify": "center",
+          "child-layout": "row",
+          "corner": "1rem",
+          "display": "flex",
+          "padding": "0.125rem 0.5rem",
+          "text-color": "white",
+          "text-size": "0.75rem",
+          "text-weight": "600"
+        },
         "button": {
           "$name": "button",
           "$type": "style",
-          "@hovered": {
-            "background_color": "rgb(69 69 69)"
+          "@focused": {
+            "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
           },
-          "align_items": "center",
-          "background_color": "rgb(52 52 52)",
-          "border": "1px solid rgb(95 95 95)",
-          "border_radius": "8px",
-          "color": "white",
+          "@hovered": {
+            "background-color": "sky_70",
+            "border-color": "sky_70"
+          },
+          "background-color": "sky_60",
+          "border-color": "sky_60",
+          "border-style": "solid",
+          "border-width": "0.0625rem",
+          "child-align": "center",
+          "child-justify": "center",
+          "child-layout": "row",
+          "corner": "0.25rem",
           "cursor": "pointer",
           "display": "flex",
-          "flex_direction": "row",
-          "font_weight": "600",
-          "justify_content": "center",
-          "padding": "8px 20px",
-          "text_align": "center",
-          "transition": "background-color 0.15s linear"
+          "padding": "0.75rem 1rem",
+          "text-align": "center",
+          "text-color": "white",
+          "text-weight": "500",
+          "transition": "all 0.2s ease-in-out"
+        },
+        "card": {
+          "$name": "card",
+          "$type": "style",
+          "background-color": "slate_30",
+          "border-color": "slate_40",
+          "border-style": "solid",
+          "border-width": "0.0625rem",
+          "child-gap": "1rem",
+          "child-layout": "column",
+          "corner": "0.5rem",
+          "display": "flex",
+          "padding": "1.5rem"
         },
         "character_info": {
           "$name": "character_info",
@@ -17907,10 +17940,10 @@
         "checkbox": {
           "$name": "checkbox",
           "$type": "style",
-          "accent_color": "rgb(96 165 250)",
+          "accent-color": "sky_60",
           "cursor": "pointer",
-          "height": "20px",
-          "width": "20px"
+          "height": "1.25rem",
+          "width": "1.25rem"
         },
         "choice": {
           "$name": "choice",
@@ -17954,6 +17987,14 @@
           "display": "flex",
           "flex_direction": "column"
         },
+        "container": {
+          "$name": "container",
+          "$type": "style",
+          "margin": "0 auto",
+          "padding": "1rem",
+          "width": "100%",
+          "width-max": "40rem"
+        },
         "continue_indicator": {
           "$name": "continue_indicator",
           "$type": "style",
@@ -17969,6 +18010,13 @@
           "transition": "opacity 0.25s linear",
           "width": "16px"
         },
+        "contrast": {
+          "$name": "contrast",
+          "$type": "style",
+          "background-color": "slate_90",
+          "border-color": "slate_90",
+          "text-color": "slate_20"
+        },
         "dialogue": {
           "$name": "dialogue",
           "$type": "style",
@@ -17981,21 +18029,87 @@
         "dropdown": {
           "$name": "dropdown",
           "$type": "style",
-          "background_color": "rgb(37 37 37)",
-          "border": "1px solid rgb(95 95 95)",
-          "border_radius": "6px",
-          "color": "white",
+          "@focused": {
+            "border-color": "sky_60",
+            "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
+          },
+          "background-color": "slate_30",
+          "border-color": "slate_40",
+          "border-style": "solid",
+          "border-width": "0.0625rem",
+          "corner": "0.25rem",
           "cursor": "pointer",
-          "padding": "8px 12px"
+          "padding": "0.75rem 1rem",
+          "text-color": "slate_90",
+          "transition": "all 0.2s ease-in-out"
         },
         "field": {
           "$name": "field",
           "$type": "style",
-          "background_color": "rgb(37 37 37)",
-          "border": "1px solid rgb(95 95 95)",
-          "border_radius": "6px",
-          "color": "white",
-          "padding": "8px 12px"
+          "@focused": {
+            "border-color": "sky_60",
+            "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
+          },
+          "background-color": "slate_30",
+          "border-color": "slate_40",
+          "border-style": "solid",
+          "border-width": "0.0625rem",
+          "corner": "0.25rem",
+          "padding": "0.75rem 1rem",
+          "text-color": "slate_90",
+          "transition": "all 0.2s ease-in-out"
+        },
+        "grid": {
+          "$name": "grid",
+          "$type": "style",
+          "child-columns": "1fr 1fr",
+          "child-gap": "1rem",
+          "child-layout": "grid"
+        },
+        "group": {
+          "$name": "group",
+          "$type": "style",
+          "child-gap": "0.5rem",
+          "child-layout": "row",
+          "display": "flex"
+        },
+        "h1": {
+          "$name": "h1",
+          "$type": "style",
+          "text-leading": "1.125",
+          "text-size": "2rem",
+          "text-weight": "700"
+        },
+        "h2": {
+          "$name": "h2",
+          "$type": "style",
+          "text-leading": "1.2",
+          "text-size": "1.5rem",
+          "text-weight": "700"
+        },
+        "h3": {
+          "$name": "h3",
+          "$type": "style",
+          "text-size": "1.25rem",
+          "text-weight": "700"
+        },
+        "h4": {
+          "$name": "h4",
+          "$type": "style",
+          "text-size": "1.125rem",
+          "text-weight": "700"
+        },
+        "h5": {
+          "$name": "h5",
+          "$type": "style",
+          "text-size": "1rem",
+          "text-weight": "700"
+        },
+        "h6": {
+          "$name": "h6",
+          "$type": "style",
+          "text-size": "0.875rem",
+          "text-weight": "700"
         },
         "heading": {
           "$name": "heading",
@@ -18010,6 +18124,12 @@
           "padding_right": "40px",
           "position": "absolute",
           "text_align": "center"
+        },
+        "hint": {
+          "$name": "hint",
+          "$type": "style",
+          "text-color": "slate_60",
+          "text-size": "0.875rem"
         },
         "image": {
           "$name": "image",
@@ -18034,12 +18154,27 @@
           "position": "absolute",
           "will_change": "transform"
         },
+        "invalid": {
+          "$name": "invalid",
+          "$type": "style",
+          "border-color": "red_60"
+        },
+        "label": {
+          "$name": "label",
+          "$type": "style",
+          "text-size": "0.875rem",
+          "text-weight": "500"
+        },
         "link": {
           "$name": "link",
           "$type": "style",
-          "color": "rgb(96 165 250)",
+          "@hovered": {
+            "text-color": "sky_70"
+          },
           "cursor": "pointer",
-          "text_decoration": "underline"
+          "text-color": "sky_60",
+          "text-decoration": "underline",
+          "transition": "all 0.2s ease-in-out"
         },
         "loading_bar": {
           "$name": "loading_bar",
@@ -18061,13 +18196,11 @@
         "main": {
           "$name": "main",
           "$type": "style",
-          "@screen_size(sm)": {
-            "font_size": "1.125rem"
-          },
-          "color": "white",
-          "font_family": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto,\n    Helvetica, Arial, system-ui, sans-serif, \"Apple Color Emoji\",\n    \"Segoe UI Emoji\", \"Segoe UI Symbol\"",
-          "font_size": "1.25rem",
-          "line_height": "1.5"
+          "text-color": "slate_80",
+          "text-font": "system-ui, -apple-system, \"Segoe UI\", Roboto, Oxygen, Ubuntu, Cantarell, Helvetica, Arial, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\"",
+          "text-leading": "1.5",
+          "text-size": "1rem",
+          "text-weight": "400"
         },
         "mask": {
           "$name": "mask",
@@ -18088,6 +18221,19 @@
           "position": "absolute",
           "will_change": "transform"
         },
+        "muted": {
+          "$name": "muted",
+          "$type": "style",
+          "text-color": "slate_60"
+        },
+        "nav": {
+          "$name": "nav",
+          "$type": "style",
+          "child-align": "center",
+          "child-gap": "1rem",
+          "child-layout": "row",
+          "display": "flex"
+        },
         "object": {
           "$name": "object",
           "$type": "style",
@@ -18098,8 +18244,14 @@
         "option": {
           "$name": "option",
           "$type": "style",
-          "background_color": "rgb(37 37 37)",
-          "color": "white"
+          "background-color": "slate_30",
+          "text-color": "slate_90"
+        },
+        "outline": {
+          "$name": "outline",
+          "$type": "style",
+          "background-color": "transparent",
+          "text-color": "sky_60"
         },
         "overlay": {
           "$name": "overlay",
@@ -18123,6 +18275,21 @@
           "right": "0",
           "top": "10%"
         },
+        "progress": {
+          "$name": "progress",
+          "$type": "style",
+          "background-color": "slate_30",
+          "corner": "0.25rem",
+          "height": "0.5rem",
+          "width": "100%"
+        },
+        "progress_fill": {
+          "$name": "progress_fill",
+          "$type": "style",
+          "background-color": "sky_60",
+          "corner": "0.25rem",
+          "height": "100%"
+        },
         "row": {
           "$name": "row",
           "$type": "style",
@@ -18139,12 +18306,23 @@
           "pointer_events": "none",
           "position": "absolute"
         },
+        "secondary": {
+          "$name": "secondary",
+          "$type": "style",
+          "background-color": "slate_50",
+          "border-color": "slate_50"
+        },
         "slider": {
           "$name": "slider",
           "$type": "style",
-          "accent_color": "rgb(96 165 250)",
+          "accent-color": "sky_60",
           "cursor": "pointer",
           "width": "200px"
+        },
+        "small": {
+          "$name": "small",
+          "$type": "style",
+          "text-size": "0.875rem"
         },
         "stack": {
           "$name": "stack",
@@ -18275,6 +18453,11 @@
           "position": "absolute",
           "text_align": "right",
           "width": "100%"
+        },
+        "valid": {
+          "$name": "valid",
+          "$type": "style",
+          "border-color": "green_60"
         }
       },
       "synth": {
@@ -90257,25 +90440,58 @@
           "inset": "0",
           "position": "absolute"
         },
+        "badge": {
+          "$name": "badge",
+          "$type": "style",
+          "background-color": "sky_60",
+          "child-align": "center",
+          "child-justify": "center",
+          "child-layout": "row",
+          "corner": "1rem",
+          "display": "flex",
+          "padding": "0.125rem 0.5rem",
+          "text-color": "white",
+          "text-size": "0.75rem",
+          "text-weight": "600"
+        },
         "button": {
           "$name": "button",
           "$type": "style",
-          "@hovered": {
-            "background_color": "rgb(69 69 69)"
+          "@focused": {
+            "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
           },
-          "align_items": "center",
-          "background_color": "rgb(52 52 52)",
-          "border": "1px solid rgb(95 95 95)",
-          "border_radius": "8px",
-          "color": "white",
+          "@hovered": {
+            "background-color": "sky_70",
+            "border-color": "sky_70"
+          },
+          "background-color": "sky_60",
+          "border-color": "sky_60",
+          "border-style": "solid",
+          "border-width": "0.0625rem",
+          "child-align": "center",
+          "child-justify": "center",
+          "child-layout": "row",
+          "corner": "0.25rem",
           "cursor": "pointer",
           "display": "flex",
-          "flex_direction": "row",
-          "font_weight": "600",
-          "justify_content": "center",
-          "padding": "8px 20px",
-          "text_align": "center",
-          "transition": "background-color 0.15s linear"
+          "padding": "0.75rem 1rem",
+          "text-align": "center",
+          "text-color": "white",
+          "text-weight": "500",
+          "transition": "all 0.2s ease-in-out"
+        },
+        "card": {
+          "$name": "card",
+          "$type": "style",
+          "background-color": "slate_30",
+          "border-color": "slate_40",
+          "border-style": "solid",
+          "border-width": "0.0625rem",
+          "child-gap": "1rem",
+          "child-layout": "column",
+          "corner": "0.5rem",
+          "display": "flex",
+          "padding": "1.5rem"
         },
         "character_info": {
           "$name": "character_info",
@@ -90310,10 +90526,10 @@
         "checkbox": {
           "$name": "checkbox",
           "$type": "style",
-          "accent_color": "rgb(96 165 250)",
+          "accent-color": "sky_60",
           "cursor": "pointer",
-          "height": "20px",
-          "width": "20px"
+          "height": "1.25rem",
+          "width": "1.25rem"
         },
         "choice": {
           "$name": "choice",
@@ -90357,6 +90573,14 @@
           "display": "flex",
           "flex_direction": "column"
         },
+        "container": {
+          "$name": "container",
+          "$type": "style",
+          "margin": "0 auto",
+          "padding": "1rem",
+          "width": "100%",
+          "width-max": "40rem"
+        },
         "continue_indicator": {
           "$name": "continue_indicator",
           "$type": "style",
@@ -90372,6 +90596,13 @@
           "transition": "opacity 0.25s linear",
           "width": "16px"
         },
+        "contrast": {
+          "$name": "contrast",
+          "$type": "style",
+          "background-color": "slate_90",
+          "border-color": "slate_90",
+          "text-color": "slate_20"
+        },
         "dialogue": {
           "$name": "dialogue",
           "$type": "style",
@@ -90384,21 +90615,87 @@
         "dropdown": {
           "$name": "dropdown",
           "$type": "style",
-          "background_color": "rgb(37 37 37)",
-          "border": "1px solid rgb(95 95 95)",
-          "border_radius": "6px",
-          "color": "white",
+          "@focused": {
+            "border-color": "sky_60",
+            "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
+          },
+          "background-color": "slate_30",
+          "border-color": "slate_40",
+          "border-style": "solid",
+          "border-width": "0.0625rem",
+          "corner": "0.25rem",
           "cursor": "pointer",
-          "padding": "8px 12px"
+          "padding": "0.75rem 1rem",
+          "text-color": "slate_90",
+          "transition": "all 0.2s ease-in-out"
         },
         "field": {
           "$name": "field",
           "$type": "style",
-          "background_color": "rgb(37 37 37)",
-          "border": "1px solid rgb(95 95 95)",
-          "border_radius": "6px",
-          "color": "white",
-          "padding": "8px 12px"
+          "@focused": {
+            "border-color": "sky_60",
+            "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
+          },
+          "background-color": "slate_30",
+          "border-color": "slate_40",
+          "border-style": "solid",
+          "border-width": "0.0625rem",
+          "corner": "0.25rem",
+          "padding": "0.75rem 1rem",
+          "text-color": "slate_90",
+          "transition": "all 0.2s ease-in-out"
+        },
+        "grid": {
+          "$name": "grid",
+          "$type": "style",
+          "child-columns": "1fr 1fr",
+          "child-gap": "1rem",
+          "child-layout": "grid"
+        },
+        "group": {
+          "$name": "group",
+          "$type": "style",
+          "child-gap": "0.5rem",
+          "child-layout": "row",
+          "display": "flex"
+        },
+        "h1": {
+          "$name": "h1",
+          "$type": "style",
+          "text-leading": "1.125",
+          "text-size": "2rem",
+          "text-weight": "700"
+        },
+        "h2": {
+          "$name": "h2",
+          "$type": "style",
+          "text-leading": "1.2",
+          "text-size": "1.5rem",
+          "text-weight": "700"
+        },
+        "h3": {
+          "$name": "h3",
+          "$type": "style",
+          "text-size": "1.25rem",
+          "text-weight": "700"
+        },
+        "h4": {
+          "$name": "h4",
+          "$type": "style",
+          "text-size": "1.125rem",
+          "text-weight": "700"
+        },
+        "h5": {
+          "$name": "h5",
+          "$type": "style",
+          "text-size": "1rem",
+          "text-weight": "700"
+        },
+        "h6": {
+          "$name": "h6",
+          "$type": "style",
+          "text-size": "0.875rem",
+          "text-weight": "700"
         },
         "heading": {
           "$name": "heading",
@@ -90413,6 +90710,12 @@
           "padding_right": "40px",
           "position": "absolute",
           "text_align": "center"
+        },
+        "hint": {
+          "$name": "hint",
+          "$type": "style",
+          "text-color": "slate_60",
+          "text-size": "0.875rem"
         },
         "image": {
           "$name": "image",
@@ -90437,12 +90740,27 @@
           "position": "absolute",
           "will_change": "transform"
         },
+        "invalid": {
+          "$name": "invalid",
+          "$type": "style",
+          "border-color": "red_60"
+        },
+        "label": {
+          "$name": "label",
+          "$type": "style",
+          "text-size": "0.875rem",
+          "text-weight": "500"
+        },
         "link": {
           "$name": "link",
           "$type": "style",
-          "color": "rgb(96 165 250)",
+          "@hovered": {
+            "text-color": "sky_70"
+          },
           "cursor": "pointer",
-          "text_decoration": "underline"
+          "text-color": "sky_60",
+          "text-decoration": "underline",
+          "transition": "all 0.2s ease-in-out"
         },
         "loading_bar": {
           "$name": "loading_bar",
@@ -90464,13 +90782,11 @@
         "main": {
           "$name": "main",
           "$type": "style",
-          "@screen_size(sm)": {
-            "font_size": "1.125rem"
-          },
-          "color": "white",
-          "font_family": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto,\n    Helvetica, Arial, system-ui, sans-serif, \"Apple Color Emoji\",\n    \"Segoe UI Emoji\", \"Segoe UI Symbol\"",
-          "font_size": "1.25rem",
-          "line_height": "1.5"
+          "text-color": "slate_80",
+          "text-font": "system-ui, -apple-system, \"Segoe UI\", Roboto, Oxygen, Ubuntu, Cantarell, Helvetica, Arial, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\"",
+          "text-leading": "1.5",
+          "text-size": "1rem",
+          "text-weight": "400"
         },
         "mask": {
           "$name": "mask",
@@ -90491,6 +90807,19 @@
           "position": "absolute",
           "will_change": "transform"
         },
+        "muted": {
+          "$name": "muted",
+          "$type": "style",
+          "text-color": "slate_60"
+        },
+        "nav": {
+          "$name": "nav",
+          "$type": "style",
+          "child-align": "center",
+          "child-gap": "1rem",
+          "child-layout": "row",
+          "display": "flex"
+        },
         "object": {
           "$name": "object",
           "$type": "style",
@@ -90501,8 +90830,14 @@
         "option": {
           "$name": "option",
           "$type": "style",
-          "background_color": "rgb(37 37 37)",
-          "color": "white"
+          "background-color": "slate_30",
+          "text-color": "slate_90"
+        },
+        "outline": {
+          "$name": "outline",
+          "$type": "style",
+          "background-color": "transparent",
+          "text-color": "sky_60"
         },
         "overlay": {
           "$name": "overlay",
@@ -90526,6 +90861,21 @@
           "right": "0",
           "top": "10%"
         },
+        "progress": {
+          "$name": "progress",
+          "$type": "style",
+          "background-color": "slate_30",
+          "corner": "0.25rem",
+          "height": "0.5rem",
+          "width": "100%"
+        },
+        "progress_fill": {
+          "$name": "progress_fill",
+          "$type": "style",
+          "background-color": "sky_60",
+          "corner": "0.25rem",
+          "height": "100%"
+        },
         "row": {
           "$name": "row",
           "$type": "style",
@@ -90542,12 +90892,23 @@
           "pointer_events": "none",
           "position": "absolute"
         },
+        "secondary": {
+          "$name": "secondary",
+          "$type": "style",
+          "background-color": "slate_50",
+          "border-color": "slate_50"
+        },
         "slider": {
           "$name": "slider",
           "$type": "style",
-          "accent_color": "rgb(96 165 250)",
+          "accent-color": "sky_60",
           "cursor": "pointer",
           "width": "200px"
+        },
+        "small": {
+          "$name": "small",
+          "$type": "style",
+          "text-size": "0.875rem"
         },
         "stack": {
           "$name": "stack",
@@ -90678,6 +91039,11 @@
           "position": "absolute",
           "text_align": "right",
           "width": "100%"
+        },
+        "valid": {
+          "$name": "valid",
+          "$type": "style",
+          "border-color": "green_60"
         }
       },
       "synth": {
