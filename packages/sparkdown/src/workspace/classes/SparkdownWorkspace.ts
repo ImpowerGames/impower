@@ -172,6 +172,29 @@ export abstract class SparkdownWorkspace {
     return this._initializedCompiler;
   }
 
+  /**
+   * Resolves once `configureCompiler` has completed — i.e. the compiler worker
+   * has its document registry and can actually compile.
+   *
+   * Requests that arrive before then used to fail hard with "Compiler has not
+   * been configured!" (the `documents` getter throws), which on a large project
+   * meant semantic tokens / code lenses erroring for as long as initialization
+   * took, with no retry. Compiles now wait for this instead.
+   *
+   * Deliberately `undefined` until `initialize()` is entered: if initialization
+   * is never going to happen there is nothing to wait for, and waiting forever
+   * would turn a loud error into a silent hang.
+   */
+  protected _compilerConfigured = false;
+  protected _resolveCompilerConfigured?: () => void;
+  protected _compilerConfiguring?: Promise<void>;
+  get whenCompilerConfigured(): Promise<void> | undefined {
+    if (this._compilerConfigured) {
+      return Promise.resolve();
+    }
+    return this._compilerConfiguring;
+  }
+
   constructor(compilerInlineWorkerContent: string, profilerId?: string) {
     this._profilerId = profilerId;
     const compilerWorker = new Worker(
@@ -246,6 +269,9 @@ export abstract class SparkdownWorkspace {
     }[];
   }> {
     this._clientCapabilities = params.capabilities;
+    this._compilerConfiguring ??= new Promise<void>((resolve) => {
+      this._resolveCompilerConfigured = resolve;
+    });
     if (params.initializationOptions) {
       // (slimProgramNotifications must be destructured out so it doesn't
       // fall through into compilerConfig.)
@@ -380,10 +406,17 @@ export abstract class SparkdownWorkspace {
   }
 
   async configureCompiler(config: SparkdownCompilerConfig) {
-    return this._compilerChannelConnection.sendRequest(
-      ConfigureCompilerMessage.type,
-      config,
-    );
+    try {
+      return await this._compilerChannelConnection.sendRequest(
+        ConfigureCompilerMessage.type,
+        config,
+      );
+    } finally {
+      // Settle even on failure: a waiter blocking forever would be worse than
+      // the original error surfacing at the compile site.
+      this._compilerConfigured = true;
+      this._resolveCompilerConfigured?.();
+    }
   }
 
   async loadFile(file: { uri: string }) {
@@ -751,6 +784,12 @@ export abstract class SparkdownWorkspace {
   }
 
   protected async compileDocument(uri: string) {
+    // Wait out initialization rather than throwing "Compiler has not been
+    // configured!" at whoever asked first (see `whenCompilerConfigured`).
+    const configuring = this.whenCompilerConfigured;
+    if (configuring) {
+      await configuring;
+    }
     this._lastCompiledUri = uri;
     const result = await this._compilerChannelConnection.sendRequest(
       CompileProgramMessage.type,
