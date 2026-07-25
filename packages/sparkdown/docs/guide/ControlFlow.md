@@ -39,18 +39,29 @@ end
 Render one copy of a block per item:
 
 ```sparkdown
-store player = { inventory = { { name = "Potion", icon = "potion" } } }
-function use_item(item)  end
-
 layout bag with
-  for item in player.inventory do
-    row item:
-      image #src={item.icon} #width=32 #height=32
+  for key, item in player.inventory do
+    row #child-gap=16:
       text "{item.name}"
-      button "Use" @click=use_item(item)
+      button "Use" @click=use_item(key, item)
   else
-    text empty "Your bag is empty."
+    text "Your bag is empty."
   end
+end
+
+[[open bag]]
+
+store player = { 
+  inventory = { 
+    { name = "Potion" }, 
+    { name = "Apple" }, 
+    { name = "Stew" } 
+  } 
+}
+
+function use_item(key, item)
+  player.inventory[key] = nil
+  return `You used a {item.name}`
 end
 ```
 

@@ -7,13 +7,15 @@
 Here's a quick example of what a Sparkle layout looks like:
 
 ```sparkdown
-store player = { name = "Hero" }       -- state the UI reads
-function start_game()  end             -- the event's handler
-
 layout main with                       -- a layout named main
-  column menu #child-gap=24:           -- a column, plus a class and a prop
-    text "Welcome, {player.name}!"     -- content with an interpolated {value}
-    button "Begin" @click=start_game   -- content + an event
+  column #child-gap=24:                -- a class and a prop
+    text "Welcome, {player.name}!"     -- an element with an interpolated {value}
+    button "Begin" @click=start_game   -- an element with a bound event
+end
+
+store player = { name = "Hero" }
+scene start_game()
+  You enter the city.
 end
 ```
 
@@ -33,10 +35,6 @@ A **layout** is a tree of UI — a menu, a HUD, a dialog, an inventory panel.
 You create one with the `layout` keyword, and everything inside `with … end` is what it displays:
 
 ```sparkdown
-function start_game()    end
-function open_settings() end
-function quit_game()     end
-
 layout main with
   column #child-gap=24 #child-align=center:
     text "Feature Creeper"
@@ -44,6 +42,10 @@ layout main with
     button "Options" @click=open_settings
     button "Quit"    @click=quit_game
 end
+
+function start_game() ... end
+function open_settings() ... end
+function quit_game() ... end
 ```
 
 - **The layout's name** (like `main`) identifies it.
@@ -66,19 +68,19 @@ button "Press me!"
 
 Common built-in elements:
 
-| Element | Purpose |
-| :-- | :-- |
-| `text`, `stroke` | Display text |
-| `image`, `mask` | Display an image |
-| `box`, `scroller` | Group (and scroll) children |
-| `button`, `link` | Clickable controls |
+| Element                                             | Purpose                                                       |
+| :-------------------------------------------------- | :------------------------------------------------------------ |
+| `text`, `stroke`                                    | Display text                                                  |
+| `image`, `mask`                                     | Display an image                                              |
+| `box`, `scroller`                                   | Group (and scroll) children                                   |
+| `button`, `link`                                    | Clickable controls                                            |
 | `field` / `input`, `slider`, `checkbox`, `dropdown` | Interactive widgets (see [Interactive Widgets](./Widgets.md)) |
 
 > **Layout classes, not elements.** `row`, `column`, `stack`, and `overlay` aren't
 > elements — they're built-in **classes** that set how an element arranges its children
 > (`row` / `column` lay them out in a line; `stack` / `overlay` layer them). Writing
 > `column:` is shorthand for a container carrying the `column` class, which is why they
-> read like elements in the examples. Because they're classes, they work on *any*
+> read like elements in the examples. Because they're classes, they work on _any_
 > element — `button column:` is a button that stacks its children.
 
 An element line can carry classes, content, props, events, and children — in that order:

@@ -65,7 +65,7 @@ style dialogue with
     text-color = black
   >> image:               -- any descendant `image`
     opacity = 0.5
-  @screen-size(sm):       -- responsive: at the `sm` breakpoint and below
+  @screen-size(sm):       -- responsive: <= `sm` breakpoint
     width = 100%
   @hovered:               -- on hover
     background-color = black
