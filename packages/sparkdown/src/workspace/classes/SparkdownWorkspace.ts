@@ -657,19 +657,17 @@ export abstract class SparkdownWorkspace {
     if (result?.program) {
       const state = this.getProgramState(uri);
       result.program.version = state.version;
-      // With slimProgramNotifications, relay only what the notification's
-      // consumers actually read instead of the whole program (which is ~9MB on
-      // a large project and re-broadcast on EVERY compile; the receiver pays a
-      // structured-clone of all of it per keystroke).
-      //
-      // The impower web editor's main thread needs just `diagnosticsSummary`
-      // (file/tab error+warning colors). Everything else is fetched on demand
-      // or delivered through a dedicated channel:
-      //   - full diagnostics    → textDocument/publishDiagnostics
-      //   - prev/next beat      → sparkdown/offsetSourceLocation
-      // uri/scripts/files/version ride along because they're small and
-      // identify the compile. Resist adding heavy fields back here — prefer an
-      // on-demand request.
+      // With slimProgramNotifications, relay only the program fields the
+      // notification's consumers actually read instead of the whole program
+      // (which is ~9MB on a large project and re-broadcast on EVERY compile;
+      // the receiver pays a structured-clone of all of it per keystroke).
+      // The impower web editor's main thread reads only:
+      //   - diagnosticsSummary (WorkspaceWindow → file/tab error+warning colors;
+      //     full diagnostics reach editor views via publishDiagnostics)
+      //   - scripts + pathLocations (PreviewGame PageUp/PageDown navigation)
+      // uri/files/version ride along because they're required/cheap. Add a
+      // field here if a new main-thread consumer ever needs it — or better,
+      // fetch it on demand instead.
       const notificationParams: CompiledProgramParams = this
         .slimProgramNotifications
         ? {
@@ -678,6 +676,7 @@ export abstract class SparkdownWorkspace {
               uri: result.program.uri,
               scripts: result.program.scripts,
               files: result.program.files,
+              pathLocations: result.program.pathLocations,
               version: result.program.version,
             },
             diagnosticsSummary: summarizeDiagnostics(
