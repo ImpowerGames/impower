@@ -23,6 +23,7 @@ import { getFileReferences } from "./utils/providers/getFileReferences";
 import { getFileRenameEdits } from "./utils/providers/getFileRenameEdits";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
+import { getOffsetSourceLocation } from "./utils/providers/getOffsetSourceLocation";
 import { getReferences } from "./utils/providers/getReferences";
 import { getRenameEdits } from "./utils/providers/getRenameEdits";
 import {
@@ -383,6 +384,23 @@ try {
       const mainUri = workspace.getMainScriptUri(params.uri);
       const program = workspace.program(mainUri ?? params.uri);
       return getFileReferences(workspace, program, params.uri)?.references ?? [];
+    },
+  );
+  // Custom: previous/next beat location for PageUp/PageDown navigation.
+  // Answered here (rather than from a client-side copy of the program) so
+  // `pathLocations` — ~12k entries / ~600KB on a feature-length script —
+  // never has to ride along with every compile notification.
+  connection.onRequest(
+    "sparkdown/offsetSourceLocation",
+    (params: { uri: string; line: number; offset: number }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      const program = workspace.program(mainUri ?? params.uri);
+      return getOffsetSourceLocation(
+        program,
+        params.uri,
+        params.line,
+        params.offset,
+      );
     },
   );
   connection.onRequest(

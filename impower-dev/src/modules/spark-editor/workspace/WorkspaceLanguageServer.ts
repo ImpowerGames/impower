@@ -369,6 +369,24 @@ export default class WorkspaceLanguageServer {
     );
   }
 
+  /**
+   * The source position `offset` beats away from (`uri`, `line`) — used by
+   * PageUp/PageDown navigation in the game preview. Resolved on demand by the
+   * language server so the program's `pathLocations` (~12k entries) never has
+   * to be shipped to the main thread with every compile.
+   */
+  async getOffsetSourceLocation(
+    uri: string,
+    line: number,
+    offset: number,
+  ): Promise<{ file: string; line: number } | null> {
+    await this.initialization();
+    return this._connection.sendRequest<{ file: string; line: number } | null>(
+      "sparkdown/offsetSourceLocation",
+      { uri, line, offset },
+    );
+  }
+
   stop() {
     this._connection.dispose();
   }

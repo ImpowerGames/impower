@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "preact/hooks";
-import type { SparkProgram } from "../../../../../../packages/sparkdown/src/compiler/types/SparkProgram";
 import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
 import { installPreviewInspector } from "./previewInspect";
 
@@ -45,72 +44,9 @@ const STYLE = `
   }
 `;
 
-// Pure helpers — extracted from legacy class so the Preact component
-// stays compact. Find the previous/next source-position entry from a
-// SparkProgram given the current file + line.
-
-function getClosestSourceIndex(
-  allFiles: string[],
-  allPathToLocationEntries: [
-    string,
-    [number, number, number, number, number],
-  ][],
-  currentFile: string | undefined,
-  currentLine: number,
-): number | null {
-  if (currentFile == null) return null;
-  const fileIndex = allFiles.indexOf(currentFile);
-  if (fileIndex < 0) return null;
-  let closestIndex: number | null = null;
-  for (let i = 0; i < allPathToLocationEntries.length; i++) {
-    const entry = allPathToLocationEntries[i]!;
-    const [, source] = entry;
-    if (source) {
-      const [currFileIndex, currStartLine] = source;
-      if (currFileIndex === fileIndex && currStartLine === currentLine) {
-        closestIndex = i;
-        break;
-      }
-      if (currFileIndex === fileIndex && currStartLine > currentLine) {
-        closestIndex = i - 1;
-        break;
-      }
-      if (currFileIndex > fileIndex) {
-        closestIndex = null;
-        break;
-      }
-    }
-  }
-  return closestIndex;
-}
-
-function getOffsetSource(
-  program: SparkProgram,
-  currentFile: string | undefined,
-  currentLine: number,
-  offset: number,
-): { file: string; line: number } | null | undefined {
-  if (!program) return undefined;
-  const files = Object.keys(program.scripts);
-  const pathLocationEntries = Object.entries(
-    program.pathLocations || {},
-  ) as [string, [number, number, number, number, number]][];
-  const index = getClosestSourceIndex(
-    files,
-    pathLocationEntries,
-    currentFile,
-    currentLine,
-  );
-  if (index == null) return null;
-  const entry = pathLocationEntries[index + offset];
-  if (entry == null) return null;
-  const [uuid, source] = entry;
-  if (uuid == null) return null;
-  const [fileIndex, lineIndex] = source;
-  const file = files[fileIndex];
-  if (!file) return null;
-  return { file, line: lineIndex };
-}
+// Previous/next beat lookup for PageUp/PageDown now lives in the language
+// server (`sparkdown/offsetSourceLocation`) — it owns the program, and its
+// pathLocations are far too large to mirror on the main thread.
 
 /**
  * Right-pane Game preview. Hosts an `<iframe>` pointed at the sparkdown
@@ -463,14 +399,16 @@ export default function PreviewGame(_props: PreviewGameProps) {
           const editor = Workspace.window.getActiveEditorForPane("logic");
           if (!editor) return;
           if (e.key !== "PageUp" && e.key !== "PageDown") return;
-          const program = await Workspace.ls.getProgram();
-          if (!program) return;
           const { uri, selectedRange } = editor;
           const currLine = selectedRange?.start.line ?? 0;
-          const target =
-            e.key === "PageUp"
-              ? getOffsetSource(program, uri, currLine, -1)
-              : getOffsetSource(program, uri, currLine, 1);
+          // Resolved by the language server on demand — the program's
+          // pathLocations are far too large to ship to the main thread on
+          // every compile just to answer this occasional keypress.
+          const target = await Workspace.ls.getOffsetSourceLocation(
+            uri,
+            currLine,
+            e.key === "PageUp" ? -1 : 1,
+          );
           if (target && target.file === uri) {
             Workspace.window.showDocument(
               uri,
