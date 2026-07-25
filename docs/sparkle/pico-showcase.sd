@@ -1,0 +1,91 @@
+// Pico showcase — the builtin Pico-derived styles, rendered by the reactive
+// Sparkle engine.
+//
+// Paste this whole file into the editor to see it live, OR just open it: it is
+// the fixture behind
+// packages/spark-web-player/src/tests/ui/picoShowcase.test.ts, which compiles it
+// WARNING-FREE and asserts the rendered DOM. Adding a section here is how a
+// builtin earns CI coverage, so keep the two in sync.
+//
+// Element TAGS are builtins (box, span, scroller, text, stroke, link, label,
+// field, button, image, mask, input, slider, checkbox, dropdown, option,
+// divider). Everything else on an element line is a style CLASS — `column`,
+// `card`, `nav`, `badge`, `h1`, `muted`, … So it is `link "Home"`, NOT
+// `text link "Home"`: two tags on one line is a warning.
+
+store clicks = 0
+store volume = 40
+store notify = true
+store plan = "pro"
+
+function increment()
+  clicks += 1
+end
+
+function reset_clicks()
+  clicks = 0
+end
+
+function set_volume(event)
+  volume = event.value
+end
+
+function set_notify(event)
+  notify = event.checked
+end
+
+function set_plan(event)
+  plan = event.value
+end
+
+layout main with
+  column container #child-gap=20 #padding=28:
+
+    -- Typography
+    text h1 "Sparkle x Pico"
+    text muted "The builtin Pico styles, driven by reactive bindings."
+
+    -- Navigation
+    row nav #child-gap=18:
+      link "Home"
+      link "Docs"
+      link "About"
+
+    divider
+
+    -- Button variants
+    column card #child-gap=12:
+      text h3 "Buttons"
+      row group #child-gap=8:
+        button "Primary"
+        button secondary "Secondary"
+        button contrast "Contrast"
+        button outline "Outline"
+
+    -- Reactive state: @click handlers mutate a store, bindings re-render
+    column card #child-gap=12:
+      text h3 "Reactive state"
+      text "Clicks: {clicks}"
+      row #child-gap=8:
+        button "Increment" @click=increment
+        button outline "Reset" @click=reset_clicks
+
+    -- Form controls, each two-way bound to a store
+    column card #child-gap=12:
+      text h3 "Form controls"
+      label "Volume ({volume})"
+      slider #value={volume} #min=0 #max=100 @input=set_volume
+      row #child-gap=8:
+        checkbox #checked={notify} @change=set_notify
+        text "Notifications: {notify}"
+      label "Plan"
+      dropdown #value={plan} @change=set_plan:
+        option "Free" #value="free"
+        option "Pro" #value="pro"
+      text hint "Hints render quiet and small."
+
+    -- Inline accents
+    row #child-gap=8:
+      text badge "New"
+      text small "Small print."
+end

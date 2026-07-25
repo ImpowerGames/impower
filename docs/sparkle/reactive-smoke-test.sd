@@ -3,14 +3,13 @@
 // Exercises the whole reactive stack in the real player: a {hp} content
 // binding, an if/else, a keyed `for` over objects, and @click buttons that
 // mutate state. Paste this whole file into the editor (it compiles + pushes to
-// the player iframe). Opt into the reactive render path via `config.ui.reactive`.
-
-define ui as config with
-  styles_element_name = "styles"
-  layouts_element_name = "layouts"
-  breakpoints = { xs = 400, sm = 640, md = 768, lg = 1024, xl = 1280 }
-  reactive = true
-end
+// the player iframe).
+//
+// No config block is needed: the reactive layouts path is the ONLY render path
+// now, and `main` auto-opens. (The old `config.ui.reactive = true` opt-in was
+// retired — setting it does nothing.)
+//
+// See pico-showcase.sd for the builtin Pico styles.
 
 store hp = 100
 store alive = true
