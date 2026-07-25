@@ -1350,9 +1350,17 @@ export class GamePlayerController {
       this._game?.program.uri !== program?.uri ||
       this._game.program.version !== program?.version;
 
-    const validPreviewFrom = previewPath
-      ? previewFrom
-      : this._game?.previewFrom;
+    // When the cursor sits on a line that resolves to no path we keep the game's
+    // LAST valid preview point rather than resetting (sticky preview). But a pure
+    // UI-only project — a `layout` whose only path-located flows are the synthetic
+    // `__binding_*` evaluators, which findClosestPath excludes — never resolves a
+    // path at all, so the game would never have a remembered point and
+    // `game.preview()` below would never be called even once. Its layouts are
+    // mounted at connect but the layouts LAYER stays at `opacity:0`, so the whole
+    // UI renders invisibly. Fall back to the cursor itself so the engine always
+    // gets its preview call and can reveal the UI (Game.preview's no-path branch).
+    const validPreviewFrom =
+      (previewPath ? previewFrom : this._game?.previewFrom) ?? previewFrom;
     const validPreviewPath = previewPath
       ? previewPath
       : this._game?.previewPath;
