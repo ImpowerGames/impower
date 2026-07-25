@@ -1791,6 +1791,15 @@ export class Game<T extends M = {}> {
       this._scripts,
     );
     if (!previewPath) {
+      // A pure UI-only project (e.g. a `layout` with only reactive `{bindings}`)
+      // has no narrative path to preview: every path-located flow is a synthetic
+      // `__binding_*` evaluator, and those are excluded from preview candidates.
+      // Its layouts were still mounted at connect, but nothing reveals the
+      // layouts LAYER in this case — no content beat runs, so neither the
+      // per-beat Coordinator reveal nor the UI-only `continue()` fallback fires,
+      // and the layer stays at its mounted `opacity:0` (invisible). Reveal it
+      // here so previewing a UI-only screen actually shows it. Idempotent.
+      this.module.ui.reveal();
       return null;
     }
     if (this._context.system.previewing === previewPath) {
