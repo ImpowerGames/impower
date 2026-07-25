@@ -459,6 +459,33 @@ end
     expect(fill.children[0]).toMatchObject({ tag: "button" });
   });
 
+  // `slot`/`fill` are positional KEYWORDS. Tag resolution otherwise prefers a
+  // builtin token wherever it sits on the line, so a slot NAMED after a builtin
+  // used to lower as that element carrying a stray "slot"/"fill" class.
+  test("slot/fill still lower when the NAME collides with a builtin tag", () => {
+    const ast = componentAst(`component card with
+  box:
+    slot text
+    slot button
+end
+`);
+    const box = ast.card.children[0];
+    expect(box.children[0]).toEqual({ kind: "slot", name: "text" });
+    expect(box.children[1]).toEqual({ kind: "slot", name: "button" });
+  });
+
+  test("fill still lowers when the NAME collides with a builtin tag", () => {
+    const ast = screenAst(`layout s with
+  fill header:
+    button "Sort"
+end
+`);
+    const fill = ast.s.children[0];
+    expect(fill.kind).toBe("fill");
+    expect(fill.name).toBe("header");
+    expect(fill.children[0]).toMatchObject({ tag: "button" });
+  });
+
   test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
     const ast = screenAst(`layout hud with
   text = "literal {{braces}} kept"

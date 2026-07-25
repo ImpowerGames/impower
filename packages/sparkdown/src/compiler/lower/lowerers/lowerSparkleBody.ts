@@ -214,9 +214,9 @@ function descendants(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
 function tagAndClasses(
   node: SyntaxNode,
   ctx: LowerContext,
-): { tag: string | null; classes: string[] } {
+): { tag: string | null; classes: string[]; first: string | null } {
   const tokens = descendants(node, NAME_TOKEN_NAMES);
-  if (tokens.length === 0) return { tag: null, classes: [] };
+  if (tokens.length === 0) return { tag: null, classes: [], first: null };
   const builtins = tokens.filter((t) => t.name === "BuiltinComponentName");
   const tagNode = builtins[0] ?? tokens[0]!;
   if (builtins.length > 1) warnMultipleTags(builtins, ctx);
@@ -225,7 +225,11 @@ function tagAndClasses(
     .filter((t) => t !== tagNode)
     .map((t) => ctx.read(t.from, t.to).trim())
     .filter(Boolean);
-  return { tag, classes };
+  // The literal FIRST token, independent of the builtin preference above — the
+  // structural keywords (`slot`/`fill`) are positional and must not be shadowed
+  // by a builtin sitting later on the line.
+  const first = ctx.read(tokens[0]!.from, tokens[0]!.to).trim();
+  return { tag, classes, first };
 }
 
 /** Warn (editor-side) when an element line names more than one builtin tag —
@@ -825,24 +829,31 @@ function buildBlock(
     // `mask shadow_1` / `text title "Inventory"` / `row #background-color={c}`)
     // → an element; the builtin/component token is the tag, other bare words are
     // classes, plus optional adjacency content + inline props/events.
-    const { tag: parsedTag, classes } = tagAndClasses(kind, ctx);
+    const { tag: parsedTag, classes, first } = tagAndClasses(kind, ctx);
     const tag = parsedTag ?? ctx.read(content.from, content.to).trim();
     // Component slots (spec §4.7): `slot [name]` is a leaf placeholder for
     // caller children; `fill [name]:` (caller side) targets a named slot and
-    // carries children. The optional name is the trailing bare word (class slot).
-    if (tag === "slot") {
+    // carries children.
+    //
+    // Matched on the FIRST token, not on `tag`: `tagAndClasses` prefers a
+    // builtin token wherever it sits on the line, so a slot whose NAME happens
+    // to be a builtin (`slot footer`, `slot header`, `slot text`) would
+    // otherwise lower as that element carrying a stray "slot" class. The
+    // optional name is then simply the OTHER bare word on the line.
+    const slotName = [tag, ...classes].find((t) => t !== first);
+    if (first === "slot") {
       const slot: SlotNode = {
         kind: "slot",
-        ...(classes[0] ? { name: classes[0] } : {}),
+        ...(slotName ? { name: slotName } : {}),
       };
       children.push(slot);
       i += 1;
       continue;
     }
-    if (tag === "fill") {
+    if (first === "fill") {
       const fill: FillNode = {
         kind: "fill",
-        ...(classes[0] ? { name: classes[0] } : {}),
+        ...(slotName ? { name: slotName } : {}),
         children: [],
       };
       if (childIndent != null) {
