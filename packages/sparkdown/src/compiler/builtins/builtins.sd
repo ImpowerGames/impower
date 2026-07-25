@@ -1618,7 +1618,10 @@ style container with
   padding = 1rem
 end
 
--- Inline text elements ------------------------------------------------------
+-- Inline text CLASSES -------------------------------------------------------
+--
+-- Applied to a whole text element (`text bold "Bold"`, like `text h1`). For
+-- styling WITHIN a line, use rich-text tags: `text "a <b>bold</b> word"`.
 
 -- A block of flowing prose. The overlay lays everything out as FLEX, and CSS
 -- BLOCKIFIES the children of a flex container — so `strong` / `em` / `sub` /
@@ -1630,18 +1633,23 @@ style prose with
   text-color = slate_90
 end
 
-style strong with
-  display = inline
+style bold with
   text-weight = 700
 end
 
-style em with
-  display = inline
+style italic with
   text-style = italic
 end
 
+style underline with
+  text-decoration-line = underline
+end
+
+style strikethrough with
+  text-decoration-line = line-through
+end
+
 style code with
-  display = inline
   font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
   text-size = 0.875rem
   background-color = slate_30
@@ -1649,8 +1657,7 @@ style code with
   padding = 0.125rem 0.375rem
 end
 
-style kbd with
-  display = inline
+style key with
   font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
   text-size = 0.875rem
   background-color = slate_90
@@ -1659,42 +1666,26 @@ style kbd with
   padding = 0.125rem 0.375rem
 end
 
-style mark with
-  display = inline
+style highlight with
   background-color = amber_60
   text-color = slate_20
   padding = 0.0625rem 0.25rem
   corner = 0.125rem
 end
 
-style del with
-  display = inline
+style deleted with
   text-decoration = line-through
   text-color = slate_60
 end
 
-style ins with
-  display = inline
+style inserted with
   text-decoration = underline
   text-color = emerald_60
 end
 
-style abbr with
-  display = inline
+style abbreviation with
   text-decoration = underline dotted
   cursor = help
-end
-
-style sub with
-  display = inline
-  text-size = 0.75rem
-  vertical-align = sub
-end
-
-style sup with
-  display = inline
-  text-size = 0.75rem
-  vertical-align = super
 end
 
 -- `divider` renders an <hr>. The overlay's flex default would collapse it, so
@@ -1710,14 +1701,13 @@ style divider with
   border-top-color = slate_40
 end
 
-style cite with
-  display = inline
+style citation with
   text-style = italic
   text-color = slate_60
   text-size = 0.875rem
 end
 
-style blockquote with
+style quote with
   display = flex
   child-layout = column
   child-gap = 0.5rem
@@ -1734,19 +1724,19 @@ end
 -- overlay lays everything out as flex, and a flex `<li>` renders NO marker (a
 -- marker needs `display: list-item`). `child-gap` likewise does nothing on a
 -- non-flex parent, so list spacing is per-item margin.
-style ul with
+style list with
   display = block
   padding-left = 1.5rem
   list-style = square
 end
 
-style ol with
+style ordered_list with
   display = block
   padding-left = 1.5rem
   list-style = decimal
 end
 
-style li with
+style item with
   display = list-item
   text-color = slate_90
   margin-bottom = 0.25rem
@@ -1757,19 +1747,19 @@ end
 -- The table family needs its native display values spelled out: the overlay
 -- lays every element out as FLEX, and a flex table/row/cell does no table
 -- layout at all (columns stop aligning across rows).
-style thead with
+style table_header with
   display = table-header-group
 end
 
-style tbody with
+style table_body with
   display = table-row-group
 end
 
-style tfoot with
+style table_footer with
   display = table-footer-group
 end
 
-style tr with
+style table_row with
   display = table-row
 end
 
@@ -1781,7 +1771,7 @@ style table with
   margin = 1rem 0
 end
 
-style th with
+style header_cell with
   display = table-cell
   padding = 0.75rem 1rem
   text-weight = 600
@@ -1791,7 +1781,7 @@ style th with
   border-bottom-color = slate_40
 end
 
-style td with
+style cell with
   display = table-cell
   padding = 0.75rem 1rem
   text-color = slate_90
@@ -1803,7 +1793,7 @@ end
 -- `table striped` tints alternate BODY rows. `@odd` is the nth-child alias, so
 -- this needs no per-row authoring.
 style striped with
-  > tbody:
+  > table_body:
     > @odd:
       background-color = slate_20
 end
@@ -1894,7 +1884,7 @@ style form with
 end
 
 -- Pico strips the default fieldset chrome and uses it purely as a grouping box.
-style fieldset with
+style field_group with
   display = flex
   child-layout = column
   child-gap = 0.5rem
@@ -1903,13 +1893,13 @@ style fieldset with
   margin = 0
 end
 
-style legend with
+style group_label with
   text-weight = 600
   padding-bottom = 0.5rem
 end
 
 -- Accordion: a native <details>/<summary> disclosure.
-style details with
+style disclosure with
   display = block
   border-bottom-width = 0.0625rem
   border-bottom-style = solid
@@ -1917,7 +1907,7 @@ style details with
   padding = 0.75rem 0
 end
 
-style summary with
+style disclosure_label with
   display = list-item
   cursor = pointer
   text-weight = 600

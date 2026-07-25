@@ -106,10 +106,13 @@ describe("pico showcase example", () => {
 
     // Semantic element tags realize as their real HTML tags.
     for (const tag of [
-      // No `code`/`pre` — the reference page has none, and this file tracks it
-      // one-to-one. Those builtins are covered by domSemanticElements.test.ts.
+      // Real DOM tags, from readable builtin names (`list` -> <ul>,
+      // `header_cell` -> <th>, `modal` -> <dialog>, …).
+      //
+      // No `strong`/`em`/`mark`/`sub`/`sup` here: inline styling is a CLASS on a
+      // text element, or a rich-text tag within a line — not an element. Both
+      // are asserted below.
       "a", "button", "label", "hr", "ul", "li", "blockquote", "cite",
-      "strong", "em", "kbd", "mark", "del", "ins", "abbr", "sub", "sup",
       "table", "thead", "tbody", "tr", "th", "td",
       "article", "section", "header", "footer", "form", "fieldset", "legend",
       "details", "summary", "dialog", "progress",
@@ -167,8 +170,17 @@ describe("pico showcase example", () => {
       .join("\n");
     expect(css).toContain(".input");
 
+    // Inline styling as CLASSES on a whole text element.
+    for (const cls of ["bold", "italic", "underline", "strikethrough",
+                       "deleted", "inserted", "highlight", "key"]) {
+      expect(
+        h.overlay.querySelector(`.text.${cls}`),
+        `expected a .text.${cls}`,
+      ).toBeTruthy();
+    }
+
     // Inline rich text: a single `text` element split into styled runs, which
-    // is what nested inline ELEMENTS cannot express.
+    // is what a whole-element class cannot express.
     const richRuns = [...h.overlay.querySelectorAll(".text span")].filter(
       (s) =>
         s.querySelector("span") === null &&

@@ -42,12 +42,12 @@ describe("native display", () => {
   test("the table family lays out as a real table", async () => {
     const h = await render(`layout main with
   table:
-    thead:
-      tr:
-        th "A"
-    tbody:
-      tr:
-        td "1"
+    table_header:
+      table_row:
+        header_cell "A"
+    table_body:
+      table_row:
+        cell "1"
 end
 `);
     expect(display(h, "table")).toBe("table");
@@ -61,36 +61,36 @@ end
   test("list + disclosure builtins declare their native display", async () => {
     const css = sheet(
       await render(`layout main with
-  ul:
-    li "a"
-  details:
-    summary "More"
+  list:
+    item "a"
+  disclosure:
+    disclosure_label "More"
 end
 `),
     );
-    expect(ruleBlock(css, ".ul")).toContain("display: block;");
+    expect(ruleBlock(css, ".list")).toContain("display: block;");
     // A flex <li> renders NO marker; list-item is what draws it.
-    expect(ruleBlock(css, ".li")).toContain("display: list-item;");
-    expect(ruleBlock(css, ".details")).toContain("display: block;");
-    expect(ruleBlock(css, ".summary")).toContain("display: list-item;");
+    expect(ruleBlock(css, ".item")).toContain("display: list-item;");
+    expect(ruleBlock(css, ".disclosure")).toContain("display: block;");
+    expect(ruleBlock(css, ".disclosure_label")).toContain(
+      "display: list-item;",
+    );
   });
 
-  test("`prose` is a non-flex box so inline elements can flow", async () => {
-    const css = sheet(
-      await render(`layout main with
+  // `prose` is a non-flex box. It mattered when inline text elements existed
+  // (CSS blockifies the children of a flex container, so they stacked). Inline
+  // styling is now done with rich-text tags, whose runs are spans inside the
+  // text element's own inline span — but `prose` is still the container for
+  // flowing a real ELEMENT, such as a link, inside running text.
+  test("`prose` is a non-flex box so children can flow inline", async () => {
+    const h = await render(`layout main with
   box prose:
-    strong "b"
-    sub "2"
+    text "See "
+    link "the docs" #href="#"
 end
-`),
-    );
-    // CSS blockifies the children of a flex container, so inline text elements
-    // only behave as inline inside a non-flex box — that is what `prose` is.
-    expect(ruleBlock(css, ".prose")).toContain("display: block;");
-    expect(ruleBlock(css, ".strong")).toContain("display: inline;");
-    expect(ruleBlock(css, ".sub")).toContain("display: inline;");
-    expect(ruleBlock(css, ".sub")).toContain("vertical-align: sub;");
-    expect(ruleBlock(css, ".sup")).toContain("vertical-align: super;");
+`);
+    expect(display(h, ".prose")).toBe("block");
+    expect(ruleBlock(sheet(h), ".prose")).toContain("display: block;");
   });
 
   test("divider renders a real rule", async () => {

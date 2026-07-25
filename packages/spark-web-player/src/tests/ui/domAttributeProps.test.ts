@@ -48,8 +48,8 @@ end
   test("boolean attributes are presence-based", async () => {
     const h = await render(`store shown = true
 layout main with
-  details #open={shown}:
-    summary "More"
+  disclosure #open={shown}:
+    disclosure_label "More"
     text "Body"
   modal #open=false:
     text "Modal"
@@ -64,9 +64,9 @@ end
   test("colspan/scope on table cells become attributes", async () => {
     const h = await render(`layout main with
   table:
-    tbody:
-      tr:
-        td "Wide" #colspan=2
+    table_body:
+      table_row:
+        cell "Wide" #colspan=2
 end
 `);
     const td = h.overlay.querySelector("td") as HTMLTableCellElement;

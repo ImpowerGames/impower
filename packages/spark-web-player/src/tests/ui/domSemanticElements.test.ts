@@ -36,11 +36,11 @@ end
 
   test("lists render as real ul/ol/li", async () => {
     const h = await render(`layout main with
-  ul:
-    li "Alpha"
-    li "Beta"
-  ol:
-    li "First"
+  list:
+    item "Alpha"
+    item "Beta"
+  ordered_list:
+    item "First"
 end
 `);
     const ul = h.overlay.querySelector("ul");
@@ -54,40 +54,55 @@ end
     expect(ol!.children.length).toBe(1);
   });
 
-  test("blockquote + inline text elements render as their tags", async () => {
+  test("quote/citation are tags; inline styling is CLASSES, not tags", async () => {
     const h = await render(`layout main with
-  blockquote:
+  quote:
     text "Quoted."
-    cite "- Someone"
-  strong "bold"
-  em "italic"
-  code "x = 1"
-  kbd "Ctrl"
-  mark "highlit"
-  del "gone"
-  ins "added"
-  abbr "HTML"
-  sub "2"
-  sup "3"
+    citation "- Someone"
+  text bold "bold"
+  text italic "italic"
+  text underline "u"
+  text strikethrough "s"
+  text code "x = 1"
+  text key "Ctrl"
+  text highlight "highlit"
+  text deleted "gone"
+  text inserted "added"
+  text abbreviation "HTML"
 end
 `);
-    for (const tag of [
-      "blockquote",
-      "cite",
-      "strong",
-      "em",
-      "code",
-      "kbd",
-      "mark",
-      "del",
-      "ins",
-      "abbr",
-      "sub",
-      "sup",
-    ]) {
-      expect(h.overlay.querySelector(tag), `expected a <${tag}>`).toBeTruthy();
+    // Structural text elements keep real tags.
+    expect(h.overlay.querySelector("blockquote")).toBeTruthy();
+    expect(h.overlay.querySelector("cite")?.textContent).toBe("- Someone");
+
+    // Inline styling is applied as a CLASS on a text element — there is no
+    // `<strong>`/`<em>`/`<mark>` element any more. Styling WITHIN a line is done
+    // with rich-text tags instead (see domRichText.test.ts), so there is exactly
+    // one way to express each.
+    for (const tag of ["strong", "em", "mark", "kbd", "del", "ins", "abbr"]) {
+      expect(
+        h.overlay.querySelector(tag),
+        `<${tag}> should no longer be a builtin tag`,
+      ).toBeNull();
     }
-    expect(h.overlay.querySelector("strong")?.textContent).toBe("bold");
+    for (const cls of [
+      "bold",
+      "italic",
+      "underline",
+      "strikethrough",
+      "code",
+      "key",
+      "highlight",
+      "deleted",
+      "inserted",
+      "abbreviation",
+    ]) {
+      expect(
+        h.overlay.querySelector(`.text.${cls}`),
+        `expected a .text.${cls}`,
+      ).toBeTruthy();
+    }
+    expect(h.overlay.querySelector(".text.bold")?.textContent).toBe("bold");
   });
 
   test("structure builtins render as their tags", async () => {
@@ -99,11 +114,11 @@ end
   section:
     text "In a section"
   form:
-    fieldset:
-      legend "Choose"
+    field_group:
+      group_label "Choose"
       field #value="x"
-  details:
-    summary "More"
+  disclosure:
+    disclosure_label "More"
     text "Hidden detail"
 end
 `);
@@ -127,17 +142,17 @@ end
   test("tables render as a real table with direct-child rows and cells", async () => {
     const h = await render(`layout main with
   table:
-    thead:
-      tr:
-        th "Name"
-        th "Qty"
-    tbody:
-      tr:
-        td "Sword"
-        td "1"
-      tr:
-        td "Potion"
-        td "3"
+    table_header:
+      table_row:
+        header_cell "Name"
+        header_cell "Qty"
+    table_body:
+      table_row:
+        cell "Sword"
+        cell "1"
+      table_row:
+        cell "Potion"
+        cell "3"
 end
 `);
     const table = h.overlay.querySelector("table");
@@ -170,17 +185,17 @@ end
 
   test("the new semantic builtins ship default styles", async () => {
     const h = await render(`layout main with
-  ul:
-    li "x"
-  blockquote:
+  list:
+    item "x"
+  quote:
     text "q"
-  code "c"
+  text code "c"
 end
 `);
     const css = [...h.overlay.querySelectorAll("style")]
       .map((s) => s.textContent ?? "")
       .join("\n");
-    for (const cls of ["ul", "li", "blockquote", "code", "kbd", "mark"]) {
+    for (const cls of ["list", "item", "quote", "code", "key", "highlight"]) {
       expect(css, `expected default styles for .${cls}`).toContain(`.${cls}`);
     }
   });

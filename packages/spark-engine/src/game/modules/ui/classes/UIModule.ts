@@ -318,12 +318,21 @@ const INPUT_WIDGETS: Record<
  * `<div>` (the overlay's default box), which is still what `text`, `box`,
  * `image`, `mask` and the layout containers want.
  *
- * Only tags whose HTML semantics actually matter are listed: interactive
- * controls, the list/table/structure families, and the inline text elements.
- * Deliberately NOT listed are names that already exist as style CLASSES
- * (`small`, `nav`, `progress`, `group`, `grid`, `muted`, …) — promoting those to
- * tags would turn existing authoring like `text small "…"` into a
- * two-tags-on-one-line warning, and a styled `<div>` renders identically.
+ * Names are READABLE rather than HTML jargon (`list`/`item`, not `ul`/`li`),
+ * matching the rest of the vocabulary (`field`, `dropdown`, `slider`,
+ * `divider`, `modal`). HTML tag names buy nothing for portability anyway — UI
+ * Toolkit has no `ul`/`table`, so a Unity renderer maps `list`/`item` just as
+ * easily, and readable names keep the model from biasing toward HTML.
+ *
+ * INLINE text styling is deliberately NOT here. `bold`, `italic`, `underline`,
+ * `highlight` … are style CLASSES (`text bold "…"`, like `text h1`), and
+ * styling WITHIN a line is done with rich-text tags (`text "a <b>bold</b> word"`
+ * — see ui/utils/parseRichText.ts). Having both an element and a tag for the
+ * same effect was redundant.
+ *
+ * Also not listed: names that already exist as style CLASSES (`small`, `nav`,
+ * `group`, `grid`, `muted`, …) — promoting those to tags would turn existing
+ * authoring like `text small "…"` into a two-tags-on-one-line warning.
  */
 const ELEMENT_TAGS: Record<string, string> = {
   // Interactive / semantic controls
@@ -332,41 +341,31 @@ const ELEMENT_TAGS: Record<string, string> = {
   label: "label",
   span: "span",
   divider: "hr",
-  // Inline text elements
-  strong: "strong",
-  em: "em",
-  code: "code",
-  kbd: "kbd",
-  mark: "mark",
-  del: "del",
-  ins: "ins",
-  abbr: "abbr",
-  sub: "sub",
-  sup: "sup",
-  cite: "cite",
-  blockquote: "blockquote",
   // Lists
-  ul: "ul",
-  ol: "ol",
-  li: "li",
-  // Tables
+  list: "ul",
+  ordered_list: "ol",
+  item: "li",
+  // Tables. `table_row` rather than `row`, which is taken by the flex class.
   table: "table",
-  thead: "thead",
-  tbody: "tbody",
-  tfoot: "tfoot",
-  tr: "tr",
-  th: "th",
-  td: "td",
+  table_header: "thead",
+  table_body: "tbody",
+  table_footer: "tfoot",
+  table_row: "tr",
+  header_cell: "th",
+  cell: "td",
+  // Text structure
+  quote: "blockquote",
+  citation: "cite",
   // Structure
   article: "article",
   section: "section",
   header: "header",
   footer: "footer",
   form: "form",
-  fieldset: "fieldset",
-  legend: "legend",
-  details: "details",
-  summary: "summary",
+  field_group: "fieldset",
+  group_label: "legend",
+  disclosure: "details",
+  disclosure_label: "summary",
   // Authored as `modal`; still a real <dialog>. Named `modal` so it cannot be
   // confused with the SCREENPLAY `dialogue` style (speech), which is a
   // completely different thing one letter away.

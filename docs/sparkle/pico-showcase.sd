@@ -7,14 +7,20 @@
 // WARNING-FREE and asserts the rendered DOM. Adding a section here is how a
 // builtin earns CI coverage, so keep the two in sync.
 //
-// Element TAGS are builtins — box, span, scroller, text, link, label, field,
-// textarea, button, image, input, slider, checkbox, radio, switch, dropdown,
-// option, divider, progress, plus the semantic set (strong/em/code/kbd/mark/
-// del/ins/abbr/sub/sup/cite/blockquote, ul/ol/li, table/thead/tbody/tr/th/td,
-// article/section/header/footer/form/fieldset/legend/details/summary/modal).
+// Element TAGS are builtins, named readably rather than after HTML — box, span,
+// scroller, text, link, label, field, textarea, button, image, input, slider,
+// checkbox, radio, switch, dropdown, option, divider, progress, list,
+// ordered_list, item, table + table_header/table_body/table_row/header_cell/cell,
+// quote, citation, disclosure, disclosure_label, article, section, header,
+// footer, form, field_group, group_label, modal.
+//
 // Everything ELSE on an element line is a style CLASS — `column`, `row`, `card`,
-// `nav`, `badge`, `h1`, `muted`, `small`, `group`, `grid`, `container`. So it is
-// `link "Home"`, NOT `text link "Home"`: two tags on one line is a warning.
+// `nav`, `badge`, `h1`, `muted`, `small`, `group`, `grid`, `container`, and the
+// inline text classes `bold`, `italic`, `underline`, `strikethrough`,
+// `highlight`, `key`, `code`. So it is `link "Home"`, NOT `text link "Home"`:
+// two tags on one line is a warning.
+//
+// Styling WITHIN a line uses rich-text tags instead: `text "a <b>bold</b> word"`.
 //
 // NOTE: `#href` takes relative/fragment URLs here — an absolute `https://` value
 // hits a known grammar bug with `://` in a prop value.
@@ -96,15 +102,15 @@ layout main with
       section:
         text h2 "Typography"
         text "Aliquam lobortis vitae nibh nec rhoncus. Morbi mattis neque eget efficitur feugiat."
-        blockquote:
+        quote:
           text "Maecenas vehicula metus tellus, vitae congue turpis hendrerit non."
-          cite "- Phasellus eget lacinia"
+          citation "- Phasellus eget lacinia"
 
         text h3 "Lists"
-        ul:
-          li "Aliquam lobortis lacus eu libero ornare facilisis."
-          li "Nam et magna at libero scelerisque egestas."
-          li "Suspendisse id nisl ut leo finibus vehicula quis eu ex."
+        list:
+          item "Aliquam lobortis lacus eu libero ornare facilisis."
+          item "Nam et magna at libero scelerisque egestas."
+          item "Suspendisse id nisl ut leo finibus vehicula quis eu ex."
 
         text h3 "Inline text elements"
         row grid:
@@ -112,25 +118,21 @@ layout main with
           link secondary "Secondary link" #href="#"
           link contrast "Contrast link" #href="#"
         row grid:
-          strong "Bold"
-          em "Italic"
-          u "Underline"
+          text bold "Bold"
+          text italic "Italic"
+          text underline "Underline"
         row grid:
-          del "Deleted"
-          ins "Inserted"
-          s "Strikethrough"
+          text deleted "Deleted"
+          text inserted "Inserted"
+          text strikethrough "Strikethrough"
         row grid:
           text small "Small"
-          box prose:
-            text "Text "
-            sub "Sub"
-          box prose:
-            text "Text "
-            sup "Sup"
+          text "Text <sub>Sub</sub>"
+          text "Text <sup>Sup</sup>"
         row grid:
-          abbr "Abbr." #title="Abbreviation"
-          kbd "Kbd"
-          mark "Highlighted"
+          text abbreviation "Abbr."
+          text key "Kbd"
+          text highlight "Highlighted"
 
         -- Inline RICH TEXT: UI Toolkit's tag vocabulary inside ONE `text`. This
         -- is what nested elements can't express — mixed styled runs inside a
@@ -182,8 +184,8 @@ layout main with
             option "Medium" #value="medium"
             option "Large" #value="large"
 
-          fieldset:
-            legend "Fruit"
+          field_group:
+            group_label "Fruit"
             row #child-gap=8 #child-align=center:
               radio #name="fruit" #checked=true
               text "Orange"
@@ -191,8 +193,8 @@ layout main with
               radio #name="fruit"
               text "Apple"
 
-          fieldset:
-            legend "Preferences"
+          field_group:
+            group_label "Preferences"
             row #child-gap=8 #child-align=center:
               checkbox #checked=true
               text "Remember me"
@@ -205,28 +207,28 @@ layout main with
         text h2 "Tables"
         box overflow_auto:
           table striped:
-            thead:
-              tr:
-                th "#"
-                th "First name"
-                th "Last name"
-                th "Known for"
-            tbody:
-              tr:
-                td "1"
-                td "Ada"
-                td "Lovelace"
-                td "First programmer"
-              tr:
-                td "2"
-                td "Grace"
-                td "Hopper"
-                td "Compilers"
-              tr:
-                td "3"
-                td "Alan"
-                td "Turing"
-                td "Computability"
+            table_header:
+              table_row:
+                header_cell "#"
+                header_cell "First name"
+                header_cell "Last name"
+                header_cell "Known for"
+            table_body:
+              table_row:
+                cell "1"
+                cell "Ada"
+                cell "Lovelace"
+                cell "First programmer"
+              table_row:
+                cell "2"
+                cell "Grace"
+                cell "Hopper"
+                cell "Compilers"
+              table_row:
+                cell "3"
+                cell "Alan"
+                cell "Turing"
+                cell "Computability"
 
       -- Modal --------------------------------------------------------------
       section:
@@ -245,14 +247,14 @@ layout main with
       -- Accordions ---------------------------------------------------------
       section:
         text h2 "Accordions"
-        details #open=true:
-          summary "Introduction"
+        disclosure #open=true:
+          disclosure_label "Introduction"
           text "Nunc nec dui vitae massa hendrerit fringilla."
-        details:
-          summary "Details"
-          ul:
-            li "Vestibulum id elit quis massa interdum sodales."
-            li "Nunc quis eros vel odio pretium tincidunt."
+        disclosure:
+          disclosure_label "Details"
+          list:
+            item "Vestibulum id elit quis massa interdum sodales."
+            item "Nunc quis eros vel odio pretium tincidunt."
 
       -- Article ------------------------------------------------------------
       section:
