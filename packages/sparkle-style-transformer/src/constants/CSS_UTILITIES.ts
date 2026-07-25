@@ -274,6 +274,22 @@ export const CSS_UTILITIES = {
     "": { cursor: "" },
   },
 
+  // Declared so their STYLE_TRANSFORMERS run — an undeclared prop falls through
+  // to raw passthrough, which is how `content` stayed unquoted and
+  // `accent-color` kept the bare `sky_60` token instead of resolving the theme
+  // color. Both are silent failures in CSS.
+  content: {
+    "": { content: "" },
+  },
+
+  "accent-color": {
+    "": { "accent-color": "" },
+  },
+
+  "caret-color": {
+    "": { "caret-color": "" },
+  },
+
   "text-font": {
     "": { "font-family": "" },
   },

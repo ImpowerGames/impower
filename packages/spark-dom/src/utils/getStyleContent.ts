@@ -173,7 +173,12 @@ export const getStyleContent = (
           styleContent += `\n${indent}}`;
         } else {
           const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v);
-          if (cssValue) {
+          // An empty value normally means "unset", so it's skipped — except for
+          // `content`, where the EMPTY STRING is the meaningful value: a
+          // ::before/::after box doesn't render at all without `content: ""`.
+          // Dropping it silently produced a styled pseudo-element that never
+          // appeared (which is what hid the `switch` thumb).
+          if (cssValue || (cssProp === "content" && cssValue === "")) {
             const cssEntries = getCssEquivalent(cssProp, cssValue);
             for (const [k, v] of cssEntries) {
               styleContent += `\n${indent}${k}: ${v};`;

@@ -1074,3 +1074,42 @@ export function generateShadow(elevation: number): string {
 
   return `${keyShadowString}, ${ambientShadowString}`;
 }
+
+/** CSS `content` takes a STRING, which must be quoted — `content: hello` and
+ *  `content: ` are both invalid, and an unrendered pseudo-element is the silent
+ *  result. Authors write the value bare (`content = ""`, `content = "New"`), so
+ *  quote it here unless it is a keyword or a function/counter form that must
+ *  stay unquoted. */
+const CSS_CONTENT_KEYWORDS = new Set([
+  "none",
+  "normal",
+  "inherit",
+  "initial",
+  "revert",
+  "revert-layer",
+  "unset",
+  "open-quote",
+  "close-quote",
+  "no-open-quote",
+  "no-close-quote",
+]);
+
+const CSS_CONTENT_FUNCTION_REGEX =
+  /^(?:attr|url|var|counter|counters|linear-gradient|radial-gradient|conic-gradient|image-set|image)\(/;
+
+export const getCssContent = (value: string): string => {
+  const v = value == null ? "" : String(value).trim();
+  if (CSS_CONTENT_KEYWORDS.has(v)) {
+    return v;
+  }
+  if (CSS_CONTENT_FUNCTION_REGEX.test(v)) {
+    return v;
+  }
+  if (
+    (v.startsWith('"') && v.endsWith('"') && v.length >= 2) ||
+    (v.startsWith("'") && v.endsWith("'") && v.length >= 2)
+  ) {
+    return v;
+  }
+  return JSON.stringify(v);
+};

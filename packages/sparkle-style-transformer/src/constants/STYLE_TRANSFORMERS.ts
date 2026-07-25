@@ -12,6 +12,7 @@ import {
   getCssChildLayout,
   getCssChildOverflow,
   getCssColor,
+  getCssContent,
   getCssContainIntrinsicSize,
   getCssContentVisibility,
   getCssCorner,
@@ -219,4 +220,17 @@ export const STYLE_TRANSFORMERS = {
   "thumb-background-color": getCssColor,
   "thumb-border-color": getCssColor,
   "thumb-size": getCssSize,
+
+  // `content` takes a QUOTED string. Authors write it bare (`content = ""` for
+  // a pseudo-element box, `content = "New"` for a label), and an unquoted value
+  // is invalid CSS — which renders as nothing at all, silently.
+  content: getCssContent,
+
+  // Native form-control tints. These name a theme color like any other color
+  // prop, so they must resolve to `var(--theme-color-…)` — without this,
+  // `accent-color = sky_60` emitted the bare token `sky_60`, which is not a
+  // valid CSS color, so checkbox/radio/slider/progress tints silently did
+  // nothing.
+  "accent-color": getCssColor,
+  "caret-color": getCssColor,
 } as const;

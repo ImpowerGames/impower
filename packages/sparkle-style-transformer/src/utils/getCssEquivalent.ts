@@ -40,8 +40,11 @@ export const getCssEquivalent = (
         }
       }
     }
+    // When the value IS the empty string, `cssUtility[""]` is both the default
+    // selector and the value selector — emitting both duplicates the
+    // declaration (`content: ""; content: "";`).
     const valueSelector = cssUtility[String(value)];
-    if (valueSelector) {
+    if (valueSelector && valueSelector !== defaultSelector) {
       for (let [k, v] of Object.entries(valueSelector)) {
         if (v === "") {
           const transformer = styleTransformers[sparklePropName];

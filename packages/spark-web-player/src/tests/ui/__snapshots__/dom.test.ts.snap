@@ -692,7 +692,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -702,7 +702,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -713,13 +713,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -738,7 +766,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -1018,7 +1046,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
@@ -2007,7 +2035,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -2017,7 +2045,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -2028,13 +2056,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -2053,7 +2109,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -2333,7 +2389,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
@@ -3284,7 +3340,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -3294,7 +3350,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -3305,13 +3361,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -3330,7 +3414,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -3610,7 +3694,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
@@ -4683,7 +4767,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -4693,7 +4777,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -4704,13 +4788,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -4729,7 +4841,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -5009,7 +5121,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
@@ -5941,7 +6053,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -5951,7 +6063,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -5962,13 +6074,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -5987,7 +6127,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -6267,7 +6407,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
@@ -7181,7 +7321,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -7191,7 +7331,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -7202,13 +7342,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -7227,7 +7395,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -7507,7 +7675,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
@@ -8471,7 +8639,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -8481,7 +8649,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -8492,13 +8660,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -8517,7 +8713,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -8797,7 +8993,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
@@ -9728,7 +9924,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -9738,7 +9934,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -9749,13 +9945,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -9774,7 +9998,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -10054,7 +10278,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
@@ -10985,7 +11209,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -10995,7 +11219,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -11006,13 +11230,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -11031,7 +11283,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -11311,7 +11563,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
@@ -12242,7 +12494,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -12252,7 +12504,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -12263,13 +12515,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -12288,7 +12568,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -12568,7 +12848,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
@@ -13499,7 +13779,7 @@ spark-web-player #game .checkbox {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .input {
   padding: 0.75rem 1rem;
@@ -13509,7 +13789,7 @@ spark-web-player #game .input {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   color: var(--theme-color-slate_90);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   transition: all 0.2s ease-in-out;
   &:focus {
     border-color: var(--theme-color-sky_60);
@@ -13520,13 +13800,41 @@ spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .switch {
+  appearance: none;
   width: 2.25rem;
   height: 1.25rem;
+  border-radius: 0.625rem;
+  background-color: var(--theme-color-slate_40);
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
   cursor: pointer;
-  accent-color: sky_60;
+  position: relative;
+  transition: background-color 0.2s ease-in-out;
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0.125rem;
+    left: 0.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 50%;
+    background-color: white;
+    transition: transform 0.2s ease-in-out;
+  }
+  &:checked {
+    background-color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &::before {
+      transform: translateX(1rem);
+    }
+  }
+  &:focus {
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .textarea {
   padding: 0.75rem 1rem;
@@ -13545,7 +13853,7 @@ spark-web-player #game .textarea {
 spark-web-player #game .slider {
   width: 200px;
   cursor: pointer;
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
   color: var(--theme-color-sky_60);
@@ -13825,7 +14133,7 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
-  accent-color: sky_60;
+  accent-color: var(--theme-color-sky_60);
   border-width: 0px;
 }
 spark-web-player #game .progress_fill {
