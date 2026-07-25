@@ -10,7 +10,6 @@ import {
   languageServerExtensions,
   LSPClient,
   renameKeymap,
-  serverAutoSync,
   WorkerTransport,
   Workspace,
 } from "@impower/codemirror-vscode-lsp-client/src";
@@ -58,7 +57,20 @@ export const sparkdownLanguageExtension = (config: {
 
   let client = new LSPClient({
     workspace: serverWorkspace,
-    extensions: [...languageServerExtensions(), serverAutoSync({ delay: 0 })],
+    // Background sync (which drives diagnostics / semantic tokens / codelens /
+    // folding refreshes) is debounced via the serverAutoSync already bundled in
+    // languageServerExtensions() (500ms default).
+    //
+    // Do NOT re-add `serverAutoSync({ delay: 0 })` here. At delay 0 the whole
+    // document is pushed to the server on every keystroke, and the main thread
+    // then deserializes + applies whole-document results (semantic tokens /
+    // codelens / diagnostics) each time — profiled at ~2s of main-thread jank
+    // per few keystrokes on the ~8k-line project (dominated by
+    // WorkerTransport.onmessage). Debouncing defers that flood to when typing
+    // pauses. Interactive requests (completion, hover, signature, definition,
+    // formatting, rename) call client.sync() themselves before requesting, so
+    // they always see up-to-date text regardless of this debounce.
+    extensions: [...languageServerExtensions()],
   }).connect(
     new WorkerTransport(serverWorker, serverConnection),
     serverInitializeParams,
