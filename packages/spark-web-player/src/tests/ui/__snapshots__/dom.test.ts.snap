@@ -1067,7 +1067,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;
@@ -2513,7 +2513,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;
@@ -3921,7 +3921,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;
@@ -5451,7 +5451,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;
@@ -6840,7 +6840,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;
@@ -8211,7 +8211,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;
@@ -9632,7 +9632,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;
@@ -11020,7 +11020,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;
@@ -12408,7 +12408,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;
@@ -13796,7 +13796,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;
@@ -15184,7 +15184,7 @@ spark-web-player #game .summary {
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
-spark-web-player #game .dialog {
+spark-web-player #game .modal {
   display: none;
   position: fixed;
   inset: 0px;

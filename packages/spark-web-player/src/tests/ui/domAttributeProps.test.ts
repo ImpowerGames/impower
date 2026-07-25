@@ -51,7 +51,7 @@ layout main with
   details #open={shown}:
     summary "More"
     text "Body"
-  dialog #open=false:
+  modal #open=false:
     text "Modal"
 end
 `);

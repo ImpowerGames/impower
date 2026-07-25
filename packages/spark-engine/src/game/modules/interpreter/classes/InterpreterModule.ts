@@ -1020,11 +1020,19 @@ export class InterpreterModule extends Module<
                 let arg = "";
                 const startIndex = i;
                 i += 1;
-                while (chars[i] && chars[i] !== ">" && chars[i] !== ":") {
+                while (
+                  chars[i] &&
+                  chars[i] !== ">" &&
+                  chars[i] !== ":" &&
+                  chars[i] !== "="
+                ) {
                   control += chars[i];
                   i += 1;
                 }
-                if (chars[i] === ":") {
+                // `=` is the UI Toolkit separator (`<size=20>`); `:` is the
+                // original sparkdown form. Both accepted so control tags read
+                // the same way as the styling tags.
+                if (chars[i] === ":" || chars[i] === "=") {
                   i += 1;
                   while (chars[i] && chars[i] !== ">") {
                     arg += chars[i];
@@ -1037,7 +1045,11 @@ export class InterpreterModule extends Module<
                 if (closed) {
                   i += 1;
                   if (control) {
-                    if (control === "speed" || control === "s") {
+                    // NOTE: no `s` shorthand — `<s>` is STRIKETHROUGH in UI
+                    // Toolkit's rich-text vocabulary, which sparkdown adopts for
+                    // inline styling (see ui/utils/parseRichText.ts). Control
+                    // tags keep their full names so the two never collide.
+                    if (control === "speed") {
                       speedModifier = getNumberValue(arg, 1);
                     } else if (control === "pitch" || control === "p") {
                       pitchModifier = getNumberValue(arg, 0);

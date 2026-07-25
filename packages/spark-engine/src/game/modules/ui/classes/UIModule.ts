@@ -45,6 +45,11 @@ import { ImageState } from "../types/ImageState";
 import { TextState } from "../types/TextState";
 import { UIBuiltins, uiBuiltinDefinitions } from "../uiBuiltinDefinitions";
 import { getVarName } from "../utils/getVarName";
+import {
+  isPlainRun,
+  parseRichText,
+  RichTextRun,
+} from "../utils/parseRichText";
 import { Element } from "./helpers/Element";
 import {
   AnimateElementsMessage,
@@ -362,7 +367,10 @@ const ELEMENT_TAGS: Record<string, string> = {
   legend: "legend",
   details: "details",
   summary: "summary",
-  dialog: "dialog",
+  // Authored as `modal`; still a real <dialog>. Named `modal` so it cannot be
+  // confused with the SCREENPLAY `dialogue` style (speech), which is a
+  // completely different thing one letter away.
+  modal: "dialog",
   progress: "progress",
 };
 
@@ -1253,7 +1261,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   /** A fresh reactive scope with the given loop env. */
   protected makeScope(env: ReactiveEnv): ReactiveScope {
-    return { env, texts: [], regions: [], attrs: [], styles: [], sliderFills: [] };
+    return {
+      env,
+      texts: [],
+      regions: [],
+      attrs: [],
+      styles: [],
+      sliderFills: [],
+    };
   }
 
   protected mountNode(
@@ -1813,13 +1828,55 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       return;
     }
     const { text, deps } = this.resolveContentTracked(content, scope.env);
-    const span = this.createElement(parent, {
-      type: "span",
-      content: { text },
-      style: { display: "inline" },
-    });
+    // Inline rich-text tags (`<b>`, `<color=…>`, … — UI Toolkit's vocabulary)
+    // split the content into styled RUNS. Plain text parses to a single
+    // unstyled run and renders exactly as before (one span carrying the text),
+    // so only tagged content pays for child spans.
+    const runs = parseRichText(text);
+    const span = this.createElement(
+      parent,
+      isPlainRun(runs)
+        ? {
+            type: "span",
+            content: { text: runs[0]?.text ?? "" },
+            style: { display: "inline" },
+          }
+        : { type: "span", style: { display: "inline" } },
+    );
+    if (!isPlainRun(runs)) {
+      this.mountRichTextRuns(span, runs);
+    }
     if (this.contentHasBinding(content)) {
       scope.texts.push({ element: span, content, last: text, deps });
+    }
+  }
+
+  /** Render `text` into an already-mounted text span, as either a plain string
+   *  or a set of styled run children. Used on mount and on reactive refresh —
+   *  a bound value can change the TAG STRUCTURE, not just the characters, so
+   *  the previous runs are always torn down first. */
+  protected renderRichText(el: Element, text: string): void {
+    const runs = parseRichText(text);
+    for (const child of [...el.children]) {
+      this.destroyElement(child);
+    }
+    if (isPlainRun(runs)) {
+      this.updateElement(el, { content: { text: runs[0]?.text ?? "" } });
+      return;
+    }
+    // Clear any plain text the span was carrying before mounting runs.
+    this.updateElement(el, { content: { text: "" } });
+    this.mountRichTextRuns(el, runs);
+  }
+
+  /** Realize parsed runs as inline child spans. */
+  protected mountRichTextRuns(parent: Element, runs: RichTextRun[]): void {
+    for (const run of runs) {
+      this.createElement(parent, {
+        type: "span",
+        content: { text: run.text },
+        style: { display: "inline", ...(run.style ?? {}) },
+      });
     }
   }
 
@@ -2378,7 +2435,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         entry.deps = deps;
         if (text !== entry.last) {
           entry.last = text;
-          this.updateElement(entry.element, { content: { text } });
+          this.renderRichText(entry.element, text);
         }
       }
     }

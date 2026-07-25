@@ -1844,7 +1844,10 @@ style summary with
   text-color = slate_90
 end
 
--- Modal: a native <dialog>, opened declaratively with `#open={flag}`.
+-- Modal: authored as `modal`, rendering a native <dialog>, opened
+-- declaratively with `#open={flag}`. Deliberately NOT called `dialog` — the
+-- screenplay `dialogue` style (character speech) is a different thing one
+-- letter away.
 --
 -- Follows Pico's shape — the DIALOG is the full-screen scrim and the `article`
 -- inside it is the card — so a modal is authored as:
@@ -1856,7 +1859,7 @@ end
 -- A `<dialog>` with no `open` attribute is `display: none` natively, but the
 -- base rule here has to restate that: setting `display: flex` unconditionally
 -- would make a CLOSED modal visible.
-style dialog with
+style modal with
   display = none
   position = fixed
   anchor = 0

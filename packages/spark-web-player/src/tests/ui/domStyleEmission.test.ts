@@ -77,12 +77,12 @@ end
   test("dialog is hidden until `open`, then becomes a centred scrim", async () => {
     const out = await css(`store shown = false
 layout main with
-  dialog #open={shown}:
+  modal #open={shown}:
     article:
       text "hi"
 end
 `);
-    const block = out.slice(out.indexOf(".dialog {"));
+    const block = out.slice(out.indexOf(".modal {"));
     expect(block).toContain("display: none;");
     expect(block).toContain("position: fixed;");
     expect(block).toContain("&[open]");

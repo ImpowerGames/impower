@@ -11,7 +11,7 @@
 // textarea, button, image, input, slider, checkbox, radio, switch, dropdown,
 // option, divider, progress, plus the semantic set (strong/em/code/kbd/mark/
 // del/ins/abbr/sub/sup/cite/blockquote, ul/ol/li, table/thead/tbody/tr/th/td,
-// article/section/header/footer/form/fieldset/legend/details/summary/dialog).
+// article/section/header/footer/form/fieldset/legend/details/summary/modal).
 // Everything ELSE on an element line is a style CLASS — `column`, `row`, `card`,
 // `nav`, `badge`, `h1`, `muted`, `small`, `group`, `grid`, `container`. So it is
 // `link "Home"`, NOT `text link "Home"`: two tags on one line is a warning.
@@ -109,6 +109,11 @@ layout main with
           li "Suspendisse id nisl ut leo finibus vehicula quis eu ex."
 
         text h3 "Inline text elements"
+        -- Inline RICH TEXT: UI Toolkit's tag vocabulary inside a single `text`.
+        -- This is what nested elements can't express — mixed styled runs inside
+        -- one flowing sentence. The engine parses the tags into runs, so the web
+        -- renderer makes spans and a Unity front-end can re-serialize the tags.
+        text "Cras <b>sit amet</b> maximus <i>risus</i>, with <u>underline</u>, <s>strikethrough</s>, <mark=amber_60>a highlight</mark> and <color=sky_60>colour</color> mid-sentence."
         -- `prose` (a non-flex box) is what lets these flow inline: CSS blockifies
         -- the children of a flex container, so in a `row` they would stack.
         box prose:
@@ -213,7 +218,7 @@ layout main with
       section:
         text h2 "Modal"
         button "Launch demo modal" @click=open_modal
-        dialog #open={modal_open}:
+        modal #open={modal_open}:
           article:
             header:
               text h3 "Confirm your action!"

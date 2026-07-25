@@ -18119,23 +18119,6 @@
           "display": "block",
           "padding": "0.75rem 0"
         },
-        "dialog": {
-          "$name": "dialog",
-          "$type": "style",
-          "@opened": {
-            "display": "flex"
-          },
-          "anchor": "0",
-          "background-color": "rgb(0 0 0 / 50%)",
-          "border-width": "0",
-          "child-align": "center",
-          "child-justify": "center",
-          "display": "none",
-          "padding": "1rem",
-          "position": "fixed",
-          "text-color": "slate_90",
-          "z": "999"
-        },
         "dialogue": {
           "$name": "dialogue",
           "$type": "style",
@@ -18456,6 +18439,23 @@
           "pointer_events": "auto",
           "position": "absolute",
           "will_change": "transform"
+        },
+        "modal": {
+          "$name": "modal",
+          "$type": "style",
+          "@opened": {
+            "display": "flex"
+          },
+          "anchor": "0",
+          "background-color": "rgb(0 0 0 / 50%)",
+          "border-width": "0",
+          "child-align": "center",
+          "child-justify": "center",
+          "display": "none",
+          "padding": "1rem",
+          "position": "fixed",
+          "text-color": "slate_90",
+          "z": "999"
         },
         "muted": {
           "$name": "muted",
@@ -91109,23 +91109,6 @@
           "display": "block",
           "padding": "0.75rem 0"
         },
-        "dialog": {
-          "$name": "dialog",
-          "$type": "style",
-          "@opened": {
-            "display": "flex"
-          },
-          "anchor": "0",
-          "background-color": "rgb(0 0 0 / 50%)",
-          "border-width": "0",
-          "child-align": "center",
-          "child-justify": "center",
-          "display": "none",
-          "padding": "1rem",
-          "position": "fixed",
-          "text-color": "slate_90",
-          "z": "999"
-        },
         "dialogue": {
           "$name": "dialogue",
           "$type": "style",
@@ -91446,6 +91429,23 @@
           "pointer_events": "auto",
           "position": "absolute",
           "will_change": "transform"
+        },
+        "modal": {
+          "$name": "modal",
+          "$type": "style",
+          "@opened": {
+            "display": "flex"
+          },
+          "anchor": "0",
+          "background-color": "rgb(0 0 0 / 50%)",
+          "border-width": "0",
+          "child-align": "center",
+          "child-justify": "center",
+          "display": "none",
+          "padding": "1rem",
+          "position": "fixed",
+          "text-color": "slate_90",
+          "z": "999"
         },
         "muted": {
           "$name": "muted",

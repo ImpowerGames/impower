@@ -156,6 +156,17 @@ describe("pico showcase example", () => {
       .join("\n");
     expect(css).toContain(".input");
 
+    // Inline rich text: a single `text` element split into styled runs, which
+    // is what nested inline ELEMENTS cannot express.
+    const richRuns = [...h.overlay.querySelectorAll(".text span")].filter(
+      (s) =>
+        s.querySelector("span") === null &&
+        /font-weight: 700|font-style: italic|line-through/.test(
+          s.getAttribute("style") ?? "",
+        ),
+    );
+    expect(richRuns.length).toBeGreaterThanOrEqual(3);
+
     // Content bindings interpolated.
     const text = h.overlay.querySelector(".main")?.textContent ?? "";
     expect(text).toContain("Pico");
