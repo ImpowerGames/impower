@@ -3,6 +3,7 @@ import { DebugMetadata } from "../../../engine/DebugMetadata";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Path as RuntimePath } from "../../../engine/Path";
 import { asOrNull } from "../../../engine/TypeAssertion";
+import { currentCompileEpoch } from "./CompileEpoch";
 import { FindQueryFunc } from "./FindQueryFunc";
 import { Identifier } from "./Identifier";
 import { Story } from "./Story";
@@ -12,8 +13,12 @@ export abstract class ParsedObject {
 
   public identifier: Identifier | null = null;
 
-  private _alreadyHadError: boolean = false;
-  private _alreadyHadWarning: boolean = false;
+  // Diagnostic-dedup state: the compile epoch (see CompileEpoch.ts) at which
+  // this node last emitted an error/warning. Comparing against the CURRENT
+  // epoch makes flags from a prior `ExportRuntime` stale automatically —
+  // reused parsed nodes need no per-compile clearing walk.
+  private _errorEpoch: number = 0;
+  private _warningEpoch: number = 0;
   private _debugMetadata: DebugMetadata | null = null;
   private _runtimeObject: RuntimeObject | null = null;
 
@@ -261,8 +266,8 @@ export abstract class ParsedObject {
     // Only allow a single parsed object to have a single error *directly* associated with it
     if (source instanceof ParsedObject) {
       if (
-        (source._alreadyHadError && !isWarning) ||
-        (source._alreadyHadWarning && isWarning)
+        (source._errorEpoch === currentCompileEpoch() && !isWarning) ||
+        (source._warningEpoch === currentCompileEpoch() && isWarning)
       ) {
         return;
       }
@@ -284,9 +289,9 @@ export abstract class ParsedObject {
 
     if (source instanceof ParsedObject) {
       if (isWarning) {
-        source._alreadyHadWarning = true;
+        source._warningEpoch = currentCompileEpoch();
       } else {
-        source._alreadyHadError = true;
+        source._errorEpoch = currentCompileEpoch();
       }
     }
     if (source instanceof Identifier) {
@@ -307,8 +312,8 @@ export abstract class ParsedObject {
 
   public ResetRuntime() {
     this._runtimeObject = null;
-    this._alreadyHadError = false;
-    this._alreadyHadWarning = false;
+    this._errorEpoch = 0;
+    this._warningEpoch = 0;
     this.OnResetRuntime();
   }
 

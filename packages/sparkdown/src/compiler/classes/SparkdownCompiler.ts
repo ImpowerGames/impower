@@ -81,6 +81,12 @@ import { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMessage";
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
+// The canonical form `canonicalizeSyntheticFlowNames` renumbers synthetic
+// identifiers to. These names are POSITIONAL (document-order ordinals), so a
+// name can refer to a different flow after an edit — name-keyed caches must
+// never reuse entries for flows matching this.
+const CANONICAL_SYNTH_NAME = /^__synth_\d+$/;
+
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 const VIEW_DEFINE_TYPES = GRAMMAR_DEFINITION.variables.VIEW_DEFINE_TYPES || [];
@@ -569,15 +575,17 @@ export class SparkdownCompiler {
       if (params.countAllVisits) {
         parsedStory.countAllVisits = true;
       }
-      // Clear per-compile ExportRuntime state (the `_alreadyHad{Error,Warning}`
-      // dedup flags + cached runtime objects) on every reused parsed node, so a
-      // carried-forward chunk re-emits the same diagnostics a cold compile would
-      // (see method doc) — must run before ExportRuntime.
-      this.resetParsedRuntimeState(parsedStory);
+      // (Diagnostic-dedup state on reused parsed nodes is invalidated by the
+      // compile-epoch bump inside ExportRuntime — see CompileEpoch.ts — so a
+      // carried-forward chunk re-emits the same diagnostics a cold compile
+      // would, without a per-compile tree walk.)
+      //
       // Canonicalize offset-derived synthetic names over the fully-assembled
       // tree so incremental compiles emit byte-identical bytecode to cold ones
       // (see method doc) — must run before ExportRuntime resolves references.
+      profile("start", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
       this.canonicalizeSyntheticFlowNames(parsedStory);
+      profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
       profile("end", this._profilerId, "ink/compile", uri);
@@ -610,7 +618,17 @@ export class SparkdownCompiler {
             ) => {
               // `global decl` is non-contiguous (scattered declarations) and
               // cheap; always serialize it fresh, never cache.
-              if (name === "global decl") {
+              //
+              // Canonical synthetic flows (`__synth_<n>`, see
+              // `canonicalizeSyntheticFlowNames`) are excluded because their
+              // names are POSITIONAL (document-order ordinals), so a name can
+              // rebind to a DIFFERENT flow when an edit adds/removes a
+              // synthetic earlier in the document — and the cross-flow
+              // fingerprint can't tell two same-shaped function knots apart
+              // (it deliberately records nothing for pure content, relying on
+              // chunk identity for structure, which name rebinding breaks).
+              // These are tiny function knots; serializing fresh is cheap.
+              if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
                 return serialize();
               }
               const fp = JsonSerialisation.FingerprintCrossFlow(container);
@@ -1254,56 +1272,6 @@ export class SparkdownCompiler {
     return combinedParsedStory;
   }
 
-  // Reset the mutable per-compile state that `ExportRuntime` writes onto parsed
-  // nodes — the `_alreadyHad{Error,Warning}` diagnostic-dedup flags and the
-  // cached `_runtimeObject` — over the WHOLE assembled tree before re-running
-  // `ExportRuntime`. The incremental pipeline reuses parsed objects from prior
-  // compiles, and a node whose dedup flag is still set from a previous
-  // `ExportRuntime` gets its diagnostic SKIPPED this time, so an incremental
-  // compile drops warnings a cold compile emits (e.g. the DivertTarget
-  // "Can't use a divert target like that" hint). `remapContent` already resets
-  // nodes reachable via `.content`, but warning-bearing nodes (DivertTargets in
-  // expression-operand positions, etc.) sit on non-`content` properties; this
-  // pass reaches them by also recursing object/array-valued own-properties, with
-  // a visited set to stop at parent back-edges and the runtime tree. Calling
-  // `ResetRuntime` again on already-reset nodes is idempotent. Kept separate from
-  // `remapContent` because that pass ALSO offsets debugMetadata line numbers, so
-  // visiting a node twice there would double-shift its positions.
-  protected resetParsedRuntimeState(root: ParsedObject): void {
-    const seen = new WeakSet<object>();
-    const walk = (node: any): void => {
-      if (!node || typeof node !== "object" || seen.has(node)) {
-        return;
-      }
-      seen.add(node);
-      if (Array.isArray(node)) {
-        for (const el of node) {
-          walk(el);
-        }
-        return;
-      }
-      if (node instanceof Identifier) {
-        node.ResetRuntime();
-        return;
-      }
-      if (!(node instanceof ParsedObject)) {
-        // DebugMetadata, runtime objects, Maps, plain data — nothing to reset and
-        // nothing parsed below them; don't descend.
-        return;
-      }
-      node.ResetRuntime();
-      for (const key of Object.keys(node)) {
-        // `parent` is a back-edge (the visited set would catch the cycle anyway,
-        // but skipping avoids walking the whole tree upward from every node).
-        if (key === "parent") {
-          continue;
-        }
-        walk((node as any)[key]);
-      }
-    };
-    walk(root);
-  }
-
   // Canonicalize compiler-synthesized identifier names that are minted from a
   // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
   // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
@@ -1328,38 +1296,48 @@ export class SparkdownCompiler {
   // the same chunk, so a uniform string→string remap suffices (no need to link
   // references back to definitions).
   protected canonicalizeSyntheticFlowNames(root: ParsedObject): void {
-    // Every offset-derived synthetic family minted in the lowerers.
+    // Every offset-derived synthetic family minted in the lowerers — PLUS the
+    // canonical `__synth_<n>` form this pass itself produces. The pass mutates
+    // the parsed IR in place and the incremental pipeline carries those nodes
+    // into the next compile, so already-renamed names must be re-collected and
+    // renumbered too: when an edit adds/removes a synthetic earlier in the
+    // document, a carried `__synth_k`'s ordinal is stale and only re-running it
+    // through the document-order numbering matches what a cold compile derives.
     const SYNTH =
-      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_)\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\d+_[A-Za-z]+$|__redef_\d+$/;
+      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__synth_)\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\d+_[A-Za-z]+$|__redef_\d+$/;
     const remap = new Map<string, string>();
+    // True once any collected name maps to a DIFFERENT canonical name. In the
+    // steady state (carried names already canonical and ordinals unchanged —
+    // the common case for most edits) every mapping is the identity and the
+    // whole rewrite phase is skipped.
+    let changed = false;
+    // Matches recorded during the single collection walk so rewriting is
+    // O(matches) instead of a second full-tree walk. `matchedIds` is deduped
+    // (the same Identifier object can be aliased from several own-properties,
+    // e.g. `identifier` and a `pathIdentifiers` entry) so each object is
+    // rewritten exactly once — rewriting twice could CHAIN through the remap
+    // now that canonical `__synth_<n>` names are themselves remappable.
+    const matchedIds: Identifier[] = [];
+    const seenIds = new Set<Identifier>();
+    const matchedStrings: Array<{ node: any; field: string }> = [];
+    const flowsToRekey: FlowBase[] = [];
 
-    const consider = (id: Identifier) => {
-      const name = id.name;
-      if (name && SYNTH.test(name) && !remap.has(name)) {
-        remap.set(name, `__synth_${remap.size}`);
-      }
-    };
-    const rewrite = (id: Identifier) => {
-      const next = id.name ? remap.get(id.name) : undefined;
-      if (next) {
-        id.name = next;
-      }
-    };
-    // Apply `fn` to every Identifier-valued own-property of a node — covers
-    // `identifier`, `pathIdentifiers`, `variableIdentifier`, MultiVariableAssignment
-    // `targets`, etc. — without recursing into the Identifiers themselves.
-    const visitNames = (node: any, fn: (id: Identifier) => void) => {
-      for (const key of Object.keys(node)) {
-        const val = node[key];
-        if (val instanceof Identifier) {
-          fn(val);
-        } else if (Array.isArray(val)) {
-          for (const el of val) {
-            if (el instanceof Identifier) {
-              fn(el);
-            }
-          }
+    const considerName = (name: string) => {
+      let next = remap.get(name);
+      if (next === undefined) {
+        next = `__synth_${remap.size}`;
+        remap.set(name, next);
+        if (next !== name) {
+          changed = true;
         }
+      }
+    };
+    const considerId = (id: Identifier) => {
+      const name = id.name;
+      if (name && SYNTH.test(name) && !seenIds.has(id)) {
+        seenIds.add(id);
+        considerName(name);
+        matchedIds.push(id);
       }
     };
     // A few nodes hold a synthetic name as a PLAIN STRING (not an Identifier) and
@@ -1369,30 +1347,54 @@ export class SparkdownCompiler {
     // must be kept in lockstep or the temp's declaration and its read diverge.
     // Only SYNTH-matching values are touched, so user strings/display text are safe.
     const NAME_STRING_FIELDS = ["tempName", "variableName"];
-    const considerStrings = (node: any) => {
-      for (const f of NAME_STRING_FIELDS) {
-        const v = node[f];
-        if (typeof v === "string" && SYNTH.test(v) && !remap.has(v)) {
-          remap.set(v, `__synth_${remap.size}`);
-        }
-      }
-    };
-    const rewriteStrings = (node: any) => {
-      for (const f of NAME_STRING_FIELDS) {
-        const v = node[f];
-        if (typeof v === "string") {
-          const next = remap.get(v);
-          if (next) {
-            node[f] = next;
+
+    // Every Identifier-bearing field in the ParsedHierarchy (from the class
+    // declarations): the base `identifier`, Divert/VariableReference
+    // `pathIdentifiers`, VariableAssignment `variableIdentifier`,
+    // StructDefinition `modifier`/`type`/`name`, List `itemIdentifierList`.
+    // Visiting these directly instead of sweeping `Object.keys(node)` per node
+    // is what keeps this pass cheap (no per-node key-array allocation over the
+    // whole tree). If a new Identifier-valued field is ever added to a parsed
+    // node, it must be listed here — the incremental oracle's synthetic-name
+    // fuzz and the conformance suite are the safety net for a miss.
+    const IDENTIFIER_FIELDS = [
+      "identifier",
+      "pathIdentifiers",
+      "variableIdentifier",
+      "modifier",
+      "type",
+      "name",
+      "itemIdentifierList",
+    ];
+
+    // Single walk: assign ordinals in document (pre-order content) traversal
+    // order, recording every match for the later targeted rewrite. Per node,
+    // Identifier-valued fields are visited before the plain string fields
+    // (same order the previous two-pass implementation used, so ordinal
+    // assignment is unchanged).
+    const collect = (node: ParsedObject) => {
+      for (const f of IDENTIFIER_FIELDS) {
+        const val = (node as any)[f];
+        if (val instanceof Identifier) {
+          considerId(val);
+        } else if (Array.isArray(val)) {
+          for (const el of val) {
+            if (el instanceof Identifier) {
+              considerId(el);
+            }
           }
         }
       }
-    };
-
-    // Pass 1: assign ordinals in document (pre-order content) traversal order.
-    const collect = (node: ParsedObject) => {
-      visitNames(node, consider);
-      considerStrings(node);
+      for (const f of NAME_STRING_FIELDS) {
+        const v = (node as any)[f];
+        if (typeof v === "string" && SYNTH.test(v)) {
+          considerName(v);
+          matchedStrings.push({ node, field: f });
+        }
+      }
+      if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
+        flowsToRekey.push(node);
+      }
       const content = node.content;
       if (content) {
         for (const c of content) {
@@ -1401,33 +1403,36 @@ export class SparkdownCompiler {
       }
     };
     collect(root);
-    if (remap.size === 0) {
+    if (!changed) {
       return;
     }
 
-    // Pass 2: rewrite names; re-key each FlowBase's `_subFlowsByName` index,
-    // which was built from the pre-rename identifiers at lowering time.
-    const apply = (node: ParsedObject) => {
-      visitNames(node, rewrite);
-      rewriteStrings(node);
-      const content = node.content;
-      if (content) {
-        for (const c of content) {
-          apply(c);
+    // Rewrite phase: only the recorded matches, then re-key each FlowBase's
+    // `_subFlowsByName` index (built from the pre-rename identifiers at
+    // lowering time) after all names are final.
+    for (const id of matchedIds) {
+      const next = id.name ? remap.get(id.name) : undefined;
+      if (next) {
+        id.name = next;
+      }
+    }
+    for (const { node, field } of matchedStrings) {
+      const v = node[field];
+      const next = typeof v === "string" ? remap.get(v) : undefined;
+      if (next) {
+        node[field] = next;
+      }
+    }
+    for (const flow of flowsToRekey) {
+      const next = new Map<string, FlowBase>();
+      for (const [, sub] of flow._subFlowsByName) {
+        const nm = sub.identifier?.name;
+        if (nm) {
+          next.set(nm, sub);
         }
       }
-      if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
-        const next = new Map<string, FlowBase>();
-        for (const [, sub] of node._subFlowsByName) {
-          const nm = sub.identifier?.name;
-          if (nm) {
-            next.set(nm, sub);
-          }
-        }
-        node._subFlowsByName = next;
-      }
-    };
-    apply(root);
+      flow._subFlowsByName = next;
+    }
   }
 
   populateLocations(
@@ -1912,10 +1917,15 @@ export class SparkdownCompiler {
         // `global decl`'s source is non-contiguous (scattered declarations), so
         // it never gets a span — always recompute it (it emits no pathLocations
         // since its paths start with "global ", only a few dataLocations).
+        // Synthetic flows (`__synth_<n>`) are captured (so the flow-set guard
+        // above still sees them) but never REUSED by name: their names are
+        // positional ordinals that can rebind to a different flow across
+        // compiles (see the ToJson flow-memo exclusion in `compile()`).
         const reusable =
           f.container != null &&
           f.start0 >= 0 &&
           f.name !== "global decl" &&
+          !CANONICAL_SYNTH_NAME.test(f.name) &&
           effPrevCache != null;
         if (reusable) {
           const cached = effPrevCache!.get(f.name);

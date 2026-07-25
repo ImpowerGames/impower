@@ -145,7 +145,12 @@ describe("compiler cumulative incremental equivalence", () => {
         seed = (seed * 1103515245 + 12345) & 0x7fffffff;
         return seed / 0x7fffffff;
       };
-      const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "{scene_2}", "hero:", "-> scene_5"];
+      // "& f = function() ... end" mints an anonymous-function knot (a
+      // synthetic `__synth_<n>` top-level flow), so the fuzz exercises
+      // synthetic-name renumbering + the name-keyed flow caches — without it,
+      // no edit ever creates or destroys a synthetic name and drift class 1
+      // goes untested.
+      const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "{scene_2}", "hero:", "-> scene_5", "\n& f = function() return 9 end\n"];
 
       let version = 1;
       const failures: string[] = [];
@@ -171,6 +176,85 @@ describe("compiler cumulative incremental equivalence", () => {
         }
       }
       expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
+    } finally {
+      console.warn = realWarn;
+      console.error = realError;
+    }
+  });
+
+  // Pins the synthetic-name REBINDING drift: `canonicalizeSyntheticFlowNames`
+  // renumbers synthetics by document order and mutates the parsed IR in place,
+  // so a carried-forward node's name is already `__synth_k` on the next compile.
+  // Deleting a synthetic EARLIER in the document must (a) renumber the carried
+  // ordinal (the canonical form must itself match the pass's SYNTH regex, else
+  // the stale `__synth_1` survives while cold derives `__synth_0`), and (b) not
+  // let a name-keyed flow cache (incremental ToJson / location cache) splice the
+  // DELETED flow's cached entry into the flow that inherited its name — the two
+  // function knots here are same-shaped, so the cross-flow fingerprint cannot
+  // tell them apart; only excluding positional names from reuse is sound.
+  it("renumbers carried synthetic flows and never splices a stale flow-cache entry", () => {
+    const realWarn = console.warn;
+    const realError = console.error;
+    console.warn = () => {};
+    console.error = () => {};
+    try {
+      const makeDoc = (withF1: boolean): string => {
+        const L: string[] = [];
+        L.push("title: T");
+        L.push("");
+        L.push("scene intro");
+        L.push("= INT. A - DAY");
+        L.push(":");
+        L.push("  Hello there.");
+        L.push("end");
+        L.push("");
+        if (withF1) {
+          L.push("& f1 = function() return 1 end");
+          L.push("");
+        }
+        L.push("scene mid");
+        L.push("= INT. B - DAY");
+        L.push(":");
+        L.push("  More action.");
+        L.push("end");
+        L.push("");
+        L.push("& f2 = function() return 2 end");
+        L.push("");
+        L.push("scene outro");
+        L.push("= INT. C - DAY");
+        L.push(":");
+        L.push("  Bye now.");
+        L.push("end");
+        L.push("");
+        return L.join("\n");
+      };
+      const before = makeDoc(true);
+      const incr = new SparkdownCompiler();
+      incr.configure({
+        files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: before, version: 1, languageId: "sparkdown" }],
+      });
+      incr.compile({ textDocument: { uri: URI } });
+
+      // Delete the "& f1 = ..." line + its trailing blank line: a single edit
+      // after the first flow's start (so the flow-reuse global guard stays ok)
+      // and more than one line away from f2's flow (so f2's chunk is reusable).
+      const f1Line = before.split("\n").findIndex((l) => l.startsWith("& f1"));
+      incr.updateDocument({
+        textDocument: { uri: URI, version: 2 },
+        contentChanges: [
+          {
+            range: {
+              start: { line: f1Line, character: 0 },
+              end: { line: f1Line + 2, character: 0 },
+            },
+            text: "",
+          },
+        ],
+      });
+      const incrSig = fieldSig(incr.compile({ textDocument: { uri: URI } }).program);
+      const coldSig = fieldSig(coldProgram(makeDoc(false)));
+      const diverged = Object.keys(incrSig).filter((f) => incrSig[f] !== coldSig[f]);
+      expect(diverged).toEqual([]);
     } finally {
       console.warn = realWarn;
       console.error = realError;
