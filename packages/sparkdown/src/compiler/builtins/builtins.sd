@@ -1757,6 +1757,8 @@ end
 
 -- Structure -----------------------------------------------------------------
 
+-- Pico's article is a card whose own `header`/`footer` are tinted sectioning
+-- bands separated by a rule, so they are targeted as direct children.
 style article with
   display = flex
   child-layout = column
@@ -1765,6 +1767,24 @@ style article with
   corner = 0.5rem
   padding = 1.5rem
   margin = 1rem 0
+  > header:
+    margin = -1.5rem -1.5rem 0
+    padding = 1rem 1.5rem
+    background-color = slate_20
+    border-bottom-width = 0.0625rem
+    border-bottom-style = solid
+    border-bottom-color = slate_40
+    corner-top-left = 0.5rem
+    corner-top-right = 0.5rem
+  > footer:
+    margin = 0 -1.5rem -1.5rem
+    padding = 1rem 1.5rem
+    background-color = slate_20
+    border-top-width = 0.0625rem
+    border-top-style = solid
+    border-top-color = slate_40
+    corner-bottom-left = 0.5rem
+    corner-bottom-right = 0.5rem
 end
 
 style header with
@@ -1899,10 +1919,19 @@ style badge with
   text-weight = 600
 end
 
+-- Pico's `group` JOINS its children into one control (a field welded to its
+-- button): no gap, and the inner corners squared off so they read as a single
+-- unit. Use a plain `row #child-gap=…` for merely spaced children.
 style group with
   display = flex
   child-layout = row
-  child-gap = 0.5rem
+  child-gap = 0
+  > @first:
+    corner-top-right = 0
+    corner-bottom-right = 0
+  > @last:
+    corner-top-left = 0
+    corner-bottom-left = 0
 end
 
 -- Pico's `.grid` auto-fits however many children it has into ONE row of equal

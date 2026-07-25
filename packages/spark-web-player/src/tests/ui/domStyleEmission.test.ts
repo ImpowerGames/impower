@@ -110,6 +110,34 @@ end
     expect(out).not.toMatch(/\n\s+\{\n/);
   });
 
+  // Pico composes several of its components out of DIRECT-CHILD rules, so the
+  // `> selector` form has to survive into the sheet.
+  test("`> child` selectors compose article sections and joined groups", async () => {
+    const out = await css(`layout main with
+  article:
+    header "H"
+    text "b"
+    footer "F"
+  row group:
+    field
+    button "Go"
+end
+`);
+    const article = out.slice(out.indexOf(".article {"));
+    // An element's name becomes its CLASS, so `> header` targets `>.header`.
+    expect(article).toContain(">.header");
+    expect(article).toContain(">.footer");
+
+    const group = out.slice(out.indexOf(".group {"));
+    // Joined control: no gap, inner corners squared off.
+    expect(group).toContain("gap: 0px;");
+    expect(group).toContain(">:first-child");
+    expect(group).toContain(">:last-child");
+    expect(group.slice(group.indexOf(">:first-child"))).toContain(
+      "border-top-right-radius: 0px;",
+    );
+  });
+
   // The builtin switch depends on all of the above: a pill track whose thumb is
   // an `@before` box that slides on `@checked`.
   test("the builtin switch has a real thumb that moves when checked", async () => {

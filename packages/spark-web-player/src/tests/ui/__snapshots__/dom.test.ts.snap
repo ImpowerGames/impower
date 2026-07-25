@@ -999,6 +999,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -1107,7 +1127,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;
@@ -2417,6 +2445,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -2525,7 +2573,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;
@@ -3797,6 +3853,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -3905,7 +3981,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;
@@ -5299,6 +5383,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -5407,7 +5511,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;
@@ -6660,6 +6772,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -6768,7 +6900,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;
@@ -8003,6 +8143,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -8111,7 +8271,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;
@@ -9396,6 +9564,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -9504,7 +9692,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;
@@ -10756,6 +10952,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -10864,7 +11080,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;
@@ -12116,6 +12340,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -12224,7 +12468,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;
@@ -13476,6 +13728,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -13584,7 +13856,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;
@@ -14836,6 +15116,26 @@ spark-web-player #game .article {
   border-radius: 0.5rem;
   padding: 1.5rem;
   margin: 1rem 0px;
+  >.header {
+    margin: -1.5rem -1.5rem 0px;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-bottom-width: 0.0625rem;
+    border-bottom-style: solid;
+    border-bottom-color: var(--theme-color-slate_40);
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+  }
+  >.footer {
+    margin: 0px -1.5rem -1.5rem;
+    padding: 1rem 1.5rem;
+    background-color: var(--theme-color-slate_20);
+    border-top-width: 0.0625rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_40);
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+  }
 }
 spark-web-player #game .header {
   display: flex;
@@ -14944,7 +15244,15 @@ spark-web-player #game .badge {
 spark-web-player #game .group {
   display: flex;
   flex-direction: row;
-  gap: 0.5rem;
+  gap: 0px;
+  >:first-child {
+    border-top-right-radius: 0px;
+    border-bottom-right-radius: 0px;
+  }
+  >:last-child {
+    border-top-left-radius: 0px;
+    border-bottom-left-radius: 0px;
+  }
 }
 spark-web-player #game .grid {
   display: grid;

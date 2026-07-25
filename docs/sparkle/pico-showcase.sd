@@ -131,11 +131,11 @@ layout main with
       -- Buttons ------------------------------------------------------------
       section:
         text h2 "Buttons"
-        row group #child-gap=8:
+        row #child-gap=8:
           button "Primary"
           button secondary "Secondary"
           button contrast "Contrast"
-        row group #child-gap=8:
+        row #child-gap=8:
           button outline "Primary outline"
           button "Reset" #type="reset"
           button "Submit" #type="submit"
@@ -219,7 +219,7 @@ layout main with
               text h3 "Confirm your action!"
             text "Cras sit amet maximus risus. Pellentesque sodales odio sit amet augue finibus."
             footer:
-              row group #child-gap=8:
+              row #child-gap=8:
                 button secondary "Cancel" @click=close_modal
                 button "Confirm" @click=close_modal
 
@@ -247,7 +247,7 @@ layout main with
       section:
         text h2 "Group"
         form:
-          row group #child-gap=0:
+          row group:
             field #placeholder="Enter your email"
             button "Subscribe"
 
@@ -260,7 +260,7 @@ layout main with
       -- Loading ------------------------------------------------------------
       section:
         text h2 "Loading"
-        row group #child-gap=8 #child-align=center:
+        row #child-gap=8 #child-align=center:
           button "Please wait…" #aria-busy={busy} @click=toggle_busy
           text muted "Click to toggle aria-busy"
 end
