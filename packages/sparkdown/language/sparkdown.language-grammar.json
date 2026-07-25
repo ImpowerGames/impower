@@ -11850,7 +11850,7 @@
       "name": "meta.template.expression.luau",
       "contentName": "meta.embedded.line.luau",
       "brackets": true,
-      "begin": "([{])",
+      "begin": "([{])(?![}])",
       "beginCaptures": {
         "1": {
           "patterns": [
