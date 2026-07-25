@@ -18260,6 +18260,23 @@
           "position": "absolute",
           "will_change": "transform"
         },
+        "input": {
+          "$name": "input",
+          "$type": "style",
+          "@focused": {
+            "border-color": "sky_60",
+            "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
+          },
+          "accent-color": "sky_60",
+          "background-color": "slate_30",
+          "border-color": "slate_40",
+          "border-style": "solid",
+          "border-width": "0.0625rem",
+          "corner": "0.25rem",
+          "padding": "0.75rem 1rem",
+          "text-color": "slate_90",
+          "transition": "all 0.2s ease-in-out"
+        },
         "ins": {
           "$name": "ins",
           "$type": "style",
@@ -91089,6 +91106,23 @@
           "pointer_events": "auto",
           "position": "absolute",
           "will_change": "transform"
+        },
+        "input": {
+          "$name": "input",
+          "$type": "style",
+          "@focused": {
+            "border-color": "sky_60",
+            "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
+          },
+          "accent-color": "sky_60",
+          "background-color": "slate_30",
+          "border-color": "slate_40",
+          "border-style": "solid",
+          "border-width": "0.0625rem",
+          "corner": "0.25rem",
+          "padding": "0.75rem 1rem",
+          "text-color": "slate_90",
+          "transition": "all 0.2s ease-in-out"
         },
         "ins": {
           "$name": "ins",

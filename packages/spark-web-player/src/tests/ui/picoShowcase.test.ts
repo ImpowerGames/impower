@@ -90,7 +90,7 @@ describe("pico showcase example", () => {
 
     // Structural classes are realized (and NOT hidden as transient write
     // targets — a styled static text inside a container used to hide it).
-    for (const cls of ["container", "nav", "card", "group", "badge"]) {
+    for (const cls of ["container", "group", "grid"]) {
       const el = h.overlay.querySelector(`.${cls}`);
       expect(el, `expected a .${cls} element`).toBeTruthy();
       expect(el!.getAttribute("style") ?? "").not.toContain("display: none");
@@ -104,36 +104,63 @@ describe("pico showcase example", () => {
       ).toBeTruthy();
     }
 
-    // Builtin element tags realize as their real DOM controls.
-    // NOTE: `link` currently renders as a `div.link`, NOT an `<a>` — the whole
-    // tree is divs apart from the form controls below. Asserted as-is so the
-    // gap is visible rather than assumed; see the a11y follow-up.
-    expect(h.overlay.querySelectorAll(".link").length).toBe(3);
-    expect(h.overlay.querySelector("input[type=range]")).toBeTruthy();
-    expect(h.overlay.querySelector("input[type=checkbox]")).toBeTruthy();
-    // Phase 2 widgets.
-    expect(h.overlay.querySelector("input[type=radio]")).toBeTruthy();
+    // Semantic element tags realize as their real HTML tags.
+    for (const tag of [
+      "a", "button", "label", "hr", "ul", "li", "blockquote", "cite",
+      "strong", "em", "code", "kbd", "mark", "del", "ins", "abbr", "sub", "sup",
+      "table", "thead", "tbody", "tr", "th", "td",
+      "article", "section", "header", "footer", "form", "fieldset", "legend",
+      "details", "summary", "dialog", "progress",
+    ]) {
+      expect(h.overlay.querySelector(tag), `expected a <${tag}>`).toBeTruthy();
+    }
+
+    // Every input type the reference page exercises.
+    for (const type of [
+      "text", "email", "search", "date", "time", "color", "file", "range",
+      "checkbox", "radio",
+    ]) {
+      expect(
+        h.overlay.querySelector(`input[type=${type}]`),
+        `expected an input[type=${type}]`,
+      ).toBeTruthy();
+    }
     expect(
       h.overlay.querySelector("input[type=checkbox][role=switch]"),
     ).toBeTruthy();
-    expect(h.overlay.querySelector("input[type=email]")).toBeTruthy();
-    const textarea = h.overlay.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
-    expect(textarea).toBeTruthy();
-    expect(textarea!.value).toBe("Dear diary");
+
     const select = h.overlay.querySelector("select") as HTMLSelectElement;
-    expect(select).toBeTruthy();
     // Options are DIRECT children and the bound store value selects one.
-    expect(select.options.length).toBe(2);
-    expect(select.value).toBe("pro");
+    expect(select.options.length).toBe(3);
+    expect(select.value).toBe("medium");
+
+    // Table shape: a header row plus three body rows, correctly parented.
+    expect(h.overlay.querySelectorAll("table > thead > tr > th").length).toBe(3);
+    expect(h.overlay.querySelectorAll("table > tbody > tr").length).toBe(3);
+
+    // Attribute props reached the DOM as attributes.
+    expect(h.overlay.querySelector("a")?.getAttribute("href")).toBe("#");
+    expect(
+      (h.overlay.querySelector("details") as HTMLDetailsElement).hasAttribute(
+        "open",
+      ),
+    ).toBe(true);
+    const progress = h.overlay.querySelector("progress") as HTMLProgressElement;
+    expect(progress.getAttribute("max")).toBe("100");
+
+    // The generic `input` must ship the same chrome as `field` — otherwise every
+    // typed input falls back to the browser's white default next to a dark
+    // `field`, which is exactly how it looked before `style input` existed.
+    const css = [...h.overlay.querySelectorAll("style")]
+      .map((s) => s.textContent ?? "")
+      .join("\n");
+    expect(css).toContain(".input");
 
     // Content bindings interpolated.
     const text = h.overlay.querySelector(".main")?.textContent ?? "";
-    expect(text).toContain("Sparkle x Pico");
-    expect(text).toContain("Clicks: 0");
+    expect(text).toContain("Pico");
     expect(text).toContain("Volume (40)");
-    expect(text).toContain("Notifications: true");
+    expect(text).toContain("Lovelace");
   });
 
   // The `@click` buttons are WIRED: made clickable and registered in the event
@@ -158,7 +185,7 @@ describe("pico showcase example", () => {
 
     const registered = ((h.game as any).module.ui as any)._events?.["click"] ?? {};
 
-    for (const label of ["Increment", "Reset"]) {
+    for (const label of ["Launch demo modal", "Cancel", "Confirm"]) {
       const el = byLabel(label);
       expect(el, `expected a "${label}" button`).toBeTruthy();
       expect(el!.style.pointerEvents).toBe("auto");

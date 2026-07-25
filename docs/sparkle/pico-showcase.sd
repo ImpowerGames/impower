@@ -1,5 +1,5 @@
-// Pico showcase — the builtin Pico-derived styles, rendered by the reactive
-// Sparkle engine.
+// Pico showcase — a one-to-one port of the Pico CSS example page
+// (https://4mrnhq.csb.app), rendered by the reactive Sparkle engine.
 //
 // Paste this whole file into the editor to see it live, OR just open it: it is
 // the fixture behind
@@ -7,110 +7,260 @@
 // WARNING-FREE and asserts the rendered DOM. Adding a section here is how a
 // builtin earns CI coverage, so keep the two in sync.
 //
-// Element TAGS are builtins (box, span, scroller, text, stroke, link, label,
-// field, button, image, mask, input, slider, checkbox, dropdown, option,
-// divider). Everything else on an element line is a style CLASS — `column`,
-// `card`, `nav`, `badge`, `h1`, `muted`, … So it is `link "Home"`, NOT
-// `text link "Home"`: two tags on one line is a warning.
+// Element TAGS are builtins — box, span, scroller, text, link, label, field,
+// textarea, button, image, input, slider, checkbox, radio, switch, dropdown,
+// option, divider, progress, plus the semantic set (strong/em/code/kbd/mark/
+// del/ins/abbr/sub/sup/cite/blockquote, ul/ol/li, table/thead/tbody/tr/th/td,
+// article/section/header/footer/form/fieldset/legend/details/summary/dialog).
+// Everything ELSE on an element line is a style CLASS — `column`, `row`, `card`,
+// `nav`, `badge`, `h1`, `muted`, `small`, `group`, `grid`, `container`. So it is
+// `link "Home"`, NOT `text link "Home"`: two tags on one line is a warning.
+//
+// NOTE: `#href` takes relative/fragment URLs here — an absolute `https://` value
+// hits a known grammar bug with `://` in a prop value.
 
-store clicks = 0
+store first_name = ""
+store email = ""
+store agreed = false
+store search_term = ""
+store when = "2026-07-24"
+store at_time = "10:30"
+store swatch = "#0ea5e9"
 store volume = 40
-store notify = true
-store plan = "pro"
-store notes = "Dear diary"
-store email = "hi@example.com"
-store tier = "standard"
+store size = "medium"
+store fruit = "orange"
+store veggie = "carrot"
+store modal_open = false
+store busy = false
+store done = 40
 
-function increment()
-  clicks += 1
-end
-
-function reset_clicks()
-  clicks = 0
-end
-
-function set_volume(event)
-  volume = event.value
-end
-
-function set_notify(event)
-  notify = event.checked
-end
-
-function set_plan(event)
-  plan = event.value
-end
-
-function set_notes(event)
-  notes = event.value
+function set_first(event)
+  first_name = event.value
 end
 
 function set_email(event)
   email = event.value
 end
 
+function set_agreed(event)
+  agreed = event.checked
+end
+
+function set_search(event)
+  search_term = event.value
+end
+
+function set_volume(event)
+  volume = event.value
+end
+
+function set_size(event)
+  size = event.value
+end
+
+function open_modal()
+  modal_open = true
+end
+
+function close_modal()
+  modal_open = false
+end
+
+function toggle_busy()
+  busy = not busy
+end
+
 layout main with
-  column container #child-gap=20 #padding=28:
+  scroller #height=100% #overflow-y=auto:
+    column container #child-gap=24 #padding=28:
 
-    -- Typography
-    text h1 "Sparkle x Pico"
-    text muted "The builtin Pico styles, driven by reactive bindings."
+      -- Header -------------------------------------------------------------
+      header:
+        text h1 "Pico"
+        text muted "A pure HTML example, without dependencies."
+      divider
 
-    -- Navigation
-    row nav #child-gap=18:
-      link "Home"
-      link "Docs"
-      link "About"
+      -- Preview ------------------------------------------------------------
+      section:
+        text h2 "Preview"
+        text "Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien."
+        form:
+          row grid #child-gap=12:
+            field #value={first_name} #placeholder="First name" @input=set_first
+            field #type="email" #value={email} #placeholder="Email address" @input=set_email
+            button "Subscribe"
+          row #child-gap=8 #child-align=center:
+            switch #checked={agreed} @change=set_agreed
+            text "I agree to the "
+            link "Privacy Policy" #href="#"
 
-    divider
+      -- Typography ---------------------------------------------------------
+      section:
+        text h2 "Typography"
+        text "Aliquam lobortis vitae nibh nec rhoncus. Morbi mattis neque eget efficitur feugiat."
+        blockquote:
+          text "Maecenas vehicula metus tellus, vitae congue turpis hendrerit non."
+          cite "- Phasellus eget lacinia"
 
-    -- Button variants
-    column card #child-gap=12:
-      text h3 "Buttons"
-      row group #child-gap=8:
-        button "Primary"
-        button secondary "Secondary"
-        button contrast "Contrast"
-        button outline "Outline"
+        text h3 "Lists"
+        ul:
+          li "Aliquam lobortis lacus eu libero ornare facilisis."
+          li "Nam et magna at libero scelerisque egestas."
+          li "Suspendisse id nisl ut leo finibus vehicula quis eu ex."
 
-    -- Reactive state: @click handlers mutate a store, bindings re-render
-    column card #child-gap=12:
-      text h3 "Reactive state"
-      text "Clicks: {clicks}"
-      row #child-gap=8:
-        button "Increment" @click=increment
-        button outline "Reset" @click=reset_clicks
+        text h3 "Inline text elements"
+        row #child-gap=8 #child-overflow=wrap #child-align=center:
+          strong "Bold"
+          em "Italic"
+          code "code"
+          kbd "Ctrl"
+          mark "Highlighted"
+          del "Deleted"
+          ins "Inserted"
+          abbr "HTML"
+          text "Sub"
+          sub "2"
+          text "Sup"
+          sup "3"
 
-    -- Form controls, each two-way bound to a store
-    column card #child-gap=12:
-      text h3 "Form controls"
-      label "Volume ({volume})"
-      slider #value={volume} #min=0 #max=100 @input=set_volume
-      row #child-gap=8:
-        checkbox #checked={notify} @change=set_notify
-        text "Notifications: {notify}"
-      label "Plan"
-      dropdown #value={plan} @change=set_plan:
-        option "Free" #value="free"
-        option "Pro" #value="pro"
-      text hint "Hints render quiet and small."
+        text h3 "Heading 3"
+        text h4 "Heading 4"
+        text h5 "Heading 5"
+        text h6 "Heading 6"
 
-    -- Toggles, free text and typed inputs
-    column card #child-gap=12:
-      text h3 "More controls"
-      row #child-gap=8:
-        switch #checked={notify}
-        text "Switch (a checkbox with role=switch)"
-      row #child-gap=8:
-        radio #checked={notify} #name="tier"
-        text "Radio ({tier})"
-      label "Notes"
-      textarea #value={notes} #rows=3 @input=set_notes
-      label "Email"
-      input #type="email" #value={email} @input=set_email
+      -- Buttons ------------------------------------------------------------
+      section:
+        text h2 "Buttons"
+        row group #child-gap=8:
+          button "Primary"
+          button secondary "Secondary"
+          button contrast "Contrast"
+        row group #child-gap=8:
+          button outline "Primary outline"
+          button "Reset" #type="reset"
+          button "Submit" #type="submit"
 
-    -- Inline accents
-    row #child-gap=8:
-      text badge "New"
-      text small "Small print."
+      -- Form elements ------------------------------------------------------
+      section:
+        text h2 "Form elements"
+        form:
+          label "Search"
+          input #type="search" #value={search_term} #placeholder="Search" @input=set_search
+
+          label "Date"
+          input #type="date" #value={when}
+
+          label "Time"
+          input #type="time" #value={at_time}
+
+          label "Color"
+          input #type="color" #value={swatch}
+
+          label "File"
+          input #type="file"
+
+          label "Volume ({volume})"
+          slider #value={volume} #min=0 #max=100 @input=set_volume
+
+          label "Size"
+          dropdown #value={size} @change=set_size:
+            option "Small" #value="small"
+            option "Medium" #value="medium"
+            option "Large" #value="large"
+
+          fieldset:
+            legend "Fruit"
+            row #child-gap=8 #child-align=center:
+              radio #name="fruit" #checked=true
+              text "Orange"
+            row #child-gap=8 #child-align=center:
+              radio #name="fruit"
+              text "Apple"
+
+          fieldset:
+            legend "Preferences"
+            row #child-gap=8 #child-align=center:
+              checkbox #checked=true
+              text "Remember me"
+            row #child-gap=8 #child-align=center:
+              switch #checked={agreed} @change=set_agreed
+              text "Publish immediately"
+
+      -- Tables -------------------------------------------------------------
+      section:
+        text h2 "Tables"
+        table:
+          thead:
+            tr:
+              th "#"
+              th "First name"
+              th "Last name"
+          tbody:
+            tr:
+              td "1"
+              td "Ada"
+              td "Lovelace"
+            tr:
+              td "2"
+              td "Grace"
+              td "Hopper"
+            tr:
+              td "3"
+              td "Alan"
+              td "Turing"
+
+      -- Modal --------------------------------------------------------------
+      section:
+        text h2 "Modal"
+        button "Launch demo modal" @click=open_modal
+        dialog #open={modal_open}:
+          article:
+            header:
+              text h3 "Confirm your action!"
+            text "Cras sit amet maximus risus. Pellentesque sodales odio sit amet augue finibus."
+            footer:
+              row group #child-gap=8:
+                button secondary "Cancel" @click=close_modal
+                button "Confirm" @click=close_modal
+
+      -- Accordions ---------------------------------------------------------
+      section:
+        text h2 "Accordions"
+        details #open=true:
+          summary "Introduction"
+          text "Nunc nec dui vitae massa hendrerit fringilla."
+        details:
+          summary "Details"
+          ul:
+            li "Vestibulum id elit quis massa interdum sodales."
+            li "Nunc quis eros vel odio pretium tincidunt."
+
+      -- Article ------------------------------------------------------------
+      section:
+        text h2 "Article"
+        article:
+          header "Header"
+          text "Nullam scelerisque tempor varius. Vestibulum ante ipsum primis in faucibus."
+          footer "Footer"
+
+      -- Group --------------------------------------------------------------
+      section:
+        text h2 "Group"
+        form:
+          row group #child-gap=0:
+            field #placeholder="Enter your email"
+            button "Subscribe"
+
+      -- Progress -----------------------------------------------------------
+      section:
+        text h2 "Progress bar"
+        progress #value={done} #max=100
+        progress
+
+      -- Loading ------------------------------------------------------------
+      section:
+        text h2 "Loading"
+        row group #child-gap=8 #child-align=center:
+          button "Please wait…" #aria-busy={busy} @click=toggle_busy
+          text muted "Click to toggle aria-busy"
 end

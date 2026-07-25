@@ -1393,6 +1393,25 @@ style checkbox with
   accent-color = sky_60
 end
 
+-- `input` is the generic form control (`input #type="email|search|date|…"`).
+-- It needs the same chrome as `field`, which is just `input #type="text"` under
+-- a friendlier name — without this, every typed input fell back to the
+-- browser's white default while `field` next to it was dark.
+style input with
+  padding = 0.75rem 1rem
+  corner = 0.25rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
+  text-color = slate_90
+  accent-color = sky_60
+  transition = all 0.2s ease-in-out
+  @focused:
+    border-color = sky_60
+    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+end
+
 style radio with
   width = 1.25rem
   height = 1.25rem

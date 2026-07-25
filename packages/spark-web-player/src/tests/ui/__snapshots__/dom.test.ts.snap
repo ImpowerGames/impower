@@ -694,6 +694,21 @@ spark-web-player #game .checkbox {
   cursor: pointer;
   accent-color: sky_60;
 }
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+}
 spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
@@ -1994,6 +2009,21 @@ spark-web-player #game .checkbox {
   cursor: pointer;
   accent-color: sky_60;
 }
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+}
 spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
@@ -3255,6 +3285,21 @@ spark-web-player #game .checkbox {
   height: 1.25rem;
   cursor: pointer;
   accent-color: sky_60;
+}
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .radio {
   width: 1.25rem;
@@ -4640,6 +4685,21 @@ spark-web-player #game .checkbox {
   cursor: pointer;
   accent-color: sky_60;
 }
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+}
 spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
@@ -5883,6 +5943,21 @@ spark-web-player #game .checkbox {
   cursor: pointer;
   accent-color: sky_60;
 }
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+}
 spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
@@ -7107,6 +7182,21 @@ spark-web-player #game .checkbox {
   height: 1.25rem;
   cursor: pointer;
   accent-color: sky_60;
+}
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .radio {
   width: 1.25rem;
@@ -8383,6 +8473,21 @@ spark-web-player #game .checkbox {
   cursor: pointer;
   accent-color: sky_60;
 }
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+}
 spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
@@ -9624,6 +9729,21 @@ spark-web-player #game .checkbox {
   height: 1.25rem;
   cursor: pointer;
   accent-color: sky_60;
+}
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .radio {
   width: 1.25rem;
@@ -10867,6 +10987,21 @@ spark-web-player #game .checkbox {
   cursor: pointer;
   accent-color: sky_60;
 }
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+}
 spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
@@ -12109,6 +12244,21 @@ spark-web-player #game .checkbox {
   cursor: pointer;
   accent-color: sky_60;
 }
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+}
 spark-web-player #game .radio {
   width: 1.25rem;
   height: 1.25rem;
@@ -13350,6 +13500,21 @@ spark-web-player #game .checkbox {
   height: 1.25rem;
   cursor: pointer;
   accent-color: sky_60;
+}
+spark-web-player #game .input {
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  border-width: 0.0625rem;
+  border-style: solid;
+  border-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_30);
+  color: var(--theme-color-slate_90);
+  accent-color: sky_60;
+  transition: all 0.2s ease-in-out;
+  &:focus {
+    border-color: var(--theme-color-sky_60);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
 }
 spark-web-player #game .radio {
   width: 1.25rem;
