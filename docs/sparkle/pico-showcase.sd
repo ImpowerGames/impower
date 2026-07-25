@@ -17,7 +17,10 @@
 // Everything ELSE on an element line is a style CLASS — `column`, `row`, `card`,
 // `nav`, `badge`, `h1`, `muted`, `small`, `group`, `grid`, `container`, and the
 // inline text classes `bold`, `italic`, `underline`, `strikethrough`,
-// `highlight`, `key`, `code`. So it is `link "Home"`, NOT `text link "Home"`:
+// `highlight`, `key`, `code`. Note `strong` / `emphasis` are ELEMENTS, not
+// classes: they carry meaning for assistive tech, whereas `bold` / `italic`
+// are purely visual — the same split HTML draws between <strong>/<em> and
+// <b>/<i>. So it is `link "Home"`, NOT `text link "Home"`:
 // two tags on one line is a warning.
 //
 // Styling WITHIN a line uses rich-text tags instead: `text "a <b>bold</b> word"`.
@@ -117,9 +120,11 @@ layout main with
           link "Primary link" #href="#"
           link secondary "Secondary link" #href="#"
           link contrast "Contrast link" #href="#"
+        -- The reference marks these up semantically, so they are ELEMENTS.
+        -- `<u>` is explicitly non-semantic in HTML, so underline stays a class.
         row grid:
-          text bold "Bold"
-          text italic "Italic"
+          strong "Bold"
+          emphasis "Italic"
           text underline "Underline"
         row grid:
           text deleted "Deleted"

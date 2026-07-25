@@ -324,11 +324,15 @@ const INPUT_WIDGETS: Record<
  * Toolkit has no `ul`/`table`, so a Unity renderer maps `list`/`item` just as
  * easily, and readable names keep the model from biasing toward HTML.
  *
- * INLINE text styling is deliberately NOT here. `bold`, `italic`, `underline`,
- * `highlight` … are style CLASSES (`text bold "…"`, like `text h1`), and
- * styling WITHIN a line is done with rich-text tags (`text "a <b>bold</b> word"`
- * — see ui/utils/parseRichText.ts). Having both an element and a tag for the
- * same effect was redundant.
+ * VISUAL inline styling is deliberately NOT here. `bold`, `italic`,
+ * `underline`, `highlight` … are style CLASSES (`text bold "…"`, like
+ * `text h1`), and styling WITHIN a line is done with rich-text tags
+ * (`text "a <b>bold</b> word"` — see ui/utils/parseRichText.ts).
+ *
+ * SEMANTIC inline elements are the exception: `strong` and `emphasis` are tags,
+ * because <strong>/<em> convey meaning to assistive tech while <b>/<i> are
+ * explicitly stylistic-only. Same word, different job — `strong "Vital"` says
+ * it matters, `text bold "Vital"` just makes it heavy.
  *
  * Also not listed: names that already exist as style CLASSES (`small`, `nav`,
  * `group`, `grid`, `muted`, …) — promoting those to tags would turn existing
@@ -353,7 +357,12 @@ const ELEMENT_TAGS: Record<string, string> = {
   table_row: "tr",
   header_cell: "th",
   cell: "td",
-  // Text structure
+  // Text structure. `strong`/`emphasis` are ELEMENTS because they carry
+  // MEANING a screen reader acts on (importance / stress emphasis). Purely
+  // visual weight and slant are the `bold` / `italic` CLASSES instead — the
+  // same split HTML itself draws between <strong>/<em> and <b>/<i>.
+  strong: "strong",
+  emphasis: "em",
   quote: "blockquote",
   citation: "cite",
   // Structure

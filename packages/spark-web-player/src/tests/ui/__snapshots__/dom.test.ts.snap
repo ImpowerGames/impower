@@ -912,6 +912,14 @@ spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
 }
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
+}
 spark-web-player #game .bold {
   font-weight: 700;
 }
@@ -2418,6 +2426,14 @@ spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
 }
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
+}
 spark-web-player #game .bold {
   font-weight: 700;
 }
@@ -3885,6 +3901,14 @@ spark-web-player #game .container {
 spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
+}
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
 }
 spark-web-player #game .bold {
   font-weight: 700;
@@ -5476,6 +5500,14 @@ spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
 }
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
+}
 spark-web-player #game .bold {
   font-weight: 700;
 }
@@ -6925,6 +6957,14 @@ spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
 }
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
+}
 spark-web-player #game .bold {
   font-weight: 700;
 }
@@ -8355,6 +8395,14 @@ spark-web-player #game .container {
 spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
+}
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
 }
 spark-web-player #game .bold {
   font-weight: 700;
@@ -9837,6 +9885,14 @@ spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
 }
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
+}
 spark-web-player #game .bold {
   font-weight: 700;
 }
@@ -11284,6 +11340,14 @@ spark-web-player #game .container {
 spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
+}
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
 }
 spark-web-player #game .bold {
   font-weight: 700;
@@ -12733,6 +12797,14 @@ spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
 }
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
+}
 spark-web-player #game .bold {
   font-weight: 700;
 }
@@ -14181,6 +14253,14 @@ spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
 }
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
+}
 spark-web-player #game .bold {
   font-weight: 700;
 }
@@ -15628,6 +15708,14 @@ spark-web-player #game .container {
 spark-web-player #game .prose {
   display: block;
   color: var(--theme-color-slate_90);
+}
+spark-web-player #game .strong {
+  display: inline;
+  font-weight: 700;
+}
+spark-web-player #game .emphasis {
+  display: inline;
+  font-style: italic;
 }
 spark-web-player #game .bold {
   font-weight: 700;

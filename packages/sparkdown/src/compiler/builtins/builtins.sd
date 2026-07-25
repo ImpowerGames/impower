@@ -1633,6 +1633,19 @@ style prose with
   text-color = slate_90
 end
 
+-- `strong` / `emphasis` are ELEMENTS (they mean importance / stress emphasis);
+-- `bold` / `italic` are the purely visual CLASSES. Same rendering, different
+-- meaning — mirroring HTML's own <strong>/<em> vs <b>/<i> split.
+style strong with
+  display = inline
+  text-weight = 700
+end
+
+style emphasis with
+  display = inline
+  text-style = italic
+end
+
 style bold with
   text-weight = 700
 end

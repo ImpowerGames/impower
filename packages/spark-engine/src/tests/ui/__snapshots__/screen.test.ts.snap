@@ -1678,6 +1678,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "text-color": "slate_90",
                   "transition": "all 0.2s ease-in-out",
                 },
+                "emphasis": {
+                  "$name": "emphasis",
+                  "$type": "style",
+                  "display": "inline",
+                  "text-style": "italic",
+                },
                 "field": {
                   "$name": "field",
                   "$type": "style",
@@ -2190,6 +2196,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "text_wrap": "wrap",
                   "user_select": "none",
                   "white_space": "pre-line",
+                },
+                "strong": {
+                  "$name": "strong",
+                  "$type": "style",
+                  "display": "inline",
+                  "text-weight": "700",
                 },
                 "switch": {
                   "$name": "switch",

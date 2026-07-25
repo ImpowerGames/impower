@@ -59,6 +59,8 @@ end
   quote:
     text "Quoted."
     citation "- Someone"
+  strong "important"
+  emphasis "stressed"
   text bold "bold"
   text italic "italic"
   text underline "u"
@@ -75,11 +77,15 @@ end
     expect(h.overlay.querySelector("blockquote")).toBeTruthy();
     expect(h.overlay.querySelector("cite")?.textContent).toBe("- Someone");
 
-    // Inline styling is applied as a CLASS on a text element — there is no
-    // `<strong>`/`<em>`/`<mark>` element any more. Styling WITHIN a line is done
-    // with rich-text tags instead (see domRichText.test.ts), so there is exactly
-    // one way to express each.
-    for (const tag of ["strong", "em", "mark", "kbd", "del", "ins", "abbr"]) {
+    // SEMANTIC inline elements survive as tags: <strong> means importance and
+    // <em> means stress emphasis, and assistive tech acts on both.
+    expect(h.overlay.querySelector("strong")?.textContent).toBe("important");
+    expect(h.overlay.querySelector("em")?.textContent).toBe("stressed");
+
+    // VISUAL styling is a CLASS on a text element — <b>/<i> are defined as
+    // stylistic-only, so there is no element for them. Styling WITHIN a line
+    // uses rich-text tags (see domRichText.test.ts).
+    for (const tag of ["mark", "kbd", "del", "ins", "abbr"]) {
       expect(
         h.overlay.querySelector(tag),
         `<${tag}> should no longer be a builtin tag`,

@@ -109,10 +109,12 @@ describe("pico showcase example", () => {
       // Real DOM tags, from readable builtin names (`list` -> <ul>,
       // `header_cell` -> <th>, `modal` -> <dialog>, …).
       //
-      // No `strong`/`em`/`mark`/`sub`/`sup` here: inline styling is a CLASS on a
-      // text element, or a rich-text tag within a line — not an element. Both
-      // are asserted below.
+      // No `mark`/`kbd`/`sub`/`sup` here: purely VISUAL styling is a class on a
+      // text element, or a rich-text tag within a line — not an element.
+      // `strong`/`em` are the exception, because they carry meaning.
       "a", "button", "label", "hr", "ul", "li", "blockquote", "cite",
+      // Semantic inline elements (importance / stress emphasis).
+      "strong", "em",
       "table", "thead", "tbody", "tr", "th", "td",
       "article", "section", "header", "footer", "form", "fieldset", "legend",
       "details", "summary", "dialog", "progress",
@@ -170,8 +172,10 @@ describe("pico showcase example", () => {
       .join("\n");
     expect(css).toContain(".input");
 
-    // Inline styling as CLASSES on a whole text element.
-    for (const cls of ["bold", "italic", "underline", "strikethrough",
+    // Purely visual styling as CLASSES on a whole text element. (`bold` /
+    // `italic` exist too, but the reference marks those spots up semantically,
+    // so the showcase uses the `strong` / `emphasis` ELEMENTS there.)
+    for (const cls of ["underline", "strikethrough",
                        "deleted", "inserted", "highlight", "key"]) {
       expect(
         h.overlay.querySelector(`.text.${cls}`),
