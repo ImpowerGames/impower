@@ -5,6 +5,17 @@ import { VersionedTextDocumentIdentifier } from "../../types/VersionedTextDocume
 
 export type CompiledProgramMethod = typeof CompiledProgramMessage.method;
 
+/**
+ * Per-file rollup of diagnostic counts by severity. Enough for a client to
+ * badge/color a file (error = red, warning = yellow) without shipping the
+ * diagnostics themselves — full diagnostics reach editor views separately via
+ * `textDocument/publishDiagnostics`.
+ */
+export type DiagnosticsSummary = Record<
+  string,
+  { errors: number; warnings: number; infos: number }
+>;
+
 export interface CompiledProgramParams {
   /**
    * The document that was parsed.
@@ -18,6 +29,11 @@ export interface CompiledProgramParams {
    * The simulated checkpoint for the new program.
    */
   checkpoint?: string;
+  /**
+   * Per-file diagnostic counts. Populated (and `program.diagnostics` omitted)
+   * when the workspace is initialized with `slimProgramNotifications`.
+   */
+  diagnosticsSummary?: DiagnosticsSummary;
 }
 
 export class CompiledProgramMessage {

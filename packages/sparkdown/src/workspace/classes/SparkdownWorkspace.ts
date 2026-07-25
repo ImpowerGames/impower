@@ -2,7 +2,11 @@ import { Port1MessageConnection } from "@impower/jsonrpc/src/browser/classes/Por
 import { WorkerMessageConnection } from "@impower/jsonrpc/src/browser/classes/WorkerMessageConnection";
 import { File, Range } from "../../compiler";
 import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
-import { CompiledProgramMessage } from "../../compiler/classes/messages/CompiledProgramMessage";
+import {
+  CompiledProgramMessage,
+  type CompiledProgramParams,
+  type DiagnosticsSummary,
+} from "../../compiler/classes/messages/CompiledProgramMessage";
 import {
   CompileProgramMessage,
   CompileProgramResult,
@@ -21,6 +25,34 @@ import { profile } from "../utils/logging/profile";
 import { debounce } from "../utils/timing/debounce";
 
 const DEBOUNCE_DELAY = 600;
+
+/**
+ * Roll program diagnostics up into per-file severity counts (LSP severities:
+ * 1=Error, 2=Warning, 3=Information, 4=Hint — hints count as infos). Used by
+ * the slim `compiler/didCompile` relay so file badges/colors don't require
+ * shipping the diagnostics themselves.
+ */
+const summarizeDiagnostics = (
+  diagnostics: SparkProgram["diagnostics"],
+): DiagnosticsSummary => {
+  const summary: DiagnosticsSummary = {};
+  if (diagnostics) {
+    for (const [uri, fileDiagnostics] of Object.entries(diagnostics)) {
+      const counts = { errors: 0, warnings: 0, infos: 0 };
+      for (const d of fileDiagnostics) {
+        if (d.severity === 1) {
+          counts.errors++;
+        } else if (d.severity === 2) {
+          counts.warnings++;
+        } else {
+          counts.infos++;
+        }
+      }
+      summary[uri] = counts;
+    }
+  }
+  return summary;
+};
 
 const globToRegex = (glob: string) => {
   return RegExp(
@@ -630,12 +662,13 @@ export abstract class SparkdownWorkspace {
       // (which is ~9MB on a large project and re-broadcast on EVERY compile;
       // the receiver pays a structured-clone of all of it per keystroke).
       // The impower web editor's main thread reads only:
-      //   - diagnostics        (WorkspaceWindow → debug store)
+      //   - diagnosticsSummary (WorkspaceWindow → file/tab error+warning colors;
+      //     full diagnostics reach editor views via publishDiagnostics)
       //   - scripts + pathLocations (PreviewGame PageUp/PageDown navigation)
       // uri/files/version ride along because they're required/cheap. Add a
       // field here if a new main-thread consumer ever needs it — or better,
       // fetch it on demand instead.
-      const notificationParams: CompileProgramResult = this
+      const notificationParams: CompiledProgramParams = this
         .slimProgramNotifications
         ? {
             ...result,
@@ -644,9 +677,11 @@ export abstract class SparkdownWorkspace {
               scripts: result.program.scripts,
               files: result.program.files,
               pathLocations: result.program.pathLocations,
-              diagnostics: result.program.diagnostics,
               version: result.program.version,
             },
+            diagnosticsSummary: summarizeDiagnostics(
+              result.program.diagnostics,
+            ),
           }
         : result;
       this.sendNotification(CompiledProgramMessage.method, notificationParams);

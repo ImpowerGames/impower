@@ -24,25 +24,23 @@ import workspace from "./WorkspaceStore";
  */
 export function useDiagnosticColor(filename?: string): string {
   return useComputed(() => {
-    const diagnostics = workspace.state.value.debug?.diagnostics;
-    if (!diagnostics) return "";
-    let minSeverity = Infinity;
-    let count = 0;
-    for (const [uri, fileDiagnostics] of Object.entries(diagnostics)) {
+    // Per-file severity COUNTS, not the diagnostics themselves — the slim
+    // compiler/didCompile relay rolls them up worker-side so the main thread
+    // never receives (or holds) full diagnostic payloads.
+    const summary = workspace.state.value.debug?.diagnosticsSummary;
+    if (!summary) return "";
+    let errors = 0;
+    let warnings = 0;
+    for (const [uri, counts] of Object.entries(summary)) {
       const matches = filename
         ? uri.endsWith("/" + filename)
         : !uri.endsWith("/main.sd");
       if (!matches) continue;
-      for (const d of fileDiagnostics) {
-        count += 1;
-        if ((d.severity ?? Infinity) < minSeverity) {
-          minSeverity = d.severity ?? Infinity;
-        }
-      }
+      errors += counts.errors;
+      warnings += counts.warnings;
     }
-    if (count === 0) return "";
-    if (minSeverity === 1) return "text-danger-500";
-    if (minSeverity === 2) return "text-warning-500";
+    if (errors > 0) return "text-danger-500";
+    if (warnings > 0) return "text-warning-500";
     return "";
   }).value;
 }
