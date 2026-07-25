@@ -308,6 +308,63 @@ const INPUT_WIDGETS: Record<
   switch: { inputType: "checkbox", attributes: { role: "switch" } },
 };
 
+/**
+ * Builtin tag → the real DOM tag it renders as. Anything absent renders as a
+ * `<div>` (the overlay's default box), which is still what `text`, `box`,
+ * `image`, `mask` and the layout containers want.
+ *
+ * Only tags whose HTML semantics actually matter are listed: interactive
+ * controls, the list/table/structure families, and the inline text elements.
+ * Deliberately NOT listed are names that already exist as style CLASSES
+ * (`small`, `nav`, `progress`, `group`, `grid`, `muted`, …) — promoting those to
+ * tags would turn existing authoring like `text small "…"` into a
+ * two-tags-on-one-line warning, and a styled `<div>` renders identically.
+ */
+const ELEMENT_TAGS: Record<string, string> = {
+  // Interactive / semantic controls
+  link: "a",
+  button: "button",
+  label: "label",
+  span: "span",
+  divider: "hr",
+  // Inline text elements
+  strong: "strong",
+  em: "em",
+  code: "code",
+  kbd: "kbd",
+  mark: "mark",
+  del: "del",
+  ins: "ins",
+  abbr: "abbr",
+  sub: "sub",
+  sup: "sup",
+  cite: "cite",
+  blockquote: "blockquote",
+  // Lists
+  ul: "ul",
+  ol: "ol",
+  li: "li",
+  // Tables
+  table: "table",
+  thead: "thead",
+  tbody: "tbody",
+  tfoot: "tfoot",
+  tr: "tr",
+  th: "th",
+  td: "td",
+  // Structure
+  article: "article",
+  section: "section",
+  header: "header",
+  footer: "footer",
+  form: "form",
+  fieldset: "fieldset",
+  legend: "legend",
+  details: "details",
+  summary: "summary",
+  dialog: "dialog",
+};
+
 export type UIMessageMap = AnimateElementsMessageMap &
   BatchElementsMessageMap &
   CreateElementMessageMap &
@@ -1276,11 +1333,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
     }
+    // Most builtins are boxes; the semantic ones (a / button / li / td / …)
+    // render as their real HTML tag so the tree is navigable and Pico's
+    // element-level expectations hold. Unlisted tags stay a <div>.
+    const type = ELEMENT_TAGS[node.tag] ?? "div";
     const el = this.createElement(
       parent,
       Object.keys(style).length > 0
-        ? { type: "div", name, style }
-        : { type: "div", name },
+        ? { type, name, style }
+        : { type, name },
       before,
     );
     for (const r of reactiveStyles) {

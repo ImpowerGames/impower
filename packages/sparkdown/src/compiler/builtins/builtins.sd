@@ -1507,6 +1507,201 @@ style container with
   padding = 1rem
 end
 
+-- Inline text elements ------------------------------------------------------
+
+style strong with
+  text-weight = 700
+end
+
+style em with
+  text-style = italic
+end
+
+style code with
+  font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
+  text-size = 0.875rem
+  background-color = slate_30
+  corner = 0.25rem
+  padding = 0.125rem 0.375rem
+end
+
+style kbd with
+  font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
+  text-size = 0.875rem
+  background-color = slate_90
+  text-color = slate_20
+  corner = 0.25rem
+  padding = 0.125rem 0.375rem
+end
+
+style mark with
+  background-color = amber_60
+  text-color = slate_20
+  padding = 0.0625rem 0.25rem
+  corner = 0.125rem
+end
+
+style del with
+  text-decoration = line-through
+  text-color = slate_60
+end
+
+style ins with
+  text-decoration = underline
+  text-color = emerald_60
+end
+
+style abbr with
+  text-decoration = underline dotted
+  cursor = help
+end
+
+style sub with
+  text-size = 0.75rem
+end
+
+style sup with
+  text-size = 0.75rem
+end
+
+style cite with
+  text-style = italic
+  text-color = slate_60
+  text-size = 0.875rem
+end
+
+style blockquote with
+  display = flex
+  child-layout = column
+  child-gap = 0.5rem
+  margin = 1rem 0
+  padding = 0.75rem 1.25rem
+  border-left-width = 0.25rem
+  border-left-style = solid
+  border-left-color = slate_40
+end
+
+-- Lists ---------------------------------------------------------------------
+
+-- Left as the browser's default BLOCK display on purpose: a flex `ul` would
+-- suppress the list markers, and `child-gap` has no effect on non-flex parents.
+style ul with
+  padding-left = 1.5rem
+  list-style = square
+end
+
+style ol with
+  padding-left = 1.5rem
+  list-style = decimal
+end
+
+style li with
+  text-color = slate_90
+  margin-bottom = 0.25rem
+end
+
+-- Tables --------------------------------------------------------------------
+
+style table with
+  width = 100%
+  border-collapse = collapse
+  text-align = left
+  margin = 1rem 0
+end
+
+style th with
+  padding = 0.75rem 1rem
+  text-weight = 600
+  text-color = slate_90
+  border-bottom-width = 0.125rem
+  border-bottom-style = solid
+  border-bottom-color = slate_40
+end
+
+style td with
+  padding = 0.75rem 1rem
+  text-color = slate_90
+  border-bottom-width = 0.0625rem
+  border-bottom-style = solid
+  border-bottom-color = slate_40
+end
+
+-- Structure -----------------------------------------------------------------
+
+style article with
+  display = flex
+  child-layout = column
+  child-gap = 1rem
+  background-color = slate_30
+  corner = 0.5rem
+  padding = 1.5rem
+  margin = 1rem 0
+end
+
+style header with
+  display = flex
+  child-layout = column
+  child-gap = 0.5rem
+end
+
+style footer with
+  display = flex
+  child-layout = column
+  child-gap = 0.5rem
+  text-color = slate_60
+  text-size = 0.875rem
+end
+
+style section with
+  display = flex
+  child-layout = column
+  child-gap = 1rem
+end
+
+style form with
+  display = flex
+  child-layout = column
+  child-gap = 1rem
+end
+
+-- Pico strips the default fieldset chrome and uses it purely as a grouping box.
+style fieldset with
+  display = flex
+  child-layout = column
+  child-gap = 0.5rem
+  border-width = 0
+  padding = 0
+  margin = 0
+end
+
+style legend with
+  text-weight = 600
+  padding-bottom = 0.5rem
+end
+
+-- Accordion: a native <details>/<summary> disclosure.
+style details with
+  border-bottom-width = 0.0625rem
+  border-bottom-style = solid
+  border-bottom-color = slate_40
+  padding = 0.75rem 0
+end
+
+style summary with
+  cursor = pointer
+  text-weight = 600
+  text-color = slate_90
+end
+
+-- Modal: a native <dialog>. Open it with `#open=true`.
+style dialog with
+  border-width = 0
+  corner = 0.5rem
+  padding = 1.5rem
+  background-color = slate_30
+  text-color = slate_90
+end
+
 style card with
   display = flex
   child-layout = column

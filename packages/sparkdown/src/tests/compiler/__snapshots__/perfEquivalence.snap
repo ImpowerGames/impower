@@ -17833,6 +17833,12 @@
           "$recursive": true,
           "$type": "style"
         },
+        "abbr": {
+          "$name": "abbr",
+          "$type": "style",
+          "cursor": "help",
+          "text-decoration": "underline dotted"
+        },
         "action": {
           "$name": "action",
           "$type": "style",
@@ -17845,6 +17851,17 @@
           "padding_right": "40px",
           "position": "absolute",
           "text_align": "center"
+        },
+        "article": {
+          "$name": "article",
+          "$type": "style",
+          "background-color": "slate_30",
+          "child-gap": "1rem",
+          "child-layout": "column",
+          "corner": "0.5rem",
+          "display": "flex",
+          "margin": "1rem 0",
+          "padding": "1.5rem"
         },
         "backdrop": {
           "$name": "backdrop",
@@ -17867,6 +17884,18 @@
           "text-color": "white",
           "text-size": "0.75rem",
           "text-weight": "600"
+        },
+        "blockquote": {
+          "$name": "blockquote",
+          "$type": "style",
+          "border-left-color": "slate_40",
+          "border-left-style": "solid",
+          "border-left-width": "0.25rem",
+          "child-gap": "0.5rem",
+          "child-layout": "column",
+          "display": "flex",
+          "margin": "1rem 0",
+          "padding": "0.75rem 1.25rem"
         },
         "button": {
           "$name": "button",
@@ -17981,6 +18010,22 @@
           "position": "relative",
           "width": "100%"
         },
+        "cite": {
+          "$name": "cite",
+          "$type": "style",
+          "text-color": "slate_60",
+          "text-size": "0.875rem",
+          "text-style": "italic"
+        },
+        "code": {
+          "$name": "code",
+          "$type": "style",
+          "background-color": "slate_30",
+          "corner": "0.25rem",
+          "font-family": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace",
+          "padding": "0.125rem 0.375rem",
+          "text-size": "0.875rem"
+        },
         "column": {
           "$name": "column",
           "$type": "style",
@@ -18017,6 +18062,29 @@
           "border-color": "slate_90",
           "text-color": "slate_20"
         },
+        "del": {
+          "$name": "del",
+          "$type": "style",
+          "text-color": "slate_60",
+          "text-decoration": "line-through"
+        },
+        "details": {
+          "$name": "details",
+          "$type": "style",
+          "border-bottom-color": "slate_40",
+          "border-bottom-style": "solid",
+          "border-bottom-width": "0.0625rem",
+          "padding": "0.75rem 0"
+        },
+        "dialog": {
+          "$name": "dialog",
+          "$type": "style",
+          "background-color": "slate_30",
+          "border-width": "0",
+          "corner": "0.5rem",
+          "padding": "1.5rem",
+          "text-color": "slate_90"
+        },
         "dialogue": {
           "$name": "dialogue",
           "$type": "style",
@@ -18043,6 +18111,11 @@
           "text-color": "slate_90",
           "transition": "all 0.2s ease-in-out"
         },
+        "em": {
+          "$name": "em",
+          "$type": "style",
+          "text-style": "italic"
+        },
         "field": {
           "$name": "field",
           "$type": "style",
@@ -18058,6 +18131,32 @@
           "padding": "0.75rem 1rem",
           "text-color": "slate_90",
           "transition": "all 0.2s ease-in-out"
+        },
+        "fieldset": {
+          "$name": "fieldset",
+          "$type": "style",
+          "border-width": "0",
+          "child-gap": "0.5rem",
+          "child-layout": "column",
+          "display": "flex",
+          "margin": "0",
+          "padding": "0"
+        },
+        "footer": {
+          "$name": "footer",
+          "$type": "style",
+          "child-gap": "0.5rem",
+          "child-layout": "column",
+          "display": "flex",
+          "text-color": "slate_60",
+          "text-size": "0.875rem"
+        },
+        "form": {
+          "$name": "form",
+          "$type": "style",
+          "child-gap": "1rem",
+          "child-layout": "column",
+          "display": "flex"
         },
         "grid": {
           "$name": "grid",
@@ -18111,6 +18210,13 @@
           "text-size": "0.875rem",
           "text-weight": "700"
         },
+        "header": {
+          "$name": "header",
+          "$type": "style",
+          "child-gap": "0.5rem",
+          "child-layout": "column",
+          "display": "flex"
+        },
         "heading": {
           "$name": "heading",
           "$type": "style",
@@ -18154,16 +18260,44 @@
           "position": "absolute",
           "will_change": "transform"
         },
+        "ins": {
+          "$name": "ins",
+          "$type": "style",
+          "text-color": "emerald_60",
+          "text-decoration": "underline"
+        },
         "invalid": {
           "$name": "invalid",
           "$type": "style",
           "border-color": "red_60"
+        },
+        "kbd": {
+          "$name": "kbd",
+          "$type": "style",
+          "background-color": "slate_90",
+          "corner": "0.25rem",
+          "font-family": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace",
+          "padding": "0.125rem 0.375rem",
+          "text-color": "slate_20",
+          "text-size": "0.875rem"
         },
         "label": {
           "$name": "label",
           "$type": "style",
           "text-size": "0.875rem",
           "text-weight": "500"
+        },
+        "legend": {
+          "$name": "legend",
+          "$type": "style",
+          "padding-bottom": "0.5rem",
+          "text-weight": "600"
+        },
+        "li": {
+          "$name": "li",
+          "$type": "style",
+          "margin-bottom": "0.25rem",
+          "text-color": "slate_90"
         },
         "link": {
           "$name": "link",
@@ -18201,6 +18335,14 @@
           "text-leading": "1.5",
           "text-size": "1rem",
           "text-weight": "400"
+        },
+        "mark": {
+          "$name": "mark",
+          "$type": "style",
+          "background-color": "amber_60",
+          "corner": "0.125rem",
+          "padding": "0.0625rem 0.25rem",
+          "text-color": "slate_20"
         },
         "mask": {
           "$name": "mask",
@@ -18240,6 +18382,12 @@
           "height": "100%",
           "object_fit": "cover",
           "visibility": "hidden"
+        },
+        "ol": {
+          "$name": "ol",
+          "$type": "style",
+          "list-style": "decimal",
+          "padding-left": "1.5rem"
         },
         "option": {
           "$name": "option",
@@ -18320,6 +18468,13 @@
           "background-color": "slate_50",
           "border-color": "slate_50"
         },
+        "section": {
+          "$name": "section",
+          "$type": "style",
+          "child-gap": "1rem",
+          "child-layout": "column",
+          "display": "flex"
+        },
         "slider": {
           "$name": "slider",
           "$type": "style",
@@ -18364,6 +18519,28 @@
           "user_select": "none",
           "white_space": "pre-line"
         },
+        "strong": {
+          "$name": "strong",
+          "$type": "style",
+          "text-weight": "700"
+        },
+        "sub": {
+          "$name": "sub",
+          "$type": "style",
+          "text-size": "0.75rem"
+        },
+        "summary": {
+          "$name": "summary",
+          "$type": "style",
+          "cursor": "pointer",
+          "text-color": "slate_90",
+          "text-weight": "600"
+        },
+        "sup": {
+          "$name": "sup",
+          "$type": "style",
+          "text-size": "0.75rem"
+        },
         "switch": {
           "$name": "switch",
           "$type": "style",
@@ -18371,6 +18548,23 @@
           "cursor": "pointer",
           "height": "1.25rem",
           "width": "2.25rem"
+        },
+        "table": {
+          "$name": "table",
+          "$type": "style",
+          "border-collapse": "collapse",
+          "margin": "1rem 0",
+          "text-align": "left",
+          "width": "100%"
+        },
+        "td": {
+          "$name": "td",
+          "$type": "style",
+          "border-bottom-color": "slate_40",
+          "border-bottom-style": "solid",
+          "border-bottom-width": "0.0625rem",
+          "padding": "0.75rem 1rem",
+          "text-color": "slate_90"
         },
         "text": {
           "$name": "text",
@@ -18457,6 +18651,16 @@
           "position": "relative",
           "width": "100%"
         },
+        "th": {
+          "$name": "th",
+          "$type": "style",
+          "border-bottom-color": "slate_40",
+          "border-bottom-style": "solid",
+          "border-bottom-width": "0.125rem",
+          "padding": "0.75rem 1rem",
+          "text-color": "slate_90",
+          "text-weight": "600"
+        },
         "title": {
           "$name": "title",
           "$type": "style",
@@ -18485,6 +18689,12 @@
           "position": "absolute",
           "text_align": "right",
           "width": "100%"
+        },
+        "ul": {
+          "$name": "ul",
+          "$type": "style",
+          "list-style": "square",
+          "padding-left": "1.5rem"
         },
         "valid": {
           "$name": "valid",
@@ -90451,6 +90661,12 @@
           "$recursive": true,
           "$type": "style"
         },
+        "abbr": {
+          "$name": "abbr",
+          "$type": "style",
+          "cursor": "help",
+          "text-decoration": "underline dotted"
+        },
         "action": {
           "$name": "action",
           "$type": "style",
@@ -90463,6 +90679,17 @@
           "padding_right": "40px",
           "position": "absolute",
           "text_align": "center"
+        },
+        "article": {
+          "$name": "article",
+          "$type": "style",
+          "background-color": "slate_30",
+          "child-gap": "1rem",
+          "child-layout": "column",
+          "corner": "0.5rem",
+          "display": "flex",
+          "margin": "1rem 0",
+          "padding": "1.5rem"
         },
         "backdrop": {
           "$name": "backdrop",
@@ -90485,6 +90712,18 @@
           "text-color": "white",
           "text-size": "0.75rem",
           "text-weight": "600"
+        },
+        "blockquote": {
+          "$name": "blockquote",
+          "$type": "style",
+          "border-left-color": "slate_40",
+          "border-left-style": "solid",
+          "border-left-width": "0.25rem",
+          "child-gap": "0.5rem",
+          "child-layout": "column",
+          "display": "flex",
+          "margin": "1rem 0",
+          "padding": "0.75rem 1.25rem"
         },
         "button": {
           "$name": "button",
@@ -90599,6 +90838,22 @@
           "position": "relative",
           "width": "100%"
         },
+        "cite": {
+          "$name": "cite",
+          "$type": "style",
+          "text-color": "slate_60",
+          "text-size": "0.875rem",
+          "text-style": "italic"
+        },
+        "code": {
+          "$name": "code",
+          "$type": "style",
+          "background-color": "slate_30",
+          "corner": "0.25rem",
+          "font-family": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace",
+          "padding": "0.125rem 0.375rem",
+          "text-size": "0.875rem"
+        },
         "column": {
           "$name": "column",
           "$type": "style",
@@ -90635,6 +90890,29 @@
           "border-color": "slate_90",
           "text-color": "slate_20"
         },
+        "del": {
+          "$name": "del",
+          "$type": "style",
+          "text-color": "slate_60",
+          "text-decoration": "line-through"
+        },
+        "details": {
+          "$name": "details",
+          "$type": "style",
+          "border-bottom-color": "slate_40",
+          "border-bottom-style": "solid",
+          "border-bottom-width": "0.0625rem",
+          "padding": "0.75rem 0"
+        },
+        "dialog": {
+          "$name": "dialog",
+          "$type": "style",
+          "background-color": "slate_30",
+          "border-width": "0",
+          "corner": "0.5rem",
+          "padding": "1.5rem",
+          "text-color": "slate_90"
+        },
         "dialogue": {
           "$name": "dialogue",
           "$type": "style",
@@ -90661,6 +90939,11 @@
           "text-color": "slate_90",
           "transition": "all 0.2s ease-in-out"
         },
+        "em": {
+          "$name": "em",
+          "$type": "style",
+          "text-style": "italic"
+        },
         "field": {
           "$name": "field",
           "$type": "style",
@@ -90676,6 +90959,32 @@
           "padding": "0.75rem 1rem",
           "text-color": "slate_90",
           "transition": "all 0.2s ease-in-out"
+        },
+        "fieldset": {
+          "$name": "fieldset",
+          "$type": "style",
+          "border-width": "0",
+          "child-gap": "0.5rem",
+          "child-layout": "column",
+          "display": "flex",
+          "margin": "0",
+          "padding": "0"
+        },
+        "footer": {
+          "$name": "footer",
+          "$type": "style",
+          "child-gap": "0.5rem",
+          "child-layout": "column",
+          "display": "flex",
+          "text-color": "slate_60",
+          "text-size": "0.875rem"
+        },
+        "form": {
+          "$name": "form",
+          "$type": "style",
+          "child-gap": "1rem",
+          "child-layout": "column",
+          "display": "flex"
         },
         "grid": {
           "$name": "grid",
@@ -90729,6 +91038,13 @@
           "text-size": "0.875rem",
           "text-weight": "700"
         },
+        "header": {
+          "$name": "header",
+          "$type": "style",
+          "child-gap": "0.5rem",
+          "child-layout": "column",
+          "display": "flex"
+        },
         "heading": {
           "$name": "heading",
           "$type": "style",
@@ -90772,16 +91088,44 @@
           "position": "absolute",
           "will_change": "transform"
         },
+        "ins": {
+          "$name": "ins",
+          "$type": "style",
+          "text-color": "emerald_60",
+          "text-decoration": "underline"
+        },
         "invalid": {
           "$name": "invalid",
           "$type": "style",
           "border-color": "red_60"
+        },
+        "kbd": {
+          "$name": "kbd",
+          "$type": "style",
+          "background-color": "slate_90",
+          "corner": "0.25rem",
+          "font-family": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace",
+          "padding": "0.125rem 0.375rem",
+          "text-color": "slate_20",
+          "text-size": "0.875rem"
         },
         "label": {
           "$name": "label",
           "$type": "style",
           "text-size": "0.875rem",
           "text-weight": "500"
+        },
+        "legend": {
+          "$name": "legend",
+          "$type": "style",
+          "padding-bottom": "0.5rem",
+          "text-weight": "600"
+        },
+        "li": {
+          "$name": "li",
+          "$type": "style",
+          "margin-bottom": "0.25rem",
+          "text-color": "slate_90"
         },
         "link": {
           "$name": "link",
@@ -90819,6 +91163,14 @@
           "text-leading": "1.5",
           "text-size": "1rem",
           "text-weight": "400"
+        },
+        "mark": {
+          "$name": "mark",
+          "$type": "style",
+          "background-color": "amber_60",
+          "corner": "0.125rem",
+          "padding": "0.0625rem 0.25rem",
+          "text-color": "slate_20"
         },
         "mask": {
           "$name": "mask",
@@ -90858,6 +91210,12 @@
           "height": "100%",
           "object_fit": "cover",
           "visibility": "hidden"
+        },
+        "ol": {
+          "$name": "ol",
+          "$type": "style",
+          "list-style": "decimal",
+          "padding-left": "1.5rem"
         },
         "option": {
           "$name": "option",
@@ -90938,6 +91296,13 @@
           "background-color": "slate_50",
           "border-color": "slate_50"
         },
+        "section": {
+          "$name": "section",
+          "$type": "style",
+          "child-gap": "1rem",
+          "child-layout": "column",
+          "display": "flex"
+        },
         "slider": {
           "$name": "slider",
           "$type": "style",
@@ -90982,6 +91347,28 @@
           "user_select": "none",
           "white_space": "pre-line"
         },
+        "strong": {
+          "$name": "strong",
+          "$type": "style",
+          "text-weight": "700"
+        },
+        "sub": {
+          "$name": "sub",
+          "$type": "style",
+          "text-size": "0.75rem"
+        },
+        "summary": {
+          "$name": "summary",
+          "$type": "style",
+          "cursor": "pointer",
+          "text-color": "slate_90",
+          "text-weight": "600"
+        },
+        "sup": {
+          "$name": "sup",
+          "$type": "style",
+          "text-size": "0.75rem"
+        },
         "switch": {
           "$name": "switch",
           "$type": "style",
@@ -90989,6 +91376,23 @@
           "cursor": "pointer",
           "height": "1.25rem",
           "width": "2.25rem"
+        },
+        "table": {
+          "$name": "table",
+          "$type": "style",
+          "border-collapse": "collapse",
+          "margin": "1rem 0",
+          "text-align": "left",
+          "width": "100%"
+        },
+        "td": {
+          "$name": "td",
+          "$type": "style",
+          "border-bottom-color": "slate_40",
+          "border-bottom-style": "solid",
+          "border-bottom-width": "0.0625rem",
+          "padding": "0.75rem 1rem",
+          "text-color": "slate_90"
         },
         "text": {
           "$name": "text",
@@ -91075,6 +91479,16 @@
           "position": "relative",
           "width": "100%"
         },
+        "th": {
+          "$name": "th",
+          "$type": "style",
+          "border-bottom-color": "slate_40",
+          "border-bottom-style": "solid",
+          "border-bottom-width": "0.125rem",
+          "padding": "0.75rem 1rem",
+          "text-color": "slate_90",
+          "text-weight": "600"
+        },
         "title": {
           "$name": "title",
           "$type": "style",
@@ -91103,6 +91517,12 @@
           "position": "absolute",
           "text_align": "right",
           "width": "100%"
+        },
+        "ul": {
+          "$name": "ul",
+          "$type": "style",
+          "list-style": "square",
+          "padding-left": "1.5rem"
         },
         "valid": {
           "$name": "valid",

@@ -298,7 +298,7 @@ sparkdown [0..323]
  │   │   │   │               │   └─ LuauStructBareMarker_c3 [158..159]
  │   │   │   │               │       └─ OptionalWhitespace [158..159]: " "
  │   │   │   │               └─ LuauStructBareMarker_c4 [159..165]
- │   │   │   │                   └─ CustomComponentName [159..165]: "footer"
+ │   │   │   │                   └─ BuiltinComponentName [159..165]: "footer"
  │   │   │   └─ LuauStructBodyLine_c3 165
  │   │   │       └─ LuauStructBodyLine_c3 165
  │   │   │           └─ OptionalWhitespace 165
@@ -436,7 +436,7 @@ sparkdown [0..323]
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [239..250]
  │   │   │   │               │   ├─ CustomComponentName [239..243]: "fill"
  │   │   │   │               │   ├─ RequiredWhitespace [243..244]: " "
- │   │   │   │               │   └─ CustomComponentName [244..250]: "footer"
+ │   │   │   │               │   └─ BuiltinComponentName [244..250]: "footer"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [250..251]
  │   │   │   │                   └─ LuauStructObjectColon [250..251]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 251

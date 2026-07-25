@@ -5739,7 +5739,7 @@
     "BuiltinComponentName": {
       "tag": "definitionKeyword",
       "name": "keyword.other.component.builtin.name.sd",
-      "match": "\\b(box|span|scroller|text|stroke|link|label|field|textarea|button|image|mask|input|slider|checkbox|radio|switch|dropdown|option|divider)(?!(?:[-_\\p{L}][0-9_\\p{L}-]*\\b))"
+      "match": "\\b(box|span|scroller|text|stroke|link|label|field|textarea|button|image|mask|input|slider|checkbox|radio|switch|dropdown|option|divider|strong|em|code|kbd|mark|del|ins|abbr|sub|sup|cite|blockquote|ul|ol|li|table|thead|tbody|tfoot|tr|th|td|article|section|header|footer|form|fieldset|legend|details|summary|dialog)(?!(?:[-_\\p{L}][0-9_\\p{L}-]*\\b))"
     },
     "CustomComponentName": {
       "tag": "className",
