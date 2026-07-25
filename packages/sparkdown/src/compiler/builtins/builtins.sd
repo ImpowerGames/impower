@@ -1762,11 +1762,16 @@ style grid with
   child-gap = 1rem
 end
 
+-- A native <progress value max>. `accent-color` is what tints the filled part
+-- of the native control; `progress_fill` below stays available for the
+-- div-track-plus-fill construction.
 style progress with
   width = 100%
   height = 0.5rem
   corner = 0.25rem
   background-color = slate_30
+  accent-color = sky_60
+  border-width = 0
 end
 
 style progress_fill with

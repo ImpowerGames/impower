@@ -1003,6 +1003,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -2301,6 +2303,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -3561,6 +3565,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -4943,6 +4949,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -6184,6 +6192,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -7407,6 +7417,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -8680,6 +8692,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -9920,6 +9934,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -11160,6 +11176,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -12400,6 +12418,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -13640,6 +13660,8 @@ spark-web-player #game .progress {
   height: 0.5rem;
   border-radius: 0.25rem;
   background-color: var(--theme-color-slate_30);
+  accent-color: sky_60;
+  border-width: 0px;
 }
 spark-web-player #game .progress_fill {
   height: 100%;

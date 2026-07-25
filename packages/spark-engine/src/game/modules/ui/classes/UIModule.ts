@@ -363,7 +363,38 @@ const ELEMENT_TAGS: Record<string, string> = {
   details: "details",
   summary: "summary",
   dialog: "dialog",
+  progress: "progress",
 };
+
+/**
+ * Props that are HTML ATTRIBUTES rather than styling, on an otherwise generic
+ * element. `#prop` normally lowers to an inline style (spec §4.2), which is
+ * right for `#padding` / `#child-gap` / `#background-color` — but meaningless
+ * for `#href` on a link or `#colspan` on a cell. Everything here (plus any
+ * `aria-*` / `data-*`) is routed to an attribute instead.
+ */
+const ATTRIBUTE_PROPS: ReadonlySet<string> = new Set([
+  "href", "target", "rel", "download", "type", "name", "value", "for", "form",
+  "open", "disabled", "readonly", "required", "checked", "selected", "multiple",
+  "placeholder", "min", "max", "step", "rows", "cols", "maxlength", "pattern",
+  "colspan", "rowspan", "scope", "headers", "span",
+  "id", "role", "title", "alt", "src", "lang", "dir", "tabindex", "hidden",
+  "autofocus", "autocomplete", "accept", "datetime",
+]);
+
+/** Attributes whose presence (not value) is the signal. */
+const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
+  "open", "disabled", "readonly", "required", "checked", "selected",
+  "multiple", "hidden", "autofocus",
+]);
+
+function isAttributeProp(prop: string): boolean {
+  return (
+    ATTRIBUTE_PROPS.has(prop) ||
+    prop.startsWith("aria-") ||
+    prop.startsWith("data-")
+  );
+}
 
 export type UIMessageMap = AnimateElementsMessageMap &
   BatchElementsMessageMap &
@@ -1317,8 +1348,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // prop→CSS + px-ifies via getCSSPropertyKeyValue/getCssEquivalent, so the
     // authored sparkle name is passed through as-is. Reactive props re-apply on
     // refresh (scope.styles), mirroring scope.attrs.
+    //
+    // EXCEPT the props that are HTML ATTRIBUTES rather than styling: a `link`
+    // needs `#href`, `details`/`dialog` need `#open`, a `td` needs `#colspan`,
+    // and anything can carry `#role` / `#aria-*` / `#data-*`. Those have no
+    // meaning as CSS, so they're routed to attributes (and tracked in
+    // scope.attrs so a bound one stays live).
     const style: Record<string, string | null> = {};
+    const attributes: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
+    const reactiveAttrs: Omit<ReactiveAttr, "element">[] = [];
     const propEntries = Object.entries(node.props);
     if (propEntries.length > 0) {
       const vs = this._game.story.variablesState;
@@ -1326,6 +1365,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         vs.beginReactiveRead();
         const resolved = this.resolveProp(propValue, scope.env);
         const deps = vs.endReactiveRead();
+        if (isAttributeProp(prop)) {
+          const boolean = BOOLEAN_ATTRIBUTES.has(prop);
+          const attrVal = this.propToAttr(resolved, boolean);
+          attributes[prop] = attrVal;
+          if (this.isReactiveProp(propValue)) {
+            reactiveAttrs.push({ prop, propValue, boolean, last: attrVal, deps });
+          }
+          continue;
+        }
         const val = resolved == null ? null : String(resolved);
         style[prop] = val;
         if (this.isReactiveProp(propValue)) {
@@ -1339,13 +1387,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const type = ELEMENT_TAGS[node.tag] ?? "div";
     const el = this.createElement(
       parent,
-      Object.keys(style).length > 0
-        ? { type, name, style }
-        : { type, name },
+      {
+        type,
+        name,
+        ...(Object.keys(style).length > 0 ? { style } : {}),
+        ...(Object.keys(attributes).length > 0 ? { attributes } : {}),
+      },
       before,
     );
     for (const r of reactiveStyles) {
       scope.styles.push({ element: el, ...r });
+    }
+    for (const r of reactiveAttrs) {
+      scope.attrs.push({ element: el, ...r });
     }
     // Builtin leaf semantics: image/mask render a background span; everything
     // else with adjacency content (text/stroke, but also button/label/…) renders

@@ -1885,7 +1885,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "progress": {
                   "$name": "progress",
                   "$type": "style",
+                  "accent-color": "sky_60",
                   "background-color": "slate_30",
+                  "border-width": "0",
                   "corner": "0.25rem",
                   "height": "0.5rem",
                   "width": "100%",
