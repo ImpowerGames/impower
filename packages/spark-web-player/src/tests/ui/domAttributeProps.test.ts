@@ -28,19 +28,20 @@ end
     expect(a.getAttribute("style") ?? "").not.toContain("href");
   });
 
-  // KNOWN GRAMMAR BUG (not this layer's): a quoted prop value containing `://`
-  // fails to parse — the value comes back as the raw `"https` fragment, opening
-  // quote and all. Isolated precisely: `"a:b"` and `"a//b"` both parse fine, so
-  // the trigger is the `://` sequence specifically, in the prop-value position
-  // only (content strings like `text "a://b"` are unaffected). Relative (`/docs`)
-  // and fragment (`#`) hrefs work, which is what the showcase uses.
-  test.fails("absolute https:// URLs in a prop value (known grammar bug)", async () => {
+  // Regression: the `:` in `://` used to read as a block-opening colon (the
+  // header test accepted a bare `//` as a trailing comment), so the value came
+  // back as the fragment `"https`. See sparkleValueComments.test.ts.
+  test("absolute and protocol-relative URLs survive in a prop value", async () => {
     const h = await render(`layout main with
-  link "Docs" #href="https://example.com"
+  link "Docs" #href="https://example.com/a/b?x=1"
+  image #src="//cdn.example.com/x.png"
 end
 `);
     expect(h.overlay.querySelector("a")?.getAttribute("href")).toBe(
-      "https://example.com",
+      "https://example.com/a/b?x=1",
+    );
+    expect(h.overlay.querySelector(".image")?.getAttribute("src")).toBe(
+      "//cdn.example.com/x.png",
     );
   });
 
