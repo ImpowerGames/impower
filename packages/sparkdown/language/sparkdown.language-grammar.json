@@ -5516,6 +5516,12 @@
           "include": "#StringEscape"
         },
         {
+          "include": "#SparkleRichTextTag"
+        },
+        {
+          "include": "#SparkleRichTextTagUnknown"
+        },
+        {
           "include": "#Color"
         },
         {
@@ -6256,6 +6262,12 @@
           "patterns": [
             {
               "include": "#StringEscape"
+            },
+            {
+              "include": "#SparkleRichTextTag"
+            },
+            {
+              "include": "#SparkleRichTextTagUnknown"
             },
             {
               "include": "#Color"
@@ -7563,6 +7575,12 @@
         },
         {
           "include": "#StringEscape"
+        },
+        {
+          "include": "#SparkleRichTextTag"
+        },
+        {
+          "include": "#SparkleRichTextTagUnknown"
         },
         {
           "include": "#Color"
@@ -13366,6 +13384,66 @@
       "tag": "attributeName",
       "name": "storage.type.attribute.luau",
       "match": "(.+)"
+    },
+    "SparkleRichTextTag": {
+      "match": "(</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)(\"[^\"]*\"|[^>]*))?(>)",
+      "captures": {
+        "1": {
+          "tag": "punctuation",
+          "name": "punctuation.definition.tag.begin.sd"
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.other.richtext.tag.sd"
+        },
+        "3": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.sd"
+        },
+        "4": {
+          "tag": "string",
+          "name": "string.other.richtext.value.sd",
+          "patterns": [
+            {
+              "include": "#Color"
+            }
+          ]
+        },
+        "5": {
+          "tag": "punctuation",
+          "name": "punctuation.definition.tag.end.sd"
+        }
+      }
+    },
+    "SparkleRichTextTagUnknown": {
+      "match": "(</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)(\"[^\"]*\"|[^>]*))?(>)",
+      "captures": {
+        "1": {
+          "tag": "punctuation",
+          "name": "punctuation.definition.tag.begin.sd"
+        },
+        "2": {
+          "tag": "invalid",
+          "name": "invalid.illegal.richtext.tag.sd"
+        },
+        "3": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.sd"
+        },
+        "4": {
+          "tag": "string",
+          "name": "string.other.richtext.value.sd",
+          "patterns": [
+            {
+              "include": "#Color"
+            }
+          ]
+        },
+        "5": {
+          "tag": "punctuation",
+          "name": "punctuation.definition.tag.end.sd"
+        }
+      }
     }
   }
 }

@@ -249,6 +249,33 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
+    // Unrecognized inline RICH TEXT tag inside a content string
+    // (`text "a <bold>x</bold>"`). The runtime leaves an unknown tag as literal
+    // characters — deliberately, so prose like `5 < 6` survives — which means a
+    // typo shows up verbatim in the UI instead of styling anything. The grammar
+    // already separates a tag-SHAPED token whose name isn't in the vocabulary
+    // (`SparkleRichTextTagUnknown`) from a recognized one, so this only has to
+    // report it.
+    //
+    // NOT flagged inside a `#prop` value: rich text is only parsed in element
+    // CONTENT, so `<b>` in a placeholder is inert rather than misspelled.
+    if (nodeRef.name === "SparkleRichTextTagUnknown") {
+      const raw = this.read(nodeRef.from, nodeRef.to).trim();
+      const name = raw.replace(/^<\/?/, "").replace(/[=>].*$/s, "");
+      const inPropValue = getContextNames(nodeRef.node).includes(
+        "LuauPropAttribute",
+      );
+      if (name && !inPropValue) {
+        const message = `Unrecognized rich text tag \`<${name}>\` — not a known inline tag, so it renders literally instead of styling anything\n> Styling tags are \`<b>\`, \`<i>\`, \`<u>\`, \`<s>\`, \`<sub>\`, \`<sup>\`, \`<mark=…>\`, \`<color=…>\`, \`<size=…>\`; wrap text in \`<noparse>…</noparse>\` to keep angle brackets literal`;
+        annotations.push(
+          SparkdownAnnotation.mark<Diagnostic>({
+            message,
+            severity: "warning",
+          }).range(nodeRef.from, nodeRef.to),
+        );
+        return annotations;
+      }
+    }
     // Unrecognized inline `#prop` name on a Sparkle element line (`#colr=red`).
     // Sparkle passes unknown props straight through to CSS, so a typo silently
     // does nothing — warn when the name is neither a known style prop / CSS
