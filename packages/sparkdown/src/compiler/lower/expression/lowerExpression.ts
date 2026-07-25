@@ -223,6 +223,7 @@ type Token =
 // `s:rep(3)` vs `string.reverse"abc"`.
 const CALL_ARG_NODE_NAMES = new Set([
   "LuauParenthetical",
+  "LuauRegexLiteral",
   "LuauDoubleQuotedString",
   "LuauSingleQuotedString",
   "LuauMultilineString",
@@ -295,6 +296,7 @@ const PRIMARY_NODES = new Set([
   "LuauNumericBinary",
   "LuauBoolean",
   "LuauNil",
+  "LuauRegexLiteral",
   "LuauDoubleQuotedString",
   "LuauSingleQuotedString",
   "LuauMultilineString",
@@ -924,6 +926,15 @@ export function lowerPrimary(
       // from `0` (`nil == 0` is false). The equality semantics are
       // implemented as a special case in `NativeFunctionCall.Call`.
       return new NullExpression();
+    case "LuauRegexLiteral":
+      // `/pattern/flags` lowers to the VERBATIM `/pattern/flags` string — the
+      // same value the quoted form produced, so `Matcher` (which already
+      // splits `/source/flags`) needs no change. No escape processing: a regex
+      // is raw, which is the whole point of having a literal (`\p{L}` instead
+      // of `"\p{L}"`, and `{2,}` without it reading as an interpolation).
+      return new StringExpression([
+        new Text(ctx.read(node.from, node.to).trim()),
+      ]);
     case "LuauDoubleQuotedString":
     case "LuauSingleQuotedString":
     case "LuauMultilineString":

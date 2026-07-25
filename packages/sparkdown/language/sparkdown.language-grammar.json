@@ -4502,6 +4502,9 @@
           "include": "#LuauAssignmentOperation"
         },
         {
+          "include": "#LuauRegexLiteral"
+        },
+        {
           "include": "#LuauArithmeticOperation"
         },
         {
@@ -13442,6 +13445,29 @@
         "5": {
           "tag": "punctuation",
           "name": "punctuation.definition.tag.end.sd"
+        }
+      }
+    },
+    "LuauRegexLiteral": {
+      "tag": "regexp",
+      "name": "string.regexp.sd",
+      "match": "([/])(?![\\s=/])((?:\\\\.|[^/\\\\\\r\\n])+)([/])([dgimsuvy]*)(?=[\\s,);\\]}]|$)",
+      "captures": {
+        "1": {
+          "tag": "definition(string)",
+          "name": "punctuation.definition.string.begin.sd"
+        },
+        "2": {
+          "tag": "regexp",
+          "name": "string.regexp.sd"
+        },
+        "3": {
+          "tag": "definition(string)",
+          "name": "punctuation.definition.string.end.sd"
+        },
+        "4": {
+          "tag": "modifier",
+          "name": "keyword.other.regexp.flags.sd"
         }
       }
     }
