@@ -164,13 +164,23 @@ function attributeRanges(node: SyntaxNode): { from: number; to: number }[] {
 // struct sees only the structural part (`column #gap=16` → `column `,
 // `button "Use" @click=x` → `button "Use" `).
 function textWithoutAttributes(node: SyntaxNode, ctx: LowerContext): string {
-  const ranges = attributeRanges(node);
+  return textExcluding(node, ctx, attributeRanges(node));
+}
+
+// A node's source text with the given spans removed (sorted defensively, since
+// callers may concatenate ranges from more than one source).
+function textExcluding(
+  node: SyntaxNode,
+  ctx: LowerContext,
+  ranges: { from: number; to: number }[],
+): string {
   if (ranges.length === 0) return ctx.read(node.from, node.to);
+  const sorted = [...ranges].sort((a, b) => a.from - b.from);
   let result = "";
   let pos = node.from;
-  for (const { from, to } of ranges) {
+  for (const { from, to } of sorted) {
     if (from > pos) result += ctx.read(pos, from);
-    pos = to;
+    pos = Math.max(pos, to);
   }
   if (node.to > pos) result += ctx.read(pos, node.to);
   return result;
@@ -246,11 +256,35 @@ function parseBlock(
       if (tag) obj[tag] = parseScalar(valueNode ? readValue(valueNode, ctx) : "");
       i += 1;
     } else {
-      // LuauStructBareMarker / LuauStructBodyFallback — a `{}` leaf
-      // (image / text / mask shadow_1). The marker text is the shape's source
-      // with inline attributes excised (`button "Use" @click=x` → `button "Use"`).
-      const marker = textWithoutAttributes(shape, ctx).trim();
-      if (marker) obj[marker] = {};
+      // LuauStructBareMarker / LuauStructBodyFallback. Two shapes land here:
+      //
+      //   `image`, `mask shadow_1` — a genuinely content-less leaf → `{}`.
+      //   `text h1 "Sparkle x Pico"` — an element carrying BOTH style classes and
+      //       content. The adjacency rule only matches ONE tag token before the
+      //       string, so a classed line falls through to this fallback.
+      //
+      // Lower that second form the way the adjacency branch lowers the class-less
+      // `text "HP: {hp}"` — key = tag + classes, value = the content — rather than
+      // stuffing the whole line into the key with an empty value. The empty-value
+      // form is load-bearing downstream: UIModule.initLayout reads an empty
+      // `text`/`image` leaf as an unwritten WRITE TARGET and registers its PARENT
+      // as a clear-on-continue transient, so the old shape made the engine hide an
+      // authored container (`column`) merely for holding a styled static text.
+      //
+      // The marker text is the shape's source with inline attributes excised
+      // (`button "Use" @click=x` → `button "Use"`), and now the content span too.
+      const valueNode = firstDescendant(shape, FIELD_VALUE_NAMES);
+      const marker = (
+        valueNode
+          ? textExcluding(shape, ctx, [
+              ...attributeRanges(shape),
+              { from: valueNode.from, to: valueNode.to },
+            ])
+          : textWithoutAttributes(shape, ctx)
+      ).trim();
+      if (marker) {
+        obj[marker] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
+      }
       i += 1;
     }
   }

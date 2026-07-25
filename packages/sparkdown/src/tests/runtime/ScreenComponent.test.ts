@@ -79,6 +79,53 @@ end
   });
 });
 
+describe("screen · classed element with content", () => {
+  test("`text h1 \"…\"` splits into key = tag + classes, value = content", () => {
+    // The adjacency rule (`tag "content"`) only matches ONE tag token before the
+    // string, so an element carrying style classes AND content falls through to
+    // the bare-marker fallback. It must still lower like the class-less form
+    // rather than stuffing the whole line into the key with an empty value:
+    // UIModule.initLayout reads an empty `text`/`image` leaf as an unwritten
+    // WRITE TARGET and registers its PARENT as a clear-on-continue transient, so
+    // the whole-line-key shape made the engine hide (and wipe) the authored
+    // `column` merely for holding a styled static text.
+    const r = compileUI(`layout main with
+  column:
+    text h1 "Sparkle x Pico"
+    text "plain"
+    image
+end
+`);
+    expect(r.errors).toEqual([]);
+    expect(r.layout["main"]).toEqual({
+      $type: "layout",
+      $name: "main",
+      $recursive: true,
+      column: {
+        "text h1": "Sparkle x Pico",
+        text: "plain",
+        // A genuinely content-less leaf still lowers to `{}` — that IS a write
+        // target, and its parent SHOULD stay transient.
+        image: {},
+      },
+    });
+  });
+
+  test("inline attributes are still excised from a classed content line", () => {
+    const r = compileUI(`layout main with
+  column:
+    text h1 #padding=8 "Titled"
+    button primary "Go" @click=noop
+end
+`);
+    expect(r.errors).toEqual([]);
+    expect(r.layout["main"]!["column"]).toEqual({
+      "text h1": "Titled",
+      "button primary": "Go",
+    });
+  });
+});
+
 describe("screen · reactive content interpolation", () => {
   test("interpolated content compiles cleanly (binding evaluators hoisted)", () => {
     // `{expr}` in display content lowers to a hoisted nullary binding function
