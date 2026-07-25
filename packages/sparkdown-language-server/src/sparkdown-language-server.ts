@@ -118,6 +118,19 @@ try {
   connection.onInitialized(async () => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
     workspace.loadConfiguration(settings);
+    // Ask the client to re-request anything it may have asked for while we were
+    // still starting up. Initialization loads every project file into the
+    // compiler and runs a full compile, and on a large project that takes long
+    // enough that the editor's first semantic-token / diagnostic requests are
+    // rejected outright ("Compiler has not been configured!"). Those requests
+    // are never retried on their own, so without this the features stay dead
+    // until something else happens to trigger a re-request. See #224.
+    try {
+      connection.languages.semanticTokens.refresh();
+      connection.languages.diagnostics.refresh();
+    } catch (e) {
+      console.error("failed to request client refresh after initialize", e);
+    }
   });
 
   // foldingRangeProvider
