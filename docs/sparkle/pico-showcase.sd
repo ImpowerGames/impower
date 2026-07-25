@@ -28,8 +28,6 @@ store at_time = "10:30"
 store swatch = "#0ea5e9"
 store volume = 40
 store size = "medium"
-store fruit = "orange"
-store veggie = "carrot"
 store modal_open = false
 store busy = false
 store done = 40
@@ -109,24 +107,35 @@ layout main with
           li "Suspendisse id nisl ut leo finibus vehicula quis eu ex."
 
         text h3 "Inline text elements"
-        -- Inline RICH TEXT: UI Toolkit's tag vocabulary inside a single `text`.
-        -- This is what nested elements can't express — mixed styled runs inside
-        -- one flowing sentence. The engine parses the tags into runs, so the web
-        -- renderer makes spans and a Unity front-end can re-serialize the tags.
-        text "Cras <b>sit amet</b> maximus <i>risus</i>, with <u>underline</u>, <s>strikethrough</s>, <mark=amber_60>a highlight</mark> and <color=sky_60>colour</color> mid-sentence."
-        -- `prose` (a non-flex box) is what lets these flow inline: CSS blockifies
-        -- the children of a flex container, so in a `row` they would stack.
-        box prose:
+        row grid:
+          link "Primary link" #href="#"
+          link secondary "Secondary link" #href="#"
+          link contrast "Contrast link" #href="#"
+        row grid:
           strong "Bold"
           em "Italic"
-          code "code"
-          kbd "Ctrl"
-          mark "Highlighted"
+          u "Underline"
+        row grid:
           del "Deleted"
           ins "Inserted"
-          abbr "HTML"
-          sub "sub"
-          sup "sup"
+          s "Strikethrough"
+        row grid:
+          text small "Small"
+          box prose:
+            text "Text "
+            sub "Sub"
+          box prose:
+            text "Text "
+            sup "Sup"
+        row grid:
+          abbr "Abbr." #title="Abbreviation"
+          kbd "Kbd"
+          mark "Highlighted"
+
+        -- Inline RICH TEXT: UI Toolkit's tag vocabulary inside ONE `text`. This
+        -- is what nested elements can't express — mixed styled runs inside a
+        -- single flowing sentence.
+        text "Cras <b>sit amet</b> maximus <i>risus</i>, with <u>underline</u>, <s>strikethrough</s>, <mark=amber_60>a highlight</mark> and <color=sky_60>colour</color> mid-sentence."
 
         text h3 "Heading 3"
         text h4 "Heading 4"
@@ -136,14 +145,14 @@ layout main with
       -- Buttons ------------------------------------------------------------
       section:
         text h2 "Buttons"
-        row #child-gap=8:
+        row grid:
           button "Primary"
           button secondary "Secondary"
           button contrast "Contrast"
-        row #child-gap=8:
+        row grid:
           button outline "Primary outline"
-          button "Reset" #type="reset"
-          button "Submit" #type="submit"
+          button outline secondary "Secondary outline"
+          button outline contrast "Contrast outline"
 
       -- Form elements ------------------------------------------------------
       section:
@@ -194,30 +203,35 @@ layout main with
       -- Tables -------------------------------------------------------------
       section:
         text h2 "Tables"
-        table:
-          thead:
-            tr:
-              th "#"
-              th "First name"
-              th "Last name"
-          tbody:
-            tr:
-              td "1"
-              td "Ada"
-              td "Lovelace"
-            tr:
-              td "2"
-              td "Grace"
-              td "Hopper"
-            tr:
-              td "3"
-              td "Alan"
-              td "Turing"
+        box overflow_auto:
+          table striped:
+            thead:
+              tr:
+                th "#"
+                th "First name"
+                th "Last name"
+                th "Known for"
+            tbody:
+              tr:
+                td "1"
+                td "Ada"
+                td "Lovelace"
+                td "First programmer"
+              tr:
+                td "2"
+                td "Grace"
+                td "Hopper"
+                td "Compilers"
+              tr:
+                td "3"
+                td "Alan"
+                td "Turing"
+                td "Computability"
 
       -- Modal --------------------------------------------------------------
       section:
         text h2 "Modal"
-        button "Launch demo modal" @click=open_modal
+        button contrast "Launch demo modal" @click=open_modal
         modal #open={modal_open}:
           article:
             header:
@@ -265,7 +279,9 @@ layout main with
       -- Loading ------------------------------------------------------------
       section:
         text h2 "Loading"
+        -- A bare busy `article` is Pico's block-level loading placeholder.
+        article #aria-busy=true
         row #child-gap=8 #child-align=center:
-          button "Please wait…" #aria-busy={busy} @click=toggle_busy
+          button "Please wait" #aria-busy={busy} @click=toggle_busy
           text muted "Click to toggle aria-busy"
 end

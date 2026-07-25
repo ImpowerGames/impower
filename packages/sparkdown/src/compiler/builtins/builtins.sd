@@ -1368,6 +1368,43 @@ style button with
   @hovered:
     background-color = sky_70
     border-color = sky_70
+  -- Variants as COMPOUND selectors (`&.secondary`), so they compose: `outline`
+  -- combined with a colour variant takes that variant's colour. A CSS custom
+  -- property would be the other way to do this, but `--name = …` is not
+  -- authorable — `--` opens a comment in a struct body.
+  &.secondary:
+    background-color = slate_50
+    border-color = slate_50
+    @hovered:
+      background-color = slate_60
+      border-color = slate_60
+  &.contrast:
+    background-color = slate_90
+    border-color = slate_90
+    text-color = slate_20
+    @hovered:
+      background-color = slate_80
+      border-color = slate_80
+  &.outline:
+    background-color = transparent
+    text-color = sky_60
+    border-color = sky_60
+    @hovered:
+      background-color = transparent
+      text-color = sky_70
+      border-color = sky_70
+  &.outline.secondary:
+    text-color = slate_50
+    border-color = slate_50
+    @hovered:
+      text-color = slate_60
+      border-color = slate_60
+  &.outline.contrast:
+    text-color = slate_90
+    border-color = slate_90
+    @hovered:
+      text-color = slate_80
+      border-color = slate_80
   @focused:
     shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
   -- Busy state: `button "Save" #aria-busy={saving}` grows a spinner, matching
@@ -1502,6 +1539,14 @@ style link with
   transition = all 0.2s ease-in-out
   @hovered:
     text-color = sky_70
+  &.secondary:
+    text-color = slate_50
+    @hovered:
+      text-color = slate_60
+  &.contrast:
+    text-color = slate_90
+    @hovered:
+      text-color = slate_80
 end
 
 style dropdown with
@@ -1755,6 +1800,22 @@ style td with
   border-bottom-color = slate_40
 end
 
+-- `table striped` tints alternate BODY rows. `@odd` is the nth-child alias, so
+-- this needs no per-row authoring.
+style striped with
+  > tbody:
+    > @odd:
+      background-color = slate_20
+end
+
+-- A horizontal scroll box for a table too wide for its container. The overlay
+-- makes everything flex, so `display` is stated explicitly.
+style overflow_auto with
+  display = block
+  overflow-x = auto
+  width = 100%
+end
+
 -- Structure -----------------------------------------------------------------
 
 -- Pico's article is a card whose own `header`/`footer` are tinted sectioning
@@ -1785,6 +1846,25 @@ style article with
     border-top-color = slate_40
     corner-bottom-left = 0.5rem
     corner-bottom-right = 0.5rem
+  -- An `article #aria-busy=true` with no children is Pico's block-level
+  -- loading placeholder: just a centred spinner.
+  @busy:
+    child-align = center
+    child-justify = center
+    min-height = 4rem
+    @before:
+      content = ""
+      width = 1.25rem
+      height = 1.25rem
+      corner = 50%
+      border-width = 0.125rem
+      border-style = solid
+      border-color = var(--theme-color-slate_40)
+      border-top-color = var(--theme-color-sky_60)
+      animation-name = spin
+      animation-duration = 0.6s
+      animation-timing-function = linear
+      animation-iteration-count = infinite
 end
 
 style header with
@@ -1893,21 +1973,10 @@ style nav with
   child-gap = 1rem
 end
 
-style secondary with
-  background-color = slate_50
-  border-color = slate_50
-end
-
-style contrast with
-  background-color = slate_90
-  border-color = slate_90
-  text-color = slate_20
-end
-
-style outline with
-  background-color = transparent
-  text-color = sky_60
-end
+-- `secondary` / `contrast` / `outline` carry no styling of their own — they are
+-- MODIFIERS, and each element defines what they mean via compound selectors
+-- (see `button` and `link`). Defining them standalone is what previously made
+-- `link secondary` render as a filled button.
 
 style badge with
   display = flex

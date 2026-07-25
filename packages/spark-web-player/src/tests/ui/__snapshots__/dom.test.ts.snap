@@ -670,6 +670,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -794,6 +837,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -991,6 +1046,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -1018,6 +1085,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -1098,19 +1184,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;
@@ -2116,6 +2189,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -2240,6 +2356,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -2437,6 +2565,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -2464,6 +2604,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -2544,19 +2703,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;
@@ -3524,6 +3670,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -3648,6 +3837,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -3845,6 +4046,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -3872,6 +4085,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -3952,19 +4184,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;
@@ -5054,6 +5273,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -5178,6 +5440,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -5375,6 +5649,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -5402,6 +5688,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -5482,19 +5787,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;
@@ -6443,6 +6735,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -6567,6 +6902,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -6764,6 +7111,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -6791,6 +7150,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -6871,19 +7249,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;
@@ -7814,6 +8179,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -7938,6 +8346,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -8135,6 +8555,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -8162,6 +8594,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -8242,19 +8693,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;
@@ -9235,6 +9673,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -9359,6 +9840,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -9556,6 +10049,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -9583,6 +10088,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -9663,19 +10187,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;
@@ -10623,6 +11134,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -10747,6 +11301,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -10944,6 +11510,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -10971,6 +11549,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -11051,19 +11648,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;
@@ -12011,6 +12595,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -12135,6 +12762,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -12332,6 +12971,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -12359,6 +13010,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -12439,19 +13109,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;
@@ -13399,6 +14056,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -13523,6 +14223,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -13720,6 +14432,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -13747,6 +14471,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -13827,19 +14570,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;
@@ -14787,6 +15517,49 @@ spark-web-player #game .button {
     background-color: var(--theme-color-sky_70);
     border-color: var(--theme-color-sky_70);
   }
+  &.secondary {
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    background-color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    color: var(--theme-color-slate_20);
+    &:hover {
+      background-color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
+  &.outline {
+    background-color: transparent;
+    color: var(--theme-color-sky_60);
+    border-color: var(--theme-color-sky_60);
+    &:hover {
+      background-color: transparent;
+      color: var(--theme-color-sky_70);
+      border-color: var(--theme-color-sky_70);
+    }
+  }
+  &.outline.secondary {
+    color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+  &.outline.contrast {
+    color: var(--theme-color-slate_90);
+    border-color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+      border-color: var(--theme-color-slate_80);
+    }
+  }
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
@@ -14911,6 +15684,18 @@ spark-web-player #game .link {
   transition: all 0.2s ease-in-out;
   &:hover {
     color: var(--theme-color-sky_70);
+  }
+  &.secondary {
+    color: var(--theme-color-slate_50);
+    &:hover {
+      color: var(--theme-color-slate_60);
+    }
+  }
+  &.contrast {
+    color: var(--theme-color-slate_90);
+    &:hover {
+      color: var(--theme-color-slate_80);
+    }
   }
 }
 spark-web-player #game .dropdown {
@@ -15108,6 +15893,18 @@ spark-web-player #game .td {
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
 }
+spark-web-player #game .striped {
+  >.tbody {
+    >:nth-child(odd) {
+      background-color: var(--theme-color-slate_20);
+    }
+  }
+}
+spark-web-player #game .overflow_auto {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
@@ -15135,6 +15932,25 @@ spark-web-player #game .article {
     border-top-color: var(--theme-color-slate_40);
     border-bottom-left-radius: 0.5rem;
     border-bottom-right-radius: 0.5rem;
+  }
+  &[aria-busy="true"] {
+    align-items: center;
+    justify-content: center;
+    min-height: 4rem;
+    &::before {
+      content: "";
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: var(--theme-color-slate_40);
+      border-top-color: var(--theme-color-sky_60);
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
   }
 }
 spark-web-player #game .header {
@@ -15215,19 +16031,6 @@ spark-web-player #game .nav {
   flex-direction: row;
   align-items: center;
   gap: 1rem;
-}
-spark-web-player #game .secondary {
-  background-color: var(--theme-color-slate_50);
-  border-color: var(--theme-color-slate_50);
-}
-spark-web-player #game .contrast {
-  background-color: var(--theme-color-slate_90);
-  border-color: var(--theme-color-slate_90);
-  color: var(--theme-color-slate_20);
-}
-spark-web-player #game .outline {
-  background-color: transparent;
-  color: var(--theme-color-sky_60);
 }
 spark-web-player #game .badge {
   display: flex;

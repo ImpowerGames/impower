@@ -106,8 +106,10 @@ describe("pico showcase example", () => {
 
     // Semantic element tags realize as their real HTML tags.
     for (const tag of [
+      // No `code`/`pre` — the reference page has none, and this file tracks it
+      // one-to-one. Those builtins are covered by domSemanticElements.test.ts.
       "a", "button", "label", "hr", "ul", "li", "blockquote", "cite",
-      "strong", "em", "code", "kbd", "mark", "del", "ins", "abbr", "sub", "sup",
+      "strong", "em", "kbd", "mark", "del", "ins", "abbr", "sub", "sup",
       "table", "thead", "tbody", "tr", "th", "td",
       "article", "section", "header", "footer", "form", "fieldset", "legend",
       "details", "summary", "dialog", "progress",
@@ -135,8 +137,17 @@ describe("pico showcase example", () => {
     expect(select.value).toBe("medium");
 
     // Table shape: a header row plus three body rows, correctly parented.
-    expect(h.overlay.querySelectorAll("table > thead > tr > th").length).toBe(3);
+    expect(h.overlay.querySelectorAll("table > thead > tr > th").length).toBe(4);
     expect(h.overlay.querySelectorAll("table > tbody > tr").length).toBe(3);
+
+    // Variant classes compose: the reference shows all six button variants,
+    // including `outline` combined with `secondary` / `contrast`.
+    expect(h.overlay.querySelectorAll(".button").length).toBeGreaterThanOrEqual(6);
+    expect(h.overlay.querySelector(".button.outline.secondary")).toBeTruthy();
+    expect(h.overlay.querySelector(".button.outline.contrast")).toBeTruthy();
+    // And on links, where the same classes must tint text rather than fill.
+    expect(h.overlay.querySelector("a.link.secondary")).toBeTruthy();
+    expect(h.overlay.querySelector("a.link.contrast")).toBeTruthy();
 
     // Attribute props reached the DOM as attributes.
     expect(h.overlay.querySelector("a")?.getAttribute("href")).toBe("#");

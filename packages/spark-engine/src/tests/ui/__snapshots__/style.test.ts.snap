@@ -51,6 +51,25 @@ exports[`style > authored style block content payload 1`] = `
         "margin": "-1.5rem -1.5rem 0",
         "padding": "1rem 1.5rem",
       },
+      "@busy": {
+        "@before": {
+          "animation-duration": "0.6s",
+          "animation-iteration-count": "infinite",
+          "animation-name": "spin",
+          "animation-timing-function": "linear",
+          "border-color": "var(--theme-color-slate_40)",
+          "border-style": "solid",
+          "border-top-color": "var(--theme-color-sky_60)",
+          "border-width": "0.125rem",
+          "content": "",
+          "corner": "50%",
+          "height": "1.25rem",
+          "width": "1.25rem",
+        },
+        "child-align": "center",
+        "child-justify": "center",
+        "min-height": "4rem",
+      },
       "background-color": "slate_30",
       "child-gap": "1rem",
       "child-layout": "column",
@@ -96,6 +115,49 @@ exports[`style > authored style block content payload 1`] = `
     "button": {
       "$name": "button",
       "$type": "style",
+      "&.contrast": {
+        "@hovered": {
+          "background-color": "slate_80",
+          "border-color": "slate_80",
+        },
+        "background-color": "slate_90",
+        "border-color": "slate_90",
+        "text-color": "slate_20",
+      },
+      "&.outline": {
+        "@hovered": {
+          "background-color": "transparent",
+          "border-color": "sky_70",
+          "text-color": "sky_70",
+        },
+        "background-color": "transparent",
+        "border-color": "sky_60",
+        "text-color": "sky_60",
+      },
+      "&.outline.contrast": {
+        "@hovered": {
+          "border-color": "slate_80",
+          "text-color": "slate_80",
+        },
+        "border-color": "slate_90",
+        "text-color": "slate_90",
+      },
+      "&.outline.secondary": {
+        "@hovered": {
+          "border-color": "slate_60",
+          "text-color": "slate_60",
+        },
+        "border-color": "slate_50",
+        "text-color": "slate_50",
+      },
+      "&.secondary": {
+        "@hovered": {
+          "background-color": "slate_60",
+          "border-color": "slate_60",
+        },
+        "background-color": "slate_50",
+        "border-color": "slate_50",
+      },
       "@busy": {
         "@before": {
           "animation-duration": "0.6s",
@@ -270,13 +332,6 @@ exports[`style > authored style block content payload 1`] = `
       "right": "16px",
       "transition": "opacity 0.25s linear",
       "width": "16px",
-    },
-    "contrast": {
-      "$name": "contrast",
-      "$type": "style",
-      "background-color": "slate_90",
-      "border-color": "slate_90",
-      "text-color": "slate_20",
     },
     "del": {
       "$name": "del",
@@ -570,6 +625,18 @@ exports[`style > authored style block content payload 1`] = `
     "link": {
       "$name": "link",
       "$type": "style",
+      "&.contrast": {
+        "@hovered": {
+          "text-color": "slate_80",
+        },
+        "text-color": "slate_90",
+      },
+      "&.secondary": {
+        "@hovered": {
+          "text-color": "slate_60",
+        },
+        "text-color": "slate_50",
+      },
       "@hovered": {
         "text-color": "sky_70",
       },
@@ -683,11 +750,12 @@ exports[`style > authored style block content payload 1`] = `
       "background-color": "slate_30",
       "text-color": "slate_90",
     },
-    "outline": {
-      "$name": "outline",
+    "overflow_auto": {
+      "$name": "overflow_auto",
       "$type": "style",
-      "background-color": "transparent",
-      "text-color": "sky_60",
+      "display": "block",
+      "overflow-x": "auto",
+      "width": "100%",
     },
     "overlay": {
       "$name": "overlay",
@@ -759,12 +827,6 @@ exports[`style > authored style block content payload 1`] = `
       "pointer_events": "none",
       "position": "absolute",
     },
-    "secondary": {
-      "$name": "secondary",
-      "$type": "style",
-      "background-color": "slate_50",
-      "border-color": "slate_50",
-    },
     "section": {
       "$name": "section",
       "$type": "style",
@@ -799,6 +861,15 @@ exports[`style > authored style block content payload 1`] = `
       "flex_direction": "column",
       "inset": "0",
       "position": "absolute",
+    },
+    "striped": {
+      "$name": "striped",
+      "$type": "style",
+      "> tbody": {
+        "> @odd": {
+          "background-color": "slate_20",
+        },
+      },
     },
     "stroke": {
       "$name": "stroke",
@@ -2294,6 +2365,25 @@ exports[`style > style + variables construction stream 1`] = `
               "margin": "-1.5rem -1.5rem 0",
               "padding": "1rem 1.5rem",
             },
+            "@busy": {
+              "@before": {
+                "animation-duration": "0.6s",
+                "animation-iteration-count": "infinite",
+                "animation-name": "spin",
+                "animation-timing-function": "linear",
+                "border-color": "var(--theme-color-slate_40)",
+                "border-style": "solid",
+                "border-top-color": "var(--theme-color-sky_60)",
+                "border-width": "0.125rem",
+                "content": "",
+                "corner": "50%",
+                "height": "1.25rem",
+                "width": "1.25rem",
+              },
+              "child-align": "center",
+              "child-justify": "center",
+              "min-height": "4rem",
+            },
             "background-color": "slate_30",
             "child-gap": "1rem",
             "child-layout": "column",
@@ -2339,6 +2429,49 @@ exports[`style > style + variables construction stream 1`] = `
           "button": {
             "$name": "button",
             "$type": "style",
+            "&.contrast": {
+              "@hovered": {
+                "background-color": "slate_80",
+                "border-color": "slate_80",
+              },
+              "background-color": "slate_90",
+              "border-color": "slate_90",
+              "text-color": "slate_20",
+            },
+            "&.outline": {
+              "@hovered": {
+                "background-color": "transparent",
+                "border-color": "sky_70",
+                "text-color": "sky_70",
+              },
+              "background-color": "transparent",
+              "border-color": "sky_60",
+              "text-color": "sky_60",
+            },
+            "&.outline.contrast": {
+              "@hovered": {
+                "border-color": "slate_80",
+                "text-color": "slate_80",
+              },
+              "border-color": "slate_90",
+              "text-color": "slate_90",
+            },
+            "&.outline.secondary": {
+              "@hovered": {
+                "border-color": "slate_60",
+                "text-color": "slate_60",
+              },
+              "border-color": "slate_50",
+              "text-color": "slate_50",
+            },
+            "&.secondary": {
+              "@hovered": {
+                "background-color": "slate_60",
+                "border-color": "slate_60",
+              },
+              "background-color": "slate_50",
+              "border-color": "slate_50",
+            },
             "@busy": {
               "@before": {
                 "animation-duration": "0.6s",
@@ -2513,13 +2646,6 @@ exports[`style > style + variables construction stream 1`] = `
             "right": "16px",
             "transition": "opacity 0.25s linear",
             "width": "16px",
-          },
-          "contrast": {
-            "$name": "contrast",
-            "$type": "style",
-            "background-color": "slate_90",
-            "border-color": "slate_90",
-            "text-color": "slate_20",
           },
           "del": {
             "$name": "del",
@@ -2813,6 +2939,18 @@ exports[`style > style + variables construction stream 1`] = `
           "link": {
             "$name": "link",
             "$type": "style",
+            "&.contrast": {
+              "@hovered": {
+                "text-color": "slate_80",
+              },
+              "text-color": "slate_90",
+            },
+            "&.secondary": {
+              "@hovered": {
+                "text-color": "slate_60",
+              },
+              "text-color": "slate_50",
+            },
             "@hovered": {
               "text-color": "sky_70",
             },
@@ -2926,11 +3064,12 @@ exports[`style > style + variables construction stream 1`] = `
             "background-color": "slate_30",
             "text-color": "slate_90",
           },
-          "outline": {
-            "$name": "outline",
+          "overflow_auto": {
+            "$name": "overflow_auto",
             "$type": "style",
-            "background-color": "transparent",
-            "text-color": "sky_60",
+            "display": "block",
+            "overflow-x": "auto",
+            "width": "100%",
           },
           "overlay": {
             "$name": "overlay",
@@ -3002,12 +3141,6 @@ exports[`style > style + variables construction stream 1`] = `
             "pointer_events": "none",
             "position": "absolute",
           },
-          "secondary": {
-            "$name": "secondary",
-            "$type": "style",
-            "background-color": "slate_50",
-            "border-color": "slate_50",
-          },
           "section": {
             "$name": "section",
             "$type": "style",
@@ -3042,6 +3175,15 @@ exports[`style > style + variables construction stream 1`] = `
             "flex_direction": "column",
             "inset": "0",
             "position": "absolute",
+          },
+          "striped": {
+            "$name": "striped",
+            "$type": "style",
+            "> tbody": {
+              "> @odd": {
+                "background-color": "slate_20",
+              },
+            },
           },
           "stroke": {
             "$name": "stroke",
