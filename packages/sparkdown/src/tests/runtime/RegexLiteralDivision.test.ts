@@ -1,9 +1,9 @@
-// `/pattern/flags` regex literals share their opening character with the
+// `@/pattern/flags` regex literals share their opening character with the
 // DIVISION operator, so the grammar rule sits just before
-// `LuauArithmeticOperation` and refuses to open on whitespace, `=` or `/`
-// (`a / b`, `/=`, `// comment`).
+// `LuauArithmeticOperation` and refuses to open on whitespace, `=` or `@/`
+// (`a / b`, `@/=`, `@// comment`).
 //
-// Absence of a diagnostic is NOT sufficient evidence here: a misparsed `/b/`
+// Absence of a diagnostic is NOT sufficient evidence here: a misparsed `@/b/`
 // would produce a silently WRONG value rather than an error. So these evaluate
 // the expressions and check the results.
 

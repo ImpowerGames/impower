@@ -11657,6 +11657,9 @@
           "include": "#LuauStringEscape"
         },
         {
+          "include": "#LuauDoubleQuotedStringInterpolation"
+        },
+        {
           "include": "#Color"
         },
         {
@@ -11872,6 +11875,43 @@
         }
       ],
       "end": "([}])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
+    },
+    "LuauDoubleQuotedStringInterpolation": {
+      "tag": "meta",
+      "name": "meta.template.expression.luau",
+      "contentName": "meta.embedded.line.luau",
+      "brackets": true,
+      "begin": "([{])(?![}])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "([}])|(?=[\"])",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -13451,25 +13491,135 @@
     "LuauRegexLiteral": {
       "tag": "regexp",
       "name": "string.regexp.sd",
-      "match": "([/])(?![\\s=/])((?:\\\\.|[^/\\\\\\r\\n])+)([/])([dgimsuvy]*)(?=[\\s,);\\]}]|$)",
+      "match": "(@)([/])((?:\\\\.|[^/\\\\\\r\\n])+)([/])([dgimsuvy]*)",
       "captures": {
         "1": {
           "tag": "definition(string)",
           "name": "punctuation.definition.string.begin.sd"
         },
         "2": {
-          "tag": "regexp",
-          "name": "string.regexp.sd"
+          "tag": "definition(string)",
+          "name": "punctuation.definition.string.begin.sd"
         },
         "3": {
+          "tag": "regexp",
+          "name": "string.regexp.sd",
+          "patterns": [
+            {
+              "include": "#LuauRegexCharacterClass"
+            },
+            {
+              "include": "#LuauRegexEscapedCharacterClass"
+            },
+            {
+              "include": "#LuauRegexEscape"
+            },
+            {
+              "include": "#LuauRegexAnchor"
+            },
+            {
+              "include": "#LuauRegexQuantifier"
+            },
+            {
+              "include": "#LuauRegexAlternation"
+            },
+            {
+              "include": "#LuauRegexGroupBegin"
+            },
+            {
+              "include": "#LuauRegexGroupEnd"
+            },
+            {
+              "include": "#LuauRegexText"
+            }
+          ]
+        },
+        "4": {
           "tag": "definition(string)",
           "name": "punctuation.definition.string.end.sd"
         },
-        "4": {
+        "5": {
           "tag": "modifier",
           "name": "keyword.other.regexp.flags.sd"
         }
       }
+    },
+    "LuauRegexEscape": {
+      "tag": "escape",
+      "name": "constant.character.escape.backslash.regexp.sd",
+      "match": "\\\\."
+    },
+    "LuauRegexCharacterClass": {
+      "tag": "bracket",
+      "name": "constant.other.character-class.set.regexp.sd",
+      "begin": "\\[\\^?",
+      "beginCaptures": {
+        "0": {
+          "tag": "bracket",
+          "name": "punctuation.definition.character-class.regexp.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauRegexEscapedCharacterClass"
+        },
+        {
+          "include": "#LuauRegexEscape"
+        },
+        {
+          "include": "#LuauRegexClassDash"
+        },
+        {
+          "include": "#LuauRegexText"
+        }
+      ],
+      "end": "\\]",
+      "endCaptures": {
+        "0": {
+          "tag": "bracket",
+          "name": "punctuation.definition.character-class.regexp.sd"
+        }
+      }
+    },
+    "LuauRegexClassDash": {
+      "tag": "operator",
+      "name": "constant.other.character-class.range.regexp.sd",
+      "match": "-"
+    },
+    "LuauRegexEscapedCharacterClass": {
+      "tag": "escape",
+      "name": "constant.other.character-class.regexp.sd",
+      "match": "\\\\[dDwWsShHvVnrtfv0]|\\\\[pP]\\{[^}]*\\}|\\\\u\\{[0-9A-Fa-f]+\\}|\\\\x[0-9A-Fa-f]{2}|\\\\[0-9]+|\\."
+    },
+    "LuauRegexAnchor": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.anchor.regexp.sd",
+      "match": "[\\^$]|\\\\[bBAzZG]"
+    },
+    "LuauRegexQuantifier": {
+      "tag": "operator",
+      "name": "keyword.operator.quantifier.regexp.sd",
+      "match": "[*+?]\\??|\\{[0-9]+(?:,[0-9]*)?\\}\\??"
+    },
+    "LuauRegexAlternation": {
+      "tag": "logicOperator",
+      "name": "keyword.operator.or.regexp.sd",
+      "match": "\\|"
+    },
+    "LuauRegexGroupBegin": {
+      "tag": "paren",
+      "name": "punctuation.definition.group.regexp.sd",
+      "match": "\\((?:\\?(?::|=|!|<=|<!|<[A-Za-z_][A-Za-z0-9_]*>|P<[A-Za-z_][A-Za-z0-9_]*>))?"
+    },
+    "LuauRegexGroupEnd": {
+      "tag": "paren",
+      "name": "punctuation.definition.group.regexp.sd",
+      "match": "\\)"
+    },
+    "LuauRegexText": {
+      "tag": "regexp",
+      "name": "string.regexp.sd",
+      "match": "[^\\\\\\[\\]()|*+?{}^$-]+|[\\s\\S]"
     }
   }
 }

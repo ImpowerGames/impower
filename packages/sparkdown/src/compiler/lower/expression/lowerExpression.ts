@@ -927,13 +927,17 @@ export function lowerPrimary(
       // implemented as a special case in `NativeFunctionCall.Call`.
       return new NullExpression();
     case "LuauRegexLiteral":
-      // `/pattern/flags` lowers to the VERBATIM `/pattern/flags` string — the
-      // same value the quoted form produced, so `Matcher` (which already
-      // splits `/source/flags`) needs no change. No escape processing: a regex
-      // is raw, which is the whole point of having a literal (`\p{L}` instead
-      // of `"\p{L}"`, and `{2,}` without it reading as an interpolation).
+      // `@/pattern/flags` lowers to the VERBATIM `/pattern/flags` string —
+      // sigil dropped, delimiters kept — which is the same value the quoted
+      // form produced, so `Matcher` (which already splits `/source/flags`)
+      // needs no change. No escape processing: a regex is raw, which is the
+      // whole point of having a literal (`\p{L}` instead of `"\\p{L}"`, and
+      // `{2,}` without it reading as an interpolation).
+      //
+      // The `@` is what makes the literal unambiguous — a bare `/.../` cannot
+      // be told apart from division in this tokenizer (see the regex tests).
       return new StringExpression([
-        new Text(ctx.read(node.from, node.to).trim()),
+        new Text(ctx.read(node.from, node.to).trim().replace(/^@/, "")),
       ]);
     case "LuauDoubleQuotedString":
     case "LuauSingleQuotedString":
@@ -1804,6 +1808,17 @@ function lowerString(node: SyntaxNode, ctx: LowerContext): Expression {
   if (node.name === "LuauInterpolatedString") {
     return lowerInterpolatedString(node, ctx);
   }
+  // `"..."` interpolates too, so a `{expr}` in it takes the same path as a
+  // backtick string. `'...'` deliberately does NOT — it is the literal
+  // single-line form, which is what a string holding braces (Lua source, JSON,
+  // a `%b{}` subject) should use. `\{` opts out, and `[[...]]` stays raw.
+  //
+  // Only strings that actually CONTAIN an interpolation pay for the child
+  // walk; a plain literal keeps the cheaper read-and-strip below, byte for
+  // byte as before.
+  if (node.name === "LuauDoubleQuotedString" && hasInterpolation(node)) {
+    return lowerInterpolatedString(node, ctx);
+  }
   // The grammar's LuauDoubleQuotedString / LuauSingleQuotedString rules
   // capture trailing whitespace as part of their end pattern (via the
   // LUAU_BINARY_OPERATOR_AHEAD lookahead-with-WS-capture), so `node.from
@@ -1936,16 +1951,32 @@ export function processLuauEscapes(s: string): string {
   return out;
 }
 
-// Backtick string interpolation: walk the content children, accumulating Text
-// for literal segments and lowering each `{...}` expression into the
+// `"..."` uses its own interpolation rule (bounded by the closing quote), so
+// both node names count as an interpolation.
+const INTERPOLATION_NODES = new Set([
+  "LuauInterpolatedStringExpression",
+  "LuauDoubleQuotedStringInterpolation",
+]);
+
+function hasInterpolation(node: SyntaxNode): boolean {
+  const content = findChildByName(node, `${node.name}_content`);
+  for (let c = content?.firstChild; c; c = c.nextSibling) {
+    if (INTERPOLATION_NODES.has(c.name)) return true;
+  }
+  return false;
+}
+
+// String interpolation: walk the content children, accumulating Text for
+// literal segments and lowering each `{...}` expression into the
 // StringExpression's content list. The runtime's BeginString..EndString frame
 // emitted by StringExpression handles concatenation; each inner Expression
-// outputs its value into the open string slot.
+// outputs its value into the open string slot. Shared by backtick and
+// double-quoted strings, which name their content node after themselves.
 function lowerInterpolatedString(
   node: SyntaxNode,
   ctx: LowerContext,
 ): Expression {
-  const content = findChildByName(node, "LuauInterpolatedString_content");
+  const content = findChildByName(node, `${node.name}_content`);
   if (!content) return new StringExpression([new Text("")]);
   const parts: ParsedObject[] = [];
   let textBuf = "";
@@ -1957,7 +1988,7 @@ function lowerInterpolatedString(
   };
   let child = content.firstChild;
   while (child) {
-    if (child.name === "LuauInterpolatedStringExpression") {
+    if (INTERPOLATION_NODES.has(child.name)) {
       flush();
       const expr = lowerExpressionFromContainer(child, ctx);
       if (expr) {

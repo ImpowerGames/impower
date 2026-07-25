@@ -1,18 +1,18 @@
-// `/pattern/flags` regex literals.
+// `@/pattern/flags` regex literals.
 //
 // Regexes previously lived in double-quoted strings, which forced DOUBLED
 // backslashes (`"\\p{L}"`) and collided with `{expr}` interpolation — a
 // `{2,}` quantifier parsed as an interpolation and errored with
 // "Cannot find variable named `L`".
 //
-// A literal lowers to the VERBATIM `/pattern/flags` string, which is exactly
+// A literal lowers to the VERBATIM `@/pattern/flags` string, which is exactly
 // what the quoted form produced, so the runtime `Matcher` (which already splits
-// `/source/flags`) is unchanged.
+// `@/source/flags`) is unchanged.
 //
-// The delicate part is DIVISION: `/` is also an operator. Two things contain it
+// The delicate part is DIVISION: `@/` is also an operator. Two things contain it
 // — the rule sits AFTER `LuauArithmeticOperation` in the expression
-// alternation, and the char after the opening `/` may not be whitespace, `=`
-// or `/`. The division cases below are the regression net (the Luau conformance
+// alternation, and the char after the opening `@/` may not be whitespace, `=`
+// or `@/`. The division cases below are the regression net (the Luau conformance
 // fixtures use `a / 2`, `1 / 0`, `a / (`).
 
 import { describe, expect, test } from "vitest";
@@ -51,7 +51,7 @@ const typewriter = (value: string) =>
 
 describe("regex literals", () => {
   test("a literal lowers to the same string the quoted form produced", () => {
-    const lit = typewriter(`/([\\p{L}\\p{N}']+)/u`);
+    const lit = typewriter(`@/([\\p{L}\\p{N}']+)/u`);
     const quoted = typewriter(`"/([\\\\p{L}\\\\p{N}']+)/u"`);
     expect(lit.diags).toEqual([]);
     const got = (lit.program.context as any)?.typewriter?.t?.voiced;
@@ -61,7 +61,7 @@ describe("regex literals", () => {
   });
 
   test("`{n,m}` quantifiers are NOT read as interpolation", () => {
-    const r = typewriter(`/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u`);
+    const r = typewriter(`@/^([\\p{Lu}]{2,}[^\\p{Ll}\\r\\n]*)$/u`);
     // The quoted form used to error with "Cannot find variable named `L`".
     expect(r.diags).toEqual([]);
     expect((r.program.context as any)?.typewriter?.t?.voiced).toBe(
@@ -86,7 +86,7 @@ describe("regex literals", () => {
     }
   });
 
-  test("`//` line comments are not swallowed as an empty regex", () => {
+  test("`@//` line comments are not swallowed as an empty regex", () => {
     const r = compile(`store a = 1 // a comment\n`);
     expect(r.diags).toEqual([]);
   });

@@ -3188,9 +3188,9 @@ define typewriter with
   stressed_pause_scale = 10
   punctuated_pause_scale = 15
   min_syllable_length = 3
-  voiced = /([\p{L}\p{N}']+)/u
-  yelled = /^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
-  punctuated = /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
 end
 
 define title as typewriter with
@@ -3203,9 +3203,9 @@ define title as typewriter with
   stressed_pause_scale = 10
   punctuated_pause_scale = 15
   min_syllable_length = 3
-  voiced = /([\p{L}\p{N}']+)/u
-  yelled = /^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
-  punctuated = /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
 end
 
 define heading as typewriter with
@@ -3218,9 +3218,9 @@ define heading as typewriter with
   stressed_pause_scale = 10
   punctuated_pause_scale = 15
   min_syllable_length = 3
-  voiced = /([\p{L}\p{N}']+)/u
-  yelled = /^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
-  punctuated = /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
 end
 
 define transitional as typewriter with
@@ -3233,9 +3233,9 @@ define transitional as typewriter with
   stressed_pause_scale = 10
   punctuated_pause_scale = 15
   min_syllable_length = 3
-  voiced = /([\p{L}\p{N}']+)/u
-  yelled = /^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
-  punctuated = /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
 end
 
 define dialogue as typewriter with
@@ -3248,9 +3248,9 @@ define dialogue as typewriter with
   stressed_pause_scale = 10
   punctuated_pause_scale = 15
   min_syllable_length = 3
-  voiced = /([\p{L}\p{N}']+)/u
-  yelled = /^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
-  punctuated = /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
 end
 
 define action as typewriter with
@@ -3263,9 +3263,9 @@ define action as typewriter with
   stressed_pause_scale = 10
   punctuated_pause_scale = 15
   min_syllable_length = 3
-  voiced = /([\p{L}\p{N}']+)/u
-  yelled = /^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
-  punctuated = /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
 end
 
 define character_name as typewriter with
@@ -3278,9 +3278,9 @@ define character_name as typewriter with
   stressed_pause_scale = 10
   punctuated_pause_scale = 15
   min_syllable_length = 3
-  voiced = /([\p{L}\p{N}']+)/u
-  yelled = /^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
-  punctuated = /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
 end
 
 define character_parenthetical as typewriter with
@@ -3293,9 +3293,9 @@ define character_parenthetical as typewriter with
   stressed_pause_scale = 10
   punctuated_pause_scale = 15
   min_syllable_length = 3
-  voiced = /([\p{L}\p{N}']+)/u
-  yelled = /^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
-  punctuated = /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
 end
 
 define portrait as typewriter with
@@ -3308,9 +3308,9 @@ define portrait as typewriter with
   stressed_pause_scale = 10
   punctuated_pause_scale = 15
   min_syllable_length = 3
-  voiced = /([\p{L}\p{N}']+)/u
-  yelled = /^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
-  punctuated = /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
+  voiced = @/([\p{L}\p{N}']+)/u
+  yelled = @/^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u
+  punctuated = @/(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u
 end
 
 define character with
@@ -3320,19 +3320,19 @@ end
 
 define prosody with
   ["$link"] = { image = {}, audio = {}, synth = {}, character = {}, typewriter = {}, inflection = {} }
-  lilt_question = /(?:^|\b)[~]+([!?]*[?][!?]*)[ "']*$/
-  lilt_exclamation = /(?:^|\b)[~]+([!]+)[ "']*$/
-  lilt = /(?:^|\b)([~]+)[ ]*$/
-  anxious_lilt = /(?:^|\b)([~]+)[.][.][.]+[ "']*$/
-  exclamation = /(?:^|\b)([!?]*[!][!?]*)[ "']*$/
-  resolved_anxious_question = /(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+[.][.][.]+([!?]*[?][!?]*)[ "']*$/
-  resolved_question = /(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+([!?]*[?][!?]*)[ "']*$/
-  anxious_question = /(?:^|\b)[.][.][.]+([?]+)[ "']*$/
-  question = /(?:^|\b)([!?]*[?][!?]*)[ "']*$/
-  comma = /(?:^|\b)([,])[ "']*$/
-  partial = /(?:^|\b)[-]([-]+)[ "']*$/
-  anxious = /(?:^|\b)[.][.]([.]+)[ "']*$/
-  statement = /(?:^|\b)([.])[ "']*$/
+  lilt_question = @/(?:^|\b)[~]+([!?]*[?][!?]*)[ "']*$/
+  lilt_exclamation = @/(?:^|\b)[~]+([!]+)[ "']*$/
+  lilt = @/(?:^|\b)([~]+)[ ]*$/
+  anxious_lilt = @/(?:^|\b)([~]+)[.][.][.]+[ "']*$/
+  exclamation = @/(?:^|\b)([!?]*[!][!?]*)[ "']*$/
+  resolved_anxious_question = @/(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+[.][.][.]+([!?]*[?][!?]*)[ "']*$/
+  resolved_question = @/(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+([!?]*[?][!?]*)[ "']*$/
+  anxious_question = @/(?:^|\b)[.][.][.]+([?]+)[ "']*$/
+  question = @/(?:^|\b)([!?]*[?][!?]*)[ "']*$/
+  comma = @/(?:^|\b)([,])[ "']*$/
+  partial = @/(?:^|\b)[-]([-]+)[ "']*$/
+  anxious = @/(?:^|\b)[.][.]([.]+)[ "']*$/
+  statement = @/(?:^|\b)([.])[ "']*$/
 end
 
 define inflection with
