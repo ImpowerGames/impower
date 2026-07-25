@@ -109,7 +109,9 @@ layout main with
           li "Suspendisse id nisl ut leo finibus vehicula quis eu ex."
 
         text h3 "Inline text elements"
-        row #child-gap=8 #child-overflow=wrap #child-align=center:
+        -- `prose` (a non-flex box) is what lets these flow inline: CSS blockifies
+        -- the children of a flex container, so in a `row` they would stack.
+        box prose:
           strong "Bold"
           em "Italic"
           code "code"
@@ -118,10 +120,8 @@ layout main with
           del "Deleted"
           ins "Inserted"
           abbr "HTML"
-          text "Sub"
-          sub "2"
-          text "Sup"
-          sup "3"
+          sub "sub"
+          sup "sup"
 
         text h3 "Heading 3"
         text h4 "Heading 4"

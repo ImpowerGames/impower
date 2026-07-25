@@ -17837,6 +17837,7 @@
           "$name": "abbr",
           "$type": "style",
           "cursor": "help",
+          "display": "inline",
           "text-decoration": "underline dotted"
         },
         "action": {
@@ -17900,6 +17901,24 @@
         "button": {
           "$name": "button",
           "$type": "style",
+          "@busy": {
+            "@before": {
+              "animation-duration": "0.6s",
+              "animation-iteration-count": "infinite",
+              "animation-name": "spin",
+              "animation-timing-function": "linear",
+              "border-color": "rgb(255 255 255 / 40%)",
+              "border-style": "solid",
+              "border-top-color": "white",
+              "border-width": "0.125rem",
+              "content": "",
+              "corner": "50%",
+              "height": "0.75rem",
+              "margin-right": "0.5rem",
+              "width": "0.75rem"
+            },
+            "cursor": "progress"
+          },
           "@focused": {
             "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
           },
@@ -18013,6 +18032,7 @@
         "cite": {
           "$name": "cite",
           "$type": "style",
+          "display": "inline",
           "text-color": "slate_60",
           "text-size": "0.875rem",
           "text-style": "italic"
@@ -18022,6 +18042,7 @@
           "$type": "style",
           "background-color": "slate_30",
           "corner": "0.25rem",
+          "display": "inline",
           "font-family": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace",
           "padding": "0.125rem 0.375rem",
           "text-size": "0.875rem"
@@ -18065,6 +18086,7 @@
         "del": {
           "$name": "del",
           "$type": "style",
+          "display": "inline",
           "text-color": "slate_60",
           "text-decoration": "line-through"
         },
@@ -18074,16 +18096,25 @@
           "border-bottom-color": "slate_40",
           "border-bottom-style": "solid",
           "border-bottom-width": "0.0625rem",
+          "display": "block",
           "padding": "0.75rem 0"
         },
         "dialog": {
           "$name": "dialog",
           "$type": "style",
-          "background-color": "slate_30",
+          "@opened": {
+            "display": "flex"
+          },
+          "anchor": "0",
+          "background-color": "rgb(0 0 0 / 50%)",
           "border-width": "0",
-          "corner": "0.5rem",
-          "padding": "1.5rem",
-          "text-color": "slate_90"
+          "child-align": "center",
+          "child-justify": "center",
+          "display": "none",
+          "padding": "1rem",
+          "position": "fixed",
+          "text-color": "slate_90",
+          "z": "999"
         },
         "dialogue": {
           "$name": "dialogue",
@@ -18093,6 +18124,18 @@
           },
           "margin": "0 auto",
           "width": "68%"
+        },
+        "divider": {
+          "$name": "divider",
+          "$type": "style",
+          "border-top-color": "slate_40",
+          "border-top-style": "solid",
+          "border-top-width": "0.0625rem",
+          "border-width": "0",
+          "display": "block",
+          "height": "0",
+          "margin": "1rem 0",
+          "width": "100%"
         },
         "dropdown": {
           "$name": "dropdown",
@@ -18114,6 +18157,7 @@
         "em": {
           "$name": "em",
           "$type": "style",
+          "display": "inline",
           "text-style": "italic"
         },
         "field": {
@@ -18161,7 +18205,7 @@
         "grid": {
           "$name": "grid",
           "$type": "style",
-          "child-columns": "1fr 1fr",
+          "child-columns": "repeat(auto-fit, minmax(0, 1fr))",
           "child-gap": "1rem",
           "child-layout": "grid"
         },
@@ -18280,6 +18324,7 @@
         "ins": {
           "$name": "ins",
           "$type": "style",
+          "display": "inline",
           "text-color": "emerald_60",
           "text-decoration": "underline"
         },
@@ -18293,6 +18338,7 @@
           "$type": "style",
           "background-color": "slate_90",
           "corner": "0.25rem",
+          "display": "inline",
           "font-family": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace",
           "padding": "0.125rem 0.375rem",
           "text-color": "slate_20",
@@ -18313,6 +18359,7 @@
         "li": {
           "$name": "li",
           "$type": "style",
+          "display": "list-item",
           "margin-bottom": "0.25rem",
           "text-color": "slate_90"
         },
@@ -18323,6 +18370,7 @@
             "text-color": "sky_70"
           },
           "cursor": "pointer",
+          "display": "inline-block",
           "text-color": "sky_60",
           "text-decoration": "underline",
           "transition": "all 0.2s ease-in-out"
@@ -18358,6 +18406,7 @@
           "$type": "style",
           "background-color": "amber_60",
           "corner": "0.125rem",
+          "display": "inline",
           "padding": "0.0625rem 0.25rem",
           "text-color": "slate_20"
         },
@@ -18403,6 +18452,7 @@
         "ol": {
           "$name": "ol",
           "$type": "style",
+          "display": "block",
           "list-style": "decimal",
           "padding-left": "1.5rem"
         },
@@ -18447,6 +18497,7 @@
           "background-color": "slate_30",
           "border-width": "0",
           "corner": "0.25rem",
+          "display": "inline-block",
           "height": "0.5rem",
           "width": "100%"
         },
@@ -18456,6 +18507,12 @@
           "background-color": "sky_60",
           "corner": "0.25rem",
           "height": "100%"
+        },
+        "prose": {
+          "$name": "prose",
+          "$type": "style",
+          "display": "block",
+          "text-color": "slate_90"
         },
         "radio": {
           "$name": "radio",
@@ -18541,24 +18598,30 @@
         "strong": {
           "$name": "strong",
           "$type": "style",
+          "display": "inline",
           "text-weight": "700"
         },
         "sub": {
           "$name": "sub",
           "$type": "style",
-          "text-size": "0.75rem"
+          "display": "inline",
+          "text-size": "0.75rem",
+          "vertical-align": "sub"
         },
         "summary": {
           "$name": "summary",
           "$type": "style",
           "cursor": "pointer",
+          "display": "list-item",
           "text-color": "slate_90",
           "text-weight": "600"
         },
         "sup": {
           "$name": "sup",
           "$type": "style",
-          "text-size": "0.75rem"
+          "display": "inline",
+          "text-size": "0.75rem",
+          "vertical-align": "super"
         },
         "switch": {
           "$name": "switch",
@@ -18600,9 +18663,15 @@
           "$name": "table",
           "$type": "style",
           "border-collapse": "collapse",
+          "display": "table",
           "margin": "1rem 0",
           "text-align": "left",
           "width": "100%"
+        },
+        "tbody": {
+          "$name": "tbody",
+          "$type": "style",
+          "display": "table-row-group"
         },
         "td": {
           "$name": "td",
@@ -18610,6 +18679,7 @@
           "border-bottom-color": "slate_40",
           "border-bottom-style": "solid",
           "border-bottom-width": "0.0625rem",
+          "display": "table-cell",
           "padding": "0.75rem 1rem",
           "text-color": "slate_90"
         },
@@ -18698,15 +18768,26 @@
           "position": "relative",
           "width": "100%"
         },
+        "tfoot": {
+          "$name": "tfoot",
+          "$type": "style",
+          "display": "table-footer-group"
+        },
         "th": {
           "$name": "th",
           "$type": "style",
           "border-bottom-color": "slate_40",
           "border-bottom-style": "solid",
           "border-bottom-width": "0.125rem",
+          "display": "table-cell",
           "padding": "0.75rem 1rem",
           "text-color": "slate_90",
           "text-weight": "600"
+        },
+        "thead": {
+          "$name": "thead",
+          "$type": "style",
+          "display": "table-header-group"
         },
         "title": {
           "$name": "title",
@@ -18721,6 +18802,11 @@
           "padding_right": "40px",
           "position": "absolute",
           "text_align": "center"
+        },
+        "tr": {
+          "$name": "tr",
+          "$type": "style",
+          "display": "table-row"
         },
         "transitional": {
           "$name": "transitional",
@@ -18740,6 +18826,7 @@
         "ul": {
           "$name": "ul",
           "$type": "style",
+          "display": "block",
           "list-style": "square",
           "padding-left": "1.5rem"
         },
@@ -90712,6 +90799,7 @@
           "$name": "abbr",
           "$type": "style",
           "cursor": "help",
+          "display": "inline",
           "text-decoration": "underline dotted"
         },
         "action": {
@@ -90775,6 +90863,24 @@
         "button": {
           "$name": "button",
           "$type": "style",
+          "@busy": {
+            "@before": {
+              "animation-duration": "0.6s",
+              "animation-iteration-count": "infinite",
+              "animation-name": "spin",
+              "animation-timing-function": "linear",
+              "border-color": "rgb(255 255 255 / 40%)",
+              "border-style": "solid",
+              "border-top-color": "white",
+              "border-width": "0.125rem",
+              "content": "",
+              "corner": "50%",
+              "height": "0.75rem",
+              "margin-right": "0.5rem",
+              "width": "0.75rem"
+            },
+            "cursor": "progress"
+          },
           "@focused": {
             "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
           },
@@ -90888,6 +90994,7 @@
         "cite": {
           "$name": "cite",
           "$type": "style",
+          "display": "inline",
           "text-color": "slate_60",
           "text-size": "0.875rem",
           "text-style": "italic"
@@ -90897,6 +91004,7 @@
           "$type": "style",
           "background-color": "slate_30",
           "corner": "0.25rem",
+          "display": "inline",
           "font-family": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace",
           "padding": "0.125rem 0.375rem",
           "text-size": "0.875rem"
@@ -90940,6 +91048,7 @@
         "del": {
           "$name": "del",
           "$type": "style",
+          "display": "inline",
           "text-color": "slate_60",
           "text-decoration": "line-through"
         },
@@ -90949,16 +91058,25 @@
           "border-bottom-color": "slate_40",
           "border-bottom-style": "solid",
           "border-bottom-width": "0.0625rem",
+          "display": "block",
           "padding": "0.75rem 0"
         },
         "dialog": {
           "$name": "dialog",
           "$type": "style",
-          "background-color": "slate_30",
+          "@opened": {
+            "display": "flex"
+          },
+          "anchor": "0",
+          "background-color": "rgb(0 0 0 / 50%)",
           "border-width": "0",
-          "corner": "0.5rem",
-          "padding": "1.5rem",
-          "text-color": "slate_90"
+          "child-align": "center",
+          "child-justify": "center",
+          "display": "none",
+          "padding": "1rem",
+          "position": "fixed",
+          "text-color": "slate_90",
+          "z": "999"
         },
         "dialogue": {
           "$name": "dialogue",
@@ -90968,6 +91086,18 @@
           },
           "margin": "0 auto",
           "width": "68%"
+        },
+        "divider": {
+          "$name": "divider",
+          "$type": "style",
+          "border-top-color": "slate_40",
+          "border-top-style": "solid",
+          "border-top-width": "0.0625rem",
+          "border-width": "0",
+          "display": "block",
+          "height": "0",
+          "margin": "1rem 0",
+          "width": "100%"
         },
         "dropdown": {
           "$name": "dropdown",
@@ -90989,6 +91119,7 @@
         "em": {
           "$name": "em",
           "$type": "style",
+          "display": "inline",
           "text-style": "italic"
         },
         "field": {
@@ -91036,7 +91167,7 @@
         "grid": {
           "$name": "grid",
           "$type": "style",
-          "child-columns": "1fr 1fr",
+          "child-columns": "repeat(auto-fit, minmax(0, 1fr))",
           "child-gap": "1rem",
           "child-layout": "grid"
         },
@@ -91155,6 +91286,7 @@
         "ins": {
           "$name": "ins",
           "$type": "style",
+          "display": "inline",
           "text-color": "emerald_60",
           "text-decoration": "underline"
         },
@@ -91168,6 +91300,7 @@
           "$type": "style",
           "background-color": "slate_90",
           "corner": "0.25rem",
+          "display": "inline",
           "font-family": "ui-monospace, SFMono-Regular, \"SF Mono\", Menlo, monospace",
           "padding": "0.125rem 0.375rem",
           "text-color": "slate_20",
@@ -91188,6 +91321,7 @@
         "li": {
           "$name": "li",
           "$type": "style",
+          "display": "list-item",
           "margin-bottom": "0.25rem",
           "text-color": "slate_90"
         },
@@ -91198,6 +91332,7 @@
             "text-color": "sky_70"
           },
           "cursor": "pointer",
+          "display": "inline-block",
           "text-color": "sky_60",
           "text-decoration": "underline",
           "transition": "all 0.2s ease-in-out"
@@ -91233,6 +91368,7 @@
           "$type": "style",
           "background-color": "amber_60",
           "corner": "0.125rem",
+          "display": "inline",
           "padding": "0.0625rem 0.25rem",
           "text-color": "slate_20"
         },
@@ -91278,6 +91414,7 @@
         "ol": {
           "$name": "ol",
           "$type": "style",
+          "display": "block",
           "list-style": "decimal",
           "padding-left": "1.5rem"
         },
@@ -91322,6 +91459,7 @@
           "background-color": "slate_30",
           "border-width": "0",
           "corner": "0.25rem",
+          "display": "inline-block",
           "height": "0.5rem",
           "width": "100%"
         },
@@ -91331,6 +91469,12 @@
           "background-color": "sky_60",
           "corner": "0.25rem",
           "height": "100%"
+        },
+        "prose": {
+          "$name": "prose",
+          "$type": "style",
+          "display": "block",
+          "text-color": "slate_90"
         },
         "radio": {
           "$name": "radio",
@@ -91416,24 +91560,30 @@
         "strong": {
           "$name": "strong",
           "$type": "style",
+          "display": "inline",
           "text-weight": "700"
         },
         "sub": {
           "$name": "sub",
           "$type": "style",
-          "text-size": "0.75rem"
+          "display": "inline",
+          "text-size": "0.75rem",
+          "vertical-align": "sub"
         },
         "summary": {
           "$name": "summary",
           "$type": "style",
           "cursor": "pointer",
+          "display": "list-item",
           "text-color": "slate_90",
           "text-weight": "600"
         },
         "sup": {
           "$name": "sup",
           "$type": "style",
-          "text-size": "0.75rem"
+          "display": "inline",
+          "text-size": "0.75rem",
+          "vertical-align": "super"
         },
         "switch": {
           "$name": "switch",
@@ -91475,9 +91625,15 @@
           "$name": "table",
           "$type": "style",
           "border-collapse": "collapse",
+          "display": "table",
           "margin": "1rem 0",
           "text-align": "left",
           "width": "100%"
+        },
+        "tbody": {
+          "$name": "tbody",
+          "$type": "style",
+          "display": "table-row-group"
         },
         "td": {
           "$name": "td",
@@ -91485,6 +91641,7 @@
           "border-bottom-color": "slate_40",
           "border-bottom-style": "solid",
           "border-bottom-width": "0.0625rem",
+          "display": "table-cell",
           "padding": "0.75rem 1rem",
           "text-color": "slate_90"
         },
@@ -91573,15 +91730,26 @@
           "position": "relative",
           "width": "100%"
         },
+        "tfoot": {
+          "$name": "tfoot",
+          "$type": "style",
+          "display": "table-footer-group"
+        },
         "th": {
           "$name": "th",
           "$type": "style",
           "border-bottom-color": "slate_40",
           "border-bottom-style": "solid",
           "border-bottom-width": "0.125rem",
+          "display": "table-cell",
           "padding": "0.75rem 1rem",
           "text-color": "slate_90",
           "text-weight": "600"
+        },
+        "thead": {
+          "$name": "thead",
+          "$type": "style",
+          "display": "table-header-group"
         },
         "title": {
           "$name": "title",
@@ -91596,6 +91764,11 @@
           "padding_right": "40px",
           "position": "absolute",
           "text_align": "center"
+        },
+        "tr": {
+          "$name": "tr",
+          "$type": "style",
+          "display": "table-row"
         },
         "transitional": {
           "$name": "transitional",
@@ -91615,6 +91788,7 @@
         "ul": {
           "$name": "ul",
           "$type": "style",
+          "display": "block",
           "list-style": "square",
           "padding-left": "1.5rem"
         },

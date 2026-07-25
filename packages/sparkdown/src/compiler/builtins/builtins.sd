@@ -1370,6 +1370,26 @@ style button with
     border-color = sky_70
   @focused:
     shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+  -- Busy state: `button "Save" #aria-busy={saving}` grows a spinner, matching
+  -- Pico. `@busy` is the alias for `[aria-busy="true"]` (a raw `#a=v` can't be
+  -- used as a selector — that's the inline prop syntax). `spin` is a builtin
+  -- @keyframes.
+  @busy:
+    cursor = progress
+    @before:
+      content = ""
+      width = 0.75rem
+      height = 0.75rem
+      margin-right = 0.5rem
+      corner = 50%
+      border-width = 0.125rem
+      border-style = solid
+      border-color = rgb(255 255 255 / 40%)
+      border-top-color = white
+      animation-name = spin
+      animation-duration = 0.6s
+      animation-timing-function = linear
+      animation-iteration-count = infinite
 end
 
 style field with
@@ -1475,6 +1495,7 @@ style slider with
 end
 
 style link with
+  display = inline-block
   text-color = sky_60
   text-decoration = underline
   cursor = pointer
@@ -1554,15 +1575,28 @@ end
 
 -- Inline text elements ------------------------------------------------------
 
+-- A block of flowing prose. The overlay lays everything out as FLEX, and CSS
+-- BLOCKIFIES the children of a flex container — so `strong` / `em` / `sub` /
+-- `sup` / `abbr` inside a `row` or `column` compute to `display: block` and
+-- stack instead of flowing inline, no matter what their own rule says. Put them
+-- in a `prose` box (the only non-flex text container) to get real inline flow.
+style prose with
+  display = block
+  text-color = slate_90
+end
+
 style strong with
+  display = inline
   text-weight = 700
 end
 
 style em with
+  display = inline
   text-style = italic
 end
 
 style code with
+  display = inline
   font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
   text-size = 0.875rem
   background-color = slate_30
@@ -1571,6 +1605,7 @@ style code with
 end
 
 style kbd with
+  display = inline
   font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
   text-size = 0.875rem
   background-color = slate_90
@@ -1580,6 +1615,7 @@ style kbd with
 end
 
 style mark with
+  display = inline
   background-color = amber_60
   text-color = slate_20
   padding = 0.0625rem 0.25rem
@@ -1587,29 +1623,50 @@ style mark with
 end
 
 style del with
+  display = inline
   text-decoration = line-through
   text-color = slate_60
 end
 
 style ins with
+  display = inline
   text-decoration = underline
   text-color = emerald_60
 end
 
 style abbr with
+  display = inline
   text-decoration = underline dotted
   cursor = help
 end
 
 style sub with
+  display = inline
   text-size = 0.75rem
+  vertical-align = sub
 end
 
 style sup with
+  display = inline
   text-size = 0.75rem
+  vertical-align = super
+end
+
+-- `divider` renders an <hr>. The overlay's flex default would collapse it, so
+-- it is an explicit block rule.
+style divider with
+  display = block
+  width = 100%
+  height = 0
+  margin = 1rem 0
+  border-width = 0
+  border-top-width = 0.0625rem
+  border-top-style = solid
+  border-top-color = slate_40
 end
 
 style cite with
+  display = inline
   text-style = italic
   text-color = slate_60
   text-size = 0.875rem
@@ -1628,26 +1685,51 @@ end
 
 -- Lists ---------------------------------------------------------------------
 
--- Left as the browser's default BLOCK display on purpose: a flex `ul` would
--- suppress the list markers, and `child-gap` has no effect on non-flex parents.
+-- `display` is stated explicitly rather than left to the browser default: the
+-- overlay lays everything out as flex, and a flex `<li>` renders NO marker (a
+-- marker needs `display: list-item`). `child-gap` likewise does nothing on a
+-- non-flex parent, so list spacing is per-item margin.
 style ul with
+  display = block
   padding-left = 1.5rem
   list-style = square
 end
 
 style ol with
+  display = block
   padding-left = 1.5rem
   list-style = decimal
 end
 
 style li with
+  display = list-item
   text-color = slate_90
   margin-bottom = 0.25rem
 end
 
 -- Tables --------------------------------------------------------------------
 
+-- The table family needs its native display values spelled out: the overlay
+-- lays every element out as FLEX, and a flex table/row/cell does no table
+-- layout at all (columns stop aligning across rows).
+style thead with
+  display = table-header-group
+end
+
+style tbody with
+  display = table-row-group
+end
+
+style tfoot with
+  display = table-footer-group
+end
+
+style tr with
+  display = table-row
+end
+
 style table with
+  display = table
   width = 100%
   border-collapse = collapse
   text-align = left
@@ -1655,6 +1737,7 @@ style table with
 end
 
 style th with
+  display = table-cell
   padding = 0.75rem 1rem
   text-weight = 600
   text-color = slate_90
@@ -1664,6 +1747,7 @@ style th with
 end
 
 style td with
+  display = table-cell
   padding = 0.75rem 1rem
   text-color = slate_90
   border-bottom-width = 0.0625rem
@@ -1726,6 +1810,7 @@ end
 
 -- Accordion: a native <details>/<summary> disclosure.
 style details with
+  display = block
   border-bottom-width = 0.0625rem
   border-bottom-style = solid
   border-bottom-color = slate_40
@@ -1733,18 +1818,37 @@ style details with
 end
 
 style summary with
+  display = list-item
   cursor = pointer
   text-weight = 600
   text-color = slate_90
 end
 
--- Modal: a native <dialog>. Open it with `#open=true`.
+-- Modal: a native <dialog>, opened declaratively with `#open={flag}`.
+--
+-- Follows Pico's shape — the DIALOG is the full-screen scrim and the `article`
+-- inside it is the card — so a modal is authored as:
+--
+--   dialog #open={show}:
+--     article:
+--       ...
+--
+-- A `<dialog>` with no `open` attribute is `display: none` natively, but the
+-- base rule here has to restate that: setting `display: flex` unconditionally
+-- would make a CLOSED modal visible.
 style dialog with
+  display = none
+  position = fixed
+  anchor = 0
+  z = 999
+  child-align = center
+  child-justify = center
+  padding = 1rem
   border-width = 0
-  corner = 0.5rem
-  padding = 1.5rem
-  background-color = slate_30
+  background-color = rgb(0 0 0 / 50%)
   text-color = slate_90
+  @opened:
+    display = flex
 end
 
 style card with
@@ -1801,9 +1905,12 @@ style group with
   child-gap = 0.5rem
 end
 
+-- Pico's `.grid` auto-fits however many children it has into ONE row of equal
+-- columns (a fixed `1fr 1fr` wrapped a 3-up form onto two lines). `minmax(0,1fr)`
+-- rather than plain `1fr` so a long child can shrink instead of overflowing.
 style grid with
   child-layout = grid
-  child-columns = 1fr 1fr
+  child-columns = repeat(auto-fit, minmax(0, 1fr))
   child-gap = 1rem
 end
 
@@ -1811,6 +1918,7 @@ end
 -- of the native control; `progress_fill` below stays available for the
 -- div-track-plus-fill construction.
 style progress with
+  display = inline-block
   width = 100%
   height = 0.5rem
   corner = 0.25rem

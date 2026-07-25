@@ -52,6 +52,10 @@ const PSEUDO_ALIASES = {
   "@marker": "::marker",
   "@backdrop": "::backdrop",
   "@opened": "[open]",
+  // `#a=v` can't be used as a selector in a style block — that IS the inline
+  // prop syntax, so attribute excision eats it and leaves an empty selector.
+  // Busy state gets an alias of its own, like `@opened` does for `[open]`.
+  "@busy": '[aria-busy="true"]',
   "@theme(": "@media(prefers-color-scheme:",
   "@container-size(": "@container(max-width:",
   "@container_size(": "@container(max-width:",

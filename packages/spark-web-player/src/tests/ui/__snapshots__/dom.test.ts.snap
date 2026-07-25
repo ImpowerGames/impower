@@ -673,6 +673,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -769,6 +787,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -834,13 +853,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -848,6 +874,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -856,30 +883,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -895,24 +941,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -921,6 +984,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -971,22 +1035,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -1037,11 +1111,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -2016,6 +2091,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -2112,6 +2205,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -2177,13 +2271,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -2191,6 +2292,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -2199,30 +2301,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -2238,24 +2359,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -2264,6 +2402,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -2314,22 +2453,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -2380,11 +2529,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -3321,6 +3471,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -3417,6 +3585,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -3482,13 +3651,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -3496,6 +3672,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -3504,30 +3681,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -3543,24 +3739,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -3569,6 +3782,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -3619,22 +3833,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -3685,11 +3909,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -4748,6 +4973,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -4844,6 +5087,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -4909,13 +5153,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -4923,6 +5174,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -4931,30 +5183,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -4970,24 +5241,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -4996,6 +5284,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -5046,22 +5335,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -5112,11 +5411,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -6034,6 +6334,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -6130,6 +6448,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -6195,13 +6514,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -6209,6 +6535,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -6217,30 +6544,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -6256,24 +6602,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -6282,6 +6645,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -6332,22 +6696,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -6398,11 +6772,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -7302,6 +7677,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -7398,6 +7791,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -7463,13 +7857,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -7477,6 +7878,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -7485,30 +7887,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -7524,24 +7945,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -7550,6 +7988,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -7600,22 +8039,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -7666,11 +8115,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -8620,6 +9070,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -8716,6 +9184,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -8781,13 +9250,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -8795,6 +9271,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -8803,30 +9280,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -8842,24 +9338,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -8868,6 +9381,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -8918,22 +9432,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -8984,11 +9508,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -9905,6 +10430,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -10001,6 +10544,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -10066,13 +10610,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -10080,6 +10631,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -10088,30 +10640,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -10127,24 +10698,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -10153,6 +10741,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -10203,22 +10792,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -10269,11 +10868,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -11190,6 +11790,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -11286,6 +11904,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -11351,13 +11970,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -11365,6 +11991,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -11373,30 +12000,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -11412,24 +12058,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -11438,6 +12101,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -11488,22 +12152,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -11554,11 +12228,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -12475,6 +13150,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -12571,6 +13264,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -12636,13 +13330,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -12650,6 +13351,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -12658,30 +13360,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -12697,24 +13418,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -12723,6 +13461,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -12773,22 +13512,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -12839,11 +13588,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -13760,6 +14510,24 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &[aria-busy="true"] {
+    cursor: progress;
+    &::before {
+      content: "";
+      width: 0.75rem;
+      height: 0.75rem;
+      margin-right: 0.5rem;
+      border-radius: 50%;
+      border-width: 0.125rem;
+      border-style: solid;
+      border-color: rgb(255 255 255 / 40%);
+      border-top-color: white;
+      animation-name: spin;
+      animation-duration: 0.6s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .field {
   padding: 0.75rem 1rem;
@@ -13856,6 +14624,7 @@ spark-web-player #game .slider {
   accent-color: var(--theme-color-sky_60);
 }
 spark-web-player #game .link {
+  display: inline-block;
   color: var(--theme-color-sky_60);
   text-decoration: underline;
   cursor: pointer;
@@ -13921,13 +14690,20 @@ spark-web-player #game .container {
   margin: 0px auto;
   padding: 1rem;
 }
+spark-web-player #game .prose {
+  display: block;
+  color: var(--theme-color-slate_90);
+}
 spark-web-player #game .strong {
+  display: inline;
   font-weight: 700;
 }
 spark-web-player #game .em {
+  display: inline;
   font-style: italic;
 }
 spark-web-player #game .code {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_30);
@@ -13935,6 +14711,7 @@ spark-web-player #game .code {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .kbd {
+  display: inline;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
   font-size: 0.875rem;
   background-color: var(--theme-color-slate_90);
@@ -13943,30 +14720,49 @@ spark-web-player #game .kbd {
   padding: 0.125rem 0.375rem;
 }
 spark-web-player #game .mark {
+  display: inline;
   background-color: var(--theme-color-amber_60);
   color: var(--theme-color-slate_20);
   padding: 0.0625rem 0.25rem;
   border-radius: 0.125rem;
 }
 spark-web-player #game .del {
+  display: inline;
   text-decoration: line-through;
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .ins {
+  display: inline;
   text-decoration: underline;
   color: var(--theme-color-emerald_60);
 }
 spark-web-player #game .abbr {
+  display: inline;
   text-decoration: underline dotted;
   cursor: help;
 }
 spark-web-player #game .sub {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: sub;
 }
 spark-web-player #game .sup {
+  display: inline;
   font-size: 0.75rem;
+  vertical-align: super;
+}
+spark-web-player #game .divider {
+  display: block;
+  width: 100%;
+  height: 0px;
+  margin: 1rem 0px;
+  border-width: 0px;
+  border-top-width: 0.0625rem;
+  border-top-style: solid;
+  border-top-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .cite {
+  display: inline;
   font-style: italic;
   color: var(--theme-color-slate_60);
   font-size: 0.875rem;
@@ -13982,24 +14778,41 @@ spark-web-player #game .blockquote {
   border-left-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .ul {
+  display: block;
   padding-left: 1.5rem;
   list-style: square;
 }
 spark-web-player #game .ol {
+  display: block;
   padding-left: 1.5rem;
   list-style: decimal;
 }
 spark-web-player #game .li {
+  display: list-item;
   color: var(--theme-color-slate_90);
   margin-bottom: 0.25rem;
 }
+spark-web-player #game .thead {
+  display: table-header-group;
+}
+spark-web-player #game .tbody {
+  display: table-row-group;
+}
+spark-web-player #game .tfoot {
+  display: table-footer-group;
+}
+spark-web-player #game .tr {
+  display: table-row;
+}
 spark-web-player #game .table {
+  display: table;
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   margin: 1rem 0px;
 }
 spark-web-player #game .th {
+  display: table-cell;
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--theme-color-slate_90);
@@ -14008,6 +14821,7 @@ spark-web-player #game .th {
   border-bottom-color: var(--theme-color-slate_40);
 }
 spark-web-player #game .td {
+  display: table-cell;
   padding: 0.75rem 1rem;
   color: var(--theme-color-slate_90);
   border-bottom-width: 0.0625rem;
@@ -14058,22 +14872,32 @@ spark-web-player #game .legend {
   padding-bottom: 0.5rem;
 }
 spark-web-player #game .details {
+  display: block;
   border-bottom-width: 0.0625rem;
   border-bottom-style: solid;
   border-bottom-color: var(--theme-color-slate_40);
   padding: 0.75rem 0px;
 }
 spark-web-player #game .summary {
+  display: list-item;
   cursor: pointer;
   font-weight: 600;
   color: var(--theme-color-slate_90);
 }
 spark-web-player #game .dialog {
+  display: none;
+  position: fixed;
+  inset: 0px;
+  z-index: 999;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
   border-width: 0px;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  background-color: var(--theme-color-slate_30);
+  background-color: rgb(0 0 0 / 50%);
   color: var(--theme-color-slate_90);
+  &[open] {
+    display: flex;
+  }
 }
 spark-web-player #game .card {
   display: flex;
@@ -14124,11 +14948,12 @@ spark-web-player #game .group {
 }
 spark-web-player #game .grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
 }
 spark-web-player #game .progress {
+  display: inline-block;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;

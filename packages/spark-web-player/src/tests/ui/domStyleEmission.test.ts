@@ -71,6 +71,45 @@ end
     expect(out).not.toContain("accent-color: sky_60;");
   });
 
+  // A `<dialog>` is `display: none` until it carries `open`. The base rule has
+  // to restate that, or setting `display: flex` for the centred scrim would make
+  // a CLOSED modal visible.
+  test("dialog is hidden until `open`, then becomes a centred scrim", async () => {
+    const out = await css(`store shown = false
+layout main with
+  dialog #open={shown}:
+    article:
+      text "hi"
+end
+`);
+    const block = out.slice(out.indexOf(".dialog {"));
+    expect(block).toContain("display: none;");
+    expect(block).toContain("position: fixed;");
+    expect(block).toContain("&[open]");
+    expect(block.slice(block.indexOf("&[open]"))).toContain("display: flex;");
+  });
+
+  // `#a=v` cannot be a selector in a style block — that IS the inline prop
+  // syntax, so attribute excision ate it and left an EMPTY selector (`  { … }`),
+  // silently applying the rule to nothing. `@busy` is the alias.
+  test("@busy lowers to an attribute selector with a spinner", async () => {
+    const out = await css(`store busy = true
+layout main with
+  button "Wait" #aria-busy={busy}
+end
+`);
+    const block = out.slice(out.indexOf('&[aria-busy="true"]'));
+    expect(out).toContain('&[aria-busy="true"]');
+    expect(block).toContain("cursor: progress;");
+    expect(block).toContain("&::before");
+    expect(block).toContain('content: "";');
+    expect(block).toContain("animation-name: spin;");
+    // The referenced keyframes must actually be in the sheet.
+    expect(out).toContain("@keyframes spin");
+    // Regression: an alias that fails to expand leaves an empty selector.
+    expect(out).not.toMatch(/\n\s+\{\n/);
+  });
+
   // The builtin switch depends on all of the above: a pill track whose thumb is
   // an `@before` box that slides on `@checked`.
   test("the builtin switch has a real thumb that moves when checked", async () => {
