@@ -46,6 +46,24 @@ export const loadBuffer: LoaderParser = {
 } as LoaderParser;
 extensions.add(loadBuffer);
 
+/**
+ * Whether the event target is somewhere the player is typing, in which case
+ * keys belong to that field rather than to the game.
+ */
+const isEditableTarget = (target: EventTarget | null): boolean => {
+  const el = target as HTMLElement | null;
+  if (!el || typeof el.tagName !== "string") {
+    return false;
+  }
+  const tag = el.tagName.toLowerCase();
+  return (
+    tag === "input" ||
+    tag === "textarea" ||
+    tag === "select" ||
+    el.isContentEditable
+  );
+};
+
 export class Application implements IApplication {
   protected _game: Game;
   get game() {
@@ -384,6 +402,10 @@ export class Application implements IApplication {
       this._overlay.addEventListener("pointerup", this.onPointerUpOverlay);
       this._overlay.addEventListener("click", this.onClickOverlay);
     }
+    // Keys don't target the canvas or the overlay (neither is focusable), so
+    // they have to be picked up at the window level. The player is its own
+    // frame, so this can't swallow keys meant for the surrounding editor.
+    window.addEventListener("keydown", this.onKeyDown);
   }
 
   unbind() {
@@ -405,6 +427,7 @@ export class Application implements IApplication {
       this._overlay.removeEventListener("pointerup", this.onPointerUpOverlay);
       this._overlay.removeEventListener("click", this.onClickOverlay);
     }
+    window.removeEventListener("keydown", this.onKeyDown);
   }
 
   emit(message: Message, _transfer?: ArrayBuffer[]) {
@@ -433,6 +456,14 @@ export class Application implements IApplication {
   };
 
   onClickOverlay = (event: MouseEvent): void => {
+    this.emit(EventMessage.type.notification(getEventData(event)));
+  };
+
+  onKeyDown = (event: KeyboardEvent): void => {
+    if (event.key === " " && !isEditableTarget(event.target)) {
+      // Otherwise space scrolls the player document out from under the game
+      event.preventDefault();
+    }
     this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
