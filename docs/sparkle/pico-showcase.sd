@@ -17,6 +17,9 @@ store clicks = 0
 store volume = 40
 store notify = true
 store plan = "pro"
+store notes = "Dear diary"
+store email = "hi@example.com"
+store tier = "standard"
 
 function increment()
   clicks += 1
@@ -36,6 +39,14 @@ end
 
 function set_plan(event)
   plan = event.value
+end
+
+function set_notes(event)
+  notes = event.value
+end
+
+function set_email(event)
+  email = event.value
 end
 
 layout main with
@@ -83,6 +94,20 @@ layout main with
         option "Free" #value="free"
         option "Pro" #value="pro"
       text hint "Hints render quiet and small."
+
+    -- Toggles, free text and typed inputs
+    column card #child-gap=12:
+      text h3 "More controls"
+      row #child-gap=8:
+        switch #checked={notify}
+        text "Switch (a checkbox with role=switch)"
+      row #child-gap=8:
+        radio #checked={notify} #name="tier"
+        text "Radio ({tier})"
+      label "Notes"
+      textarea #value={notes} #rows=3 @input=set_notes
+      label "Email"
+      input #type="email" #value={email} @input=set_email
 
     -- Inline accents
     row #child-gap=8:

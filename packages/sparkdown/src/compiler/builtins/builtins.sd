@@ -1393,6 +1393,36 @@ style checkbox with
   accent-color = sky_60
 end
 
+style radio with
+  width = 1.25rem
+  height = 1.25rem
+  cursor = pointer
+  accent-color = sky_60
+end
+
+-- A `switch` is a checkbox carrying role="switch"; Pico renders it as a pill
+-- track rather than a box, so it is wider than it is tall.
+style switch with
+  width = 2.25rem
+  height = 1.25rem
+  cursor = pointer
+  accent-color = sky_60
+end
+
+style textarea with
+  padding = 0.75rem 1rem
+  corner = 0.25rem
+  border-width = 0.0625rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
+  text-color = slate_90
+  transition = all 0.2s ease-in-out
+  @focused:
+    border-color = sky_60
+    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+end
+
 style slider with
   width = 200px
   cursor = pointer

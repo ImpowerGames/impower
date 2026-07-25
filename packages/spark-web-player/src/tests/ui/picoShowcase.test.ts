@@ -111,6 +111,17 @@ describe("pico showcase example", () => {
     expect(h.overlay.querySelectorAll(".link").length).toBe(3);
     expect(h.overlay.querySelector("input[type=range]")).toBeTruthy();
     expect(h.overlay.querySelector("input[type=checkbox]")).toBeTruthy();
+    // Phase 2 widgets.
+    expect(h.overlay.querySelector("input[type=radio]")).toBeTruthy();
+    expect(
+      h.overlay.querySelector("input[type=checkbox][role=switch]"),
+    ).toBeTruthy();
+    expect(h.overlay.querySelector("input[type=email]")).toBeTruthy();
+    const textarea = h.overlay.querySelector(
+      "textarea",
+    ) as HTMLTextAreaElement | null;
+    expect(textarea).toBeTruthy();
+    expect(textarea!.value).toBe("Dear diary");
     const select = h.overlay.querySelector("select") as HTMLSelectElement;
     expect(select).toBeTruthy();
     // Options are DIRECT children and the bound store value selects one.

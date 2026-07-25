@@ -27,6 +27,44 @@ import { getCssEquivalent } from "../../../../sparkle-style-transformer/src/util
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 
+/**
+ * Apply one engine-sent attribute to a realized element.
+ *
+ * Form-control `value`/`checked` are live PROPERTIES: the attribute only seeds
+ * an initial default on `<input>`, and on `<select>`/`<textarea>` it does not
+ * populate the control at all. So set the property instead — that's what makes
+ * a one-way reactive update reflect after the user has already interacted, and
+ * what makes `<select>.value` select the matching option.
+ *
+ * `value` is never clobbered while the control is focused, to preserve the
+ * caret position / open dropdown.
+ *
+ * Shared by the create and update paths so a control is populated identically
+ * however it got there.
+ */
+function applyAttribute(element: Element, k: string, v: string | null): void {
+  // Matched by TAG NAME rather than `instanceof`: the element may come from a
+  // different realm than this module's globals (an iframe, or a test's own
+  // jsdom), in which case `instanceof HTMLTextAreaElement` is silently false and
+  // the value would be written as an inert attribute.
+  const tag = element.tagName;
+  if (k === "checked" && tag === "INPUT") {
+    (element as HTMLInputElement).checked = v != null;
+    return;
+  }
+  if (k === "value" && (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA")) {
+    if (element.ownerDocument.activeElement !== element) {
+      (element as HTMLInputElement).value = v ?? "";
+    }
+    return;
+  }
+  if (v == null) {
+    element.removeAttribute(k);
+  } else {
+    element.setAttribute(k, v);
+  }
+}
+
 export default class UIManager extends Manager {
   protected _breakpoints: Record<string, number> = {};
 
@@ -247,7 +285,7 @@ export default class UIManager extends Manager {
         if (params.attributes) {
           Object.entries(params.attributes).forEach(([k, v]) => {
             if (v != null) {
-              el.setAttribute(k, v);
+              applyAttribute(el, k, v);
             }
           });
         }
@@ -354,37 +392,8 @@ export default class UIManager extends Manager {
         if (params.attributes != undefined) {
           if (params.attributes) {
             Object.entries(params.attributes).forEach(([k, v]) => {
-              // Form-control value/checked are live PROPERTIES (the attribute
-              // only sets the initial default) — set them on the element so a
-              // one-way reactive update reflects after the user has interacted.
-              // `<select>.value` selects the matching option (a `value`
-              // attribute would not). Don't clobber `value` while the control is
-              // focused (preserve the caret / open dropdown).
-              if (
-                k === "checked" &&
-                element instanceof HTMLInputElement
-              ) {
-                element.checked = v != null;
-                return;
-              }
-              if (
-                k === "value" &&
-                (element instanceof HTMLInputElement ||
-                  element instanceof HTMLSelectElement)
-              ) {
-                if (document.activeElement !== element) {
-                  element.value = v ?? "";
-                }
-                return;
-              }
-              if (v == null) {
-                if (element) {
-                  element.removeAttribute(k);
-                }
-              } else {
-                if (element) {
-                  element.setAttribute(k, v);
-                }
+              if (element) {
+                applyAttribute(element, k, v);
               }
             });
           } else {

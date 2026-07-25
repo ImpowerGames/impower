@@ -286,14 +286,26 @@ interface ReactiveScope {
   slots?: SlotMap;
 }
 
-/** Builtin form-control tags → the `<input>` type they render as. Their props
+/** Builtin form-control tags → the `<input>` type they render as, plus any
+ *  fixed attributes that define the control. Their props
  *  (value/checked/min/max/placeholder/…) become attributes; value/checked also
- *  bind one-way + write back via @input/@change. */
-const INPUT_WIDGETS: Record<string, { inputType: string }> = {
+ *  bind one-way + write back via @input/@change.
+ *
+ *  `switch` is a checkbox carrying `role="switch"` — the same shape Pico styles
+ *  as a toggle. Authored props are applied AFTER these, so `input #type="email"`
+ *  (and the other HTML input types Pico styles: password, number, search, tel,
+ *  url, date, time, color, …) narrows the generic `input` without needing a
+ *  dedicated tag per type. */
+const INPUT_WIDGETS: Record<
+  string,
+  { inputType: string; attributes?: Record<string, string> }
+> = {
   field: { inputType: "text" },
   input: { inputType: "text" },
   slider: { inputType: "range" },
   checkbox: { inputType: "checkbox" },
+  radio: { inputType: "radio" },
+  switch: { inputType: "checkbox", attributes: { role: "switch" } },
 };
 
 export type UIMessageMap = AnimateElementsMessageMap &
@@ -1232,6 +1244,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (node.tag === "dropdown") {
       return this.mountDropdown(parent, node, scope, name, before);
     }
+    // textarea is a real (non-void) element whose value is a live PROPERTY, so
+    // it can't ride the <input> path — but its props/binding surface is the same.
+    if (node.tag === "textarea") {
+      return this.mountTextarea(parent, node, scope, name, before);
+    }
     if (node.tag === "option") {
       return this.mountOption(parent, node, scope, name, before);
     }
@@ -1297,11 +1314,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     node: ElementNode,
     scope: ReactiveScope,
     name: string,
-    widget: { inputType: string },
+    widget: { inputType: string; attributes?: Record<string, string> },
     before: Element | null,
   ): Element {
     const vs = this._game.story.variablesState;
-    const attributes: Record<string, string | null> = { type: widget.inputType };
+    // The control's defining attributes first, so authored props can still
+    // narrow them (`input #type="email"`).
+    const attributes: Record<string, string | null> = {
+      type: widget.inputType,
+      ...widget.attributes,
+    };
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     for (const [prop, propValue] of Object.entries(node.props)) {
       const boolean = prop === "checked";
@@ -1388,6 +1410,44 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *  THEN the selected `value` is applied (a `<select>`'s value only selects an
    *  option once its children exist) — one-way bound + written back via
    *  `@change`. */
+  /** `textarea #value={notes} @input=set_notes` → a real `<textarea>`. Same
+   *  prop/binding surface as the `<input>` widgets (props become attributes,
+   *  `value` is routed to the live property by the renderer), but it is a
+   *  non-void element so it gets its own mounter rather than INPUT_WIDGETS. */
+  protected mountTextarea(
+    parent: Element,
+    node: ElementNode,
+    scope: ReactiveScope,
+    name: string,
+    before: Element | null,
+  ): Element {
+    const vs = this._game.story.variablesState;
+    const attributes: Record<string, string | null> = {};
+    const reactive: Omit<ReactiveAttr, "element">[] = [];
+    for (const [prop, propValue] of Object.entries(node.props)) {
+      vs.beginReactiveRead();
+      const resolved = this.resolveProp(propValue, scope.env);
+      const deps = vs.endReactiveRead();
+      const attrVal = this.propToAttr(resolved, false);
+      attributes[prop] = attrVal;
+      if (this.isReactiveProp(propValue)) {
+        reactive.push({ prop, propValue, boolean: false, last: attrVal, deps });
+      }
+    }
+    const el = this.createElement(
+      parent,
+      { type: "textarea", name, attributes },
+      before,
+    );
+    for (const r of reactive) {
+      scope.attrs.push({ element: el, ...r });
+    }
+    for (const ev of node.events) {
+      this.mountEvent(el, ev, scope);
+    }
+    return el;
+  }
+
   protected mountDropdown(
     parent: Element,
     node: ElementNode,

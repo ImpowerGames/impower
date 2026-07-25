@@ -1749,6 +1749,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "corner": "0.25rem",
                   "height": "100%",
                 },
+                "radio": {
+                  "$name": "radio",
+                  "$type": "style",
+                  "accent-color": "sky_60",
+                  "cursor": "pointer",
+                  "height": "1.25rem",
+                  "width": "1.25rem",
+                },
                 "row": {
                   "$name": "row",
                   "$type": "style",
@@ -1815,6 +1823,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "user_select": "none",
                   "white_space": "pre-line",
                 },
+                "switch": {
+                  "$name": "switch",
+                  "$type": "style",
+                  "accent-color": "sky_60",
+                  "cursor": "pointer",
+                  "height": "1.25rem",
+                  "width": "2.25rem",
+                },
                 "text": {
                   "$name": "text",
                   "$type": "style",
@@ -1846,6 +1862,22 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "text_word",
                   "$type": "style",
                   "display": "inline-block",
+                },
+                "textarea": {
+                  "$name": "textarea",
+                  "$type": "style",
+                  "@focused": {
+                    "border-color": "sky_60",
+                    "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
+                  },
+                  "background-color": "slate_30",
+                  "border-color": "slate_40",
+                  "border-style": "solid",
+                  "border-width": "0.0625rem",
+                  "corner": "0.25rem",
+                  "padding": "0.75rem 1rem",
+                  "text-color": "slate_90",
+                  "transition": "all 0.2s ease-in-out",
                 },
                 "textbox": {
                   "$name": "textbox",
