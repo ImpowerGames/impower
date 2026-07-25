@@ -1,10 +1,30 @@
 import { DebugMetadata } from "../../../engine/DebugMetadata";
+import { currentCompileEpoch } from "./CompileEpoch";
 
 export class Identifier {
   public name: string;
   public debugMetadata: DebugMetadata | null = null;
-  public alreadyHadError: boolean = false;
-  public alreadyHadWarning: boolean = false;
+
+  // Diagnostic-dedup state stored as compile epochs (see CompileEpoch.ts) so
+  // flags set during a prior `ExportRuntime` go stale automatically on reused
+  // nodes — no per-compile clearing walk. The boolean accessors preserve the
+  // upstream inkjs API surface (`ParsedObject.Error` reads/sets these).
+  private _errorEpoch: number = 0;
+  private _warningEpoch: number = 0;
+
+  get alreadyHadError(): boolean {
+    return this._errorEpoch === currentCompileEpoch();
+  }
+  set alreadyHadError(value: boolean) {
+    this._errorEpoch = value ? currentCompileEpoch() : 0;
+  }
+
+  get alreadyHadWarning(): boolean {
+    return this._warningEpoch === currentCompileEpoch();
+  }
+  set alreadyHadWarning(value: boolean) {
+    this._warningEpoch = value ? currentCompileEpoch() : 0;
+  }
 
   constructor(...names: string[] | Identifier[]) {
     for (const name of names) {

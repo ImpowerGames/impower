@@ -1,4 +1,5 @@
 import { AuthorWarning } from "./AuthorWarning";
+import { bumpCompileEpoch } from "./CompileEpoch";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
@@ -183,6 +184,12 @@ export class Story extends FlowBase {
     errorHandler: ErrorHandler | null = null,
   ): RuntimeStory | null => {
     this._errorHandler = errorHandler;
+
+    // Invalidate every node's diagnostic-dedup state from prior exports in
+    // O(1) — the incremental pipeline reuses parsed nodes across compiles, and
+    // a stale "already had warning" flag would silently drop a diagnostic a
+    // cold compile emits (see CompileEpoch.ts).
+    bumpCompileEpoch();
 
     // Collect constants, list definitions and struct definitions in a single
     // top-down traversal instead of three separate full-tree `FindAll` passes.
