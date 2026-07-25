@@ -126,8 +126,12 @@ end
 });
 
 describe("style · nested (breakpoints + selectors)", () => {
+  // NOTE the deliberately unique name. Authoring a style that shares a BUILTIN's
+  // name deep-merges onto the builtin (author wins per-key) rather than
+  // replacing it, so an exact-shape assertion has to use a name the builtins
+  // prelude does not define.
   test("@breakpoint and > selector nest under their literal keys", () => {
-    const r = compileStyle(`style dialogue with
+    const r = compileStyle(`style speech_box with
   height = 100%
   @screen-size(sm):
     width = 100%
@@ -137,9 +141,9 @@ describe("style · nested (breakpoints + selectors)", () => {
 end
 `);
     expect(r.errors).toEqual([]);
-    expect(r.style["dialogue"]).toEqual({
+    expect(r.style["speech_box"]).toEqual({
       $type: "style",
-      $name: "dialogue",
+      $name: "speech_box",
       height: "100%",
       "@screen-size(sm)": { width: "100%" },
       "> text": { color: "black", font_size: "3cqh" },
