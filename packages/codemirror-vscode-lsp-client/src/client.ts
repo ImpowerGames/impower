@@ -525,8 +525,13 @@ export class LSPClient {
     return null;
   }
 
-  private async receiveMessage(msg: string) {
-    const value = JSON.parse(msg) as
+  private async receiveMessage(msg: string | object) {
+    // Transports that already hold a parsed message object (Worker
+    // structured-clone data) pass it through as-is; only parse when the
+    // transport delivered a string. Avoids a stringify+parse round-trip on
+    // the main thread for every server response (huge for whole-document
+    // payloads like semantic tokens and diagnostics on large files).
+    const value = (typeof msg === "string" ? JSON.parse(msg) : msg) as
       | lsp.ResponseMessage
       | lsp.NotificationMessage
       | lsp.RequestMessage;
