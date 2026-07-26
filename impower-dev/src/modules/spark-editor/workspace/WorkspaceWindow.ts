@@ -879,7 +879,13 @@ export default class WorkspaceWindow {
     }
   }
 
-  stopGame() {
+  /**
+   * Sync editor state to a game that is no longer running, without asking the
+   * player to stop. Use this when the player stopped on its own -- the story
+   * ran out, or it errored -- since telling it to stop again just round-trips
+   * a message to something that has already gone.
+   */
+  endGame() {
     if (this.store.preview.modes.game.running) {
       this.update({
         ...this.store,
@@ -895,6 +901,12 @@ export default class WorkspaceWindow {
           },
         },
       });
+    }
+  }
+
+  stopGame() {
+    if (this.store.preview.modes.game.running) {
+      this.endGame();
       sendProtocolMessage(StopGameMessage.type.request({}));
     }
   }

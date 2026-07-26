@@ -371,6 +371,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
           }
           if (GameExitedMessage.type.is(message)) {
             Workspace.window.setHighlights({});
+            // The player has already stopped -- when the story runs out it
+            // stops itself -- so sync the toolbar back to its stopped state
+            // rather than leaving it showing STOP for a game that is gone.
+            Workspace.window.endGame();
           }
           if (ChangedEditorBreakpointsMessage.type.is(message)) {
             // TODO: forward breakpoints to player

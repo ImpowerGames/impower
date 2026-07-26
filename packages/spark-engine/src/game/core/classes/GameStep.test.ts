@@ -186,11 +186,67 @@ describe("Game flow", () => {
       expect(gameMethods()).not.toContain("game/awaitingInteraction");
     });
 
-    // `game/finished` is deliberately NOT covered here. The branch that emits
-    // it is unreachable -- it needs `canContinue && !canContinue` -- so the
-    // notification never fires when a story runs out. Asserting the current
-    // silence would enshrine that; asserting the intended notification would
-    // fail. Tracked separately.
+    it("reports that it finished once the script runs out", () => {
+      const { game, gameMethods, clear } = createGame();
+      game.start();
+      game.clickedToContinue();
+      game.clickedToContinue();
+      clear();
+      game.clickedToContinue(); // past the last beat
+      expect(gameMethods()).toContain("game/finished");
+    });
+
+    // The last beat still has to be readable before the story is declared
+    // over -- finishing early would cut off the final line.
+    it("does not report finished while a beat is still waiting to be read", () => {
+      const { game, gameMethods } = createGame();
+      game.start();
+      expect(gameMethods()).not.toContain("game/finished");
+
+      game.clickedToContinue();
+      expect(gameMethods()).not.toContain("game/finished");
+
+      game.clickedToContinue(); // now showing the final beat
+      expect(game.story.currentText).toBe("Third beat.\n");
+      expect(gameMethods()).not.toContain("game/finished");
+    });
+
+    // A one-beat script is the tightest case: the story is already exhausted
+    // when the only beat is flushed, so an over-eager check would declare it
+    // finished before the player has read anything.
+    it("shows a single-beat script before reporting finished", () => {
+      const oneBeat = compile("Only beat.\n");
+      const game = new Game({
+        program: oneBeat,
+        now: () => 0,
+        setTimeout: (handler: Function) => {
+          handler();
+          return 0;
+        },
+      } as never);
+      const methods: string[] = [];
+      game.connection.outgoing.addListener("*", (m) =>
+        methods.push((m as { method: string }).method),
+      );
+
+      game.start();
+      expect(game.story.currentText).toBe("Only beat.\n");
+      expect(methods).not.toContain("game/finished");
+
+      game.clickedToContinue();
+      expect(methods).toContain("game/finished");
+    });
+
+    it("reports finished exactly once", () => {
+      const { game, emitted } = createGame();
+      game.start();
+      game.clickedToContinue();
+      game.clickedToContinue();
+      game.clickedToContinue();
+      expect(emitted.filter((e) => e.method === "game/finished")).toHaveLength(
+        1,
+      );
+    });
   });
 
   // `step()` is one iteration of the flow loop, not one beat: it reports

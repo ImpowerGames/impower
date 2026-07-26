@@ -983,6 +983,15 @@ export class Game<T extends M = {}> {
           ) {
             this.notifyAwaitingInteraction();
           }
+        } else if (
+          !this._story.canContinue &&
+          this._simulation !== "simulating" &&
+          this._state === "running"
+        ) {
+          // Nothing buffered left to display and no flow left to run, so the
+          // story is over. Note this only fires once the final beat has been
+          // consumed -- a last beat still waiting to be read flushes above.
+          this.notifyFinished();
         }
         this.checkpoint();
         if (this._simulation === "simulating") {
@@ -1078,10 +1087,11 @@ export class Game<T extends M = {}> {
 
         return false;
       } else {
-        if (this._state === "running") {
-          this.notifyFinished();
-        }
-        // DONE - ran out of flow
+        // Unreachable: reaching here would need `canContinue && !canContinue`,
+        // because the first branch already claims every `!canContinue` case
+        // (which is where running out of flow is now reported). Kept purely as
+        // a backstop so a future change to the conditions above can't spin
+        // here forever.
         return true;
       }
     }
