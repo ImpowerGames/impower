@@ -1847,7 +1847,7 @@ style muted with
 end
 
 style small with
-  text-size = 0.875rem
+  text-size = 0.875em
 end
 
 style container with
@@ -2029,6 +2029,9 @@ end
 style item with
   display = list-item
   margin-bottom = 0.25rem
+  -- Trailing space belongs BETWEEN items, not after the last one.
+  @last:
+    margin-bottom = 0
 end
 
 -- Tables --------------------------------------------------------------------
@@ -2120,6 +2123,14 @@ end
 style caption with
   padding = 0.5rem 0
   text-color = slate_60
+  -- Spans the figure rather than shrink-wrapping: the figure aligns its
+  -- children to the start, which would otherwise break the caption mid-phrase.
+  width = 100%
+  -- A caption reads as one SENTENCE: its parts flow along the line rather than
+  -- stacking. `child-layout` would not do it -- a figcaption lays out as a
+  -- block, so the parts have to be inline themselves.
+  > *:
+    display = inline
 end
 
 -- Foldout: a native <details>/<summary> disclosure. One foldout; an

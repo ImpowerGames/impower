@@ -1159,7 +1159,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -1292,6 +1292,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -1367,6 +1370,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;
@@ -3266,7 +3273,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -3399,6 +3406,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -3474,6 +3484,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;
@@ -5335,7 +5349,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -5468,6 +5482,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -5543,6 +5560,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;
@@ -7526,7 +7547,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -7659,6 +7680,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -7734,6 +7758,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;
@@ -9576,7 +9604,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -9709,6 +9737,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -9784,6 +9815,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;
@@ -11608,7 +11643,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -11741,6 +11776,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -11816,6 +11854,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;
@@ -13690,7 +13732,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -13823,6 +13865,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -13898,6 +13943,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;
@@ -15739,7 +15788,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -15872,6 +15921,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -15947,6 +15999,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;
@@ -17788,7 +17844,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -17921,6 +17977,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -17996,6 +18055,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;
@@ -19837,7 +19900,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -19970,6 +20033,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -20045,6 +20111,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;
@@ -21886,7 +21956,7 @@ spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .small {
-  font-size: 0.875rem;
+  font-size: 0.875em;
 }
 spark-web-player #game .container {
   width: 100%;
@@ -22019,6 +22089,9 @@ spark-web-player #game .ordered_list {
 spark-web-player #game .item {
   display: list-item;
   margin-bottom: 0.25rem;
+  &:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .table_header {
   display: table-header-group;
@@ -22094,6 +22167,10 @@ spark-web-player #game .picture {
 spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
+  width: 100%;
+  >* {
+    display: inline;
+  }
 }
 spark-web-player #game .foldout_label {
   pointer-events: auto;

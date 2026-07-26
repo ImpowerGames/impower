@@ -18064,8 +18064,12 @@
         "caption": {
           "$name": "caption",
           "$type": "style",
+          "> *": {
+            "display": "inline"
+          },
           "padding": "0.5rem 0",
-          "text-color": "slate_60"
+          "text-color": "slate_60",
+          "width": "100%"
         },
         "card": {
           "$name": "card",
@@ -18762,6 +18766,9 @@
         "item": {
           "$name": "item",
           "$type": "style",
+          "@last": {
+            "margin-bottom": "0"
+          },
           "display": "list-item",
           "margin-bottom": "0.25rem"
         },
@@ -19263,7 +19270,7 @@
         "small": {
           "$name": "small",
           "$type": "style",
-          "text-size": "0.875rem"
+          "text-size": "0.875em"
         },
         "stack": {
           "$name": "stack",
@@ -91741,8 +91748,12 @@
         "caption": {
           "$name": "caption",
           "$type": "style",
+          "> *": {
+            "display": "inline"
+          },
           "padding": "0.5rem 0",
-          "text-color": "slate_60"
+          "text-color": "slate_60",
+          "width": "100%"
         },
         "card": {
           "$name": "card",
@@ -92439,6 +92450,9 @@
         "item": {
           "$name": "item",
           "$type": "style",
+          "@last": {
+            "margin-bottom": "0"
+          },
           "display": "list-item",
           "margin-bottom": "0.25rem"
         },
@@ -92940,7 +92954,7 @@
         "small": {
           "$name": "small",
           "$type": "style",
-          "text-size": "0.875rem"
+          "text-size": "0.875em"
         },
         "stack": {
           "$name": "stack",

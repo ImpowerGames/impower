@@ -50,9 +50,20 @@ describe.skipIf(!OUT)("dump showcase", () => {
     // The player's shell supplies the height chain that the overlay's
     // `height: 100%` scroller resolves against; it lives outside the captured
     // styles, so without this the page lays out at zero height and paints blank.
+    // The player's shell supplies both the height chain that the overlay's
+    // `height: 100%` scroller resolves against AND the normalize that makes form
+    // controls inherit the page font — neither lives in the engine-generated
+    // styles. Without the latter every control falls back to the UA's 13.33px
+    // and the capture looks like a styling bug that is not there.
     const shell =
       `html,body{margin:0;height:100%}` +
-      `spark-web-player,#viewport,#game{display:block;height:100%}`;
+      `spark-web-player,#viewport,#game{display:block;height:100%}` +
+      // Controls AND `summary` otherwise fall back to `medium` (16px) rather
+      // than the page's 18px, which makes every one of them look 2px small in a
+      // capture. Zero-specificity so anything the engine states still wins;
+      // font only, so deliberate per-element leading (inline chips) survives.
+      `#game *{font-family:inherit;font-size:inherit}` +
+      `button,input,select,textarea{color:inherit;margin:0}`;
 
     const page =
       `<!doctype html><html><head><meta charset="utf-8">` +
