@@ -78,13 +78,17 @@ function toggle_busy()
 end
 
 layout main with
-  scroller #height=100% #overflow-y=auto:
-    column container #child-gap=24 #padding=28:
+  scroller #height=100% #overflow-y=auto #background-color="#13171f" #color-scheme="dark":
+    column container #child-gap=0:
 
       -- Header -------------------------------------------------------------
-      header:
-        -- Pico's nav dropdown is a `details` styled as a menu — the same
-        -- element as an accordion, so it opens without any JavaScript.
+      header #padding-bottom=18:
+        text h1 "Pico"
+        -- An <hgroup>: the subtitle belongs to the title, so it hugs it.
+        text muted "A pure HTML example, without dependencies." #margin-top=0
+        -- The nav FOLLOWS the title in the reference, and there is no rule
+        -- between the header and Preview. Pico's dropdown is a `foldout` styled
+        -- as a menu — the same element as an accordion, so it opens with no JS.
         box nav:
           list:
             item:
@@ -98,9 +102,6 @@ layout main with
                     link "Light" #href="#"
                   item:
                     link "Dark" #href="#"
-        text h1 "Pico"
-        text muted "A pure HTML example, without dependencies."
-      divider
 
       -- Preview ------------------------------------------------------------
       section:
@@ -123,7 +124,8 @@ layout main with
         text h2 "Typography"
         text "Aliquam lobortis vitae nibh nec rhoncus. Morbi mattis neque eget efficitur feugiat. Vivamus porta nunc a erat mattis, mattis feugiat turpis pretium. Quisque sed tristique felis."
         quote:
-          text "Maecenas vehicula metus tellus, vitae congue turpis hendrerit non. Nam at dui sit amet ipsum cursus ornare."
+          -- Single-quoted so the literal quotation marks need no escaping.
+          text '"Maecenas vehicula metus tellus, vitae congue turpis hendrerit non. Nam at dui sit amet ipsum cursus ornare."'
           citation "- Phasellus eget lacinia"
 
         text h3 "Lists"
@@ -157,11 +159,6 @@ layout main with
           text key "Kbd"
           text highlight "Highlighted"
 
-        -- Inline RICH TEXT: UI Toolkit's tag vocabulary inside ONE `text`. This
-        -- is what nested elements can't express — mixed styled runs inside a
-        -- single flowing sentence.
-        text "Cras <b>sit amet</b> maximus <i>risus</i>, with <u>underline</u>, <s>strikethrough</s>, <mark=amber_60>a highlight</mark> and <color=sky_60>colour</color> mid-sentence."
-
         text h3 "Heading 3"
         text "Integer bibendum malesuada libero vel eleifend. Fusce iaculis turpis ipsum, at efficitur sem scelerisque vel. Aliquam auctor diam ut purus cursus fringilla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos."
         text h4 "Heading 4"
@@ -170,6 +167,13 @@ layout main with
         text "Donec nec egestas nulla. Sed varius placerat felis eu suscipit. Mauris maximus ante in consequat luctus. Morbi euismod sagittis efficitur. Aenean non eros orci. Vivamus ut diam sem."
         text h6 "Heading 6"
         text "Ut sed quam non mauris placerat consequat vitae id risus. Vestibulum tincidunt nulla ut tortor posuere, vitae malesuada tortor molestie. Sed nec interdum dolor. Vestibulum id auctor nisi, a efficitur sem. Aliquam sollicitudin efficitur turpis, sollicitudin hendrerit ligula semper id. Nunc risus felis, egestas eu tristique eget, convallis in velit."
+        figure:
+          -- A remote `#src` resolves through the `.url` asset path; `#alt` is
+          -- required for anything that is not purely decorative.
+          picture #src="img/landscape.jpg" #alt="Minimal landscape"
+          caption:
+            text "Image from "
+            link "unsplash.com" #href="#"
 
       -- Buttons ------------------------------------------------------------
       section:
@@ -231,39 +235,39 @@ layout main with
               label "Color"
               input #type="color" #value={swatch}
 
-          field_group:
-            group_label:
-              strong "Checkboxes"
-            row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
-              checkbox #checked=true
-              text "Checkbox"
-            row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
-              checkbox
-              text "Checkbox 2"
+          row grid:
+            field_group:
+              group_label:
+                strong "Checkboxes"
+              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                checkbox #checked=true
+                text "Checkbox"
+              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                checkbox
+                text "Checkbox 2"
 
-          field_group:
-            group_label:
-              strong "Radio buttons"
-            row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
-              radio #name="radio" #checked=true
-              text "Radio button"
-            row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
-              radio #name="radio"
-              text "Radio button 2"
+            field_group:
+              group_label:
+                strong "Radio buttons"
+              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                radio #name="radio" #checked=true
+                text "Radio button"
+              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                radio #name="radio"
+                text "Radio button 2"
 
-          field_group:
-            group_label:
-              strong "Switches"
-            row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
-              switch #checked=true
-              text "Switch"
-            row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
-              switch #checked={agreed} @change=set_agreed
-              text "Switch 2"
+            field_group:
+              group_label:
+                strong "Switches"
+              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                switch #checked=true
+                text "Switch"
+              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+                switch #checked={agreed} @change=set_agreed
+                text "Switch 2"
 
-          row #child-gap=12:
-            button secondary "Reset" #type="reset"
-            button "Submit" #type="submit"
+          button secondary "Reset" #type="reset"
+          button "Submit" #type="submit"
 
       -- Tables -------------------------------------------------------------
       section:
@@ -340,22 +344,11 @@ layout main with
 
       -- Article ------------------------------------------------------------
       section:
-        text h2 "Article"
         article:
+          text h2 "Article"
           text "Nullam dui arcu, malesuada et sodales eu, efficitur vitae dolor. Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas. Nunc placerat facilisis cursus. Sed vestibulum metus eget dolor pharetra rutrum."
           footer:
             text small "Duis nec elit placerat, suscipit nibh quis, finibus neque."
-
-      -- Figure -------------------------------------------------------------
-      section:
-        text h2 "Figure"
-        figure:
-          -- A remote `#src` resolves through the `.url` asset path; `#alt` is
-          -- required for anything that is not purely decorative.
-          picture #src="img/landscape.jpg" #alt="Minimal landscape"
-          caption:
-            text "Image from "
-            link "unsplash.com" #href="#"
 
       -- Group --------------------------------------------------------------
       section:

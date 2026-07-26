@@ -112,7 +112,7 @@ describe("pico showcase example", () => {
       // No `mark`/`kbd`/`sub`/`sup` here: purely VISUAL styling is a class on a
       // text element, or a rich-text tag within a line — not an element.
       // `strong`/`em` are the exception, because they carry meaning.
-      "a", "button", "label", "hr", "ul", "li", "blockquote", "cite",
+      "a", "button", "label", "ul", "li", "blockquote", "cite",
       // Semantic inline elements (importance / stress emphasis).
       "strong", "em",
       "table", "thead", "tbody", "tr", "th", "td",
@@ -237,16 +237,6 @@ describe("pico showcase example", () => {
       ).toBeTruthy();
     }
 
-    // Inline rich text: a single `text` element split into styled runs, which
-    // is what a whole-element class cannot express.
-    const richRuns = [...h.overlay.querySelectorAll(".text span")].filter(
-      (s) =>
-        s.querySelector("span") === null &&
-        /font-weight: 700|font-style: italic|line-through/.test(
-          s.getAttribute("style") ?? "",
-        ),
-    );
-    expect(richRuns.length).toBeGreaterThanOrEqual(3);
 
     // Content reached the DOM.
     const text = h.overlay.querySelector(".main")?.textContent ?? "";

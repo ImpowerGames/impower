@@ -476,6 +476,12 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -499,6 +505,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -715,6 +725,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -737,6 +753,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -754,6 +771,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -777,11 +800,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -802,6 +833,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -822,7 +859,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -837,7 +881,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -847,17 +891,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -881,6 +931,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -891,6 +947,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -919,6 +981,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -943,6 +1006,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -953,34 +1024,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -990,9 +1085,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -1078,21 +1173,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -1123,7 +1232,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -1151,7 +1263,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -1167,6 +1282,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -1176,6 +1292,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -1206,6 +1323,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -1258,7 +1379,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -1301,6 +1422,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -1310,11 +1437,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -1356,27 +1486,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -1394,10 +1550,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -1423,6 +1593,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -1455,9 +1631,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -1466,6 +1648,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -2256,6 +2442,12 @@ exports[`dom render > image show renders background span + img 1`] = `
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -2279,6 +2471,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -2495,6 +2691,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -2517,6 +2719,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -2534,6 +2737,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -2557,11 +2766,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -2582,6 +2799,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -2602,7 +2825,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -2617,7 +2847,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -2627,17 +2857,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -2661,6 +2897,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -2671,6 +2913,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -2699,6 +2947,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -2723,6 +2972,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -2733,34 +2990,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -2770,9 +3051,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -2858,21 +3139,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -2903,7 +3198,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -2931,7 +3229,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -2947,6 +3248,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -2956,6 +3258,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -2986,6 +3289,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -3038,7 +3345,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -3081,6 +3388,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -3090,11 +3403,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -3136,27 +3452,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -3174,10 +3516,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -3203,6 +3559,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -3235,9 +3597,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -3246,6 +3614,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -3998,6 +4370,12 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -4021,6 +4399,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -4237,6 +4619,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -4259,6 +4647,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -4276,6 +4665,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -4299,11 +4694,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -4324,6 +4727,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -4344,7 +4753,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -4359,7 +4775,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -4369,17 +4785,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -4403,6 +4825,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -4413,6 +4841,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -4441,6 +4875,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -4465,6 +4900,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -4475,34 +4918,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -4512,9 +4979,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -4600,21 +5067,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -4645,7 +5126,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -4673,7 +5157,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -4689,6 +5176,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -4698,6 +5186,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -4728,6 +5217,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -4780,7 +5273,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -4823,6 +5316,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -4832,11 +5331,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -4878,27 +5380,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -4916,10 +5444,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -4945,6 +5487,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -4977,9 +5525,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -4988,6 +5542,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -5862,6 +6420,12 @@ exports[`dom render > screen tree renders into overlay 1`] = `
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -5885,6 +6449,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -6101,6 +6669,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -6123,6 +6697,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -6140,6 +6715,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -6163,11 +6744,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -6188,6 +6777,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -6208,7 +6803,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -6223,7 +6825,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -6233,17 +6835,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -6267,6 +6875,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -6277,6 +6891,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -6305,6 +6925,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -6329,6 +6950,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -6339,34 +6968,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -6376,9 +7029,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -6464,21 +7117,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -6509,7 +7176,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -6537,7 +7207,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -6553,6 +7226,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -6562,6 +7236,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -6592,6 +7267,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -6644,7 +7323,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -6687,6 +7366,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -6696,11 +7381,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -6742,27 +7430,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -6780,10 +7494,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -6809,6 +7537,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -6841,9 +7575,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -6852,6 +7592,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -7585,6 +8329,12 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -7608,6 +8358,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -7824,6 +8578,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -7846,6 +8606,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -7863,6 +8624,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -7886,11 +8653,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -7911,6 +8686,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -7931,7 +8712,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -7946,7 +8734,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -7956,17 +8744,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -7990,6 +8784,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -8000,6 +8800,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -8028,6 +8834,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -8052,6 +8859,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -8062,34 +8877,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -8099,9 +8938,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -8187,21 +9026,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -8232,7 +9085,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -8260,7 +9116,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -8276,6 +9135,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -8285,6 +9145,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -8315,6 +9176,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -8367,7 +9232,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -8410,6 +9275,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -8419,11 +9290,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -8465,27 +9339,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -8503,10 +9403,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -8532,6 +9446,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -8564,9 +9484,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -8575,6 +9501,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -9290,6 +10220,12 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -9313,6 +10249,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -9529,6 +10469,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -9551,6 +10497,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -9568,6 +10515,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -9591,11 +10544,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -9616,6 +10577,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -9636,7 +10603,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -9651,7 +10625,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -9661,17 +10635,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -9695,6 +10675,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -9705,6 +10691,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -9733,6 +10725,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -9757,6 +10750,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -9767,34 +10768,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -9804,9 +10829,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -9892,21 +10917,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -9937,7 +10976,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -9965,7 +11007,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -9981,6 +11026,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -9990,6 +11036,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -10020,6 +11067,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -10072,7 +11123,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -10115,6 +11166,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -10124,11 +11181,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -10170,27 +11230,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -10208,10 +11294,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -10237,6 +11337,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -10269,9 +11375,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -10280,6 +11392,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -11045,6 +12161,12 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -11068,6 +12190,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -11284,6 +12410,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -11306,6 +12438,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -11323,6 +12456,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -11346,11 +12485,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -11371,6 +12518,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -11391,7 +12544,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -11406,7 +12566,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -11416,17 +12576,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -11450,6 +12616,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -11460,6 +12632,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -11488,6 +12666,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -11512,6 +12691,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -11522,34 +12709,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -11559,9 +12770,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -11647,21 +12858,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -11692,7 +12917,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -11720,7 +12948,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -11736,6 +12967,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -11745,6 +12977,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -11775,6 +13008,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -11827,7 +13064,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -11870,6 +13107,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -11879,11 +13122,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -11925,27 +13171,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -11963,10 +13235,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -11992,6 +13278,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -12024,9 +13316,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -12035,6 +13333,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -12767,6 +14069,12 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -12790,6 +14098,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -13006,6 +14318,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -13028,6 +14346,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -13045,6 +14364,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -13068,11 +14393,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -13093,6 +14426,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -13113,7 +14452,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -13128,7 +14474,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -13138,17 +14484,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -13172,6 +14524,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -13182,6 +14540,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -13210,6 +14574,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -13234,6 +14599,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -13244,34 +14617,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -13281,9 +14678,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -13369,21 +14766,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -13414,7 +14825,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -13442,7 +14856,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -13458,6 +14875,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -13467,6 +14885,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -13497,6 +14916,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -13549,7 +14972,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -13592,6 +15015,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -13601,11 +15030,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -13647,27 +15079,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -13685,10 +15143,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -13714,6 +15186,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -13746,9 +15224,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -13757,6 +15241,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -14489,6 +15977,12 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -14512,6 +16006,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -14728,6 +16226,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -14750,6 +16254,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -14767,6 +16272,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -14790,11 +16301,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -14815,6 +16334,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -14835,7 +16360,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -14850,7 +16382,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -14860,17 +16392,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -14894,6 +16432,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -14904,6 +16448,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -14932,6 +16482,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -14956,6 +16507,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -14966,34 +16525,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -15003,9 +16586,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -15091,21 +16674,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -15136,7 +16733,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -15164,7 +16764,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -15180,6 +16783,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -15189,6 +16793,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -15219,6 +16824,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -15271,7 +16880,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -15314,6 +16923,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -15323,11 +16938,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -15369,27 +16987,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -15407,10 +17051,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -15436,6 +17094,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -15468,9 +17132,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -15479,6 +17149,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -16211,6 +17885,12 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -16234,6 +17914,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -16450,6 +18134,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -16472,6 +18162,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -16489,6 +18180,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -16512,11 +18209,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -16537,6 +18242,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -16557,7 +18268,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -16572,7 +18290,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -16582,17 +18300,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -16616,6 +18340,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -16626,6 +18356,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -16654,6 +18390,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -16678,6 +18415,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -16688,34 +18433,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -16725,9 +18494,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -16813,21 +18582,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -16858,7 +18641,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -16886,7 +18672,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -16902,6 +18691,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -16911,6 +18701,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -16941,6 +18732,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -16993,7 +18788,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -17036,6 +18831,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -17045,11 +18846,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -17091,27 +18895,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -17129,10 +18959,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -17158,6 +19002,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -17190,9 +19040,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -17201,6 +19057,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
@@ -17933,6 +19793,12 @@ exports[`dom render · image lifecycle > layered images stack background-image o
 spark-web-player #game .row {
   display: flex;
   flex-direction: row;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .column {
   display: flex;
@@ -17956,6 +19822,10 @@ spark-web-player #game .text {
   white-space: pre-line;
   * {
     display: inline;
+  }
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
   }
 }
 spark-web-player #game .stroke {
@@ -18172,6 +20042,12 @@ spark-web-player #game .button {
   &:focus {
     box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
   &[aria-busy="true"] {
     cursor: progress;
     &::before {
@@ -18194,6 +20070,7 @@ spark-web-player #game .button {
 spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  line-height: 1.5;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -18211,6 +20088,12 @@ spark-web-player #game .field {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .checkbox {
@@ -18234,11 +20117,19 @@ spark-web-player #game .checkbox {
     background-repeat: no-repeat;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .input {
   pointer-events: auto;
+  color-scheme: dark;
   width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
@@ -18259,6 +20150,12 @@ spark-web-player #game .input {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .radio {
@@ -18279,7 +20176,14 @@ spark-web-player #game .radio {
     background-color: white;
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    border-color: var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .switch {
@@ -18294,7 +20198,7 @@ spark-web-player #game .switch {
   border-color: var(--theme-color-slate_40);
   cursor: pointer;
   position: relative;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
   &::before {
     content: "";
     position: absolute;
@@ -18304,17 +20208,23 @@ spark-web-player #game .switch {
     height: 0.875rem;
     border-radius: 50%;
     background-color: white;
-    transition: transform 0.2s ease-in-out;
+    transition: transform 0.1s ease-in-out;
   }
   &:checked {
     background-color: var(--theme-color-sky_40);
-    border-color: var(--theme-color-slate_40);
+    border-color: var(--theme-color-sky_40);
     &::before {
       transform: translateX(1rem);
     }
   }
   &:focus {
-    box-shadow: 0 0 0 0.125rem var(--theme-color-sky_40);
+    box-shadow: 0 0 0 0.125rem rgb(14 165 233 / 37.5%);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
   }
 }
 spark-web-player #game .textarea {
@@ -18338,6 +20248,12 @@ spark-web-player #game .textarea {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:read-only:focus {
+    border-color: var(--theme-color-slate_40);
+    box-shadow: none;
   }
 }
 spark-web-player #game .slider {
@@ -18348,6 +20264,12 @@ spark-web-player #game .slider {
   background-color: transparent;
   cursor: default;
   accent-color: var(--theme-color-sky_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .link {
   pointer-events: auto;
@@ -18376,6 +20298,7 @@ spark-web-player #game .link {
 spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
+  color-scheme: dark;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border-radius: 0.25rem;
@@ -18400,6 +20323,14 @@ spark-web-player #game .dropdown {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
+  &.invalid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  }
+  &.valid {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   }
 }
 spark-web-player #game .option {
@@ -18410,34 +20341,58 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_70);
+  margin-top: 1.5em;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -18447,9 +20402,9 @@ spark-web-player #game .small {
 }
 spark-web-player #game .container {
   width: 100%;
-  max-width: 40rem;
+  max-width: 700px;
   margin: 0px auto;
-  padding: 1rem;
+  padding: 1rem 0px;
 }
 spark-web-player #game .prose {
   display: block;
@@ -18535,21 +20490,35 @@ spark-web-player #game .quote {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  margin: 1rem 0px;
+  margin-top: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  &:first-child {
+    margin-top: 0px;
+  }
+  >* {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
-  padding-left: 1.5rem;
+  padding-left: 40px;
   list-style: square;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .ordered_list {
   display: block;
   padding-left: 1.5rem;
   list-style: decimal;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .item {
   display: list-item;
@@ -18580,7 +20549,10 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  margin: 1rem 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -18608,7 +20580,10 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -18624,6 +20599,7 @@ spark-web-player #game .caption {
 spark-web-player #game .foldout_label {
   pointer-events: auto;
   display: list-item;
+  line-height: 1;
   list-style: none;
   cursor: pointer;
   font-weight: 400;
@@ -18633,6 +20609,7 @@ spark-web-player #game .foldout_label {
     width: 1rem;
     height: 1rem;
     float: right;
+    margin-left: 0.5rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-position: right center;
     background-size: 1rem auto;
@@ -18663,6 +20640,10 @@ spark-web-player #game .foldout_label {
 }
 spark-web-player #game .foldout {
   display: block;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   &[open] {
     >.foldout_label {
       color: var(--theme-color-slate_60);
@@ -18715,7 +20696,7 @@ spark-web-player #game .menu {
     font-weight: 400;
     transition: all 0.2s ease-in-out;
     &::after {
-      margin-left: 0.5rem;
+      margin-left: 0.25rem;
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
@@ -18758,6 +20739,12 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    cursor: default;
+  }
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -18767,11 +20754,14 @@ spark-web-player #game .overflow_auto {
 spark-web-player #game .article {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
-  margin: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -18813,27 +20803,53 @@ spark-web-player #game .article {
 spark-web-player #game .header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0px;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .footer {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .section {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .field_group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  >* {
+    margin-top: 0px;
+  }
+  >.text {
+    margin-top: 0px;
+  }
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -18851,10 +20867,24 @@ spark-web-player #game .modal {
   justify-content: center;
   padding: 1rem;
   border-width: 0px;
-  background-color: rgb(0 0 0 / 50%);
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0px;
+  background-color: rgb(8 9 10 / 75%);
+  backdrop-filter: blur(0.375rem);
   color: var(--theme-color-slate_90);
   &[open] {
     display: flex;
+  }
+  >.article {
+    width: 100%;
+    max-width: 700px;
+    margin: 0px;
+    >.footer {
+      text-align: right;
+    }
   }
 }
 spark-web-player #game .card {
@@ -18880,6 +20910,12 @@ spark-web-player #game .nav {
     gap: 1rem;
     list-style: none;
     padding-left: 0px;
+  }
+  >.list>.item>.link {
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
   }
 }
 spark-web-player #game .badge {
@@ -18912,9 +20948,15 @@ spark-web-player #game .grid {
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   display: grid;
   gap: 1rem;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress {
   display: inline-block;
+  appearance: none;
+  overflow: hidden;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -18923,6 +20965,10 @@ spark-web-player #game .progress {
   color: var(--theme-color-sky_40);
   border-style: none;
   border-width: 0px;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
 }
 spark-web-player #game .progress_fill {
   height: 100%;
