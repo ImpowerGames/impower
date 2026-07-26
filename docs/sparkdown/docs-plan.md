@@ -46,13 +46,13 @@ docs/sparkdown/
 ```
 
 Notes:
-- **Open layout decision:** `dev/reactive-sparkle-engine` already ships an 8-page author guide at
-  `packages/sparkdown/docs/guide/` (Sparkle UI: Structure, Components, Widgets, Screens,
-  StyleProps, AnimationTheme, ...) and declares that directory the home for author docs. Before
-  drafting begins, decide whether user docs live here (`docs/sparkdown/`) with `guide/` merged in
-  at branch-merge time, or whether this effort adopts `packages/sparkdown/docs/guide/` as the
-  canonical location and this tree holds only planning artifacts. The divergence report
-  recommends building on `guide/` for the whole UI area rather than writing parallel pages.
+- **Role of the feature branch's `guide/` docs (maintainer ruling):** the 8-page author guide at
+  `packages/sparkdown/docs/guide/` on `dev/reactive-sparkle-engine` was written with early
+  ChatGPT — its *content* has mostly been kept current with the new Sparkle UI features, but its
+  style, voice, and organization are not to be leaned on. Treat it as a **content/accuracy
+  reference** when drafting the UI area at merge time (facts checked against fixtures per rule 3),
+  and rewrite in this plan's structure and voice rather than adopting its pages. Where user docs
+  canonically live (`docs/sparkdown/` vs `packages/sparkdown/docs/guide/`) remains open.
 - Each tutorial part is self-contained (a writer can start at Part 1 and stop at any part
   boundary with a working mental model). Examples come before explanation, per the brief.
 - The two `coming-from-*` pages are optional follow-ups; the callout boxes in section 4 are the
@@ -68,7 +68,7 @@ end in advanced-tier tails a first-time writer can skip past; Parts 6-7 are adva
 
 ### Part 1 — Writing Your First Script *(pure writer; Fountain-side basics)*
 
-**1.1 A script is just text** — Plain prose is narration; nothing to learn before you start typing.
+**1.1 A script is plain text** — Plain prose is narration; nothing to learn before you start typing.
 - Implicit action (narration) lines (01)
 - Explicit action marker (`:`) (01)
 
@@ -497,7 +497,7 @@ Luau", or "Gotcha").
 | # | Callout | Section |
 |---|---------|---------|
 | 1 | Fountain: anything unrecognized is action by default — no `!` forced-action sigil | 1.1 |
-| 2 | Fountain: speakers use an explicit `NAME:` prefix, not an ALL-CAPS cue line; casing is convention, not enforced | 1.2 |
+| 2 | Fountain: speakers use an explicit `NAME:` prefix, not an ALL-CAPS cue line; capitals are screenplay convention (whether lowercase cues work is UNPINNED — no fixture tests one; make no claim either way until pinned) | 1.2 |
 | 3 | Stale-doc warning for maintainers: GRAMMAR.md's `@NARRATOR:` block-dialogue form does not exist — plain `NAME:` only | 1.2 |
 | 4 | Fountain: headings/transitions/titles are explicit sigils (`$:`/`%:`/`^:`), never inferred from INT./EXT., `TO:`, or `>` | 1.3 |
 | 5 | Blank lines and `//` comments do NOT close an indented block — only a de-dented line does; block dialogue also closes at choice marks, diverts, sigils, and declaration keywords | 1.4 |
