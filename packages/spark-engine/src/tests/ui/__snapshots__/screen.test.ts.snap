@@ -1302,6 +1302,66 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "display": "inline-block",
                   "justify-self": "start",
                 },
+                "accordion": {
+                  "$name": "accordion",
+                  "$type": "style",
+                  "&@opened": {
+                    "> accordion_label": {
+                      "&.secondary": {
+                        "margin-bottom": "0",
+                        "text-color": "white",
+                      },
+                      "@after": {
+                        "transform": "rotate(0)",
+                      },
+                      "margin-bottom": "1rem",
+                      "text-color": "slate_60",
+                    },
+                  },
+                  "display": "block",
+                },
+                "accordion_label": {
+                  "$name": "accordion_label",
+                  "$type": "style",
+                  "&.secondary": {
+                    "@after": {
+                      "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")",
+                      "margin-left": "0.5rem",
+                      "transform": "rotate(0)",
+                    },
+                    "@hovered": {
+                      "background-color": "slate_60",
+                      "border-color": "slate_60",
+                    },
+                    "background-color": "slate_50",
+                    "border-color": "slate_50",
+                    "border-style": "solid",
+                    "border-width": "0.0625rem",
+                    "corner": "0.25rem",
+                    "padding": "0.75rem 1rem",
+                    "text-color": "white",
+                    "text-weight": "400",
+                    "transition": "all 0.2s ease-in-out",
+                  },
+                  "@after": {
+                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")",
+                    "background-position": "right center",
+                    "background-repeat": "no-repeat",
+                    "background-size": "1rem auto",
+                    "content": "",
+                    "display": "block",
+                    "float": "right",
+                    "height": "1rem",
+                    "transform": "rotate(-90deg)",
+                    "transition": "transform 0.2s ease-in-out",
+                    "width": "1rem",
+                  },
+                  "cursor": "pointer",
+                  "display": "list-item",
+                  "list-style": "none",
+                  "pointer_events": "auto",
+                  "text-weight": "400",
+                },
                 "action": {
                   "$name": "action",
                   "$type": "style",
@@ -1656,66 +1716,6 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   },
                   "margin": "0 auto",
                   "width": "68%",
-                },
-                "disclosure": {
-                  "$name": "disclosure",
-                  "$type": "style",
-                  "&@opened": {
-                    "> disclosure_label": {
-                      "&.secondary": {
-                        "margin-bottom": "0",
-                        "text-color": "white",
-                      },
-                      "@after": {
-                        "transform": "rotate(0)",
-                      },
-                      "margin-bottom": "1rem",
-                      "text-color": "slate_60",
-                    },
-                  },
-                  "display": "block",
-                },
-                "disclosure_label": {
-                  "$name": "disclosure_label",
-                  "$type": "style",
-                  "&.secondary": {
-                    "@after": {
-                      "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")",
-                      "margin-left": "0.5rem",
-                      "transform": "rotate(0)",
-                    },
-                    "@hovered": {
-                      "background-color": "slate_60",
-                      "border-color": "slate_60",
-                    },
-                    "background-color": "slate_50",
-                    "border-color": "slate_50",
-                    "border-style": "solid",
-                    "border-width": "0.0625rem",
-                    "corner": "0.25rem",
-                    "padding": "0.75rem 1rem",
-                    "text-color": "white",
-                    "text-weight": "400",
-                    "transition": "all 0.2s ease-in-out",
-                  },
-                  "@after": {
-                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")",
-                    "background-position": "right center",
-                    "background-repeat": "no-repeat",
-                    "background-size": "1rem auto",
-                    "content": "",
-                    "display": "block",
-                    "float": "right",
-                    "height": "1rem",
-                    "transform": "rotate(-90deg)",
-                    "transition": "transform 0.2s ease-in-out",
-                    "width": "1rem",
-                  },
-                  "cursor": "pointer",
-                  "display": "list-item",
-                  "list-style": "none",
-                  "pointer_events": "auto",
-                  "text-weight": "400",
                 },
                 "divider": {
                   "$name": "divider",
@@ -2137,7 +2137,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                       "display": "flex",
                     },
                   },
-                  "> disclosure_label.secondary": {
+                  "> accordion_label.secondary": {
                     "padding": "0.375rem 0.5rem",
                   },
                   "> list": {

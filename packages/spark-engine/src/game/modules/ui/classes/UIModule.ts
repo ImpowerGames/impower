@@ -381,8 +381,7 @@ const ELEMENT_TAGS: Record<string, string> = {
   form: "form",
   field_group: "fieldset",
   group_label: "legend",
-  disclosure: "details",
-  disclosure_label: "summary",
+  accordion: "details",
   // Authored as `modal`; still a real <dialog>. Named `modal` so it cannot be
   // confused with the SCREENPLAY `dialogue` style (speech), which is a
   // completely different thing one letter away.
@@ -397,6 +396,12 @@ const ELEMENT_TAGS: Record<string, string> = {
  * for `#href` on a link or `#colspan` on a cell. Everything here (plus any
  * `aria-*` / `data-*`) is routed to an attribute instead.
  */
+/** Tags whose text content is a LABEL for their children rather than inline
+ *  text, mounted as a real element of its own (see constructElement). */
+const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
+  accordion: { type: "summary", name: "accordion_label" },
+};
+
 const ATTRIBUTE_PROPS: ReadonlySet<string> = new Set([
   "href", "target", "rel", "download", "type", "name", "value", "for", "form",
   "open", "disabled", "readonly", "required", "checked", "selected", "multiple",
@@ -1436,7 +1441,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // else with adjacency content (text/stroke, but also button/label/…) renders
     // it as an inline span. Content-less structural elements get no span
     // (mountTextContent no-ops), preserving constructLayout parity.
-    if (node.tag === "image") {
+    // An element whose CONTENT is a label for the children it reveals — the
+    // author writes `accordion "Label": …` rather than a separate label
+    // builtin, exactly as `button "Save"` labels a button. The label becomes a
+    // real <summary>, so the disclosure works natively.
+    const implicitLabel = IMPLICIT_LABEL_TAGS[node.tag];
+    if (implicitLabel && node.content && node.content.length > 0) {
+      const labelEl = this.createElement(el, {
+        name: implicitLabel.name,
+        type: implicitLabel.type,
+      });
+      this.mountTextContent(labelEl, node.content, scope);
+    } else if (node.tag === "image") {
       this.mountImageContent(el, node.content, "background_image", scope.env);
     } else if (node.tag === "mask") {
       this.mountImageContent(el, node.content, "mask_image", scope.env);

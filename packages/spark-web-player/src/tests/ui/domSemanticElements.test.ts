@@ -123,8 +123,7 @@ end
     field_group:
       group_label "Choose"
       field #value="x"
-  disclosure:
-    disclosure_label "More"
+  accordion "More":
     text "Hidden detail"
 end
 `);

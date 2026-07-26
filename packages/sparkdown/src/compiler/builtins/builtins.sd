@@ -1923,7 +1923,7 @@ style caption with
   text-color = slate_60
 end
 
--- `menu` is a `disclosure` styled as a nav dropdown — Pico names the class
+-- `menu` is an `accordion` styled as a nav dropdown — Pico names the class
 -- `dropdown`, but here that word is already the <select> ELEMENT. The panel is
 -- absolutely positioned so opening it does not reflow the nav.
 style menu with
@@ -1951,7 +1951,7 @@ style menu with
       display = flex
   -- Pico's nav summary-button is tighter than a standalone one; scoping it here
   -- (0,3,0) keeps the generic variant at Pico's real 0.75rem 1rem.
-  > disclosure_label.secondary:
+  > accordion_label.secondary:
     padding = 0.375rem 0.5rem
   -- Items in the panel are plain rows, not links: body colour, no underline,
   -- and the whole row highlights on hover.
@@ -2091,7 +2091,7 @@ style group_label with
 end
 
 -- Accordion: a native <details>/<summary> disclosure.
-style disclosure_label with
+style accordion_label with
   pointer_events = auto
   display = list-item
   list-style = none
@@ -2134,10 +2134,10 @@ style disclosure_label with
       background-color = slate_60
       border-color = slate_60
 end
-style disclosure with
+style accordion with
   display = block
   &@opened:
-    > disclosure_label:
+    > accordion_label:
       text-color = slate_60
       margin-bottom = 1rem
       @after:

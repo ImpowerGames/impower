@@ -48,8 +48,7 @@ end
   test("boolean attributes are presence-based", async () => {
     const h = await render(`store shown = true
 layout main with
-  disclosure #open={shown}:
-    disclosure_label "More"
+  accordion "More" #open={shown}:
     text "Body"
   modal #open=false:
     text "Modal"

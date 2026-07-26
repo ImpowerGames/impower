@@ -58,21 +58,20 @@ end
     expect(display(h, "td")).toBe("table-cell");
   });
 
-  test("list + disclosure builtins declare their native display", async () => {
+  test("list + accordion builtins declare their native display", async () => {
     const css = sheet(
       await render(`layout main with
   list:
     item "a"
-  disclosure:
-    disclosure_label "More"
+  accordion "More":
 end
 `),
     );
     expect(ruleBlock(css, ".list")).toContain("display: block;");
     // A flex <li> renders NO marker; list-item is what draws it.
     expect(ruleBlock(css, ".item")).toContain("display: list-item;");
-    expect(ruleBlock(css, ".disclosure")).toContain("display: block;");
-    expect(ruleBlock(css, ".disclosure_label")).toContain(
+    expect(ruleBlock(css, ".accordion")).toContain("display: block;");
+    expect(ruleBlock(css, ".accordion_label")).toContain(
       "display: list-item;",
     );
   });

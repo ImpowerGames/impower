@@ -141,6 +141,10 @@ const KEY_TOKEN_NAMES = new Set([
   "DeclarationScalarPropertyKey",
 ]);
 
+/** Content on a block-opening element line, which the grammar parses as an
+ *  object header rather than adjacency content. */
+const ELEMENT_HEADER_CONTENT_NAMES = new Set(["StringContent"]);
+
 const FIELD_VALUE_NAMES = new Set([
   "StringFieldValueInterpolated",
   "StringFieldValue",
@@ -866,7 +870,14 @@ function buildBlock(
       children.push(fill);
       continue;
     }
-    const contentNode = firstDescendant(kind, FIELD_VALUE_NAMES);
+    // A LEAF element line (`text "Body"`) carries its content as adjacency
+    // content; a BLOCK-OPENING one (`accordion "More":`) is an object header,
+    // where the grammar parses the same string as a plain `StringLiteral`.
+    // Both mean "this element's content", so accept either — otherwise a label
+    // on a block-opening line is silently dropped.
+    const contentNode =
+      firstDescendant(kind, FIELD_VALUE_NAMES) ??
+      firstDescendant(kind, ELEMENT_HEADER_CONTENT_NAMES);
     const element: ElementNode = {
       kind: "element",
       tag,
