@@ -54,6 +54,13 @@ fixture or a maintainer ruling. Details inline at the flagged entries.
    no fixture exercises a bare loop statement in scene/narrative context.
 8. **`&` discard prefix before diverts / `!=` operator** — flagged during
    planning as under-fixtured; see docs-plan §5b.
+9. **Multi-space pause pacing at runtime** — the formatter preserves 2+ space
+   runs in the file (fixture-backed), but a runtime probe (2026-07-25) shows
+   runs collapse to single spaces in the story text stream
+   (`too.  Three` → `too. Three`), so the typewriter's space-run pause scaling
+   (`InterpreterModule.spaceLength`) cannot fire from source spacing on this
+   branch. Regression, alternate channel, or never wired — needs a maintainer
+   ruling and a pinning fixture. Docs claim file-level preservation only.
 
 ---
 ## Script structure & display text

@@ -11,7 +11,11 @@ Ground rules carried through the whole plan:
 
 - Docs never claim syntax the test suite does not back. Each published section must cite the
   backing fixtures listed in the inventory entry it covers.
-- Divergences from ink / Fountain / Luau get explicit callout boxes (section 4 below).
+- The tutorial never compares Sparkdown to other languages (ink/Fountain/Luau) or to earlier
+  Sparkdown syntax — the audience is new users of an unreleased language (maintainer ruling,
+  2026-07-25). Tutorial callouts are for present-tense behavior gotchas only. The divergence
+  table (section 4 below) is source material for the optional `coming-from-*` reference pages
+  and an accuracy checklist for maintainers — not tutorial content.
 - Anything marked UNRESOLVED or doc-only-unverified in the inventory goes to section 5
   ("do not document yet") — the parent feature is still documented, minus the unsettled claim.
 - **Branch quarantine:** `dev/reactive-sparkle-engine` actively changes syntax. Per-area verdicts
@@ -63,43 +67,51 @@ Notes:
 
 ## 2. Tutorial table of contents — "Writing with Sparkdown"
 
-7 parts, 68 sections. Ordered by audience: Part 1 is pure-writer (no jargon, no code); Parts 2-3
+7 parts, 71 sections. Ordered by audience: Part 1 is pure-writer (no jargon, no code); Parts 2-3
 end in advanced-tier tails a first-time writer can skip past; Parts 6-7 are advanced/integrator.
+Part 1 sections marked *(first taste)* preview a feature at minimal depth; the full home listed
+there owns the complete treatment (the one sanctioned exception to the single-home rule).
 
-### Part 1 — Writing Your First Script *(pure writer; Fountain-side basics)*
+### Part 1 — Writing Your First Script *(pure writer; the working vocabulary, grouped after the old cheatsheet: display text → choices/flow taste → assets taste → housekeeping)*
 
 **1.1 A script is plain text** — Plain prose is narration; nothing to learn before you start typing.
 - Implicit action (narration) lines (01)
-- Explicit action marker (`:`) (01)
+- Explicit action marker (`:`) (01) *(inline form here; block form taught in 1.4)*
 
 **1.2 Dialogue** — A name and a colon make a character speak.
-- Dialogue lines (`NAME:` inline and block) (01)
+- Dialogue lines (`NAME:` inline and block) (01) *(inline here; block form taught in 1.4; "defining characters comes later" aside)*
 
-**1.3 Sluglines, title cards, and transitions** — The three screenplay sigils that shape a scene on screen.
+**1.3 Your first choice** — A `choose` block turns the story over to the player. *(First taste: `choose ... end`, `*` options, option bodies, echo-on-pick. Full home 2.4.)*
+
+**1.4 Blocks and indentation** — Any display mark can open an indented block; how blocks begin and end.
+- Block form & indentation scoping (all display types) (01)
+
+**1.5 Beats and line breaks** — Splitting speech into beats; forcing breaks and escaping marks.
+- Dialogue beat break (trailing `>`) (01)
+- Backslash escapes (`\*` literal, `\ ` hard line break) (01)
+
+**1.6 Sluglines, title cards, and transitions** — The three screenplay sigils that shape a scene on screen.
 - Scene heading (`$:`) (01) / scene headings (`$:`) (02)
 - Title card (`^:`) (01) / title lines (`^:`) (02)
 - Transition (`%:`) (01) / transitions (`%:`) (02)
 
-**1.4 Blocks and indentation** — Any sigil can open an indented block; how blocks begin and end.
-- Block form & indentation scoping (all display types) (01)
-
-**1.5 Pacing: pauses, beats, and line breaks** — Controlling the rhythm the player experiences.
-- Significant whitespace (multi-space pauses) (01)
-- Dialogue beat break (trailing `>`) (01)
-- Backslash escapes (`\*` literal, `\ ` hard line break) (01)
-
-**1.6 Emphasis** — Italics with asterisks, and how to show a literal asterisk.
+**1.7 Emphasis** — Italics with asterisks, and how to show a literal asterisk.
 - Text emphasis (`*word*`) (01)
 
-**1.7 Comments and em-dashes** — Notes to yourself that the player never sees, and why `--` is safe in prose.
+**1.8 Sending the story somewhere** — Scenes and `->` jumps make choices matter. *(First taste: `scene NAME ... end`, `->` from choice bodies, auto-termination. Full homes 2.1/2.2/2.3.)*
+
+**1.9 Pictures and sound** — Stage directives at taste depth. *(First taste: `[[show <layer> <name>]]`, `((play <channel> <name>))`. Full home 5.4.)*
+
+**1.10 Comments and em-dashes** — Notes to yourself that the player never sees, and why `--` is safe in prose.
 - `//` display line comments (01)
 - `--` is an em-dash in display; a Luau comment only in code contexts (01)
 
-**1.8 The title page** — Document metadata in a fenced front-matter block.
+**1.11 The title page** — Document metadata in a fenced front-matter block.
 - Front matter (`---`-fenced metadata block) (01) / `---` front matter (title page) (06)
 
-**1.9 What the formatter will (and won't) touch** — Format-on-save tidies sigils but never your spacing.
+**1.12 What the formatter will (and won't) touch** — Format-on-save tidies sigils but never your text.
 - Formatter canonicalization contract (07)
+- Significant whitespace (multi-space pauses) (01) *(file-level preservation only — the runtime pause claim is UNRESOLVED, see §5b)*
 
 ### Part 2 — Choices and Story Flow *(writer → advanced)*
 
@@ -488,29 +500,32 @@ Groups, in page order:
 
 ---
 
-## 4. Callout boxes (divergences & gotchas), by tutorial section
+## 4. Divergence & gotcha table (NOT tutorial content)
 
-Every divergence/gotcha the inventory records, placed where the user would trip. Format on the
-page: a titled callout box ("Different from ink", "Different from Fountain", "Different from
-Luau", or "Gotcha").
+Every divergence/gotcha the inventory records. Per the maintainer ruling above, comparative rows
+(ink/Fountain/Luau/old-Sparkdown) never appear in the tutorial — they feed the optional
+`reference/coming-from-ink.md` / `coming-from-fountain.md` pages and serve as an accuracy
+checklist when writing the section listed. Non-comparative behavior gotchas may appear in the
+tutorial as "> **Gotcha:**" callouts. The Section column names the tutorial section whose
+subject each row concerns.
 
 | # | Callout | Section |
 |---|---------|---------|
 | 1 | Fountain: anything unrecognized is action by default — no `!` forced-action sigil | 1.1 |
 | 2 | Fountain: speakers use an explicit `NAME:` prefix, not an ALL-CAPS cue line; capitals are screenplay convention (whether lowercase cues work is UNPINNED — no fixture tests one; make no claim either way until pinned) | 1.2 |
 | 3 | Stale-doc warning for maintainers: GRAMMAR.md's `@NARRATOR:` block-dialogue form does not exist — plain `NAME:` only | 1.2 |
-| 4 | Fountain: headings/transitions/titles are explicit sigils (`$:`/`%:`/`^:`), never inferred from INT./EXT., `TO:`, or `>` | 1.3 |
+| 4 | Fountain: headings/transitions/titles are explicit sigils (`$:`/`%:`/`^:`), never inferred from INT./EXT., `TO:`, or `>` | 1.6 |
 | 5 | Blank lines and `//` comments do NOT close an indented block — only a de-dented line does; block dialogue also closes at choice marks, diverts, sigils, and declaration keywords | 1.4 |
-| 6 | ink collapses runs of whitespace; Sparkdown preserves 2+ spaces as pacing pauses (formatter never touches them) | 1.5 |
+| 6 | The formatter preserves 2+ space runs inside text (ink collapses them) — but the runtime pause claim is UNRESOLVED (§5b): runs collapse in the story text stream, so no pacing claim ships | 1.12 |
 | 7 | Fountain: leading `>` means transition/centered; Sparkdown's beat break is a *trailing* `>` (transitions are `%:`) | 1.5 |
 | 8 | A trailing `>` with nothing after it does not split — it is trimmed | 1.5 |
-| 9 | `--` is an em-dash in prose and a comment only in code contexts (divergence from Luau) | 1.7 |
-| 10 | `//` must be followed by whitespace/EOL to comment — `http://...` is safe text | 1.7 |
-| 11 | Front matter MUST be `---`-fenced (unlike Fountain's bare title page); without fences `title:` parses as a dialogue cue. Fields cannot contain `{expr}` | 1.8 |
+| 9 | `--` is an em-dash in prose and a comment only in code contexts (divergence from Luau) | 1.10 |
+| 10 | `//` must be followed by whitespace/EOL to comment — `http://...` is safe text | 1.10 |
+| 11 | Front matter MUST be `---`-fenced (unlike Fountain's bare title page); without fences `title:` parses as a dialogue cue. Fields cannot contain `{expr}` | 1.11 |
 | 12 | ink: `=== knot ===` / `= stitch` become `scene`/`branch` blocks; the closing `end` is REQUIRED (compile error without it); `branch` only inside `scene` | 2.1 |
 | 13 | ink: running off the end of a knot is a runtime error; Sparkdown auto-terminates cleanly | 2.3 |
 | 14 | `done`/`fin` are the idiomatic spellings; `-> DONE` / `-> END` also work. In a thread, `done` is thread-local | 2.3 / 2.10 |
-| 15 | MAJOR ink divergence: bare `*`/`+` choice lines are illegal — choices must live in `choose ... end`; nesting is structural, not mark-counted (`* * *` is gone) | 2.4 / 2.5 |
+| 15 | MAJOR ink divergence: bare `*`/`+` choice lines are illegal — choices must live in `choose ... end`; nesting is structural, not mark-counted (`* * *` is gone) | 1.3 / 2.4 / 2.5 |
 | 16 | ink gathers (`-`, `- (label)`) are gone: use `then` / `then (name)`; `label NAME` replaces `- (name)` anchors | 2.5 / 2.6 |
 | 17 | Sparkdown allows `choose` nested inside `if` — a shape ink rejects | 2.4 |
 | 18 | Choice guards are `if cond`, not ink's `{cond}`; `{}` is reserved for interpolation | 2.7 |
@@ -544,7 +559,7 @@ Luau", or "Gotcha").
 | 46 | Visit-count bookkeeping is compile-time opt-in: self-references and runtime-only reads need `countAllVisits` (integrator note, cross-linked from 7.5) | 4.10 |
 | 47 | The `->` parameter type annotation is informational only — nothing is enforced at runtime | 4.11 |
 | 48 | All Luau type syntax (annotations, generics, `::` casts) parses but is ignored at runtime | 4.12 |
-| 49 | Fountain: `[[...]]` are invisible notes; in Sparkdown they are EXECUTABLE stage directions. `(( ))` is the audio sigil, not boneyard. Mnemonic: `[[ ]]` = image, `(( ))` = audio | 5.4 |
+| 49 | Fountain: `[[...]]` are invisible notes; in Sparkdown they are EXECUTABLE stage directions. `(( ))` is the audio sigil, not boneyard. Mnemonic: `[[ ]]` = image, `(( ))` = audio | 1.9 / 5.4 |
 | 50 | Filter-chain keys are sorted — source order of `~` filters doesn't matter | 5.4 |
 | 51 | `define` has no ink/Fountain/Luau equivalent; `as` means *inherits*; there is no `class` keyword (Luau RFC syntax intentionally unimplemented) | 5.2 / 5.3 |
 | 52 | Same-name defines under different types are legal and REQUIRED by the character↔synth pairing convention | 5.3 |
@@ -571,7 +586,7 @@ Luau", or "Gotcha").
 | 73 | `EvaluateFunction`'s `output` is always `""` (functions are pure; ink's could emit text) | 7.3 |
 | 74 | Save-file quirks: whole-number floats serialize as `"7.0f"` strings — never `JSON.stringify` the compiled program; `compile()` deletes `result.story`; function values and identity-keyed table entries never round-trip | 7.6 |
 | 75 | Every display line is wrapped in line-type tags (`action`, `dialogue:Name`, ...) that appear in `currentTags` — hosts must filter them; glued lines skip the tag | 7.8 |
-| 76 | Formatter contract: sigil gaps collapse, but content whitespace is author-significant and never reflowed | 1.9 (cross-linked from 1.5) |
+| 76 | Formatter contract: sigil gaps collapse, but content whitespace is author-significant and never reflowed | 1.12 |
 | 77 | ink structurally disallows gathers/labels inside multiline conditional bodies; Sparkdown lifts the restriction — `label` anchors work inside and after conditional bodies | 2.6 |
 | 78 | A bare `*` choice with its text on the following line is legal — the grammar cannot flag an "empty choice" (closed by design) | 2.4 |
 | 79 | `include` is lowercase (ink: `INCLUDE`) and takes a file path | 5.7 |
@@ -640,6 +655,11 @@ Luau", or "Gotcha").
   don't present formatted output containing it as canonical.
 - **screen→layout keyword rename** (06 *`screen` blocks*): pending refactor not on this branch;
   document `screen`, flag for re-verification at merge (callout 54).
+- **Multi-space pause pacing at runtime** (01 *Significant whitespace*): file-level preservation
+  is formatter-fixture-backed, but a runtime probe (2026-07-25) shows 2+ space runs collapse to
+  single spaces in the story text stream, so the typewriter's space-run pause scaling cannot
+  fire from source spacing on this branch. No runtime pacing claim ships; documented as
+  formatter behavior only (1.12) until a pinning fixture or maintainer ruling lands.
 
 ### 5c. Internal / contributor-facing (belongs in `packages/sparkdown/docs`, not user docs)
 
@@ -663,9 +683,10 @@ Luau", or "Gotcha").
    ties to a passing test/snapshot, and each published section ends with a collapsed
    "Backing fixtures" list citing those paths. If the inventory marks a claim doc-only or
    UNRESOLVED, it does not ship (see §5).
-4. **Divergences are callouts, not prose.** Differences from ink/Fountain/Luau go in visually
-   distinct boxes titled "Different from ink/Fountain/Luau" or "Gotcha", placed exactly where a
-   migrating user would trip (§4 table is the checklist).
+4. **No comparisons in the tutorial.** Never mention ink, Fountain, Luau, or earlier Sparkdown
+   syntax in tutorial prose or callouts — new users have no referent for them. Comparative
+   material lives only in the optional `coming-from-*` reference pages (§4 table is the source).
+   Tutorial callouts are "> **Gotcha:**" boxes about present-tense behavior only.
 5. **Snippets must compile.** Every code block is a complete, compilable `.sd` fragment (add
    `done`/`end` scaffolding as needed) so it can be pasted into the editor — and eventually
    CI-checked against the compiler.
