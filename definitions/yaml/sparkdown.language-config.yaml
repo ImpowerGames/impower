@@ -196,7 +196,17 @@ indentationRules: # Increase the next line's indent when the current line:
   # a block-closing token: `end`, `until`, `else`, `elseif`,
   # `}`, `)`, or `]`. This gives the satisfying "type `end`
   # and the line snaps to the right column" behavior.
-  decreaseIndentPattern: '^\s*((\b(elseif|else|end|until)\b)|\}|\)|\])'
+  #
+  # The `(?!\))` / `(?!\])` guards exclude DOUBLED brackets.
+  # Sparkdown's display directives are written with doubled
+  # brackets — `[[portrait]]`, `((sound))` — so a line
+  # starting with `]]` or `))` is the tail of an inline
+  # directive, not a Luau block closer. Without the guards,
+  # splitting `[[bunny~jacket]]` before its closer dedents
+  # the continuation line by one unit. Single `)` / `]` still
+  # dedent, so multi-line Luau call args and index
+  # expressions behave as before.
+  decreaseIndentPattern: '^\s*((\b(elseif|else|end|until)\b)|\}|\)(?!\))|\](?!\]))'
 
   # Apply ONE extra level of indent to the line following a
   # line that ends with an assignment operator. Covers:
