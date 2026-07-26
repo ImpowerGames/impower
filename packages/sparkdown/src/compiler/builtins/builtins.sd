@@ -44,6 +44,15 @@ define ui as config with
   styles_element_name = "styles"
   layouts_element_name = "layouts"
   breakpoints = { xs = 400, sm = 640, md = 768, lg = 1024, xl = 1280 }
+  -- Base size that every `rem` in a style resolves against. Empty means "leave
+  -- the host document alone", which is what a game embedded in someone else's
+  -- page wants; the builtins are authored against the browser default of 16px.
+  -- Set it to rescale the WHOLE ui at once (`"112.5%"` = 18px), which is the
+  -- only way to move `rem` — engine styles are scoped inside the game element,
+  -- and `rem` always resolves against the document root, above that scope.
+  -- Prefer a percentage over px so a reader who has raised their browser's
+  -- default font size keeps that adjustment.
+  root_text_size = ""
 end
 
 define interpreter as config with

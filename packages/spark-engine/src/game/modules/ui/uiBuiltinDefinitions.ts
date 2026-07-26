@@ -26,6 +26,10 @@ export const uiBuiltinDefinitions = () => ({
         lg: 1024,
         xl: 1280,
       },
+      // Kept in sync with `config.ui` in the builtins prelude
+      // (packages/sparkdown/src/compiler/builtins/builtins.sd). Empty = do not
+      // touch the host document's root font size.
+      root_text_size: "",
     },
   },
   image: {

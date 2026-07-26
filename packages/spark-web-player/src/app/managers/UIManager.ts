@@ -202,6 +202,18 @@ export default class UIManager extends Manager {
     if (SetThemeMessage.type.isRequest(msg)) {
       const params = msg.params;
       this._breakpoints = params.breakpoints;
+      // `rem` resolves against the DOCUMENT root, which sits above the
+      // `spark-web-player #game` scope every engine-emitted rule is confined
+      // to — so this is the one ui value that cannot be expressed as a style.
+      // Only written when the game actually asks for it: a game embedded in a
+      // host page must not silently restyle that page's root.
+      const rootTextSize = params.root_text_size;
+      if (rootTextSize) {
+        const doc = this.app.overlay?.ownerDocument;
+        if (doc?.documentElement) {
+          doc.documentElement.style.fontSize = rootTextSize;
+        }
+      }
       return SetThemeMessage.type.result("");
     }
     if (CreateElementMessage.type.isRequest(msg)) {

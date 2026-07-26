@@ -1,4 +1,6 @@
-// KNOWN GAP — a project cannot re-theme the builtin components.
+// KNOWN GAP — a project cannot override ANY builtin define: not a colour token,
+// not a `config` value. Both are the same first-writer-wins defect below; the
+// colour case is spelled out because it was found first.
 //
 // The palette is authored as `define <name> as color`, and the engine turns
 // each into a `--theme-color-<name>` CSS variable, so redefining `slate_80` in
@@ -62,6 +64,40 @@ function themeColor(h: { overlay: HTMLElement }, name: string): string | null {
   }
   return null;
 }
+
+describe("overriding a builtin config value", () => {
+  // Same defect, second victim: `config.ui.root_text_size` exists precisely so a
+  // project can rescale every `rem` without the engine forcing a root font size
+  // on games that never asked for one. The renderer half works (proved by
+  // temporarily changing the builtin default: the value reaches UIManager and
+  // lands on the document root) — but `define ui as config` collides with the
+  // prelude's own `ui`, so the authored value never reaches the runtime table
+  // and the property is unsettable by the only audience it exists for.
+  test.skip("a project define replaces the builtin's value", async () => {
+    const h = await render(
+      source(`define ui as config with\n  root_text_size = "112.5%"\nend\n`),
+    );
+    await flushMicrotasks();
+    expect(h.overlay.ownerDocument.documentElement.style.fontSize).toBe(
+      "112.5%",
+    );
+  });
+
+  // Worse than silent: the collision is REPORTED, as two duplicate-identifier
+  // diagnostics ("Duplicate identifier `$config_ui`" / "`ui`"). So overriding a
+  // builtin is not merely unsupported, it fails a project's compile — which is
+  // why the Pico showcase cannot even carry the line as documentation.
+  // The compile-time context still holds the authored value, which is the trap:
+  // anything reading `program.context` sees a working override.
+  test("the authored value survives to compile-time context but not runtime", async () => {
+    const h = await render(
+      source(`define ui as config with\n  root_text_size = "112.5%"\nend\n`),
+    );
+    const game = h.game as any;
+    expect(game?.program?.context?.config?.ui?.root_text_size).toBe("112.5%");
+    expect(game?.context?.config?.ui?.root_text_size).toBe("");
+  });
+});
 
 describe("overriding a builtin colour token", () => {
   test.skip("a project define replaces the builtin's value", async () => {

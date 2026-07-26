@@ -65,8 +65,15 @@ describe.skipIf(!OUT)("dump showcase", () => {
       `#game *{font-family:inherit;font-size:inherit}` +
       `button,input,select,textarea{color:inherit;margin:0}`;
 
+    // `config.ui.root_text_size` is applied by UIManager to the DOCUMENT root,
+    // not to anything inside the overlay, so it would be dropped by serializing
+    // `overlay.innerHTML` alone — and every `rem` in the capture would silently
+    // fall back to the browser's 16px default.
+    const rootFontSize = doc.documentElement.style.fontSize;
+    const rootStyle = rootFontSize ? ` style="font-size:${rootFontSize}"` : "";
+
     const page =
-      `<!doctype html><html><head><meta charset="utf-8">` +
+      `<!doctype html><html${rootStyle}><head><meta charset="utf-8">` +
       `<title>Ours</title><style>${shell}</style><style>${css}</style></head>` +
       `<body><spark-web-player><div id="viewport"><div id="game">` +
       `${h.overlay.innerHTML}` +

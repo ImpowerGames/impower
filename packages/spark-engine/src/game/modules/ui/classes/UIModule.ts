@@ -2762,10 +2762,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   loadTheme(): void {
     const breakpoints = this.context?.config?.ui?.breakpoints;
+    const root_text_size = this.context?.config?.ui?.root_text_size;
     if (breakpoints) {
       this.enqueueUI(
         SetThemeMessage.type.request({
           breakpoints,
+          root_text_size,
         }),
       );
     }

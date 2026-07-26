@@ -28,6 +28,15 @@
 // NOTE: `#href` takes relative/fragment URLs here — an absolute `https://` value
 // hits a known grammar bug with `://` in a prop value.
 
+// NOT MATCHED: Pico's type scale is 18px at this width, not the browser's
+// default 16px, and every `rem` here resolves against the document root — so
+// the whole page renders ~11% smaller than the reference. The fix belongs in
+// one line, `config.ui.root_text_size = "112.5%"`, and that property exists;
+// but writing `define ui as config` collides with the builtins prelude and
+// fails with "Duplicate identifier `$config_ui`", so no project can set it yet.
+// See packages/spark-web-player/src/tests/ui/builtinColorOverride.test.ts —
+// same defect that stops this file matching Pico's palette.
+
 store first_name = ""
 store email = ""
 store agreed = false
