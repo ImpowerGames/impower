@@ -75,3 +75,12 @@ first — it survives a bad invocation and can be re-applied with `--body-file`.
 Heredocs are also lossy through some shell paths here (a `//` comment came out
 as `/`, breaking a file mid-edit). For anything with code in it, write the file
 with the editor tool rather than piping a heredoc.
+
+## Strict rule — LOOK. Never guess.
+
+When working on code or assets that affect the impower-dev web editor or visuals or images (ui, prototypes, portraits, renders, animations, layout, color, anything you can see), **verify by actually looking at the rendered pixels — screenshot and view it (zoom in for small details).** LOOK before considering your work done. This is a hard requirement, not a nice-to-have:
+
+- **Never** substitute reasoning from computed styles, `getBoundingClientRect` geometry, greps, log counts, file names, or "it should be rendering" for an actual look. Those mislead.
+- If you genuinely can't see something or can't verify it visually, **say so plainly.** Never claim you see something you haven't actually looked at — do not fabricate a visual confirmation.
+
+This has been a repeated failure mode. Looking IS the check. Lead with your eyes, early and often, like a human would. Use the browser screenshot/zoom tools if you need to.
