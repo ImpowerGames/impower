@@ -33,6 +33,13 @@ const PSEUDO_ALIASES = {
   "@checked": ":checked",
   "@unchecked": ":not(:checked)",
   "@required": ":required",
+  "@indeterminate": ":indeterminate",
+  // An input's TYPE is not expressible as a selector otherwise: `#type="date"`
+  // is the inline-prop syntax, so attribute excision eats it (same reason
+  // `@busy` exists for `[aria-busy]`).
+  "@type_color": '[type="color"]',
+  "@type_date": '[type="date"]',
+  "@type_time": '[type="time"]',
   "@valid": ":valid",
   "@invalid": ":invalid",
   "@readonly": ":read-only",
@@ -52,6 +59,23 @@ const PSEUDO_ALIASES = {
   "@marker": "::marker",
   "@backdrop": "::backdrop",
   "@opened": "[open]",
+  // Named PARTS of a native widget. Without these a slider, progress bar, file
+  // input, colour swatch and date picker can only ever render as the browser's
+  // own control: `appearance: none` strips the widget, and there is then no way
+  // to paint the pieces back. Named parts rather than raw `::-webkit-*` because
+  // the same names describe the sub-elements of a non-web control (a Unity UI
+  // Toolkit slider has a tracker and a dragger too), so authored style survives
+  // the port.
+  "@track": "::-webkit-slider-runnable-track",
+  "@thumb": "::-webkit-slider-thumb",
+  "@bar": "::-webkit-progress-bar",
+  "@fill": "::-webkit-progress-value",
+  "@file_button": "::file-selector-button",
+  "@file-button": "::file-selector-button",
+  "@picker": "::-webkit-calendar-picker-indicator",
+  "@swatch": "::-webkit-color-swatch",
+  "@swatch_wrapper": "::-webkit-color-swatch-wrapper",
+  "@swatch-wrapper": "::-webkit-color-swatch-wrapper",
   // `#a=v` can't be used as a selector in a style block — that IS the inline
   // prop syntax, so attribute excision eats it and leaves an empty selector.
   // Busy state gets an alias of its own, like `@opened` does for `[open]`.

@@ -225,6 +225,8 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -330,6 +332,9 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -682,6 +687,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -690,6 +698,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -813,7 +824,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -945,8 +991,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1056,6 +1124,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -1071,7 +1140,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -1422,6 +1491,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -1618,6 +1707,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -1640,6 +1731,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -1647,7 +1757,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
@@ -2191,6 +2300,8 @@ exports[`dom render > image show renders background span + img 1`] = `
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -2296,6 +2407,9 @@ exports[`dom render > image show renders background span + img 1`] = `
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -2648,6 +2762,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -2656,6 +2773,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -2779,7 +2899,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -2911,8 +3066,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -3022,6 +3199,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -3037,7 +3215,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -3388,6 +3566,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -3584,6 +3782,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -3606,6 +3806,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -3613,7 +3832,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
@@ -4119,6 +4337,8 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -4224,6 +4444,9 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -4576,6 +4799,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -4584,6 +4810,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -4707,7 +4936,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -4839,8 +5103,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -4950,6 +5236,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -4965,7 +5252,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -5316,6 +5603,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -5512,6 +5819,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -5534,6 +5843,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -5541,7 +5869,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
@@ -6169,6 +6496,8 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -6274,6 +6603,9 @@ exports[`dom render > screen tree renders into overlay 1`] = `
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -6626,6 +6958,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -6634,6 +6969,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -6757,7 +7095,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -6889,8 +7262,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -7000,6 +7395,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -7015,7 +7411,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -7366,6 +7762,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -7562,6 +7978,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -7584,6 +8002,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -7591,7 +8028,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
@@ -8078,6 +8514,8 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -8183,6 +8621,9 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -8535,6 +8976,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -8543,6 +8987,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -8666,7 +9113,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -8798,8 +9280,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -8909,6 +9413,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -8924,7 +9429,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -9275,6 +9780,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -9471,6 +9996,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -9493,6 +10020,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -9500,7 +10046,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
@@ -9969,6 +10514,8 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -10074,6 +10621,9 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -10426,6 +10976,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -10434,6 +10987,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -10557,7 +11113,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -10689,8 +11280,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -10800,6 +11413,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -10815,7 +11429,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -11166,6 +11780,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -11362,6 +11996,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -11384,6 +12020,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -11391,7 +12046,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
@@ -11910,6 +12564,8 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -12015,6 +12671,9 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -12367,6 +13026,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -12375,6 +13037,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -12498,7 +13163,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -12630,8 +13330,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -12741,6 +13463,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -12756,7 +13479,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -13107,6 +13830,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -13303,6 +14046,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -13325,6 +14070,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -13332,7 +14096,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
@@ -13818,6 +14581,8 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -13923,6 +14688,9 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -14275,6 +15043,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -14283,6 +15054,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -14406,7 +15180,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -14538,8 +15347,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -14649,6 +15480,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -14664,7 +15496,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -15015,6 +15847,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -15211,6 +16063,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -15233,6 +16087,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -15240,7 +16113,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
@@ -15726,6 +16598,8 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -15831,6 +16705,9 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -16183,6 +17060,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -16191,6 +17071,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -16314,7 +17197,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -16446,8 +17364,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -16557,6 +17497,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -16572,7 +17513,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -16923,6 +17864,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -17119,6 +18080,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -17141,6 +18104,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -17148,7 +18130,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
@@ -17634,6 +18615,8 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -17739,6 +18722,9 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -18091,6 +19077,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -18099,6 +19088,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -18222,7 +19214,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -18354,8 +19381,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -18465,6 +19514,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -18480,7 +19530,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -18831,6 +19881,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -19027,6 +20097,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -19049,6 +20121,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -19056,7 +20147,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
@@ -19542,6 +20632,8 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   --theme-color-slate_50: rgb(71,85,105);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
+  --theme-color-slate_75: rgb(176,188,206);
+  --theme-color-slate_65: rgb(124,140,163);
   --theme-color-slate_80: rgb(203,213,225);
   --theme-color-slate_90: rgb(226,232,240);
   --theme-color-slate_95: rgb(241,245,249);
@@ -19647,6 +20739,9 @@ exports[`dom render · image lifecycle > layered images stack background-image o
 }
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
+}
+@keyframes progress {
+  to {  }
 }
 @keyframes spin {
   to { transform: rotate(360deg); }
@@ -19999,6 +21094,9 @@ spark-web-player #game .button {
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(148 163 184 / 25%);
+    }
     &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
@@ -20007,6 +21105,9 @@ spark-web-player #game .button {
   &.contrast {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
+    &:focus {
+      box-shadow: 0 0 0 0.125rem rgb(226 232 240 / 25%);
+    }
     color: black;
     &:hover, &:active, &:focus {
       background-color: white;
@@ -20130,7 +21231,42 @@ spark-web-player #game .checkbox {
 spark-web-player #game .input {
   pointer-events: auto;
   color-scheme: dark;
+  line-height: 1.5;
   width: 100%;
+  &[type="color"] {
+    padding: 0.25rem;
+    height: 3.5rem;
+    cursor: pointer;
+    &::-webkit-color-swatch-wrapper {
+      padding: 0px;
+    }
+    &::-webkit-color-swatch {
+      border-width: 0px;
+      border-radius: 0.125rem;
+    }
+  }
+  &[type="date"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+  &[type="time"] {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E");
+    background-position: right 0.75rem center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    padding-right: 1.75rem;
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
   padding: 0.75rem 1rem;
   border-radius: 0.25rem;
   border-width: 0.0625rem;
@@ -20262,8 +21398,30 @@ spark-web-player #game .slider {
   height: 1.25rem;
   border-radius: 0.25rem;
   background-color: transparent;
-  cursor: default;
-  accent-color: var(--theme-color-sky_60);
+  cursor: pointer;
+  appearance: none;
+  &::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_30);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 50%;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0px;
+    cursor: grab;
+    margin-top: -0.4375rem;
+    transition: background-color 0.2s ease-in-out;
+  }
+  &:hover {
+    &::-webkit-slider-thumb {
+      background-color: var(--theme-color-sky_40);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -20373,6 +21531,7 @@ spark-web-player #game .h4 {
   &:first-child {
     margin-top: 0px;
   }
+  color: var(--theme-color-slate_75);
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
@@ -20388,7 +21547,7 @@ spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
-  color: var(--theme-color-slate_70);
+  color: var(--theme-color-slate_65);
   margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
@@ -20739,6 +21898,26 @@ spark-web-player #game .file_input {
   border-radius: 0px;
   padding: 0.375rem 0px 0.375rem 0.125rem;
   color: var(--theme-color-slate_60);
+  &::file-selector-button {
+    line-height: 1.5;
+    background-color: var(--theme-color-slate_50);
+    border-width: 0.0625rem;
+    border-style: solid;
+    border-color: var(--theme-color-slate_50);
+    border-radius: 0.25rem;
+    padding: 0.375rem 1rem;
+    margin-right: 0.5rem;
+    margin-left: 0px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    &:hover {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -20935,6 +22114,8 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >:first-child {
+    flex: 1 1 auto;
+    width: 1%;
     border-top-right-radius: 0px;
     border-bottom-right-radius: 0px;
   }
@@ -20957,6 +22138,25 @@ spark-web-player #game .progress {
   display: inline-block;
   appearance: none;
   overflow: hidden;
+  border-width: 0px;
+  &::-webkit-progress-bar {
+    background-color: transparent;
+  }
+  &::-webkit-progress-value {
+    background-color: var(--theme-color-sky_40);
+    border-radius: 0.25rem;
+  }
+  &:indeterminate {
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
+    background-size: 150% 150%;
+    animation-name: progress-indeterminate;
+    animation-duration: 1s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    &::-webkit-progress-bar {
+      background-color: transparent;
+    }
+  }
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -20964,7 +22164,6 @@ spark-web-player #game .progress {
   accent-color: var(--theme-color-sky_40);
   color: var(--theme-color-sky_40);
   border-style: none;
-  border-width: 0px;
   margin-top: 1rem;
   &:first-child {
     margin-top: 0px;
