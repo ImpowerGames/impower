@@ -170,15 +170,15 @@ N: hello\ world
 *Sources:* `packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/escape-non-whitespace.sd`, `packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/escape-space-mid-content.sd`, `packages/sparkdown/docs/runtime/DIVERGENCES.md`, `packages/sparkdown/docs/runtime/DEFERRED.md`
 The escaped-space-as-hard-line-break rule is Sparkdown-specific. Docs additionally list `\<tab>` and `\<newline>` (paragraph break / line-join that preserves a single newline while treating the next line as plain text) escape forms, but no fixture exercises them — doc-only claim.
 
-### Text emphasis (`*word*`)
+### Inline styling marks (`*` `**` `***` `_` `^` `~~` `::`)
 *Audience:* writer
-Asterisk-wrapped text inside a display line marks emphasis, Fountain/Markdown style.
+The renderer's full inline styling vocabulary (`InterpreterModule.MARKERS`): `*italic*`, `**bold**`, `***bold italic***`, `_underline_`, `^centered^`, `~~wavy~~` (animated ripple; longer marks slow it), `::shaky::` (animated tremble; longer marks slow it). Marks wrap words or phrases inside any display line.
 ```sparkdown
 N: The star fell *here*.
 ```
-*Output:* Output contains "here"; the emphasis styling is applied by the renderer. The formatter treats it as plain display text and never reflows it.
-*Sources:* `packages/sparkdown/src/tests/runtime/PortInventory.test.ts`, `packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/stress/spark-tale-sample.sd`
-Escape with `\*` to show a literal asterisk (see backslash escapes).
+*Output:* Marks pass through the compiled text stream verbatim (runtime-probed 2026-07-25, all seven forms, zero diagnostics); the interpreter converts them to styled/animated chunks. The formatter treats them as plain display text and never reflows them.
+*Sources:* `packages/spark-engine/src/game/modules/interpreter/classes/InterpreterModule.ts` (MARKERS + mark handling), `packages/sparkdown/src/tests/runtime/PortInventory.test.ts`, `packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/stress/spark-tale-sample.sd`
+Escape with `\*` (etc.) to show the literal character (see backslash escapes). No rendered-output fixture pins the styled result yet — the vocabulary and passthrough are code+probe-verified; a DOM-harness fixture would fully pin it. The old cheatsheet's `` `raw` `` backtick form is NOT in MARKERS and is not documented.
 
 ### Scene heading (`$:`)
 *Audience:* writer

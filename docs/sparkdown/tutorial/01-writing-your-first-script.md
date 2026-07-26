@@ -164,11 +164,11 @@ Without the `>`, both lines would share one box. Chains extend naturally: `One. 
 A backslash before a space forces a line break inside the same box, and a backslash before punctuation makes that character literal:
 
 ```sparkdown
-MARA: Look down\ there.
+MARA: Look down. \ It's over there.
 JONAS: The chart is marked \*here\*.
 ```
 
-**What the player sees:** MARA's box shows "Look down" and "there." on two lines. JONAS's box shows the asterisks as real characters instead of emphasis marks (emphasis comes in 1.7).
+**What the player sees:** MARA's box shows "Look down." and "It's over there." on two lines. JONAS's box shows the asterisks as real characters instead of styling marks (styling comes in 1.7).
 
 The opposite move is running two separate lines together into one. That uses the `..` mark, which arrives with story flow in Part 2.
 
@@ -213,18 +213,45 @@ Three marks shape a scene the way a screenplay does. `$:` is a scene heading (a 
 
 </details>
 
-## 1.7 — Emphasis
+## 1.7 — Styling
 
 ```sparkdown
 MARA: Do you *see* it?
+
+JONAS: It was **loud**. The whole tower _hummed_.
+
+MARA: ***Run.***
 ```
 
-**What the player sees:** the line with "see" emphasized.
+**What the player sees:** "see" in italics, "loud" in bold, "hummed" underlined, and "Run." in bold italics.
 
-Wrap a word or phrase in asterisks to emphasize it, the same way you would in a chat message. When you need a visible asterisk instead, escape it with `\*` as shown in section 1.5.
+Wrap a word or phrase in marks to style it, the same way you would in a chat message. There are seven, and the last three do things paper can't:
+
+```sparkdown
+^The Last Light^
+
+The water goes ~~up and down~~.
+
+The door is ::rattling::.
+```
+
+**What the player sees:** the first line centered, the letters of "up and down" rippling in a wave, and "rattling" trembling in place.
+
+| You type | The player sees |
+|---|---|
+| `*italic*` | *italic* |
+| `**bold**` | **bold** |
+| `***bold italic***` | ***bold italic*** |
+| `_underline_` | underlined text |
+| `^centered^` | the text centered |
+| `~~wavy~~` | letters ripple up and down |
+| `::shaky::` | letters tremble |
+
+A `^` wrapped around words centers them; `^:` at the start of a line is the title-card mark from section 1.6 — the colon is the difference. When you need any mark as a visible character, escape it with a backslash (`\*`, `\_`), as shown in section 1.5.
 
 <details><summary>Backing fixtures</summary>
 
+`packages/spark-engine/src/game/modules/interpreter/classes/InterpreterModule.ts`
 `packages/sparkdown/src/tests/runtime/PortInventory.test.ts`
 `packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/stress/spark-tale-sample.sd`
 

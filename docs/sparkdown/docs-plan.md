@@ -95,8 +95,8 @@ there owns the complete treatment (the one sanctioned exception to the single-ho
 - Title card (`^:`) (01) / title lines (`^:`) (02)
 - Transition (`%:`) (01) / transitions (`%:`) (02)
 
-**1.7 Emphasis** — Italics with asterisks, and how to show a literal asterisk.
-- Text emphasis (`*word*`) (01)
+**1.7 Styling** — The full inline mark set and how to escape it.
+- Inline styling marks (`*` `**` `***` `_` `^` `~~` `::`) (01) *(vocabulary verified against InterpreterModule.MARKERS + runtime passthrough probe, 2026-07-25)*
 
 **1.8 Sending the story somewhere** — Scenes and `->` jumps make choices matter. *(First taste: `scene NAME ... end`, `->` from choice bodies, auto-termination. Full homes 2.1/2.2/2.3.)*
 
@@ -605,10 +605,12 @@ subject each row concerns.
 - **Unimplemented Luau namespaces: vector, coroutine, task, buffer, loadstring, require, `_G`**
   (07) — document the clear "not supported" errors only if asked; note that `_G` itself IS
   implemented and is documented in §6.8 (the heading's `_G` mention is stale within the entry).
-- **Display-layer lowerer gaps: styling markers, `<style>` commands, dialogue metadata** (07) —
-  bold `**`, underline `__`, centered `^^`, `<style>` TextCommands, and character
-  parenthetical/position forms (`N (whisper):`, `N [LEFT]:`) are lowerer pass-through /
-  uncaptured. Do not document styling syntax until player behavior is fixture-verified.
+- **Display-layer lowerer gaps: `<style>` commands, dialogue metadata** (07) — `<style>`/control
+  TextCommands and character parenthetical/position forms (`N (whisper):`, `N [LEFT]:`) remain
+  undocumented (lowerer pass-through / uncaptured). Inline styling marks are RESOLVED: the
+  vocabulary (`*` `**` `***` `_` `^` `~~` `::`) is verified against `InterpreterModule.MARKERS`
+  plus a runtime passthrough probe and documented in 1.7; a rendered-output DOM-harness fixture
+  would fully pin the styled result.
 - Doc-only escape forms `\<tab>` and `\<newline>` (from *Backslash escapes*, 01) — no fixture;
   document only `\*` and `\ `.
 - ink LIST features with no equivalent: LIST_ALL universe, LIST_INVERT, intrinsic ordinals,
