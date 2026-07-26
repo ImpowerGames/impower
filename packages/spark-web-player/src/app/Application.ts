@@ -77,7 +77,11 @@ export class Application implements IApplication {
   protected _clock = new Clock(
     {
       get currentTime() {
-        return performance.now();
+        // Seconds, not milliseconds -- `ClockSource` is documented in
+        // seconds and the frame budget is computed as `1 / maxFPS`, so
+        // handing this `performance.now()` raw inflates every duration
+        // 1000x until an AudioContext takes over as the time source.
+        return performance.now() / 1000;
       },
     },
     (callback: () => void) => window.requestAnimationFrame(callback),
