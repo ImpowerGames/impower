@@ -33,16 +33,6 @@ Salt wind rattles the rail.
 
 Any plain line of prose is narration. There is no keyword to learn and no setup required: open a file, describe what happens, and the game shows it to the player as action text. Each line arrives on its own, one after the other.
 
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/implicit-action.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/grammar/display/implicit-action-with-plural.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/inline-action.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/display/inline-action.sd`
-`packages/sparkdown/src/tests/runtime/PortInventory.test.ts`
-
-</details>
-
 ## 1.2 — Dialogue
 
 ```sparkdown
@@ -59,16 +49,6 @@ You're up late.
 A name, a colon, and the words: that is a line of dialogue. The game routes it to that character's dialogue box, with their name shown as the speaker. Writing speakers in capitals is screenplay habit, and every script in this guide follows it.
 
 A name needs no setup. The editor will gently point out that MARA isn't defined yet, and the line plays anyway, using the name exactly as you wrote it. Giving characters a proper display name, color, and voice comes in Part 5.
-
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/dialogue-inline.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/dialogue-inline-empty-body.sd`
-`packages/sparkdown/src/tests/runtime/fixtures/smoke/hello.sd`
-`packages/sparkdown/src/tests/runtime/smoke.test.ts`
-`packages/sparkdown/language/sparkdown.language-grammar.json`
-
-</details>
 
 ## 1.3 — Your first choice
 
@@ -90,15 +70,6 @@ The wind picks up.
 A `choose` block turns the story over to the player. Each `*` line is an option; the lines indented beneath an option play only when the player picks it; `end` closes the list, and the story continues below as if the road never forked. The option's own text plays back as a line when chosen, so write choices as things worth saying or doing.
 
 This is all a choice needs. Sending a choice somewhere else in the story entirely is section 1.8; choices that remember they were taken or appear only under certain conditions are the subject of Part 2.
-
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown/src/tests/runtime/fixtures/choices/weave-options.sd`
-`packages/sparkdown/src/tests/runtime/fixtures/choices/once-only-choices-with-own-content.sd`
-`packages/sparkdown/src/tests/runtime/fixtures/choices/newline-after-choice.sd`
-`packages/sparkdown/src/tests/runtime/Choices.test.ts`
-
-</details>
 
 ## 1.4 — Blocks and indentation
 
@@ -126,16 +97,6 @@ The same shape works for narration. A lone `:` opens a narration block, and its 
 The rule is the same everywhere: a block stays open as long as each following line is indented further than the line that opened it (the amounts do not have to match), and the first line that steps back out to the opener's indent or less belongs to whatever comes next. You have already used this shape once — the option bodies inside a `choose` block work the same way.
 
 > **Gotcha:** Blank lines and `//` comment lines do NOT close an open block — only a less-indented line does. A dialogue block also ends early at certain marks even when they are indented: the choice marks you met in 1.3 (`*`, `+`), the `->` jumps coming in section 1.8, other display marks, and declaration keywords such as `scene` or `define`. Indenting those will not fold them into a speech.
-
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/block-dialogue.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/block-action.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/block-multiline-trailing-space.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/display/block-dialogue.sd`
-`packages/sparkdown/language/sparkdown.language-grammar.json`
-
-</details>
 
 ## 1.5 — Beats and line breaks
 
@@ -172,18 +133,6 @@ JONAS: The chart is marked \*here\*.
 
 The opposite move is running two separate lines together into one. That uses the `..` mark, which arrives with story flow in Part 2.
 
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown/src/tests/runtime/ChainedDialogueBreak.test.ts`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/chained-dialogue-break.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/trailing-break.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/escape-non-whitespace.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/escape-space-mid-content.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/display/glue-break-spacing.sd`
-`packages/sparkdown/src/tests/runtime/Glue.test.ts`
-
-</details>
-
 ## 1.6 — Sluglines, title cards, and transitions
 
 ```sparkdown
@@ -199,19 +148,6 @@ The beam sweeps the water.
 **What the player sees:** a title card reading THE LAST LIGHT, then a scene heading, the narration, and finally FADE OUT presented as a transition.
 
 Three marks shape a scene the way a screenplay does. `$:` is a scene heading (a slugline), `^:` is a title card shown to the player mid-story, and `%:` is a transition such as FADE OUT or CUT TO. Each takes its text on the same line, and each is styled by the game to look like what it is. The marks are the only way to get these looks — a line like CUT TO: without its `%:` stays ordinary narration.
-
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/inline-heading.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/block-heading.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/inline-title.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/block-title.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/inline-transitional.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/display/block-transitional.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/display/heading.sd`
-`packages/sparkdown/src/tests/runtime/PortInventory.test.ts`
-
-</details>
 
 ## 1.7 — Styling
 
@@ -249,14 +185,6 @@ The door is ::rattling::.
 
 A `^` wrapped around words centers them; `^:` at the start of a line is the title-card mark from section 1.6 — the colon is the difference. When you need any mark as a visible character, escape it with a backslash (`\*`, `\_`), as shown in section 1.5.
 
-<details><summary>Backing fixtures</summary>
-
-`packages/spark-engine/src/game/modules/interpreter/classes/InterpreterModule.ts`
-`packages/sparkdown/src/tests/runtime/PortInventory.test.ts`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/stress/spark-tale-sample.sd`
-
-</details>
-
 ## 1.8 — Sending the story somewhere
 
 ```sparkdown
@@ -285,15 +213,6 @@ end
 
 That is enough to write a complete branching story. Everything else scenes and arrows can do — joining back up, calling and returning, passing values along — is Part 2's subject.
 
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown/src/tests/runtime/fixtures/choices/choice-diverts-to-done.sd`
-`packages/sparkdown/src/tests/runtime/fixtures/diverts/done-stops-flow.sd`
-`packages/sparkdown/src/tests/runtime/Diverts.test.ts`
-`packages/sparkdown/src/tests/runtime/Choices.test.ts`
-
-</details>
-
 ## 1.9 — Pictures and sound
 
 ```sparkdown
@@ -309,15 +228,6 @@ MARA: Listen.
 Double square brackets command the screen; double parentheses command the audio. Each takes a verb (`show`, `hide`, `play`, `stop`), a place for it to happen (a layer like `backdrop`, a channel like `music`), and the name of an asset from your project. Until an asset with that name exists, the editor warns you.
 
 Adding images and audio to a project — and everything else these commands can do, like fades, loops, and animation — is covered in Part 5.
-
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/asset/image.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/asset/audio.sd`
-`packages/sparkdown/src/tests/compiler/__snapshots__/compile/asset/image-and-audio.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/stress/spark-tale-sample.sd`
-
-</details>
 
 ## 1.10 — Comments and em-dashes
 
@@ -351,16 +261,6 @@ MARA:
 
 > **Gotcha:** `//` only starts a note when followed by a space or the end of the line. Written tight against text it is ordinary prose, so `http://example.com` survives intact.
 
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown/src/tests/runtime/DisplayLineComment.test.ts`
-`packages/sparkdown/src/tests/runtime/FrontMatterAndCommentContext.test.ts`
-`packages/sparkdown/src/tests/runtime/StyleDefine.test.ts`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/luau/opener-keyword-join.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/stress/spark-tale-sample.sd`
-
-</details>
-
 ## 1.11 — The title page
 
 ```sparkdown
@@ -377,20 +277,10 @@ A block fenced by `---` lines at the top of your file holds the script's metadat
 
 > **Gotcha:** both `---` fences are required. Without them, `title:` reads as a line of dialogue spoken by a character named "title". Field values are fixed text; they cannot contain the `{...}` text inserts that arrive in Part 3.
 
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown/src/tests/runtime/FrontMatterAndCommentContext.test.ts`
-`packages/sparkdown/language/sparkdown.language-grammar.json`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/misc/frontmatter.sd`
-
-</details>
-
 ## 1.12 — What the formatter will (and won't) touch
 
 ```sparkdown
 MARA:    Hello, old friend.
-
-
 
 JONAS: You came back.
 ```
@@ -408,18 +298,5 @@ The formatter tidies every file to the same shape: the gap between a mark and it
 What it will never touch is the inside of your text. Deliberate runs of spaces within a line of narration or speech survive every save, exactly as you typed them.
 
 > **Gotcha:** the formatter's rule of thumb is marks versus content. Gaps around marks are its territory and get collapsed; whitespace inside your text is yours and is never reflowed.
-
-<details><summary>Backing fixtures</summary>
-
-`packages/sparkdown-language-server/src/tests/formatter/formatSnapshot.test.ts`
-`packages/sparkdown-language-server/src/tests/formatter/deltaFormatEquivalence.test.ts`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/misc/extra-blanks.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/blanklines/back-to-back-top-level.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/whitespace/mid-line-tabs.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/display/dialogue-pacing.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/stress/spark-tale-sample-messy.sd`
-`packages/sparkdown-language-server/src/tests/formatter/__snapshots__/format/stress/spark-tale-sample-tight.sd`
-
-</details>
 
 Next: [Part 2 — Choices and Story Flow](02-choices-and-story-flow.md), where choices learn to jump, remember, and come back together.

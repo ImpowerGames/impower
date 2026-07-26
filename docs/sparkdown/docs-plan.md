@@ -9,8 +9,9 @@ inventoried it and this section is its single home.
 
 Ground rules carried through the whole plan:
 
-- Docs never claim syntax the test suite does not back. Each published section must cite the
-  backing fixtures listed in the inventory entry it covers.
+- Docs never claim syntax the test suite does not back. Each section's backing fixtures are
+  recorded in `fixture-map.md` (a maintainer sidecar next to this plan) — published pages carry
+  no fixture paths.
 - The tutorial never compares Sparkdown to other languages (ink/Fountain/Luau) or to earlier
   Sparkdown syntax — the audience is new users of an unreleased language (maintainer ruling,
   2026-07-25). Tutorial callouts are for present-tense behavior gotchas only. The divergence
@@ -34,6 +35,7 @@ User-facing docs (will surface on a website; internal contributor docs stay in
 ```
 docs/sparkdown/
   docs-plan.md                          # this file (planning artifact, not published)
+  fixture-map.md                        # section → backing fixtures (maintainer sidecar, not published)
   tutorial/
     index.md                            # "Writing with Sparkdown" landing page + part map
     01-writing-your-first-script.md     # Part 1
@@ -682,9 +684,9 @@ subject each row concerns.
    ink, or Luau. Progressive disclosure: each part may use only concepts introduced in earlier
    parts.
 3. **Every claim is fixture-backed.** A section may only describe behavior its inventory entry
-   ties to a passing test/snapshot, and each published section ends with a collapsed
-   "Backing fixtures" list citing those paths. If the inventory marks a claim doc-only or
-   UNRESOLVED, it does not ship (see §5).
+   ties to a passing test/snapshot; the citations live in `fixture-map.md`, keyed by section —
+   never in the published page. Update the map whenever a section's claims change. If the
+   inventory marks a claim doc-only or UNRESOLVED, it does not ship (see §5).
 4. **No comparisons in the tutorial.** Never mention ink, Fountain, Luau, or earlier Sparkdown
    syntax in tutorial prose or callouts — new users have no referent for them. Comparative
    material lives only in the optional `coming-from-*` reference pages (§4 table is the source).
