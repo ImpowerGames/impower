@@ -173,6 +173,34 @@ describe("InterpreterModule text tags", () => {
       expect(render("A ~~wavy~~ word.").text).toBe("A wavy word.");
       expect(render("A ::shaky:: word.").text).toBe("A shaky word.");
     });
+
+    // An unclosed marker applies to the rest of the line rather than being
+    // treated as literal punctuation -- the author gets the emphasis they
+    // clearly meant instead of a stray marker on screen. Note this differs
+    // from unterminated `<tags>`, which DO stay on screen as literal text.
+    const unclosed: [marker: string, source: string, emphasis: string[]][] = [
+      ["*", "A *rest of line", ["italic"]],
+      ["_", "A _rest of line", ["underline"]],
+      ["**", "A **rest of line", ["bold"]],
+    ];
+
+    for (const [marker, source, emphasis] of unclosed) {
+      it(`applies an unclosed \`${marker}\` to the rest of the line`, () => {
+        const result = render(source);
+        expect(result.text).toBe("A rest of line");
+        expect(result.emphasized).toEqual([{ text: "rest of line", emphasis }]);
+      });
+    }
+
+    // "Rest of the line", not "rest of the text" -- the emphasis stops at
+    // the newline rather than bleeding into what follows.
+    it("stops an unclosed marker at the end of the line", () => {
+      const result = render("Start *emphasis\nSecond line");
+      expect(result.text).toBe("Start emphasis\nSecond line");
+      expect(result.emphasized).toEqual([
+        { text: "emphasis", emphasis: ["italic"] },
+      ]);
+    });
   });
 
   describe("control tags", () => {
@@ -205,7 +233,8 @@ describe("InterpreterModule text tags", () => {
     });
 
     // An unterminated tag is not a tag -- it stays on screen as authored,
-    // rather than silently swallowing the rest of the line.
+    // rather than silently swallowing the rest of the line. (Unterminated
+    // *emphasis markers* behave differently on purpose; see below.)
     it("keeps an unterminated tag as literal text", () => {
       expect(render("Un<speed here.").text).toBe("Un<speed here.");
     });
