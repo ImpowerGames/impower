@@ -11,10 +11,10 @@ import { Clock } from "./Clock";
  * below are written in seconds throughout; a source reporting some other unit
  * silently breaks frame limiting rather than failing loudly.
  *
- * That last point is not hypothetical -- the player currently feeds this
- * `performance.now()`, which is milliseconds. These tests pin the seconds
- * contract deliberately, so they describe what `Clock` is supposed to be
- * handed rather than what one caller happens to hand it. Tracked separately.
+ * That last point is not hypothetical: the player was handing this
+ * `performance.now()` (milliseconds) until that was corrected. These tests pin
+ * the seconds contract deliberately -- they describe what `Clock` is supposed
+ * to be handed, not what any particular caller happens to hand it.
  */
 
 const createHarness = (startSeconds = 0) => {
@@ -163,11 +163,43 @@ describe("Clock", () => {
       expect(h.ticks).toHaveLength(1);
     });
 
-    // `maxFPS = 0` is deliberately NOT covered here. It is documented as
-    // "no limit", but `1 / 0` is Infinity and nothing is ever greater than
-    // Infinity, so it currently freezes the clock completely. Asserting
-    // either way would be wrong: the current behaviour is a bug, and the
-    // documented behaviour doesn't exist yet. Tracked separately.
+    // "No limit" has to mean every frame ticks. Computing the budget as a
+    // bare `1 / maxFPS` would make it Infinity here, and nothing is greater
+    // than Infinity -- the clock would freeze instead of running unthrottled.
+    it("removes the limit at maxFPS 0", () => {
+      const h = createHarness();
+      h.clock.maxFPS = 0;
+      h.clock.start();
+      h.tick(0.0001); // far below any 60fps budget
+      expectOneTick(h.ticks, 0.0001);
+    });
+
+    it("still does not tick when no time has passed at maxFPS 0", () => {
+      const h = createHarness();
+      h.clock.maxFPS = 0;
+      h.clock.start();
+      h.frame(); // a frame with zero elapsed time
+      expect(h.ticks).toEqual([]);
+    });
+
+    it("treats a negative maxFPS as unlimited too", () => {
+      const h = createHarness();
+      h.clock.maxFPS = -1;
+      h.clock.start();
+      h.tick(0.0001);
+      expectOneTick(h.ticks, 0.0001);
+    });
+
+    it("keeps accumulating across many small frames at maxFPS 0", () => {
+      const h = createHarness();
+      h.clock.maxFPS = 0;
+      h.clock.start();
+      for (let i = 0; i < 10; i += 1) {
+        h.tick(0.001);
+      }
+      expect(h.clock.elapsedFrames).toBe(10);
+      expect(h.clock.elapsedTime).toBeCloseTo(0.01, 10);
+    });
   });
 
   describe("speed", () => {
