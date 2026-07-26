@@ -30,12 +30,12 @@ reference outline built from this inventory) and
 These could not be settled from fixtures — each needs either a new pinning
 fixture or a maintainer ruling. Details inline at the flagged entries.
 
-1. **Double-quoted string interpolation** — memory/docs claim `"..."`
-   interpolates `{expr}` (with `'...'` literal), but only the backtick form is
-   fixture-proven; `StringPatterns.test.ts` shows braces passing through
-   un-interpolated in a double-quoted string in a Luau code context. No fixture
-   covers display/flow contexts. (Note: `QuotedStringInterpolation.test.ts` on
-   `dev/reactive-sparkle-engine` likely settles this — check at merge.)
+1. **Double-quoted string interpolation** — RESOLVED by the divergence report:
+   on this branch (main-derived) `"..."` is fully literal and only backticks
+   interpolate; `dev/reactive-sparkle-engine` inverts this (`"..."` interpolates,
+   `'...'`/`[[...]]` stay literal, `\{` escapes). A semantic inversion at merge —
+   do not document quote semantics until the branch lands. Proof:
+   `QuotedStringInterpolation.test.ts` (branch) vs `lowerString` at merge-base.
 2. **`#` length on record-style tables** — `LuaArithmetic.test.ts` asserts
    array-portion-only (`#{a=1} == 0`) in code contexts; `DIVERGENCES.md` and the
    `#TIME_OF_DAY` enum-count idiom imply entry-count semantics. A context split

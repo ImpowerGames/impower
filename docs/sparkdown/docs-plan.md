@@ -14,6 +14,11 @@ Ground rules carried through the whole plan:
 - Divergences from ink / Fountain / Luau get explicit callout boxes (section 4 below).
 - Anything marked UNRESOLVED or doc-only-unverified in the inventory goes to section 5
   ("do not document yet") — the parent feature is still documented, minus the unsettled claim.
+- **Branch quarantine:** `dev/reactive-sparkle-engine` actively changes syntax. Per-area verdicts
+  (from [reactive-sparkle-divergence.md](reactive-sparkle-divergence.md)):
+  display TOUCHED · flow TOUCHED · dynamics SAFE · logic TOUCHED · functions SAFE ·
+  **world BLOCKED** · meta SAFE. Sections annotated ⛔ below must be drafted against that branch
+  (or after merge), never from main; its merge-day checklist is the update list for everything else.
 
 ---
 
@@ -41,6 +46,13 @@ docs/sparkdown/
 ```
 
 Notes:
+- **Open layout decision:** `dev/reactive-sparkle-engine` already ships an 8-page author guide at
+  `packages/sparkdown/docs/guide/` (Sparkle UI: Structure, Components, Widgets, Screens,
+  StyleProps, AnimationTheme, ...) and declares that directory the home for author docs. Before
+  drafting begins, decide whether user docs live here (`docs/sparkdown/`) with `guide/` merged in
+  at branch-merge time, or whether this effort adopts `packages/sparkdown/docs/guide/` as the
+  canonical location and this tree holds only planning artifacts. The divergence report
+  recommends building on `guide/` for the whole UI area rather than writing parallel pages.
 - Each tutorial part is self-contained (a writer can start at Part 1 and stop at any part
   boundary with a working mental model). Examples come before explanation, per the brief.
 - The two `coming-from-*` pages are optional follow-ups; the callout boxes in section 4 are the
@@ -282,7 +294,7 @@ end in advanced-tier tails a first-time writer can skip past; Parts 6-7 are adva
 **5.1 Defining characters** — Making a dialogue cue resolve to a character with a name and look.
 - Character definitions resolve dialogue cues (`define ID as character`) (01)
 
-**5.2 `define`: named data objects** — Settings bags, enums, and other named data.
+**5.2 `define`: named data objects** — Settings bags, enums, and other named data. *(Core shape is safe on both branches, but ⛔ do not document HOW code references leaf instances: the feature branch removes bare instance globals — `O.trust` becomes `companion.O.trust` — and adds an implicit `builtins.sd` prelude with deep-merge semantics. Use dialogue-cue/directive references in examples; avoid bare-global reads.)*
 - `define` blocks — named data objects (06)
 - Data-only defines as enums/settings (06)
 
@@ -292,13 +304,13 @@ end in advanced-tier tails a first-time writer can skip past; Parts 6-7 are adva
 - `instances()`, `iinstances()`, `props()` iterators (06)
 - No `class` keyword — `define` is the OOP path (06)
 
-**5.4 Stage directives: images and audio** — Show, hide, animate, play, stop.
+**5.4 Stage directives: images and audio** — Show, hide, animate, play, stop. *(Write as open-ended: the feature branch adds `[[open/close/navigate]]` lifecycle verbs, so do not claim `[[...]]` is asset-only.)*
 - Image directives `[[...]]` (show / hide / animate) (06)
 - Audio directives `((...))` (play / stop) (06)
 - Image filter chains (`~`) and the `with` animation clause (06)
 
-**5.5 UI: screens, components, and styles** — Declaring element trees and their look.
-- `screen` blocks — UI element trees (06)
+**5.5 UI: components and styles** — Reusable element trees and their look. ⛔ *(Element-tree `screen` blocks are BLOCKED: the feature branch renames them `layout` and repurposes `screen` as a navigation group — old examples would still parse but mean something else. `style` blocks and basic `component` trees are byte-identical on both branches and safe. The feature branch's `guide/` already documents the new surface — see divergence report.)*
+- `screen` blocks — UI element trees (06) ⛔ *becomes `layout` at merge; do not draft*
 - `component` blocks — reusable UI trees (06)
 - `style` blocks — CSS-like styling (06)
 
@@ -537,7 +549,7 @@ Luau", or "Gotcha").
 | 51 | `define` has no ink/Fountain/Luau equivalent; `as` means *inherits*; there is no `class` keyword (Luau RFC syntax intentionally unimplemented) | 5.2 / 5.3 |
 | 52 | Same-name defines under different types are legal and REQUIRED by the character↔synth pairing convention | 5.3 |
 | 53 | `style` bodies are Luau contexts: `--` comments work there, values are bare CSS-like tokens, and `type.name` values become theme-variable references | 5.5 |
-| 54 | Terminology caveat: this branch uses `screen` for element trees; a pending refactor renames screen→layout — docs must be re-checked when it merges | 5.5 |
+| 54 | CONFIRMED (divergence report): `dev/reactive-sparkle-engine` renames element trees `screen`→`layout NAME [as PARENT] [in SCREEN]` and repurposes `screen` as a navigation group — main's `screen` examples would silently change meaning at merge; the whole element-tree topic is ⛔ blocked | 5.5 |
 | 55 | `@ name:` writes to a UI element; `NAME:` speaks — the `@` is the distinction | 5.6 |
 | 56 | Sparkdown functions are EXPRESSION-ONLY: no narrative text, choices, diverts, or threads inside bodies (ink knot-functions can emit text). Use `print()`, returned strings, or parameterized scenes/tunnels instead | 6.1 |
 | 57 | Top-level content after the first `function` declaration is unreachable — put main-flow content first | 6.1 |
@@ -592,8 +604,9 @@ Luau", or "Gotcha").
   (ink's `TURNS_SINCE(x)` via param) — not yet supported (from *count.turns*, 06).
 - The `-> fn` first-class-function annotation hinted by a filtered warning — syntax undocumented
   anywhere; do not mention.
-- Regex literal sigil `@/re/flags` — exists only in project memory, no fixture in the inventory;
-  keep out until sourced.
+- Regex literal sigil `@/re/flags` — confirmed branch-only (zero trace at merge-base; added on
+  `dev/reactive-sparkle-engine` with a mandatory `@` sigil and raw body). Today's documentable
+  convention is a quoted `'/pattern/flags'` string; add the literal at merge.
 - Sparkle/reactive-UI syntax beyond `screen`/`component`/`style` — absent from this inventory.
 - Pure stdlib calls do not spread tuple arguments (`math.max(math.modf(x))`) — known gap;
   mention only as a caveat inside §6.4 if at all.
@@ -604,8 +617,11 @@ Luau", or "Gotcha").
   array-portion-only; DIVERGENCES.md and a formatter fixture imply entry-count. Document `#` for
   arrays/strings only.
 - **Whether `"..."` double-quoted strings interpolate `{expr}`** (04 *String literals*, 05
-  *String literal forms*): only backtick interpolation is fixture-proven; a code-context fixture
-  shows braces passing through un-interpolated. Document backtick interpolation only.
+  *String literal forms*): RESOLVED by the divergence report — on main, `"..."` is fully literal
+  and only backticks interpolate; `dev/reactive-sparkle-engine` inverts this (`"..."` interpolates,
+  `'...'`/`[[...]]` are the literal escape hatches, `\{` escapes a brace, plus new malformed-`{}`
+  diagnostics). Because the semantics flip at merge, ⛔ do not draft the quote-semantics section
+  at all until the branch lands; document backtick interpolation only.
 - **`count` as a reserved identifier** (05 *Visit counts... `count.*`*): STDLIB.md says reserved,
   FUNCTIONS.md uses it as a parameter name. Avoid using `count` as an identifier in examples;
   make no reservation claim.
