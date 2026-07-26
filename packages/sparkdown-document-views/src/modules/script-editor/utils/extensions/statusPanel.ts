@@ -513,9 +513,16 @@ const statusPanelTheme = EditorView.baseTheme({
     color: EDITOR_COLORS.statusLabel,
     backgroundColor: EDITOR_COLORS.panel,
     display: "flex",
+    // Every flex row in this panel states its direction explicitly rather than
+    // leaning on the browser's `row` default. Hosts are free to normalize
+    // `flex-direction` across a subtree — spark-editor forces `column` on all
+    // descendants of the editor root — and a direction-less flex container
+    // silently stacks when they do.
+    flexDirection: "row",
     justifyContent: "space-between",
     "& .cm-diagnosticContext": {
       display: "flex",
+      flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       overflow: "hidden",
@@ -539,6 +546,7 @@ const statusPanelTheme = EditorView.baseTheme({
       fontSize: "14px",
       textAlign: "center",
       display: "flex",
+      flexDirection: "row",
       alignItems: "center",
       gap: "4px",
       position: "relative",
@@ -552,6 +560,7 @@ const statusPanelTheme = EditorView.baseTheme({
       fontSize: "14px",
       textAlign: "center",
       display: "flex",
+      flexDirection: "row",
       alignItems: "center",
       gap: "4px",
       position: "relative",
@@ -593,12 +602,21 @@ const statusPanelTheme = EditorView.baseTheme({
     padding: "1px 8px",
     fontSize: "14px",
     display: "flex",
+    flexDirection: "row",
     alignItems: "center",
     gap: "4px",
     position: "relative",
+    // Same reason as the explicit directions above: hosts may normalize
+    // `flex-shrink` across the subtree (spark-editor sets `0` globally), which
+    // stops a long diagnostic message from ever giving ground and pushes the
+    // prev/next navigation outside the bar's `overflow: hidden`. Shrinking is
+    // what lets `.cm-activeDiagnosticMessage` ellipsize instead.
+    flexShrink: 1,
+    minWidth: 0,
   },
   "& .cm-diagnosticNavigation": {
     display: "flex",
+    flexDirection: "row",
   },
   "& .cm-activeDiagnosticMessage": {
     whiteSpace: "nowrap",
