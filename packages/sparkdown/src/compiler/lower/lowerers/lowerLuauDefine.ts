@@ -27,6 +27,7 @@ import {
 } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
+import { stampDebugMetadata } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
@@ -569,6 +570,17 @@ function readPropertyDefinition(
   // expressions) instead of re-deriving the RHS by string-scanning for `=`.
   const valueNode = findAssignmentValueNode(opNode);
   const rawValue = valueNode ? ctx.read(valueNode.from, opNode!.to) : "";
+
+  // Anchor the property's value expression to its source range. Diagnostics
+  // raised from inside it (notably `Cannot find variable named \`x\`` from
+  // VariableReference) report themselves as the source, and ParsedObject's
+  // debugMetadata getter walks the parent chain -- so stamping the top-level
+  // expression is enough to give every nested node a location. Without this
+  // the compiler's diagnostic callback falls back to the ENTRY document at
+  // 0:0, piling every such warning invisibly at the top of the wrong file.
+  if (valueNode && opNode) {
+    stampDebugMetadata([expr], valueNode.from, opNode.to, ctx);
+  }
 
   // Modifiers live in the property's begin captures, OUTSIDE the
   // variable assignment.
