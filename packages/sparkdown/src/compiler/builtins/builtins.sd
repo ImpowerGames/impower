@@ -1239,8 +1239,7 @@ style image with
     background_size = auto 100%
     will_change = transform
     min_width = 100%
-    width = fit-content
-    translate = calc(0.5 * (100cqw - 100%)) 0
+      translate = calc(0.5 * (100cqw - 100%)) 0
 end
 
 style object with
@@ -1360,15 +1359,15 @@ style button with
   corner = 0.25rem
   border-width = 0.0625rem
   border-style = solid
-  border-color = sky_60
-  background-color = sky_60
+  border-color = sky_40
+  background-color = sky_40
   text-color = white
-  text-weight = 500
+  text-weight = 400
   cursor = pointer
   transition = all 0.2s ease-in-out
   @hovered:
-    background-color = sky_70
-    border-color = sky_70
+    background-color = sky_50
+    border-color = sky_50
   -- Variants as COMPOUND selectors (`&.secondary`), so they compose: `outline`
   -- combined with a colour variant takes that variant's colour. A CSS custom
   -- property would be the other way to do this, but `--name = …` is not
@@ -1380,12 +1379,12 @@ style button with
       background-color = slate_60
       border-color = slate_60
   &.contrast:
-    background-color = slate_90
-    border-color = slate_90
-    text-color = slate_20
+    background-color = slate_95
+    border-color = slate_95
+    text-color = black
     @hovered:
-      background-color = slate_80
-      border-color = slate_80
+      background-color = white
+      border-color = white
   &.outline:
     background-color = transparent
     text-color = sky_60
@@ -1395,17 +1394,17 @@ style button with
       text-color = sky_70
       border-color = sky_70
   &.outline.secondary:
-    text-color = slate_50
-    border-color = slate_50
+    text-color = slate_70
+    border-color = slate_70
     @hovered:
-      text-color = slate_60
-      border-color = slate_60
+      text-color = slate_80
+      border-color = slate_80
   &.outline.contrast:
     text-color = slate_90
     border-color = slate_90
     @hovered:
-      text-color = slate_80
-      border-color = slate_80
+      text-color = white
+      border-color = white
   @focused:
     shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
   -- Busy state: `button "Save" #aria-busy={saving}` grows a spinner, matching
@@ -1440,17 +1439,37 @@ style field with
   background-color = slate_30
   text-color = slate_90
   transition = all 0.2s ease-in-out
+  @placeholder:
+    text-color = slate_70
   @focused:
-    border-color = sky_60
-    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+    border-color = sky_40
+    shadow = 0 0 0 0.0625rem var(--theme-color-sky_40)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
 end
 
 style checkbox with
   pointer_events = auto
+  appearance = none
   width = 1.25rem
   height = 1.25rem
+  corner = 0.25rem
+  border-width = 0.125rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
   cursor = pointer
-  accent-color = sky_60
+  transition = all 0.2s ease-in-out
+  @checked:
+    background-color = sky_40
+    border-color = sky_40
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+    background-position = center
+    background-size = 0.75rem auto
+    background-repeat = no-repeat
+  @focused:
+    shadow = 0 0 0 0.125rem var(--theme-color-sky_40)
 end
 
 -- `input` is the generic form control (`input #type="email|search|date|…"`).
@@ -1459,6 +1478,7 @@ end
 -- browser's white default while `field` next to it was dark.
 style input with
   pointer_events = auto
+  width = 100%
   padding = 0.75rem 1rem
   corner = 0.25rem
   border-width = 0.0625rem
@@ -1466,19 +1486,36 @@ style input with
   border-color = slate_40
   background-color = slate_30
   text-color = slate_90
-  accent-color = sky_60
   transition = all 0.2s ease-in-out
+  accent-color = sky_60
+  @placeholder:
+    text-color = slate_70
   @focused:
-    border-color = sky_60
-    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+    border-color = sky_40
+    shadow = 0 0 0 0.0625rem var(--theme-color-sky_40)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
 end
 
 style radio with
   pointer_events = auto
+  appearance = none
   width = 1.25rem
   height = 1.25rem
+  corner = 50%
+  border-width = 0.125rem
+  border-style = solid
+  border-color = slate_40
+  background-color = slate_30
   cursor = pointer
-  accent-color = sky_60
+  transition = all 0.2s ease-in-out
+  @checked:
+    border-width = 0.35rem
+    border-color = sky_40
+    background-color = white
+  @focused:
+    shadow = 0 0 0 0.125rem var(--theme-color-sky_40)
 end
 
 -- A `switch` is a checkbox carrying role="switch". Pico draws it as a pill
@@ -1490,9 +1527,9 @@ style switch with
   appearance = none
   width = 2.25rem
   height = 1.25rem
-  corner = 0.625rem
+  corner = 1.25rem
   background-color = slate_40
-  border-width = 0.0625rem
+  border-width = 0.1875rem
   border-style = solid
   border-color = slate_40
   cursor = pointer
@@ -1501,20 +1538,20 @@ style switch with
   @before:
     content = ""
     position = absolute
-    top = 0.125rem
-    left = 0.125rem
+    top = 0
+    left = 0
     width = 0.875rem
     height = 0.875rem
     corner = 50%
     background-color = white
     transition = transform 0.2s ease-in-out
   @checked:
-    background-color = sky_60
-    border-color = sky_60
+    background-color = sky_40
+    border-color = slate_40
     @before:
       transform = translateX(1rem)
   @focused:
-    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+    shadow = 0 0 0 0.125rem var(--theme-color-sky_40)
 end
 
 style textarea with
@@ -1527,9 +1564,15 @@ style textarea with
   background-color = slate_30
   text-color = slate_90
   transition = all 0.2s ease-in-out
+  resize = vertical
+  @placeholder:
+    text-color = slate_70
   @focused:
-    border-color = sky_60
-    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+    border-color = sky_40
+    shadow = 0 0 0 0.0625rem var(--theme-color-sky_40)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
 end
 
 style slider with
@@ -1537,12 +1580,16 @@ style slider with
   -- Fills its field like every other form control; a fixed 200px made it the
   -- one control that did not line up with the inputs above and below it.
   width = 100%
-  cursor = pointer
+  height = 1.25rem
+  corner = 0.25rem
+  background-color = transparent
+  cursor = default
   accent-color = sky_60
 end
 
 style link with
   pointer_events = auto
+  align-self = start
   display = inline-block
   text-color = sky_60
   text-decoration = underline
@@ -1551,35 +1598,44 @@ style link with
   @hovered:
     text-color = sky_70
   &.secondary:
-    text-color = slate_50
+    text-color = slate_70
     @hovered:
-      text-color = slate_60
+      text-color = slate_80
   &.contrast:
     text-color = slate_90
     @hovered:
-      text-color = slate_80
+      text-color = white
 end
 
 style dropdown with
   pointer_events = auto
+  appearance = none
   padding = 0.75rem 1rem
+  padding-right = 2.5rem
   corner = 0.25rem
   border-width = 0.0625rem
   border-style = solid
   border-color = slate_40
   background-color = slate_30
   text-color = slate_90
-  cursor = pointer
+  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+  background-position = center right 0.75rem
+  background-size = 1rem auto
+  background-repeat = no-repeat
+  cursor = default
   transition = all 0.2s ease-in-out
+  @invalid:
+    text-color = slate_70
   @focused:
-    border-color = sky_60
-    shadow = 0 0 0 0.125rem rgb(14 165 233 / 37.5%)
+    border-color = sky_40
+    shadow = 0 0 0 0.0625rem var(--theme-color-sky_40)
+  @disabled:
+    opacity = 0.5
+    cursor = not-allowed
 end
 
 style option with
   pointer_events = auto
-  background-color = slate_30
-  text-color = slate_90
 end
 
 -- Pico UI component classes ------------------------------------------------
@@ -1588,32 +1644,40 @@ style h1 with
   text-size = 2rem
   text-weight = 700
   text-leading = 1.125
+  text-color = slate_95
 end
 
 style h2 with
+  text-size = 1.75rem
+  text-weight = 700
+  text-leading = 1.15
+  text-color = slate_90
+end
+
+style h3 with
   text-size = 1.5rem
+  text-weight = 700
+  text-leading = 1.175
+end
+
+style h4 with
+  text-size = 1.25rem
   text-weight = 700
   text-leading = 1.2
 end
 
-style h3 with
-  text-size = 1.25rem
-  text-weight = 700
-end
-
-style h4 with
+style h5 with
   text-size = 1.125rem
   text-weight = 700
-end
-
-style h5 with
-  text-size = 1rem
-  text-weight = 700
+  text-leading = 1.225
+  text-color = slate_70
 end
 
 style h6 with
-  text-size = 0.875rem
+  text-size = 1rem
   text-weight = 700
+  text-leading = 1.25
+  text-color = slate_70
 end
 
 style muted with
@@ -1622,7 +1686,6 @@ end
 
 style small with
   text-size = 0.875rem
-  text-color = slate_70
 end
 
 style container with
@@ -1688,10 +1751,10 @@ style key with
   display = inline-block
   justify-self = start
   align-self = start
-  width = fit-content
   font-family = ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace
   text-size = 0.875rem
-  background-color = slate_90
+  text-weight = 700
+  background-color = slate_80
   text-color = slate_20
   corner = 0.25rem
   padding = 0.375rem
@@ -1701,7 +1764,6 @@ style highlight with
   display = inline-block
   justify-self = start
   align-self = start
-  width = fit-content
   background-color = sky_20
   text-color = white
   padding = 0.125rem 0.25rem
@@ -1709,11 +1771,11 @@ end
 
 style deleted with
   text-decoration = line-through
-  text-color = red_60
+  text-color = #ce7e7b
 end
 
 style inserted with
-  text-color = emerald_50
+  text-color = #62af9a
 end
 
 style abbreviation with
@@ -1722,7 +1784,6 @@ style abbreviation with
   display = inline-block
   justify-self = start
   align-self = start
-  width = fit-content
   border-bottom-width = 0.0625rem
   border-bottom-style = dotted
   cursor = help
@@ -1744,7 +1805,6 @@ end
 style citation with
   text-style = italic
   text-color = slate_60
-  text-size = 0.875rem
 end
 
 style quote with
@@ -1752,10 +1812,10 @@ style quote with
   child-layout = column
   child-gap = 0.5rem
   margin = 1rem 0
-  padding = 0.75rem 1.25rem
+  padding = 1rem
   border-left-width = 0.25rem
   border-left-style = solid
-  border-left-color = slate_40
+  border-left-color = slate_30
 end
 
 -- Lists ---------------------------------------------------------------------
@@ -1778,7 +1838,6 @@ end
 
 style item with
   display = list-item
-  text-color = slate_90
   margin-bottom = 0.25rem
 end
 
@@ -1789,6 +1848,12 @@ end
 -- layout at all (columns stop aligning across rows).
 style table_header with
   display = table-header-group
+  >> header_cell:
+    text-weight = 600
+    border-bottom-width = 0.1875rem
+  >> cell:
+    text-weight = 600
+    border-bottom-width = 0.1875rem
 end
 
 style table_body with
@@ -1813,21 +1878,19 @@ end
 
 style header_cell with
   display = table-cell
-  padding = 0.75rem 1rem
-  text-weight = 600
-  text-color = slate_90
-  border-bottom-width = 0.125rem
+  text-weight = 400
+  padding = 0.5rem 1rem
+  border-bottom-width = 0.0625rem
   border-bottom-style = solid
-  border-bottom-color = slate_40
+  border-bottom-color = slate_30
 end
 
 style cell with
   display = table-cell
-  padding = 0.75rem 1rem
-  text-color = slate_90
+  padding = 0.5rem 1rem
   border-bottom-width = 0.0625rem
   border-bottom-style = solid
-  border-bottom-color = slate_40
+  border-bottom-color = slate_30
 end
 
 -- `table striped` tints alternate BODY rows. `@odd` is the nth-child alias, so
@@ -1835,7 +1898,7 @@ end
 style striped with
   > table_body:
     > @odd:
-      background-color = slate_20
+      background-color = rgb(111 120 135 / 3.75%)
 end
 
 -- A captioned figure. The overlay forces every element to flex, so the
@@ -1843,13 +1906,21 @@ end
 style figure with
   display = flex
   child-layout = column
-  child-gap = 0.5rem
+  child-align = start
   margin = 0
 end
 
+style picture with
+  display = block
+  align-self = start
+  width-max = 100%
+  height = auto
+  border-style = none
+end
+
 style caption with
-  text-size = 0.875rem
-  text-color = slate_70
+  padding = 0.5rem 0
+  text-color = slate_60
 end
 
 -- `menu` is a `disclosure` styled as a nav dropdown — Pico names the class
@@ -1878,15 +1949,37 @@ style menu with
   &@opened:
     > list:
       display = flex
+  -- Pico's nav summary-button is tighter than a standalone one; scoping it here
+  -- (0,3,0) keeps the generic variant at Pico's real 0.75rem 1rem.
+  > disclosure_label.secondary:
+    padding = 0.375rem 0.5rem
+  -- Items in the panel are plain rows, not links: body colour, no underline,
+  -- and the whole row highlights on hover.
+  >> item:
+    padding = 0.375rem 1rem
+    list-style = none
+  >> link:
+    display = block
+    width = 100%
+    align-self = stretch
+    padding = 0.375rem 1rem
+    margin = -0.375rem -1rem
+    corner = 0
+    text-color = slate_80
+    text-decoration = none
+    @hovered:
+      background-color = slate_40
+      text-color = slate_90
 end
 
 -- Pico marks a search field with an inline magnifier and indents the text
 -- past it, so the field reads as a search box before it is focused.
 style search with
-  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237b8495' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")
+  corner = 5rem
+  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E")
   background-repeat = no-repeat
-  background-position = left 1rem center
-  background-size = 1rem
+  background-position = left 1.125rem center
+  background-size = 1rem auto
   padding-left = 2.75rem
 end
 
@@ -1894,9 +1987,11 @@ end
 -- other `input` types get would be a box around a box. Pico leaves it bare.
 style file_input with
   background-color = transparent
+  border-style = none
   border-width = 0
+  corner = 0
   padding = 0.375rem 0 0.375rem 0.125rem
-  text-color = slate_70
+  text-color = slate_60
 end
 
 -- A horizontal scroll box for a table too wide for its container. The overlay
@@ -1916,27 +2011,25 @@ style article with
   child-layout = column
   child-gap = 1rem
   background-color = slate_30
-  corner = 0.5rem
-  padding = 1.5rem
-  margin = 1rem 0
+  corner = 0.25rem
+  padding = 1rem
+  margin = 0
   > header:
-    margin = -1.5rem -1.5rem 0
-    padding = 1rem 1.5rem
-    background-color = slate_20
+    margin = -1rem -1rem 0
+    padding = 0.66rem 1rem
     border-bottom-width = 0.0625rem
     border-bottom-style = solid
-    border-bottom-color = slate_40
-    corner-top-left = 0.5rem
-    corner-top-right = 0.5rem
+    border-bottom-color = slate_20
+    corner-top-left = 0.25rem
+    corner-top-right = 0.25rem
   > footer:
-    margin = 0 -1.5rem -1.5rem
-    padding = 1rem 1.5rem
-    background-color = slate_20
+    margin = 0 -1rem -1rem
+    padding = 0.66rem 1rem
     border-top-width = 0.0625rem
     border-top-style = solid
-    border-top-color = slate_40
-    corner-bottom-left = 0.5rem
-    corner-bottom-right = 0.5rem
+    border-top-color = slate_20
+    corner-bottom-left = 0.25rem
+    corner-bottom-right = 0.25rem
   -- An `article #aria-busy=true` with no children is Pico's block-level
   -- loading placeholder: just a centred spinner.
   @busy:
@@ -1968,8 +2061,6 @@ style footer with
   display = flex
   child-layout = column
   child-gap = 0.5rem
-  text-color = slate_60
-  text-size = 0.875rem
 end
 
 style section with
@@ -1996,50 +2087,67 @@ end
 
 style group_label with
   text-weight = 600
-  padding-bottom = 0.5rem
+  padding = 0
 end
 
 -- Accordion: a native <details>/<summary> disclosure.
-style disclosure with
-  display = block
-  border-bottom-width = 0.0625rem
-  border-bottom-style = solid
-  border-bottom-color = slate_40
-  padding = 0.75rem 0
-end
-
 style disclosure_label with
   pointer_events = auto
   display = list-item
+  list-style = none
   cursor = pointer
-  text-weight = 600
-  text-color = slate_90
+  text-weight = 400
+  @after:
+    content = ""
+    display = block
+    width = 1rem
+    height = 1rem
+    float = right
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    background-position = right center
+    background-size = 1rem auto
+    background-repeat = no-repeat
+    transform = rotate(-90deg)
+    transition = transform 0.2s ease-in-out
   -- A summary marked up as a button (`#role="button"`) takes the button
   -- variants, exactly as Pico styles `summary[role="button"]`. The variants are
   -- compound selectors here for the same reason they are on `button`:
   -- `secondary` carries no styling of its own, each element says what it means.
-  -- The native disclosure triangle is dropped for a trailing caret, so the
-  -- affordance sits where a menu button's belongs.
   &.secondary:
-    display = flex
-    child-layout = row
-    child-align = center
-    list-style = none
-    padding = 0.5rem 0.75rem
+    padding = 0.75rem 1rem
     corner = 0.25rem
     border-width = 0.0625rem
     border-style = solid
     background-color = slate_50
     border-color = slate_50
     text-color = white
-    text-weight = 500
+    text-weight = 400
     transition = all 0.2s ease-in-out
     @after:
-      content = "▾"
       margin-left = 0.5rem
+      -- The base rule points the caret sideways for an accordion; a menu
+      -- button's caret points DOWN, so the rotation must be undone here.
+      transform = rotate(0)
+      -- White chevron, to read against the filled button.
+      background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
     @hovered:
       background-color = slate_60
       border-color = slate_60
+end
+style disclosure with
+  display = block
+  &@opened:
+    > disclosure_label:
+      text-color = slate_60
+      margin-bottom = 1rem
+      @after:
+        transform = rotate(0)
+      -- A summary styled as a BUTTON keeps its own colour and needs no gap to
+      -- the panel it opens; Pico likewise excludes `[role]` from its
+      -- open-summary rule.
+      &.secondary:
+        text-color = white
+        margin-bottom = 0
 end
 
 -- Modal: authored as `modal`, rendering a native <dialog>, opened
@@ -2151,7 +2259,9 @@ style progress with
   height = 0.5rem
   corner = 0.25rem
   background-color = slate_30
-  accent-color = sky_60
+  accent-color = sky_40
+  text-color = sky_40
+  border-style = none
   border-width = 0
 end
 
@@ -2164,7 +2274,6 @@ end
 style label with
   pointer_events = auto
   text-weight = 400
-  text-color = slate_90
   margin-bottom = 0.375rem
 end
 
@@ -2174,11 +2283,27 @@ style hint with
 end
 
 style invalid with
-  border-color = red_60
+  border-color = #964a50
+  padding-right = 2.5rem
+  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ce7e7b' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E")
+  background-position = center right 0.75rem
+  background-size = 1rem auto
+  background-repeat = no-repeat
+  @focused:
+    border-color = #964a50
+    shadow = 0 0 0 0.0625rem #ce7e7b
 end
 
 style valid with
-  border-color = green_60
+  border-color = #2a7b6f
+  padding-right = 2.5rem
+  background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2362af9a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+  background-position = center right 0.75rem
+  background-size = 1rem auto
+  background-repeat = no-repeat
+  @focused:
+    border-color = #2a7b6f
+    shadow = 0 0 0 0.0625rem #62af9a
 end
 
 style textbox with

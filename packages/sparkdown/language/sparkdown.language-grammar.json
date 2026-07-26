@@ -13470,7 +13470,7 @@
       "match": "(</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)(\"[^\"]*\"|[^>]*))?(>)",
       "captures": {
         "1": {
-          "tag": "punctuation",
+          "tag": "keyword",
           "name": "punctuation.definition.tag.begin.sd"
         },
         "2": {
@@ -13491,7 +13491,7 @@
           ]
         },
         "5": {
-          "tag": "punctuation",
+          "tag": "keyword",
           "name": "punctuation.definition.tag.end.sd"
         }
       }
@@ -13500,7 +13500,7 @@
       "match": "(</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)(\"[^\"]*\"|[^>]*))?(>)",
       "captures": {
         "1": {
-          "tag": "punctuation",
+          "tag": "invalid",
           "name": "punctuation.definition.tag.begin.sd"
         },
         "2": {
@@ -13521,7 +13521,7 @@
           ]
         },
         "5": {
-          "tag": "punctuation",
+          "tag": "invalid",
           "name": "punctuation.definition.tag.end.sd"
         }
       }
