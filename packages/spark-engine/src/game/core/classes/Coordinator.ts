@@ -132,11 +132,12 @@ export class Coordinator<G extends Game> {
     // Player clicked to advance
     if (this._interacted) {
       this._interacted = false;
-      if (this._finishedExecution) {
+      // Only consume the finished state on the path that actually advances --
+      // while waiting on a choice the interaction is ignored, so it must leave
+      // the beat's finished state alone.
+      if (this._finishedExecution && !waitingForChoice) {
         this._finishedExecution = false;
-        if (!waitingForChoice) {
-          return 2;
-        }
+        return 2;
       }
       if (this._startedExecution && !waitingForChoice) {
         this.display({ instant: true });
