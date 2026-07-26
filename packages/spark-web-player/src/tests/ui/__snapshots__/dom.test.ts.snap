@@ -1164,6 +1164,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -1188,8 +1244,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -1308,62 +1384,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;
@@ -2924,6 +2944,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -2948,8 +3024,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -3068,62 +3164,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;
@@ -4646,6 +4686,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -4670,8 +4766,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -4790,62 +4906,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;
@@ -6490,6 +6550,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -6514,8 +6630,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -6634,62 +6770,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;
@@ -8193,6 +8273,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -8217,8 +8353,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -8337,62 +8493,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;
@@ -9878,6 +9978,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -9902,8 +10058,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -10022,62 +10198,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;
@@ -11613,6 +11733,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -11637,8 +11813,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -11757,62 +11953,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;
@@ -13315,6 +13455,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -13339,8 +13535,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -13459,62 +13675,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;
@@ -15017,6 +15177,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -15041,8 +15257,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -15161,62 +15397,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;
@@ -16719,6 +16899,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -16743,8 +16979,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -16863,62 +17119,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;
@@ -18421,6 +18621,62 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .foldout_label {
+  pointer-events: auto;
+  display: list-item;
+  list-style: none;
+  cursor: pointer;
+  font-weight: 400;
+  &::after {
+    content: "";
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    float: right;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-position: right center;
+    background-size: 1rem auto;
+    background-repeat: no-repeat;
+    transform: rotate(-90deg);
+    transition: transform 0.2s ease-in-out;
+  }
+  &.secondary {
+    padding: 0.75rem 1rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
+  }
+}
+spark-web-player #game .foldout {
+  display: block;
+  &[open] {
+    >.foldout_label {
+      color: var(--theme-color-slate_60);
+      margin-bottom: 1rem;
+      &::after {
+        transform: rotate(0);
+      }
+      &.secondary {
+        color: white;
+        margin-bottom: 0px;
+      }
+    }
+  }
+}
 spark-web-player #game .menu {
   position: relative;
   >.list {
@@ -18445,8 +18701,28 @@ spark-web-player #game .menu {
       display: flex;
     }
   }
-  >.foldout_label.secondary {
+  >.foldout_label {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    border-width: 0.0625rem;
+    border-style: solid;
+    background-color: var(--theme-color-slate_50);
+    border-color: var(--theme-color-slate_50);
+    color: white;
+    font-weight: 400;
+    transition: all 0.2s ease-in-out;
+    &::after {
+      margin-left: 0.5rem;
+      transform: rotate(0);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    }
+    &:hover, &:active, &:focus {
+      background-color: var(--theme-color-slate_60);
+      border-color: var(--theme-color-slate_60);
+    }
   }
   .item {
     padding: 0.375rem 1rem;
@@ -18565,62 +18841,6 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
-}
-spark-web-player #game .foldout_label {
-  pointer-events: auto;
-  display: list-item;
-  list-style: none;
-  cursor: pointer;
-  font-weight: 400;
-  &::after {
-    content: "";
-    display: block;
-    width: 1rem;
-    height: 1rem;
-    float: right;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    background-position: right center;
-    background-size: 1rem auto;
-    background-repeat: no-repeat;
-    transform: rotate(-90deg);
-    transition: transform 0.2s ease-in-out;
-  }
-  &.secondary {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    border-width: 0.0625rem;
-    border-style: solid;
-    background-color: var(--theme-color-slate_50);
-    border-color: var(--theme-color-slate_50);
-    color: white;
-    font-weight: 400;
-    transition: all 0.2s ease-in-out;
-    &::after {
-      margin-left: 0.5rem;
-      transform: rotate(0);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
-    }
-    &:hover, &:active, &:focus {
-      background-color: var(--theme-color-slate_60);
-      border-color: var(--theme-color-slate_60);
-    }
-  }
-}
-spark-web-player #game .foldout {
-  display: block;
-  &[open] {
-    >.foldout_label {
-      color: var(--theme-color-slate_60);
-      margin-bottom: 1rem;
-      &::after {
-        transform: rotate(0);
-      }
-      &.secondary {
-        color: white;
-        margin-bottom: 0px;
-      }
-    }
-  }
 }
 spark-web-player #game .modal {
   display: none;

@@ -2137,8 +2137,28 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                       "display": "flex",
                     },
                   },
-                  "> foldout_label.secondary": {
+                  "> foldout_label": {
+                    "@after": {
+                      "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")",
+                      "margin-left": "0.5rem",
+                      "transform": "rotate(0)",
+                    },
+                    "@hovered, @pressed, @focused": {
+                      "background-color": "slate_60",
+                      "border-color": "slate_60",
+                    },
+                    "background-color": "slate_50",
+                    "border-color": "slate_50",
+                    "border-style": "solid",
+                    "border-width": "0.0625rem",
+                    "child-align": "center",
+                    "child-layout": "row",
+                    "corner": "0.25rem",
+                    "display": "flex",
                     "padding": "0.375rem 0.5rem",
+                    "text-color": "white",
+                    "text-weight": "400",
+                    "transition": "all 0.2s ease-in-out",
                   },
                   "> list": {
                     "background-color": "slate_30",

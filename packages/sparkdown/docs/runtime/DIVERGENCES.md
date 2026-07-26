@@ -657,6 +657,35 @@ These don't exist in stock Luau:
 
 ---
 
+## Known divergence: root font-size is fixed, Pico's is responsive
+
+The Pico showcase (`docs/sparkle/pico-showcase.sd`) is matched against the
+reference page property by property, with one deliberate exception: **our root
+font-size is a fixed 16px, Pico's scales with the viewport**
+(100% / 106.25% / 112.5% / 118.75% / 125% / 131.25% at its breakpoints). At the
+width the showcase is compared at, Pico resolves to 18px.
+
+Everything in the sheet is `rem`, so this is a uniform 12.5% difference in TEXT
+and in every rem-derived padding, corner and border — not a difference in any
+individual rule. Measuring with the root temporarily forced to 18px collapses
+the residual difference list to ~30 items, of which most are artifacts of how
+the two pages nest (see the commit that introduced the measurement rig), which
+is the evidence that the rest of the port is faithful.
+
+It is left as a divergence on purpose. Matching it means an `html`-level
+responsive rule, and because our stylesheet is injected into the document
+hosting `<spark-web-player>`, that would rescale type in EVERY game — a product
+decision, not a showcase one. If it is ever wanted, it is one rule mirroring
+Pico's breakpoints, and it is trivially revertible.
+
+**Do not try to fix this by setting a font-size on a container.** `rem` resolves
+against the document root, never against an ancestor, so a container-level size
+scales only text that INHERITS it. Headings (`h1: 2rem` … `h6: 1rem`) and every
+rem padding would stay pinned to the 16px root, and the type scale would break
+rather than match.
+
+---
+
 ## Runtime / serialization quirks
 
 These don't affect the source language but can surprise anyone inspecting the

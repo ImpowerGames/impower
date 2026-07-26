@@ -1923,6 +1923,66 @@ style caption with
   text-color = slate_60
 end
 
+-- Foldout: a native <details>/<summary> disclosure. One foldout; an
+-- "accordion" is a GROUP of these, which is why the element is not named that.
+style foldout_label with
+  pointer_events = auto
+  display = list-item
+  list-style = none
+  cursor = pointer
+  text-weight = 400
+  @after:
+    content = ""
+    display = block
+    width = 1rem
+    height = 1rem
+    float = right
+    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    background-position = right center
+    background-size = 1rem auto
+    background-repeat = no-repeat
+    transform = rotate(-90deg)
+    transition = transform 0.2s ease-in-out
+  -- A summary marked up as a button (`#role="button"`) takes the button
+  -- variants, exactly as Pico styles `summary[role="button"]`. The variants are
+  -- compound selectors here for the same reason they are on `button`:
+  -- `secondary` carries no styling of its own, each element says what it means.
+  &.secondary:
+    padding = 0.75rem 1rem
+    corner = 0.25rem
+    border-width = 0.0625rem
+    border-style = solid
+    background-color = slate_50
+    border-color = slate_50
+    text-color = white
+    text-weight = 400
+    transition = all 0.2s ease-in-out
+    @after:
+      margin-left = 0.5rem
+      -- The base rule points the caret sideways for a foldout; a menu
+      -- button's caret points DOWN, so the rotation must be undone here.
+      transform = rotate(0)
+      -- White chevron, to read against the filled button.
+      background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    @hovered, @pressed, @focused:
+      background-color = slate_60
+      border-color = slate_60
+end
+style foldout with
+  display = block
+  &@opened:
+    > foldout_label:
+      text-color = slate_60
+      margin-bottom = 1rem
+      @after:
+        transform = rotate(0)
+      -- A summary styled as a BUTTON keeps its own colour and needs no gap to
+      -- the panel it opens; Pico likewise excludes `[role]` from its
+      -- open-summary rule.
+      &.secondary:
+        text-color = white
+        margin-bottom = 0
+end
 -- `menu` is a `foldout` styled as a nav dropdown — Pico names the class
 -- `dropdown`, but here that word is already the <select> ELEMENT. The panel is
 -- absolutely positioned so opening it does not reflow the nav.
@@ -1949,10 +2009,29 @@ style menu with
   &@opened:
     > list:
       display = flex
-  -- Pico's nav summary-button is tighter than a standalone one; scoping it here
-  -- (0,3,0) keeps the generic variant at Pico's real 0.75rem 1rem.
-  > foldout_label.secondary:
+  -- A menu's trigger IS a button, and the label is synthesised from the
+  -- foldout's own content — so it carries only `foldout_label`, never a
+  -- variant class the author wrote on the foldout. Style it from here.
+  > foldout_label:
+    display = flex
+    child-layout = row
+    child-align = center
     padding = 0.375rem 0.5rem
+    corner = 0.25rem
+    border-width = 0.0625rem
+    border-style = solid
+    background-color = slate_50
+    border-color = slate_50
+    text-color = white
+    text-weight = 400
+    transition = all 0.2s ease-in-out
+    @after:
+      margin-left = 0.5rem
+      transform = rotate(0)
+      background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    @hovered, @pressed, @focused:
+      background-color = slate_60
+      border-color = slate_60
   -- Items in the panel are plain rows, not links: body colour, no underline,
   -- and the whole row highlights on hover.
   >> item:
@@ -2090,66 +2169,6 @@ style group_label with
   padding = 0
 end
 
--- Foldout: a native <details>/<summary> disclosure. One foldout; an
--- "accordion" is a GROUP of these, which is why the element is not named that.
-style foldout_label with
-  pointer_events = auto
-  display = list-item
-  list-style = none
-  cursor = pointer
-  text-weight = 400
-  @after:
-    content = ""
-    display = block
-    width = 1rem
-    height = 1rem
-    float = right
-    background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
-    background-position = right center
-    background-size = 1rem auto
-    background-repeat = no-repeat
-    transform = rotate(-90deg)
-    transition = transform 0.2s ease-in-out
-  -- A summary marked up as a button (`#role="button"`) takes the button
-  -- variants, exactly as Pico styles `summary[role="button"]`. The variants are
-  -- compound selectors here for the same reason they are on `button`:
-  -- `secondary` carries no styling of its own, each element says what it means.
-  &.secondary:
-    padding = 0.75rem 1rem
-    corner = 0.25rem
-    border-width = 0.0625rem
-    border-style = solid
-    background-color = slate_50
-    border-color = slate_50
-    text-color = white
-    text-weight = 400
-    transition = all 0.2s ease-in-out
-    @after:
-      margin-left = 0.5rem
-      -- The base rule points the caret sideways for a foldout; a menu
-      -- button's caret points DOWN, so the rotation must be undone here.
-      transform = rotate(0)
-      -- White chevron, to read against the filled button.
-      background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
-    @hovered, @pressed, @focused:
-      background-color = slate_60
-      border-color = slate_60
-end
-style foldout with
-  display = block
-  &@opened:
-    > foldout_label:
-      text-color = slate_60
-      margin-bottom = 1rem
-      @after:
-        transform = rotate(0)
-      -- A summary styled as a BUTTON keeps its own colour and needs no gap to
-      -- the panel it opens; Pico likewise excludes `[role]` from its
-      -- open-summary rule.
-      &.secondary:
-        text-color = white
-        margin-bottom = 0
-end
 
 -- Modal: authored as `modal`, rendering a native <dialog>, opened
 -- declaratively with `#open={flag}`. Deliberately NOT called `dialog` — the

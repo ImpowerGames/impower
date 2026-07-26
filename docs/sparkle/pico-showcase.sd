@@ -90,7 +90,7 @@ layout main with
             item:
               -- Pico calls this class `dropdown`; here that name is already the
               -- <select> ELEMENT, so the menu class is `menu`.
-              foldout menu secondary "Theme" #role="button":
+              foldout menu "Theme" #role="button":
                 list:
                   item:
                     link "Auto" #href="#"
