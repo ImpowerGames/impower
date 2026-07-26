@@ -23,6 +23,11 @@ export class Socket {
   }
 
   removeAllListeners(): void {
-    this._listeners = {};
+    // Clear in place. This map is shared by reference with the Connection that
+    // broadcasts through it, so reassigning would detach the socket instead of
+    // emptying it -- leaving old listeners firing and new ones dead.
+    for (const method of Object.keys(this._listeners)) {
+      delete this._listeners[method];
+    }
   }
 }
