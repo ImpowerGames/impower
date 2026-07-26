@@ -23,6 +23,7 @@ import { getFileReferences } from "./utils/providers/getFileReferences";
 import { getFileRenameEdits } from "./utils/providers/getFileRenameEdits";
 import { getFoldingRanges } from "./utils/providers/getFoldingRanges";
 import { getHover } from "./utils/providers/getHover";
+import { getOffsetSourceLocation } from "./utils/providers/getOffsetSourceLocation";
 import { getReferences } from "./utils/providers/getReferences";
 import { getRenameEdits } from "./utils/providers/getRenameEdits";
 import {
@@ -117,6 +118,19 @@ try {
   connection.onInitialized(async () => {
     const settings = await connection.workspace.getConfiguration("sparkdown");
     workspace.loadConfiguration(settings);
+    // Ask the client to re-request anything it may have asked for while we were
+    // still starting up. Initialization loads every project file into the
+    // compiler and runs a full compile, and on a large project that takes long
+    // enough that the editor's first semantic-token / diagnostic requests are
+    // rejected outright ("Compiler has not been configured!"). Those requests
+    // are never retried on their own, so without this the features stay dead
+    // until something else happens to trigger a re-request. See #224.
+    try {
+      connection.languages.semanticTokens.refresh();
+      connection.languages.diagnostics.refresh();
+    } catch (e) {
+      console.error("failed to request client refresh after initialize", e);
+    }
   });
 
   // foldingRangeProvider
@@ -383,6 +397,23 @@ try {
       const mainUri = workspace.getMainScriptUri(params.uri);
       const program = workspace.program(mainUri ?? params.uri);
       return getFileReferences(workspace, program, params.uri)?.references ?? [];
+    },
+  );
+  // Custom: previous/next beat location for PageUp/PageDown navigation.
+  // Answered here (rather than from a client-side copy of the program) so
+  // `pathLocations` — ~12k entries / ~600KB on a feature-length script —
+  // never has to ride along with every compile notification.
+  connection.onRequest(
+    "sparkdown/offsetSourceLocation",
+    (params: { uri: string; line: number; offset: number }) => {
+      const mainUri = workspace.getMainScriptUri(params.uri);
+      const program = workspace.program(mainUri ?? params.uri);
+      return getOffsetSourceLocation(
+        program,
+        params.uri,
+        params.line,
+        params.offset,
+      );
     },
   );
   connection.onRequest(

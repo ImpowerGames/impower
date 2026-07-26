@@ -1,8 +1,4 @@
-import type {
-  Diagnostic,
-  MarkupContent,
-  Range,
-} from "vscode-languageserver-protocol";
+import type { Range } from "vscode-languageserver-protocol";
 
 export type PanelType =
   | "main"
@@ -143,9 +139,16 @@ export interface DebugState {
   breakpoints?: Record<string, number[]>;
   pinpoints?: Record<string, number[]>;
   highlights?: Record<string, number[]>;
-  diagnostics?: Record<
+  /**
+   * Per-file diagnostic counts by severity — enough to color file rows/tabs
+   * (error = red, warning = yellow). The diagnostics themselves are NOT kept
+   * on the main thread; editor views get them via publishDiagnostics.
+   * (Structurally matches sparkdown's DiagnosticsSummary — kept as a plain
+   * shape here to avoid a cross-package type dependency.)
+   */
+  diagnosticsSummary?: Record<
     string,
-    (Omit<Diagnostic, "message"> & { message: string | MarkupContent })[]
+    { errors: number; warnings: number; infos: number }
   >;
 }
 

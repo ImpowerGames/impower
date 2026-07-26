@@ -42,3 +42,45 @@ by hand.
 
 OPFS project storage is **per-origin**, so a project saved at one editor port is
 invisible at another — use the URL the launcher prints.
+
+## Multi-line bodies for `gh` and `git` (silent-corruption footgun)
+
+`@-` means "read stdin" to **curl**, not to `gh` or `git`. Both accept it as a
+**literal string** and exit 0, so the command looks like it worked:
+
+```sh
+gh pr create --body @- <<'EOF'    # WRONG — body is the 2 chars "@-"
+git commit -m @- <<'EOF'          # WRONG — message is the 2 chars "@-"
+```
+
+Use the file flags instead (`-` means stdin):
+
+```sh
+gh pr create    --body-file body.md     # or --body-file -
+gh issue create --body-file body.md
+gh issue edit N --body-file body.md     # also how you repair a mangled one
+git commit -F msg.txt                   # or -F -
+```
+
+Inline `--body "..."` / `-m "..."` is fine; it's only the `@-` form that breaks.
+
+**Failure signature:** `gh` prints a real issue/PR URL and returns 0, and `git`
+creates a real commit — the damage is only visible if you read the artifact
+back. This has already shipped a merged PR with an empty description.
+
+**So: after publishing anything, read it back.** `gh pr view N --json body`,
+`gh issue view N --json body`, `git log -1`. Prefer writing the body to a file
+first — it survives a bad invocation and can be re-applied with `--body-file`.
+
+Heredocs are also lossy through some shell paths here (a `//` comment came out
+as `/`, breaking a file mid-edit). For anything with code in it, write the file
+with the editor tool rather than piping a heredoc.
+
+## Strict rule — LOOK. Never guess.
+
+When working on code or assets that affect the impower-dev web editor or visuals or images (ui, prototypes, portraits, renders, animations, layout, color, anything you can see), **verify by actually looking at the rendered pixels — screenshot and view it (zoom in for small details).** LOOK before considering your work done. This is a hard requirement, not a nice-to-have:
+
+- **Never** substitute reasoning from computed styles, `getBoundingClientRect` geometry, greps, log counts, file names, or "it should be rendering" for an actual look. Those mislead.
+- If you genuinely can't see something or can't verify it visually, **say so plainly.** Never claim you see something you haven't actually looked at — do not fabricate a visual confirmation.
+
+This has been a repeated failure mode. Looking IS the check. Lead with your eyes, early and often, like a human would. Use the browser screenshot/zoom tools if you need to.

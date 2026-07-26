@@ -41,6 +41,7 @@ import {
 import { LowerContext } from "../lower/context";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
+import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { asINamedContentOrNull, asOrNull } from "../../inkjs/engine/TypeAssertion";
 import { Container } from "../../inkjs/engine/Container";
@@ -82,6 +83,12 @@ import { UpdateCompilerDocumentParams } from "./messages/UpdateCompilerDocumentM
 import { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMessage";
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
+
+// The canonical form `canonicalizeSyntheticFlowNames` renumbers synthetic
+// identifiers to. These names are POSITIONAL (document-order ordinals), so a
+// name can refer to a different flow after an edit — name-keyed caches must
+// never reuse entries for flows matching this.
+const CANONICAL_SYNTH_NAME = /^__synth_\d+$/;
 
 const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 // Synthetic URI for the bundled builtins prelude (used as the file URI when the
@@ -258,6 +265,14 @@ export class SparkdownCompiler {
   // 0-based [startLine, endLine] source ranges of chunks that are NEW/changed
   // this compile (identity not in `_prevCompilationIds`).
   protected _changedChunkRanges?: Array<[number, number]>;
+
+  // Incremental ToJson cache: per top-level flow name, its serialized JS subtree
+  // (the value under `program.compiled.root`'s terminating object) plus the
+  // cross-flow fingerprint of the resolved runtime container it was serialized
+  // from. A flow's cached JSON is reused iff its source CHUNK is unchanged AND its
+  // cross-flow fingerprint matches AND no header/global chunk changed (const
+  // inlining / global decl) — see the `flowMemo` in `compile`.
+  protected _flowJsonCache?: Map<string, { fp: string; value: any }>;
   // While recomputing a non-reusable flow's subtree, populateLocations tees the
   // entries it commits here so they can be cached for next compile.
   protected _locCaptureTarget?: {
@@ -699,13 +714,77 @@ export class SparkdownCompiler {
       userUris.delete(BUILTINS_PRELUDE_URI);
       const userTypeNames = collectTypeNamesFor(userUris);
       scopeDefineInstances([parsedStory], userTypeNames, { skip: preludeVAs });
+      // (Diagnostic-dedup state on reused parsed nodes is invalidated by the
+      // compile-epoch bump inside ExportRuntime — see CompileEpoch.ts — so a
+      // carried-forward chunk re-emits the same diagnostics a cold compile
+      // would, without a per-compile tree walk.)
+      //
+      // Canonicalize offset-derived synthetic names over the fully-assembled
+      // tree so incremental compiles emit byte-identical bytecode to cold ones
+      // (see method doc) — must run before ExportRuntime resolves references.
+      profile("start", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
+      this.canonicalizeSyntheticFlowNames(parsedStory);
+      profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
       profile("start", this._profilerId, "ink/compile", uri);
       const story = parsedStory.ExportRuntime(onDiagnostic);
       profile("end", this._profilerId, "ink/compile", uri);
       if (story) {
         profile("start", this._profilerId, "ink/json", uri);
         const writer = new SimpleJson.Writer();
-        story.ToJson(writer);
+        // Incremental ToJson: reuse the serialized subtree of each top-level flow
+        // whose source content is unchanged AND whose cross-flow fingerprint
+        // (#f flags + resolved divert/reference paths) is unchanged. Content is
+        // covered by the chunk-unchanged signal; the fingerprint covers the
+        // cross-flow bits that change without the flow's own source changing.
+        const { reusable: reusableFlows, ok: flowReuseOk } =
+          this.computeFlowReuse(story);
+        if (!flowReuseOk) {
+          // The global guard failed (a changed chunk sits before the first flow,
+          // so an inlined const may have shifted): no flow can be reused this
+          // compile. Take the exact baseline path — no fingerprinting, which
+          // would otherwise be pure overhead — and let the cache lapse so the
+          // next reuse-eligible edit reseeds from a fresh serialization.
+          story.ToJson(writer);
+          this._flowJsonCache = undefined;
+        } else {
+          const prevFlowCache = this._flowJsonCache;
+          const nextFlowCache = new Map<string, { fp: string; value: any }>();
+          const flowMemo = {
+            resolve: (
+              name: string,
+              container: Container,
+              serialize: () => any,
+            ) => {
+              // `global decl` is non-contiguous (scattered declarations) and
+              // cheap; always serialize it fresh, never cache.
+              //
+              // Canonical synthetic flows (`__synth_<n>`, see
+              // `canonicalizeSyntheticFlowNames`) are excluded because their
+              // names are POSITIONAL (document-order ordinals), so a name can
+              // rebind to a DIFFERENT flow when an edit adds/removes a
+              // synthetic earlier in the document — and the cross-flow
+              // fingerprint can't tell two same-shaped function knots apart
+              // (it deliberately records nothing for pure content, relying on
+              // chunk identity for structure, which name rebinding breaks).
+              // These are tiny function knots; serializing fresh is cheap.
+              if (name === "global decl" || CANONICAL_SYNTH_NAME.test(name)) {
+                return serialize();
+              }
+              const fp = JsonSerialisation.FingerprintCrossFlow(container);
+              let value: any;
+              if (reusableFlows.has(name) && prevFlowCache) {
+                const cached = prevFlowCache.get(name);
+                value = cached && cached.fp === fp ? cached.value : serialize();
+              } else {
+                value = serialize();
+              }
+              nextFlowCache.set(name, { fp, value });
+              return value;
+            },
+          };
+          story.ToJson(writer, flowMemo);
+          this._flowJsonCache = nextFlowCache;
+        }
         const json = writer.toObject();
         if (json) {
           program.compiled = json;
@@ -1371,6 +1450,169 @@ export class SparkdownCompiler {
     return combinedParsedStory;
   }
 
+  // Canonicalize compiler-synthesized identifier names that are minted from a
+  // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
+  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
+  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
+  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Those
+  // offset-based names are FROZEN into the per-chunk lowered IR that the
+  // incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
+  // `debugMetadata` line numbers are rebased). So a carried-forward shifted
+  // chunk keeps a stale offset (`__define_fn_143`) while a cold compile of the
+  // same text re-derives the current one (`__define_fn_144`) — and since these
+  // names become runtime container names (keys/paths in `program.compiled`),
+  // the bytecode diverges between an incremental and a cold compile.
+  //
+  // This pass runs over the FULLY-ASSEMBLED tree on EVERY compile (both cold
+  // and incremental, before ExportRuntime) and renumbers each distinct synthetic
+  // name to `__synth_<n>` by DOCUMENT-ORDER of first appearance. Numbering by
+  // ORDER (not by the offset value) is what makes the result identical between a
+  // cold parse and an incremental parse of the same text: a carried node sits at
+  // the same tree position either way, so it gets the same ordinal regardless of
+  // any stale offset baked into its name. A given synthetic name's definition
+  // and all of its references share the exact same string and are emitted within
+  // the same chunk, so a uniform string→string remap suffices (no need to link
+  // references back to definitions).
+  protected canonicalizeSyntheticFlowNames(root: ParsedObject): void {
+    // Every offset-derived synthetic family minted in the lowerers — PLUS the
+    // canonical `__synth_<n>` form this pass itself produces. The pass mutates
+    // the parsed IR in place and the incremental pipeline carries those nodes
+    // into the next compile, so already-renamed names must be re-collected and
+    // renumbered too: when an edit adds/removes a synthetic earlier in the
+    // document, a carried `__synth_k`'s ordinal is stale and only re-running it
+    // through the document-order numbering matches what a cold compile derives.
+    const SYNTH =
+      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__synth_)\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\d+_[A-Za-z]+$|__redef_\d+$/;
+    const remap = new Map<string, string>();
+    // True once any collected name maps to a DIFFERENT canonical name. In the
+    // steady state (carried names already canonical and ordinals unchanged —
+    // the common case for most edits) every mapping is the identity and the
+    // whole rewrite phase is skipped.
+    let changed = false;
+    // Matches recorded during the single collection walk so rewriting is
+    // O(matches) instead of a second full-tree walk. `matchedIds` is deduped
+    // (the same Identifier object can be aliased from several own-properties,
+    // e.g. `identifier` and a `pathIdentifiers` entry) so each object is
+    // rewritten exactly once — rewriting twice could CHAIN through the remap
+    // now that canonical `__synth_<n>` names are themselves remappable.
+    const matchedIds: Identifier[] = [];
+    const seenIds = new Set<Identifier>();
+    const matchedStrings: Array<{ node: any; field: string }> = [];
+    const flowsToRekey: FlowBase[] = [];
+
+    const considerName = (name: string) => {
+      let next = remap.get(name);
+      if (next === undefined) {
+        next = `__synth_${remap.size}`;
+        remap.set(name, next);
+        if (next !== name) {
+          changed = true;
+        }
+      }
+    };
+    const considerId = (id: Identifier) => {
+      const name = id.name;
+      if (name && SYNTH.test(name) && !seenIds.has(id)) {
+        seenIds.add(id);
+        considerName(name);
+        matchedIds.push(id);
+      }
+    };
+    // A few nodes hold a synthetic name as a PLAIN STRING (not an Identifier) and
+    // emit runtime variable refs straight from it — `StashAndRereadExpression.tempName`
+    // (the `__mcall_<from>` receiver stash) and `VariablePointerExpression.variableName`.
+    // Their Identifier-shaped counterparts get renamed above, so the string side
+    // must be kept in lockstep or the temp's declaration and its read diverge.
+    // Only SYNTH-matching values are touched, so user strings/display text are safe.
+    const NAME_STRING_FIELDS = ["tempName", "variableName"];
+
+    // Every Identifier-bearing field in the ParsedHierarchy (from the class
+    // declarations): the base `identifier`, Divert/VariableReference
+    // `pathIdentifiers`, VariableAssignment `variableIdentifier`,
+    // StructDefinition `modifier`/`type`/`name`, List `itemIdentifierList`.
+    // Visiting these directly instead of sweeping `Object.keys(node)` per node
+    // is what keeps this pass cheap (no per-node key-array allocation over the
+    // whole tree). If a new Identifier-valued field is ever added to a parsed
+    // node, it must be listed here — the incremental oracle's synthetic-name
+    // fuzz and the conformance suite are the safety net for a miss.
+    const IDENTIFIER_FIELDS = [
+      "identifier",
+      "pathIdentifiers",
+      "variableIdentifier",
+      "modifier",
+      "type",
+      "name",
+      "itemIdentifierList",
+    ];
+
+    // Single walk: assign ordinals in document (pre-order content) traversal
+    // order, recording every match for the later targeted rewrite. Per node,
+    // Identifier-valued fields are visited before the plain string fields
+    // (same order the previous two-pass implementation used, so ordinal
+    // assignment is unchanged).
+    const collect = (node: ParsedObject) => {
+      for (const f of IDENTIFIER_FIELDS) {
+        const val = (node as any)[f];
+        if (val instanceof Identifier) {
+          considerId(val);
+        } else if (Array.isArray(val)) {
+          for (const el of val) {
+            if (el instanceof Identifier) {
+              considerId(el);
+            }
+          }
+        }
+      }
+      for (const f of NAME_STRING_FIELDS) {
+        const v = (node as any)[f];
+        if (typeof v === "string" && SYNTH.test(v)) {
+          considerName(v);
+          matchedStrings.push({ node, field: f });
+        }
+      }
+      if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
+        flowsToRekey.push(node);
+      }
+      const content = node.content;
+      if (content) {
+        for (const c of content) {
+          collect(c);
+        }
+      }
+    };
+    collect(root);
+    if (!changed) {
+      return;
+    }
+
+    // Rewrite phase: only the recorded matches, then re-key each FlowBase's
+    // `_subFlowsByName` index (built from the pre-rename identifiers at
+    // lowering time) after all names are final.
+    for (const id of matchedIds) {
+      const next = id.name ? remap.get(id.name) : undefined;
+      if (next) {
+        id.name = next;
+      }
+    }
+    for (const { node, field } of matchedStrings) {
+      const v = node[field];
+      const next = typeof v === "string" ? remap.get(v) : undefined;
+      if (next) {
+        node[field] = next;
+      }
+    }
+    for (const flow of flowsToRekey) {
+      const next = new Map<string, FlowBase>();
+      for (const [, sub] of flow._subFlowsByName) {
+        const nm = sub.identifier?.name;
+        if (nm) {
+          next.set(nm, sub);
+        }
+      }
+      flow._subFlowsByName = next;
+    }
+  }
+
   populateLocations(
     program: SparkProgram,
     obj: InkObject,
@@ -1620,6 +1862,82 @@ export class SparkdownCompiler {
     }
   }
 
+  // Decide which top-level flows the incremental ToJson cache may reuse this
+  // compile. A flow is a reuse CANDIDATE when its source content is unchanged —
+  // no changed chunk overlaps its source span (same span/changed-chunk logic the
+  // location cache uses). The caller additionally requires the flow's cross-flow
+  // fingerprint to match before actually reusing.
+  //
+  // `ok` is the GLOBAL guard: only `const` values get INLINED into flow bytecode
+  // (vars/stores are referenced by name; defines/lists go to structDefs/listDefs,
+  // which ToJson always re-serializes), and consts are top-level declarations
+  // that sit before the first named flow. So if any changed chunk lies before the
+  // first flow's span, a referenced const may have changed and every flow must be
+  // re-serialized; otherwise per-flow content+fingerprint reuse is sound.
+  protected computeFlowReuse(story: RuntimeStory): {
+    reusable: Set<string>;
+    ok: boolean;
+  } {
+    const reusable = new Set<string>();
+    const root = story.mainContentContainer;
+    const named = root?.namedOnlyContent;
+    const changed = this._changedChunkRanges ?? [];
+    if (!named) {
+      return { reusable, ok: true };
+    }
+    const flows: Array<{ name: string; start0: number }> = [];
+    for (const [name, value] of named) {
+      if (name === "global decl") {
+        continue;
+      }
+      const c = asOrNull(value, Container);
+      const md = c?.ownDebugMetadata;
+      flows.push({ name, start0: md ? md.startLineNumber - 1 : -1 });
+    }
+    const starts = flows
+      .map((f) => f.start0)
+      .filter((s) => s >= 0)
+      .sort((a, b) => a - b);
+    const firstStart = starts.length ? starts[0]! : Number.POSITIVE_INFINITY;
+    let ok = true;
+    for (let i = 0; i < changed.length; i++) {
+      if (changed[i]![0] < firstStart) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) {
+      const spanEndOf = (start0: number): number => {
+        for (const s of starts) {
+          if (s > start0) {
+            return s;
+          }
+        }
+        return Number.POSITIVE_INFINITY;
+      };
+      for (const f of flows) {
+        if (f.start0 < 0) {
+          continue;
+        }
+        const end0 = spanEndOf(f.start0);
+        const guardStart = f.start0 - 1;
+        let overlap = false;
+        for (let i = 0; i < changed.length; i++) {
+          const cs = changed[i]![0];
+          const ce = changed[i]![1];
+          if (ce >= guardStart && cs < end0) {
+            overlap = true;
+            break;
+          }
+        }
+        if (!overlap) {
+          reusable.add(f.name);
+        }
+      }
+    }
+    return { reusable, ok };
+  }
+
   populateAllLocations(program: SparkProgram, story: RuntimeStory) {
     const root = story.mainContentContainer;
     if (!root) {
@@ -1777,10 +2095,15 @@ export class SparkdownCompiler {
         // `global decl`'s source is non-contiguous (scattered declarations), so
         // it never gets a span — always recompute it (it emits no pathLocations
         // since its paths start with "global ", only a few dataLocations).
+        // Synthetic flows (`__synth_<n>`) are captured (so the flow-set guard
+        // above still sees them) but never REUSED by name: their names are
+        // positional ordinals that can rebind to a different flow across
+        // compiles (see the ToJson flow-memo exclusion in `compile()`).
         const reusable =
           f.container != null &&
           f.start0 >= 0 &&
           f.name !== "global decl" &&
+          !CANONICAL_SYNTH_NAME.test(f.name) &&
           effPrevCache != null;
         if (reusable) {
           const cached = effPrevCache!.get(f.name);

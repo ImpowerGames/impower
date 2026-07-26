@@ -1,9 +1,15 @@
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import { IKeyboardEvent } from "../types/IKeyboardEvent";
 import { Instructions } from "../types/Instructions";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
+
+/**
+ * Keys that advance the game the same way a tap does.
+ */
+const ADVANCE_KEYS = ["Enter", " "];
 
 export class Coordinator<G extends Game> {
   protected _game: G;
@@ -61,8 +67,28 @@ export class Coordinator<G extends Game> {
         if (params.button === 0) {
           this._interacted = true;
         }
+      } else if (params.type === "keydown") {
+        if (this.isAdvanceKey(params)) {
+          this._interacted = true;
+        }
       }
     }
+  }
+
+  /**
+   * Whether a keypress should advance the game the same way a tap does.
+   * Auto-repeat is ignored so that holding the key down doesn't blast through
+   * several beats at once, and modified presses are left alone so they stay
+   * available as shortcuts.
+   */
+  protected isAdvanceKey(event: IKeyboardEvent<"keydown">): boolean {
+    if (event.repeat) {
+      return false;
+    }
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return false;
+    }
+    return ADVANCE_KEYS.includes(event.key);
   }
 
   /**
@@ -106,11 +132,12 @@ export class Coordinator<G extends Game> {
     // Player clicked to advance
     if (this._interacted) {
       this._interacted = false;
-      if (this._finishedExecution) {
+      // Only consume the finished state on the path that actually advances --
+      // while waiting on a choice the interaction is ignored, so it must leave
+      // the beat's finished state alone.
+      if (this._finishedExecution && !waitingForChoice) {
         this._finishedExecution = false;
-        if (!waitingForChoice) {
-          return 2;
-        }
+        return 2;
       }
       if (this._startedExecution && !waitingForChoice) {
         this.display({ instant: true });

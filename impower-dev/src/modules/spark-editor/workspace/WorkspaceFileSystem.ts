@@ -89,7 +89,13 @@ export default class WorkspaceFileSystem {
       console.error(e);
     };
     this._worker.addEventListener("message", this.handleWorkerMessage);
-    this._initialFilesRef.get(projectId);
+    // Observe the rejection: this promise gates language-server startup (it
+    // ends in `Workspace.ls.start`), and an unobserved failure here used to be
+    // indistinguishable from "still loading" — the editor just silently ran
+    // without any program-dependent LSP features.
+    void this._initialFilesRef.get(projectId).catch((e) => {
+      console.error("[workspace] initial file load failed:", e);
+    });
   }
 
   getLoadedProjectId() {
@@ -175,10 +181,15 @@ export default class WorkspaceFileSystem {
         return this.executeCommand(params);
       },
     );
-    Workspace.ls.start(
-      this.getDirectoryUri(projectId),
-      Object.values(this._files),
-    );
+    // Fire-and-forget on purpose (project load must not block on the language
+    // server initializing, which includes a full compile), but the failure has
+    // to be visible — a rejected `start()` previously vanished as an unhandled
+    // rejection and left every program-dependent LSP request erroring.
+    void Workspace.ls
+      .start(this.getDirectoryUri(projectId), Object.values(this._files))
+      .catch((e) => {
+        console.error("[workspace] language server failed to start:", e);
+      });
     // Auto-expire old recycle-bin batches (>30 days). Fire-and-forget — it must
     // not block the project load, and trash is local-only so there's no remote
     // coordination.

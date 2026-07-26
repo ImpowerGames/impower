@@ -691,7 +691,8 @@ function FileItem({
   };
 
   // Re-render on diagnostics change (DiagnosticsLabel reads the same signal).
-  const _ = useComputed(() => workspace.state.value.debug?.diagnostics).value;
+  const _ = useComputed(() => workspace.state.value.debug?.diagnosticsSummary)
+    .value;
   void _;
 
   return (
