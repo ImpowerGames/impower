@@ -91,6 +91,19 @@ const createGame = (
 
 const tick = (deltaMS: number) => ({ deltaMS }) as Clock;
 
+/**
+ * Exposes the execution flags so the state-machine hygiene tests can assert
+ * them directly. Behaviour is otherwise identical to `Coordinator`.
+ */
+class ProbeCoordinator extends Coordinator<Game> {
+  get finishedExecution(): boolean {
+    return this._finishedExecution;
+  }
+  get startedExecution(): boolean {
+    return this._startedExecution;
+  }
+}
+
 /** A beat with text that takes 1s to reveal. */
 const textBeat = (extra: Partial<Instructions> = {}): Instructions => ({
   text: { textbox: [{ text: "Hello." }] as never },
@@ -104,7 +117,7 @@ const textBeat = (extra: Partial<Instructions> = {}): Instructions => ({
  */
 const midReveal = (instructions: Instructions = textBeat()) => {
   const { game, calls } = createGame();
-  const coordinator = new Coordinator(game, instructions);
+  const coordinator = new ProbeCoordinator(game, instructions);
   return { coordinator, calls };
 };
 
@@ -117,7 +130,7 @@ const finishedBeat = (
   gameOverrides: Parameters<typeof createGame>[0] = {},
 ) => {
   const { game, calls } = createGame(gameOverrides);
-  const coordinator = new Coordinator(game, instructions);
+  const coordinator = new ProbeCoordinator(game, instructions);
   // Run out the reveal duration so handleFinished() fires
   coordinator.onUpdate(tick(instructions.end * 1000));
   return { coordinator, calls };
@@ -228,6 +241,59 @@ describe("Coordinator", () => {
         target: "textbox",
         instant: true,
       });
+    });
+
+    // An interaction that is deliberately ignored must not disturb the state
+    // machine. Clearing the finished flag here used to strand the beat out of
+    // its "finished revealing" state for the rest of its life (#231).
+    for (const [name, event] of ADVANCE_INPUTS) {
+      it(`keeps the beat marked finished after an ignored ${name}`, () => {
+        const { coordinator } = finishedBeat(withChoices());
+        expect(coordinator.finishedExecution).toBe(true);
+
+        coordinator.onMessage(event());
+        coordinator.shouldContinue();
+
+        expect(coordinator.finishedExecution).toBe(true);
+      });
+    }
+
+    it("keeps the beat marked finished across repeated ignored interactions", () => {
+      const { coordinator } = finishedBeat(withChoices());
+      for (let i = 0; i < 3; i += 1) {
+        coordinator.onMessage(pointerdown(0));
+        expect(coordinator.shouldContinue()).toBe(STAY);
+      }
+      expect(coordinator.finishedExecution).toBe(true);
+    });
+  });
+
+  describe("execution flag hygiene", () => {
+    it("clears the finished flag only when the interaction advances", () => {
+      const { coordinator } = finishedBeat();
+      expect(coordinator.finishedExecution).toBe(true);
+
+      coordinator.onMessage(keydown("Enter"));
+      expect(coordinator.shouldContinue()).toBe(INTERACTED);
+      // Consumed by the advance itself
+      expect(coordinator.finishedExecution).toBe(false);
+    });
+
+    it("leaves the finished flag alone for keys that never advance", () => {
+      const { coordinator } = finishedBeat();
+      coordinator.onMessage(keydown("Escape"));
+      expect(coordinator.shouldContinue()).toBe(STAY);
+      expect(coordinator.finishedExecution).toBe(true);
+    });
+
+    it("marks the beat finished after an instant reveal", () => {
+      const { coordinator } = midReveal();
+      expect(coordinator.startedExecution).toBe(true);
+      expect(coordinator.finishedExecution).toBe(false);
+
+      coordinator.onMessage(keydown("Enter"));
+      expect(coordinator.shouldContinue()).toBe(STAY);
+      expect(coordinator.finishedExecution).toBe(true);
     });
   });
 
