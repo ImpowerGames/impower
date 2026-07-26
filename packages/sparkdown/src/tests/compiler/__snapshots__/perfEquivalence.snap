@@ -17935,7 +17935,7 @@
           "$name": "button",
           "$type": "style",
           "&.contrast": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "background-color": "white",
               "border-color": "white"
             },
@@ -17944,7 +17944,7 @@
             "text-color": "black"
           },
           "&.outline": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "background-color": "transparent",
               "border-color": "sky_70",
               "text-color": "sky_70"
@@ -17954,7 +17954,7 @@
             "text-color": "sky_60"
           },
           "&.outline.contrast": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "border-color": "white",
               "text-color": "white"
             },
@@ -17962,7 +17962,7 @@
             "text-color": "slate_90"
           },
           "&.outline.secondary": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "border-color": "slate_80",
               "text-color": "slate_80"
             },
@@ -17970,7 +17970,7 @@
             "text-color": "slate_70"
           },
           "&.secondary": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "background-color": "slate_60",
               "border-color": "slate_60"
             },
@@ -17998,7 +17998,7 @@
           "@focused": {
             "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
           },
-          "@hovered": {
+          "@hovered, @pressed, @focused": {
             "background-color": "sky_50",
             "border-color": "sky_50"
           },
@@ -18326,7 +18326,7 @@
               "margin-left": "0.5rem",
               "transform": "rotate(0)"
             },
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "background-color": "slate_60",
               "border-color": "slate_60"
             },
@@ -18596,18 +18596,18 @@
           "$name": "link",
           "$type": "style",
           "&.contrast": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "text-color": "white"
             },
             "text-color": "slate_90"
           },
           "&.secondary": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "text-color": "slate_80"
             },
             "text-color": "slate_70"
           },
-          "@hovered": {
+          "@hovered, @pressed, @focused": {
             "text-color": "sky_70"
           },
           "align-self": "start",
@@ -91253,7 +91253,7 @@
           "$name": "button",
           "$type": "style",
           "&.contrast": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "background-color": "white",
               "border-color": "white"
             },
@@ -91262,7 +91262,7 @@
             "text-color": "black"
           },
           "&.outline": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "background-color": "transparent",
               "border-color": "sky_70",
               "text-color": "sky_70"
@@ -91272,7 +91272,7 @@
             "text-color": "sky_60"
           },
           "&.outline.contrast": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "border-color": "white",
               "text-color": "white"
             },
@@ -91280,7 +91280,7 @@
             "text-color": "slate_90"
           },
           "&.outline.secondary": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "border-color": "slate_80",
               "text-color": "slate_80"
             },
@@ -91288,7 +91288,7 @@
             "text-color": "slate_70"
           },
           "&.secondary": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "background-color": "slate_60",
               "border-color": "slate_60"
             },
@@ -91316,7 +91316,7 @@
           "@focused": {
             "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
           },
-          "@hovered": {
+          "@hovered, @pressed, @focused": {
             "background-color": "sky_50",
             "border-color": "sky_50"
           },
@@ -91644,7 +91644,7 @@
               "margin-left": "0.5rem",
               "transform": "rotate(0)"
             },
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "background-color": "slate_60",
               "border-color": "slate_60"
             },
@@ -91914,18 +91914,18 @@
           "$name": "link",
           "$type": "style",
           "&.contrast": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "text-color": "white"
             },
             "text-color": "slate_90"
           },
           "&.secondary": {
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "text-color": "slate_80"
             },
             "text-color": "slate_70"
           },
-          "@hovered": {
+          "@hovered, @pressed, @focused": {
             "text-color": "sky_70"
           },
           "align-self": "start",

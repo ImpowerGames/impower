@@ -665,14 +665,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -681,7 +681,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -690,7 +690,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -699,7 +699,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -707,7 +707,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -900,18 +900,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -1343,7 +1343,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -2425,14 +2425,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -2441,7 +2441,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -2450,7 +2450,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -2459,7 +2459,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -2467,7 +2467,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -2660,18 +2660,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -3103,7 +3103,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -4147,14 +4147,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -4163,7 +4163,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -4172,7 +4172,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -4181,7 +4181,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -4189,7 +4189,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -4382,18 +4382,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -4825,7 +4825,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -5991,14 +5991,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -6007,7 +6007,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -6016,7 +6016,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -6025,7 +6025,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -6033,7 +6033,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -6226,18 +6226,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -6669,7 +6669,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -7694,14 +7694,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -7710,7 +7710,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -7719,7 +7719,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -7728,7 +7728,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -7736,7 +7736,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -7929,18 +7929,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -8372,7 +8372,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -9379,14 +9379,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -9395,7 +9395,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -9404,7 +9404,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -9413,7 +9413,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -9421,7 +9421,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -9614,18 +9614,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -10057,7 +10057,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -11114,14 +11114,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -11130,7 +11130,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -11139,7 +11139,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -11148,7 +11148,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -11156,7 +11156,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -11349,18 +11349,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -11792,7 +11792,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -12816,14 +12816,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -12832,7 +12832,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -12841,7 +12841,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -12850,7 +12850,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -12858,7 +12858,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -13051,18 +13051,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -13494,7 +13494,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -14518,14 +14518,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -14534,7 +14534,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -14543,7 +14543,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -14552,7 +14552,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -14560,7 +14560,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -14753,18 +14753,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -15196,7 +15196,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -16220,14 +16220,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -16236,7 +16236,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -16245,7 +16245,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -16254,7 +16254,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -16262,7 +16262,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -16455,18 +16455,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -16898,7 +16898,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -17922,14 +17922,14 @@ spark-web-player #game .button {
   font-weight: 400;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     background-color: var(--theme-color-sky_50);
     border-color: var(--theme-color-sky_50);
   }
   &.secondary {
     background-color: var(--theme-color-slate_50);
     border-color: var(--theme-color-slate_50);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }
@@ -17938,7 +17938,7 @@ spark-web-player #game .button {
     background-color: var(--theme-color-slate_95);
     border-color: var(--theme-color-slate_95);
     color: black;
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: white;
       border-color: white;
     }
@@ -17947,7 +17947,7 @@ spark-web-player #game .button {
     background-color: transparent;
     color: var(--theme-color-sky_60);
     border-color: var(--theme-color-sky_60);
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: transparent;
       color: var(--theme-color-sky_70);
       border-color: var(--theme-color-sky_70);
@@ -17956,7 +17956,7 @@ spark-web-player #game .button {
   &.outline.secondary {
     color: var(--theme-color-slate_70);
     border-color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
       border-color: var(--theme-color-slate_80);
     }
@@ -17964,7 +17964,7 @@ spark-web-player #game .button {
   &.outline.contrast {
     color: var(--theme-color-slate_90);
     border-color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
       border-color: white;
     }
@@ -18157,18 +18157,18 @@ spark-web-player #game .link {
   text-decoration: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  &:hover {
+  &:hover, &:active, &:focus {
     color: var(--theme-color-sky_70);
   }
   &.secondary {
     color: var(--theme-color-slate_70);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: var(--theme-color-slate_80);
     }
   }
   &.contrast {
     color: var(--theme-color-slate_90);
-    &:hover {
+    &:hover, &:active, &:focus {
       color: white;
     }
   }
@@ -18600,7 +18600,7 @@ spark-web-player #game .foldout_label {
       transform: rotate(0);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     }
-    &:hover {
+    &:hover, &:active, &:focus {
       background-color: var(--theme-color-slate_60);
       border-color: var(--theme-color-slate_60);
     }

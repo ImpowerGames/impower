@@ -110,7 +110,7 @@ exports[`style > authored style block content payload 1`] = `
       "$name": "button",
       "$type": "style",
       "&.contrast": {
-        "@hovered": {
+        "@hovered, @pressed, @focused": {
           "background-color": "white",
           "border-color": "white",
         },
@@ -119,7 +119,7 @@ exports[`style > authored style block content payload 1`] = `
         "text-color": "black",
       },
       "&.outline": {
-        "@hovered": {
+        "@hovered, @pressed, @focused": {
           "background-color": "transparent",
           "border-color": "sky_70",
           "text-color": "sky_70",
@@ -129,7 +129,7 @@ exports[`style > authored style block content payload 1`] = `
         "text-color": "sky_60",
       },
       "&.outline.contrast": {
-        "@hovered": {
+        "@hovered, @pressed, @focused": {
           "border-color": "white",
           "text-color": "white",
         },
@@ -137,7 +137,7 @@ exports[`style > authored style block content payload 1`] = `
         "text-color": "slate_90",
       },
       "&.outline.secondary": {
-        "@hovered": {
+        "@hovered, @pressed, @focused": {
           "border-color": "slate_80",
           "text-color": "slate_80",
         },
@@ -145,7 +145,7 @@ exports[`style > authored style block content payload 1`] = `
         "text-color": "slate_70",
       },
       "&.secondary": {
-        "@hovered": {
+        "@hovered, @pressed, @focused": {
           "background-color": "slate_60",
           "border-color": "slate_60",
         },
@@ -173,7 +173,7 @@ exports[`style > authored style block content payload 1`] = `
       "@focused": {
         "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
       },
-      "@hovered": {
+      "@hovered, @pressed, @focused": {
         "background-color": "sky_50",
         "border-color": "sky_50",
       },
@@ -519,7 +519,7 @@ exports[`style > authored style block content payload 1`] = `
           "margin-left": "0.5rem",
           "transform": "rotate(0)",
         },
-        "@hovered": {
+        "@hovered, @pressed, @focused": {
           "background-color": "slate_60",
           "border-color": "slate_60",
         },
@@ -789,18 +789,18 @@ exports[`style > authored style block content payload 1`] = `
       "$name": "link",
       "$type": "style",
       "&.contrast": {
-        "@hovered": {
+        "@hovered, @pressed, @focused": {
           "text-color": "white",
         },
         "text-color": "slate_90",
       },
       "&.secondary": {
-        "@hovered": {
+        "@hovered, @pressed, @focused": {
           "text-color": "slate_80",
         },
         "text-color": "slate_70",
       },
-      "@hovered": {
+      "@hovered, @pressed, @focused": {
         "text-color": "sky_70",
       },
       "align-self": "start",
@@ -2681,7 +2681,7 @@ exports[`style > style + variables construction stream 1`] = `
             "$name": "button",
             "$type": "style",
             "&.contrast": {
-              "@hovered": {
+              "@hovered, @pressed, @focused": {
                 "background-color": "white",
                 "border-color": "white",
               },
@@ -2690,7 +2690,7 @@ exports[`style > style + variables construction stream 1`] = `
               "text-color": "black",
             },
             "&.outline": {
-              "@hovered": {
+              "@hovered, @pressed, @focused": {
                 "background-color": "transparent",
                 "border-color": "sky_70",
                 "text-color": "sky_70",
@@ -2700,7 +2700,7 @@ exports[`style > style + variables construction stream 1`] = `
               "text-color": "sky_60",
             },
             "&.outline.contrast": {
-              "@hovered": {
+              "@hovered, @pressed, @focused": {
                 "border-color": "white",
                 "text-color": "white",
               },
@@ -2708,7 +2708,7 @@ exports[`style > style + variables construction stream 1`] = `
               "text-color": "slate_90",
             },
             "&.outline.secondary": {
-              "@hovered": {
+              "@hovered, @pressed, @focused": {
                 "border-color": "slate_80",
                 "text-color": "slate_80",
               },
@@ -2716,7 +2716,7 @@ exports[`style > style + variables construction stream 1`] = `
               "text-color": "slate_70",
             },
             "&.secondary": {
-              "@hovered": {
+              "@hovered, @pressed, @focused": {
                 "background-color": "slate_60",
                 "border-color": "slate_60",
               },
@@ -2744,7 +2744,7 @@ exports[`style > style + variables construction stream 1`] = `
             "@focused": {
               "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
             },
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "background-color": "sky_50",
               "border-color": "sky_50",
             },
@@ -3090,7 +3090,7 @@ exports[`style > style + variables construction stream 1`] = `
                 "margin-left": "0.5rem",
                 "transform": "rotate(0)",
               },
-              "@hovered": {
+              "@hovered, @pressed, @focused": {
                 "background-color": "slate_60",
                 "border-color": "slate_60",
               },
@@ -3360,18 +3360,18 @@ exports[`style > style + variables construction stream 1`] = `
             "$name": "link",
             "$type": "style",
             "&.contrast": {
-              "@hovered": {
+              "@hovered, @pressed, @focused": {
                 "text-color": "white",
               },
               "text-color": "slate_90",
             },
             "&.secondary": {
-              "@hovered": {
+              "@hovered, @pressed, @focused": {
                 "text-color": "slate_80",
               },
               "text-color": "slate_70",
             },
-            "@hovered": {
+            "@hovered, @pressed, @focused": {
               "text-color": "sky_70",
             },
             "align-self": "start",

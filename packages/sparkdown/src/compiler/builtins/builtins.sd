@@ -1365,7 +1365,7 @@ style button with
   text-weight = 400
   cursor = pointer
   transition = all 0.2s ease-in-out
-  @hovered:
+  @hovered, @pressed, @focused:
     background-color = sky_50
     border-color = sky_50
   -- Variants as COMPOUND selectors (`&.secondary`), so they compose: `outline`
@@ -1375,34 +1375,34 @@ style button with
   &.secondary:
     background-color = slate_50
     border-color = slate_50
-    @hovered:
+    @hovered, @pressed, @focused:
       background-color = slate_60
       border-color = slate_60
   &.contrast:
     background-color = slate_95
     border-color = slate_95
     text-color = black
-    @hovered:
+    @hovered, @pressed, @focused:
       background-color = white
       border-color = white
   &.outline:
     background-color = transparent
     text-color = sky_60
     border-color = sky_60
-    @hovered:
+    @hovered, @pressed, @focused:
       background-color = transparent
       text-color = sky_70
       border-color = sky_70
   &.outline.secondary:
     text-color = slate_70
     border-color = slate_70
-    @hovered:
+    @hovered, @pressed, @focused:
       text-color = slate_80
       border-color = slate_80
   &.outline.contrast:
     text-color = slate_90
     border-color = slate_90
-    @hovered:
+    @hovered, @pressed, @focused:
       text-color = white
       border-color = white
   @focused:
@@ -1595,15 +1595,15 @@ style link with
   text-decoration = underline
   cursor = pointer
   transition = all 0.2s ease-in-out
-  @hovered:
+  @hovered, @pressed, @focused:
     text-color = sky_70
   &.secondary:
     text-color = slate_70
-    @hovered:
+    @hovered, @pressed, @focused:
       text-color = slate_80
   &.contrast:
     text-color = slate_90
-    @hovered:
+    @hovered, @pressed, @focused:
       text-color = white
 end
 
@@ -2131,7 +2131,7 @@ style foldout_label with
       transform = rotate(0)
       -- White chevron, to read against the filled button.
       background-image = url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
-    @hovered:
+    @hovered, @pressed, @focused:
       background-color = slate_60
       border-color = slate_60
 end

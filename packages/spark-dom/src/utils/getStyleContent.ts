@@ -146,6 +146,53 @@ export function getCSSSelector(
   return res;
 }
 
+/** Split on commas that are at the TOP level — not inside `(...)`, `[...]`, or
+ *  a quoted string. `:is(a, b)` and `[title="a, b"]` are single compounds. */
+function splitTopLevelCommas(selector: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let start = 0;
+  for (let i = 0; i < selector.length; i++) {
+    const c = selector[i]!;
+    if (quote) {
+      if (c === "\\") i++;
+      else if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'") quote = c;
+    else if (c === "(" || c === "[") depth++;
+    else if (c === ")" || c === "]") depth--;
+    else if (c === "," && depth === 0) {
+      parts.push(selector.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(selector.slice(start));
+  return parts;
+}
+
+/** Anchor EVERY comma-separated compound that targets the element itself.
+ *
+ *  Pico triggers its hover styling on `:hover, :active, :focus` together, which
+ *  authors write as `@hovered, @pressed, @focused:`. Anchoring only the first
+ *  compound would emit `&:hover, :active { … }`, and under CSS nesting the
+ *  un-anchored ones become DESCENDANT selectors — `.button :active` matches any
+ *  active descendant instead of the button. That is silently wrong rather than
+ *  invalid, so it would not surface as an error. */
+export function anchorSelfTargeted(selector: string): string {
+  return splitTopLevelCommas(selector)
+    .map((part) => {
+      const trimmed = part.trim();
+      if (!trimmed) return trimmed;
+      return trimmed.startsWith("[") || trimmed.startsWith(":")
+        ? "&" + trimmed
+        : trimmed;
+    })
+    .filter(Boolean)
+    .join(", ");
+}
+
 export const getStyleContent = (
   styles: Record<string, any>,
   options?: {
@@ -164,10 +211,7 @@ export const getStyleContent = (
       if (!k.startsWith("$")) {
         if (v && typeof v === "object" && !("$name" in v)) {
           const elementSelector = getCSSSelector(k, options?.breakpoints);
-          const selfTargetedSelector =
-            elementSelector.startsWith("[") || elementSelector.startsWith(":")
-              ? "&" + elementSelector
-              : elementSelector;
+          const selfTargetedSelector = anchorSelfTargeted(elementSelector);
           styleContent += `\n${indent}${selfTargetedSelector} {`;
           level++;
           Object.entries(v).forEach(([nk, nv]) => {
