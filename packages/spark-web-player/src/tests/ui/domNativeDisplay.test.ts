@@ -58,20 +58,20 @@ end
     expect(display(h, "td")).toBe("table-cell");
   });
 
-  test("list + accordion builtins declare their native display", async () => {
+  test("list + foldout builtins declare their native display", async () => {
     const css = sheet(
       await render(`layout main with
   list:
     item "a"
-  accordion "More":
+  foldout "More":
 end
 `),
     );
     expect(ruleBlock(css, ".list")).toContain("display: block;");
     // A flex <li> renders NO marker; list-item is what draws it.
     expect(ruleBlock(css, ".item")).toContain("display: list-item;");
-    expect(ruleBlock(css, ".accordion")).toContain("display: block;");
-    expect(ruleBlock(css, ".accordion_label")).toContain(
+    expect(ruleBlock(css, ".foldout")).toContain("display: block;");
+    expect(ruleBlock(css, ".foldout_label")).toContain(
       "display: list-item;",
     );
   });

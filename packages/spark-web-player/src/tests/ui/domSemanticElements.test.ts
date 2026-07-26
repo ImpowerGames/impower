@@ -123,7 +123,7 @@ end
     field_group:
       group_label "Choose"
       field #value="x"
-  accordion "More":
+  foldout "More":
     text "Hidden detail"
 end
 `);

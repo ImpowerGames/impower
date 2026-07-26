@@ -11,7 +11,7 @@
 // scroller, text, link, label, field, textarea, button, picture, input, slider,
 // checkbox, radio, switch, dropdown, option, divider, progress, list,
 // ordered_list, item, table + table_header/table_body/table_row/header_cell/cell,
-// quote, citation, figure, caption, accordion, article, section, header,
+// quote, citation, figure, caption, foldout, article, section, header,
 // footer, form, field_group, group_label, modal.
 //
 // Everything ELSE on an element line is a style CLASS — `column`, `row`, `card`,
@@ -90,7 +90,7 @@ layout main with
             item:
               -- Pico calls this class `dropdown`; here that name is already the
               -- <select> ELEMENT, so the menu class is `menu`.
-              accordion menu secondary "Theme" #role="button":
+              foldout menu secondary "Theme" #role="button":
                 list:
                   item:
                     link "Auto" #href="#"
@@ -329,9 +329,9 @@ layout main with
       -- Accordions ---------------------------------------------------------
       section:
         text h2 "Accordions"
-        accordion "Accordion 1":
+        foldout "Accordion 1":
           text "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque urna diam, tincidunt nec porta sed, auctor id velit. Etiam venenatis nisl ut orci consequat, vitae tempus quam commodo. Nulla non mauris ipsum. Aliquam eu posuere orci. Nulla convallis lectus rutrum quam hendrerit, in facilisis elit sollicitudin. Mauris pulvinar pulvinar mi, dictum tristique elit auctor quis. Maecenas ac ipsum ultrices, porta turpis sit amet, congue turpis."
-        accordion "Accordion 2" #open=true:
+        foldout "Accordion 2" #open=true:
           list:
             item "Vestibulum id elit quis massa interdum sodales."
             item "Nunc quis eros vel odio pretium tincidunt nec quis neque."

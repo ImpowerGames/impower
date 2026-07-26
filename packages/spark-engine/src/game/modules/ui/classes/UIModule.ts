@@ -381,7 +381,7 @@ const ELEMENT_TAGS: Record<string, string> = {
   form: "form",
   field_group: "fieldset",
   group_label: "legend",
-  accordion: "details",
+  foldout: "details",
   // Authored as `modal`; still a real <dialog>. Named `modal` so it cannot be
   // confused with the SCREENPLAY `dialogue` style (speech), which is a
   // completely different thing one letter away.
@@ -399,7 +399,7 @@ const ELEMENT_TAGS: Record<string, string> = {
 /** Tags whose text content is a LABEL for their children rather than inline
  *  text, mounted as a real element of its own (see constructElement). */
 const IMPLICIT_LABEL_TAGS: Record<string, { type: string; name: string }> = {
-  accordion: { type: "summary", name: "accordion_label" },
+  foldout: { type: "summary", name: "foldout_label" },
 };
 
 const ATTRIBUTE_PROPS: ReadonlySet<string> = new Set([
@@ -1442,7 +1442,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // it as an inline span. Content-less structural elements get no span
     // (mountTextContent no-ops), preserving constructLayout parity.
     // An element whose CONTENT is a label for the children it reveals — the
-    // author writes `accordion "Label": …` rather than a separate label
+    // author writes `foldout "Label": …` rather than a separate label
     // builtin, exactly as `button "Save"` labels a button. The label becomes a
     // real <summary>, so the disclosure works natively.
     const implicitLabel = IMPLICIT_LABEL_TAGS[node.tag];
