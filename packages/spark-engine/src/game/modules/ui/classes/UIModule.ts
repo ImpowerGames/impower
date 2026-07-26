@@ -365,6 +365,14 @@ const ELEMENT_TAGS: Record<string, string> = {
   emphasis: "em",
   quote: "blockquote",
   citation: "cite",
+  // A figure is the captioned-media pairing, so `caption` is only meaningful
+  // inside one. The authored element is `picture`, NOT `image`: `image` is
+  // already the engine's own name for a backdrop LAYER, which is a container
+  // with children — mapping it to the void `<img>` silently reparents those
+  // children out of existence.
+  figure: "figure",
+  caption: "figcaption",
+  picture: "img",
   // Structure
   article: "article",
   section: "section",

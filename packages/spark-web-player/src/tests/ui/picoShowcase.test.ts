@@ -137,13 +137,26 @@ describe("pico showcase example", () => {
     ).toBeTruthy();
 
     const select = h.overlay.querySelector("select") as HTMLSelectElement;
-    // Options are DIRECT children and the bound store value selects one.
-    expect(select.options.length).toBe(3);
-    expect(select.value).toBe("medium");
+    // Options are DIRECT children and the bound store value selects one. The
+    // first is Pico's placeholder: empty-valued and selected, which combined
+    // with `required` makes it unsubmittable rather than a real choice.
+    expect(select.options.length).toBe(2);
+    expect(select.options[0]?.textContent).toBe("Select…");
+    expect(select.options[0]?.value).toBe("");
+    expect(select.required).toBe(true);
+    expect(select.value).toBe("");
 
-    // Table shape: a header row plus three body rows, correctly parented.
-    expect(h.overlay.querySelectorAll("table > thead > tr > th").length).toBe(4);
+    // Table shape: 8 columns, three body rows, correctly parented.
+    expect(h.overlay.querySelectorAll("table > thead > tr > th").length).toBe(8);
     expect(h.overlay.querySelectorAll("table > tbody > tr").length).toBe(3);
+    // The row number is a `th[scope=row]` — it LABELS its row rather than
+    // being another value in it.
+    expect(
+      h.overlay.querySelectorAll('table > tbody > tr > th[scope="row"]').length,
+    ).toBe(3);
+    expect(h.overlay.querySelectorAll("table > tbody > tr > td").length).toBe(
+      21,
+    );
 
     // Variant classes compose: the reference shows all six button variants,
     // including `outline` combined with `secondary` / `contrast`.
@@ -156,13 +169,54 @@ describe("pico showcase example", () => {
 
     // Attribute props reached the DOM as attributes.
     expect(h.overlay.querySelector("a")?.getAttribute("href")).toBe("#");
-    expect(
-      (h.overlay.querySelector("details") as HTMLDetailsElement).hasAttribute(
-        "open",
-      ),
-    ).toBe(true);
+    // Targeted rather than "the first details": the nav menu is also a
+    // `details`, and it is deliberately CLOSED, so positional lookup would
+    // assert the wrong element.
+    expect(h.overlay.querySelector("details[open]")).toBeTruthy();
+    const navMenu = h.overlay.querySelector(
+      "details.menu",
+    ) as HTMLDetailsElement;
+    expect(navMenu, "expected the nav dropdown to be a details.menu").toBeTruthy();
+    expect(navMenu.hasAttribute("open")).toBe(false);
+    expect(navMenu.querySelector("summary")?.textContent).toBe("Theme");
     const progress = h.overlay.querySelector("progress") as HTMLProgressElement;
     expect(progress.getAttribute("max")).toBe("100");
+
+    // Accessibility attributes the reference carries. A placeholder is not an
+    // accessible name, so the Preview fields need an explicit `aria-label`.
+    const firstName = h.overlay.querySelector(
+      'input[aria-label="First name"]',
+    ) as HTMLInputElement;
+    expect(firstName, "expected an aria-labelled first-name input").toBeTruthy();
+    expect(firstName.required).toBe(true);
+    expect(
+      (h.overlay.querySelector('input[aria-label="Email address"]') as
+        | HTMLInputElement
+        | null)?.required,
+    ).toBe(true);
+
+    // Pico expresses validation state through `aria-invalid`, not a class, so
+    // the state is announced rather than only coloured.
+    expect(h.overlay.querySelector('input[aria-invalid="false"]')).toBeTruthy();
+    expect(h.overlay.querySelector('input[aria-invalid="true"]')).toBeTruthy();
+    expect(
+      (h.overlay.querySelector("input[disabled]") as HTMLInputElement | null)
+        ?.disabled,
+    ).toBe(true);
+
+    // `<small>` helper text under a field, and after the article.
+    expect(
+      h.overlay.querySelectorAll(".text.small").length,
+    ).toBeGreaterThanOrEqual(3);
+
+    // A figure is a real <figure>/<img>/<figcaption>. The authored tag is
+    // `picture`, because `image` is the engine's own backdrop-layer name.
+    const figure = h.overlay.querySelector("figure") as HTMLElement;
+    expect(figure, "expected a <figure>").toBeTruthy();
+    const img = figure.querySelector("img") as HTMLImageElement;
+    expect(img, "expected the picture to mount an <img>").toBeTruthy();
+    expect(img.getAttribute("alt")).toBe("Minimal landscape");
+    expect(figure.querySelector("figcaption")).toBeTruthy();
 
     // The generic `input` must ship the same chrome as `field` — otherwise every
     // typed input falls back to the browser's white default next to a dark
@@ -194,11 +248,26 @@ describe("pico showcase example", () => {
     );
     expect(richRuns.length).toBeGreaterThanOrEqual(3);
 
-    // Content bindings interpolated.
+    // Content reached the DOM.
     const text = h.overlay.querySelector(".main")?.textContent ?? "";
     expect(text).toContain("Pico");
-    expect(text).toContain("Volume (40)");
-    expect(text).toContain("Lovelace");
+    // The reference table is deliberately generic placeholder content
+    // ("Heading" / "Cell"); real names would change every column width.
+    expect(text).toContain("Heading");
+    expect(text).toContain("Cell");
+
+    // Store bindings resolved. This is asserted on PROP bindings rather than an
+    // interpolated label: the reference has no interpolated text, and the
+    // showcase's job is to match it, so a `Volume ({volume})` label invented
+    // purely to exercise interpolation does not belong here.
+    expect(
+      (h.overlay.querySelector('input[type="range"]') as HTMLInputElement).value,
+    ).toBe("50");
+    expect(
+      (h.overlay.querySelector("progress") as HTMLProgressElement).getAttribute(
+        "value",
+      ),
+    ).toBe("25");
   });
 
   // The `@click` buttons are WIRED: made clickable and registered in the event

@@ -8,10 +8,10 @@
 // builtin earns CI coverage, so keep the two in sync.
 //
 // Element TAGS are builtins, named readably rather than after HTML — box, span,
-// scroller, text, link, label, field, textarea, button, image, input, slider,
+// scroller, text, link, label, field, textarea, button, picture, input, slider,
 // checkbox, radio, switch, dropdown, option, divider, progress, list,
 // ordered_list, item, table + table_header/table_body/table_row/header_cell/cell,
-// quote, citation, disclosure, disclosure_label, article, section, header,
+// quote, citation, figure, caption, disclosure, disclosure_label, article, section, header,
 // footer, form, field_group, group_label, modal.
 //
 // Everything ELSE on an element line is a style CLASS — `column`, `row`, `card`,
@@ -32,14 +32,14 @@ store first_name = ""
 store email = ""
 store agreed = false
 store search_term = ""
-store when = "2026-07-24"
-store at_time = "10:30"
-store swatch = "#0ea5e9"
-store volume = 40
-store size = "medium"
+store when = ""
+store at_time = ""
+store swatch = "#0eaaaa"
+store volume = 50
+store size = ""
 store modal_open = false
 store busy = false
-store done = 40
+store done = 25
 
 function set_first(event)
   first_name = event.value
@@ -83,6 +83,22 @@ layout main with
 
       -- Header -------------------------------------------------------------
       header:
+        -- Pico's nav dropdown is a `details` styled as a menu — the same
+        -- element as an accordion, so it opens without any JavaScript.
+        box nav:
+          list:
+            item:
+              -- Pico calls this class `dropdown`; here that name is already the
+              -- <select> ELEMENT, so the menu class is `menu`.
+              disclosure menu:
+                disclosure_label secondary "Theme" #role="button"
+                list:
+                  item:
+                    link "Auto" #href="#"
+                  item:
+                    link "Light" #href="#"
+                  item:
+                    link "Dark" #href="#"
         text h1 "Pico"
         text muted "A pure HTML example, without dependencies."
       divider
@@ -90,11 +106,13 @@ layout main with
       -- Preview ------------------------------------------------------------
       section:
         text h2 "Preview"
-        text "Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien."
+        text "Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas."
         form:
           row grid #child-gap=12:
-            field #value={first_name} #placeholder="First name" @input=set_first
-            field #type="email" #value={email} #placeholder="Email address" @input=set_email
+            -- `#aria-label` because the placeholder is the only visible label:
+            -- a placeholder is not an accessible name.
+            field #value={first_name} #placeholder="First name" #aria-label="First name" #required=true @input=set_first
+            field #type="email" #value={email} #placeholder="Email address" #aria-label="Email address" #autocomplete="email" #required=true @input=set_email
             button "Subscribe"
           row #child-gap=8 #child-align=center:
             switch #checked={agreed} @change=set_agreed
@@ -104,9 +122,9 @@ layout main with
       -- Typography ---------------------------------------------------------
       section:
         text h2 "Typography"
-        text "Aliquam lobortis vitae nibh nec rhoncus. Morbi mattis neque eget efficitur feugiat."
+        text "Aliquam lobortis vitae nibh nec rhoncus. Morbi mattis neque eget efficitur feugiat. Vivamus porta nunc a erat mattis, mattis feugiat turpis pretium. Quisque sed tristique felis."
         quote:
-          text "Maecenas vehicula metus tellus, vitae congue turpis hendrerit non."
+          text "Maecenas vehicula metus tellus, vitae congue turpis hendrerit non. Nam at dui sit amet ipsum cursus ornare."
           citation "- Phasellus eget lacinia"
 
         text h3 "Lists"
@@ -114,6 +132,7 @@ layout main with
           item "Aliquam lobortis lacus eu libero ornare facilisis."
           item "Nam et magna at libero scelerisque egestas."
           item "Suspendisse id nisl ut leo finibus vehicula quis eu ex."
+          item "Proin ultricies turpis et volutpat vehicula."
 
         text h3 "Inline text elements"
         row grid:
@@ -145,9 +164,13 @@ layout main with
         text "Cras <b>sit amet</b> maximus <i>risus</i>, with <u>underline</u>, <s>strikethrough</s>, <mark=amber_60>a highlight</mark> and <color=sky_60>colour</color> mid-sentence."
 
         text h3 "Heading 3"
+        text "Integer bibendum malesuada libero vel eleifend. Fusce iaculis turpis ipsum, at efficitur sem scelerisque vel. Aliquam auctor diam ut purus cursus fringilla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos."
         text h4 "Heading 4"
+        text "Cras fermentum velit vitae auctor aliquet. Nunc non congue urna, at blandit nibh. Donec ac fermentum felis. Vivamus tincidunt arcu ut lacus hendrerit, eget mattis dui finibus."
         text h5 "Heading 5"
+        text "Donec nec egestas nulla. Sed varius placerat felis eu suscipit. Mauris maximus ante in consequat luctus. Morbi euismod sagittis efficitur. Aenean non eros orci. Vivamus ut diam sem."
         text h6 "Heading 6"
+        text "Ut sed quam non mauris placerat consequat vitae id risus. Vestibulum tincidunt nulla ut tortor posuere, vitae malesuada tortor molestie. Sed nec interdum dolor. Vestibulum id auctor nisi, a efficitur sem. Aliquam sollicitudin efficitur turpis, sollicitudin hendrerit ligula semper id. Nunc risus felis, egestas eu tristique eget, convallis in velit."
 
       -- Buttons ------------------------------------------------------------
       section:
@@ -164,9 +187,35 @@ layout main with
       -- Form elements ------------------------------------------------------
       section:
         text h2 "Form elements"
+        -- Order and labels follow the reference exactly.
         form:
           label "Search"
-          input #type="search" #value={search_term} #placeholder="Search" @input=set_search
+          input search #type="search" #value={search_term} #placeholder="Search" @input=set_search
+
+          label "Text"
+          field #placeholder="Text"
+          text small "Curabitur consequat lacus at lacus porta finibus."
+
+          label "Select"
+          dropdown #value={size} #required=true @change=set_size:
+            -- An empty-valued selected first option is the placeholder: with
+            -- `#required` it cannot be submitted, so it reads as a prompt.
+            option "Select…" #value="" #selected=true
+            option "…"
+
+          label "File browser"
+          input file_input #type="file"
+
+          label "Range slider"
+          slider #value={volume} #min=0 #max=100 @input=set_volume
+
+          -- Validation states are Pico's `aria-invalid`, not a class.
+          label "Valid"
+          field #placeholder="Valid" #aria-invalid=false
+          label "Invalid"
+          field #placeholder="Invalid" #aria-invalid=true
+          label "Disabled"
+          field #placeholder="Disabled" #disabled=true
 
           label "Date"
           input #type="date" #value={when}
@@ -177,35 +226,36 @@ layout main with
           label "Color"
           input #type="color" #value={swatch}
 
-          label "File"
-          input #type="file"
-
-          label "Volume ({volume})"
-          slider #value={volume} #min=0 #max=100 @input=set_volume
-
-          label "Size"
-          dropdown #value={size} @change=set_size:
-            option "Small" #value="small"
-            option "Medium" #value="medium"
-            option "Large" #value="large"
-
           field_group:
-            group_label "Fruit"
-            row #child-gap=8 #child-align=center:
-              radio #name="fruit" #checked=true
-              text "Orange"
-            row #child-gap=8 #child-align=center:
-              radio #name="fruit"
-              text "Apple"
-
-          field_group:
-            group_label "Preferences"
+            group_label "Checkboxes"
             row #child-gap=8 #child-align=center:
               checkbox #checked=true
-              text "Remember me"
+              text "Checkbox"
+            row #child-gap=8 #child-align=center:
+              checkbox
+              text "Checkbox 2"
+
+          field_group:
+            group_label "Radio buttons"
+            row #child-gap=8 #child-align=center:
+              radio #name="radio" #checked=true
+              text "Radio button"
+            row #child-gap=8 #child-align=center:
+              radio #name="radio"
+              text "Radio button 2"
+
+          field_group:
+            group_label "Switches"
+            row #child-gap=8 #child-align=center:
+              switch #checked=true
+              text "Switch"
             row #child-gap=8 #child-align=center:
               switch #checked={agreed} @change=set_agreed
-              text "Publish immediately"
+              text "Switch 2"
+
+          row #child-gap=12:
+            button secondary "Reset" #type="reset"
+            button "Submit" #type="submit"
 
       -- Tables -------------------------------------------------------------
       section:
@@ -214,26 +264,45 @@ layout main with
           table striped:
             table_header:
               table_row:
-                header_cell "#"
-                header_cell "First name"
-                header_cell "Last name"
-                header_cell "Known for"
+                header_cell "#" #scope="col"
+                header_cell "Heading" #scope="col"
+                header_cell "Heading" #scope="col"
+                header_cell "Heading" #scope="col"
+                header_cell "Heading" #scope="col"
+                header_cell "Heading" #scope="col"
+                header_cell "Heading" #scope="col"
+                header_cell "Heading" #scope="col"
             table_body:
+              -- The row number is a `header_cell` with `#scope="row"`, not a
+              -- plain cell: it LABELS the row, so a screen reader announces it
+              -- alongside each value in that row.
               table_row:
-                cell "1"
-                cell "Ada"
-                cell "Lovelace"
-                cell "First programmer"
+                header_cell "1" #scope="row"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
               table_row:
-                cell "2"
-                cell "Grace"
-                cell "Hopper"
-                cell "Compilers"
+                header_cell "2" #scope="row"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
               table_row:
-                cell "3"
-                cell "Alan"
-                cell "Turing"
-                cell "Computability"
+                header_cell "3" #scope="row"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
+                cell "Cell"
 
       -- Modal --------------------------------------------------------------
       section:
@@ -252,22 +321,35 @@ layout main with
       -- Accordions ---------------------------------------------------------
       section:
         text h2 "Accordions"
-        disclosure #open=true:
-          disclosure_label "Introduction"
-          text "Nunc nec dui vitae massa hendrerit fringilla."
         disclosure:
-          disclosure_label "Details"
+          disclosure_label "Accordion 1"
+          text "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque urna diam, tincidunt nec porta sed, auctor id velit. Etiam venenatis nisl ut orci consequat, vitae tempus quam commodo. Nulla non mauris ipsum. Aliquam eu posuere orci. Nulla convallis lectus rutrum quam hendrerit, in facilisis elit sollicitudin. Mauris pulvinar pulvinar mi, dictum tristique elit auctor quis. Maecenas ac ipsum ultrices, porta turpis sit amet, congue turpis."
+        disclosure #open=true:
+          disclosure_label "Accordion 2"
           list:
             item "Vestibulum id elit quis massa interdum sodales."
-            item "Nunc quis eros vel odio pretium tincidunt."
+            item "Nunc quis eros vel odio pretium tincidunt nec quis neque."
+            item "Quisque sed eros non eros ornare elementum."
+            item "Cras sed libero aliquet, porta dolor quis, dapibus ipsum."
 
       -- Article ------------------------------------------------------------
       section:
         text h2 "Article"
         article:
-          header "Header"
-          text "Nullam scelerisque tempor varius. Vestibulum ante ipsum primis in faucibus."
-          footer "Footer"
+          text "Nullam dui arcu, malesuada et sodales eu, efficitur vitae dolor. Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas. Nunc placerat facilisis cursus. Sed vestibulum metus eget dolor pharetra rutrum."
+          footer:
+            text small "Duis nec elit placerat, suscipit nibh quis, finibus neque."
+
+      -- Figure -------------------------------------------------------------
+      section:
+        text h2 "Figure"
+        figure:
+          -- A remote `#src` resolves through the `.url` asset path; `#alt` is
+          -- required for anything that is not purely decorative.
+          picture #src="img/landscape.jpg" #alt="Minimal landscape"
+          caption:
+            text "Image from "
+            link "unsplash.com" #href="#"
 
       -- Group --------------------------------------------------------------
       section:
@@ -289,6 +371,6 @@ layout main with
         -- A bare busy `article` is Pico's block-level loading placeholder.
         article #aria-busy=true
         row #child-gap=8 #child-align=center:
-          button "Please wait" #aria-busy={busy} @click=toggle_busy
+          button "Please wait…" #aria-busy={busy} @click=toggle_busy
           text muted "Click to toggle aria-busy"
 end
