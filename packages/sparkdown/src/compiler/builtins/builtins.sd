@@ -1465,6 +1465,16 @@ style field with
   pointer_events = auto
   padding = 0.75rem 1rem
   text-leading = 1.5
+  -- A control closes a block in the flow, so it carries the rhythm BELOW it.
+  -- This is the one place the builtins use a bottom margin rather than the
+  -- top-margin rhythm everything else uses: a control is followed by the next
+  -- field's label, and a label cannot know whether a control preceded it.
+  margin-bottom = 1rem
+  -- A helper `small` belongs to the control above it, so it sits tight against
+  -- it rather than a full rhythm step away.
+  + small:
+    margin-top = -0.75rem
+    margin-bottom = 1rem
   corner = 0.25rem
   border-width = 0.0625rem
   border-style = solid
@@ -1524,6 +1534,11 @@ style input with
   color-scheme = dark
   text-leading = 1.5
   width = 100%
+  -- See `field`: controls carry the rhythm below them.
+  margin-bottom = 1rem
+  + small:
+    margin-top = -0.75rem
+    margin-bottom = 1rem
   -- A colour input's swatch IS its content box, so the shared field padding
   -- squeezes it to zero height and it renders as a hairline.
   @type_color:
@@ -1649,6 +1664,11 @@ end
 style textarea with
   pointer_events = auto
   padding = 0.75rem 1rem
+  -- See `field`: controls carry the rhythm below them.
+  margin-bottom = 1rem
+  + small:
+    margin-top = -0.75rem
+    margin-bottom = 1rem
   corner = 0.25rem
   border-width = 0.0625rem
   border-style = solid
@@ -1739,8 +1759,16 @@ style dropdown with
   pointer_events = auto
   appearance = none
   color-scheme = dark
+  -- Without this a <select> sizes its text box from the UA's own leading and
+  -- lands 3px shorter than every input beside it.
+  text-leading = 1.5
   padding = 0.75rem 1rem
   padding-right = 2.5rem
+  -- See `field`: controls carry the rhythm below them.
+  margin-bottom = 1rem
+  + small:
+    margin-top = -0.75rem
+    margin-bottom = 1rem
   corner = 0.25rem
   border-width = 0.0625rem
   border-style = solid

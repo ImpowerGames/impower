@@ -769,6 +769,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -830,6 +835,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -963,6 +973,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -1059,8 +1074,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -2883,6 +2904,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -2944,6 +2970,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -3077,6 +3108,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -3173,8 +3209,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -4959,6 +5001,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -5020,6 +5067,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -5153,6 +5205,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -5249,8 +5306,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -7157,6 +7220,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -7218,6 +7286,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -7351,6 +7424,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -7447,8 +7525,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -9214,6 +9298,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -9275,6 +9364,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -9408,6 +9502,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -9504,8 +9603,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -11253,6 +11358,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -11314,6 +11424,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -11447,6 +11562,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -11543,8 +11663,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -13342,6 +13468,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -13403,6 +13534,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -13536,6 +13672,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -13632,8 +13773,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -15398,6 +15545,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -15459,6 +15611,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -15592,6 +15749,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -15688,8 +15850,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -17454,6 +17622,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -17515,6 +17688,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -17648,6 +17826,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -17744,8 +17927,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -19510,6 +19699,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -19571,6 +19765,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -19704,6 +19903,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -19800,8 +20004,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -21566,6 +21776,11 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -21627,6 +21842,11 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   &[type="color"] {
     padding: 0.25rem;
     height: 3.5rem;
@@ -21760,6 +21980,11 @@ spark-web-player #game .switch {
 spark-web-player #game .textarea {
   pointer-events: auto;
   padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -21856,8 +22081,14 @@ spark-web-player #game .dropdown {
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
+  margin-bottom: 1rem;
+  +.small {
+    margin-top: -0.75rem;
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
