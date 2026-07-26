@@ -78,7 +78,10 @@ describe("define property diagnostic locations", () => {
   it("attributes the diagnostic to the included file that declares it", () => {
     const program = compile(
       [
-        script(MAIN, ["include portraits.sd", "", "First beat.", ""].join("\n")),
+        script(
+          MAIN,
+          ["include portraits.sd", "", "First beat.", ""].join("\n"),
+        ),
         script(
           PORTRAITS,
           [
