@@ -141,13 +141,22 @@ export default function LogicList(_props: LogicListProps) {
               previous panel's content mid-slide — it waits until the
               new panel is fully in place, then fades in. The fade-OUT
               has no delay so the FAB clears immediately as soon as the
-              user navigates away. */}
-          <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24 [&_button]:pointer-events-auto">
+              user navigates away.
+
+              The faded-out branch has to disable pointer events ON the
+              button, not just on its wrapper. `pointer-events` is not a
+              clipping mechanism -- hit-testing reads the element's own
+              computed value -- and `Button` ships `pointer-events-auto` in
+              its own base classes, so an inherited `none` from the wrapper
+              is overridden and the invisible FAB stays fully clickable over
+              the editor. `[&_button]:pointer-events-none` wins on
+              specificity (`.wrapper button` beats `.pointer-events-auto`). */}
+          <div class="pointer-events-none absolute inset-x-0 bottom-0 h-24">
             <div
               class={`transition-opacity duration-200 ${
                 panel === "scripts"
-                  ? "opacity-100 delay-150"
-                  : "pointer-events-none opacity-0"
+                  ? "opacity-100 delay-150 [&_button]:pointer-events-auto"
+                  : "opacity-0 [&_button]:pointer-events-none"
               }`}
             >
               <FileAddButton
