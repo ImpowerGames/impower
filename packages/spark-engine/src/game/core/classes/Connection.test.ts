@@ -173,6 +173,58 @@ describe("Connection", () => {
       expect(connection.pendingRequestIds).toEqual([]);
     });
 
+    // JSON-RPC allows either form of id, and `RequestMessage.id` is typed
+    // `number | string`, so a numeric id has to be awaited like a string one
+    // rather than silently degrading to fire-and-forget.
+    it("awaits a response for a numeric id", async () => {
+      const { connection } = createConnection();
+      const pending = connection.emit({
+        jsonrpc: "2.0",
+        id: 7,
+        method: "ask",
+        params: {},
+      } as never);
+      expect(await settled(pending)).toEqual({ state: "pending" });
+
+      connection.receive({
+        jsonrpc: "2.0",
+        id: 7,
+        method: "ask",
+        result: "answered",
+      } as Message);
+      expect(await settled(pending)).toEqual({
+        state: "resolved",
+        value: "answered",
+      });
+    });
+
+    it("awaits a response for the zero id", async () => {
+      const { connection } = createConnection();
+      const pending = connection.emit({
+        jsonrpc: "2.0",
+        id: 0,
+        method: "ask",
+        params: {},
+      } as never);
+      expect(await settled(pending)).toEqual({ state: "pending" });
+    });
+
+    // An empty-string id identifies nothing to reply to, so it stays a
+    // notification -- awaiting it would hang forever.
+    it("treats an empty-string id as a notification", async () => {
+      const { connection, sent } = createConnection();
+      const result = await settled(
+        connection.emit({
+          jsonrpc: "2.0",
+          id: "",
+          method: "ask",
+          params: {},
+        } as never) as Promise<unknown>,
+      );
+      expect(result).toEqual({ state: "resolved", value: undefined });
+      expect(sent).toHaveLength(1);
+    });
+
     it("does not leak bookkeeping across many requests", async () => {
       const { connection } = createConnection();
       for (let i = 0; i < 5; i += 1) {
@@ -379,11 +431,58 @@ describe("Connection", () => {
       expect(seen).toEqual([]);
     });
 
-    // `removeAllListeners()` is deliberately NOT covered here. It replaces the
-    // socket's listener map instead of clearing it, which detaches the socket
-    // from the map `Connection` actually broadcasts to -- so previously
-    // registered listeners keep firing and newly added ones never do. Asserting
-    // either way would be wrong: the current behaviour is a bug, and the
-    // intended behaviour doesn't exist yet. Tracked separately.
+    // The listener map is shared by reference with the Connection that
+    // broadcasts through it, so clearing has to happen in place. Reassigning
+    // detaches the socket instead: old listeners keep firing, and anything
+    // registered afterwards lands in an orphaned map that nothing reads.
+    describe("removeAllListeners", () => {
+      it("stops delivering to listeners registered before the call", () => {
+        const seen: string[] = [];
+        const { connection } = createConnection();
+        connection.incoming.addListener("note", () => seen.push("before"));
+        connection.receive(notification("note"));
+        expect(seen).toEqual(["before"]);
+
+        connection.incoming.removeAllListeners();
+        connection.receive(notification("note"));
+        expect(seen).toEqual(["before"]);
+      });
+
+      it("keeps working for listeners registered after the call", () => {
+        const seen: string[] = [];
+        const { connection } = createConnection();
+        connection.incoming.addListener("note", () => seen.push("before"));
+        connection.incoming.removeAllListeners();
+
+        connection.incoming.addListener("note", () => seen.push("after"));
+        connection.receive(notification("note"));
+        expect(seen).toEqual(["after"]);
+      });
+
+      it("clears every method at once, including the wildcard", () => {
+        const seen: string[] = [];
+        const { connection } = createConnection();
+        connection.incoming.addListener("*", () => seen.push("wildcard"));
+        connection.incoming.addListener("one", () => seen.push("one"));
+        connection.incoming.addListener("two", () => seen.push("two"));
+
+        connection.incoming.removeAllListeners();
+        connection.receive(notification("one"));
+        connection.receive(notification("two"));
+        expect(seen).toEqual([]);
+      });
+
+      it("leaves the other direction alone", async () => {
+        const seen: string[] = [];
+        const { connection } = createConnection();
+        connection.incoming.addListener("note", () => seen.push("incoming"));
+        connection.outgoing.addListener("note", () => seen.push("outgoing"));
+
+        connection.incoming.removeAllListeners();
+        connection.receive(notification("note"));
+        await connection.emit(notification("note") as never);
+        expect(seen).toEqual(["outgoing"]);
+      });
+    });
   });
 });
