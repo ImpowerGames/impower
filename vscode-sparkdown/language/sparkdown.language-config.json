@@ -289,7 +289,7 @@
   ],
   "indentationRules": {
     "increaseIndentPattern": "^((?!--).)*((\\b(else|then|do|repeat|define|scene|branch)\\b\\s*(--.*)?$)|(\\bfunction\\b(?:(?!\\bend\\b).)*$)|([\\{\\(\\[]\\s*(--.*)?$))",
-    "decreaseIndentPattern": "^\\s*((\\b(elseif|else|end|until)\\b)|\\}|\\)|\\])",
+    "decreaseIndentPattern": "^\\s*((\\b(elseif|else|end|until)\\b)|\\}|\\)(?!\\))|\\](?!\\]))",
     "indentNextLinePattern": "^((?!--).)*(?<![=<>!~])=\\s*(--.*)?$",
     "unIndentedLinePattern": "^#\\!"
   },

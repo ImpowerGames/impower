@@ -52,8 +52,6 @@ const vscodeIndentService = indentService.of((context, pos) => {
     newIndentSize -= context.unit;
   }
 
-  console.log("vscodeIndentService", isIncrease, isDecrease, newIndentSize);
-
   if (isIncrease || isDecrease) {
     // Ensure we never return a negative indent size
     return Math.max(0, newIndentSize);
