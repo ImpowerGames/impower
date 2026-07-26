@@ -89,7 +89,7 @@ layout main with
         -- The nav FOLLOWS the title in the reference, and there is no rule
         -- between the header and Preview. Pico's dropdown is a `foldout` styled
         -- as a menu — the same element as an accordion, so it opens with no JS.
-        box nav:
+        box nav #margin-top=18:
           list:
             item:
               -- Pico calls this class `dropdown`; here that name is already the
@@ -108,7 +108,7 @@ layout main with
         text h2 "Preview"
         text "Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas."
         form:
-          row grid #child-gap=12:
+          row grid:
             -- `#aria-label` because the placeholder is the only visible label:
             -- a placeholder is not an accessible name.
             field #value={first_name} #placeholder="First name" #aria-label="First name" #required=true @input=set_first

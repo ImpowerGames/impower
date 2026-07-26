@@ -150,6 +150,7 @@ const FIELD_VALUE_NAMES = new Set([
   "StringFieldValue",
   "LuauElementContentStringInterpolated",
   "LuauElementContentStringPlain",
+  "LuauElementContentStringSingleQuoted",
   "NumericFieldValue",
   "BooleanFieldValue",
   "StylingValue",
@@ -166,6 +167,9 @@ const INTERP_CONTENT_NODES = new Set([
 const PLAIN_CONTENT_NODES = new Set([
   "StringFieldValue",
   "LuauElementContentStringPlain",
+  // Single-quoted content never interpolates, so it is always read literally —
+  // which is exactly why an author reaches for it (e.g. text containing `{`).
+  "LuauElementContentStringSingleQuoted",
 ]);
 
 /** DFS in-order: the first descendant (or self) whose name is in `names`. */
@@ -674,7 +678,12 @@ function readContentParts(
 /** Read a field-value node as a literal PropValue, used for inline props/style
  *  values (Luau-position values that are NOT reactive in v1). Display content
  *  goes through {@link readContentParts} instead. */
-const PLAIN_STRING_CONTENT = new Set(["PlainStringContent"]);
+const PLAIN_STRING_CONTENT = new Set([
+  "PlainStringContent",
+  // Same role, but bounded by `'` — `PlainStringContent` stops at a double
+  // quote, so it reads as empty inside single-quoted content that contains one.
+  "PlainStringContentSingleQuoted",
+]);
 
 function readLiteralValue(value: SyntaxNode | null, ctx: LowerContext): PropValue {
   if (!value) return { kind: "literal", value: "" };

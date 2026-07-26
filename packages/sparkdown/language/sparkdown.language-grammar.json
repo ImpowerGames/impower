@@ -7671,6 +7671,9 @@
               "include": "#LuauElementContentStringPlain"
             },
             {
+              "include": "#LuauElementContentStringSingleQuoted"
+            },
+            {
               "include": "#ComponentName"
             }
           ]
@@ -13658,6 +13661,58 @@
       "tag": "regexp",
       "name": "string.regexp.sd",
       "match": "[^\\\\\\[\\]()|*+?{}^$-]+|[\\s\\S]"
+    },
+    "LuauElementContentStringSingleQuoted": {
+      "tag": "string",
+      "name": "string.quoted.single.sd",
+      "match": "(['])((?:\\.|[^'])*)(['])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PlainStringContentSingleQuoted"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#PunctuationStringClose"
+            }
+          ]
+        }
+      }
+    },
+    "PlainStringContentSingleQuoted": {
+      "match": "((?:\\.|[^'])*?)(?=$|')",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StringEscape"
+            },
+            {
+              "include": "#SparkleRichTextTag"
+            },
+            {
+              "include": "#SparkleRichTextTagUnknown"
+            },
+            {
+              "include": "#Color"
+            },
+            {
+              "include": "#StringCharacter"
+            }
+          ]
+        }
+      }
     }
   }
 }
