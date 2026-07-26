@@ -36,6 +36,16 @@ const completionTheme = EditorView.baseTheme({
   "& .cm-tooltip.cm-completionInfo pre": {
     margin: "0",
   },
+  // Asset previews carry no intrinsic bound. The panel caps its width but not
+  // its height, so a tall image runs off the bottom of the screen. Clamp to a
+  // thumbnail; `height: auto` also stops small images being stretched up.
+  "& .cm-tooltip.cm-completionInfo img": {
+    maxWidth: "100%",
+    maxHeight: "180px",
+    width: "auto",
+    height: "auto",
+    objectFit: "contain",
+  },
   "& .cm-tooltip.cm-completionInfo.cm-completionInfo-right": {
     marginTop: "-1px",
   },
