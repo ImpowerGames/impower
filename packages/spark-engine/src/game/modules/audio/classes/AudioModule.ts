@@ -4,6 +4,7 @@ import {
   AudioBuiltins,
   audioBuiltinDefinitions,
 } from "../audioBuiltinDefinitions";
+import { default_synth } from "../constructors/default_synth";
 import { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
 import { ChannelState } from "../types/ChannelState";
 import { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
@@ -18,6 +19,14 @@ import {
   UpdateAudioPlayersMessage,
   UpdateAudioPlayersMessageMap,
 } from "./messages/UpdateAudioPlayersMessage";
+
+/**
+ * A context entry is a synth if it says so, or if it was looked up under the
+ * `synth` type. The `$type` check is the reliable one; the `type` fallback
+ * covers entries reached through a path that resolved the type separately.
+ */
+const isSynth = (asset: object, type: string): boolean =>
+  ("$type" in asset && asset.$type === "synth") || type === "synth";
 
 export interface AudioConfig {}
 
@@ -206,8 +215,21 @@ export class AudioModule extends Module<
         if ("loop_end" in resolvedAsset) {
           d.loopEnd = resolvedAsset.loop_end;
         }
-        if ("shape" in resolvedAsset) {
-          d.synth = resolvedAsset as Synth;
+        if (isSynth(resolvedAsset, d.type)) {
+          // Fill in the type's defaults. A `define x as synth with ... end`
+          // reaches the context carrying ONLY the properties the author
+          // actually wrote -- nothing merges the `synth` constructor's
+          // defaults in on the way -- so a voice authored as just
+          // `pitch = { frequency = 340 }` arrives without `shape`, without an
+          // envelope, and without a volume. The builtin synths look complete
+          // only because they are built by calling `default_synth()`.
+          //
+          // This used to gate on `"shape" in resolvedAsset`, which silently
+          // dropped every partially-authored synth: `d.synth` was never set,
+          // so the tone events played nothing at all. Detect synths by their
+          // type instead, and give them the same complete shape the builtins
+          // get.
+          d.synth = default_synth(resolvedAsset as Synth);
         }
         d.tones = this.parseTones(d.key);
       }
