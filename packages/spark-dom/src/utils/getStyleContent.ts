@@ -1,3 +1,4 @@
+import { DATA_ATTRIBUTE_PROPS } from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 
@@ -138,10 +139,34 @@ function breakpointRegex(name: string) {
   );
 }
 
+/** A descendant operator in LEADING position, i.e. `>> foo` or `, >> foo`. */
+const LEADING_DESCENDANT_REGEX = /(^|,)([ ]*)[>][>]/g;
+
+/** A bare `#name` attribute selector, before any `=value` part. */
+const DATA_ATTRIBUTE_SELECTOR_REGEX = /[#]([_\p{L}][_\p{L}0-9-]*)/gu;
+
 export function getCSSSelector(
   selector: string,
   breakpoints: Record<string, number> = DEFAULT_BREAKPOINTS,
 ): string {
+  // A non-standard prop is authored bare but written to the DOM prefixed, so a
+  // selector naming it has to be prefixed too or it would match nothing —
+  // `#tooltip:` has to become `[data-tooltip]`, since that is what the runtime
+  // wrote. Same list drives both sides.
+  selector = selector.replace(
+    DATA_ATTRIBUTE_SELECTOR_REGEX,
+    (m, name: string) =>
+      DATA_ATTRIBUTE_PROPS.has(name) ? `#data-${name}` : m,
+  );
+
+  // Anchor a LEADING `>>` to an explicit `&` first. `>>` becomes a space below,
+  // and a space in leading position is then eaten by the closing `trim()` — so
+  // `>> foo` used to emit `.foo`, which native nesting reads as a COMPOUND
+  // (`&.foo`, the element itself) rather than the descendant it plainly says.
+  // It compiled clean and silently matched something else. With the `&` the
+  // space sits between two tokens, where trim cannot reach it.
+  selector = selector.replace(LEADING_DESCENDANT_REGEX, "$1$2& >>");
+
   // Split by quoted strings so we never touch them (= valid CSS)
   const OUT: string[] = [];
   const parts = selector.split(/(["](?:\\.|[^"])*["]|['](?:\\.|[^'])*['])/);
