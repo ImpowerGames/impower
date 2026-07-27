@@ -146,6 +146,17 @@ type DispatchResult =
  *   limit, the recursive matcher retroactively drops that scope's entire
  *   (zero-width) token batch; this tokenizer has already emitted it. Only
  *   reachable with 10 consecutive zero-length nested-scope matches.
+ * - WINDOW SEMANTICS AT MID-LINE TOP-LEVEL DISPATCH: the old driver minted
+ *   a FRESH window at every top-level dispatch, so `^` matched at any
+ *   dispatch position (even mid-line, e.g. right after an inline Luau
+ *   `end`) and lookbehinds saw nothing. This tokenizer matches in one
+ *   contiguous window, so `^`/`$`/lookbehinds are LINE-TRUE everywhere —
+ *   which is what vscode-textmate (the engine's parity reference) does.
+ *   e.g. `while x do end scene foo` no longer parses a Scene declaration
+ *   mid-line. Locked by the boundary/* grammar fixtures, whose
+ *   scopeEquality coverage asserts vscode-textmate agreement; restart
+ *   paths widen their window to the line start so incremental parses see
+ *   the same assertions (TextmateGrammarParse.findLineStart).
  *
  * To retroactively attach close markers, the most recent token is held in
  * `pending` and flushed one step late; `flushableNow` reports when it is

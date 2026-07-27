@@ -1,0 +1,4 @@
+while x do
+  foo()
+end  
+An action line after a loop whose end line carries trailing spaces.

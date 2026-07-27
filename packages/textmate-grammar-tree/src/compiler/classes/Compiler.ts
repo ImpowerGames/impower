@@ -9,6 +9,7 @@ import { type TokenizerResume } from "../../grammar/classes/ResumableTokenizer";
 import { SpecialRecord } from "../enums/SpecialRecord";
 import { ITreeBuffer } from "../types/ITreeBuffer";
 import { Chunk } from "./Chunk";
+import { CompileStack } from "./CompileStack";
 import { FlatBufferCursor } from "./FlatBufferCursor";
 import { Packet } from "./Packet";
 
@@ -87,6 +88,16 @@ export class Compiler {
     return right;
   }
 
+  /**
+   * Bumped on every DESTRUCTIVE reuse (rewind/slide/detach). Each finished
+   * parse stamps its tree with the epoch it left the compiler in; a later
+   * parse only reuses the compiler if the stamp still matches — a mismatch
+   * means some other parse (possibly abandoned mid-flight) mutated the
+   * compiler since that tree was built, so its fragments no longer
+   * describe this state and the parse must start from scratch.
+   */
+  reuseEpoch = 0;
+
   reuse(editedFrom: number, editedTo: number, editedOffset: number) {
     // Clear any `reparsedTo` left over from a PREVIOUS incremental parse.
     // `reparsedTo` is only meaningful when this parse reuses chunks AHEAD
@@ -99,26 +110,38 @@ export class Compiler {
     // silently dropping every annotation for the newly appended content.
     this.reparsedTo = undefined;
     this.resumeState = undefined;
+    // A leftover `ahead` from a previous (possibly abandoned) parse is in
+    // that parse's coordinates — if it survives here it can be spliced into
+    // a future tree at a stale offset, resurrecting deleted text.
+    this.ahead = undefined;
     // a stale split request from a previous parse run must not leak into
     // this one
     this.packet.clearScheduledSplit();
     // No-op "edit" (the fragment analysis produces a zero-width, zero-offset
     // edit at the document end for scroll-continuation parses): if the
-    // packet already covers through that point, EVERY cached chunk is still
+    // packet ends EXACTLY at that point, EVERY cached chunk is still
     // valid — reuse them all without rewinding. Rewinding here would
     // discard everything after the last split point behind the document end
     // and force the NEXT parse to re-tokenize it, which is most of the
     // document when a giant root scope has no internal pure boundaries.
+    // Strict equality is load-bearing: a DELETION at the document tail also
+    // reaches here as a zero-width zero-offset edit at the (new) document
+    // end, and its packet ends PAST that point — those stale chunks must be
+    // rewound away, not reused (they would put phantom nodes past the end
+    // of the document and permanently poison the packet).
     const packetEnd = this.packet.last?.to ?? 0;
     if (
       editedOffset === 0 &&
       editedFrom === editedTo &&
-      packetEnd >= editedFrom &&
+      packetEnd === editedFrom &&
       packetEnd > 0
     ) {
       this.reparsedFrom = packetEnd;
       return packetEnd;
     }
+    // Every path below mutates the packet — invalidate all other trees
+    // holding this compiler (see reuseEpoch).
+    this.reuseEpoch++;
     const splitPointBeforeEdit = this.packet.findBehindSplitPoint(editedFrom);
     let splitBehind = this.packet.findBehindSplitPoint(
       splitPointBeforeEdit.chunk?.from ?? 0,
@@ -327,13 +350,17 @@ export class Compiler {
 
     if (FINISH_INCOMPLETE_NODES) {
       const lastChunk = this.packet.last;
-      if (lastChunk) {
-        while (lastChunk.stack.length > 0) {
+      if (lastChunk && lastChunk.stack.length > 0) {
+        // Pop a CLONE — the chunk (and its residual stack) is cached and
+        // may seed a future parse's inherit; draining it in place would
+        // corrupt that state.
+        const stack = new CompileStack(lastChunk.stack);
+        while (stack.length > 0) {
           // emit an error token
           this.emitNode(NodeID.incomplete, length, length, 4);
 
           // finish the last element in the stack
-          const s = lastChunk.stack.pop()!;
+          const s = stack.pop()!;
           const node = s[0]!;
           const pos = s[1]!;
           const children = s[2]!;

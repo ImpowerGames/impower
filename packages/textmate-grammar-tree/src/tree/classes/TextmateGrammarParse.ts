@@ -96,6 +96,19 @@ export class TextmateGrammarParse implements PartialParse {
           (f.tree as any).props as any[],
         ).find((v) => v instanceof Compiler);
         if (cachedCompiler) {
+          // Only reuse if the compiler is still in the state this tree was
+          // built from. Trees share ONE mutable compiler; a parse that was
+          // started off some tree and then abandoned (routine while
+          // typing) leaves the compiler rewound/mutated, and this tree's
+          // fragments no longer describe it — reusing would corrupt the
+          // result. An epoch mismatch falls back to a from-scratch parse.
+          const stampedEpoch = (f.tree as any).__compilerEpoch;
+          if (
+            stampedEpoch !== undefined &&
+            stampedEpoch !== cachedCompiler.reuseEpoch
+          ) {
+            break;
+          }
           const restartFrom = cachedCompiler.reuse(
             this.region.edit.from,
             this.region.edit.to,
@@ -117,16 +130,21 @@ export class TextmateGrammarParse implements PartialParse {
       this.compiler = new Compiler(grammar);
     }
 
-    // When restarting from an in-scope split point, anchor the tokenizer's
-    // text window at the OUTERMOST open scope's begin position (not the
-    // restart point): lookbehind assertions evaluate against `state.str`,
-    // and the original parse could see back to the construct's start.
+    // When restarting, anchor the tokenizer's text window so `^` and
+    // lookbehind assertions see the same text a from-scratch parse would:
+    // at least the start of the LINE containing the restart (grammar
+    // assertions are line-local under the `m` flag — a pure split point
+    // can sit mid-line, e.g. right after a zero-width scope close, where
+    // an unwidened window would make `(?<!^)`-style assertions flip), and
+    // for in-scope restarts no later than the outermost open scope's
+    // begin position.
     const resume = this.compiler.resumeState;
     this.compiler.resumeState = undefined;
-    const anchor =
+    const base =
       resume && resume.frames.length > 0
         ? Math.min(resume.frames[0]!.openedAtAbs, this.region.from)
         : this.region.from;
+    const anchor = this.findLineStart(base);
 
     this.tokenizer = new ResumableTokenizer(
       grammar,
@@ -135,6 +153,10 @@ export class TextmateGrammarParse implements PartialParse {
     );
     if (resume) {
       this.tokenizer.restore(resume, this.region.from);
+    } else if (this.region.from > anchor) {
+      // Pure restart mid-line: start matching at the restart position but
+      // keep the line prefix visible in the window for assertions.
+      this.tokenizer.skip(this.region.from - anchor);
     }
     // In-block split points are only minted on INCREMENTAL parses (ones
     // that restarted from a cached compiler): a from-scratch parse keeps
@@ -248,12 +270,34 @@ export class TextmateGrammarParse implements PartialParse {
       const props = Object.create(null);
       props[(cachedCompilerProp as any).id] = this.compiler;
       (tree as any).props = props;
+      // Stamp the tree with the compiler state it was built from — a later
+      // parse refuses to reuse the compiler if another parse has mutated
+      // it since (see the epoch check in the constructor).
+      (tree as any).__compilerEpoch = this.compiler.reuseEpoch;
 
       return tree;
     }
     const topNode = this.compiler.grammar.nodes[topID];
     const topNodeType = topNode?.props["nodeType"];
     return new Tree(topNodeType, [], [], length);
+  }
+
+  /**
+   * Finds the start of the line containing `pos` (0 if none) by reading
+   * backward through the input in bounded windows.
+   */
+  protected findLineStart(pos: number): number {
+    let from = pos;
+    while (from > 0) {
+      const start = Math.max(0, from - 1024);
+      const text = this.region.input.read(start, from);
+      const idx = text.lastIndexOf("\n");
+      if (idx >= 0) {
+        return start + idx + 1;
+      }
+      from = start;
+    }
+    return 0;
   }
 
   /**
@@ -293,6 +337,13 @@ export class TextmateGrammarParse implements PartialParse {
       return false;
     }
     if (!this.region.contiguous) {
+      return false;
+    }
+    // The splice retires the tokenizer (finishAfterSplice), so the spliced
+    // tail MUST carry the parse through the whole region. An abandoned
+    // parse can leave the cached packet truncated mid-document; splicing
+    // its tail would silently end the tree there.
+    if ((ahead.last?.to ?? 0) < this.region.to) {
       return false;
     }
     if (!this.tokenizer.hasOpenFrames || this.tokenizer.done) {

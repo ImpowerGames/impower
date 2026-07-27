@@ -1,0 +1,4 @@
+while x do end scene foo
+scene RealScene()
+  Real content.
+end
