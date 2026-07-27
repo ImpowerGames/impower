@@ -45,6 +45,15 @@ try {
 
   const workspace = new SparkdownLanguageServerWorkspace(connection);
 
+  // Asset previews composite a layered image by reading its layers. impower-dev
+  // serves assets over http so the worker just fetches them; VS Code's srcs are
+  // workspace uris a worker can't fetch, so the bytes come back over the
+  // extension bridge instead. Hosts that implement neither fall back to the
+  // single-layer preview rather than failing.
+  const imageCompositeOptions = {
+    readFileBytes: (uri: string) => workspace.getFileBytes(uri),
+  };
+
   const capabilities: ServerCapabilities = {
     textDocumentSync: TextDocumentSyncKind.Incremental,
     foldingRangeProvider: true,
@@ -216,6 +225,7 @@ try {
       program,
       config,
       params.position,
+      imageCompositeOptions,
     );
     performance.mark(`lsp: onHover ${uri} end`);
     performance.measure(
@@ -276,7 +286,11 @@ try {
     }
     performance.mark(`lsp: onCompletionResolve ${item.label} start`);
     const program = workspace.program(data.uri);
-    const resolved = await resolveCompletion(item, program);
+    const resolved = await resolveCompletion(
+      item,
+      program,
+      imageCompositeOptions,
+    );
     performance.mark(`lsp: onCompletionResolve ${item.label} end`);
     performance.measure(
       `lsp: onCompletionResolve ${item.label}`,

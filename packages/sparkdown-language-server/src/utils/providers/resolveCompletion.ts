@@ -1,5 +1,8 @@
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { getImagePreviewMarkupComposited } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
+import {
+  getImagePreviewMarkupComposited,
+  type ImageCompositeOptions,
+} from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { MarkupKind, type CompletionItem } from "vscode-languageserver";
 
 /**
@@ -28,6 +31,7 @@ export interface CompletionItemResolveData {
 export const resolveCompletion = async (
   item: CompletionItem,
   program: SparkProgram | undefined,
+  options?: ImageCompositeOptions,
 ): Promise<CompletionItem> => {
   const data = item.data as CompletionItemResolveData | undefined;
   if (!data || item.documentation != null) {
@@ -40,6 +44,7 @@ export const resolveCompletion = async (
   const preview = await getImagePreviewMarkupComposited(
     program?.context,
     struct,
+    options,
   );
   if (!preview) {
     return item;

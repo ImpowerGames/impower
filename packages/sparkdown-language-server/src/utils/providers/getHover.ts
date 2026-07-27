@@ -4,7 +4,10 @@ import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/S
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { getExpectedSelectorTypes } from "@impower/sparkdown/src/compiler/utils/getExpectedSelectorTypes";
-import { getImagePreviewMarkupComposited } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
+import {
+  getImagePreviewMarkupComposited,
+  type ImageCompositeOptions,
+} from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { resolveSelector } from "@impower/sparkdown/src/compiler/utils/resolveSelector";
 import {
   MarkupKind,
@@ -19,6 +22,7 @@ export const getHover = async (
   program: SparkProgram | undefined,
   config: SparkdownCompilerConfig | undefined,
   position: Position,
+  options?: ImageCompositeOptions,
 ): Promise<Hover | null> => {
   if (!document || !annotations || !program) {
     return null;
@@ -94,6 +98,7 @@ export const getHover = async (
   const preview = await getImagePreviewMarkupComposited(
     program.context,
     struct,
+    options,
   );
   if (!preview) {
     return null;

@@ -10,6 +10,26 @@ const getFileText = async (uri: string) => {
   return text;
 };
 
+/**
+ * Raw bytes as base64, for the language server's asset previews.
+ *
+ * The server runs in a worker and cannot `fetch` a workspace uri, and VS
+ * Code's markdown sanitizer refuses any non-http(s) `<img src>` — so previews
+ * there are inlined `data:` URIs built from bytes read here. Base64 because
+ * the LSP transport is JSON.
+ */
+const getFileBytes = async (uri: string) => {
+  const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
+  let binary = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < buffer.length; i += CHUNK) {
+    binary += String.fromCharCode(
+      ...(buffer.subarray(i, i + CHUNK) as unknown as number[]),
+    );
+  }
+  return btoa(binary);
+};
+
 const getFileSrc = (uri: string) => {
   if (SparkdownPreviewGamePanelManager.instance.panel?.webview) {
     return SparkdownPreviewGamePanelManager.instance.panel.webview
@@ -50,6 +70,12 @@ export const executeLanguageCommand = async <T>(params: {
     const [uri] = params.arguments || [];
     if (uri && typeof uri === "string") {
       return getFileSrc(uri) as T;
+    }
+  }
+  if (params.command === "sparkdown.getFileBytes") {
+    const [uri] = params.arguments || [];
+    if (uri && typeof uri === "string") {
+      return getFileBytes(uri) as T;
     }
   }
   if (params.command === "sparkdown.getFileVersion") {

@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
-import { resolveImageLayerSrcs } from "../../compiler/utils/resolveImageLayerSrcs";
+import { resolveImageLayers } from "../../compiler/utils/resolveImageLayers";
 
 const MAIN_URI = "file://proj/main.sd";
 
@@ -45,7 +45,7 @@ const compile = (text: string, assets: File[]) => {
 };
 
 const layersOf = (program: any, type: string, name: string) =>
-  resolveImageLayerSrcs(program.context, program.context?.[type]?.[name]);
+  resolveImageLayers(program.context, program.context?.[type]?.[name]).map((l) => l.src);
 
 describe("resolveImageLayerSrcs", () => {
   it("returns layers bottom-first, matching the order the game paints", () => {

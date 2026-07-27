@@ -4,7 +4,22 @@ import {
   type ThumbnailSource,
 } from "../../thumbnails/composeThumbnail";
 import { getImagePreviewMarkup, getImagePreviewSrc } from "./getImagePreviewSrc";
-import { resolveImageLayerSrcs } from "./resolveImageLayerSrcs";
+import { resolveImageLayers, type ImageLayer } from "./resolveImageLayers";
+
+/**
+ * Reads a workspace file's bytes as base64, for hosts where a layer's `src`
+ * isn't fetchable from the language server.
+ *
+ * VS Code is the case: its srcs are workspace uris (`file:`/`vscode-vfs:`)
+ * that a worker cannot `fetch`, and only the extension host can read them —
+ * so the bytes have to come back over the extension bridge. impower-dev
+ * serves its assets over http and never needs this.
+ */
+export type ReadFileBytes = (uri: string) => Promise<string | undefined>;
+
+export interface ImageCompositeOptions {
+  readFileBytes?: ReadFileBytes;
+}
 
 /**
  * Flatten a `layered_image`'s layers into a single thumbnail so previews show
@@ -74,27 +89,52 @@ const toDataUri = (bytes: Uint8Array, mime: string) => {
  * host needs bytes handed to it over the extension bridge (see #292), and
  * until then falls back to the single-layer preview.
  */
-const loadLayer = async (src: string): Promise<ThumbnailSource | undefined> => {
+const base64ToBlob = (base64: string) => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes]);
+};
+
+const loadLayer = async (
+  layer: ImageLayer,
+  readFileBytes?: ReadFileBytes,
+): Promise<ThumbnailSource | undefined> => {
+  // Strip the `?v=` cache-buster from the key: it is re-stamped on load, so
+  // leaving it in would miss the cache every time.
+  const path = layer.src.split("?")[0] || layer.src;
   try {
-    const response = await fetch(src);
-    if (!response.ok) {
+    const response = await fetch(layer.src);
+    if (response.ok) {
+      const blob = await response.blob();
+      const lastModified = Date.parse(
+        response.headers.get("last-modified") || "",
+      );
+      return {
+        path,
+        blob,
+        lastModified: Number.isFinite(lastModified) ? lastModified : 0,
+        size: blob.size,
+      };
+    }
+  } catch {
+    // Fall through to the bridge — an un-fetchable src is expected in VS Code,
+    // not an error.
+  }
+  if (readFileBytes && layer.uri) {
+    try {
+      const base64 = await readFileBytes(layer.uri);
+      if (base64) {
+        const blob = base64ToBlob(base64);
+        return { path, blob, lastModified: 0, size: blob.size };
+      }
+    } catch {
       return undefined;
     }
-    const blob = await response.blob();
-    const lastModified = Date.parse(
-      response.headers.get("last-modified") || "",
-    );
-    return {
-      // Strip the `?v=` cache-buster: it is re-stamped on every load, so
-      // leaving it in would make the key miss every time.
-      path: src.split("?")[0] || src,
-      blob,
-      lastModified: Number.isFinite(lastModified) ? lastModified : 0,
-      size: blob.size,
-    };
-  } catch {
-    return undefined;
   }
+  return undefined;
 };
 
 /**
@@ -105,8 +145,9 @@ const loadLayer = async (src: string): Promise<ThumbnailSource | undefined> => {
 export const getImageCompositeSrc = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
+  options?: ImageCompositeOptions,
 ): Promise<string | undefined> => {
-  const layers = resolveImageLayerSrcs(context, struct);
+  const layers = resolveImageLayers(context, struct);
   if (layers.length < 2) {
     // Nothing to flatten — the plain resolver already returns the right thing.
     return undefined;
@@ -114,13 +155,15 @@ export const getImageCompositeSrc = async (
   // Provisional key from the srcs, to avoid re-fetching layers on every
   // keystroke's worth of resolves. Replaced below by the stable signature key
   // once the responses tell us each layer's real identity.
-  const provisionalKey = layers.join("|");
+  const provisionalKey = layers.map((l) => l.src).join("|");
   const provisional = cacheGet(provisionalKey);
   if (provisional !== undefined) {
     return provisional || undefined;
   }
 
-  const sources = await Promise.all(layers.map(loadLayer));
+  const sources = await Promise.all(
+    layers.map((layer) => loadLayer(layer, options?.readFileBytes)),
+  );
   if (sources.some((s) => !s)) {
     // Cache the failure: retrying a fetch that can't work in this host on
     // every resolve would be worse than one stale miss.
@@ -159,8 +202,9 @@ const escapeAttribute = (value: string) =>
 export const getImagePreviewMarkupComposited = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
   struct: any,
+  options?: ImageCompositeOptions,
 ): Promise<string | undefined> => {
-  const composite = await getImageCompositeSrc(context, struct);
+  const composite = await getImageCompositeSrc(context, struct, options);
   if (composite) {
     const name = struct?.["$name"] ?? "";
     return `<img src="${escapeAttribute(composite)}" alt="${escapeAttribute(
