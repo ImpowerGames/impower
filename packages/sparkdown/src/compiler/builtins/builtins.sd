@@ -1184,18 +1184,18 @@ end
 -- to `& >> …` descendant rules, since the element itself is positioned by the
 -- engine with inline styles.
 style layouts with
-  -- TOOLTIPS. Any element carrying `#data-tooltip="…"` grows a bubble above it
-  -- with a caret beneath, on hover and on keyboard focus:
+  -- TOOLTIPS. Any element carrying `#tooltip="…"` grows a bubble above it with
+  -- a caret beneath, on hover and on keyboard focus:
   --
-  --   text abbreviation "Abbr." #data-tooltip="Abbreviation"
-  --   button "Save" #data-tooltip="Writes the file"
+  --   text abbreviation "Abbr." #tooltip="Abbreviation"
+  --   button "Save" #tooltip="Writes the file"
   --
-  -- Attribute-driven rather than class-driven, exactly like Pico: the text IS
-  -- the trigger, so there is nothing to keep in sync. `data-` prefixed because
-  -- an inline prop is validated as a STYLE property first — a bare `#tooltip`
-  -- is rejected as an unknown one, while `data-*` and `aria-*` pass through as
-  -- attributes.
-  & >> #data-tooltip:
+  -- Attribute-driven rather than class-driven, like Pico: the text IS the
+  -- trigger, so there is nothing to keep in sync. `#tooltip` is one of the
+  -- named non-standard props (see `dataAttributeProps.ts`), so it is authored
+  -- bare here and in the selector while the DOM gets a conforming
+  -- `data-tooltip` — which is also what `attr()` below has to read.
+  & >> #tooltip:
     -- The bubble and caret are positioned against this.
     position = relative
     -- BUBBLE.

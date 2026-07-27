@@ -184,7 +184,7 @@ end
   // caret is a border triangle, and both are hidden until hover/focus.
   test("tooltip emits a bubble, a caret, and a hover/focus reveal", async () => {
     const out = await css(`layout main with
-  text "Abbr." #data-tooltip="Abbreviation"
+  text "Abbr." #tooltip="Abbreviation"
 end
 `);
     // Attribute-driven and global: no class is involved, and the rule lives on
@@ -207,6 +207,41 @@ end
     expect(out).toContain("@keyframes tooltip_caret_slide");
     // A bubble that swallowed the pointer would flicker on/off under it.
     expect(rule).toContain("pointer-events: none;");
+  });
+
+  // `>>` is the descendant operator, and it used to lose its combinator in
+  // LEADING position: it lowers to a space, and a leading space was then eaten
+  // by the closing trim, so `>> foo` emitted `.foo` — which native nesting
+  // reads as `&.foo`, the element ITSELF. It compiled clean and matched
+  // something else entirely.
+  test("a leading `>>` is a descendant, not a compound", async () => {
+    const out = await css(`style probe with
+  >> text:
+    letter-spacing = 0.123rem
+end
+layout main with
+  box probe:
+    text "x"
+end
+`);
+    const rule = out.slice(out.indexOf(".probe {"), out.indexOf(".probe {") + 200);
+    // A space before the class is what makes it a descendant.
+    expect(rule).toMatch(/&\s+\.text\s*\{/);
+    expect(rule).not.toMatch(/&\.text\s*\{/);
+  });
+
+  // A non-standard prop is authored bare but written to the DOM prefixed, so
+  // BOTH sides have to agree or the rule matches nothing.
+  test("`#tooltip` is written and selected as `data-tooltip`", async () => {
+    const out = await css(`layout main with
+  text "Abbr." #tooltip="Abbreviation"
+end
+`);
+    const block = out.slice(out.indexOf(".layouts"));
+    const rule = block.slice(0, block.indexOf("\n}\n") + 3);
+    expect(rule).toContain("[data-tooltip]");
+    // Never the bare form — that would be a non-conforming HTML attribute.
+    expect(rule).not.toMatch(/\[tooltip[\]=]/);
   });
 
   // Pico composes several of its components out of DIRECT-CHILD rules, so the

@@ -2,6 +2,7 @@ import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import VALID_STYLE_PROPS_DATA from "../../constants/validStyleProps.json";
+import { DATA_ATTRIBUTE_PROPS } from "../../constants/dataAttributeProps";
 import { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
@@ -328,11 +329,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const raw = this.read(nodeRef.from, nodeRef.to).trim();
       const name = raw.replace(/^#/, "");
       // `--custom` CSS variables and `data-*` / `aria-*` attributes are always
-      // valid on any element, so they're never flagged.
+      // valid on any element, so they're never flagged. So are the named
+      // non-standard props (`#tooltip`), which the ui writes out as `data-*`.
       const isPassThrough =
         name.startsWith("--") ||
         name.startsWith("data-") ||
-        name.startsWith("aria-");
+        name.startsWith("aria-") ||
+        DATA_ATTRIBUTE_PROPS.has(name);
       if (
         name &&
         !isPassThrough &&

@@ -18907,7 +18907,7 @@
         "layouts": {
           "$name": "layouts",
           "$type": "style",
-          "& >> #data-tooltip": {
+          "& >> #tooltip": {
             "@after": {
               "background-color": "transparent",
               "border-left-color": "transparent",
@@ -92776,7 +92776,7 @@
         "layouts": {
           "$name": "layouts",
           "$type": "style",
-          "& >> #data-tooltip": {
+          "& >> #tooltip": {
             "@after": {
               "background-color": "transparent",
               "border-left-color": "transparent",

@@ -591,7 +591,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -610,7 +610,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -683,7 +683,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -1405,11 +1405,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -1601,11 +1601,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;
@@ -2825,7 +2825,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -2844,7 +2844,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -2917,7 +2917,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -3639,11 +3639,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -3835,11 +3835,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;
@@ -5021,7 +5021,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -5040,7 +5040,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -5113,7 +5113,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -5835,11 +5835,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -6031,11 +6031,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;
@@ -7339,7 +7339,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -7358,7 +7358,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -7431,7 +7431,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -8153,11 +8153,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -8349,11 +8349,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;
@@ -9516,7 +9516,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -9535,7 +9535,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -9608,7 +9608,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -10330,11 +10330,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -10526,11 +10526,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;
@@ -11675,7 +11675,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -11694,7 +11694,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -11767,7 +11767,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -12489,11 +12489,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -12685,11 +12685,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;
@@ -13884,7 +13884,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -13903,7 +13903,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -13976,7 +13976,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -14698,11 +14698,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -14894,11 +14894,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;
@@ -16060,7 +16060,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -16079,7 +16079,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -16152,7 +16152,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -16874,11 +16874,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -17070,11 +17070,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;
@@ -18236,7 +18236,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -18255,7 +18255,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -18328,7 +18328,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -19050,11 +19050,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -19246,11 +19246,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;
@@ -20412,7 +20412,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -20431,7 +20431,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -20504,7 +20504,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -21226,11 +21226,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -21422,11 +21422,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;
@@ -22588,7 +22588,7 @@ spark-web-player #game .text {
   user-select: none;
   text-wrap: wrap;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
   margin-top: 1rem;
@@ -22607,7 +22607,7 @@ spark-web-player #game .stroke {
   text-shadow: 1px 0px 0 black,0.6234898018587336px 0.7818314824680298px 0 black,-0.22252093395631434px 0.9749279121818236px 0 black,-0.900968867902419px 0.43388373911755823px 0 black,-0.9009688679024191px -0.433883739117558px 0 black,-0.2225209339563146px -0.9749279121818236px 0 black,0.6234898018587334px -0.7818314824680299px 0 black;
   color: black;
   white-space: pre-line;
-  * {
+  & * {
     display: inline;
   }
 }
@@ -22680,7 +22680,7 @@ spark-web-player #game .screen {
   inset: 0px;
   pointer-events: none;
   cursor: default;
-  * {
+  & * {
     pointer-events: none;
     cursor: default;
   }
@@ -23402,11 +23402,11 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  .header_cell {
+  & .header_cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
-  .cell {
+  & .cell {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -23598,11 +23598,11 @@ spark-web-player #game .menu {
       border-color: var(--theme-color-slate_60);
     }
   }
-  .item {
+  & .item {
     padding: 0.375rem 1rem;
     list-style: none;
   }
-  .link {
+  & .link {
     display: block;
     width: 100%;
     align-self: stretch;

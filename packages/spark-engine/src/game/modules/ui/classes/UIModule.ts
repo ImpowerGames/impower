@@ -2,6 +2,10 @@ import { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
+import {
+  DATA_ATTRIBUTE_PROPS,
+  toDataAttributeName,
+} from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
 import type {
   Binding,
   BodyNode,
@@ -420,6 +424,7 @@ const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
 function isAttributeProp(prop: string): boolean {
   return (
     ATTRIBUTE_PROPS.has(prop) ||
+    DATA_ATTRIBUTE_PROPS.has(prop) ||
     prop.startsWith("aria-") ||
     prop.startsWith("data-")
   );
@@ -1404,9 +1409,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if (isAttributeProp(prop)) {
           const boolean = BOOLEAN_ATTRIBUTES.has(prop);
           const attrVal = this.propToAttr(resolved, boolean);
-          attributes[prop] = attrVal;
+          // A non-standard prop is authored bare (`#tooltip`) but written as
+          // `data-tooltip`, so the DOM stays conforming.
+          const attr = toDataAttributeName(prop);
+          attributes[attr] = attrVal;
           if (this.isReactiveProp(propValue)) {
-            reactiveAttrs.push({ prop, propValue, boolean, last: attrVal, deps });
+            reactiveAttrs.push({
+              prop: attr,
+              propValue,
+              boolean,
+              last: attrVal,
+              deps,
+            });
           }
           continue;
         }
