@@ -101,9 +101,11 @@ builtin that renders one has been zeroing it by hand, which reads as redundant
 and gets "cleaned up" — reintroducing an 18px gap that looks like a spacing bug
 several layers away.
 
-MARGIN ONLY. Preflight also drops `list-style` and `padding` from lists; the
-`list` / `ordered_list` builtins style their own markers and indent, so taking
-those here would remove the bullets.
+MARGIN ONLY, for now. Preflight also drops `list-style` and `padding` from
+lists. That USED to be unsafe here, because `list` carried the bullets; it no
+longer does — `list` is bare and `bulleted` / `ordered_list` opt a marker back
+in explicitly — so taking preflight's full rule would now just make `list`'s own
+`list-style: none; padding-left: 0` redundant rather than break anything.
 */
 spark-web-player blockquote,
 spark-web-player dl,
@@ -163,7 +165,72 @@ spark-web-player input:where([type="submit"]) {
 }
 
 /*
-Remove the additional `:invalid` styles in Firefox. 
+Correct the odd appearance in Chrome and Safari, and the outline style in
+Safari. Without it a search field keeps its native decorations — a rounded
+track and a clear "x" — that no other field has and nothing here styles.
+*/
+spark-web-player input:where([type="search"]) {
+  -webkit-appearance: textfield;
+  outline-offset: -2px;
+}
+
+/*
+Remove the inner padding in Chrome and Safari on macOS.
+*/
+spark-web-player ::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/*
+Correct the cursor style of increment and decrement buttons in Safari.
+*/
+spark-web-player ::-webkit-inner-spin-button,
+spark-web-player ::-webkit-outer-spin-button {
+  height: auto;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Change font properties to `inherit` in Safari.
+
+The file input's button lives in a shadow root, so it is unreachable from
+anything an author writes — it is the one control whose font does NOT follow
+the field around it unless this says so.
+*/
+spark-web-player ::-webkit-file-upload-button {
+  -webkit-appearance: button; /* 1 */
+  font: inherit; /* 2 */
+}
+
+/*
+Add the correct vertical alignment in Chrome and Firefox.
+*/
+spark-web-player progress {
+  vertical-align: baseline;
+}
+
+/*
+Reset the fieldset box.
+
+`margin`/`padding` are preflight. `min-inline-size` is NOT, and is the reason
+this rule earns its place: the UA sets `min-inline-size: min-content` on
+fieldset alone, so a fieldset REFUSES to shrink below its widest child. Inside
+a flex or grid column — which is every container here — that turns one long
+label into horizontal overflow of the whole layout, and the fieldset is the
+last place anyone thinks to look.
+*/
+spark-web-player fieldset {
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+spark-web-player legend {
+  padding: 0;
+}
+
+/*
+Remove the additional `:invalid` styles in Firefox.
 (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
 */
 spark-web-player :-moz-ui-invalid {
