@@ -177,8 +177,29 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     };
   }, []);
 
+  // The overlay sits above every other layer: the z-10 chrome (header, sticky
+  // tab bars, split divider), dialogs (z-50), toasts (z-[60]), and
+  // CodeMirror's own panels and gutters (z-index 300/200). At z-[2] it cleared
+  // none of them, so a drag left the page looking half-covered instead of
+  // presenting one drop target.
+  //
+  // 400 rather than something just past the app's own z-[60] ceiling because
+  // CodeMirror's `.cm-panels-bottom` is z-index 300 and NOTHING between it and
+  // <body> establishes a stacking context, so that 300 competes here at the
+  // root rather than staying inside the editor. (That leak is worth fixing at
+  // the source -- it also puts the status bar above this app's dialogs -- but
+  // containing it is a wider change than this overlay.)
+  //
+  // `absolute inset-0` fills whichever container this is mounted in --
+  // currently MainWindow's middle region, so the overlay covers the content
+  // area and leaves the header above and tab bar below visible. Scoping it by
+  // MOUNT POINT rather than by offsetting a full-viewport overlay means there
+  // is no header height duplicated here to drift out of sync.
+  //
+  // `pointer-events-none` so the drag and drop events still reach the
+  // window-level handlers underneath.
   return (
-    <div class="pointer-events-none absolute inset-0 z-[2] flex flex-col">
+    <div class="pointer-events-none absolute inset-0 z-[400] flex flex-col">
       {dragging && (
         <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-engine-900 text-foreground text-xl font-semibold">
           <Download class="size-16" stroke-width="1" />

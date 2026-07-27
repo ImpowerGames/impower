@@ -16,6 +16,7 @@ import workspace from "../../workspace/WorkspaceStore";
 import { inspectedAsset } from "../../utils/assetInspector";
 import AssetInspectorPane from "../asset-inspector/AssetInspectorPane";
 import Assets from "../assets/Assets";
+import FileDropzone from "../file-dropzone/FileDropzone";
 import HeaderNavigation from "../header-navigation/HeaderNavigation";
 import Logic from "../logic/Logic";
 import Preview from "../preview/Preview";
@@ -98,6 +99,13 @@ export default function MainWindow(_props: MainWindowProps) {
             }
           />
         )}
+        {/* Full-page file-drop target. Mounted HERE, inside the middle region,
+            rather than at the page root: that scopes the overlay to the
+            content area so the header above and the tab bar below stay
+            visible and readable while a file is over the window. The drag
+            listeners are on `window`, so where this sits in the tree affects
+            only what the overlay covers, not what it catches. */}
+        <FileDropzone />
       </div>
       <div
         class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full"
