@@ -1388,7 +1388,18 @@ style button with
   child-align = center
   child-justify = center
   text-align = center
+  -- Without this the label's line box is the font's `normal` leading, so a
+  -- button lands ~6px shorter than the inputs it sits beside.
+  text-leading = 1.5
   padding = 0.75rem 1rem
+  -- Only the FORM buttons take the rhythm below them, matching Pico's
+  -- `[type=button],[type=reset],[type=submit]`. A plain `button` in a row must
+  -- not: it would add a step of space between every button in a toolbar. This
+  -- also stops a submit button STRETCHING to fill a grid row whose other cells
+  -- are inputs — grid items stretch by default, and the margin is what reserves
+  -- the input's own trailing space.
+  @type_submit, @type_reset, @type_button:
+    margin-bottom = 1rem
   corner = 0.25rem
   border-width = 0.0625rem
   border-style = solid

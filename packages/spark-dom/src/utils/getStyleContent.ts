@@ -40,6 +40,13 @@ const PSEUDO_ALIASES = {
   "@type_color": '[type="color"]',
   "@type_date": '[type="date"]',
   "@type_time": '[type="time"]',
+  // A button's TYPE changes its layout role, not just its submit behaviour:
+  // only the form buttons carry the block rhythm below them (Pico's
+  // `[type=button],[type=reset],[type=submit]`), while a plain `button` sitting
+  // in a row must not.
+  "@type_submit": '[type="submit"]',
+  "@type_reset": '[type="reset"]',
+  "@type_button": '[type="button"]',
   "@valid": ":valid",
   "@invalid": ":invalid",
   "@readonly": ":read-only",

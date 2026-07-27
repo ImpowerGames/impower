@@ -674,7 +674,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -2809,7 +2813,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -4906,7 +4914,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -7125,7 +7137,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -9203,7 +9219,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -11263,7 +11283,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -13373,7 +13397,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -15450,7 +15478,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -17527,7 +17559,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -19604,7 +19640,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
@@ -21681,7 +21721,11 @@ spark-web-player #game .button {
   align-items: center;
   justify-content: center;
   text-align: center;
+  line-height: 1.5;
   padding: 0.75rem 1rem;
+  &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-bottom: 1rem;
+  }
   border-radius: 0.25rem;
   border-width: 0.0625rem;
   border-style: solid;
