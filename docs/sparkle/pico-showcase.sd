@@ -94,7 +94,10 @@ end
 
 layout main with
   scroller #height=100% #overflow-y=auto #background-color="#13171f" #color-scheme="dark":
-    column container #child-gap=0:
+    -- `column` is a layout PRIMITIVE and ships with no gap of its own, so the
+    -- spacing between the sections below is set here. (A `section` spaces its
+    -- own children; this is the space BETWEEN sections.)
+    column container #child-gap=18:
 
       -- Header -------------------------------------------------------------
       header #padding-bottom=18:
