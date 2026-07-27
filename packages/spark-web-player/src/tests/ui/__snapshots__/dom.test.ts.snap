@@ -339,6 +339,10 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -489,6 +493,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -675,8 +682,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -751,7 +763,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -773,6 +784,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -814,7 +826,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -844,10 +856,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -1396,6 +1406,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -1601,18 +1612,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -1773,6 +1786,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -1809,7 +1829,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
@@ -2481,6 +2501,10 @@ exports[`dom render > image show renders background span + img 1`] = `
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -2631,6 +2655,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -2817,8 +2844,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -2893,7 +2925,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -2915,6 +2946,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -2956,7 +2988,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -2986,10 +3018,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -3538,6 +3568,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -3743,18 +3774,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -3915,6 +3948,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -3951,7 +3991,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
@@ -4585,6 +4625,10 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -4735,6 +4779,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -4921,8 +4968,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -4997,7 +5049,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -5019,6 +5070,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -5060,7 +5112,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -5090,10 +5142,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -5642,6 +5692,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -5847,18 +5898,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -6019,6 +6072,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -6055,7 +6115,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
@@ -6811,6 +6871,10 @@ exports[`dom render > screen tree renders into overlay 1`] = `
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -6961,6 +7025,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -7147,8 +7214,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -7223,7 +7295,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -7245,6 +7316,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -7286,7 +7358,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -7316,10 +7388,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -7868,6 +7938,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -8073,18 +8144,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -8245,6 +8318,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -8281,7 +8361,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
@@ -8896,6 +8976,10 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -9046,6 +9130,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -9232,8 +9319,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -9308,7 +9400,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -9330,6 +9421,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -9371,7 +9463,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -9401,10 +9493,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -9953,6 +10043,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -10158,18 +10249,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -10330,6 +10423,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -10366,7 +10466,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
@@ -10963,6 +11063,10 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -11113,6 +11217,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -11299,8 +11406,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -11375,7 +11487,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -11397,6 +11508,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -11438,7 +11550,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -11468,10 +11580,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -12020,6 +12130,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -12225,18 +12336,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -12397,6 +12510,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -12433,7 +12553,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
@@ -13080,6 +13200,10 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -13230,6 +13354,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -13416,8 +13543,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -13492,7 +13624,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -13514,6 +13645,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -13555,7 +13687,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -13585,10 +13717,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -14137,6 +14267,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -14342,18 +14473,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -14514,6 +14647,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -14550,7 +14690,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
@@ -15164,6 +15304,10 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -15314,6 +15458,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -15500,8 +15647,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -15576,7 +15728,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -15598,6 +15749,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -15639,7 +15791,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -15669,10 +15821,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -16221,6 +16371,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -16426,18 +16577,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -16598,6 +16751,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -16634,7 +16794,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
@@ -17248,6 +17408,10 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -17398,6 +17562,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -17584,8 +17751,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -17660,7 +17832,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -17682,6 +17853,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -17723,7 +17895,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -17753,10 +17925,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -18305,6 +18475,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -18510,18 +18681,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -18682,6 +18855,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -18718,7 +18898,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
@@ -19332,6 +19512,10 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -19482,6 +19666,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -19668,8 +19855,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -19744,7 +19936,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -19766,6 +19957,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -19807,7 +19999,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -19837,10 +20029,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -20389,6 +20579,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -20594,18 +20785,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -20766,6 +20959,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -20802,7 +21002,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
@@ -21416,6 +21616,10 @@ exports[`dom render · image lifecycle > layered images stack background-image o
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes progress_indeterminate {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 @keyframes ping {
   0% { offset: 0.75; transform: scale(2); opacity: 0; }
   100% { offset: 1; transform: scale(2); opacity: 0; }
@@ -21566,6 +21770,9 @@ spark-web-player #game .row {
     margin-top: 0px;
   }
   >.text {
+    margin-top: 0px;
+  }
+  >.button {
     margin-top: 0px;
   }
 }
@@ -21752,8 +21959,13 @@ spark-web-player #game .button {
   justify-content: center;
   text-align: center;
   line-height: 1.5;
+  margin-top: 1rem;
+  &:first-child {
+    margin-top: 0px;
+  }
   padding: 0.75rem 1rem;
   &[type="submit"], &[type="reset"], &[type="button"] {
+    margin-top: 0px;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -21828,7 +22040,6 @@ spark-web-player #game .button {
     cursor: default;
   }
   &[aria-busy="true"] {
-    cursor: progress;
     &::before {
       content: "";
       width: 0.75rem;
@@ -21850,6 +22061,7 @@ spark-web-player #game .field {
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
+  height: 3.125rem;
   margin-bottom: 1rem;
   +.small {
     margin-top: -0.75rem;
@@ -21891,7 +22103,7 @@ spark-web-player #game .checkbox {
   border-color: var(--theme-color-slate_40);
   background-color: var(--theme-color-slate_30);
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   &:checked {
     background-color: var(--theme-color-sky_40);
     border-color: var(--theme-color-sky_40);
@@ -21921,10 +22133,8 @@ spark-web-player #game .input {
     margin-top: -0.75rem;
     margin-bottom: 1rem;
   }
+  height: 3.125rem;
   &[type="color"] {
-    padding: 0.25rem;
-    height: 3.5rem;
-    cursor: pointer;
     &::-webkit-color-swatch-wrapper {
       padding: 0px;
     }
@@ -22473,6 +22683,7 @@ spark-web-player #game .caption {
   padding: 0.5rem 0px;
   color: var(--theme-color-slate_60);
   width: 100%;
+  display: block;
   >* {
     display: inline;
   }
@@ -22678,18 +22889,20 @@ spark-web-player #game .article {
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-bottom-width: 0.0625rem;
     border-bottom-style: solid;
-    border-bottom-color: var(--theme-color-slate_20);
+    border-bottom-color: var(--theme-color-slate_30);
     border-top-left-radius: 0.25rem;
     border-top-right-radius: 0.25rem;
   }
   >.footer {
-    margin: 0px -1rem -1rem;
+    margin: 1rem -1rem -1rem;
     padding: 0.66rem 1rem;
+    background-color: rgb(255 255 255 / 1.5%);
     border-top-width: 0.0625rem;
     border-top-style: solid;
-    border-top-color: var(--theme-color-slate_20);
+    border-top-color: var(--theme-color-slate_30);
     border-bottom-left-radius: 0.25rem;
     border-bottom-right-radius: 0.25rem;
   }
@@ -22850,6 +23063,13 @@ spark-web-player #game .group {
   display: flex;
   flex-direction: row;
   gap: 0px;
+  >* {
+    margin-bottom: 0px;
+  }
+  >.field, >.input, >.dropdown, >.textarea, >.button {
+    margin-bottom: 0px;
+  }
+  margin-bottom: 1rem;
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -22886,7 +23106,7 @@ spark-web-player #game .progress {
   &:indeterminate {
     background-image: linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%);
     background-size: 150% 150%;
-    animation-name: progress-indeterminate;
+    animation-name: progress_indeterminate;
     animation-duration: 1s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;

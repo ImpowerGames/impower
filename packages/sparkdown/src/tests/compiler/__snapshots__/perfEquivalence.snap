@@ -14883,6 +14883,30 @@
             "iterations": 1
           }
         },
+        "progress_indeterminate": {
+          "$name": "progress_indeterminate",
+          "$type": "animation",
+          "keyframes": [
+            {
+              "background-position": "200% 0"
+            },
+            {
+              "background-position": "-200% 0"
+            }
+          ],
+          "target": {
+            "$name": "self",
+            "$type": "layer"
+          },
+          "timing": {
+            "delay": 0,
+            "direction": "normal",
+            "duration": 0,
+            "easing": "linear",
+            "fill": "none",
+            "iterations": "infinite"
+          }
+        },
         "pulse": {
           "$name": "pulse",
           "$type": "animation",
@@ -17889,16 +17913,18 @@
           "$name": "article",
           "$type": "style",
           "> footer": {
-            "border-top-color": "slate_20",
+            "background-color": "rgb(255 255 255 / 1.5%)",
+            "border-top-color": "slate_30",
             "border-top-style": "solid",
             "border-top-width": "0.0625rem",
             "corner-bottom-left": "0.25rem",
             "corner-bottom-right": "0.25rem",
-            "margin": "0 -1rem -1rem",
+            "margin": "1rem -1rem -1rem",
             "padding": "0.66rem 1rem"
           },
           "> header": {
-            "border-bottom-color": "slate_20",
+            "background-color": "rgb(255 255 255 / 1.5%)",
+            "border-bottom-color": "slate_30",
             "border-bottom-style": "solid",
             "border-bottom-width": "0.0625rem",
             "corner-top-left": "0.25rem",
@@ -18030,13 +18056,15 @@
               "height": "0.75rem",
               "margin-right": "0.5rem",
               "width": "0.75rem"
-            },
-            "cursor": "progress"
+            }
           },
           "@disabled": {
             "cursor": "not-allowed",
             "opacity": "0.5",
             "pointer-events": "none"
+          },
+          "@first": {
+            "margin-top": "0"
           },
           "@focused": {
             "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
@@ -18046,7 +18074,8 @@
             "border-color": "sky_50"
           },
           "@type_submit, @type_reset, @type_button": {
-            "margin-bottom": "1rem"
+            "margin-bottom": "1rem",
+            "margin-top": "0"
           },
           "background-color": "sky_40",
           "border-color": "sky_40",
@@ -18058,6 +18087,7 @@
           "corner": "0.25rem",
           "cursor": "pointer",
           "display": "flex",
+          "margin-top": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "text-align": "center",
@@ -18072,6 +18102,7 @@
           "> *": {
             "display": "inline"
           },
+          "display": "block",
           "padding": "0.5rem 0",
           "text-color": "slate_60",
           "width": "100%"
@@ -18157,7 +18188,7 @@
           "cursor": "pointer",
           "height": "1.25rem",
           "pointer_events": "auto",
-          "transition": "all 0.2s ease-in-out",
+          "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
           "width": "1.25rem"
         },
         "choice": {
@@ -18346,6 +18377,7 @@
           "border-style": "solid",
           "border-width": "0.0625rem",
           "corner": "0.25rem",
+          "height": "3.125rem",
           "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
@@ -18522,6 +18554,9 @@
         "group": {
           "$name": "group",
           "$type": "style",
+          "> *": {
+            "margin-bottom": "0"
+          },
           "> @first": {
             "corner-bottom-right": "0",
             "corner-top-right": "0",
@@ -18532,9 +18567,13 @@
             "corner-bottom-left": "0",
             "corner-top-left": "0"
           },
+          "> field, > input, > dropdown, > textarea, > button": {
+            "margin-bottom": "0"
+          },
           "child-gap": "0",
           "child-layout": "row",
-          "display": "flex"
+          "display": "flex",
+          "margin-bottom": "1rem"
         },
         "group_label": {
           "$name": "group_label",
@@ -18718,10 +18757,7 @@
             },
             "@swatch_wrapper": {
               "padding": "0"
-            },
-            "cursor": "pointer",
-            "height": "3.5rem",
-            "padding": "0.25rem"
+            }
           },
           "@type_date": {
             "@picker": {
@@ -18752,6 +18788,7 @@
           "border-width": "0.0625rem",
           "color-scheme": "dark",
           "corner": "0.25rem",
+          "height": "3.125rem",
           "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
@@ -19122,7 +19159,7 @@
             },
             "animation-duration": "1s",
             "animation-iteration-count": "infinite",
-            "animation-name": "progress-indeterminate",
+            "animation-name": "progress_indeterminate",
             "animation-timing-function": "linear",
             "background-image": "linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%)",
             "background-size": "150% 150%"
@@ -19207,6 +19244,9 @@
           "$name": "row",
           "$type": "style",
           "> *": {
+            "margin-top": "0"
+          },
+          "> button": {
             "margin-top": "0"
           },
           "> text": {
@@ -88598,6 +88638,30 @@
             "iterations": 1
           }
         },
+        "progress_indeterminate": {
+          "$name": "progress_indeterminate",
+          "$type": "animation",
+          "keyframes": [
+            {
+              "background-position": "200% 0"
+            },
+            {
+              "background-position": "-200% 0"
+            }
+          ],
+          "target": {
+            "$name": "self",
+            "$type": "layer"
+          },
+          "timing": {
+            "delay": 0,
+            "direction": "normal",
+            "duration": 0,
+            "easing": "linear",
+            "fill": "none",
+            "iterations": "infinite"
+          }
+        },
         "pulse": {
           "$name": "pulse",
           "$type": "animation",
@@ -91604,16 +91668,18 @@
           "$name": "article",
           "$type": "style",
           "> footer": {
-            "border-top-color": "slate_20",
+            "background-color": "rgb(255 255 255 / 1.5%)",
+            "border-top-color": "slate_30",
             "border-top-style": "solid",
             "border-top-width": "0.0625rem",
             "corner-bottom-left": "0.25rem",
             "corner-bottom-right": "0.25rem",
-            "margin": "0 -1rem -1rem",
+            "margin": "1rem -1rem -1rem",
             "padding": "0.66rem 1rem"
           },
           "> header": {
-            "border-bottom-color": "slate_20",
+            "background-color": "rgb(255 255 255 / 1.5%)",
+            "border-bottom-color": "slate_30",
             "border-bottom-style": "solid",
             "border-bottom-width": "0.0625rem",
             "corner-top-left": "0.25rem",
@@ -91745,13 +91811,15 @@
               "height": "0.75rem",
               "margin-right": "0.5rem",
               "width": "0.75rem"
-            },
-            "cursor": "progress"
+            }
           },
           "@disabled": {
             "cursor": "not-allowed",
             "opacity": "0.5",
             "pointer-events": "none"
+          },
+          "@first": {
+            "margin-top": "0"
           },
           "@focused": {
             "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)"
@@ -91761,7 +91829,8 @@
             "border-color": "sky_50"
           },
           "@type_submit, @type_reset, @type_button": {
-            "margin-bottom": "1rem"
+            "margin-bottom": "1rem",
+            "margin-top": "0"
           },
           "background-color": "sky_40",
           "border-color": "sky_40",
@@ -91773,6 +91842,7 @@
           "corner": "0.25rem",
           "cursor": "pointer",
           "display": "flex",
+          "margin-top": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "text-align": "center",
@@ -91787,6 +91857,7 @@
           "> *": {
             "display": "inline"
           },
+          "display": "block",
           "padding": "0.5rem 0",
           "text-color": "slate_60",
           "width": "100%"
@@ -91872,7 +91943,7 @@
           "cursor": "pointer",
           "height": "1.25rem",
           "pointer_events": "auto",
-          "transition": "all 0.2s ease-in-out",
+          "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
           "width": "1.25rem"
         },
         "choice": {
@@ -92061,6 +92132,7 @@
           "border-style": "solid",
           "border-width": "0.0625rem",
           "corner": "0.25rem",
+          "height": "3.125rem",
           "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
@@ -92237,6 +92309,9 @@
         "group": {
           "$name": "group",
           "$type": "style",
+          "> *": {
+            "margin-bottom": "0"
+          },
           "> @first": {
             "corner-bottom-right": "0",
             "corner-top-right": "0",
@@ -92247,9 +92322,13 @@
             "corner-bottom-left": "0",
             "corner-top-left": "0"
           },
+          "> field, > input, > dropdown, > textarea, > button": {
+            "margin-bottom": "0"
+          },
           "child-gap": "0",
           "child-layout": "row",
-          "display": "flex"
+          "display": "flex",
+          "margin-bottom": "1rem"
         },
         "group_label": {
           "$name": "group_label",
@@ -92433,10 +92512,7 @@
             },
             "@swatch_wrapper": {
               "padding": "0"
-            },
-            "cursor": "pointer",
-            "height": "3.5rem",
-            "padding": "0.25rem"
+            }
           },
           "@type_date": {
             "@picker": {
@@ -92467,6 +92543,7 @@
           "border-width": "0.0625rem",
           "color-scheme": "dark",
           "corner": "0.25rem",
+          "height": "3.125rem",
           "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
@@ -92837,7 +92914,7 @@
             },
             "animation-duration": "1s",
             "animation-iteration-count": "infinite",
-            "animation-name": "progress-indeterminate",
+            "animation-name": "progress_indeterminate",
             "animation-timing-function": "linear",
             "background-image": "linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%)",
             "background-size": "150% 150%"
@@ -92922,6 +92999,9 @@
           "$name": "row",
           "$type": "style",
           "> *": {
+            "margin-top": "0"
+          },
+          "> button": {
             "margin-top": "0"
           },
           "> text": {

@@ -100,7 +100,10 @@ end
 `);
     const block = out.slice(out.indexOf('&[aria-busy="true"]'));
     expect(out).toContain('&[aria-busy="true"]');
-    expect(block).toContain("cursor: progress;");
+    // The spinner is the ONLY busy affordance: Pico leaves the cursor alone,
+    // and swapping in the OS progress cursor reads as "the whole app is
+    // blocked" rather than "this one button is working".
+    expect(block).not.toContain("cursor: progress;");
     expect(block).toContain("&::before");
     expect(block).toContain('content: "";');
     expect(block).toContain("animation-name: spin;");

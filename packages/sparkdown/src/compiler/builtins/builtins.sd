@@ -1193,6 +1193,11 @@ style row with
     margin-top = 0
   > text:
     margin-top = 0
+  -- Named for the same reason as `text`: `> *` only TIES with `.button` on
+  -- specificity and `style button` is declared later, so a bare `> *` would
+  -- lose and every button in a row would carry a rhythm step above it.
+  > button:
+    margin-top = 0
 end
 
 style column with
@@ -1391,6 +1396,13 @@ style button with
   -- Without this the label's line box is the font's `normal` leading, so a
   -- button lands ~6px shorter than the inputs it sits beside.
   text-leading = 1.5
+  -- A button standing on its own IS a block in the flow, so it takes the
+  -- rhythm above it — otherwise one placed straight after a heading sits
+  -- flush against it. Rows, groups and grids zero this for their children,
+  -- since there the button is a cell rather than a block.
+  margin-top = 1rem
+  @first:
+    margin-top = 0
   padding = 0.75rem 1rem
   -- Only the FORM buttons take the rhythm below them, matching Pico's
   -- `[type=button],[type=reset],[type=submit]`. A plain `button` in a row must
@@ -1399,6 +1411,9 @@ style button with
   -- are inputs — grid items stretch by default, and the margin is what reserves
   -- the input's own trailing space.
   @type_submit, @type_reset, @type_button:
+    -- A FORM button takes its rhythm below, like the fields it follows, so it
+    -- must drop the block rhythm above or it carries both and double-spaces.
+    margin-top = 0
     margin-bottom = 1rem
   corner = 0.25rem
   border-width = 0.0625rem
@@ -1463,8 +1478,10 @@ style button with
   -- Pico. `@busy` is the alias for `[aria-busy="true"]` (a raw `#a=v` can't be
   -- used as a selector — that's the inline prop syntax). `spin` is a builtin
   -- @keyframes.
+  -- No `cursor` here on purpose: Pico leaves a busy button's cursor alone, and
+  -- swapping in the OS progress cursor reads as "the whole app is blocked"
+  -- rather than "this one button is working".
   @busy:
-    cursor = progress
     @before:
       content = ""
       width = 0.75rem
@@ -1485,6 +1502,10 @@ style field with
   pointer_events = auto
   padding = 0.75rem 1rem
   text-leading = 1.5
+  -- Stated rather than derived from content, matching Pico and `input`.
+  -- (The player's own stylesheet sets `box-sizing: border-box` on everything
+  -- in the overlay, so this is the border box, as Pico intends.)
+  height = 3.125rem
   -- A control closes a block in the flow, so it carries the rhythm BELOW it.
   -- This is the one place the builtins use a bottom margin rather than the
   -- top-margin rhythm everything else uses: a control is followed by the next
@@ -1528,7 +1549,12 @@ style checkbox with
   border-color = slate_40
   background-color = slate_30
   cursor = pointer
-  transition = all 0.2s ease-in-out
+  -- Deliberately NOT `all`. `@checked` brings the tick in as a background-image
+  -- and sets its position and size; transitioning those animates the mark from
+  -- the box's top-left corner (the initial `0% 0%` / `auto`) rather than simply
+  -- appearing, which reads as the checkmark growing out of the corner. Only the
+  -- colours should move. `switch` narrows its transition for the same reason.
+  transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out
   @checked:
     background-color = sky_40
     border-color = sky_40
@@ -1559,12 +1585,17 @@ style input with
   + small:
     margin-top = -0.75rem
     margin-bottom = 1rem
-  -- A colour input's swatch IS its content box, so the shared field padding
-  -- squeezes it to zero height and it renders as a hairline.
+  -- Every input gets the SAME explicit height, exactly as Pico does — content
+  -- height + vertical padding + borders. Deriving it from content instead only
+  -- works for inputs that HAVE text: a colour input's content is its swatch,
+  -- which has no intrinsic height, so it collapsed to 29px. Special-casing the
+  -- colour input's height/padding was the old workaround, and it left it 7px
+  -- TALLER than its neighbours; stating the shared height fixes both.
+  height = 3.125rem
+  -- A colour input needs no special box beyond that. The swatch is made to fill
+  -- it by zeroing the wrapper's own padding, which is what would otherwise
+  -- squeeze it to a hairline.
   @type_color:
-    padding = 0.25rem
-    height = 3.5rem
-    cursor = pointer
     @swatch_wrapper:
       padding = 0
     @swatch:
@@ -2177,6 +2208,13 @@ style caption with
   -- A caption reads as one SENTENCE: its parts flow along the line rather than
   -- stacking. `child-layout` would not do it -- a figcaption lays out as a
   -- block, so the parts have to be inline themselves.
+  --
+  -- `display: block` on the caption ITSELF is what makes that possible, and
+  -- leaving it out is why the parts stacked anyway: the player's stylesheet
+  -- defaults every element in the overlay to `display: flex; flex-direction:
+  -- column`, and a flex container BLOCKIFIES its children — turning the
+  -- `inline` below into `block` and putting each part on its own line.
+  display = block
   > *:
     display = inline
 end
@@ -2412,20 +2450,31 @@ style article with
   -- Nothing to push away from when it opens the flow.
   @first:
     margin-top = 0
+  -- A header/footer is a SECTIONING band, not a divided-off box. Pico gives it
+  -- a background a hair lighter than the card and colours the rule between them
+  -- the CARD's own colour, so the boundary reads as a change of shade rather
+  -- than as a line. A translucent lift is used instead of a palette step
+  -- because the difference is about 1% — finer than any two neighbouring slate
+  -- tokens — and this way it tracks whatever colour the card itself is.
   > header:
     margin = -1rem -1rem 0
     padding = 0.66rem 1rem
+    background-color = rgb(255 255 255 / 1.5%)
     border-bottom-width = 0.0625rem
     border-bottom-style = solid
-    border-bottom-color = slate_20
+    border-bottom-color = slate_30
     corner-top-left = 0.25rem
     corner-top-right = 0.25rem
+  -- `margin-top` matters: without it the band sits flush against the last
+  -- paragraph, which is what made the card look like it had lost its bottom
+  -- padding.
   > footer:
-    margin = 0 -1rem -1rem
+    margin = 1rem -1rem -1rem
     padding = 0.66rem 1rem
+    background-color = rgb(255 255 255 / 1.5%)
     border-top-width = 0.0625rem
     border-top-style = solid
-    border-top-color = slate_20
+    border-top-color = slate_30
     corner-bottom-left = 0.25rem
     corner-bottom-right = 0.25rem
   -- An `article #aria-busy=true` with no children is Pico's block-level
@@ -2615,6 +2664,20 @@ style group with
   display = flex
   child-layout = row
   child-gap = 0
+  -- A group is one composite control, so its parts must not each carry the
+  -- block rhythm below them (see `field`) — Pico zeroes it on every child and
+  -- spends the step on the group instead. Without this the group is a step
+  -- TALLER than the controls in it, and the button, being a flex child,
+  -- stretches to fill that extra space and no longer matches the field beside
+  -- it. Named as well as `> *` because a bare `> *` ties with `.field` and
+  -- loses outright to `.button[type="submit"]`.
+  > *:
+    margin-bottom = 0
+  > field, > input, > dropdown, > textarea, > button:
+    margin-bottom = 0
+  -- The step the children gave up is spent here instead, on the group as a
+  -- whole — again matching Pico, which puts `margin-bottom` on `[role=group]`.
+  margin-bottom = 1rem
   -- `width: 1%` + grow is the flexbox idiom for "take whatever is left"; a bare
   -- grow leaves the input at its intrinsic size. Merged into ONE block: a
   -- style block is keyed by selector, so a second `> @first:` would replace it.
@@ -2659,7 +2722,7 @@ style progress with
   @indeterminate:
     background-image = linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%)
     background-size = 150% 150%
-    animation-name = progress-indeterminate
+    animation-name = progress_indeterminate
     animation-duration = 1s
     animation-timing-function = linear
     animation-iteration-count = infinite
@@ -3020,6 +3083,30 @@ animation spin with
   keyframes:
     -
       transform = "rotate(360deg)"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "linear"
+    iterations = "infinite"
+    fill = "none"
+    direction = "normal"
+end
+
+-- Sweeps the coloured segment of an INDETERMINATE progress bar across its
+-- track. `style progress` referenced this animation by name before it existed,
+-- so the bar declared an animation that resolved to nothing and simply sat
+-- still — a dangling @keyframes name is silently ignored, with no warning.
+animation progress_indeterminate with
+  target = layer.self
+  -- No `offset` on these frames: two frames distribute to 0%/100% on their own,
+  -- which is what's wanted, and `offset` currently does NOT drive the keyframe
+  -- selector — it leaks through as a literal `offset:` declaration (see the
+  -- builtin `ping`, whose 0.75 still emits a 0% frame).
+  keyframes:
+    -
+      background-position = "200% 0"
+    -
+      background-position = "-200% 0"
   timing:
     delay = 0
     duration = 0
