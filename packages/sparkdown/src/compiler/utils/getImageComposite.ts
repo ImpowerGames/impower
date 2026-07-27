@@ -1,41 +1,35 @@
+import {
+  composeThumbnailBlob,
+  thumbnailCacheKey,
+  type ThumbnailSource,
+} from "../../thumbnails/composeThumbnail";
 import { getImagePreviewMarkup, getImagePreviewSrc } from "./getImagePreviewSrc";
 import { resolveImageLayerSrcs } from "./resolveImageLayerSrcs";
 
 /**
- * Composite a `layered_image`'s layers into a single thumbnail so previews can
- * show what the asset actually looks like.
+ * Flatten a `layered_image`'s layers into a single thumbnail so previews show
+ * what the asset actually looks like instead of just its base plate.
  *
- * Why a raster composite rather than stacked HTML: VS Code's markdown
- * sanitizer drops `style` and `class`, so any CSS-based stack silently
- * collapses there while working in the editor. The only markup both hosts
- * render identically is one `<img src>` — so the layers have to be flattened
- * before they reach the renderer.
+ * Why one flattened image rather than stacked HTML: VS Code's markdown
+ * sanitizer drops `style` and `class`, so a CSS stack works in the editor and
+ * silently collapses there. One `<img src>` is the only markup both hosts
+ * render identically.
  *
- * Why raster rather than an SVG wrapper: an SVG loaded through `<img>` runs in
- * secure static mode and cannot pull in external resources, and a markup splice
- * cannot mix an SVG layer with a PNG one. Canvas does not care what each layer
- * was, and its output is bounded by the thumbnail size rather than by how much
- * detail the artist drew.
- *
- * Everything here degrades to the existing single-layer preview rather than
- * failing: no canvas in this host, an un-fetchable layer, or an oversized
- * result all fall back to `getImagePreviewMarkup`.
+ * Generation itself is shared with the editor's service-worker thumbnails —
+ * see `composeThumbnail`. This module only adds the language-server concerns:
+ * resolving a struct to its layers, fetching them, and caching per session.
  */
 
-/** 2x the 180px the completion panel displays, so it stays sharp on retina. */
-const MAX_HEIGHT = 360;
+/** 2x the width the completion panel displays, so it stays sharp on retina. */
+const PREVIEW_WIDTH = 360;
 
 /**
- * Ceiling for the generated data URI. A composite over this is a sign
- * something is wrong (huge source art, a pathological layer count) and is not
- * worth risking against a host's string handling — fall back instead.
+ * Ceiling for the generated data URI. Anything past this suggests something
+ * pathological; fall back rather than risk a host's string handling.
  */
 const MAX_BYTES = 512 * 1024;
 
-const MIME = "image/webp";
-const QUALITY = 0.8;
-
-/** Bounded cache. Keyed by content, so no explicit invalidation is needed. */
+/** Per-session cache. Keyed by content, so nothing needs to invalidate it. */
 const MAX_CACHE_ENTRIES = 64;
 const cache = new Map<string, string>();
 
@@ -60,11 +54,6 @@ const cacheSet = (key: string, value: string) => {
   }
 };
 
-const canComposite = () =>
-  typeof OffscreenCanvas !== "undefined" &&
-  typeof createImageBitmap === "function" &&
-  typeof fetch === "function";
-
 const toDataUri = (bytes: Uint8Array, mime: string) => {
   // Chunked so a large buffer doesn't blow the argument limit on `apply`.
   let binary = "";
@@ -77,25 +66,41 @@ const toDataUri = (bytes: Uint8Array, mime: string) => {
   return `data:${mime};base64,${btoa(binary)}`;
 };
 
-const loadLayer = async (src: string) => {
+/**
+ * Fetch one layer's bytes along with the metadata its cache key needs.
+ *
+ * `fetch` covers impower-dev, where layer srcs are served urls. It does NOT
+ * cover VS Code, whose srcs are workspace uris a worker can't fetch — that
+ * host needs bytes handed to it over the extension bridge (see #292), and
+ * until then falls back to the single-layer preview.
+ */
+const loadLayer = async (src: string): Promise<ThumbnailSource | undefined> => {
   try {
     const response = await fetch(src);
     if (!response.ok) {
       return undefined;
     }
     const blob = await response.blob();
-    return await createImageBitmap(blob);
+    const lastModified = Date.parse(
+      response.headers.get("last-modified") || "",
+    );
+    return {
+      // Strip the `?v=` cache-buster: it is re-stamped on every load, so
+      // leaving it in would make the key miss every time.
+      path: src.split("?")[0] || src,
+      blob,
+      lastModified: Number.isFinite(lastModified) ? lastModified : 0,
+      size: blob.size,
+    };
   } catch {
-    // An un-fetchable layer is expected in some hosts (see #292) — the caller
-    // falls back to the single-layer preview rather than showing nothing.
     return undefined;
   }
 };
 
 /**
- * Build the composited data URI for a struct, or `undefined` when compositing
- * isn't possible or isn't worth it (fewer than two layers, no canvas, a layer
- * that won't load, or an oversized result).
+ * Composited data URI for a struct, or `undefined` when compositing isn't
+ * possible or isn't worth it (fewer than two layers, no canvas, an
+ * un-fetchable layer, or an oversized result).
  */
 export const getImageCompositeSrc = async (
   context: { [type: string]: { [name: string]: any } } | undefined,
@@ -106,66 +111,42 @@ export const getImageCompositeSrc = async (
     // Nothing to flatten — the plain resolver already returns the right thing.
     return undefined;
   }
-  // Layer srcs carry the workspace's `?v=` cache-buster, so the joined list is
-  // a content key: a changed layer or a changed definition changes the key and
-  // misses the cache on its own. No invalidation hook to keep in sync.
-  const key = layers.join("|");
+  // Provisional key from the srcs, to avoid re-fetching layers on every
+  // keystroke's worth of resolves. Replaced below by the stable signature key
+  // once the responses tell us each layer's real identity.
+  const provisionalKey = layers.join("|");
+  const provisional = cacheGet(provisionalKey);
+  if (provisional !== undefined) {
+    return provisional || undefined;
+  }
+
+  const sources = await Promise.all(layers.map(loadLayer));
+  if (sources.some((s) => !s)) {
+    // Cache the failure: retrying a fetch that can't work in this host on
+    // every resolve would be worse than one stale miss.
+    cacheSet(provisionalKey, "");
+    return undefined;
+  }
+  const loaded = sources as ThumbnailSource[];
+
+  const key = thumbnailCacheKey(loaded, PREVIEW_WIDTH);
   const cached = cacheGet(key);
   if (cached !== undefined) {
+    cacheSet(provisionalKey, cached);
     return cached || undefined;
   }
-  if (!canComposite()) {
-    return undefined;
-  }
 
-  const bitmaps = await Promise.all(layers.map(loadLayer));
-  if (bitmaps.some((b) => !b)) {
-    bitmaps.forEach((b) => b?.close());
-    // Cache the failure too — retrying a broken fetch on every keystroke's
-    // worth of completion resolves would be worse than one stale miss.
+  const blob = await composeThumbnailBlob(loaded, PREVIEW_WIDTH);
+  if (!blob) {
     cacheSet(key, "");
+    cacheSet(provisionalKey, "");
     return undefined;
   }
-
-  const loaded = bitmaps as ImageBitmap[];
-  const width = Math.max(...loaded.map((b) => b.width));
-  const height = Math.max(...loaded.map((b) => b.height));
-  if (!width || !height) {
-    loaded.forEach((b) => b.close());
-    cacheSet(key, "");
-    return undefined;
-  }
-  const scale = Math.min(1, MAX_HEIGHT / height);
-  const w = Math.max(1, Math.round(width * scale));
-  const h = Math.max(1, Math.round(height * scale));
-
-  try {
-    const canvas = new OffscreenCanvas(w, h);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return undefined;
-    }
-    // `assets` is ordered bottom-to-top: UIModule reverses it for CSS
-    // `background-image` (which paints its first layer on top), so drawing in
-    // array order reproduces what the game shows.
-    for (const bitmap of loaded) {
-      ctx.drawImage(bitmap, 0, 0, w, h);
-    }
-    const blob = await canvas.convertToBlob({ type: MIME, quality: QUALITY });
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    const uri = toDataUri(bytes, blob.type || MIME);
-    if (uri.length > MAX_BYTES) {
-      cacheSet(key, "");
-      return undefined;
-    }
-    cacheSet(key, uri);
-    return uri;
-  } catch {
-    cacheSet(key, "");
-    return undefined;
-  } finally {
-    loaded.forEach((b) => b.close());
-  }
+  const uri = toDataUri(new Uint8Array(await blob.arrayBuffer()), blob.type);
+  const value = uri.length > MAX_BYTES ? "" : uri;
+  cacheSet(key, value);
+  cacheSet(provisionalKey, value);
+  return value || undefined;
 };
 
 const escapeAttribute = (value: string) =>

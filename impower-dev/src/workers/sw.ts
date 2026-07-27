@@ -1,6 +1,13 @@
 export default null;
 declare var self: ServiceWorkerGlobalScope;
 
+import {
+  composeThumbnailBlob,
+  thumbnailCacheKey,
+  THUMB_MAX_WIDTH,
+  THUMB_MIN_WIDTH,
+} from "@impower/sparkdown/src/thumbnails/composeThumbnail";
+
 // Build-time values injected via Vite `define` (see getServiceWorkerDefine).
 // Read through a `typeof` guard so (a) an un-injected build falls back safely
 // instead of throwing, and (b) — crucially — the value can't be folded away by
@@ -17,10 +24,9 @@ const SW_CACHE_NAME: string = `cache-${SW_VERSION}`;
 // opfs-workspace worker can write into the same bucket at import time without
 // knowing the SW version, and so thumbnails survive SW updates (they're keyed
 // by file signature, so they stay valid until the file itself changes). Bump
-// THUMB_VERSION to invalidate every thumbnail when the generation logic
-// changes. Kept across `activate`'s cache sweep.
+// THUMB_VERSION (in the shared generator) to invalidate every thumbnail when
+// the generation logic changes. Kept across `activate`'s cache sweep.
 const SW_THUMB_CACHE_NAME: string = "asset-thumbnails";
-const THUMB_VERSION = 1;
 const SW_RESOURCES: string[] = JSON.parse(
   typeof SW_RESOURCES_INJECTED !== "undefined" ? SW_RESOURCES_INJECTED : "[]",
 );
@@ -29,12 +35,6 @@ const SW_NODE_ENV: string =
     ? SW_NODE_ENV_INJECTED
     : "development";
 const RESOURCE_PROTOCOL: string = "/file:/";
-
-// Thumbnail max-width bounds (px). A request for ?thumb=144 yields a webp no
-// wider than 144px; clamped so a hostile/garbage value can't ask for a huge
-// canvas. Images are never upscaled past their natural width.
-const THUMB_MIN_WIDTH = 16;
-const THUMB_MAX_WIDTH = 512;
 
 const RESOURCE_URL_REGEX =
   /.*[.](?:css|html|js|mjs|ico|svg|png|ttf|woff|woff2)$/;
@@ -119,34 +119,26 @@ async function getOrCreateThumbnail(
   if (!Number.isFinite(maxWidth) || maxWidth < THUMB_MIN_WIDTH) {
     return undefined;
   }
-  const cacheKey = `${RESOURCE_PROTOCOL}${path}?thumb=${maxWidth}&sig=${file.lastModified}-${file.size}&tv=${THUMB_VERSION}`;
+  const cacheKey = `${RESOURCE_PROTOCOL}${path}?${thumbnailCacheKey(
+    [{ path, lastModified: file.lastModified, size: file.size }],
+    maxWidth,
+  )}`;
   try {
     const cache = await caches.open(SW_THUMB_CACHE_NAME);
     const cached = await cache.match(cacheKey);
     if (cached) {
       return cached;
     }
-    // Decode AND downscale in one pass: `resizeWidth` makes the decoder emit a
-    // small bitmap directly (preserving aspect) instead of allocating the full
-    // multi-megapixel image and scaling it on a canvas afterwards — much less
-    // memory + CPU per thumbnail. (Sources narrower than maxWidth upscale
-    // slightly, which is harmless at thumbnail size.)
-    const bitmap = await createImageBitmap(file, {
-      resizeWidth: maxWidth,
-      resizeQuality: "low",
-    });
-    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      bitmap.close();
+    // Generation is shared with the language server's asset previews so the
+    // editor and the completion popup can't disagree about what an asset looks
+    // like. A single file is just the one-layer case of a composite.
+    const blob = await composeThumbnailBlob(
+      [{ path, blob: file, lastModified: file.lastModified, size: file.size }],
+      maxWidth,
+    );
+    if (!blob) {
       return undefined;
     }
-    ctx.drawImage(bitmap, 0, 0);
-    bitmap.close();
-    const blob = await canvas.convertToBlob({
-      type: "image/webp",
-      quality: 0.75,
-    });
     const response = new Response(blob, {
       status: 200,
       headers: new Headers({
