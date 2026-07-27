@@ -191,26 +191,60 @@ describe("doc-input incremental — in-block edits", () => {
   }
 
   test("mid-block edit restarts from a mid-block line boundary (boundedness)", () => {
-    const edit = replaceEdit(
+    // A from-scratch parse keeps whole-block chunks (TreeBuffer-fast), so
+    // the FIRST edit in a block is a warm-up: it reparses from the block's
+    // pure boundary and mints the in-block split points. Perform the
+    // warm-up, then measure the SECOND edit — the steady-state typing cost.
+    const parser = getParser();
+    const fullTree = parser.parse(doc(text) as any);
+    const warmupEdit = replaceEdit(
       text,
+      "This is dialogue line number 10 inside the block.",
+      "This is WARMED dialogue line 10.",
+    );
+    let fragments = TreeFragment.addTree(fullTree);
+    fragments = TreeFragment.applyChanges(fragments, [
+      {
+        fromA: warmupEdit.from,
+        toA: warmupEdit.to,
+        fromB: warmupEdit.from,
+        toB: warmupEdit.from + warmupEdit.insert.length,
+      },
+    ]);
+    const warmText = applyEdit(text, warmupEdit);
+    const warmTree = parser.parse(doc(warmText) as any, fragments);
+    expectIdentical("warm-up", warmText, warmTree);
+
+    const edit = replaceEdit(
+      warmText,
       "This is dialogue line number 20 inside the block.",
       "This is EDITED dialogue line 20.",
     );
-    const r = docEditAndReparse(text, edit);
-    expectIdentical("boundedness", r.newText, r.incTree);
+    fragments = TreeFragment.addTree(warmTree);
+    fragments = TreeFragment.applyChanges(fragments, [
+      {
+        fromA: edit.from,
+        toA: edit.to,
+        fromB: edit.from,
+        toB: edit.from + edit.insert.length,
+      },
+    ]);
+    const newText = applyEdit(warmText, edit);
+    const incTree = parser.parse(doc(newText) as any, fragments);
+    expectIdentical("boundedness", newText, incTree);
 
-    const blockFrom = r.newText.indexOf("  then (greeting)");
-    const blockTo = r.newText.indexOf("  end", blockFrom) + "  end".length;
+    const blockFrom = newText.indexOf("  then (greeting)");
+    const blockTo = newText.indexOf("  end", blockFrom) + "  end".length;
     const blockLen = blockTo - blockFrom;
-    const span = r.span;
-    const spanLen = span ? span.to - span.from : r.newText.length;
+    const span = reparsedSpan(incTree);
+    const spanLen = span ? span.to - span.from : newText.length;
     // eslint-disable-next-line no-console
     console.log(
       `[doc-incremental] reparsed=${spanLen} chars; block=${blockLen}; span/block=${(spanLen / blockLen).toFixed(2)}`,
     );
     // The restart must engage INSIDE the block (< the whole block plus its
-    // surroundings). Phase 2a bound: restart ~2 lines above the edit, then
-    // reparse to the block's trailing pure boundary.
+    // surroundings): restart ~2 lines above the edit, splice back in at
+    // the line boundary past it.
     expect(spanLen).toBeLessThan(blockLen);
     // And the restart point must be AFTER the block's start (mid-block).
     expect(span).not.toBeNull();

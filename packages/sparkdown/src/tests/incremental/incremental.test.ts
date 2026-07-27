@@ -162,8 +162,11 @@ describe("incremental reuse — boundedness", () => {
     );
     expect(spanLen).toBeGreaterThan(0);
 
-    // NOTE: pre-refactor this span ≈ the whole block (~58x the edited line).
-    // After the line+stack refactor, tighten this to assert boundedness:
-    //   expect(spanLen).toBeLessThan(editLineLen * 4);
+    // NOTE: this measures the FIRST edit after a from-scratch parse, which
+    // is the deliberate WARM-UP under the incremental redesign: an initial
+    // parse keeps whole-block chunks (TreeBuffer-fast), so the first edit
+    // in a block reparses it once and mints the in-block restart points.
+    // The steady-state (second-edit) boundedness — ~2.5x the edited line —
+    // is asserted in docIncremental.test.ts.
   });
 });

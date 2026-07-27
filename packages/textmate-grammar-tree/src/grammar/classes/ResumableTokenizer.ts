@@ -175,6 +175,18 @@ export class ResumableTokenizer {
   /** Highest position already checked for a line-boundary split. */
   protected lastSplitCheckPos = 0;
 
+  /**
+   * Whether to emit in-scope line-boundary split signals. Off for
+   * from-scratch parses: per-line chunks inside blocks can't be converted
+   * to TreeBuffers (their scopes cross chunk boundaries), which makes the
+   * initial whole-document parse measurably slower — and a document that
+   * has never been edited doesn't need in-block restart points. The first
+   * edit inside a block restarts from the block's pure boundary once, and
+   * THAT (incremental) reparse mints the fine-grained splits for the
+   * block, so subsequent edits there are line-bounded.
+   */
+  emitSplitSignals = false;
+
   constructor(
     grammar: Grammar,
     next: (absolutePos: number) => string,
@@ -553,12 +565,37 @@ export class ResumableTokenizer {
     }
   }
 
+  /**
+   * Reused per-step output buffer and result object — a step's tokens are
+   * always consumed by the caller before the next `step()` call, and a
+   * whole-document parse takes hundreds of thousands of steps.
+   */
+  protected _stepTokens: GrammarToken[] = [];
+  protected _stepResult: TokenizerStepResult = {
+    tokens: this._stepTokens,
+    length: 0,
+    done: false,
+  };
+
+  protected finishStep(
+    length: number,
+    done: boolean,
+    splitAt?: TokenizerStepResult["splitAt"],
+  ): TokenizerStepResult {
+    const result = this._stepResult;
+    result.length = length;
+    result.done = done;
+    result.splitAt = splitAt;
+    return result;
+  }
+
   step(): TokenizerStepResult {
-    const out: GrammarToken[] = [];
+    const out = this._stepTokens;
+    out.length = 0;
     const posBefore = this.pos;
 
     if (this.drained) {
-      return { tokens: out, length: 0, done: true };
+      return this.finishStep(0, true);
     }
 
     if (!this.ensureText()) {
@@ -568,14 +605,14 @@ export class ResumableTokenizer {
         if (!this.tryEnd(out, false)) {
           this.closeWithoutEnd(out, true);
         }
-        return { tokens: out, length: this.pos - posBefore, done: false };
+        return this.finishStep(this.pos - posBefore, false);
       }
       if (this.pending) {
         out.push(this.pending);
         this.pending = null;
       }
       this.drained = true;
-      return { tokens: out, length: 0, done: true };
+      return this.finishStep(0, true);
     }
 
     if (this.frames.length > 0) {
@@ -586,28 +623,31 @@ export class ResumableTokenizer {
       let splitAt: TokenizerStepResult["splitAt"];
       if (this.pos > this.lastSplitCheckPos) {
         this.lastSplitCheckPos = this.pos;
-        if (this.state.str.charCodeAt(this.pos - 1) === 10 /* \n */) {
+        if (
+          this.emitSplitSignals &&
+          this.state.str.charCodeAt(this.pos - 1) === 10 /* \n */
+        ) {
           splitAt = { at: this.anchor + this.pos, resume: this.snapshot() };
         }
       }
       const frame = this.frames[this.frames.length - 1]!;
       const applyEndPatternLast = frame.rule.applyEndPatternLast;
       if (!applyEndPatternLast && this.tryEnd(out)) {
-        return { tokens: out, length: this.pos - posBefore, done: false, splitAt };
+        return this.finishStep(this.pos - posBefore, false, splitAt);
       }
       if (this.tryContent(out)) {
-        return { tokens: out, length: this.pos - posBefore, done: false, splitAt };
+        return this.finishStep(this.pos - posBefore, false, splitAt);
       }
       if (applyEndPatternLast && this.tryEnd(out)) {
-        return { tokens: out, length: this.pos - posBefore, done: false, splitAt };
+        return this.finishStep(this.pos - posBefore, false, splitAt);
       }
       // Neither content nor end matched mid-input: incomplete scope.
       this.closeWithoutEnd(out, false);
-      return { tokens: out, length: this.pos - posBefore, done: false, splitAt };
+      return this.finishStep(this.pos - posBefore, false, splitAt);
     }
 
     if (this.tryTopLevel(out)) {
-      return { tokens: out, length: this.pos - posBefore, done: false };
+      return this.finishStep(this.pos - posBefore, false);
     }
 
     // Nothing matched at the top level: emit an unrecognized token and
@@ -618,7 +658,7 @@ export class ResumableTokenizer {
       this.anchor + this.pos + 1,
     ]);
     this.pos += 1;
-    return { tokens: out, length: 1, done: false };
+    return this.finishStep(1, false);
   }
 
   /**

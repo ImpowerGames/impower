@@ -136,6 +136,12 @@ export class TextmateGrammarParse implements PartialParse {
     if (resume) {
       this.tokenizer.restore(resume, this.region.from);
     }
+    // In-block split points are only minted on INCREMENTAL parses (ones
+    // that restarted from a cached compiler): a from-scratch parse keeps
+    // whole-block chunks so they stay TreeBuffer-convertible (fast initial
+    // parse); the first edit inside a block reparses that block once and
+    // mints its fine-grained restart points then.
+    this.tokenizer.emitSplitSignals = this.region.from > 0 || !!this.region.edit;
   }
 
   /**
