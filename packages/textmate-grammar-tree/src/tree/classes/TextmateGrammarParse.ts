@@ -272,6 +272,84 @@ export class TextmateGrammarParse implements PartialParse {
     }
   }
 
+  /**
+   * Tries to splice the reused-ahead chunks in MID-scope: when the head
+   * arrives exactly at an in-scope split point whose recorded entry state
+   * matches the tokenizer's current state, the old chunks' tokens are
+   * exactly what re-tokenizing would produce — append them (with a fixup
+   * of the child counts/positions their spanning scopes baked in) instead
+   * of reparsing the rest of the block.
+   */
+  protected tryImpureSplice(): boolean {
+    const ahead = this.compiler.ahead;
+    const first = ahead?.first;
+    if (!ahead || !first) {
+      return false;
+    }
+    if (!this.region.contiguous) {
+      return false;
+    }
+    if (!this.tokenizer.hasOpenFrames || this.tokenizer.done) {
+      return false;
+    }
+    if (
+      first.startsPure ||
+      !first.spliceSafe ||
+      !first.resume ||
+      !first.entrySeeds
+    ) {
+      return false;
+    }
+    if (this.parsedPos !== first.from) {
+      return false;
+    }
+    // Must be BEFORE any step runs at this position — afterwards the new
+    // stream already contains this position's tokens.
+    if (!this.tokenizer.atFreshPosition) {
+      return false;
+    }
+    if (!this.tokenizer.matchesResume(first.resume)) {
+      return false;
+    }
+
+    // The entry states match, so the boundary's behavior is deterministic
+    // and (spliceSafe) adds no retroactive close markers — flushing the
+    // held-back token here is safe.
+    this.flushPendingIntoCompiler();
+    const arriving = this.compiler.packet.last;
+    const seeds = first.entrySeeds;
+    const seedLen = seeds.ids.length;
+    if (!arriving || arriving.stack.length !== seedLen) {
+      return false;
+    }
+    const deltas: number[] = [];
+    const trueAbs: number[] = [];
+    for (let i = 0; i < seedLen; i++) {
+      if (arriving.stack.ids[i] !== seeds.ids[i]) {
+        return false;
+      }
+      deltas.push(arriving.stack.children[i]! - seeds.children[i]!);
+      trueAbs.push(arriving.from + (arriving.stack.positions[i]! | 0));
+    }
+
+    const frameOpenPositions = this.tokenizer.frameOpenPositions();
+    const frameGroupSizes = this.tokenizer.frameGroupSizes();
+    this.compiler.packet.clearScheduledSplit();
+    const startIndex = this.compiler.packet.chunks.length;
+    this.compiler.append(ahead);
+    this.compiler.spliceFixup(
+      startIndex,
+      deltas,
+      trueAbs,
+      frameOpenPositions,
+      frameGroupSizes,
+    );
+    this.compiler.ahead = undefined;
+    this.parsedPos = this.compiler.packet.last!.to;
+    this.tokenizer.finishAfterSplice();
+    return true;
+  }
+
   /** Advances the parser to the next chunk. */
   protected nextChunk() {
     // this condition is a little misleading,
@@ -284,6 +362,10 @@ export class TextmateGrammarParse implements PartialParse {
       this.parsedPos < this.region.to ||
       (this.tokenizer.hasOpenFrames && !this.tokenizer.done)
     ) {
+      if (this.tryImpureSplice()) {
+        return true;
+      }
+
       const pos = this.parsedPos;
 
       const step = this.tokenizer.step();
@@ -368,7 +450,10 @@ export class TextmateGrammarParse implements PartialParse {
       }
       // console.log("REUSABLE?", this.parsedPos, ">=", reusableFrom, pos >= reusableFrom);
       if (this.compiler.ahead.first) {
-        if (this.parsedPos === this.compiler.ahead.first.from) {
+        if (
+          this.parsedPos === this.compiler.ahead.first.from &&
+          this.compiler.ahead.first.startsPure
+        ) {
           this.flushPendingIntoCompiler();
           this.compiler.append(this.compiler.ahead);
           this.advanceTokenizerTo(this.compiler.packet.last!.to);
@@ -392,7 +477,10 @@ export class TextmateGrammarParse implements PartialParse {
               splitAhead.index,
             );
             this.compiler.ahead = aheadSplitBuffer.right;
-            if (this.parsedPos === this.compiler.ahead.first?.from) {
+            if (
+              this.parsedPos === this.compiler.ahead.first?.from &&
+              this.compiler.ahead.first.startsPure
+            ) {
               this.flushPendingIntoCompiler();
               this.compiler.append(this.compiler.ahead);
               this.advanceTokenizerTo(this.compiler.packet.last!.to);

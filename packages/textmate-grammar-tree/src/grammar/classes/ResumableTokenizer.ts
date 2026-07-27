@@ -641,4 +641,110 @@ export class ResumableTokenizer {
     this.pending = null;
     return token;
   }
+
+  /**
+   * True when the tokenizer's current state is EXACTLY the state recorded
+   * in `resume` — same open scopes (rule identity), same begin captures,
+   * same content-wrapper/emit-switch state, same empty-match counters.
+   * Open positions are NOT compared: an edit shifts positions without
+   * changing what the state means for the tokens ahead.
+   *
+   * This is the gate for splicing reused chunks in MID-scope: if the state
+   * entering the old chunk matches, the old chunk's tokens are exactly
+   * what re-tokenizing would produce.
+   */
+  matchesResume(resume: TokenizerResume): boolean {
+    if (resume.frames.length !== this.frames.length) {
+      return false;
+    }
+    const stack = this.state.stack.stack;
+    if (resume.stack.length !== stack.length - 1) {
+      return false;
+    }
+    for (let i = 0; i < resume.stack.length; i++) {
+      const a = stack[i + 1]!;
+      const b = resume.stack[i]!;
+      if (a.node !== b.node) {
+        return false;
+      }
+      if (a.beginCaptures.length !== b.beginCaptures.length) {
+        return false;
+      }
+      for (let j = 0; j < a.beginCaptures.length; j++) {
+        if (a.beginCaptures[j] !== b.beginCaptures[j]) {
+          return false;
+        }
+      }
+    }
+    for (let i = 0; i < this.frames.length; i++) {
+      const a = this.frames[i]!;
+      const b = resume.frames[i]!;
+      if (a.rule !== b.rule) {
+        return false;
+      }
+      if (a.contentOpened !== b.contentOpened) {
+        return false;
+      }
+      if (a.emptyMatchCount !== b.emptyMatchCount) {
+        return false;
+      }
+      const aw = a.wrapperNodes;
+      const bw = b.wrapperNodes;
+      const awLen = aw?.length ?? 0;
+      const bwLen = bw?.length ?? 0;
+      if (awLen !== bwLen) {
+        return false;
+      }
+      for (let j = 0; j < awLen; j++) {
+        if (aw![j] !== bw![j]) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Document-absolute open positions of the current frames (bottom-up),
+   * used to patch downstream resume snapshots after a mid-scope splice.
+   */
+  frameOpenPositions(): number[] {
+    return this.frames.map((f) => this.anchor + f.openedAt);
+  }
+
+  /**
+   * How many chunk-level stack entries each frame accounts for (emitting
+   * switch wrappers + the scope node + the content wrapper if opened),
+   * bottom-up — maps chunk-level seed prefixes back to whole frames.
+   */
+  frameGroupSizes(): number[] {
+    return this.frames.map(
+      (f) => (f.wrapperNodes?.length ?? 0) + 1 + (f.contentOpened ? 1 : 0),
+    );
+  }
+
+  /**
+   * True while no step has run at the current head position yet — i.e. the
+   * state still describes ENTERING this position. A mid-scope splice must
+   * happen at a fresh position: once a step runs, its tokens exist in the
+   * new stream and splicing the old chunks would duplicate them.
+   */
+  get atFreshPosition() {
+    return this.pos > this.lastSplitCheckPos;
+  }
+
+  /**
+   * Retires the tokenizer after reused chunks were spliced in mid-scope:
+   * the spliced chunks carry the remainder of the document (including the
+   * close tokens for every open scope), so nothing further may be
+   * tokenized. The caller must have flushed the pending token first.
+   */
+  finishAfterSplice() {
+    this.pending = null;
+    this.frames.length = 0;
+    this.state.visited.length = 0;
+    // keep only the permanent None sentinel
+    this.state.stack.close(1);
+    this.drained = true;
+  }
 }

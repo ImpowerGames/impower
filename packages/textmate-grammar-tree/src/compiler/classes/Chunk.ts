@@ -77,6 +77,30 @@ export class Chunk {
    */
   resume?: TokenizerResume;
 
+  /**
+   * The inherited open frames this chunk was seeded with, recorded at mint
+   * time (the live `stack` mutates as tokens arrive). `children` are the
+   * accumulated child counts at entry — the baseline a mid-scope splice
+   * diffs against to fix up baked close sizes; `absPositions` are the
+   * document-absolute open positions.
+   */
+  entrySeeds?: { ids: number[]; children: number[]; absPositions: number[] };
+
+  /**
+   * Compiled-buffer offsets of nodes that CLOSED an inherited frame, with
+   * the seed index they closed — the records a mid-scope splice must patch
+   * (their baked size/position assume the old preceding token stream).
+   */
+  inheritedCloseRecords?: { seedIndex: number; offset: number }[];
+
+  /**
+   * True when the tokenizer state entering this chunk (its {@link resume})
+   * fully accounts for the inherited chunk-level stack ({@link entrySeeds})
+   * — i.e. the boundary added no retroactive close markers to the token
+   * before it. Only such boundaries can be spliced into mid-scope.
+   */
+  spliceSafe = false;
+
   get endsPure() {
     return !this.scopes || this.scopes.length === 0;
   }
@@ -103,11 +127,16 @@ export class Chunk {
   offset(offset: number) {
     this.from += offset;
     this.to = this.from + this.length;
-    // The resume snapshot's positions are document-absolute — keep them in
-    // the same coordinate space as the chunk when it slides.
+    // Resume/seed positions are document-absolute — keep them in the same
+    // coordinate space as the chunk when it slides.
     if (this.resume) {
       for (const f of this.resume.frames) {
         f.openedAtAbs += offset;
+      }
+    }
+    if (this.entrySeeds) {
+      for (let i = 0; i < this.entrySeeds.absPositions.length; i++) {
+        this.entrySeeds.absPositions[i]! += offset;
       }
     }
   }
@@ -124,16 +153,20 @@ export class Chunk {
    */
   inheritFrom(prev: Chunk) {
     this.startsPure = false;
+    const ids: number[] = [];
+    const children: number[] = [];
+    const absPositions: number[] = [];
     for (let i = 0; i < prev.stack.length; i++) {
       // `| 0` unwraps a possibly-wrapped negative stored by an earlier
       // inherit before rebasing to this chunk's coordinates.
       const prevRelative = prev.stack.positions[i]! | 0;
-      this.stack.push(
-        prev.stack.ids[i]!,
-        prev.from + prevRelative - this.from,
-        prev.stack.children[i]!,
-      );
+      const abs = prev.from + prevRelative;
+      this.stack.push(prev.stack.ids[i]!, abs - this.from, prev.stack.children[i]!);
+      ids.push(prev.stack.ids[i]!);
+      children.push(prev.stack.children[i]!);
+      absPositions.push(abs);
     }
+    this.entrySeeds = { ids, children, absPositions };
     if (prev.scopes && prev.scopes.length > 0) {
       this.scopes = prev.scopes.slice();
     }
@@ -183,6 +216,15 @@ export class Chunk {
         }
         const idx = this.stack.last(c);
         if (idx !== null) {
+          // Record closes of INHERITED frames: their emitted size/position
+          // bake in the token stream that preceded this chunk, which a
+          // mid-scope splice replaces and must patch (see Compiler).
+          if (this.entrySeeds && idx < this.entrySeeds.ids.length) {
+            (this.inheritedCloseRecords ??= []).push({
+              seedIndex: idx,
+              offset: this.nodeCount * 4,
+            });
+          }
           // cut off anything past the closing element
           // i.e. inside nodes won't persist outside their parent if they
           // never closed before their parent did

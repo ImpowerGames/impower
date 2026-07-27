@@ -118,6 +118,7 @@ export class Packet {
         current = new Chunk(at, true);
         current.inheritFrom(this.chunks[this.chunks.length - 1]!);
         current.resume = resume;
+        current.spliceSafe = spliceStateAccountsForSeeds(resume, current);
         this.chunks.push(current);
         newChunk = true;
       }
@@ -199,14 +200,16 @@ export class Packet {
     let chunk = this.chunks[index];
 
     while (chunk) {
-      // Only PURE split points are valid ahead-splice targets: an in-scope
-      // split chunk's baked child counts and spans assume the exact token
-      // stream that preceded it in the parse that made it, which the
-      // reparse behind it may have changed.
+      // Pure split points are always valid ahead targets. In-scope split
+      // points are only candidates when marked spliceSafe with a resume
+      // snapshot — the parse verifies on ARRIVAL that its tokenizer state
+      // matches the snapshot before splicing (and fixes up the baked
+      // child counts/positions); if the check fails it simply parses on
+      // and re-splits further ahead.
       if (
         chunk &&
         chunk.isSplitPoint &&
-        chunk.startsPure &&
+        (chunk.startsPure || (chunk.spliceSafe && chunk.resume)) &&
         chunk.from > editedTo
       ) {
         // This is the first pure chunk after the edit.
@@ -292,4 +295,44 @@ export class Packet {
     }
     return this;
   }
+}
+
+/**
+ * True when the tokenizer-level resume state fully explains the chunk-level
+ * inherited stack: each open frame contributes its emitting-switch wrappers
+ * (outermost first), its scope node, and — if opened — its content wrapper.
+ * When the boundary's first steps retroactively closed markers onto the
+ * token BEFORE the boundary, the seeds diverge from this derivation and
+ * the boundary cannot be spliced into mid-scope (the pre-boundary token in
+ * a NEW parse would be missing those markers).
+ */
+function spliceStateAccountsForSeeds(
+  resume: TokenizerResume,
+  chunk: Chunk,
+): boolean {
+  const seeds = chunk.entrySeeds;
+  if (!seeds) {
+    return false;
+  }
+  const derived: number[] = [];
+  for (const f of resume.frames) {
+    if (f.wrapperNodes) {
+      for (const w of f.wrapperNodes) {
+        derived.push(w);
+      }
+    }
+    derived.push(f.rule.node.typeIndex);
+    if (f.contentOpened) {
+      derived.push(f.contentNodeIndex);
+    }
+  }
+  if (derived.length !== seeds.ids.length) {
+    return false;
+  }
+  for (let i = 0; i < derived.length; i++) {
+    if (derived[i] !== seeds.ids[i]) {
+      return false;
+    }
+  }
+  return true;
 }

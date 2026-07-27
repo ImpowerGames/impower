@@ -142,6 +142,82 @@ export class Compiler {
     this.packet.append(aheadBuffer);
   }
 
+  /**
+   * After splicing reused chunks in MID-scope, rebases everything those
+   * chunks baked in about the scopes that SPAN the splice point (opened
+   * behind it, closed within the spliced region): their accumulated child
+   * counts changed by `deltas[i]` (the reparse emitted a different number
+   * of records behind the splice) and their true open positions are now
+   * `trueAbs[i]`. Patches, walking chunks from `startIndex` until every
+   * spanning scope has closed:
+   * - each chunk's entry seeds (the baseline future splices diff against);
+   * - the compiled close records of spanning scopes (baked size/position);
+   * - each chunk's residual live stack (used by future inherits/finish);
+   * - each restart snapshot's frame open positions (`frameOpenPositions`
+   *   is tokenizer-frame-level; `frameGroupSizes` maps chunk-level seed
+   *   prefixes to whole frames).
+   */
+  spliceFixup(
+    startIndex: number,
+    deltas: number[],
+    trueAbs: number[],
+    frameOpenPositions: number[],
+    frameGroupSizes: number[],
+  ) {
+    let m = deltas.length;
+    for (let k = startIndex; k < this.packet.chunks.length && m > 0; k++) {
+      const chunk = this.packet.chunks[k]!;
+      const seeds = chunk.entrySeeds;
+      if (!seeds) {
+        break;
+      }
+      const prefix = Math.min(m, seeds.ids.length);
+      for (let i = 0; i < prefix; i++) {
+        seeds.children[i]! += deltas[i]!;
+        seeds.absPositions[i] = trueAbs[i]!;
+      }
+      // The restart snapshot describes the state ENTERING this chunk —
+      // patch the frames that are spanning at entry.
+      if (chunk.resume) {
+        let consumed = 0;
+        let groups = 0;
+        for (const g of frameGroupSizes) {
+          if (consumed + g <= prefix) {
+            consumed += g;
+            groups++;
+          } else {
+            break;
+          }
+        }
+        for (let i = 0; i < groups && i < chunk.resume.frames.length; i++) {
+          chunk.resume.frames[i]!.openedAtAbs = frameOpenPositions[i]!;
+        }
+      }
+      // Baked closes of spanning scopes: fix size + position; a close at
+      // seed index i also cut every deeper seed (CompileStack.close), so
+      // the spanning set shrinks to i.
+      let mNext = m;
+      if (chunk.inheritedCloseRecords) {
+        for (const rec of chunk.inheritedCloseRecords) {
+          if (rec.seedIndex < mNext) {
+            chunk.compiled[rec.offset + 1] =
+              trueAbs[rec.seedIndex]! - chunk.from;
+            chunk.compiled[rec.offset + 3]! += deltas[rec.seedIndex]! * 4;
+            mNext = rec.seedIndex;
+          }
+        }
+      }
+      // Residual live stack: entries below mNext are still open spanning
+      // scopes (a preserved bottom prefix).
+      const stackPrefix = Math.min(mNext, chunk.stack.length);
+      for (let i = 0; i < stackPrefix; i++) {
+        chunk.stack.children[i]! += deltas[i]!;
+        chunk.stack.positions[i] = trueAbs[i]! - chunk.from;
+      }
+      m = mNext;
+    }
+  }
+
   add(token: GrammarToken) {
     const addedChunk = this.packet.add(token);
     const lastChunk = this.packet.last;
