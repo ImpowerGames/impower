@@ -14,6 +14,10 @@ import { canRename } from "./utils/providers/canRename";
 import { getCodeLenses } from "./utils/providers/getCodeLenses";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
 import { getCompletions } from "./utils/providers/getCompletions";
+import {
+  resolveCompletion,
+  type CompletionItemResolveData,
+} from "./utils/providers/resolveCompletion";
 import { getDocumentColors } from "./utils/providers/getDocumentColors";
 import { getDocumentFormattingEdits } from "./utils/providers/getDocumentFormattingEdits";
 import { applyTextEdits } from "./utils/providers/getFormatDirtyRange";
@@ -78,6 +82,10 @@ try {
       completionItem: {
         labelDetailsSupport: true,
       },
+      // Asset previews are computed in `completionItem/resolve`, not up front:
+      // a project-wide asset list can be hundreds of items and only the one the
+      // user highlights ever needs its image.
+      resolveProvider: true,
     },
     documentFormattingProvider: true,
     documentRangeFormattingProvider: true,
@@ -246,7 +254,36 @@ try {
       `lsp: onCompletion ${uri} start`,
       `lsp: onCompletion ${uri} end`,
     );
+    // `workspace.program()` is keyed by the REQUESTED document uri, not by
+    // `program.uri` (which is the compiled root), so resolve has to be told
+    // which document it came from. Stamped here to keep uri plumbing out of
+    // the completion builders.
+    if (result) {
+      for (const item of result) {
+        if (item.data) {
+          (item.data as CompletionItemResolveData).uri = uri;
+        }
+      }
+    }
     return result;
+  });
+
+  // completionProvider.resolveProvider
+  connection.onCompletionResolve((item) => {
+    const data = item.data as CompletionItemResolveData | undefined;
+    if (!data?.uri) {
+      return item;
+    }
+    performance.mark(`lsp: onCompletionResolve ${item.label} start`);
+    const program = workspace.program(data.uri);
+    const resolved = resolveCompletion(item, program);
+    performance.mark(`lsp: onCompletionResolve ${item.label} end`);
+    performance.measure(
+      `lsp: onCompletionResolve ${item.label}`,
+      `lsp: onCompletionResolve ${item.label} start`,
+      `lsp: onCompletionResolve ${item.label} end`,
+    );
+    return resolved;
   });
 
   // documentFormattingProvider
