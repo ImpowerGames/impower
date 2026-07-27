@@ -1,6 +1,7 @@
 import { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
 import AudioPlayer from "../../../../spark-dom/src/classes/AudioPlayer";
+import AudioProbe from "./AudioProbe";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
 import { ConfigureAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/ConfigureAudioMixerMessage";
 import { LoadAudioPlayerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
@@ -35,7 +36,52 @@ export default class AudioManager extends Manager {
 
   protected _audioChannels = new Map<string, Map<string, AudioPlayer>>();
 
+  /**
+   * Measures what each mixer is actually outputting (#273). Audio is the one
+   * part of the engine that otherwise can only be checked by listening to it,
+   * which is how #268 -- every authored character voice silent -- went
+   * unnoticed. Started on demand; it costs nothing until someone asks.
+   */
+  protected _audioProbe = new AudioProbe(() => this._audioMixers.entries());
+  get audioProbe() {
+    return this._audioProbe;
+  }
+
+  override async onInit(): Promise<void> {
+    this.exposeAudioProbe();
+  }
+
+  /**
+   * Publishes the probe as `window.__audioProbe()` (#273).
+   *
+   * Deliberately a plain global rather than something behind the debugging
+   * toggle: the whole point is that anyone -- a developer at a console, or an
+   * agent that cannot hear -- can ask "is this making a sound?" in one call,
+   * without first having to find and enable a setting. It starts the sampler
+   * on first use, so it costs nothing until asked.
+   */
+  protected exposeAudioProbe(): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+    (window as any).__audioProbe = () => {
+      if (!this._audioProbe.running) {
+        this._audioProbe.start();
+      }
+      return {
+        // Null means the game has no audio graph yet, which is a different
+        // problem from "the graph is silent" and worth telling apart.
+        audioContext: this.app.audioContext ? this.app.audioContext.state : null,
+        mixers: this._audioProbe.sample(),
+      };
+    };
+  }
+
   override onDispose() {
+    this._audioProbe.stop();
+    if (typeof window !== "undefined") {
+      delete (window as any).__audioProbe;
+    }
     this._audioMixers.clear();
     this._audioBuffers.clear();
     for (const c of this._audioChannels.values()) {
@@ -124,6 +170,12 @@ export default class AudioManager extends Manager {
         audioMixer.gain = gain;
       }
       this._audioMixers.set(mixer, audioMixer);
+      // Begin sampling as soon as there is an audio graph at all. Starting it
+      // lazily on the first `__audioProbe()` call would be too late to be
+      // useful: by the time anyone thinks to ask whether a line beeped, the
+      // beep is over, and `lastNonSilentAt` -- the field that exists to answer
+      // exactly that -- would still read null.
+      this._audioProbe.start();
       return audioMixer;
     }
     return undefined;
