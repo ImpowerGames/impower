@@ -7,7 +7,7 @@
 // WARNING-FREE and asserts the rendered DOM. Adding a section here is how a
 // builtin earns CI coverage, so keep the two in sync.
 //
-// Element TAGS are builtins, named readably rather than after HTML — box, span,
+// Element TAGS are builtins, named readably rather than after HTML — block, span,
 // scroller, text, link, label, field, textarea, button, picture, input, slider,
 // checkbox, radio, switch, dropdown, option, divider, progress, list,
 // ordered_list, item, table + table_header/table_body/table_row/header_cell/cell,
@@ -95,20 +95,26 @@ end
 
 layout main with
   scroller #height=100% #overflow-y=auto #background-color="#13171f" #color-scheme="dark":
-    -- `column` is a layout PRIMITIVE and ships with no gap of its own, so the
-    -- spacing between the sections below is set here. (A `section` spaces its
-    -- own children; this is the space BETWEEN sections.)
-    column container #child-gap=18:
+    -- `block`, not `column`. The `section`s below are SEMANTIC blocks carrying
+    -- their own bottom margin, so a flex container would be wrong twice over:
+    -- its gap would space them a second time, AND — the part that is easy to
+    -- miss — a flex ITEM establishes its own formatting context, so each
+    -- section's last child could no longer collapse its trailing margin out
+    -- through the section's edge. Every section would end up one rhythm step
+    -- too tall, for a reason visible nowhere near the section.
+    block container:
 
       -- Header -------------------------------------------------------------
       header #padding-bottom=18:
-        h1 "Pico"
-        -- An <hgroup>: the subtitle belongs to the title, so it hugs it.
+        -- An <hgroup>: the subtitle belongs to the TITLE, not to the flow after
+        -- it, so the pair hugs — the heading gives up its rhythm step and the
+        -- subtitle its own, or the two read as separate blocks.
+        h1 "Pico" #margin-bottom=0
         text muted "A pure HTML example, without dependencies." #margin-top=0
         -- The nav FOLLOWS the title in the reference, and there is no rule
         -- between the header and Preview. Pico's dropdown is a `foldout` styled
         -- as a menu — the same element as an accordion, so it opens with no JS.
-        box nav #margin-top=18:
+        block nav #margin-top=18:
           list:
             item:
               -- Pico calls this class `dropdown`; here that name is already the
@@ -125,7 +131,7 @@ layout main with
       -- Preview ------------------------------------------------------------
       section:
         h2 "Preview"
-        text "Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas."
+        paragraph "Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas."
         form:
           row grid:
             -- `#aria-label` because the placeholder is the only visible label:
@@ -144,7 +150,7 @@ layout main with
       -- Typography ---------------------------------------------------------
       section:
         h2 "Typography"
-        text "Aliquam lobortis vitae nibh nec rhoncus. Morbi mattis neque eget efficitur feugiat. Vivamus porta nunc a erat mattis, mattis feugiat turpis pretium. Quisque sed tristique felis."
+        paragraph "Aliquam lobortis vitae nibh nec rhoncus. Morbi mattis neque eget efficitur feugiat. Vivamus porta nunc a erat mattis, mattis feugiat turpis pretium. Quisque sed tristique felis."
         quote:
           -- Single-quoted so the literal quotation marks need no escaping.
           text '"Maecenas vehicula metus tellus, vitae congue turpis hendrerit non. Nam at dui sit amet ipsum cursus ornare."'
@@ -163,16 +169,15 @@ layout main with
         -- what gives the block its closing step, and a grid cell cannot collapse
         -- it away — so leaving it out left this section exactly one step short.
         --
-        -- `#child-gap=0` on the wrapper is REQUIRED, and is the whole lesson of
-        -- this block: the paragraphs already carry the rhythm as margins, so
-        -- leaving the container's default gap on top of them spaces every row
-        -- TWICE (18 + 18). The two models do not compose — pick one per
-        -- container. Here we match the reference and let the margins do it.
+        -- The wrapper is a bare `column`, which ships with NO gap — so the
+        -- paragraphs' own margins are the only rhythm here, exactly as in the
+        -- reference. Give this column a `child-gap` and every row is spaced
+        -- twice: a gap does not collapse with a margin, it adds to it.
         --
         -- Children stay INLINE. A <p> may not legally contain a block, and the
         -- dump below serializes to HTML, so a `text` (a div) in here would
         -- re-parse into a different tree than the one that rendered.
-        column #child-gap=0:
+        column:
           row grid:
             paragraph:
               link "Primary link" #href="#"
@@ -206,13 +211,13 @@ layout main with
             paragraph highlight "Highlighted"
 
         h3 "Heading 3"
-        text "Integer bibendum malesuada libero vel eleifend. Fusce iaculis turpis ipsum, at efficitur sem scelerisque vel. Aliquam auctor diam ut purus cursus fringilla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos."
+        paragraph "Integer bibendum malesuada libero vel eleifend. Fusce iaculis turpis ipsum, at efficitur sem scelerisque vel. Aliquam auctor diam ut purus cursus fringilla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos."
         h4 "Heading 4"
-        text "Cras fermentum velit vitae auctor aliquet. Nunc non congue urna, at blandit nibh. Donec ac fermentum felis. Vivamus tincidunt arcu ut lacus hendrerit, eget mattis dui finibus."
+        paragraph "Cras fermentum velit vitae auctor aliquet. Nunc non congue urna, at blandit nibh. Donec ac fermentum felis. Vivamus tincidunt arcu ut lacus hendrerit, eget mattis dui finibus."
         h5 "Heading 5"
-        text "Donec nec egestas nulla. Sed varius placerat felis eu suscipit. Mauris maximus ante in consequat luctus. Morbi euismod sagittis efficitur. Aenean non eros orci. Vivamus ut diam sem."
+        paragraph "Donec nec egestas nulla. Sed varius placerat felis eu suscipit. Mauris maximus ante in consequat luctus. Morbi euismod sagittis efficitur. Aenean non eros orci. Vivamus ut diam sem."
         h6 "Heading 6"
-        text "Ut sed quam non mauris placerat consequat vitae id risus. Vestibulum tincidunt nulla ut tortor posuere, vitae malesuada tortor molestie. Sed nec interdum dolor. Vestibulum id auctor nisi, a efficitur sem. Aliquam sollicitudin efficitur turpis, sollicitudin hendrerit ligula semper id. Nunc risus felis, egestas eu tristique eget, convallis in velit."
+        paragraph "Ut sed quam non mauris placerat consequat vitae id risus. Vestibulum tincidunt nulla ut tortor posuere, vitae malesuada tortor molestie. Sed nec interdum dolor. Vestibulum id auctor nisi, a efficitur sem. Aliquam sollicitudin efficitur turpis, sollicitudin hendrerit ligula semper id. Nunc risus felis, egestas eu tristique eget, convallis in velit."
         figure:
           -- A remote `#src` resolves through the `.url` asset path; `#alt` is
           -- required for anything that is not purely decorative.
@@ -224,11 +229,17 @@ layout main with
       -- Buttons ------------------------------------------------------------
       section:
         h2 "Buttons"
-        row grid:
+        -- `paragraph grid`, not `row grid`, matching the reference's
+        -- `<p class="grid">`. A `row` is a layout PRIMITIVE and carries no
+        -- margin, so two of them inside a block `section` sit flush against
+        -- each other — the trailing step has to come from somewhere, and in
+        -- document flow that somewhere is the element's own bottom margin.
+        -- (`<button>` is phrasing content, so it is legal inside a <p>.)
+        paragraph grid:
           button "Primary"
           button secondary "Secondary"
           button contrast "Contrast"
-        row grid:
+        paragraph grid:
           button outline "Primary outline"
           button outline secondary "Secondary outline"
           button outline contrast "Contrast outline"
@@ -318,7 +329,7 @@ layout main with
       -- Tables -------------------------------------------------------------
       section:
         h2 "Tables"
-        box overflow_auto:
+        block overflow_auto:
           table striped:
             table_header:
               table_row:
@@ -370,7 +381,7 @@ layout main with
           article:
             header:
               h3 "Confirm your action!"
-            text "Cras sit amet maximus risus. Pellentesque sodales odio sit amet augue finibus."
+            paragraph "Cras sit amet maximus risus. Pellentesque sodales odio sit amet augue finibus."
             footer:
               row #child-gap=8:
                 button secondary "Cancel" @click=close_modal
@@ -380,7 +391,7 @@ layout main with
       section:
         h2 "Accordions"
         foldout "Accordion 1":
-          text "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque urna diam, tincidunt nec porta sed, auctor id velit. Etiam venenatis nisl ut orci consequat, vitae tempus quam commodo. Nulla non mauris ipsum. Aliquam eu posuere orci. Nulla convallis lectus rutrum quam hendrerit, in facilisis elit sollicitudin. Mauris pulvinar pulvinar mi, dictum tristique elit auctor quis. Maecenas ac ipsum ultrices, porta turpis sit amet, congue turpis."
+          paragraph "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque urna diam, tincidunt nec porta sed, auctor id velit. Etiam venenatis nisl ut orci consequat, vitae tempus quam commodo. Nulla non mauris ipsum. Aliquam eu posuere orci. Nulla convallis lectus rutrum quam hendrerit, in facilisis elit sollicitudin. Mauris pulvinar pulvinar mi, dictum tristique elit auctor quis. Maecenas ac ipsum ultrices, porta turpis sit amet, congue turpis."
         foldout "Accordion 2" #open=true:
           list bulleted:
             item "Vestibulum id elit quis massa interdum sodales."
@@ -392,7 +403,7 @@ layout main with
       section:
         article:
           h2 "Article"
-          text "Nullam dui arcu, malesuada et sodales eu, efficitur vitae dolor. Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas. Nunc placerat facilisis cursus. Sed vestibulum metus eget dolor pharetra rutrum."
+          paragraph "Nullam dui arcu, malesuada et sodales eu, efficitur vitae dolor. Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas. Nunc placerat facilisis cursus. Sed vestibulum metus eget dolor pharetra rutrum."
           footer:
             small "Duis nec elit placerat, suscipit nibh quis, finibus neque."
 

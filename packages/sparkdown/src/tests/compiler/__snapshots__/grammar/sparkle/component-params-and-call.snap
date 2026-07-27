@@ -205,7 +205,7 @@ sparkdown [0..323]
  │   │   │   │               ├─ LuauStructObjectHeader_c1 117
  │   │   │   │               │   └─ OptionalWhitespace 117
  │   │   │   │               ├─ LuauStructObjectHeader_c2 [117..120]
- │   │   │   │               │   └─ BuiltinComponentName [117..120]: "box"
+ │   │   │   │               │   └─ CustomComponentName [117..120]: "box"
  │   │   │   │               └─ LuauStructObjectHeader_c4 [120..121]
  │   │   │   │                   └─ LuauStructObjectColon [120..121]: ":"
  │   │   │   └─ LuauStructBodyLine_c3 121

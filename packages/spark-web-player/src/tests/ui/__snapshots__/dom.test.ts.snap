@@ -558,6 +558,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -1187,59 +1190,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -1341,18 +1350,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -1362,6 +1375,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -1395,6 +1409,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -1419,9 +1434,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -1621,12 +1634,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -1668,29 +1683,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -1841,7 +1847,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -2704,6 +2710,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -3333,59 +3342,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -3487,18 +3502,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -3508,6 +3527,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -3541,6 +3561,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -3565,9 +3586,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -3767,12 +3786,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -3814,29 +3835,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -3987,7 +3999,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -4812,6 +4824,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -5441,59 +5456,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -5595,18 +5616,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -5616,6 +5641,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -5649,6 +5675,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -5673,9 +5700,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -5875,12 +5900,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -5922,29 +5949,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -6095,7 +6113,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -7042,6 +7060,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -7671,59 +7692,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -7825,18 +7852,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -7846,6 +7877,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -7879,6 +7911,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -7903,9 +7936,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -8105,12 +8136,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -8152,29 +8185,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -8325,7 +8349,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -9131,6 +9155,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -9760,59 +9787,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -9914,18 +9947,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -9935,6 +9972,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -9968,6 +10006,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -9992,9 +10031,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -10194,12 +10231,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -10241,29 +10280,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -10414,7 +10444,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -11202,6 +11232,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -11831,59 +11864,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -11985,18 +12024,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -12006,6 +12049,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -12039,6 +12083,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -12063,9 +12108,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -12265,12 +12308,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -12312,29 +12357,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -12485,7 +12521,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -13323,6 +13359,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -13952,59 +13991,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -14106,18 +14151,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -14127,6 +14176,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -14160,6 +14210,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -14184,9 +14235,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -14386,12 +14435,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -14433,29 +14484,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -14606,7 +14648,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -15411,6 +15453,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -16040,59 +16085,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -16194,18 +16245,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -16215,6 +16270,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -16248,6 +16304,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -16272,9 +16329,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -16474,12 +16529,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -16521,29 +16578,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -16694,7 +16742,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -17499,6 +17547,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -18128,59 +18179,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -18282,18 +18339,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -18303,6 +18364,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -18336,6 +18398,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -18360,9 +18423,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -18562,12 +18623,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -18609,29 +18672,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -18782,7 +18836,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -19587,6 +19641,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -20216,59 +20273,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -20370,18 +20433,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -20391,6 +20458,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -20424,6 +20492,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -20448,9 +20517,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -20650,12 +20717,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -20697,29 +20766,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -20870,7 +20930,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);
@@ -21675,6 +21735,9 @@ spark-web-player #game .row {
   display: flex;
   flex-direction: row;
 }
+spark-web-player #game .block {
+  display: block;
+}
 spark-web-player #game .column {
   display: flex;
   flex-direction: column;
@@ -22304,59 +22367,65 @@ spark-web-player #game .h1 {
   font-weight: 700;
   line-height: 1.125;
   color: var(--theme-color-slate_95);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h2 {
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.15;
   color: var(--theme-color-slate_90);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h3 {
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1.175;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h4 {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.2;
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
   color: var(--theme-color-slate_75);
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h5 {
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.225;
   color: var(--theme-color-slate_70);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .h6 {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--theme-color-slate_65);
-  margin-top: calc(1.5em - 1rem);
+  margin-top: 1.5em;
   &:first-child {
     margin-top: 0px;
   }
+  margin-bottom: 1rem;
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
@@ -22458,18 +22527,22 @@ spark-web-player #game .citation {
   color: var(--theme-color-slate_60);
 }
 spark-web-player #game .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
+  >:last-child {
+    margin-bottom: 0px;
+  }
 }
 spark-web-player #game .list {
   display: block;
   list-style: none;
   padding-left: 0px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .bulleted {
   list-style-type: disc;
@@ -22479,6 +22552,7 @@ spark-web-player #game .ordered_list {
   display: block;
   list-style: decimal;
   padding-left: 40px;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -22512,6 +22586,7 @@ spark-web-player #game .table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .header_cell {
   display: table-cell;
@@ -22536,9 +22611,7 @@ spark-web-player #game .striped {
   }
 }
 spark-web-player #game .figure {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: block;
 }
 spark-web-player #game .picture {
   display: block;
@@ -22738,12 +22811,14 @@ spark-web-player #game .overflow_auto {
   width: 100%;
 }
 spark-web-player #game .article {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
   background-color: var(--theme-color-slate_30);
   border-radius: 0.25rem;
   padding: 1rem;
+  >:last-child {
+    margin-bottom: 0px;
+  }
   >.header {
     margin: -1rem -1rem 0px;
     padding: 0.66rem 1rem;
@@ -22785,29 +22860,20 @@ spark-web-player #game .article {
   }
 }
 spark-web-player #game .header {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
 }
 spark-web-player #game .section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .form {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
+  display: block;
 }
 spark-web-player #game .field_group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
@@ -22958,7 +23024,7 @@ spark-web-player #game .progress_fill {
 spark-web-player #game .label {
   pointer-events: auto;
   font-weight: 400;
-  margin-bottom: 0.375rem;
+  margin-bottom: 0.625rem;
 }
 spark-web-player #game .hint {
   color: var(--theme-color-slate_60);

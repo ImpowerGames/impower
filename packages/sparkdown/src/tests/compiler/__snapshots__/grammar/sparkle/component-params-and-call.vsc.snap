@@ -65,7 +65,7 @@ text.source.sparkdown [0..323]
  ├─ meta.component.luau [115..121]
  │   ├─ punctuation.whitespace.optional.sd [115..117]: "  "
  │   └─ meta.struct.body.luau [117..121]
- │       ├─ keyword.other.component.builtin.name.sd [117..120]: "box"
+ │       ├─ entity.name.type.class.view.sd [117..120]: "box"
  │       └─ meta.template.expression.operator.colon.sd [120..121]: ":"
  ├─ Newline [121..122]: "\n"
  ├─ meta.component.luau [122..140]

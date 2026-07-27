@@ -1268,6 +1268,30 @@ style row with
   -- lose and every button in a row would carry a rhythm step above it.
 end
 
+-- The generic BLOCK wrapper: a plain container with no meaning attached.
+--
+-- `box` had no style block at all before this, which made it an exact synonym
+-- for `column` -- the universal reset already makes every element a flex
+-- column, so `box` said nothing and `column` restated the default. Two names
+-- for one behaviour is worse than one.
+--
+-- It earns its keep as the other half of the pair. Grouping now splits by
+-- RHYTHM MODEL, and the block side had no un-opinionated option: `section` and
+-- `article` carry meaning a screen reader announces, and `text` implies
+-- content. So:
+--
+--   box            block -- children space themselves with margins, and those
+--                           margins COLLAPSE with each other and through this
+--                           edge, exactly like a document
+--   column / row   flex  -- children are spaced BY the container, with
+--                           `child-gap`, and nothing collapses
+--
+-- Reach for whichever matches the rhythm you want; mixing the two inside one
+-- container is what double-spaces things.
+style block with
+  display = block
+end
+
 style column with
   display = flex
   flex_direction = column
@@ -1922,13 +1946,14 @@ style h1 with
   text-weight = 700
   text-leading = 1.125
   text-color = slate_95
-  -- The container gap already gives one step; this adds the REST of the
-  -- larger pre-heading space (Pico's per-level typography-spacing-top,
-  -- which `1.5em` reproduces: 3rem on h1, 2.625rem on h2, ...).
-  margin-top = calc(1.5em - 1rem)
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
   -- Nothing to push away from when it opens the flow.
   @first:
     margin-top = 0
+  margin-bottom = 1rem
 end
 
 style h2 with
@@ -1936,40 +1961,43 @@ style h2 with
   text-weight = 700
   text-leading = 1.15
   text-color = slate_90
-  -- The container gap already gives one step; this adds the REST of the
-  -- larger pre-heading space (Pico's per-level typography-spacing-top,
-  -- which `1.5em` reproduces: 3rem on h1, 2.625rem on h2, ...).
-  margin-top = calc(1.5em - 1rem)
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
   -- Nothing to push away from when it opens the flow.
   @first:
     margin-top = 0
+  margin-bottom = 1rem
 end
 
 style h3 with
   text-size = 1.5rem
   text-weight = 700
   text-leading = 1.175
-  -- The container gap already gives one step; this adds the REST of the
-  -- larger pre-heading space (Pico's per-level typography-spacing-top,
-  -- which `1.5em` reproduces: 3rem on h1, 2.625rem on h2, ...).
-  margin-top = calc(1.5em - 1rem)
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
   -- Nothing to push away from when it opens the flow.
   @first:
     margin-top = 0
+  margin-bottom = 1rem
 end
 
 style h4 with
   text-size = 1.25rem
   text-weight = 700
   text-leading = 1.2
-  -- The container gap already gives one step; this adds the REST of the
-  -- larger pre-heading space (Pico's per-level typography-spacing-top,
-  -- which `1.5em` reproduces: 3rem on h1, 2.625rem on h2, ...).
-  margin-top = calc(1.5em - 1rem)
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
   -- Nothing to push away from when it opens the flow.
   @first:
     margin-top = 0
   text-color = slate_75
+  margin-bottom = 1rem
 end
 
 style h5 with
@@ -1977,13 +2005,14 @@ style h5 with
   text-weight = 700
   text-leading = 1.225
   text-color = slate_70
-  -- The container gap already gives one step; this adds the REST of the
-  -- larger pre-heading space (Pico's per-level typography-spacing-top,
-  -- which `1.5em` reproduces: 3rem on h1, 2.625rem on h2, ...).
-  margin-top = calc(1.5em - 1rem)
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
   -- Nothing to push away from when it opens the flow.
   @first:
     margin-top = 0
+  margin-bottom = 1rem
 end
 
 style h6 with
@@ -1991,13 +2020,14 @@ style h6 with
   text-weight = 700
   text-leading = 1.25
   text-color = slate_65
-  -- The container gap already gives one step; this adds the REST of the
-  -- larger pre-heading space (Pico's per-level typography-spacing-top,
-  -- which `1.5em` reproduces: 3rem on h1, 2.625rem on h2, ...).
-  margin-top = calc(1.5em - 1rem)
+  -- Pico's per-level typography-spacing-top. Blocks carry their own
+  -- rhythm now, so this is the whole step rather than the remainder
+  -- left over after a container gap: 3rem on h1, 2.625rem on h2, ...
+  margin-top = 1.5em
   -- Nothing to push away from when it opens the flow.
   @first:
     margin-top = 0
+  margin-bottom = 1rem
 end
 
 style muted with
@@ -2151,15 +2181,21 @@ style citation with
 end
 
 style quote with
-  display = flex
-  child-layout = column
-  child-gap = 0.5rem
+  display = block
+  margin-top = 1rem
+  margin-bottom = 1rem
   padding = 1rem
   border-left-width = 0.25rem
   border-left-style = solid
   border-left-color = slate_30
   -- The quote spaces its own children with `child-gap`; the flow rhythm must
   -- not stack on top of that.
+  -- Padding BLOCKS margin collapse at this edge, so the last child's trailing
+  -- margin would become real inset here instead of passing through -- the box
+  -- reads exactly one rhythm step too tall. Only containers with padding need
+  -- this; `section` has none, so its last margin collapses out on its own.
+  > :last-child:
+    margin-bottom = 0
 end
 
 -- Lists ---------------------------------------------------------------------
@@ -2176,6 +2212,7 @@ style list with
   -- list asks for the whole look with `bulleted`.
   list-style = none
   padding-left = 0
+  margin-bottom = 1rem
 end
 
 -- The document look for a plain `list`, in one word -- marker AND the indent it
@@ -2205,6 +2242,7 @@ style ordered_list with
   display = block
   list-style = decimal
   padding-left = 40px
+  margin-bottom = 1rem
 end
 
 style item with
@@ -2247,6 +2285,7 @@ style table with
   width = 100%
   border-collapse = collapse
   text-align = left
+  margin-bottom = 1rem
 end
 
 style header_cell with
@@ -2277,9 +2316,7 @@ end
 -- A captioned figure. The overlay forces every element to flex, so the
 -- column direction has to be stated rather than inherited from `display:block`.
 style figure with
-  display = flex
-  child-layout = column
-  child-align = start
+  display = block
 end
 
 style picture with
@@ -2524,14 +2561,8 @@ end
 -- Pico's article is a card whose own `header`/`footer` are tinted sectioning
 -- bands separated by a rule, so they are targeted as direct children.
 style article with
-  display = flex
-  child-layout = column
-  -- A semantic container owns the rhythm BETWEEN its children. `gap` rather
-  -- than margins on the children themselves: the overlay is flex, where
-  -- margins never collapse, so a margin on a first/last child becomes real
-  -- inset at the container edge and compounds with nesting depth. `gap`
-  -- applies only BETWEEN children, so edges stay flush at any depth.
-  child-gap = 1rem
+  display = block
+  margin-bottom = 1rem
   background-color = slate_30
   corner = 0.25rem
   padding = 1rem
@@ -2541,6 +2572,16 @@ style article with
   -- than as a line. A translucent lift is used instead of a palette step
   -- because the difference is about 1% — finer than any two neighbouring slate
   -- tokens — and this way it tracks whatever colour the card itself is.
+  -- Padding BLOCKS margin collapse at this edge, so the last child's trailing
+  -- margin becomes real inset instead of passing through, and the box reads a
+  -- rhythm step too tall. (`section` needs no such rule -- no padding, so the
+  -- margin collapses out on its own.)
+  --
+  -- FIRST, before the `> footer` rule below: that footer bleeds to the edges
+  -- with a NEGATIVE bottom margin, and a blanket last-child reset placed after
+  -- it silently cancels the bleed.
+  > :last-child:
+    margin-bottom = 0
   > header:
     margin = -1rem -1rem 0
     padding = 0.66rem 1rem
@@ -2583,40 +2624,34 @@ style article with
 end
 
 style header with
-  display = flex
-  child-layout = column
-  -- An <hgroup>: the subtitle hugs the title it belongs to.
-  child-gap = 0
+  display = block
 end
 
 style footer with
-  display = flex
-  child-layout = column
-  child-gap = 0.5rem
+  display = block
 end
 
 style section with
-  display = flex
-  child-layout = column
-  -- A semantic container owns the rhythm BETWEEN its children. `gap` rather
-  -- than margins on the children themselves: the overlay is flex, where
-  -- margins never collapse, so a margin on a first/last child becomes real
-  -- inset at the container edge and compounds with nesting depth. `gap`
-  -- applies only BETWEEN children, so edges stay flush at any depth.
-  child-gap = 1rem
+  -- BLOCK, not flex. A semantic grouping element is document flow, so its
+  -- children space themselves with margins that COLLAPSE: two blocks meeting
+  -- give one step rather than two, and a last child's trailing margin passes
+  -- out through this edge instead of padding the bottom.
+  --
+  -- `column` / `row` stay flex with `child-gap` -- that is the LAYOUT half of
+  -- the system, and which half you are in is visible from the element you
+  -- reached for. The two must not be mixed in one container: a gap does not
+  -- collapse with a margin, it adds to it.
+  display = block
+  margin-bottom = 1rem
 end
 
 style form with
-  display = flex
-  child-layout = column
-  child-gap = 0
+  display = block
 end
 
 -- Pico strips the default fieldset chrome and uses it purely as a grouping box.
 style field_group with
-  display = flex
-  child-layout = column
-  child-gap = 0.5rem
+  display = block
   border-width = 0
   padding = 0
   -- A group of controls IS a control as far as the form is concerned, so it
@@ -2819,7 +2854,16 @@ end
 style label with
   pointer_events = auto
   text-weight = 400
-  margin-bottom = 0.375rem
+  -- 0.375rem of label rhythm PLUS the 0.25rem the reference puts on the control
+  -- itself. It reads as one value here because it has to: the reference nests
+  -- the control INSIDE its label, where a `margin-top` on the control has only
+  -- the label's text above it and survives. Ours are siblings in a block, so
+  -- the same margin-top would collapse against this margin-bottom and simply
+  -- disappear -- the larger of the two wins, not the sum.
+  --
+  -- Splitting it back out would look tidier and silently lose 0.25rem per
+  -- field, which is 4.5px x every labelled control on a form.
+  margin-bottom = 0.625rem
 end
 
 style hint with
