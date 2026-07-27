@@ -45,25 +45,26 @@ describe.skipIf(!OUT)("dump showcase", () => {
       .map((s) => s.textContent ?? "")
       .join("\n");
 
-    // The overlay is what the player mounts inside `spark-web-player #game`;
-    // reproduce that ancestor chain or every scoped selector misses.
-    // The player's shell supplies the height chain that the overlay's
-    // `height: 100%` scroller resolves against; it lives outside the captured
-    // styles, so without this the page lays out at zero height and paints blank.
-    // The player's shell supplies both the height chain that the overlay's
-    // `height: 100%` scroller resolves against AND the normalize that makes form
-    // controls inherit the page font — neither lives in the engine-generated
-    // styles. Without the latter every control falls back to the UA's 13.33px
-    // and the capture looks like a styling bug that is not there.
+    // The overlay is what the player mounts inside `spark-web-player #game`, so
+    // reproduce that ancestor chain or every scoped selector misses — AND load
+    // the player's OWN stylesheet, which the engine-generated `<style>` elements
+    // do not include.
+    //
+    // That stylesheet is not cosmetic: it is where `box-sizing: border-box`,
+    // `pointer-events: none`, `touch-action: none` and a global
+    // `display: flex; flex-direction: column` live, plus the height chain the
+    // overlay's `height: 100%` scroller resolves against. A capture without it
+    // is a DIFFERENT layout engine from the real player — it silently hid a
+    // caption that stacks vertically in the browser, and reported content-box
+    // sizing that made an explicit control height look 29px wrong. Read it off
+    // disk rather than restating it, so the capture cannot drift from the real
+    // thing again.
     const shell =
       `html,body{margin:0;height:100%}` +
-      `spark-web-player,#viewport,#game{display:block;height:100%}` +
-      // Controls AND `summary` otherwise fall back to `medium` (16px) rather
-      // than the page's 18px, which makes every one of them look 2px small in a
-      // capture. Zero-specificity so anything the engine states still wins;
-      // font only, so deliberate per-element leading (inline chips) survives.
-      `#game *{font-family:inherit;font-size:inherit}` +
-      `button,input,select,textarea{color:inherit;margin:0}`;
+      readFileSync(
+        resolve(findShowcase(), "../../..", "packages/spark-web-player/src/spark-web-player.css"),
+        "utf8",
+      );
 
     // `config.ui.root_text_size` is applied by UIManager to the DOCUMENT root,
     // not to anything inside the overlay, so it would be dropped by serializing
