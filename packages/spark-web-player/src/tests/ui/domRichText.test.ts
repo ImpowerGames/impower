@@ -5,6 +5,10 @@
 // AUTHORING syntax only — the engine parses them once into styled runs, so the
 // web renderer emits spans and a Unity front-end can re-serialize the same runs
 // back into `<b>…</b>` without a translation table.
+//
+// The exception is the SEMANTIC tags (`<sub>`, `<sup>`), which mount as their
+// real element: a styled span cannot carry meaning to a screen reader, and no
+// amount of `vertical-align` makes one a subscript.
 
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
@@ -16,18 +20,26 @@ async function render(src: string) {
   return h;
 }
 
-/** The rendered runs of the first `.text` element: [text, inline style].
- *  Only LEAF spans — plain content renders as one span carrying the text, and
- *  tagged content nests one span per run inside it. */
-function runs(h: any): [string, string][] {
+/** A run is usually a <span>, but a SEMANTIC tag (`<sub>`, `<sup>`) mounts as
+ *  that real element instead — so a selector of `span` alone silently misses
+ *  those runs rather than failing, and they read as "no such run". */
+const RUN_SELECTOR = "span, sub, sup";
+
+/** The LEAF run nodes of the first `.text` element. Plain content renders as
+ *  one node carrying the text; tagged content nests one node per run inside. */
+function runNodes(h: any): Element[] {
   const el = h.overlay.querySelector(".text");
-  return [...el.querySelectorAll("span")]
-    .filter((s: Element) => s.querySelector("span") === null)
-    .filter((s: Element) => (s.textContent ?? "") !== "")
-    .map((s: Element) => [
-      s.textContent ?? "",
-      s.getAttribute("style") ?? "",
-    ]) as [string, string][];
+  return [...el.querySelectorAll(RUN_SELECTOR)]
+    .filter((s: Element) => s.querySelector(RUN_SELECTOR) === null)
+    .filter((s: Element) => (s.textContent ?? "") !== "");
+}
+
+/** The rendered runs of the first `.text` element: [text, inline style]. */
+function runs(h: any): [string, string][] {
+  return runNodes(h).map((s: Element) => [
+    s.textContent ?? "",
+    s.getAttribute("style") ?? "",
+  ]) as [string, string][];
 }
 
 describe("inline rich text", () => {
@@ -72,8 +84,18 @@ end
     expect(byText["bi"]).toContain("font-style: italic");
     expect(byText["u"]).toContain("underline");
     expect(byText["s"]).toContain("line-through");
-    expect(byText["up"]).toContain("vertical-align: super");
     expect(byText["nb"]).toContain("nowrap");
+
+    // `<sup>` is SEMANTIC, so it mounts a real <sup> rather than a styled span
+    // — the meaning is the point, and only the element carries it.
+    const sup = runNodes(h).find((n) => n.textContent === "up");
+    expect(sup?.tagName.toLowerCase()).toBe("sup");
+    // It must NOT also carry the old inline styling. `vertical-align: super`
+    // is not how a browser renders <sup> (that is `baseline` plus a `top`
+    // offset AND `line-height: 0`), so leaving it on would fight the real
+    // thing and re-grow the line box the normalize rules exist to keep flat.
+    expect(byText["up"]).not.toContain("vertical-align");
+    expect(byText["up"]).not.toContain("font-size");
   });
 
   test("value tags resolve theme colors and sizes", async () => {

@@ -66,7 +66,10 @@ end
   text underline "u"
   text strikethrough "s"
   text code "x = 1"
-  text key "Ctrl"
+  text kbd "Ctrl"
+  kbd "Esc"
+  h2 "Heading"
+  small "fine print"
   text highlight "highlit"
   text deleted "gone"
   text inserted "added"
@@ -82,10 +85,24 @@ end
     expect(h.overlay.querySelector("strong")?.textContent).toBe("important");
     expect(h.overlay.querySelector("em")?.textContent).toBe("stressed");
 
+    // Promoted from style CLASSES to elements. A heading is what assistive tech
+    // navigates by and a `<div class="h2">` is not one; `<kbd>` is the key to
+    // press and `<small>` is fine print. The class spelling still works — these
+    // are additive — so only the ELEMENT form proves the promotion landed.
+    expect(h.overlay.querySelector("kbd")?.textContent).toBe("Esc");
+    expect(h.overlay.querySelector("h2")?.textContent).toBe("Heading");
+    expect(h.overlay.querySelector("small")?.textContent).toBe("fine print");
+
     // VISUAL styling is a CLASS on a text element — <b>/<i> are defined as
     // stylistic-only, so there is no element for them. Styling WITHIN a line
     // uses rich-text tags (see domRichText.test.ts).
-    for (const tag of ["mark", "kbd", "del", "ins", "abbr"]) {
+    //
+    // `kbd` is NOT in this list any more — it is a real element now, because
+    // "the key you press" is meaning, not appearance. It still works as a class
+    // (`text kbd "Ctrl"` above renders a div), which is why this list passing
+    // was never evidence: the fixture happens to use the class form, so the
+    // assertion held while the claim it encodes had already become false.
+    for (const tag of ["mark", "del", "ins", "abbr"]) {
       expect(
         h.overlay.querySelector(tag),
         `<${tag}> should no longer be a builtin tag`,
@@ -97,7 +114,7 @@ end
       "underline",
       "strikethrough",
       "code",
-      "key",
+      "kbd",
       "highlight",
       "deleted",
       "inserted",
@@ -200,7 +217,7 @@ end
     const css = [...h.overlay.querySelectorAll("style")]
       .map((s) => s.textContent ?? "")
       .join("\n");
-    for (const cls of ["list", "item", "quote", "code", "key", "highlight"]) {
+    for (const cls of ["list", "item", "quote", "code", "kbd", "highlight"]) {
       expect(css, `expected default styles for .${cls}`).toContain(`.${cls}`);
     }
   });

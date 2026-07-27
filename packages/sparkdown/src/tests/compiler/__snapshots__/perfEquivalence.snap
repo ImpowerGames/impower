@@ -18037,6 +18037,12 @@
           "$type": "style",
           "text-weight": "700"
         },
+        "bulleted": {
+          "$name": "bulleted",
+          "$type": "style",
+          "list-style-type": "disc",
+          "padding-left": "40px"
+        },
         "button": {
           "$name": "button",
           "$type": "style",
@@ -18838,8 +18844,8 @@
           "display": "list-item",
           "margin-bottom": "0.25rem"
         },
-        "key": {
-          "$name": "key",
+        "kbd": {
+          "$name": "kbd",
           "$type": "style",
           "align-self": "start",
           "background-color": "slate_80",
@@ -91810,6 +91816,12 @@
           "$type": "style",
           "text-weight": "700"
         },
+        "bulleted": {
+          "$name": "bulleted",
+          "$type": "style",
+          "list-style-type": "disc",
+          "padding-left": "40px"
+        },
         "button": {
           "$name": "button",
           "$type": "style",
@@ -92611,8 +92623,8 @@
           "display": "list-item",
           "margin-bottom": "0.25rem"
         },
-        "key": {
-          "$name": "key",
+        "kbd": {
+          "$name": "kbd",
           "$type": "style",
           "align-self": "start",
           "background-color": "slate_80",

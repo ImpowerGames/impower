@@ -127,6 +127,96 @@ spark-web-player menu {
 }
 
 /*
+Put the inline semantic tags back INTO the text flow.
+
+The universal `display: flex` above is right for layout elements and wrong for
+these: a <sub> or a <code> is a run of text inside a line, and as a flex column
+it breaks onto its own line instead. `strong`/`emphasis` solve this in their own
+builtin style; these cannot, because their style class is SHARED with the
+non-tag spelling — `.small` is on both `<small>` and the `<div class="text
+small">` that `text small "…"` still produces, and putting `display: inline`
+there would flatten the div too. The TAG selector hits only the real element.
+*/
+spark-web-player code,
+spark-web-player kbd,
+spark-web-player sub,
+spark-web-player sup,
+spark-web-player small {
+  display: inline;
+}
+
+/*
+`<pre>` is the opposite case: a block whose whitespace is the content.
+*/
+spark-web-player pre {
+  display: block;
+  white-space: pre;
+}
+
+/*
+1. Use the user's configured monospace stack.
+2. Correct the odd `em` font sizing in all browsers — a UA renders monospace at
+   a SMALLER size than the surrounding text (the "monospace font-size quirk"),
+   so `1em` inside <code> is not the 1em outside it.
+*/
+spark-web-player code,
+spark-web-player kbd,
+spark-web-player samp,
+spark-web-player pre {
+  font-family:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace; /* 1 */
+  font-size: 1em; /* 2 */
+}
+
+/*
+Add the correct font size in all browsers.
+*/
+spark-web-player small {
+  font-size: 80%;
+}
+
+/*
+Prevent `sub` and `sup` elements from affecting the line height in all browsers.
+
+`line-height: 0` is the load-bearing part: without it the raised/lowered run
+grows the line box it sits in, so one superscript nudges every following line
+of that paragraph down.
+*/
+spark-web-player sub,
+spark-web-player sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+spark-web-player sub {
+  bottom: -0.25em;
+}
+
+spark-web-player sup {
+  top: -0.5em;
+}
+
+/*
+Headings take their size from their style class, never from the UA.
+
+Now that `h1`-`h6` are real tags, the UA's own `font-size`/`font-weight` would
+otherwise be the value a heading falls back to when a project restyles one —
+silently reintroducing browser defaults into a themed layout.
+*/
+spark-web-player h1,
+spark-web-player h2,
+spark-web-player h3,
+spark-web-player h4,
+spark-web-player h5,
+spark-web-player h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/*
 Remove the inheritance of text transform in Edge and Firefox.
 */
 spark-web-player button,

@@ -338,9 +338,20 @@ const INPUT_WIDGETS: Record<
  * explicitly stylistic-only. Same word, different job — `strong "Vital"` says
  * it matters, `text bold "Vital"` just makes it heavy.
  *
- * Also not listed: names that already exist as style CLASSES (`small`, `nav`,
- * `group`, `grid`, `muted`, …) — promoting those to tags would turn existing
- * authoring like `text small "…"` into a two-tags-on-one-line warning.
+ * A name existing as a style CLASS is NOT a reason to keep it out. This comment
+ * used to claim promoting one "would turn existing authoring like
+ * `text small "…"` into a two-tags-on-one-line warning". It does not, and no
+ * such diagnostic exists: the lookup below reads `node.tag`, the FIRST token on
+ * the line, and every later token is a class it never consults. `strong` has
+ * been in both roles all along — `text strong "A"` renders `<div class="text
+ * strong">` with no complaint. Promoting a name is purely ADDITIVE, which is
+ * why `h1`-`h6`, `small` and `code` could move here without touching a single
+ * existing call site.
+ *
+ * Still genuinely not listed: LAYOUT classes (`nav`, `group`, `grid`, `muted`,
+ * `container`, …). Those describe arrangement or appearance, not meaning, so
+ * there is no element for them to be — `nav` is the one arguable case, and it
+ * is deliberately a class because ours is a styled row, not a <nav> landmark.
  */
 const ELEMENT_TAGS: Record<string, string> = {
   // Interactive / semantic controls
@@ -369,6 +380,39 @@ const ELEMENT_TAGS: Record<string, string> = {
   emphasis: "em",
   quote: "blockquote",
   citation: "cite",
+  // Headings. A heading is the single element assistive tech navigates BY —
+  // jump-to-next-heading is how a screen-reader user skims a page at all — and
+  // a `<div class="h2">` supports none of it, nor does it contribute to the
+  // document outline. The visual size was never the point.
+  //
+  // These names already existed as style CLASSES, and still work as classes:
+  // the tag lookup below reads the FIRST token only, so `text h2 "…"` still
+  // renders a div and picks up `.h2`. Promoting is purely additive. An element
+  // also carries its own name as a class, so `h2 "…"` gets `<h2 class="h2">`
+  // and the existing `style h2` applies with no change.
+  h1: "h1",
+  h2: "h2",
+  h3: "h3",
+  h4: "h4",
+  h5: "h5",
+  h6: "h6",
+  // Inline semantics, same reasoning as strong/emphasis: each conveys meaning
+  // a screen reader acts on that no styling can carry.
+  code: "code",
+  // `kbd` is user INPUT (keys to press); `code` is source.
+  kbd: "kbd",
+  preformatted: "pre",
+  // `<small>` is side comment / fine print — legally, the small print. Ours is
+  // used for form hints and footnotes, which is that.
+  small: "small",
+  // `sub`/`sup`/`kbd` keep the HTML spelling rather than following the
+  // spelled-out convention above (`emphasis`, `citation`, `picture`). Those
+  // renames buy clarity because the HTML name is cryptic or already taken;
+  // these three are the names everyone already knows, and the same spellings
+  // are what an author writes inline as `<sub>`/`<sup>` rich-text tags. Two
+  // names for one thing is the worse cost here.
+  sub: "sub",
+  sup: "sup",
   // A figure is the captioned-media pairing, so `caption` is only meaningful
   // inside one. The authored element is `picture`, NOT `image`: `image` is
   // already the engine's own name for a backdrop LAYER, which is a container
@@ -1919,7 +1963,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected mountRichTextRuns(parent: Element, runs: RichTextRun[]): void {
     for (const run of runs) {
       this.createElement(parent, {
-        type: "span",
+        // A semantic run (`<sub>`) mounts as its real element; everything else
+        // is a styled span. `display: inline` still applies to both — the
+        // universal `display: flex` would otherwise break the run onto its own
+        // line — but the semantic tags take their sizing and baseline offset
+        // from the normalize sheet, so nothing else is forced here.
+        type: run.tag ?? "span",
         content: { text: run.text },
         style: { display: "inline", ...(run.style ?? {}) },
       });

@@ -109,12 +109,23 @@ describe("pico showcase example", () => {
       // Real DOM tags, from readable builtin names (`list` -> <ul>,
       // `header_cell` -> <th>, `modal` -> <dialog>, …).
       //
-      // No `mark`/`kbd`/`sub`/`sup` here: purely VISUAL styling is a class on a
-      // text element, or a rich-text tag within a line — not an element.
-      // `strong`/`em` are the exception, because they carry meaning.
+      // The line is MEANING, not appearance: anything a screen reader acts on
+      // is an element, anything purely visual (`mark`, `highlight`, `muted`)
+      // stays a class. `kbd`/`sub`/`sup` moved across that line — they were
+      // listed here as counter-examples until it was clear they carry meaning
+      // too, and that a <div class="h2"> is not a heading to anyone but a
+      // sighted reader.
       "a", "button", "label", "ul", "li", "blockquote", "cite",
       // Semantic inline elements (importance / stress emphasis).
       "strong", "em",
+      // Headings, the primary way assistive tech navigates a page at all.
+      "h1", "h2", "h3", "h4", "h5", "h6",
+      // `sub`/`sup` come from RICH TEXT (`"x<sub>1</sub>"`), not element lines,
+      // so this also pins that the parser mounts them as real elements.
+      // No `code`: the reference page has none either, so the showcase has
+      // nothing to mirror. The builtin exists and is exercised by the style
+      // tests; asserting it here would only pin a gap in the fixture.
+      "small", "kbd", "sub", "sup",
       "table", "thead", "tbody", "tr", "th", "td",
       "article", "section", "header", "footer", "form", "fieldset", "legend",
       "details", "summary", "dialog", "progress",
@@ -204,10 +215,11 @@ describe("pico showcase example", () => {
         ?.disabled,
     ).toBe(true);
 
-    // `<small>` helper text under a field, and after the article.
-    expect(
-      h.overlay.querySelectorAll(".text.small").length,
-    ).toBeGreaterThanOrEqual(3);
+    // `<small>` helper text under a field, and after the article. The TAG, not
+    // `.text.small`: `small` is a real element now, so the old selector matched
+    // nothing — and matched nothing SILENTLY, since a count assertion on a
+    // renamed element reads exactly like the element being absent.
+    expect(h.overlay.querySelectorAll("small").length).toBeGreaterThanOrEqual(3);
 
     // A figure is a real <figure>/<img>/<figcaption>. The authored tag is
     // `picture`, because `image` is the engine's own backdrop-layer name.
@@ -229,8 +241,10 @@ describe("pico showcase example", () => {
     // Purely visual styling as CLASSES on a whole text element. (`bold` /
     // `italic` exist too, but the reference marks those spots up semantically,
     // so the showcase uses the `strong` / `emphasis` ELEMENTS there.)
+    // No `key` here any more: it became the `kbd` ELEMENT (asserted as a tag
+    // above), so the showcase writes `kbd "Kbd"` and there is no `.text.key`.
     for (const cls of ["underline", "strikethrough",
-                       "deleted", "inserted", "highlight", "key"]) {
+                       "deleted", "inserted", "highlight"]) {
       expect(
         h.overlay.querySelector(`.text.${cls}`),
         `expected a .text.${cls}`,

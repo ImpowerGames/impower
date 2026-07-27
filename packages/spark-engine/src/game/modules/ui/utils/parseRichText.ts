@@ -28,7 +28,33 @@ export interface RichTextRun {
   text: string;
   /** Sparkle style props for this run. Absent when the run is unstyled. */
   style?: Record<string, string>;
+  /** Element type to mount this run as, when the tag is SEMANTIC rather than
+   *  decorative (see ELEMENT_RUN_TAGS). Absent means a plain span. */
+  tag?: string;
 }
+
+/**
+ * Tags that mount a real ELEMENT instead of a styled span, because the tag
+ * carries meaning a screen reader acts on — `x<sub>1</sub>` is a subscripted
+ * variable, not small low text, and only the element says so.
+ *
+ * Values are the HTML tag DIRECTLY, not sparkle element names: a run mounts via
+ * `createElement`, whose `type` is the tag it constructs, with no lookup in
+ * between. Putting `subscript` here emits a literal `<subscript>` element — it
+ * renders (unknown elements inherit and display fine) so nothing errors, and
+ * only the tag inventory shows it.
+ *
+ * These are deliberately NOT in FLAG_TAGS: styling them here would fight the
+ * normalize rules the real tags already get. `vertical-align: sub` — what this
+ * used to emit — is also NOT how a browser renders <sub>. A real one uses
+ * `vertical-align: baseline` plus a `bottom` offset AND `line-height: 0`, and
+ * the missing `line-height: 0` is why the styled-span version pushed every
+ * following line of its paragraph down.
+ */
+const ELEMENT_RUN_TAGS: Record<string, string> = {
+  sub: "sub",
+  sup: "sup",
+};
 
 /** Tags that carry no value: `<b>`, `<i>`, … */
 const FLAG_TAGS: Record<string, Record<string, string>> = {
@@ -36,8 +62,6 @@ const FLAG_TAGS: Record<string, Record<string, string>> = {
   i: { "text-style": "italic" },
   u: { "text-decoration-line": "underline" },
   s: { "text-decoration-line": "line-through" },
-  sub: { "vertical-align": "sub", "text-size": "0.75em" },
-  sup: { "vertical-align": "super", "text-size": "0.75em" },
   uppercase: { "text-case": "uppercase" },
   allcaps: { "text-case": "uppercase" },
   lowercase: { "text-case": "lowercase" },
@@ -99,16 +123,40 @@ export function parseRichText(input: string): RichTextRun[] {
     return merged;
   };
 
+  /** The INNERMOST open semantic tag, so `<sup><sub>x</sub></sup>` mounts the
+   *  one actually wrapping the text. Nesting two is meaningless anyway; taking
+   *  the innermost just makes it deterministic. */
+  const activeTag = (): string | undefined => {
+    for (let d = open.length - 1; d >= 0; d--) {
+      const mapped = ELEMENT_RUN_TAGS[open[d]!.tag];
+      if (mapped) {
+        return mapped;
+      }
+    }
+    return undefined;
+  };
+
   const flush = (): void => {
     if (!buffer) {
       return;
     }
     const style = activeStyle();
+    const tag = activeTag();
     const prev = runs[runs.length - 1];
-    if (prev && sameStyle(prev.style, style)) {
+    // Runs merge only when they would mount identically — a differing tag has
+    // to split them even when the style matches, or `a<sub>b</sub>` collapses
+    // into one span and the subscript disappears.
+    if (prev && prev.tag === tag && sameStyle(prev.style, style)) {
       prev.text += buffer;
     } else {
-      runs.push(style ? { text: buffer, style } : { text: buffer });
+      const run: RichTextRun = { text: buffer };
+      if (style) {
+        run.style = style;
+      }
+      if (tag) {
+        run.tag = tag;
+      }
+      runs.push(run);
     }
     buffer = "";
   };
@@ -155,7 +203,8 @@ export function parseRichText(input: string): RichTextRun[] {
       continue;
     }
 
-    const isKnown = name in FLAG_TAGS || name in VALUE_TAGS;
+    const isKnown =
+      name in FLAG_TAGS || name in VALUE_TAGS || name in ELEMENT_RUN_TAGS;
     if (!isKnown) {
       // Unrecognized — emit literally rather than swallowing author text.
       buffer += "<";
@@ -177,8 +226,11 @@ export function parseRichText(input: string): RichTextRun[] {
     }
 
     const value = rawValue?.replace(/^"|"$/g, "").trim() ?? "";
+    // A semantic tag contributes no style of its own — `?? {}` rather than
+    // `FLAG_TAGS[name]!`, which would be `undefined` for one and merge into the
+    // active style as garbage.
     const style =
-      name in VALUE_TAGS ? VALUE_TAGS[name]!(value) : FLAG_TAGS[name]!;
+      name in VALUE_TAGS ? VALUE_TAGS[name]!(value) : (FLAG_TAGS[name] ?? {});
     flush();
     open.push({ tag: name, style });
     i += raw.length;

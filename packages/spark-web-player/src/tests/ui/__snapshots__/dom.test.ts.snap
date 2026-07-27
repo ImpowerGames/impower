@@ -1284,7 +1284,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
@@ -3426,7 +3426,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
@@ -5530,7 +5530,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
@@ -7756,7 +7756,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
@@ -9841,7 +9841,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
@@ -11908,7 +11908,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
@@ -14025,7 +14025,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
@@ -16109,7 +16109,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
@@ -18193,7 +18193,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
@@ -20277,7 +20277,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
@@ -22361,7 +22361,7 @@ spark-web-player #game .code {
   border-radius: 0.25rem;
   padding: 0.125rem 0.375rem;
 }
-spark-web-player #game .key {
+spark-web-player #game .kbd {
   display: inline-block;
   justify-self: start;
   align-self: flex-start;
