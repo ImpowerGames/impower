@@ -1,0 +1,152 @@
+sparkdown [0..169]
+ ├─ Scene [0..17]
+ │   ├─ Scene_begin [0..6]
+ │   │   ├─ Scene_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Scene_begin_c2 [0..5]
+ │   │   │   └─ SceneKeyword [0..5]: "scene"
+ │   │   └─ Scene_begin_c3 [5..6]
+ │   │       └─ RequiredWhitespace [5..6]: " "
+ │   ├─ Scene_content [6..17]
+ │   │   └─ SceneWithParametersDeclaration [6..17]
+ │   │       ├─ SceneWithParametersDeclaration_begin [6..15]
+ │   │       │   ├─ SceneWithParametersDeclaration_begin_c1 [6..15]
+ │   │       │   │   └─ SceneDeclarationName [6..15]: "ChatScene"
+ │   │       │   └─ SceneWithParametersDeclaration_begin_c2 15
+ │   │       ├─ SceneWithParametersDeclaration_content [15..17]
+ │   │       │   └─ LuauFunctionParameters [15..17]
+ │   │       │       ├─ LuauFunctionParameters_begin [15..16]
+ │   │       │       │   └─ LuauFunctionParameters_begin_c1 [15..16]
+ │   │       │       │       └─ PunctuationParenOpen [15..16]: "("
+ │   │       │       └─ LuauFunctionParameters_end [16..17]
+ │   │       │           └─ LuauFunctionParameters_end_c1 [16..17]
+ │   │       │               └─ PunctuationParenClose [16..17]: ")"
+ │   │       └─ SceneWithParametersDeclaration_end 17
+ │   └─ Scene_end 17
+ ├─ Newline [17..18]: "\n"
+ ├─ BlockDialogue [18..104]
+ │   ├─ BlockDialogue_begin [18..28]
+ │   │   ├─ BlockDialogue_begin_c1 [18..20]
+ │   │   │   └─ OptionalWhitespace [18..20]: "  "
+ │   │   ├─ BlockDialogue_begin_c2 [20..27]
+ │   │   │   └─ DialogueCharacter [20..27]
+ │   │   │       ├─ DialogueCharacter_c1 20
+ │   │   │       ├─ DialogueCharacter_c2 [20..27]
+ │   │   │       │   └─ DialogueCharacterName [20..27]
+ │   │   │       │       └─ DialogueCharacterName_c1 [20..27]
+ │   │   │       │           └─ Word [20..27]: "SPEAKER"
+ │   │   │       ├─ DialogueCharacter_c3 27
+ │   │   │       ├─ DialogueCharacter_c4 27
+ │   │   │       ├─ DialogueCharacter_c5 27
+ │   │   │       ├─ DialogueCharacter_c6 27
+ │   │   │       └─ DialogueCharacter_c7 27
+ │   │   ├─ BlockDialogue_begin_c3 [27..28]
+ │   │   │   └─ ColonSeparator [27..28]: ":"
+ │   │   └─ BlockDialogue_begin_c4 28
+ │   ├─ BlockDialogue_content [28..104]
+ │   │   ├─ Newline [28..29]: "\n"
+ │   │   ├─ BlockLineContinue [29..45]
+ │   │   │   ├─ BlockLineContinue_begin [29..33]
+ │   │   │   │   └─ BlockLineContinue_begin_c1 [29..33]
+ │   │   │   │       └─ OptionalWhitespace [29..33]: "    "
+ │   │   │   ├─ BlockLineContinue_content [33..45]
+ │   │   │   │   └─ ParentheticalLine [33..45]
+ │   │   │   │       ├─ ParentheticalLine_c1 33
+ │   │   │   │       │   └─ OptionalWhitespace 33
+ │   │   │   │       ├─ ParentheticalLine_c2 33
+ │   │   │   │       ├─ ParentheticalLine_c3 33
+ │   │   │   │       ├─ ParentheticalLine_c4 [33..45]
+ │   │   │   │       │   └─ ParentheticalLineContent [33..45]
+ │   │   │   │       │       ├─ ParentheticalLineContent_c1 33
+ │   │   │   │       │       ├─ ParentheticalLineContent_c2 [33..34]: "("
+ │   │   │   │       │       ├─ ParentheticalLineContent_c3 34
+ │   │   │   │       │       ├─ ParentheticalLineContent_c4 [34..44]
+ │   │   │   │       │       │   └─ Word [34..44]: "whispering"
+ │   │   │   │       │       ├─ ParentheticalLineContent_c5 44
+ │   │   │   │       │       ├─ ParentheticalLineContent_c6 [44..45]: ")"
+ │   │   │   │       │       └─ ParentheticalLineContent_c7 45
+ │   │   │   │       ├─ ParentheticalLine_c5 45
+ │   │   │   │       ├─ ParentheticalLine_c6 45
+ │   │   │   │       └─ ParentheticalLine_c7 45
+ │   │   │   └─ BlockLineContinue_end 45
+ │   │   │       └─ BlockLineContinue_end_c1 45
+ │   │   ├─ Newline [45..46]: "\n"
+ │   │   ├─ BlockLineContinue [46..62]
+ │   │   │   ├─ BlockLineContinue_begin [46..50]
+ │   │   │   │   └─ BlockLineContinue_begin_c1 [46..50]
+ │   │   │   │       └─ OptionalWhitespace [46..50]: "    "
+ │   │   │   ├─ BlockLineContinue_content [50..62]
+ │   │   │   │   └─ TextChunk [50..62]
+ │   │   │   │       ├─ TextChunk_begin 50
+ │   │   │   │       ├─ TextChunk_content [50..62]
+ │   │   │   │       │   ├─ Word [50..55]: "Quiet"
+ │   │   │   │       │   ├─ Space [55..56]: " "
+ │   │   │   │       │   ├─ Word [56..61]: "words"
+ │   │   │   │       │   └─ Punctuation [61..62]: "."
+ │   │   │   │       └─ TextChunk_end 62
+ │   │   │   └─ BlockLineContinue_end 62
+ │   │   │       └─ BlockLineContinue_end_c1 62
+ │   │   ├─ Newline [62..63]: "\n"
+ │   │   ├─ Newline [63..64]: "\n"
+ │   │   ├─ BlockLineContinue [64..102]
+ │   │   │   ├─ BlockLineContinue_begin [64..88]
+ │   │   │   │   └─ BlockLineContinue_begin_c1 [64..88]
+ │   │   │   │       └─ OptionalWhitespace [64..88]: "                        "
+ │   │   │   ├─ BlockLineContinue_content [88..102]
+ │   │   │   │   └─ TextChunk [88..102]
+ │   │   │   │       ├─ TextChunk_begin 88
+ │   │   │   │       ├─ TextChunk_content [88..102]
+ │   │   │   │       │   ├─ Punctuation [88..89]: "["
+ │   │   │   │       │   ├─ Word [89..93]: "Seen"
+ │   │   │   │       │   ├─ Space [93..94]: " "
+ │   │   │   │       │   ├─ Word [94..95]: "7"
+ │   │   │   │       │   ├─ Punctuation [95..96]: ":"
+ │   │   │   │       │   ├─ Word [96..98]: "21"
+ │   │   │   │       │   ├─ Space [98..99]: " "
+ │   │   │   │       │   ├─ Word [99..101]: "PM"
+ │   │   │   │       │   └─ Punctuation [101..102]: "]"
+ │   │   │   │       └─ TextChunk_end 102
+ │   │   │   └─ BlockLineContinue_end 102
+ │   │   │       └─ BlockLineContinue_end_c1 102
+ │   │   ├─ Newline [102..103]: "\n"
+ │   │   └─ Newline [103..104]: "\n"
+ │   └─ BlockDialogue_end 104
+ ├─ ImplicitAction [104..164]
+ │   ├─ ImplicitAction_begin [104..106]
+ │   │   └─ ImplicitAction_begin_c1 [104..106]
+ │   │       └─ OptionalWhitespace [104..106]: "  "
+ │   ├─ ImplicitAction_content [106..164]
+ │   │   └─ LineEnd [106..164]
+ │   │       ├─ LineEnd_begin 106
+ │   │       │   └─ LineEnd_begin_c1 106
+ │   │       │       └─ OptionalWhitespace 106
+ │   │       ├─ LineEnd_content [106..164]
+ │   │       │   └─ TextChunk [106..164]
+ │   │       │       ├─ TextChunk_begin 106
+ │   │       │       ├─ TextChunk_content [106..164]
+ │   │       │       │   ├─ Word [106..107]: "A"
+ │   │       │       │   ├─ Space [107..108]: " "
+ │   │       │       │   ├─ Word [108..113]: "plain"
+ │   │       │       │   ├─ Space [113..114]: " "
+ │   │       │       │   ├─ Word [114..120]: "action"
+ │   │       │       │   ├─ Space [120..121]: " "
+ │   │       │       │   ├─ Word [121..125]: "line"
+ │   │       │       │   ├─ Space [125..126]: " "
+ │   │       │       │   ├─ Word [126..131]: "after"
+ │   │       │       │   ├─ Space [131..132]: " "
+ │   │       │       │   ├─ Word [132..135]: "the"
+ │   │       │       │   ├─ Space [135..136]: " "
+ │   │       │       │   ├─ Word [136..142]: "deeply"
+ │   │       │       │   ├─ Space [142..143]: " "
+ │   │       │       │   ├─ Word [143..151]: "indented"
+ │   │       │       │   ├─ Space [151..152]: " "
+ │   │       │       │   ├─ Word [152..156]: "chat"
+ │   │       │       │   ├─ Space [156..157]: " "
+ │   │       │       │   ├─ Word [157..163]: "bubble"
+ │   │       │       │   └─ Punctuation [163..164]: "."
+ │   │       │       └─ TextChunk_end 164
+ │   │       └─ LineEnd_end 164
+ │   └─ ImplicitAction_end 164
+ ├─ Newline [164..165]: "\n"
+ ├─ LuauEndKeyword [165..168]: "end"
+ └─ Newline [168..169]: "\n"

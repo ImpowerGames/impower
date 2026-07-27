@@ -95,6 +95,14 @@ const EDITOR_THEME: {
     color: EDITOR_COLORS.lineNumber,
     border: "none",
     opacity: 0.7,
+    // CodeMirror ships these at z-index 200, and nothing between them and
+    // <body> establishes a stacking context, so that 200 competed against the
+    // HOST app's layers rather than staying inside the editor -- putting the
+    // gutters above dialogs and toasts. Editor CHROME belongs under the app's
+    // UI; only editor POPUPS (`.cm-tooltip`, the LSP context menu) deliberately
+    // stay high, because they must overhang neighbouring panes. Positioned, so
+    // this also contains anything nested inside.
+    zIndex: "1",
   },
   "kbd, code, pre": {
     fontFamily: "Courier Prime Sans",
@@ -289,6 +297,10 @@ const EDITOR_THEME: {
   },
   "& .cm-panels": {
     backgroundColor: EDITOR_COLORS.panel,
+    // Same reason as `.cm-gutters` above -- CodeMirror's default is 300, which
+    // put the status bar over the host's dialogs. Kept one above the gutters
+    // to preserve CodeMirror's own relative order (300 > 200).
+    zIndex: "2",
   },
   "& .cm-panels.cm-panels-bottom": {
     borderTop: `1px solid ${EDITOR_COLORS.panelBorder}`,
@@ -319,6 +331,10 @@ const EDITOR_THEME: {
     backgroundColor: EDITOR_COLORS.panel,
     padding: "8px",
     display: "flex",
+    // Explicit: a host may normalize `flex-direction` across its subtree
+    // (spark-editor forces `column` on every descendant of the editor root),
+    // and a direction-less flex container silently stacks when it does.
+    flexDirection: "row",
     gap: "8px",
     "& .cm-textfield": {
       height: "32px",
@@ -357,6 +373,7 @@ const EDITOR_THEME: {
       right: "186px",
       height: "30px",
       display: "flex",
+      flexDirection: "row",
       padding: "0 8px",
       justifyContent: "center",
       alignItems: "center",
@@ -535,6 +552,10 @@ const EDITOR_THEME: {
     fontSize: "14px",
     marginRight: "16px",
     display: "flex",
+    // Explicit: a host may normalize `flex-direction` across its subtree
+    // (spark-editor forces `column` on every descendant of the editor root),
+    // and a direction-less flex container silently stacks when it does.
+    flexDirection: "row",
   },
   "& .cm-diagnosticAction": {
     backgroundColor: "transparent",
