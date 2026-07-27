@@ -92,7 +92,7 @@ text.source.sparkdown [0..323]
  │   └─ meta.struct.body.luau [154..165]
  │       ├─ entity.name.type.class.view.sd [154..158]: "slot"
  │       ├─ punctuation.whitespace.optional.sd [158..159]: " "
- │       └─ keyword.other.component.builtin.name.sd [159..165]: "footer"
+ │       └─ entity.name.type.class.view.sd [159..165]: "footer"
  ├─ Newline [165..166]: "\n"
  ├─ meta.component.luau [166..169]
  │   └─ keyword.control.end.luau [166..169]: "end"

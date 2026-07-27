@@ -42,9 +42,14 @@ function tableKeys(pattern: RegExp): string[] {
   return [...m[1]!.matchAll(/^\s*([a-z_]+):/gm)].map((x) => x[1]!);
 }
 
-/** The alternation the grammar uses to recognise a builtin element name. */
+/** The alternation the grammar uses to recognise a builtin element name.
+ *
+ *  The class must include DIGITS: `h1`-`h6` are builtin names. Without them the
+ *  alternation stops matching at the first digit and this finds nothing at all,
+ *  so every test here dies at module load with "alternation not found" rather
+ *  than with anything about the name that was actually added. */
 function grammarBuiltins(): string[] {
-  const m = /\\\\b\(([a-z_|]+)\)\(\?!/.exec(GRAMMAR);
+  const m = /\\\\b\(([a-z0-9_|]+)\)\(\?!/.exec(GRAMMAR);
   if (!m) throw new Error("builtin-name alternation not found in grammar");
   return m[1]!.split("|");
 }

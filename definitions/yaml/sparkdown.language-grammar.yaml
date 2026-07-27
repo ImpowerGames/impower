@@ -2818,6 +2818,7 @@ repository:
       - { include: "#LuauDivertTargetLiteral" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauRegexLiteral" }
       - { include: "#LuauArithmeticOperation" }
       - { include: "#LuauCompareOperation" }
       - { include: "#LuauConcatOperation" }
@@ -3557,6 +3558,8 @@ repository:
       - { include: "#SparkleLiteralBrace" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#StringEscape" }
+      - { include: "#SparkleRichTextTag" }
+      - { include: "#SparkleRichTextTagUnknown" }
       - { include: "#Color" }
       - { include: "#StringCharacter" }
     end: (["])({{EOPL}})
@@ -3662,16 +3665,37 @@ repository:
       - { include: "#LabelAttribute" }
       - { include: "#Separator" }
 
+  # The FIRST token on an element line — the one that becomes the tag. Only
+  # here can a name be a builtin; see TrailingComponentName.
   ComponentName:
     patterns:
       - { include: "#BuiltinComponentName" }
       - { include: "#CustomComponentName" }
       - { include: "#FunctionCallParameters" }
 
+  # Every token AFTER the first. These are CLASSES, so they colour as classes
+  # even when the name is also a builtin — `text small "…"` is a `text` element
+  # wearing `.small`, and colouring `small` as a builtin there said the line had
+  # two elements on it. The engine agrees: it resolves the tag from `node.tag`,
+  # the first token, and never consults the rest (UIModule ELEMENT_TAGS).
+  #
+  # Deliberately the same rule set as ComponentName MINUS the builtin case, so
+  # a trailing `name(arg)` still tokenizes.
+  TrailingComponentName:
+    patterns:
+      - { include: "#CustomComponentName" }
+      - { include: "#FunctionCallParameters" }
+
+  # Ordered LONGEST-FIRST: regex alternation takes the first branch that
+  # matches, so `table` ahead of `table_header` would leave the longer name
+  # permanently unmatched. builtinNamesHighlighted.test.ts pins both that
+  # ordering and the fact that every name in the engine's tag tables appears
+  # here — this list had already drifted out of the generated JSON once, and a
+  # regeneration silently reverted the editor to a stale set.
   BuiltinComponentName:
     tag: definitionKeyword
     name: keyword.other.component.builtin.name.sd
-    match: \b(box|span|scroller|text|stroke|link|label|field|button|image|mask|input|slider|checkbox|dropdown|option|divider)(?!{{IDENTIFIER}})
+    match: \b(ordered_list|preformatted|table_footer|table_header|field_group|group_label|header_cell|table_body|table_row|checkbox|citation|dropdown|emphasis|progress|scroller|textarea|article|caption|divider|foldout|picture|section|button|figure|footer|header|option|slider|stroke|strong|switch|field|image|input|label|modal|quote|radio|small|table|cell|code|form|item|link|list|mask|span|text|box|kbd|sub|sup|h1|h2|h3|h4|h5|h6)(?!(?:[-_\p{L}][0-9_\p{L}-]*\b))
 
   CustomComponentName:
     tag: className
@@ -3974,6 +3998,8 @@ repository:
       1:
         patterns:
           - { include: "#StringEscape" }
+          - { include: "#SparkleRichTextTag" }
+          - { include: "#SparkleRichTextTagUnknown" }
           - { include: "#Color" }
           - { include: "#StringCharacter" }
 
@@ -4572,7 +4598,7 @@ repository:
 
   # `^` dropped for engine equality — see LuauStructScalarProperty.
   LuauStructObjectHeader:
-    match: ({{WS}}*)(.+?)({{WS}}*)([:])({{WS}}*)$
+    match: ({{WS}}*)(.+?)({{WS}}*)([:])({{WS}}*)(?=(?:--|//(?=$|{{WS}}))|$)
     captures:
       1:
         patterns:
@@ -4644,8 +4670,15 @@ repository:
       # by the zero-width-include guard and doesn't halt capture tokenization on
       # an unrecognized space between two attributes).
       - { include: "#RequiredWhitespace" }
+      - { include: "#LuauComment" }
+      - { include: "#SparkdownLineComment" }
       - { include: "#LuauEventAttribute" }
       - { include: "#LuauPropAttribute" }
+
+  LuauSparkleEventHandlerName:
+    tag: heading
+    name: keyword.control.divert.path.sd
+    match: ((?:[_\p{L}][0-9_\p{L}]*\b))(?=(?:[^\S\n\r])*(?:[@#]|--|//(?=$|[^\S\n\r])|$))
 
   LuauEventAttribute:
     begin: ([@])({{LUAU_IDENTIFIER}})({{WS}}*)([=])({{WS}}*)
@@ -4661,6 +4694,7 @@ repository:
           - { include: "#EqualOperator" }
     patterns:
       - { include: "#LuauSparkleHandlerClosure" }
+      - { include: "#LuauSparkleEventHandlerName" }
       - { include: "#LuauExpression" }
     end: (?=$|{{WS}}+[@#])
 
@@ -4744,7 +4778,7 @@ repository:
         patterns:
           - { include: "#Color" }
           - { include: "#NumericLiteral" }
-          - { include: "#StringCharacter" }
+          - { include: "#UnquotedString" }
 
   # Adjacency content string for inline element positions where a class or
   # attribute may follow on the same line (e.g. `button primary "Use" @click=x`).
@@ -4764,6 +4798,8 @@ repository:
       - { include: "#SparkleLiteralBrace" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#StringEscape" }
+      - { include: "#SparkleRichTextTag" }
+      - { include: "#SparkleRichTextTagUnknown" }
       - { include: "#Color" }
       - { include: "#StringCharacter" }
     end: (["])
@@ -4804,15 +4840,20 @@ repository:
       # Trailing class names, content, AND inline attributes — order:
       # whitespace (consumed so inter-token spaces don't halt tokenization),
       # attributes (`#prop=`/`@event=`), quoted content (`text title "Inventory"`),
-      # then bare component names (= classes). The element TAG vs class is decided
-      # by the lowerer (the builtin/component token is the tag, position-independent).
+      # then bare component names (= classes).
+      #
+      # TrailingComponentName, NOT ComponentName: the tag is capture 2, the
+      # first token, and everything here is a class. That is position-DEPENDENT
+      # (this comment used to claim otherwise) — `text strong "A"` is a `text`
+      # element with `.strong` on it, never a <strong>.
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
           - { include: "#LuauElementAttribute" }
           - { include: "#LuauElementContentStringInterpolated" }
           - { include: "#LuauElementContentStringPlain" }
-          - { include: "#ComponentName" }
+          - { include: "#LuauElementContentStringSingleQuoted" }
+          - { include: "#TrailingComponentName" }
 
   # Full-line catch-all so any struct-body line NOT matched by a wrapper above
   # (e.g. `$recursive = true` / `["$default"] = …` / odd `$`-keys) still produces
@@ -7433,6 +7474,7 @@ repository:
           - { include: "#PunctuationStringDoubleQuoteOpen" }
     patterns:
       - { include: "#LuauStringEscape" }
+      - { include: "#LuauDoubleQuotedStringInterpolation" }
       - { include: "#Color" }
       - { include: "#PlainText" }
     end: (["]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
@@ -7511,7 +7553,7 @@ repository:
         patterns:
           - { include: "#PunctuationStringBacktickQuoteOpen" }
     patterns:
-      - { include: "#LuauInterpolatedStringExpression" }
+      - { include: "#LuauBacktickStringInterpolation" }
       - { include: "#LuauStringEscape" }
       - { include: "#Color" }
       - { include: "#PlainText" }
@@ -7530,7 +7572,7 @@ repository:
     name: meta.template.expression.luau
     contentName: meta.embedded.line.luau
     brackets: true
-    begin: ([{])
+    begin: ([{])(?![}])
     beginCaptures:
       1:
         patterns:
@@ -7544,6 +7586,47 @@ repository:
       1:
         patterns:
           - { include: "#PunctuationBraceClose" }
+
+  LuauDoubleQuotedStringInterpolation:
+    tag: meta
+    name: meta.template.expression.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceOpen"
+    patterns:
+      - include: "#LuauExpression"
+      - include: "#ExtraWhitespace"
+      - include: "#Newline"
+    end: ([}])|(?=["])
+    endCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceClose"
+
+  LuauBacktickStringInterpolation:
+    tag: meta
+    name: meta.template.expression.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceOpen"
+    patterns:
+      - include: "#LuauExpression"
+      - include: "#ExtraWhitespace"
+      - include: "#Newline"
+    end: ([}])|(?=[`])
+    endCaptures:
+      "1":
+        patterns:
+          - include: "#PunctuationBraceClose"
+    applyEndPatternLast: true
 
   LuauStringEscape:
     patterns:
@@ -8475,3 +8558,166 @@ repository:
   LuauAttributeName:
     tag: attributeName
     name: storage.type.attribute.luau
+
+  SparkleRichTextTag:
+    match: (</?)(font-weight|line-height|uppercase|lowercase|smallcaps|allcaps|voffset|noparse|cspace|indent|color|align|alpha|nobr|mark|size|sub|sup|br|b|i|u|s)(?:(=)("[^"]*"|[^>]*))?(>)
+    captures:
+      "1":
+        tag: keyword
+        name: punctuation.definition.tag.begin.sd
+      "2":
+        tag: keyword
+        name: keyword.other.richtext.tag.sd
+      "3":
+        tag: updateOperator
+        name: keyword.operator.assignment.sd
+      "4":
+        tag: string
+        name: string.other.richtext.value.sd
+        patterns:
+          - include: "#Color"
+      "5":
+        tag: keyword
+        name: punctuation.definition.tag.end.sd
+
+  SparkleRichTextTagUnknown:
+    match: (</?)([a-zA-Z][a-zA-Z0-9-]*)(?:(=)("[^"]*"|[^>]*))?(>)
+    captures:
+      "1":
+        tag: invalid
+        name: punctuation.definition.tag.begin.sd
+      "2":
+        tag: invalid
+        name: invalid.illegal.richtext.tag.sd
+      "3":
+        tag: updateOperator
+        name: keyword.operator.assignment.sd
+      "4":
+        tag: string
+        name: string.other.richtext.value.sd
+        patterns:
+          - include: "#Color"
+      "5":
+        tag: invalid
+        name: punctuation.definition.tag.end.sd
+
+  LuauRegexLiteral:
+    tag: regexp
+    name: string.regexp.sd
+    match: (@)([/])((?:\\.|[^/\\\r\n])+)([/])([dgimsuvy]*)
+    captures:
+      "1":
+        tag: definition(string)
+        name: punctuation.definition.string.begin.sd
+      "2":
+        tag: definition(string)
+        name: punctuation.definition.string.begin.sd
+      "3":
+        tag: regexp
+        name: string.regexp.sd
+        patterns:
+          - include: "#LuauRegexCharacterClass"
+          - include: "#LuauRegexEscapedCharacterClass"
+          - include: "#LuauRegexEscape"
+          - include: "#LuauRegexAnchor"
+          - include: "#LuauRegexQuantifier"
+          - include: "#LuauRegexAlternation"
+          - include: "#LuauRegexGroupBegin"
+          - include: "#LuauRegexGroupEnd"
+          - include: "#LuauRegexText"
+      "4":
+        tag: definition(string)
+        name: punctuation.definition.string.end.sd
+      "5":
+        tag: modifier
+        name: keyword.other.regexp.flags.sd
+
+  LuauRegexEscape:
+    tag: escape
+    name: constant.character.escape.backslash.regexp.sd
+    match: \\.
+
+  LuauRegexCharacterClass:
+    tag: bracket
+    name: constant.other.character-class.set.regexp.sd
+    begin: \[\^?
+    beginCaptures:
+      "0":
+        tag: bracket
+        name: punctuation.definition.character-class.regexp.sd
+    patterns:
+      - include: "#LuauRegexEscapedCharacterClass"
+      - include: "#LuauRegexEscape"
+      - include: "#LuauRegexClassDash"
+      - include: "#LuauRegexText"
+    end: \]
+    endCaptures:
+      "0":
+        tag: bracket
+        name: punctuation.definition.character-class.regexp.sd
+
+  LuauRegexClassDash:
+    tag: operator
+    name: constant.other.character-class.range.regexp.sd
+    match: "-"
+
+  LuauRegexEscapedCharacterClass:
+    tag: escape
+    name: constant.other.character-class.regexp.sd
+    match: \\[dDwWsShHvVnrtfv0]|\\[pP]\{[^}]*\}|\\u\{[0-9A-Fa-f]+\}|\\x[0-9A-Fa-f]{2}|\\[0-9]+|\.
+
+  LuauRegexAnchor:
+    tag: controlKeyword
+    name: keyword.control.anchor.regexp.sd
+    match: "[\\^$]|\\\\[bBAzZG]"
+
+  LuauRegexQuantifier:
+    tag: operator
+    name: keyword.operator.quantifier.regexp.sd
+    match: "[*+?]\\??|\\{[0-9]+(?:,[0-9]*)?\\}\\??"
+
+  LuauRegexAlternation:
+    tag: logicOperator
+    name: keyword.operator.or.regexp.sd
+    match: \|
+
+  LuauRegexGroupBegin:
+    tag: paren
+    name: punctuation.definition.group.regexp.sd
+    match: \((?:\?(?::|=|!|<=|<!|<[A-Za-z_][A-Za-z0-9_]*>|P<[A-Za-z_][A-Za-z0-9_]*>))?
+
+  LuauRegexGroupEnd:
+    tag: paren
+    name: punctuation.definition.group.regexp.sd
+    match: \)
+
+  LuauRegexText:
+    tag: regexp
+    name: string.regexp.sd
+    match: "[^\\\\\\[\\]()|*+?{}^$-]+|[\\s\\S]"
+
+  LuauElementContentStringSingleQuoted:
+    tag: string
+    name: string.quoted.single.sd
+    match: (['])((?:\.|[^'])*)(['])
+    captures:
+      "1":
+        patterns:
+          - include: "#PunctuationStringOpen"
+      "2":
+        patterns:
+          - include: "#PlainStringContentSingleQuoted"
+      "3":
+        patterns:
+          - include: "#PunctuationStringClose"
+
+  PlainStringContentSingleQuoted:
+    match: ((?:\.|[^'])*?)(?=$|')
+    captures:
+      "1":
+        patterns:
+          - include: "#StringEscape"
+          - include: "#SparkleRichTextTag"
+          - include: "#SparkleRichTextTagUnknown"
+          - include: "#Color"
+          - include: "#StringCharacter"

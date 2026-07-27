@@ -298,7 +298,7 @@ sparkdown [0..323]
  │   │   │   │               │   └─ LuauStructBareMarker_c3 [158..159]
  │   │   │   │               │       └─ OptionalWhitespace [158..159]: " "
  │   │   │   │               └─ LuauStructBareMarker_c4 [159..165]
- │   │   │   │                   └─ BuiltinComponentName [159..165]: "footer"
+ │   │   │   │                   └─ CustomComponentName [159..165]: "footer"
  │   │   │   └─ LuauStructBodyLine_c3 165
  │   │   │       └─ LuauStructBodyLine_c3 165
  │   │   │           └─ OptionalWhitespace 165
