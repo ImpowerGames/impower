@@ -760,6 +760,24 @@ export class Story extends FlowBase {
         if (objType && valType && objType !== valType) {
           continue;
         }
+        // A project OVERRIDING a builtin of the SAME type. The incumbent came
+        // from the source-injected builtins prelude, which exists to be
+        // overridden — so this is the intended `define slate_80 as color` /
+        // `define ui as config` re-theme, not a collision. The struct registry
+        // is a SECOND collision check, independent of the declaration one in
+        // FlowBase.AddNewVariableDeclaration; both have to agree or an override
+        // still fails the compile. See SparkdownCompiler.applyBuiltinOverrides.
+        const fromPrelude = (o: any): boolean =>
+          Boolean(
+            o?.isPreludeDeclaration ??
+              o?.variableAssignment?.isPreludeDeclaration,
+          );
+        // Symmetric: `_structDefs` may hold either side as the incumbent
+        // depending on registration order, so compare provenance rather than
+        // assuming the builtin is the one already registered.
+        if (fromPrelude(value) !== fromPrelude(obj)) {
+          continue;
+        }
         this.NameConflictError(obj, identifier, value.identifier || value);
       }
     }

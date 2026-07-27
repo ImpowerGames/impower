@@ -239,6 +239,30 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         return;
       }
 
+      // A project OVERRIDING a builtin: the incumbent came from the
+      // source-injected builtins prelude, the newcomer from a user file. The
+      // prelude is injected first purely so its declarations exist to be
+      // overridden, so first-writer-wins is exactly backwards here — it made
+      // every `define slate_80 as color` / `define ui as config` a compile
+      // error instead of a re-theme. Hand the slot to the authored declaration.
+      //
+      // Safe to drop the incumbent wholesale because the override pass has
+      // already back-filled the authored `__def` table with every prelude value
+      // the author didn't restate (see SparkdownCompiler.applyBuiltinOverrides);
+      // without that, a partial override would silently lose the builtin's
+      // other fields. Two colliding AUTHORED defines still error below.
+      // Narrow on purpose: only another DEFINE may take a builtin's slot. A
+      // property declaration that happens to collide is not an override and
+      // must fall through to the checks below.
+      if (
+        varab.isPreludeDeclaration &&
+        !varDecl.isPreludeDeclaration &&
+        varDecl.isDefineDeclaration
+      ) {
+        this.variableDeclarations.set(varName, varDecl);
+        return;
+      }
+
       if (!varDecl.isPropertyDeclaration) {
         this.Error(
           `Duplicate identifier \`${varName}\`. A ${varab.typeName.toLowerCase()} named \`${varName}\` already exists on ${

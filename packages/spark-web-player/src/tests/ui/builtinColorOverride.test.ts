@@ -1,42 +1,70 @@
-// KNOWN GAP — a project cannot override ANY builtin define: not a colour token,
-// not a `config` value. Both are the same first-writer-wins defect below; the
-// colour case is spelled out because it was found first.
+// A project can override a builtin define — a colour token, a `config` value —
+// by redefining it under the same name.
 //
-// The palette is authored as `define <name> as color`, and the engine turns
-// each into a `--theme-color-<name>` CSS variable, so redefining `slate_80` in
-// a project file ought to re-theme every builtin that is built from it. It does
-// nothing, and it is the reason the Pico showcase cannot match Pico's palette
-// without hard-coding hexes into the showcase itself.
-//
-// Root cause, traced:
-//   1. `scopeDefineInstances` rewrites both defines to the same key
+// This did not work until 2026-07-26, and the way it failed is worth keeping:
+//   1. `scopeDefineInstances` rewrites both defines to the same global key
 //      (`$color_slate_80`).
-//   2. `FlowBase.AddNewVariableDeclaration` is FIRST-WRITER-WINS, and the
-//      builtins prelude is source-injected first, so the builtin is the
-//      incumbent and the authored declaration is dropped.
-//   3. `Story.ExportRuntime` only emits a `__def` init for declarations still in
-//      `variableDeclarations`, so the authored value never reaches the runtime
-//      type table.
-//   4. The engine reads the LIVE runtime tables (`buildDefinesContext`), not
-//      `program.context` — and `program.context.color.slate_80` DOES already
-//      hold the authored value, which is why this looks like it should work.
+//   2. `FlowBase.AddNewVariableDeclaration` is FIRST-writer-wins and the
+//      builtins prelude is source-injected FIRST, so the builtin was the
+//      incumbent and the authored define lost — with a "Duplicate identifier"
+//      error that failed the whole project's compile.
+//   3. The compiler comment at the injection site claimed the prelude goes
+//      first "so an authored define reusing a builtin name overrides in place".
+//      Going first is precisely what made the builtin win: it was backwards,
+//      and the override never worked.
+//   4. `program.context` DID hold the authored value the whole time, because it
+//      is merged separately (`inheritDefaults`). The engine reads the LIVE
+//      runtime tables (`buildDefinesContext`) instead, so anything inspecting
+//      compile-time context saw an override that did not exist at runtime.
 //
-// The compiler comment at the injection site says the prelude is injected first
-// "so an authored define reusing a builtin name re-registers/overrides in
-// place" — going first is precisely what makes the builtin win, so the override
-// was intended and never worked.
+// The fix is `SparkdownCompiler.applyBuiltinOverrides`: tag the prelude's
+// declarations (nothing else distinguishes them — both sides carry a null
+// `debugMetadata`), let an authored define take the slot from a tagged
+// incumbent, and BACK-FILL the authored `__def` table with the builtin values
+// the author didn't restate. Two colliding AUTHORED defines still error.
 //
-// Fixing it means letting a same-type redefinition REPLACE the incumbent when
-// the incumbent came from the prelude, while two colliding defines in authored
-// files keep erroring. There is currently no marker for "came from the
-// prelude": both declarations have a null `debugMetadata`, so the distinction
-// has to be minted during parsing. That is a language-semantics decision, so
-// these stay skipped rather than being quietly made to pass.
+// The back-fill is the load-bearing half: without it a partial override drops
+// every field it doesn't mention, and `config.ui` losing `layouts_element_name`
+// means `reveal()` can't find the screen root — a black preview, no error.
 
 import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
 const OVERRIDE = "rgb(1,2,3)";
+const URI = "file:///override.sd";
+
+/** Compile `src` and flatten every diagnostic message (all severities). */
+function diagnose(src: string): string[] {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    useBuiltinsPrelude: true,
+    seedBuiltinsIntoStory: true,
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: src,
+        version: 1,
+        languageId: "sparkdown",
+      } as any,
+    ],
+  });
+  const result = compiler.compile({ textDocument: { uri: URI } });
+  const messages: string[] = [];
+  for (const docDiags of Object.values(result.program.diagnostics ?? {})) {
+    for (const d of docDiags as any[]) {
+      messages.push(
+        typeof d?.message === "string"
+          ? d.message
+          : (d?.message?.value ?? JSON.stringify(d)),
+      );
+    }
+  }
+  return messages;
+}
 
 function source(defines: string): string {
   return [
@@ -73,7 +101,7 @@ describe("overriding a builtin config value", () => {
   // lands on the document root) — but `define ui as config` collides with the
   // prelude's own `ui`, so the authored value never reaches the runtime table
   // and the property is unsettable by the only audience it exists for.
-  test.skip("a project define replaces the builtin's value", async () => {
+  test("a project define replaces the builtin's value", async () => {
     const h = await render(
       source(`define ui as config with\n  root_text_size = "112.5%"\nend\n`),
     );
@@ -83,31 +111,65 @@ describe("overriding a builtin config value", () => {
     );
   });
 
-  // Worse than silent: the collision is REPORTED, as two duplicate-identifier
-  // diagnostics ("Duplicate identifier `$config_ui`" / "`ui`"). So overriding a
-  // builtin is not merely unsupported, it fails a project's compile — which is
-  // why the Pico showcase cannot even carry the line as documentation.
-  // The compile-time context still holds the authored value, which is the trap:
-  // anything reading `program.context` sees a working override.
-  test("the authored value survives to compile-time context but not runtime", async () => {
+  // The whole risk of letting an override win the slot: a partial override must
+  // not silently drop the builtin's other fields. `layouts_element_name` is the
+  // one that bites hardest — `reveal()` bails on an undefined value, so screens
+  // stay at opacity:0 and the preview goes black with no error.
+  test("a partial override keeps the builtin's other fields", async () => {
+    const h = await render(
+      source(`define ui as config with\n  root_text_size = "112.5%"\nend\n`),
+    );
+    const ui = (h.game as any)?.context?.config?.ui;
+    expect(ui?.root_text_size).toBe("112.5%");
+    expect(ui?.layouts_element_name).toBe("layouts");
+    expect(ui?.styles_element_name).toBe("styles");
+    expect(ui?.breakpoints?.md).toBe(768);
+  });
+
+  // The two views used to disagree — compile-time context held the override
+  // while the runtime table kept the builtin. Anything reading `program.context`
+  // therefore saw an override that did not exist where it mattered, so pin that
+  // they now agree.
+  test("compile-time context and the runtime table agree", async () => {
     const h = await render(
       source(`define ui as config with\n  root_text_size = "112.5%"\nend\n`),
     );
     const game = h.game as any;
     expect(game?.program?.context?.config?.ui?.root_text_size).toBe("112.5%");
-    expect(game?.context?.config?.ui?.root_text_size).toBe("");
+    expect(game?.context?.config?.ui?.root_text_size).toBe("112.5%");
   });
 });
 
 describe("overriding a builtin colour token", () => {
-  test.skip("a project define replaces the builtin's value", async () => {
+  test("a project define replaces the builtin's value", async () => {
     const h = await render(
       source(`define slate_80 as color with\n  value = "${OVERRIDE}"\nend\n`),
     );
     expect(themeColor(h, "slate_80")).toBe(OVERRIDE);
   });
 
-  // This half DOES work today, and is the only supported way to add colour.
+  // The override path must not become a general amnesty: only the PRELUDE's
+  // declarations are overridable. Two defines colliding in authored files is
+  // still a genuine mistake and must still be reported.
+  test("two colliding AUTHORED defines still error", () => {
+    const messages = diagnose(
+      source(
+        `define brandy as color with\n  value = "rgb(4,5,6)"\nend\n` +
+          `define brandy as color with\n  value = "rgb(7,8,9)"\nend\n`,
+      ),
+    );
+    expect(messages.some((m) => /Duplicate identifier/i.test(m))).toBe(true);
+  });
+
+  // ...and overriding a builtin must NOT report one.
+  test("overriding a builtin reports no duplicate-identifier error", () => {
+    const messages = diagnose(
+      source(`define slate_80 as color with\n  value = "${OVERRIDE}"\nend\n`),
+    );
+    expect(messages.filter((m) => /Duplicate identifier/i.test(m))).toEqual([]);
+  });
+
+  // This half always worked, and is how a project adds a NEW colour.
   test("a brand-new colour name is emitted as a theme variable", async () => {
     const h = await render(
       source(`define brandy as color with\n  value = "rgb(4,5,6)"\nend\n`),

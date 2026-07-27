@@ -23,6 +23,13 @@ import { Identifier } from "../../inkjs/compiler/Parser/ParsedHierarchy/Identifi
 import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/IncludedFile";
 import { Knot } from "../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
+import {
+  ObjectExpression,
+  ObjectExpressionEntry,
+} from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
+import { VariableAssignment as ParsedVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
+import { contextValueToExpression } from "../lower/lowerers/lowerLuauDefine";
 import { ReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
@@ -713,7 +720,16 @@ export class SparkdownCompiler {
       userUris.add(uri);
       userUris.delete(BUILTINS_PRELUDE_URI);
       const userTypeNames = collectTypeNamesFor(userUris);
-      scopeDefineInstances([parsedStory], userTypeNames, { skip: preludeVAs });
+      // `collect` hands back exactly the user's define VAs, so the override pass
+      // below needs no walk of its own.
+      const userVAs = new Set<ParsedObject>();
+      scopeDefineInstances([parsedStory], userTypeNames, {
+        skip: preludeVAs,
+        collect: userVAs,
+      });
+      // Now that both sides carry their final global keys, let an authored
+      // define that reuses a builtin name override it rather than collide.
+      this.applyBuiltinOverrides(userVAs, preludeVAs);
       // (Diagnostic-dedup state on reused parsed nodes is invalidated by the
       // compile-epoch bump inside ExportRuntime — see CompileEpoch.ts — so a
       // carried-forward chunk re-emits the same diagnostics a cold compile
@@ -2485,6 +2501,116 @@ export class SparkdownCompiler {
     // remain. (The retired `program.defines` channel was a lossy compile-time
     // snapshot; runtime-sourcing proved byte-identical and supersedes it.)
     profile("end", this._profilerId, "populateEngineChannels", uri);
+  }
+
+  /** Let a project define REPLACE a same-named builtin (`define slate_80 as
+   *  color`, `define ui as config`) instead of colliding with it.
+   *
+   *  The builtins prelude is source-injected FIRST, and
+   *  `FlowBase.AddNewVariableDeclaration` is first-writer-wins, so every such
+   *  override used to fail the compile with "Duplicate identifier" — the
+   *  opposite of the intent recorded at the injection site. Two things are
+   *  needed to undo that safely, and both live here because this is the first
+   *  point where the prelude's declarations, the user's, and the prelude's
+   *  compiled values are all in scope (and it still runs before ExportRuntime,
+   *  where the collision is detected):
+   *
+   *  1. BACK-FILL. A partial override (`define ui as config with
+   *     root_text_size = "112.5%"`) restates one property, but the authored
+   *     `__def` table is what reaches the runtime — so every builtin sibling the
+   *     author didn't mention (`breakpoints`, `layouts_element_name`, …) would
+   *     vanish, and e.g. `reveal()` would fail to find the screen root, giving a
+   *     black preview with no error. Copy the prelude's values for keys the
+   *     author did NOT restate into the authored table.
+   *  2. MARK. Tag the prelude's declarations so the collision handler can tell
+   *     an override (allowed, authored wins) from two colliding authored
+   *     defines (still an error). `debugMetadata` can't distinguish them.
+   *
+   *  Idempotent, like {@link scopeDefineInstances}: back-fill only adds keys the
+   *  table lacks, so re-running on cached parse nodes across incremental
+   *  compiles is a no-op. Must run AFTER the scoping passes, which is what makes
+   *  the identifier a stable, comparable key on both sides. */
+  protected applyBuiltinOverrides(
+    userVAs: ReadonlySet<ParsedObject>,
+    preludeVAs: ReadonlySet<ParsedObject>,
+  ): void {
+    if (preludeVAs.size === 0 || userVAs.size === 0) {
+      return;
+    }
+    // The prelude's declarations, keyed by the runtime global key they will be
+    // registered under -- the same key the user's define will fight for.
+    const preludeByKey = new Map<string, ParsedVariableAssignment>();
+    for (const obj of preludeVAs) {
+      if (obj instanceof ParsedVariableAssignment) {
+        obj.isPreludeDeclaration = true;
+        const key = obj.identifier?.name;
+        if (key) {
+          preludeByKey.set(key, obj);
+        }
+      }
+    }
+    let preludeContext: Record<string, any> | undefined;
+    for (const obj of userVAs) {
+      if (!(obj instanceof ParsedVariableAssignment)) {
+        continue;
+      }
+      const key = obj.identifier?.name;
+      if (!key || !preludeByKey.has(key)) {
+        continue;
+      }
+      // Resolved lazily so a program with no overrides never touches the cache.
+      preludeContext ??= getCompiledPrelude().context;
+      this.backfillBuiltinDefaults(obj, preludeContext);
+    }
+  }
+
+  /** Copy the prelude's values for every property an overriding define did NOT
+   *  restate into that define's `__def` table, so a partial override keeps the
+   *  builtin's other fields. Mirrors {@link inheritDefaults}, which does the
+   *  same for the compile-time `program.context` view — the runtime table is a
+   *  separate channel (the engine reads it, not `program.context`), so it needs
+   *  its own merge or the two views disagree. */
+  protected backfillBuiltinDefaults(
+    va: ParsedVariableAssignment,
+    preludeContext: Record<string, any>,
+  ): void {
+    const type = va.structDefinition?.type?.name;
+    const name = va.structDefinition?.name?.name;
+    if (!type || !name) {
+      return;
+    }
+    const builtinStruct = preludeContext?.[type]?.[name];
+    if (!builtinStruct || typeof builtinStruct !== "object") {
+      return;
+    }
+    // `va.expression` is the `__def({ props }, name, parent)` call the define
+    // lowerers emit; its first argument is the property table.
+    const call = va.expression;
+    if (!(call instanceof FunctionCall)) {
+      return;
+    }
+    const table = call.args?.[0];
+    if (!(table instanceof ObjectExpression)) {
+      return;
+    }
+    const authored = new Set<string>();
+    for (const entry of table.entries) {
+      if (typeof entry.key === "string") {
+        authored.add(entry.key);
+      }
+    }
+    for (const [k, v] of Object.entries(builtinStruct)) {
+      // `$type` / `$name` are context bookkeeping, re-derived by `__def` from
+      // its own args; `__storeProps` and friends are the define's own hidden
+      // modifier lists and must not be inherited from the builtin.
+      if (k.startsWith("$") || k.startsWith("__")) {
+        continue;
+      }
+      if (authored.has(k) || v === undefined) {
+        continue;
+      }
+      table.addEntry(new ObjectExpressionEntry(k, contextValueToExpression(v)));
+    }
   }
 
   /** Merge the once-compiled builtins prelude context into `program.context` as

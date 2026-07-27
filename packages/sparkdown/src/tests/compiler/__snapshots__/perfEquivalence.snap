@@ -16880,6 +16880,7 @@
             "xs": 400
           },
           "layouts_element_name": "layouts",
+          "root_text_size": "",
           "styles_element_name": "styles"
         }
       },
@@ -18044,6 +18045,9 @@
             "background-color": "sky_50",
             "border-color": "sky_50"
           },
+          "@type_submit, @type_reset, @type_button": {
+            "margin-bottom": "1rem"
+          },
           "background-color": "sky_40",
           "border-color": "sky_40",
           "border-style": "solid",
@@ -18058,6 +18062,7 @@
           "pointer_events": "auto",
           "text-align": "center",
           "text-color": "white",
+          "text-leading": "1.5",
           "text-weight": "400",
           "transition": "all 0.2s ease-in-out"
         },
@@ -18271,6 +18276,10 @@
           "&.valid": {
             "background-image": "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")"
           },
+          "+ small": {
+            "margin-bottom": "1rem",
+            "margin-top": "-0.75rem"
+          },
           "@disabled": {
             "cursor": "not-allowed",
             "opacity": "0.5",
@@ -18295,10 +18304,12 @@
           "color-scheme": "dark",
           "corner": "0.25rem",
           "cursor": "default",
+          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "padding-right": "2.5rem",
           "pointer_events": "auto",
           "text-color": "slate_90",
+          "text-leading": "1.5",
           "transition": "all 0.2s ease-in-out"
         },
         "emphasis": {
@@ -18310,6 +18321,10 @@
         "field": {
           "$name": "field",
           "$type": "style",
+          "+ small": {
+            "margin-bottom": "1rem",
+            "margin-top": "-0.75rem"
+          },
           "@disabled": {
             "cursor": "not-allowed",
             "opacity": "0.5",
@@ -18331,6 +18346,7 @@
           "border-style": "solid",
           "border-width": "0.0625rem",
           "corner": "0.25rem",
+          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "text-color": "slate_90",
@@ -18675,6 +18691,10 @@
         "input": {
           "$name": "input",
           "$type": "style",
+          "+ small": {
+            "margin-bottom": "1rem",
+            "margin-top": "-0.75rem"
+          },
           "@disabled": {
             "cursor": "not-allowed",
             "opacity": "0.5",
@@ -18732,6 +18752,7 @@
           "border-width": "0.0625rem",
           "color-scheme": "dark",
           "corner": "0.25rem",
+          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "text-color": "slate_90",
@@ -19445,6 +19466,10 @@
         "textarea": {
           "$name": "textarea",
           "$type": "style",
+          "+ small": {
+            "margin-bottom": "1rem",
+            "margin-top": "-0.75rem"
+          },
           "@disabled": {
             "cursor": "not-allowed",
             "opacity": "0.5",
@@ -19466,6 +19491,7 @@
           "border-style": "solid",
           "border-width": "0.0625rem",
           "corner": "0.25rem",
+          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "resize": "vertical",
@@ -90564,6 +90590,7 @@
             "xs": 400
           },
           "layouts_element_name": "layouts",
+          "root_text_size": "",
           "styles_element_name": "styles"
         }
       },
@@ -91728,6 +91755,9 @@
             "background-color": "sky_50",
             "border-color": "sky_50"
           },
+          "@type_submit, @type_reset, @type_button": {
+            "margin-bottom": "1rem"
+          },
           "background-color": "sky_40",
           "border-color": "sky_40",
           "border-style": "solid",
@@ -91742,6 +91772,7 @@
           "pointer_events": "auto",
           "text-align": "center",
           "text-color": "white",
+          "text-leading": "1.5",
           "text-weight": "400",
           "transition": "all 0.2s ease-in-out"
         },
@@ -91955,6 +91986,10 @@
           "&.valid": {
             "background-image": "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")"
           },
+          "+ small": {
+            "margin-bottom": "1rem",
+            "margin-top": "-0.75rem"
+          },
           "@disabled": {
             "cursor": "not-allowed",
             "opacity": "0.5",
@@ -91979,10 +92014,12 @@
           "color-scheme": "dark",
           "corner": "0.25rem",
           "cursor": "default",
+          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "padding-right": "2.5rem",
           "pointer_events": "auto",
           "text-color": "slate_90",
+          "text-leading": "1.5",
           "transition": "all 0.2s ease-in-out"
         },
         "emphasis": {
@@ -91994,6 +92031,10 @@
         "field": {
           "$name": "field",
           "$type": "style",
+          "+ small": {
+            "margin-bottom": "1rem",
+            "margin-top": "-0.75rem"
+          },
           "@disabled": {
             "cursor": "not-allowed",
             "opacity": "0.5",
@@ -92015,6 +92056,7 @@
           "border-style": "solid",
           "border-width": "0.0625rem",
           "corner": "0.25rem",
+          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "text-color": "slate_90",
@@ -92359,6 +92401,10 @@
         "input": {
           "$name": "input",
           "$type": "style",
+          "+ small": {
+            "margin-bottom": "1rem",
+            "margin-top": "-0.75rem"
+          },
           "@disabled": {
             "cursor": "not-allowed",
             "opacity": "0.5",
@@ -92416,6 +92462,7 @@
           "border-width": "0.0625rem",
           "color-scheme": "dark",
           "corner": "0.25rem",
+          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "text-color": "slate_90",
@@ -93129,6 +93176,10 @@
         "textarea": {
           "$name": "textarea",
           "$type": "style",
+          "+ small": {
+            "margin-bottom": "1rem",
+            "margin-top": "-0.75rem"
+          },
           "@disabled": {
             "cursor": "not-allowed",
             "opacity": "0.5",
@@ -93150,6 +93201,7 @@
           "border-style": "solid",
           "border-width": "0.0625rem",
           "corner": "0.25rem",
+          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "resize": "vertical",

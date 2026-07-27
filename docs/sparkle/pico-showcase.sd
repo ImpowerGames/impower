@@ -28,14 +28,20 @@
 // NOTE: `#href` takes relative/fragment URLs here — an absolute `https://` value
 // hits a known grammar bug with `://` in a prop value.
 
-// NOT MATCHED: Pico's type scale is 18px at this width, not the browser's
-// default 16px, and every `rem` here resolves against the document root — so
-// the whole page renders ~11% smaller than the reference. The fix belongs in
-// one line, `config.ui.root_text_size = "112.5%"`, and that property exists;
-// but writing `define ui as config` collides with the builtins prelude and
-// fails with "Duplicate identifier `$config_ui`", so no project can set it yet.
-// See packages/spark-web-player/src/tests/ui/builtinColorOverride.test.ts —
-// same defect that stops this file matching Pico's palette.
+// Pico's type scale is 18px at this width, not the browser's default 16px, and
+// every `rem` here resolves against the document ROOT — above the scope engine
+// styles are confined to — so this is the one metric that cannot be matched
+// per-element. `root_text_size` rescales the whole ui at once.
+//
+// (Pico steps it by viewport: 100 / 106.25 / 112.5 / 118.75 / 125 / 131.25% at
+// 576 / 768 / 1024 / 1280 / 1536px. One value cannot express that ladder, so
+// this pins the 768-1024px step the reference page is compared at.)
+//
+// Overriding a builtin define like this is also what the palette needs, and it
+// only started working once the prelude-override defect was fixed.
+define ui as config with
+  root_text_size = "112.5%"
+end
 
 store first_name = ""
 store email = ""
@@ -122,7 +128,10 @@ layout main with
             -- a placeholder is not an accessible name.
             field #value={first_name} #placeholder="First name" #aria-label="First name" #required=true @input=set_first
             field #type="email" #value={email} #placeholder="Email address" #aria-label="Email address" #autocomplete="email" #required=true @input=set_email
-            button "Subscribe"
+            -- `#type="submit"` as in the reference: it is what gives a form
+            -- button the block rhythm below it, so it lines up with the inputs
+            -- beside it instead of stretching to fill the row.
+            button #type="submit" "Subscribe"
           row #child-gap=8 #child-align=center:
             switch #checked={agreed} @change=set_agreed
             text "I agree to the "
