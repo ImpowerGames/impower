@@ -18004,6 +18004,7 @@
             },
             "child-align": "center",
             "child-justify": "center",
+            "display": "flex",
             "min-height": "4rem"
           },
           "background-color": "slate_30",
@@ -18399,7 +18400,8 @@
           "pointer_events": "auto",
           "text-color": "slate_90",
           "text-leading": "1.5",
-          "transition": "all 0.2s ease-in-out"
+          "transition": "all 0.2s ease-in-out",
+          "width": "100%"
         },
         "emphasis": {
           "$name": "emphasis",
@@ -18441,7 +18443,8 @@
           "pointer_events": "auto",
           "text-color": "slate_90",
           "text-leading": "1.5",
-          "transition": "all 0.2s ease-in-out"
+          "transition": "all 0.2s ease-in-out",
+          "width": "100%"
         },
         "field_group": {
           "$name": "field_group",
@@ -18566,6 +18569,9 @@
         "form": {
           "$name": "form",
           "$type": "style",
+          "> button": {
+            "width": "100%"
+          },
           "display": "block"
         },
         "grid": {
@@ -18579,7 +18585,7 @@
           "$name": "group",
           "$type": "style",
           "> *": {
-            "margin-bottom": "0"
+            "width": "auto"
           },
           "> @first": {
             "corner-bottom-right": "0",
@@ -19082,7 +19088,7 @@
           },
           ">> item": {
             "list-style": "none",
-            "padding": "0.375rem 1rem"
+            "padding": "0"
           },
           ">> link": {
             "@hovered": {
@@ -19092,11 +19098,11 @@
             "align-self": "stretch",
             "corner": "0",
             "display": "block",
-            "margin": "-0.375rem -1rem",
+            "flex": "1 1 auto",
+            "margin": "0",
             "padding": "0.375rem 1rem",
             "text-color": "slate_80",
-            "text-decoration": "none",
-            "width": "100%"
+            "text-decoration": "none"
           },
           "position": "relative"
         },
@@ -19184,6 +19190,7 @@
           "$type": "style",
           "display": "block",
           "overflow-x": "auto",
+          "pointer_events": "auto",
           "width": "100%"
         },
         "overlay": {
@@ -19590,7 +19597,8 @@
           "pointer_events": "auto",
           "resize": "vertical",
           "text-color": "slate_90",
-          "transition": "all 0.2s ease-in-out"
+          "transition": "all 0.2s ease-in-out",
+          "width": "100%"
         },
         "textbox": {
           "$name": "textbox",
@@ -91808,6 +91816,7 @@
             },
             "child-align": "center",
             "child-justify": "center",
+            "display": "flex",
             "min-height": "4rem"
           },
           "background-color": "slate_30",
@@ -92203,7 +92212,8 @@
           "pointer_events": "auto",
           "text-color": "slate_90",
           "text-leading": "1.5",
-          "transition": "all 0.2s ease-in-out"
+          "transition": "all 0.2s ease-in-out",
+          "width": "100%"
         },
         "emphasis": {
           "$name": "emphasis",
@@ -92245,7 +92255,8 @@
           "pointer_events": "auto",
           "text-color": "slate_90",
           "text-leading": "1.5",
-          "transition": "all 0.2s ease-in-out"
+          "transition": "all 0.2s ease-in-out",
+          "width": "100%"
         },
         "field_group": {
           "$name": "field_group",
@@ -92370,6 +92381,9 @@
         "form": {
           "$name": "form",
           "$type": "style",
+          "> button": {
+            "width": "100%"
+          },
           "display": "block"
         },
         "grid": {
@@ -92383,7 +92397,7 @@
           "$name": "group",
           "$type": "style",
           "> *": {
-            "margin-bottom": "0"
+            "width": "auto"
           },
           "> @first": {
             "corner-bottom-right": "0",
@@ -92886,7 +92900,7 @@
           },
           ">> item": {
             "list-style": "none",
-            "padding": "0.375rem 1rem"
+            "padding": "0"
           },
           ">> link": {
             "@hovered": {
@@ -92896,11 +92910,11 @@
             "align-self": "stretch",
             "corner": "0",
             "display": "block",
-            "margin": "-0.375rem -1rem",
+            "flex": "1 1 auto",
+            "margin": "0",
             "padding": "0.375rem 1rem",
             "text-color": "slate_80",
-            "text-decoration": "none",
-            "width": "100%"
+            "text-decoration": "none"
           },
           "position": "relative"
         },
@@ -92988,6 +93002,7 @@
           "$type": "style",
           "display": "block",
           "overflow-x": "auto",
+          "pointer_events": "auto",
           "width": "100%"
         },
         "overlay": {
@@ -93394,7 +93409,8 @@
           "pointer_events": "auto",
           "resize": "vertical",
           "text-color": "slate_90",
-          "transition": "all 0.2s ease-in-out"
+          "transition": "all 0.2s ease-in-out",
+          "width": "100%"
         },
         "textbox": {
           "$name": "textbox",

@@ -54,7 +54,7 @@ store swatch = "#0eaaaa"
 store volume = 50
 store size = ""
 store modal_open = false
-store busy = false
+store busy = true
 store done = 25
 
 function set_first(event)

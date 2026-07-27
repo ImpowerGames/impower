@@ -835,6 +835,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -1039,6 +1040,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -1140,6 +1142,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -1571,15 +1574,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -1638,6 +1641,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -1669,6 +1673,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -1700,6 +1705,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -1792,7 +1800,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
@@ -2998,6 +3006,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -3202,6 +3211,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -3303,6 +3313,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -3734,15 +3745,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -3801,6 +3812,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -3832,6 +3844,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -3863,6 +3876,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -3955,7 +3971,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
@@ -5123,6 +5139,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -5327,6 +5344,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -5428,6 +5446,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -5859,15 +5878,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -5926,6 +5945,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -5957,6 +5977,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -5988,6 +6009,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -6080,7 +6104,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
@@ -7370,6 +7394,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -7574,6 +7599,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -7675,6 +7701,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -8106,15 +8133,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -8173,6 +8200,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -8204,6 +8232,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -8235,6 +8264,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -8327,7 +8359,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
@@ -9476,6 +9508,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -9680,6 +9713,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -9781,6 +9815,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -10212,15 +10247,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -10279,6 +10314,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -10310,6 +10346,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -10341,6 +10378,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -10433,7 +10473,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
@@ -11564,6 +11604,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -11768,6 +11809,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -11869,6 +11911,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -12300,15 +12343,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -12367,6 +12410,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -12398,6 +12442,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -12429,6 +12474,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -12521,7 +12569,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
@@ -13702,6 +13750,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -13906,6 +13955,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -14007,6 +14057,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -14438,15 +14489,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -14505,6 +14556,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -14536,6 +14588,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -14567,6 +14620,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -14659,7 +14715,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
@@ -15807,6 +15863,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -16011,6 +16068,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -16112,6 +16170,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -16543,15 +16602,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -16610,6 +16669,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -16641,6 +16701,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -16672,6 +16733,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -16764,7 +16828,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
@@ -17912,6 +17976,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -18116,6 +18181,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -18217,6 +18283,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -18648,15 +18715,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -18715,6 +18782,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -18746,6 +18814,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -18777,6 +18846,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -18869,7 +18941,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
@@ -20017,6 +20089,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -20221,6 +20294,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -20322,6 +20396,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -20753,15 +20828,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -20820,6 +20895,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -20851,6 +20927,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -20882,6 +20959,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -20974,7 +21054,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
@@ -22122,6 +22202,7 @@ spark-web-player #game .button {
   }
 }
 spark-web-player #game .field {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   line-height: 1.5;
@@ -22326,6 +22407,7 @@ spark-web-player #game .switch {
   }
 }
 spark-web-player #game .textarea {
+  width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
@@ -22427,6 +22509,7 @@ spark-web-player #game .link {
   }
 }
 spark-web-player #game .dropdown {
+  width: 100%;
   pointer-events: auto;
   appearance: none;
   color-scheme: dark;
@@ -22858,15 +22941,15 @@ spark-web-player #game .menu {
     }
   }
   & .item {
-    padding: 0.375rem 1rem;
+    padding: 0px;
     list-style: none;
   }
   & .link {
     display: block;
-    width: 100%;
+    flex: 1 1 auto;
     align-self: stretch;
     padding: 0.375rem 1rem;
-    margin: -0.375rem -1rem;
+    margin: 0px;
     border-radius: 0px;
     color: var(--theme-color-slate_80);
     text-decoration: none;
@@ -22925,6 +23008,7 @@ spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
   width: 100%;
+  pointer-events: auto;
 }
 spark-web-player #game .article {
   display: block;
@@ -22956,6 +23040,7 @@ spark-web-player #game .article {
     border-bottom-right-radius: 0.25rem;
   }
   &[aria-busy="true"] {
+    display: flex;
     align-items: center;
     justify-content: center;
     min-height: 4rem;
@@ -22987,6 +23072,9 @@ spark-web-player #game .section {
 }
 spark-web-player #game .form {
   display: block;
+  >.button {
+    width: 100%;
+  }
 }
 spark-web-player #game .field_group {
   display: block;
@@ -23079,7 +23167,7 @@ spark-web-player #game .group {
   flex-direction: row;
   gap: 0px;
   >* {
-    margin-bottom: 0px;
+    width: auto;
   }
   >.field, >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
