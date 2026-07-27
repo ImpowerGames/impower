@@ -114,17 +114,29 @@ window.addEventListener(MessageProtocol.event, (e) => {
     }
   }
 });
+// Drags over this iframe never reach the embedding editor -- the events go to
+// this document instead -- so relay them, or the editor's drop overlay simply
+// never appears while the pointer is over the game preview.
+//
+// Only relay drags that actually carry files: an in-game text or element drag
+// is not an import, and announcing it would flash the editor's overlay.
+const carriesFiles = (e: DragEvent) =>
+  Array.from(e.dataTransfer?.types ?? []).includes("Files");
+
 window.addEventListener("dragenter", (e) => {
+  if (!carriesFiles(e)) return;
   e.preventDefault();
   e.stopPropagation();
   connection.postMessage(DraggedFilesInMessage.type.notification({}));
 });
 window.addEventListener("dragleave", (e) => {
+  if (!carriesFiles(e)) return;
   e.preventDefault();
   e.stopPropagation();
   connection.postMessage(DraggedFilesOutMessage.type.notification({}));
 });
 window.addEventListener("dragover", (e) => {
+  if (!carriesFiles(e)) return;
   e.preventDefault();
   e.stopPropagation();
   connection.postMessage(DraggedFilesOverMessage.type.notification({}));

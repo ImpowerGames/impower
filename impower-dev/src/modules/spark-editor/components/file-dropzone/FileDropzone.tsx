@@ -41,9 +41,25 @@ export default function FileDropzone(_props: FileDropzoneProps) {
   useEffect(() => {
     let disposeProtocol: (() => void) | undefined;
 
-    const dragEnter = () => setDragging("project");
-    const dragLeave = () => setDragging(null);
-    const dragOver = () => setDragging("project");
+    // Host-relayed drags (the game-preview iframe, or an embedding editor).
+    // These carry no MIME info, so they always present as a project import.
+    //
+    // They get the same self-clearing timeout as the window path: a relayed
+    // "over" can stop arriving without a matching "out" -- the drag ends
+    // inside the iframe, or the host stops relaying -- and without this the
+    // overlay stays up forever with no drag behind it.
+    const relayDragging = () => {
+      setDragging("project");
+      if (overlayTimer) clearTimeout(overlayTimer);
+      overlayTimer = window.setTimeout(() => setDragging(null), 150);
+    };
+    const dragEnter = () => relayDragging();
+    const dragLeave = () => {
+      if (overlayTimer) clearTimeout(overlayTimer);
+      overlayTimer = 0;
+      setDragging(null);
+    };
+    const dragOver = () => relayDragging();
 
     // Loose-file fallback (drops outside any list, + host-relayed protocol
     // drops). A single .zip is a whole-project import; otherwise route by type so

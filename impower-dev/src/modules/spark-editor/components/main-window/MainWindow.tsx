@@ -68,48 +68,56 @@ export default function MainWindow(_props: MainWindowProps) {
       <HeaderNavigation />
       <div class="relative flex flex-1 min-h-0">
         {!isSSR && (
-          <SplitPane
-            activePanel={previewActive}
-            minSize="320px"
-            collapseBelow={960}
-            start={
-              <div class="relative flex flex-col w-full h-full">
-                <Router active={pane} mode="zoom">
-                  <Logic key="logic" />
-                  <Assets key="assets" />
-                  <SharePanel key="share" />
-                </Router>
-              </div>
-            }
-            end={
-              <div class="relative flex flex-col w-full h-full bg-black">
-                {/* The game preview stays mounted (so inspecting an asset and
+          <>
+            <SplitPane
+              activePanel={previewActive}
+              minSize="320px"
+              collapseBelow={960}
+              start={
+                <div class="relative flex flex-col w-full h-full">
+                  <Router active={pane} mode="zoom">
+                    <Logic key="logic" />
+                    <Assets key="assets" />
+                    <SharePanel key="share" />
+                  </Router>
+                </div>
+              }
+              end={
+                <div class="relative flex flex-col w-full h-full bg-black">
+                  {/* The game preview stays mounted (so inspecting an asset and
                     closing doesn't reload/restart the game); the asset inspector
                     overlays it — desktop select-to-inspect — while an asset is
                     selected in the Assets browser. */}
-                <Preview />
-                {pane === "assets" && inspectedAsset.value && (
-                  // z-10 so it covers Preview's own `sticky z-[1]` header too
-                  // (an unlayered absolute overlay would render UNDER it).
-                  <div class="absolute inset-0 z-10">
-                    <AssetInspectorPane />
-                  </div>
-                )}
-              </div>
-            }
-          />
+                  <Preview />
+                  {pane === "assets" && inspectedAsset.value && (
+                    // z-10 so it covers Preview's own `sticky z-[1]` header too
+                    // (an unlayered absolute overlay would render UNDER it).
+                    <div class="absolute inset-0 z-10">
+                      <AssetInspectorPane />
+                    </div>
+                  )}
+                </div>
+              }
+            />
+            {/* File-drop target. Mounted HERE, inside the middle region,
+                rather than at the page root: that scopes the overlay to the
+                content area so the header above and the tab bar below stay
+                visible and readable while a file is over the window. The drag
+                listeners are on `window`, so where this sits in the tree
+                affects only what the overlay covers, not what it catches.
+
+                Inside the `!isSSR` guard with the SplitPane, NOT beside it.
+                SSR skips the SplitPane, so rendering this alone server-side
+                left the middle region holding a single child that the client
+                then wanted to be the SplitPane -- Preact reused the overlay
+                div as that container and nested every pane INSIDE it, which
+                put tab indicators and divider lines above the overlay's own
+                background. Same children on both sides, no mismatch. */}
+            <FileDropzone />
+          </>
         )}
-        {/* Full-page file-drop target. Mounted HERE, inside the middle region,
-            rather than at the page root: that scopes the overlay to the
-            content area so the header above and the tab bar below stay
-            visible and readable while a file is over the window. The drag
-            listeners are on `window`, so where this sits in the tree affects
-            only what the overlay covers, not what it catches. */}
-        <FileDropzone />
       </div>
-      <div
-        class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full"
-      >
+      <div class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full">
         {/* 1px white/6% divider hugging the top edge — mirrors main's
             <s-divider bg-color="fg-06"> above the bottom-nav tabs. The
             !h-px overrides the parent's [&>*]:h-full selector which
