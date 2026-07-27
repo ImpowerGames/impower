@@ -19229,6 +19229,11 @@
           "pointer_events": "none",
           "position": "absolute"
         },
+        "scroller": {
+          "$name": "scroller",
+          "$type": "style",
+          "pointer_events": "auto"
+        },
         "search": {
           "$name": "search",
           "$type": "style",
@@ -92938,6 +92943,11 @@
           "inset": "0",
           "pointer_events": "none",
           "position": "absolute"
+        },
+        "scroller": {
+          "$name": "scroller",
+          "$type": "style",
+          "pointer_events": "auto"
         },
         "search": {
           "$name": "search",

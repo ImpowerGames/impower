@@ -2371,6 +2371,23 @@ style file_input with
     pointer-events = none
 end
 
+-- SCROLLING IS AN INTERACTION, so a scroller has to be hit-testable.
+--
+-- The ui overlay is `pointer-events: none` so the game canvas behind it stays
+-- clickable, and each interactive builtin opts back in with `pointer_events =
+-- auto` (button, field, input, slider, …). A scroller was never given a style
+-- block, so it never opted in — and a wheel gesture over one hit-tested
+-- straight THROUGH the ui to the canvas, leaving the browser with no scroll
+-- container under the cursor and nothing to scroll.
+--
+-- The symptom was maddeningly intermittent rather than total, because the
+-- gesture DOES land whenever the pointer happens to be over a control that had
+-- opted in; it stuck over any stretch of plain content, and never scrolled at
+-- all over a wide region with no controls in it, like a table.
+style scroller with
+  pointer_events = auto
+end
+
 -- A horizontal scroll box for a table too wide for its container. The overlay
 -- makes everything flex, so `display` is stated explicitly.
 style overflow_auto with

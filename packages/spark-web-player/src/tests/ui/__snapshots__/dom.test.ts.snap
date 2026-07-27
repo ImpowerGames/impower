@@ -1579,6 +1579,9 @@ spark-web-player #game .file_input {
     cursor: default;
   }
 }
+spark-web-player #game .scroller {
+  pointer-events: auto;
+}
 spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
@@ -3718,6 +3721,9 @@ spark-web-player #game .file_input {
     cursor: default;
   }
 }
+spark-web-player #game .scroller {
+  pointer-events: auto;
+}
 spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
@@ -5818,6 +5824,9 @@ spark-web-player #game .file_input {
     pointer-events: none;
     cursor: default;
   }
+}
+spark-web-player #game .scroller {
+  pointer-events: auto;
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -8042,6 +8051,9 @@ spark-web-player #game .file_input {
     cursor: default;
   }
 }
+spark-web-player #game .scroller {
+  pointer-events: auto;
+}
 spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
@@ -10124,6 +10136,9 @@ spark-web-player #game .file_input {
     cursor: default;
   }
 }
+spark-web-player #game .scroller {
+  pointer-events: auto;
+}
 spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
@@ -12187,6 +12202,9 @@ spark-web-player #game .file_input {
     pointer-events: none;
     cursor: default;
   }
+}
+spark-web-player #game .scroller {
+  pointer-events: auto;
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -14302,6 +14320,9 @@ spark-web-player #game .file_input {
     cursor: default;
   }
 }
+spark-web-player #game .scroller {
+  pointer-events: auto;
+}
 spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
@@ -16382,6 +16403,9 @@ spark-web-player #game .file_input {
     pointer-events: none;
     cursor: default;
   }
+}
+spark-web-player #game .scroller {
+  pointer-events: auto;
 }
 spark-web-player #game .overflow_auto {
   display: block;
@@ -18464,6 +18488,9 @@ spark-web-player #game .file_input {
     cursor: default;
   }
 }
+spark-web-player #game .scroller {
+  pointer-events: auto;
+}
 spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
@@ -20545,6 +20572,9 @@ spark-web-player #game .file_input {
     cursor: default;
   }
 }
+spark-web-player #game .scroller {
+  pointer-events: auto;
+}
 spark-web-player #game .overflow_auto {
   display: block;
   overflow-x: auto;
@@ -22625,6 +22655,9 @@ spark-web-player #game .file_input {
     pointer-events: none;
     cursor: default;
   }
+}
+spark-web-player #game .scroller {
+  pointer-events: auto;
 }
 spark-web-player #game .overflow_auto {
   display: block;
