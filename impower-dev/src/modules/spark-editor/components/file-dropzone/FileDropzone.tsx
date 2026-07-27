@@ -14,16 +14,25 @@ export type FileDropzoneProps = Partial<typeof propDefaults>;
  *  2. Loose files = fallback. A drop ONTO a file list is claimed by that list
  *     (it routes the files into the hovered folder / current scope — see
  *     useExternalFileDrop). This window handler only catches loose-file drops
- *     that land OUTSIDE any list (e.g. on the preview pane), routing them by
- *     type: scripts -> `scripts/`, everything else -> `assets/`. No overlay for
- *     loose files — the list shows a folder highlight instead.
+ *     that land OUTSIDE any list (e.g. on the editor or preview pane), routing
+ *     them by type: scripts -> `scripts/`, everything else -> `assets/`.
+ *
+ * Detection spans the whole window; only the OVERLAY is scoped. It shows for
+ * any file drag, so dragging onto the editor gives feedback rather than
+ * nothing, but stays hidden while the drag is over a `[data-file-drop-target]`
+ * list — that list rings the target folder itself, and two affordances at once
+ * reads as a bug.
  *
  * Also handles DraggedFilesIn/Over/Out/DroppedFiles protocol messages relayed by
  * an embedding host (e.g. VS Code), which can't carry MIME info, so those keep
  * the overlay + the by-type fallback routing.
  */
 export default function FileDropzone(_props: FileDropzoneProps) {
-  const [dragging, setDragging] = useState(false);
+  // null = no overlay. "project" = single zip (whole-project import),
+  // "files" = loose files. The distinction is only ever cosmetic here -- the
+  // drop handlers re-derive it from the real filenames, which are readable
+  // then but hidden mid-drag.
+  const [dragging, setDragging] = useState<null | "project" | "files">(null);
   // Keep the latest setter reachable from imperative listeners without
   // re-binding them on every render.
   const draggingRef = useRef(dragging);
@@ -32,9 +41,9 @@ export default function FileDropzone(_props: FileDropzoneProps) {
   useEffect(() => {
     let disposeProtocol: (() => void) | undefined;
 
-    const dragEnter = () => setDragging(true);
-    const dragLeave = () => setDragging(false);
-    const dragOver = () => setDragging(true);
+    const dragEnter = () => setDragging("project");
+    const dragLeave = () => setDragging(null);
+    const dragOver = () => setDragging("project");
 
     // Loose-file fallback (drops outside any list, + host-relayed protocol
     // drops). A single .zip is a whole-project import; otherwise route by type so
@@ -42,7 +51,7 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     const handleDrop = async (
       items: { name: string; getBuffer: () => Promise<ArrayBuffer> }[],
     ) => {
-      setDragging(false);
+      setDragging(null);
       const { Workspace } = await import("../../workspace/Workspace");
       const store = (await import("../../workspace/WorkspaceStore")).default
         .state.value;
@@ -91,12 +100,22 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     // leaving the window fire no `drop`) — dragover simply stops and the timer
     // clears it. So there's no native `dragleave` handler at all.
     let overlayTimer = 0;
+    // A drag sitting over a file list belongs to that list's own highlight.
+    const overFileList = (e: DragEvent) =>
+      e.target instanceof Element && !!e.target.closest("[data-file-drop-target]");
+
     const refreshOverlay = (e: DragEvent) => {
-      const zip = isZipDrag(e);
-      setDragging(zip);
+      const mode = overFileList(e)
+        ? null
+        : isZipDrag(e)
+          ? ("project" as const)
+          : ("files" as const);
+      setDragging(mode);
       if (overlayTimer) clearTimeout(overlayTimer);
-      overlayTimer = zip
-        ? window.setTimeout(() => setDragging(false), 150)
+      // dragover stops firing the moment the pointer leaves the window, so the
+      // overlay has to time itself out rather than wait for a dragleave.
+      overlayTimer = mode
+        ? window.setTimeout(() => setDragging(null), 150)
         : 0;
     };
     const onDragEnter = (e: DragEvent) => {
@@ -124,7 +143,7 @@ export default function FileDropzone(_props: FileDropzoneProps) {
     const clearOverlay = () => {
       if (overlayTimer) clearTimeout(overlayTimer);
       overlayTimer = 0;
-      setDragging(false);
+      setDragging(null);
     };
 
     window.addEventListener("dragenter", onDragEnter);
@@ -203,7 +222,7 @@ export default function FileDropzone(_props: FileDropzoneProps) {
       {dragging && (
         <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-engine-900 text-foreground text-xl font-semibold">
           <Download class="size-16" stroke-width="1" />
-          Import Project Files
+          {dragging === "project" ? "Import Project Files" : "Import Files"}
         </div>
       )}
     </div>

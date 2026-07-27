@@ -1295,6 +1295,11 @@ export default function FileList({
   return (
     <div
       ref={containerRef}
+      // Marks this subtree as owning its own external-file-drop feedback (the
+      // folder highlight below). The window-level FileDropzone looks for this
+      // and suppresses its full-page overlay while a drag is over a list, so
+      // the two affordances never fight.
+      data-file-drop-target
       class={`relative flex h-full w-full flex-col rounded ${
         // A loose-file drag hovering empty space (not a folder) targets the
         // current scope / pane root — ring the whole list to say so. When over a
