@@ -611,12 +611,50 @@ const readDirectoryFiles = async (directoryUri: string) => {
     directoryEntries.map(async (entry) => {
       const uri = getUriFromPath(entry.path);
       if (!State.files.get(uri)) {
-        await readFile(uri);
+        // Enumerate binary assets from metadata; only read what needs text.
+        if (needsTextAtEnumeration(uri)) {
+          await readFile(uri);
+        } else {
+          await statFile(uri);
+        }
       }
       return State.files.get(uri)!;
     }),
   );
   return files;
+};
+
+/**
+ * Which files must have their BYTES read at enumeration time.
+ *
+ * Only text matters here: the compiler needs script and text contents, SVG
+ * source (it filters/recolors the markup rather than just showing the file),
+ * and a `.url` file's body IS its remote URL. Everything else -- images,
+ * audio, video, fonts -- is served straight from OPFS by the resource
+ * protocol, so reading it now buys nothing.
+ */
+const needsTextAtEnumeration = (fileUri: string) => {
+  const ext = getFileExtension(fileUri);
+  const type = getFileType(fileUri);
+  return type === "script" || type === "text" || ext === "svg" || ext === "url";
+};
+
+/**
+ * Records a file WITHOUT reading its contents (#227).
+ *
+ * `src` is derived from the uri (`getSrcFromUri`), never from the bytes, so a
+ * binary asset is fully usable from metadata alone -- the resource protocol
+ * fetches it from OPFS when something actually renders it. Size and mtime come
+ * off the file handle, which does not read the file either.
+ *
+ * On the real Raffles & Bunny project this is the difference between reading
+ * 187MB and 7.5MB to open a project: 539 of its 630 files are binary assets.
+ */
+const statFile = async (fileUri: string) => {
+  const root = await navigator.storage.getDirectory();
+  const fileHandle = await getFileHandleFromUri(root, fileUri, false);
+  const fileRef = await fileHandle.getFile();
+  return updateFileMetaCache(fileUri, fileRef.size, fileRef.lastModified);
 };
 
 const readFile = async (fileUri: string) => {
@@ -1243,6 +1281,49 @@ const enrichUrlAssetType = async (uri: string): Promise<void> => {
     file.type = category;
     State.files.set(uri, file);
   }
+};
+
+/**
+ * Cache entry for a file whose bytes were never read (#227).
+ *
+ * Deliberately mirrors the non-`.url` tail of `updateFileCache`, minus the
+ * text decode: `src` is uri-derived, `size`/`modified` come from the file
+ * handle. `text` stays undefined, which is what every consumer already
+ * expects for a binary asset -- `updateFileCache` only ever set it for
+ * script/text/svg.
+ *
+ * If this file is later read for real, `updateFileCache` overwrites the entry
+ * and preserves `src` (it reuses `existingFile.src`), so warming an asset does
+ * not change its identity or bust the resource URL.
+ */
+const updateFileMetaCache = (
+  uri: string,
+  size: number,
+  modified?: number,
+  version?: number,
+) => {
+  const existingFile = State.files.get(uri);
+  const name = getName(uri);
+  const ext = getFileExtension(uri);
+  const type = getFileType(uri);
+  let src = existingFile?.src || "";
+  if (name && !src) {
+    src = getSrcFromUri(uri) + `?v=${Date.now()}`;
+  }
+  const file = {
+    uri,
+    name,
+    ext,
+    type,
+    src,
+    version: version ?? existingFile?.version ?? 0,
+    size,
+    modified: modified ?? existingFile?.modified ?? Date.now(),
+    languageId: type === "script" ? LANGUAGE_ID : null,
+    text: existingFile?.text,
+  };
+  State.files.set(uri, file);
+  return file;
 };
 
 const updateFileCache = (
