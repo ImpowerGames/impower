@@ -26,6 +26,7 @@ import { StackFrame } from "../types/StackFrame";
 import { SystemConfiguration } from "../types/SystemConfiguration";
 import { Thread } from "../types/Thread";
 import { Variable, VariablePresentationHint } from "../types/Variable";
+import { applyBuiltinDefaults } from "../utils/applyBuiltinDefaults";
 import { findClosestPath } from "../utils/findClosestPath";
 import { findClosestPathLocation } from "../utils/findClosestPathLocation";
 import { Clock } from "./Clock";
@@ -271,6 +272,14 @@ export class Game<T extends M = {}> {
       },
       ...(this._program.context || {}),
     };
+
+    // Authored defines arrive carrying only the properties the author wrote,
+    // so make each one inherit the rest from its type's `$default` before any
+    // module reads it. Without this every consumer has to invent its own
+    // fallbacks, and they drift: the typewriter fallbacks in InterpreterModule
+    // were 5-16x off the real defaults, and AudioModule dropped incomplete
+    // synths outright (#268).
+    applyBuiltinDefaults(this._context);
 
     // Override default modules with custom ones if specified
     const allModules = {
