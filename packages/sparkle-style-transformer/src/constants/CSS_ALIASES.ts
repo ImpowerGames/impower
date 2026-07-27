@@ -39,6 +39,8 @@ export const CSS_ALIASES = {
   "grid-template-columns": "child-columns",
 
   gap: "child-gap",
+
+  "list-style-type": "list-mark",
   "align-items": "child-align",
   "justify-content": "child-justify",
   "flex-wrap": "child-overflow",

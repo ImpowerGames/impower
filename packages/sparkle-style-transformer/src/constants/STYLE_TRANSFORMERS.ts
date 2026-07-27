@@ -137,6 +137,12 @@ export const STYLE_TRANSFORMERS = {
   "child-layout": getCssChildLayout,
   "child-columns": getCssChildColumns,
   "child-gap": getCssSize,
+  // A marker is a KEYWORD (`disc` / `decimal` / `none` / …), so it passes
+  // through unchanged. The entry is still required: `CSS_UTILITIES` supplies an
+  // empty placeholder value and `getCssEquivalent` drops any declaration whose
+  // value is still empty — so a utility with no transformer emits NOTHING, with
+  // no error anywhere.
+  "list-mark": get,
   "child-align": getCssChildAlign,
   "child-justify": getCssChildJustify,
   "child-overflow": getCssChildOverflow,

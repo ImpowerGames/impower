@@ -15,7 +15,8 @@
 // footer, form, field_group, group_label, modal.
 //
 // Everything ELSE on an element line is a style CLASS — `column`, `row`, `card`,
-// `nav`, `badge`, `h1`, `muted`, `small`, `group`, `grid`, `container`, and the
+// `nav`, `badge`, `h1`, `muted`, `small`, `group`, `grid`, `container`,
+// `bulleted` (a plain `list` has no marker), and the
 // inline text classes `bold`, `italic`, `underline`, `strikethrough`,
 // `highlight`, `key`, `code`. Note `strong` / `emphasis` are ELEMENTS, not
 // classes: they carry meaning for assistive tech, whereas `bold` / `italic`
@@ -150,7 +151,7 @@ layout main with
           citation "- Phasellus eget lacinia"
 
         text h3 "Lists"
-        list:
+        list bulleted:
           item "Aliquam lobortis lacus eu libero ornare facilisis."
           item "Nam et magna at libero scelerisque egestas."
           item "Suspendisse id nisl ut leo finibus vehicula quis eu ex."
@@ -359,7 +360,7 @@ layout main with
         foldout "Accordion 1":
           text "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque urna diam, tincidunt nec porta sed, auctor id velit. Etiam venenatis nisl ut orci consequat, vitae tempus quam commodo. Nulla non mauris ipsum. Aliquam eu posuere orci. Nulla convallis lectus rutrum quam hendrerit, in facilisis elit sollicitudin. Mauris pulvinar pulvinar mi, dictum tristique elit auctor quis. Maecenas ac ipsum ultrices, porta turpis sit amet, congue turpis."
         foldout "Accordion 2" #open=true:
-          list:
+          list bulleted:
             item "Vestibulum id elit quis massa interdum sodales."
             item "Nunc quis eros vel odio pretium tincidunt nec quis neque."
             item "Quisque sed eros non eros ornare elementum."

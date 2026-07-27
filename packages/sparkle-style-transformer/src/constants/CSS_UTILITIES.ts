@@ -212,6 +212,14 @@ export const CSS_UTILITIES = {
   "child-gap": {
     "": { gap: "" },
   },
+  // Named `list-mark` rather than `marker`: `marker` is a REAL CSS property
+  // (the SVG marker shorthand) and is also the `::marker` pseudo-element, so
+  // `#marker` would be ambiguous at best and silently emit `:marker: disc` at
+  // worst. `#list-mark="none"` drops an ordered list's numerals while it stays
+  // an `<ol>`, so it is still announced as ordered.
+  "list-mark": {
+    "": { "list-style-type": "" },
+  },
   "child-align": {
     "": { "align-items": "" },
   },

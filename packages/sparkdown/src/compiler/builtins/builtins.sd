@@ -2143,9 +2143,6 @@ style quote with
   border-left-width = 0.25rem
   border-left-style = solid
   border-left-color = slate_30
-  -- Nothing to push away from when it opens the flow.
-  @first:
-    margin-top = 0
   -- The quote spaces its own children with `child-gap`; the flow rhythm must
   -- not stack on top of that.
 end
@@ -2158,20 +2155,41 @@ end
 -- non-flex parent, so list spacing is per-item margin.
 style list with
   display = block
-  padding-left = 40px
-  list-style = square
-  -- Nothing to push away from when it opens the flow.
-  @first:
-    margin-top = 0
+  -- No marker and no indent by DEFAULT. A game's lists are overwhelmingly
+  -- plain stacks -- menus, inventories, option rows -- and every one of those
+  -- had to switch the marker back off (`nav` and `menu` both did). A document
+  -- list asks for the whole look with `bulleted`.
+  list-style = none
+  padding-left = 0
 end
 
+-- The document look for a plain `list`, in one word -- marker AND the indent it
+-- needs, since a marker with no padding renders outside the content box:
+--
+--   list bulleted:
+--     item "..."
+--
+-- `#list-mark` still overrides the marker on top of it, so varying it does not
+-- mean restating the indent:
+--
+--   list bulleted #list-mark="circle":
+style bulleted with
+  -- The LONGHAND, so `#list-mark` (an inline style setting the same longhand)
+  -- cleanly wins over it. The `list-style` shorthand would also reset
+  -- position/image, which is not this class's business.
+  list-style-type = disc
+  padding-left = 40px
+end
+
+-- An ordered list arrives NUMBERED -- that is what it is for. `#list-mark`
+-- changes or drops the numerals without giving up the ordering:
+--
+--   ordered_list #list-mark="lower-roman":
+--   ordered_list #list-mark="none":    -- still an <ol>, still announced ordered
 style ordered_list with
   display = block
-  padding-left = 1.5rem
   list-style = decimal
-  -- Nothing to push away from when it opens the flow.
-  @first:
-    margin-top = 0
+  padding-left = 40px
 end
 
 style item with
@@ -2247,9 +2265,6 @@ style figure with
   display = flex
   child-layout = column
   child-align = start
-  -- Nothing to push away from when it opens the flow.
-  @first:
-    margin-top = 0
 end
 
 style picture with
@@ -2356,9 +2371,7 @@ style menu with
     left = 0
     z-index = 10
     child-layout = column
-    list-style = none
-    padding-left = 0
-    -- Hangs off the trigger and matches its width, rather than a fixed 10rem.
+        -- Hangs off the trigger and matches its width, rather than a fixed 10rem.
     min-width = 100%
     shadow = 0 0.5rem 1rem rgb(0 0 0 / 30%)
     padding = 0.25rem
@@ -2674,9 +2687,7 @@ style nav with
     child-layout = row
     child-align = center
     child-gap = 1rem
-    list-style = none
-    padding-left = 0
-  -- Direct-child chain so it does not reach into a `menu` panel, whose rows are
+      -- Direct-child chain so it does not reach into a `menu` panel, whose rows are
   -- deliberately never underlined.
   > list > item:
     padding = 1rem 0.5rem

@@ -244,6 +244,63 @@ end
     expect(rule).not.toMatch(/\[tooltip[\]=]/);
   });
 
+  // A plain `list` shows no marker: games use lists overwhelmingly as stacks —
+  // menus, inventories, option rows — and `nav` and `menu` each used to carry
+  // their own `list-style: none` to undo the default, which is what showed it
+  // was backwards. `ordered_list` is numbered because that is what it is FOR.
+  // `#list-mark` overrides either without changing the element, so an `<ol>`
+  // can drop its numerals and still be announced as ordered. `bulleted` carries
+  // the whole document look — marker AND the indent a marker needs — so asking
+  // for it stays one word, and `#list-mark` on top varies only the marker.
+  test("`list` is bare, `ordered_list` is numbered, `#list-mark` overrides", async () => {
+    const src = `layout main with
+  list:
+    item "a"
+  ordered_list:
+    item "b"
+  list #list-mark="disc":
+    item "c"
+  ordered_list #list-mark="none":
+    item "d"
+  list bulleted:
+    item "e"
+  list bulleted #list-mark="circle":
+    item "f"
+end
+`;
+    const out = await css(src);
+    const ruleFor = (sel: string) => {
+      const i = out.indexOf(sel + " {");
+      return i < 0 ? "" : out.slice(i, i + 160);
+    };
+    expect(ruleFor(".list")).toContain("list-style: none;");
+    expect(ruleFor(".list")).toContain("padding-left: 0px;");
+    expect(ruleFor(".ordered_list")).toContain("list-style: decimal;");
+    expect(ruleFor(".ordered_list")).toContain("padding-left: 40px;");
+
+    // `bulleted` restores the document look in one token. It must set the
+    // LONGHAND: the `list-style` shorthand would beat an inline
+    // `list-style-type` for position/image, and it must come AFTER `.list` in
+    // the sheet or `.list`'s `list-style: none` would win the cascade at equal
+    // specificity and the class would silently do nothing.
+    expect(ruleFor(".bulleted")).toContain("list-style-type: disc;");
+    expect(ruleFor(".bulleted")).toContain("padding-left: 40px;");
+    expect(out.indexOf(".bulleted {")).toBeGreaterThan(out.indexOf(".list {"));
+
+    // An inline `#prop` lands as an INLINE STYLE on the element, not as a rule
+    // in the sheet — so it has to be read off the DOM.
+    const h = createDOMHarness(src, 0, { autoOpenAll: true });
+    await h.ready;
+    await flushMicrotasks(20);
+    const marks = [...h.overlay.querySelectorAll("ul, ol")].map(
+      (el) => (el as HTMLElement).style.listStyleType,
+    );
+    // Two bare elements, the two overridden ones, then the two `bulleted`
+    // ones — the plain class carries no INLINE style (its marker comes from the
+    // sheet), while `#list-mark` on top of it does.
+    expect(marks).toEqual(["", "", "disc", "none", "", "circle"]);
+  });
+
   // Pico composes several of its components out of DIRECT-CHILD rules, so the
   // `> selector` form has to survive into the sheet.
   test("`> child` selectors compose article sections and joined groups", async () => {

@@ -1344,25 +1344,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -1423,9 +1418,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -1510,8 +1502,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -1756,8 +1746,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;
@@ -3498,25 +3486,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -3577,9 +3560,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -3664,8 +3644,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -3910,8 +3888,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;
@@ -5614,25 +5590,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -5693,9 +5664,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -5780,8 +5748,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -6026,8 +5992,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;
@@ -7852,25 +7816,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -7931,9 +7890,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -8018,8 +7974,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -8264,8 +8218,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;
@@ -9949,25 +9901,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -10028,9 +9975,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -10115,8 +10059,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -10361,8 +10303,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;
@@ -12028,25 +11968,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -12107,9 +12042,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -12194,8 +12126,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -12440,8 +12370,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;
@@ -14157,25 +14085,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -14236,9 +14159,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -14323,8 +14243,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -14569,8 +14487,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;
@@ -16253,25 +16169,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -16332,9 +16243,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -16419,8 +16327,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -16665,8 +16571,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;
@@ -18349,25 +18253,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -18428,9 +18327,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -18515,8 +18411,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -18761,8 +18655,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;
@@ -20445,25 +20337,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -20524,9 +20411,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -20611,8 +20495,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -20857,8 +20739,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;
@@ -22541,25 +22421,20 @@ spark-web-player #game .quote {
   border-left-width: 0.25rem;
   border-left-style: solid;
   border-left-color: var(--theme-color-slate_30);
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .list {
   display: block;
+  list-style: none;
+  padding-left: 0px;
+}
+spark-web-player #game .bulleted {
+  list-style-type: disc;
   padding-left: 40px;
-  list-style: square;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .ordered_list {
   display: block;
-  padding-left: 1.5rem;
   list-style: decimal;
-  &:first-child {
-    margin-top: 0px;
-  }
+  padding-left: 40px;
 }
 spark-web-player #game .item {
   display: list-item;
@@ -22620,9 +22495,6 @@ spark-web-player #game .figure {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  &:first-child {
-    margin-top: 0px;
-  }
 }
 spark-web-player #game .picture {
   display: block;
@@ -22707,8 +22579,6 @@ spark-web-player #game .menu {
     left: 0px;
     z-index: 10;
     flex-direction: column;
-    list-style: none;
-    padding-left: 0px;
     min-width: 100%;
     box-shadow: 0 0.5rem 1rem rgb(0 0 0 / 30%);
     padding: 0.25rem;
@@ -22953,8 +22823,6 @@ spark-web-player #game .nav {
     flex-direction: row;
     align-items: center;
     gap: 1rem;
-    list-style: none;
-    padding-left: 0px;
   }
   >.list>.item {
     padding: 1rem 0.5rem;

@@ -5,6 +5,7 @@ const isNumber = (value: unknown): value is number => {
   return !Number.isNaN(Number(value));
 };
 
+
 export const getCSSPropertyKeyValue = (
   name: string,
   value: unknown,

@@ -18443,9 +18443,6 @@
         "figure": {
           "$name": "figure",
           "$type": "style",
-          "@first": {
-            "margin-top": "0"
-          },
           "child-align": "start",
           "child-layout": "column",
           "display": "flex"
@@ -18959,12 +18956,9 @@
         "list": {
           "$name": "list",
           "$type": "style",
-          "@first": {
-            "margin-top": "0"
-          },
           "display": "block",
-          "list-style": "square",
-          "padding-left": "40px"
+          "list-style": "none",
+          "padding-left": "0"
         },
         "loading_bar": {
           "$name": "loading_bar",
@@ -19056,10 +19050,8 @@
             "corner": "0.25rem",
             "display": "none",
             "left": "0",
-            "list-style": "none",
             "min-width": "100%",
             "padding": "0.25rem",
-            "padding-left": "0",
             "position": "absolute",
             "shadow": "0 0.5rem 1rem rgb(0 0 0 / 30%)",
             "top": "100%",
@@ -19131,9 +19123,7 @@
             "child-align": "center",
             "child-gap": "1rem",
             "child-layout": "row",
-            "display": "flex",
-            "list-style": "none",
-            "padding-left": "0"
+            "display": "flex"
           },
           "> list > item": {
             "padding": "1rem 0.5rem"
@@ -19164,12 +19154,9 @@
         "ordered_list": {
           "$name": "ordered_list",
           "$type": "style",
-          "@first": {
-            "margin-top": "0"
-          },
           "display": "block",
           "list-style": "decimal",
-          "padding-left": "1.5rem"
+          "padding-left": "40px"
         },
         "overflow_auto": {
           "$name": "overflow_auto",
@@ -19259,9 +19246,6 @@
         "quote": {
           "$name": "quote",
           "$type": "style",
-          "@first": {
-            "margin-top": "0"
-          },
           "border-left-color": "slate_30",
           "border-left-style": "solid",
           "border-left-width": "0.25rem",
@@ -92232,9 +92216,6 @@
         "figure": {
           "$name": "figure",
           "$type": "style",
-          "@first": {
-            "margin-top": "0"
-          },
           "child-align": "start",
           "child-layout": "column",
           "display": "flex"
@@ -92748,12 +92729,9 @@
         "list": {
           "$name": "list",
           "$type": "style",
-          "@first": {
-            "margin-top": "0"
-          },
           "display": "block",
-          "list-style": "square",
-          "padding-left": "40px"
+          "list-style": "none",
+          "padding-left": "0"
         },
         "loading_bar": {
           "$name": "loading_bar",
@@ -92845,10 +92823,8 @@
             "corner": "0.25rem",
             "display": "none",
             "left": "0",
-            "list-style": "none",
             "min-width": "100%",
             "padding": "0.25rem",
-            "padding-left": "0",
             "position": "absolute",
             "shadow": "0 0.5rem 1rem rgb(0 0 0 / 30%)",
             "top": "100%",
@@ -92920,9 +92896,7 @@
             "child-align": "center",
             "child-gap": "1rem",
             "child-layout": "row",
-            "display": "flex",
-            "list-style": "none",
-            "padding-left": "0"
+            "display": "flex"
           },
           "> list > item": {
             "padding": "1rem 0.5rem"
@@ -92953,12 +92927,9 @@
         "ordered_list": {
           "$name": "ordered_list",
           "$type": "style",
-          "@first": {
-            "margin-top": "0"
-          },
           "display": "block",
           "list-style": "decimal",
-          "padding-left": "1.5rem"
+          "padding-left": "40px"
         },
         "overflow_auto": {
           "$name": "overflow_auto",
@@ -93048,9 +93019,6 @@
         "quote": {
           "$name": "quote",
           "$type": "style",
-          "@first": {
-            "margin-top": "0"
-          },
           "border-left-color": "slate_30",
           "border-left-style": "solid",
           "border-left-width": "0.25rem",
