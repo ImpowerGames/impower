@@ -1862,6 +1862,10 @@ style slider with
     opacity = 0.5
     cursor = not-allowed
     pointer-events = none
+  -- Every other form control owns the step below it; the slider was the one
+  -- left out, so a range field ended flush against whatever followed and
+  -- pulled the entire rest of the form up with it.
+  margin-bottom = 1rem
 end
 
 style link with
@@ -2176,6 +2180,11 @@ style divider with
 end
 
 style citation with
+  -- An attribution sits slightly apart from the quotation it credits -- the
+  -- reference gets the same half-step by wrapping its <cite> in a <footer>.
+  -- Without it the citation reads as the quote's last line rather than as a
+  -- credit for it.
+  margin-top = 0.5rem
   text-style = italic
   text-color = slate_60
 end

@@ -142,10 +142,15 @@ layout main with
             -- button the block rhythm below it, so it lines up with the inputs
             -- beside it instead of stretching to fill the row.
             button #type="submit" "Subscribe"
-          row #child-gap=8 #child-align=center:
-            switch #checked={agreed} @change=set_agreed
-            text "I agree to the "
-            link "Privacy Policy" #href="#"
+          -- A `field_group` wrapping a `label row`, as the reference does. The
+          -- switch and its wording are one control, so the text should toggle
+          -- it; and a bare `row` is a layout primitive carrying no margin, so
+          -- the block would otherwise end flush against the section below it.
+          field_group:
+            label row #child-gap=8 #child-align=center:
+              switch #checked={agreed} @change=set_agreed
+              text "I agree to the "
+              link "Privacy Policy" #href="#"
 
       -- Typography ---------------------------------------------------------
       section:
