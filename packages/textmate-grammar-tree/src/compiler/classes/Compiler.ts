@@ -127,8 +127,17 @@ export class Compiler {
     return addedChunk;
   }
 
-  step() {
-    if (this.index < this.packet.chunks.length) {
+  step(force = false) {
+    // Never compile the packet's final chunk unless forced: the parse may
+    // still be adding tokens to it. (The whole-construct matcher preserved
+    // this implicitly — its token batches always ended at pure boundaries,
+    // so a completed chunk always existed ahead of the compiler. The
+    // stepping tokenizer adds tokens one at a time, leaving the last chunk
+    // under construction until the next chunk begins.)
+    const limit = force
+      ? this.packet.chunks.length
+      : this.packet.chunks.length - 1;
+    if (this.index < limit) {
       const chunk = this.packet.chunks[this.index]!;
 
       const treeBuffer = chunk.tryForTreeBuffer();
@@ -180,7 +189,7 @@ export class Compiler {
 
   advanceFully() {
     if (!this.done) {
-      while (this.step()) {}
+      while (this.step(true)) {}
     }
   }
 

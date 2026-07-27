@@ -10,6 +10,7 @@ import { Compiler } from "../../compiler/classes/Compiler";
 import { NodeID } from "../../core/enums/NodeID";
 import { GrammarToken } from "../../core/types/GrammarToken";
 import { Grammar } from "../../grammar/classes/Grammar";
+import { ResumableTokenizer } from "../../grammar/classes/ResumableTokenizer";
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { TextmateParseRegion } from "./TextmateParseRegion";
 
@@ -38,6 +39,14 @@ export class TextmateGrammarParse implements PartialParse {
   declare protected region: TextmateParseRegion;
 
   declare protected compiler: Compiler;
+
+  /**
+   * The persistent flat tokenizer. Replaces the per-call recursive
+   * `grammar.match` so a parse can be suspended (and, with resume state,
+   * restarted) at any token boundary instead of only between top-level
+   * constructs.
+   */
+  declare protected tokenizer: ResumableTokenizer;
 
   /** The current position of the parser. */
   declare parsedPos: number;
@@ -107,11 +116,22 @@ export class TextmateGrammarParse implements PartialParse {
     if (!this.compiler) {
       this.compiler = new Compiler(grammar);
     }
+
+    this.tokenizer = new ResumableTokenizer(
+      grammar,
+      (pos: number) => this.region.next(pos),
+      this.region.from,
+    );
   }
 
-  /** True if the parser is done. */
+  /**
+   * True if the parser is done. Open frames keep the parse alive past
+   * `region.to` — the recursive matcher consumed a whole construct per
+   * call, overshooting a `stopAt` boundary until the construct closed, and
+   * the flat tokenizer must finish constructs the same way.
+   */
   get done() {
-    return this.parsedPos >= this.region.to;
+    return this.parsedPos >= this.region.to && !this.tokenizer.hasOpenFrames;
   }
 
   /**
@@ -126,8 +146,14 @@ export class TextmateGrammarParse implements PartialParse {
 
   /** Advances tokenization one step. */
   advance(): Tree | null {
-    // if we're told to stop, we need to BAIL
-    if (this.stoppedAt && this.parsedPos >= this.stoppedAt) {
+    // if we're told to stop, we need to BAIL — but only at the top level;
+    // an open construct is always finished first (the recursive matcher
+    // consumed whole constructs per call, overshooting the stop the same way)
+    if (
+      this.stoppedAt &&
+      this.parsedPos >= this.stoppedAt &&
+      !this.tokenizer.hasOpenFrames
+    ) {
       return this.finish();
     }
 
@@ -149,6 +175,16 @@ export class TextmateGrammarParse implements PartialParse {
   }
 
   protected finish(): Tree {
+    // Flush the tokenizer's one-token lookbehind buffer. At true EOF the
+    // step loop already drained it; this covers parses that end at a
+    // stopAt/region boundary before EOF. The `done`/`stoppedAt` gates
+    // guarantee no frames are open here, so the token can't receive any
+    // more close markers.
+    const pending = this.tokenizer.flushPending();
+    if (pending) {
+      this.compiler.add(pending);
+    }
+
     const nodeSet = this.nodeSet;
     const topID = NodeID.top;
 
@@ -200,56 +236,57 @@ export class TextmateGrammarParse implements PartialParse {
     return new Tree(topNodeType, [], [], length);
   }
 
+  /**
+   * Flushes the tokenizer's held-back token into the compiler. Callers must
+   * gate on `tokenizer.flushableNow` (no open frames) first.
+   */
+  protected flushPendingIntoCompiler() {
+    const pending = this.tokenizer.flushPending();
+    if (pending) {
+      this.compiler.add(pending);
+    }
+  }
+
+  /**
+   * Jumps the tokenizer head to an absolute document position (used after
+   * appending reused-ahead chunks, whose text was already parsed).
+   */
+  protected advanceTokenizerTo(absolutePos: number) {
+    const delta = absolutePos - this.tokenizer.absolutePos;
+    if (delta > 0) {
+      this.tokenizer.skip(delta);
+    }
+  }
+
   /** Advances the parser to the next chunk. */
   protected nextChunk() {
     // this condition is a little misleading,
     // as we're actually going to break out when any chunk is emitted.
-    // however, if we're at the "last chunk", this condition catches that
-    while (this.parsedPos < this.region.to) {
+    // however, if we're at the "last chunk", this condition catches that.
+    // Open frames keep the loop alive past `region.to` so a construct that
+    // started inside the region is finished (or drained at EOF), matching
+    // the recursive matcher's whole-construct overshoot.
+    while (
+      this.parsedPos < this.region.to ||
+      (this.tokenizer.hasOpenFrames && !this.tokenizer.done)
+    ) {
       const pos = this.parsedPos;
 
-      const start = Math.max(pos, this.region.from);
-      const startCompensated = this.region.compensate(pos, start - pos);
-
-      const next = (pos: number) => this.region.next(pos);
-
-      const str = next(startCompensated);
-
-      const match = this.grammar.match(str, next, pos - start, pos);
-
-      let matchTokens: GrammarToken[] | null = null;
-      let matchLength = 0;
-
-      if (match) {
-        matchTokens = match.compile();
-        matchLength = match.length;
-      } else {
-        // if we didn't match, we'll advance to prevent getting stuck
-        matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
-        matchLength = 1;
-      }
-
-      // console.log(
-      //   "incremental parse match",
-      //   pos,
-      //   pos + matchLength,
-      //   JSON.stringify(this.region.input.read(pos, pos + matchLength)),
-      //   matchTokens?.map((t) => [
-      //     this.grammar.nodeNames[t[0]!],
-      //     JSON.stringify(this.region.input.read(t[1], t[2])),
-      //     t[3]?.map((o) => this.grammar.nodeNames[o]).join(","),
-      //     t[4]?.map((c) => this.grammar.nodeNames[c]).join(","),
-      //   ])
-      // );
+      const step = this.tokenizer.step();
+      let matchLength = step.length;
 
       if (matchLength === 0) {
         this.consecutiveEmptyMatchCount += 1;
       } else {
         this.consecutiveEmptyMatchCount = 0;
       }
-      if (this.consecutiveEmptyMatchCount > 100) {
-        // Possible infinite loop!
-        matchLength = 1;
+      if (this.consecutiveEmptyMatchCount > 100 && this.tokenizer.flushableNow) {
+        // Possible infinite loop! Skip a character to force progress — but
+        // only at the top level: the recursive matcher's backstop always
+        // fired between whole top-level matches, so the skipped character
+        // must not land inside an open scope (it would widen the scope).
+        matchLength += 1;
+        this.tokenizer.skip(1);
         console.warn(
           `Possible infinite loop at pos=${pos}!`,
           JSON.stringify(this.region.input.read(Math.max(0, pos - 100), pos)),
@@ -260,33 +297,27 @@ export class TextmateGrammarParse implements PartialParse {
 
       let addedChunk = false;
 
-      if (matchTokens) {
-        for (let idx = 0; idx < matchTokens.length; idx++) {
-          const t = matchTokens[idx]!;
+      for (let idx = 0; idx < step.tokens.length; idx++) {
+        const t = step.tokens[idx]!;
 
-          if (!this.region.contiguous) {
-            const from = this.region.compensate(pos, t[1] - pos);
-            const end = this.region.compensate(pos, t[2] - pos);
-            t[1] = from;
-            t[2] = end;
-          }
+        if (!this.region.contiguous) {
+          const from = this.region.compensate(pos, t[1] - pos);
+          const end = this.region.compensate(pos, t[2] - pos);
+          t[1] = from;
+          t[2] = end;
+        }
 
-          // console.log(
-          //   "TOKEN",
-          //   this.grammar.nodes[t[0]!]?.typeId,
-          //   JSON.stringify(this.region.input.read(t[1]!, t[2]!)),
-          //   t[3]!,
-          //   t[4]!,
-          //   this.compiler.buffer.scopes
-          // );
-          if (this.compiler.add(t)) {
-            addedChunk = true;
-          }
+        if (this.compiler.add(t)) {
+          addedChunk = true;
         }
       }
 
       if (addedChunk) {
         return true;
+      }
+
+      if (step.done) {
+        break;
       }
     }
 
@@ -301,10 +332,21 @@ export class TextmateGrammarParse implements PartialParse {
    */
   protected tryToReuseAhead() {
     if (this.compiler.ahead) {
+      // Old chunks can only be spliced in at a top-level boundary. The
+      // recursive matcher guaranteed this implicitly (parsedPos only ever
+      // landed between whole top-level constructs); the stepping tokenizer
+      // visits every token boundary, including positions inside an open
+      // scope that happen to coincide with an old pure boundary — splicing
+      // there would nest the old chunks into the open scope.
+      if (!this.tokenizer.flushableNow) {
+        return false;
+      }
       // console.log("REUSABLE?", this.parsedPos, ">=", reusableFrom, pos >= reusableFrom);
       if (this.compiler.ahead.first) {
         if (this.parsedPos === this.compiler.ahead.first.from) {
+          this.flushPendingIntoCompiler();
           this.compiler.append(this.compiler.ahead);
+          this.advanceTokenizerTo(this.compiler.packet.last!.to);
           this.parsedPos = this.compiler.packet.last!.to;
           // console.log(
           //   "REUSE AHEAD EXACTLY",
@@ -326,7 +368,9 @@ export class TextmateGrammarParse implements PartialParse {
             );
             this.compiler.ahead = aheadSplitBuffer.right;
             if (this.parsedPos === this.compiler.ahead.first?.from) {
+              this.flushPendingIntoCompiler();
               this.compiler.append(this.compiler.ahead);
+              this.advanceTokenizerTo(this.compiler.packet.last!.to);
               this.parsedPos = this.compiler.packet.last!.to;
               // console.log(
               //   "REUSE AHEAD OVERSHOOT",
