@@ -173,6 +173,10 @@ export class GamePlayerController {
     window.addEventListener("contextmenu", this.handleContextMenu, true);
     window.addEventListener("dragstart", this.handleDragStart);
     window.addEventListener("resize", this.handleResize);
+    // Unlock/adopt the shared AudioContext on the first user interaction with the
+    // preview so voices start playing immediately (browsers require a gesture).
+    window.addEventListener("pointerdown", this.handleUserInteraction, true);
+    window.addEventListener("keydown", this.handleUserInteraction, true);
     this.refs.playButton?.addEventListener("click", this.handleClickPlayButton);
     this.refs.toolbar?.addEventListener(
       "pointerdown",
@@ -212,6 +216,8 @@ export class GamePlayerController {
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
     window.removeEventListener("resize", this.handleResize);
+    window.removeEventListener("pointerdown", this.handleUserInteraction, true);
+    window.removeEventListener("keydown", this.handleUserInteraction, true);
     this.refs.playButton?.removeEventListener(
       "click",
       this.handleClickPlayButton,
@@ -499,13 +505,32 @@ export class GamePlayerController {
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
-  protected handleClickPlayButton = async () => {
-    if (!this._audioContext || this._audioContext.state !== "running") {
-      const audioContext = new AudioContext();
-      if (audioContext.state === "running") {
-        this._audioContext = audioContext;
-      }
+  // Create ONE shared AudioContext (cached on the controller) and resume it once
+  // the user has interacted with the page — browsers gate audio behind a user
+  // gesture. It is reused for every Application built afterward (including the
+  // preview reconstructions that happen on every edit), so no new context is
+  // minted per edit. Applied to the live app immediately once running, so
+  // preview audio (character voices, sfx) starts on the first interaction.
+  ensureAudioContext = async (): Promise<void> => {
+    if (!this._audioContext) {
+      this._audioContext = new AudioContext();
     }
+    if (this._audioContext.state !== "running") {
+      try {
+        await this._audioContext.resume();
+      } catch {}
+    }
+    if (this._audioContext.state === "running") {
+      this._app?.setAudioContext(this._audioContext);
+    }
+  };
+
+  protected handleUserInteraction = () => {
+    void this.ensureAudioContext();
+  };
+
+  protected handleClickPlayButton = async () => {
+    await this.ensureAudioContext();
     await this.startGameAndApp();
     this.hidePlayButton();
     sendProtocolMessage(GameStartedMessage.type.notification({}), this.host);
@@ -1157,6 +1182,10 @@ export class GamePlayerController {
       profile("end", "app/destroy");
     }
     this.updateExecutionLabels();
+    // Ensure the single shared AudioContext exists (and is resumed if the user
+    // has already interacted) so it can be handed to this Application — this is
+    // what lets preview reconstructions keep audio without minting a new context.
+    await this.ensureAudioContext();
     profile("start", "app/create");
     this._app = new Application(
       game,
