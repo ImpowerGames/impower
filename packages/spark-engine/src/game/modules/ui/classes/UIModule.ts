@@ -402,6 +402,19 @@ const ELEMENT_TAGS: Record<string, string> = {
   // `kbd` is user INPUT (keys to press); `code` is source.
   kbd: "kbd",
   preformatted: "pre",
+  // A real <p>, and the ONE element that ships with a bottom margin.
+  //
+  // `text` stays a margin-free div and remains the workhorse: it takes any
+  // children and gets its rhythm from a container's `child-gap`. `paragraph` is
+  // the opt-in document element for prose, where the space below is part of
+  // what a paragraph IS, not a layout decision made by its parent. Both rhythm
+  // models are available and each is explicit at the call site.
+  //
+  // <p> cannot legally contain BLOCK children. The DOM accepts it (we build by
+  // appendChild, not by parsing), so a `text` inside a `paragraph` renders --
+  // but it serializes to HTML that re-parses differently, which is exactly what
+  // the showcase dump does. Keep its children inline.
+  paragraph: "p",
   // `<small>` is side comment / fine print — legally, the small print. Ours is
   // used for form hints and footnotes, which is that.
   small: "small",

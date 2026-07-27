@@ -1244,6 +1244,10 @@ spark-web-player #game .h6 {
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
+}
 spark-web-player #game .small {
   font-size: 0.875em;
 }
@@ -3386,6 +3390,10 @@ spark-web-player #game .h6 {
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
+}
 spark-web-player #game .small {
   font-size: 0.875em;
 }
@@ -5489,6 +5497,10 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+}
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .small {
   font-size: 0.875em;
@@ -7716,6 +7728,10 @@ spark-web-player #game .h6 {
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
+}
 spark-web-player #game .small {
   font-size: 0.875em;
 }
@@ -9801,6 +9817,10 @@ spark-web-player #game .h6 {
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
+}
 spark-web-player #game .small {
   font-size: 0.875em;
 }
@@ -11867,6 +11887,10 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+}
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .small {
   font-size: 0.875em;
@@ -13985,6 +14009,10 @@ spark-web-player #game .h6 {
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
+}
 spark-web-player #game .small {
   font-size: 0.875em;
 }
@@ -16068,6 +16096,10 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+}
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .small {
   font-size: 0.875em;
@@ -18153,6 +18185,10 @@ spark-web-player #game .h6 {
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
+}
 spark-web-player #game .small {
   font-size: 0.875em;
 }
@@ -20237,6 +20273,10 @@ spark-web-player #game .h6 {
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
 }
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
+}
 spark-web-player #game .small {
   font-size: 0.875em;
 }
@@ -22320,6 +22360,10 @@ spark-web-player #game .h6 {
 }
 spark-web-player #game .muted {
   color: var(--theme-color-slate_60);
+}
+spark-web-player #game .paragraph {
+  display: block;
+  margin-bottom: 1rem;
 }
 spark-web-player #game .small {
   font-size: 0.875em;

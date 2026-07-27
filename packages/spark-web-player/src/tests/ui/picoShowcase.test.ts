@@ -243,11 +243,16 @@ describe("pico showcase example", () => {
     // so the showcase uses the `strong` / `emphasis` ELEMENTS there.)
     // No `key` here any more: it became the `kbd` ELEMENT (asserted as a tag
     // above), so the showcase writes `kbd "Kbd"` and there is no `.text.key`.
+    //
+    // The HOST element is deliberately not pinned. These cells sit on
+    // `paragraph` now rather than `text`, and that is the point of a visual
+    // class: it rides on whatever element carries the content. Asserting
+    // `.text.underline` only tested which builtin the showcase happened to use.
     for (const cls of ["underline", "strikethrough",
                        "deleted", "inserted", "highlight"]) {
       expect(
-        h.overlay.querySelector(`.text.${cls}`),
-        `expected a .text.${cls}`,
+        h.overlay.querySelector(`.${cls}`),
+        `expected an element with class ${cls}`,
       ).toBeTruthy();
     }
 

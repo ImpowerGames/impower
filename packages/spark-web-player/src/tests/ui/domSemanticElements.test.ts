@@ -70,6 +70,7 @@ end
   kbd "Esc"
   h2 "Heading"
   small "fine print"
+  paragraph "Prose."
   text highlight "highlit"
   text deleted "gone"
   text inserted "added"
@@ -92,6 +93,23 @@ end
     expect(h.overlay.querySelector("kbd")?.textContent).toBe("Esc");
     expect(h.overlay.querySelector("h2")?.textContent).toBe("Heading");
     expect(h.overlay.querySelector("small")?.textContent).toBe("fine print");
+
+    // `paragraph` is a real <p> AND the one block builtin that ships with a
+    // margin — everything else takes its rhythm from a container's `child-gap`.
+    // The margin is the reason it exists as a separate element from `text`: a
+    // paragraph's closing space belongs to the paragraph, so prose reads right
+    // in a grid cell, where a gap cannot reach and a margin cannot collapse.
+    // The margin arrives as a SHEET rule on `.paragraph`, not an inline style —
+    // a builtin's `style` block always does. Only an inline `#prop` lands on the
+    // element itself.
+    const p = h.overlay.querySelector("p");
+    expect(p?.textContent).toBe("Prose.");
+    expect(p?.className).toContain("paragraph");
+    const sheet = [...h.overlay.querySelectorAll("style")]
+      .map((s) => s.textContent ?? "")
+      .join("\n");
+    const rule = sheet.slice(sheet.indexOf(".paragraph {"));
+    expect(rule.slice(0, 120)).toContain("margin-bottom");
 
     // VISUAL styling is a CLASS on a text element — <b>/<i> are defined as
     // stylistic-only, so there is no element for them. Styling WITHIN a line

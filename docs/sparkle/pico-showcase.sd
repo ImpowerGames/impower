@@ -158,30 +158,52 @@ layout main with
           item "Proin ultricies turpis et volutpat vehicula."
 
         h3 "Inline text elements"
-        row grid:
-          link "Primary link" #href="#"
-          link secondary "Secondary link" #href="#"
-          link contrast "Contrast link" #href="#"
-        -- The reference marks these up semantically, so they are ELEMENTS.
-        -- `<u>` is explicitly non-semantic in HTML, so underline stays a class.
-        row grid:
-          strong "Bold"
-          emphasis "Italic"
-          text underline "Underline"
-        row grid:
-          text deleted "Deleted"
-          text inserted "Inserted"
-          text strikethrough "Strikethrough"
-        row grid:
-          small "Small"
-          text "Text <sub>Sub</sub>"
-          text "Text <sup>Sup</sup>"
-        row grid:
-          -- `#tooltip` alone shows a bubble on hover and on focus, the way the
-          -- reference page's `<abbr data-tooltip=…>` does.
-          text abbreviation "Abbr." #tooltip="Abbreviation"
-          kbd "Kbd"
-          text highlight "Highlighted"
+        -- Every cell here is a `paragraph`, matching the reference, which wraps
+        -- each one in a <p>. That is not decoration: the <p>'s bottom margin is
+        -- what gives the block its closing step, and a grid cell cannot collapse
+        -- it away — so leaving it out left this section exactly one step short.
+        --
+        -- `#child-gap=0` on the wrapper is REQUIRED, and is the whole lesson of
+        -- this block: the paragraphs already carry the rhythm as margins, so
+        -- leaving the container's default gap on top of them spaces every row
+        -- TWICE (18 + 18). The two models do not compose — pick one per
+        -- container. Here we match the reference and let the margins do it.
+        --
+        -- Children stay INLINE. A <p> may not legally contain a block, and the
+        -- dump below serializes to HTML, so a `text` (a div) in here would
+        -- re-parse into a different tree than the one that rendered.
+        column #child-gap=0:
+          row grid:
+            paragraph:
+              link "Primary link" #href="#"
+            paragraph:
+              link secondary "Secondary link" #href="#"
+            paragraph:
+              link contrast "Contrast link" #href="#"
+          -- The reference marks these up semantically, so they are ELEMENTS.
+          -- `<u>` is explicitly non-semantic in HTML, so underline stays a class.
+          row grid:
+            paragraph:
+              strong "Bold"
+            paragraph:
+              emphasis "Italic"
+            paragraph underline "Underline"
+          row grid:
+            paragraph deleted "Deleted"
+            paragraph inserted "Inserted"
+            paragraph strikethrough "Strikethrough"
+          row grid:
+            paragraph:
+              small "Small"
+            paragraph "Text <sub>Sub</sub>"
+            paragraph "Text <sup>Sup</sup>"
+          row grid:
+            -- `#tooltip` alone shows a bubble on hover and on focus, the way the
+            -- reference page's `<abbr data-tooltip=…>` does.
+            paragraph abbreviation "Abbr." #tooltip="Abbreviation"
+            paragraph:
+              kbd "Kbd"
+            paragraph highlight "Highlighted"
 
         h3 "Heading 3"
         text "Integer bibendum malesuada libero vel eleifend. Fusce iaculis turpis ipsum, at efficitur sem scelerisque vel. Aliquam auctor diam ut purus cursus fringilla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos."

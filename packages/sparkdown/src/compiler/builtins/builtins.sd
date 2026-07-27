@@ -2004,6 +2004,21 @@ style muted with
   text-color = slate_60
 end
 
+-- A document paragraph, and the one block builtin that keeps a MARGIN.
+--
+-- Everything else moved to `child-gap`, because a container spacing its own
+-- children is easier to reason about than each child pushing its neighbours
+-- around. A paragraph is the exception on purpose: the space below it belongs
+-- to the paragraph, not to whatever happens to contain it, so prose reads
+-- correctly whether it sits in a gapped column, a grid cell, or on its own.
+--
+-- That is also the difference a reader can see between `paragraph` and `text`:
+-- `text` is a bare div that takes its rhythm from its parent's gap.
+style paragraph with
+  display = block
+  margin-bottom = 1rem
+end
+
 style small with
   text-size = 0.875em
 end
