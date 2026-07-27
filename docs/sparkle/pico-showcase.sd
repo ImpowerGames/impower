@@ -263,33 +263,27 @@ layout main with
             option "Select…" #value="" #selected=true
             option "…"
 
-          label "File browser"
-          input file_input #type="file"
+          label "File browser":
+            input file_input #type="file"
 
-          label "Range slider"
-          slider #value={volume} #min=0 #max=100 @input=set_volume
+          label "Range slider":
+            slider #value={volume} #min=0 #max=100 @input=set_volume
 
           -- Validation states are Pico's `aria-invalid`, not a class.
           row grid:
-            column:
-              label "Valid"
+            label "Valid":
               field valid #placeholder="Valid" #aria-invalid=false
-            column:
-              label "Invalid"
+            label "Invalid":
               field invalid #placeholder="Invalid" #aria-invalid=true
-            column:
-              label "Disabled"
+            label "Disabled":
               field #placeholder="Disabled" #disabled=true
 
           row grid:
-            column:
-              label "Date"
+            label "Date":
               input #type="date" #value={when}
-            column:
-              label "Time"
+            label "Time":
               input #type="time" #value={at_time}
-            column:
-              label "Color"
+            label "Color":
               input #type="color" #value={swatch}
 
           row grid:

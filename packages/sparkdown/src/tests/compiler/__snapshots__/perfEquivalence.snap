@@ -18494,6 +18494,9 @@
         "foldout": {
           "$name": "foldout",
           "$type": "style",
+          "&.menu": {
+            "margin-bottom": "0"
+          },
           "&@opened": {
             "> foldout_label": {
               "&.secondary": {
@@ -18507,7 +18510,8 @@
               "text-color": "slate_60"
             }
           },
-          "display": "block"
+          "display": "block",
+          "margin-bottom": "1rem"
         },
         "foldout_label": {
           "$name": "foldout_label",
@@ -18865,7 +18869,10 @@
         "label": {
           "$name": "label",
           "$type": "style",
-          "margin-bottom": "0.625rem",
+          "> input, > field, > slider, > dropdown, > textarea": {
+            "margin-top": "0.25rem"
+          },
+          "margin-bottom": "0.375rem",
           "pointer_events": "auto",
           "text-weight": "400"
         },
@@ -92287,6 +92294,9 @@
         "foldout": {
           "$name": "foldout",
           "$type": "style",
+          "&.menu": {
+            "margin-bottom": "0"
+          },
           "&@opened": {
             "> foldout_label": {
               "&.secondary": {
@@ -92300,7 +92310,8 @@
               "text-color": "slate_60"
             }
           },
-          "display": "block"
+          "display": "block",
+          "margin-bottom": "1rem"
         },
         "foldout_label": {
           "$name": "foldout_label",
@@ -92658,7 +92669,10 @@
         "label": {
           "$name": "label",
           "$type": "style",
-          "margin-bottom": "0.625rem",
+          "> input, > field, > slider, > dropdown, > textarea": {
+            "margin-top": "0.25rem"
+          },
+          "margin-bottom": "0.375rem",
           "pointer_events": "auto",
           "text-weight": "400"
         },
