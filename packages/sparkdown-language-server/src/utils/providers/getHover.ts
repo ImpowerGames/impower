@@ -4,47 +4,9 @@ import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/S
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { getExpectedSelectorTypes } from "@impower/sparkdown/src/compiler/utils/getExpectedSelectorTypes";
+import { getImagePreviewMarkup } from "@impower/sparkdown/src/compiler/utils/getImagePreviewSrc";
 import { resolveSelector } from "@impower/sparkdown/src/compiler/utils/resolveSelector";
 import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
-
-const resolveRootImage = (
-  ref: { $type: string; $name: string },
-  context: { [type: string]: { [name: string]: any } } | undefined,
-  stack: Set<{ $type: string; $name: string }>,
-):
-  | { $type: "image"; $name: string; src: string; uri: string; data: string }
-  | {
-      $type: "filtered_image";
-      $name: string;
-      filtered_src: string;
-    }
-  | "circular"
-  | undefined => {
-  const referencedValue = ref?.$type
-    ? context?.[ref?.$type]?.[ref.$name]
-    : (context?.["filtered_image"]?.[ref.$name] ??
-      context?.["image"]?.[ref.$name] ??
-      context?.["layered_image"]?.[ref.$name]);
-
-  if (stack.has(referencedValue)) {
-    return "circular";
-  }
-  stack.add(referencedValue);
-
-  if (referencedValue?.$type === "filtered_image") {
-    return referencedValue;
-  }
-
-  if (referencedValue?.$type === "image") {
-    return referencedValue;
-  }
-
-  if (referencedValue?.$type === "layered_image") {
-    return resolveRootImage(referencedValue?.assets?.[0], context, stack);
-  }
-
-  return undefined;
-};
 
 export const getHover = (
   document: SparkdownDocument | undefined,
@@ -101,29 +63,19 @@ export const getHover = (
                 );
               }
             }
-            const stack = new Set<{ $type: string; $name: string }>();
-            const rootImage = resolveRootImage(
-              resolvedValue,
+            const preview = getImagePreviewMarkup(
               program.context,
-              stack,
+              resolvedValue,
             );
-            if (rootImage !== "circular") {
-              const src =
-                rootImage?.$type === "filtered_image"
-                  ? rootImage?.filtered_src
-                  : rootImage?.$type === "image"
-                    ? rootImage?.src || rootImage?.uri
-                    : undefined;
-              if (src) {
-                result = {
-                  contents: {
-                    kind: MarkupKind.Markdown,
-                    value: `<img src="${src}" alt="${name}" height="180" />`,
-                  },
-                  range,
-                };
-                return false;
-              }
+            if (preview) {
+              result = {
+                contents: {
+                  kind: MarkupKind.Markdown,
+                  value: preview,
+                },
+                range,
+              };
+              return false;
             }
           }
           // TODO: const name: type

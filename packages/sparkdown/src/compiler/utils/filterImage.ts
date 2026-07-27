@@ -4,9 +4,13 @@ import { filterSVG } from "./filterSVG";
 const getNestedFilters = (
   name: string,
   context: { [type: string]: { [name: string]: any } },
+  // `a -> b -> a` would otherwise recurse until the stack blows. The
+  // self-reference check below only catches a chain of length one.
+  seen = new Set<string>(),
 ): { includes: unknown[]; excludes: unknown[] }[] => {
   const filteredImage = context?.["filtered_image"]?.[name];
-  if (filteredImage) {
+  if (filteredImage && !seen.has(name)) {
+    seen.add(name);
     const filters: { includes: unknown[]; excludes: unknown[] }[] =
       filteredImage?.["filters"]?.map?.(
         (reference: { $type: "filtered_image"; $name: string }) =>
@@ -14,7 +18,7 @@ const getNestedFilters = (
       ) || [];
     const imageToFilterName = filteredImage?.["image"]?.["$name"];
     if (imageToFilterName !== name) {
-      filters.push(...getNestedFilters(imageToFilterName, context));
+      filters.push(...getNestedFilters(imageToFilterName, context, seen));
     }
     return filters;
   }
