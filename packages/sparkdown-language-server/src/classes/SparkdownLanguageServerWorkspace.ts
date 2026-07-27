@@ -169,6 +169,13 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
+  override async getFileBytes(uri: string): Promise<string | undefined> {
+    return this._connection?.sendRequest(ExecuteCommandRequest.type, {
+      command: "sparkdown.getFileBytes",
+      arguments: [uri],
+    });
+  }
+
   override async getFileVersion(uri: string): Promise<number> {
     return this._connection?.sendRequest(ExecuteCommandRequest.type, {
       command: "sparkdown.getFileVersion",

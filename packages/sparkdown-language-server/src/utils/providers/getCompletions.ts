@@ -4,7 +4,6 @@ import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/Spark
 import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/SparkdownCompilerConfig";
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { getImagePreviewMarkup } from "@impower/sparkdown/src/compiler/utils/getImagePreviewSrc";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -379,18 +378,12 @@ const addStructReferenceCompletions = (
               labelDetails: { description: type },
               kind: CompletionItemKind.Constructor,
             };
-            const struct = structs[name];
-            // `layered_image.assets` / `filtered_image.image` hold bare
-            // REFERENCES, not resolved structs, so the src has to be walked
-            // down to the underlying `image`.
-            const preview = IMAGE_TYPES.includes(type)
-              ? getImagePreviewMarkup(program.context, struct)
-              : undefined;
-            if (preview) {
-              completion.documentation = {
-                kind: MarkupKind.Markdown,
-                value: preview,
-              };
+            // The image preview is deliberately NOT built here — an asset list
+            // runs to hundreds of items and only the highlighted one is ever
+            // shown. `completionItem/resolve` builds it on demand; this just
+            // records where to find the struct again.
+            if (IMAGE_TYPES.includes(type)) {
+              completion.data = { type, name };
             }
             if (completion.label && !completions.has(completion.label)) {
               completions.set(completion.label, completion);
