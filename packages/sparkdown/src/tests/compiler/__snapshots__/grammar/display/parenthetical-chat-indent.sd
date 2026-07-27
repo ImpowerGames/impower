@@ -1,0 +1,9 @@
+scene ChatScene()
+  SPEAKER:
+    (whispering)
+    Quiet words.
+
+                        [Seen 7:21 PM]
+
+  A plain action line after the deeply indented chat bubble.
+end
