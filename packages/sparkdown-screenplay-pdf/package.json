@@ -7,16 +7,6 @@
   "engines": {
     "node": "*"
   },
-  "exports": {
-    ".": {
-      "require": "./dist/sparkdown-screenplay-pdf.js",
-      "import": "./dist/sparkdown-screenplay-pdf.js"
-    },
-    "./*": {
-      "require": "./dist/*",
-      "import": "./dist/*"
-    }
-  },
   "main": "dist/sparkdown-screenplay-pdf.js",
   "bin": {
     "sparkdown-pdf": "./dist/cli/buildPdfCli.cjs"
