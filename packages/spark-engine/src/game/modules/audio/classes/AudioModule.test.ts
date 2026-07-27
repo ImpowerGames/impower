@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Game } from "../../../core/classes/Game";
+import { applyBuiltinDefaults } from "../../../core/utils/applyBuiltinDefaults";
 import { audioBuiltinDefinitions } from "../audioBuiltinDefinitions";
 import { AudioModule } from "./AudioModule";
 
@@ -21,17 +22,22 @@ class ProbeAudioModule extends AudioModule {
   }
 }
 
+/**
+ * Builds the context the way `Game` does: authored defines are merged in
+ * sparse, then completed against their type's `$default` before any module
+ * sees them. Going through `applyBuiltinDefaults` here rather than
+ * hand-completing the fixtures keeps these tests honest about the real path.
+ */
 const createModule = (synths: Record<string, any>) => {
-  const game = {
-    context: {
-      system: {},
-      config: {},
-      // The builtins are full objects because they are built by calling
-      // `default_synth()`; the authored ones deliberately are not.
-      synth: { ...audioBuiltinDefinitions().synth, ...synths },
-    },
-  } as unknown as Game;
-  return new ProbeAudioModule(game);
+  const context: any = {
+    system: {},
+    config: {},
+    // The builtins are full objects because they are built by calling
+    // `default_synth()`; the authored ones deliberately are not.
+    synth: { ...audioBuiltinDefinitions().synth, ...synths },
+  };
+  applyBuiltinDefaults(context);
+  return new ProbeAudioModule({ context } as unknown as Game);
 };
 
 /** A voice authored with nothing but a pitch -- the shape #268 reported. */
@@ -105,6 +111,36 @@ describe("AudioModule synth resolution (#268)", () => {
       const m = createModule({});
       const builtin = audioBuiltinDefinitions().synth.character;
       expect(m.resolve(ref("character"))!.synth).toEqual(builtin);
+    });
+  });
+
+  describe("synth detection is a question about type", () => {
+    /**
+     * DEFENCE IN DEPTH, not the production path. Since `Game` completes every
+     * define, a synth arriving here always has `shape` and the old
+     * `"shape" in resolvedAsset` gate would pass too -- reverting it does not
+     * fail any other test in this repo, and I would rather say so than imply
+     * this carries the fix.
+     *
+     * It earns its place by making the module correct on its own terms: these
+     * contexts are built WITHOUT `applyBuiltinDefaults`, which is what any
+     * caller constructing a context by hand gets. Identifying a synth by the
+     * one property someone happened to author is how #268 turned a sparse
+     * define into total silence.
+     */
+    const rawModule = (synths: Record<string, any>) =>
+      new ProbeAudioModule({
+        context: { system: {}, config: {}, synth: synths },
+      } as unknown as Game);
+
+    it("recognises a synth with no `shape` in an uncompleted context", () => {
+      const m = rawModule({ raffles: PARTIAL_SYNTH });
+      expect(m.resolve(ref("raffles"))?.synth).toBeDefined();
+    });
+
+    it("hands that synth through exactly as given", () => {
+      const m = rawModule({ raffles: PARTIAL_SYNTH });
+      expect(m.resolve(ref("raffles"))!.synth).toEqual(PARTIAL_SYNTH);
     });
   });
 

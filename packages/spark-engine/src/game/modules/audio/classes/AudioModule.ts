@@ -4,7 +4,6 @@ import {
   AudioBuiltins,
   audioBuiltinDefinitions,
 } from "../audioBuiltinDefinitions";
-import { default_synth } from "../constructors/default_synth";
 import { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
 import { ChannelState } from "../types/ChannelState";
 import { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
@@ -216,20 +215,15 @@ export class AudioModule extends Module<
           d.loopEnd = resolvedAsset.loop_end;
         }
         if (isSynth(resolvedAsset, d.type)) {
-          // Fill in the type's defaults. A `define x as synth with ... end`
-          // reaches the context carrying ONLY the properties the author
-          // actually wrote -- nothing merges the `synth` constructor's
-          // defaults in on the way -- so a voice authored as just
-          // `pitch = { frequency = 340 }` arrives without `shape`, without an
-          // envelope, and without a volume. The builtin synths look complete
-          // only because they are built by calling `default_synth()`.
-          //
           // This used to gate on `"shape" in resolvedAsset`, which silently
           // dropped every partially-authored synth: `d.synth` was never set,
-          // so the tone events played nothing at all. Detect synths by their
-          // type instead, and give them the same complete shape the builtins
-          // get.
-          d.synth = default_synth(resolvedAsset as Synth);
+          // so the tone events played nothing at all (#268). Whether a thing
+          // is a synth is a question about its type, not about which
+          // properties its author happened to write.
+          //
+          // The struct is already complete by this point -- `Game` makes every
+          // define inherit its type's `$default` when it builds the context.
+          d.synth = resolvedAsset as Synth;
         }
         d.tones = this.parseTones(d.key);
       }

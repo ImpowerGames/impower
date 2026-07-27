@@ -1,7 +1,5 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
 import { Module } from "../../../core/classes/Module";
-import { default_synth } from "../../audio/constructors/default_synth";
-import type { Synth } from "../../audio/types/Synth";
 import {
   AudioInstruction,
   ImageInstruction,
@@ -427,20 +425,18 @@ export class InterpreterModule extends Module<
     return "$default";
   }
 
-  protected getMinSynthDuration(synth: Partial<Synth> | undefined) {
-    // A `define x as synth with ... end` reaches the context carrying only the
-    // properties the author wrote, so a voice authored as just
-    // `pitch = { frequency = 340 }` arrives with no envelope at all. Reading
-    // it raw returned 0 here, which under-sizes the syllable length -- while
-    // AudioModule plays that same synth with the type's default envelope. Fill
-    // the defaults in so both agree on the note's length (#268).
-    const synthEnvelope = default_synth(synth as Synth).envelope;
-    return (
-      (synthEnvelope.attack ?? 0) +
-      (synthEnvelope.decay ?? 0) +
-      (synthEnvelope.sustain ?? 0) +
-      (synthEnvelope.release ?? 0)
-    );
+  protected getMinSynthDuration(synth: { envelope?: Record<string, number> }) {
+    // The synth arrives complete -- `Game` makes every define inherit its
+    // type's `$default` when it builds the context -- so an authored voice
+    // that never wrote an envelope still has the type's one here, and this
+    // duration agrees with what AudioModule actually plays (#268).
+    const synthEnvelope = synth?.envelope;
+    return synthEnvelope
+      ? (synthEnvelope.attack ?? 0) +
+          (synthEnvelope.decay ?? 0) +
+          (synthEnvelope.sustain ?? 0) +
+          (synthEnvelope.release ?? 0)
+      : 0;
   }
 
   protected createImageChunk(imageTagContent: string): Chunk {
