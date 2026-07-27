@@ -60,11 +60,14 @@ export default class AudioManager extends Manager {
    * without first having to find and enable a setting. It starts the sampler
    * on first use, so it costs nothing until asked.
    */
+  /** The exact function this manager published, so it can tell its own apart. */
+  protected _exposedProbe?: () => unknown;
+
   protected exposeAudioProbe(): void {
     if (typeof window === "undefined") {
       return;
     }
-    (window as any).__audioProbe = () => {
+    this._exposedProbe = () => {
       if (!this._audioProbe.running) {
         this._audioProbe.start();
       }
@@ -75,11 +78,20 @@ export default class AudioManager extends Manager {
         mixers: this._audioProbe.sample(),
       };
     };
+    (window as any).__audioProbe = this._exposedProbe;
   }
 
   override onDispose() {
     this._audioProbe.stop();
-    if (typeof window !== "undefined") {
+    // Only retract our own. In preview the Application is rebuilt on every
+    // edit, so the outgoing manager's dispose can land AFTER the incoming
+    // one has published its probe -- deleting unconditionally would then wipe
+    // a live probe and leave `window.__audioProbe` undefined for the rest of
+    // the session, which is exactly what it looked like when this was found.
+    if (
+      typeof window !== "undefined" &&
+      (window as any).__audioProbe === this._exposedProbe
+    ) {
       delete (window as any).__audioProbe;
     }
     this._audioMixers.clear();
