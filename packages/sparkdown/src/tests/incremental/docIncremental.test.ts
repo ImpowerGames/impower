@@ -320,6 +320,48 @@ describe("doc-input incremental — depth-change edits", () => {
 // Sequential edit bursts (chained incremental trees, like real typing)
 // ---------------------------------------------------------------------------
 
+describe("doc-input incremental — no-op continuation parses", () => {
+  test("a fragments-only reparse (no edit) reuses the whole packet without truncating it", () => {
+    // CodeMirror re-runs the parser with fragments but NO change for
+    // scroll-continuation; the fragment analysis maps that to a zero-width
+    // zero-offset "edit" at the document end. This must NOT rewind the
+    // cached packet: in a document whose tail is one giant root scope with
+    // no internal pure boundaries, rewinding discards most of the cache and
+    // the next real keystroke pays a near-full re-tokenization.
+    const parser = getParser();
+    const text = bigThenBlock(40);
+    const tree = parser.parse(doc(text) as any);
+    const fragments = TreeFragment.addTree(tree);
+    const tree2 = parser.parse(doc(text) as any, fragments);
+    expect(dump(tree2, text)).toBe(dump(parser.parse(doc(text) as any), text));
+    // the cached packet must still cover the whole document
+    const cached: any = Object.values((tree2 as any).props ?? {}).find(
+      (v: any) => v && v.packet,
+    );
+    expect(cached, "tree2 should carry a cached compiler").toBeTruthy();
+    expect(cached.packet.last?.to).toBe(text.length);
+    // and a subsequent real edit must still restart near the edit, not at
+    // the document start
+    const edit = replaceEdit(
+      text,
+      "This is dialogue line number 20 inside the block.",
+      "This is EDITED dialogue line 20.",
+    );
+    let fragments2 = TreeFragment.addTree(tree2);
+    fragments2 = TreeFragment.applyChanges(fragments2, [
+      {
+        fromA: edit.from,
+        toA: edit.to,
+        fromB: edit.from,
+        toB: edit.from + edit.insert.length,
+      },
+    ]);
+    const newText = applyEdit(text, edit);
+    const incTree = parser.parse(doc(newText) as any, fragments2);
+    expectIdentical("post-continuation edit", newText, incTree);
+  });
+});
+
 describe("doc-input incremental — sequential edits", () => {
   test("a typing burst inside a large block stays byte-identical", () => {
     const parser = getParser();

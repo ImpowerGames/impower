@@ -102,6 +102,23 @@ export class Compiler {
     // a stale split request from a previous parse run must not leak into
     // this one
     this.packet.clearScheduledSplit();
+    // No-op "edit" (the fragment analysis produces a zero-width, zero-offset
+    // edit at the document end for scroll-continuation parses): if the
+    // packet already covers through that point, EVERY cached chunk is still
+    // valid — reuse them all without rewinding. Rewinding here would
+    // discard everything after the last split point behind the document end
+    // and force the NEXT parse to re-tokenize it, which is most of the
+    // document when a giant root scope has no internal pure boundaries.
+    const packetEnd = this.packet.last?.to ?? 0;
+    if (
+      editedOffset === 0 &&
+      editedFrom === editedTo &&
+      packetEnd >= editedFrom &&
+      packetEnd > 0
+    ) {
+      this.reparsedFrom = packetEnd;
+      return packetEnd;
+    }
     const splitPointBeforeEdit = this.packet.findBehindSplitPoint(editedFrom);
     let splitBehind = this.packet.findBehindSplitPoint(
       splitPointBeforeEdit.chunk?.from ?? 0,
