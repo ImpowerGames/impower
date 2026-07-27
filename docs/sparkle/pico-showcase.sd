@@ -290,30 +290,30 @@ layout main with
             field_group:
               group_label:
                 strong "Checkboxes"
-              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
                 checkbox #checked=true
                 text "Checkbox"
-              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
                 checkbox
                 text "Checkbox 2"
 
             field_group:
               group_label:
                 strong "Radio buttons"
-              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
                 radio #name="radio" #checked=true
                 text "Radio button"
-              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
                 radio #name="radio"
                 text "Radio button 2"
 
             field_group:
               group_label:
                 strong "Switches"
-              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
                 switch #checked=true
                 text "Switch"
-              row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
+              label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
                 switch #checked={agreed} @change=set_agreed
                 text "Switch 2"
 

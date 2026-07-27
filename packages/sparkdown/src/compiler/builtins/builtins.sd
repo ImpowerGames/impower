@@ -2678,6 +2678,10 @@ end
 style group_label with
   text-weight = 600
   padding = 0
+  -- A legend introduces the controls under it, so it owns the space between
+  -- itself and the first one. Half a step, not a full one: the pair reads as
+  -- one unit rather than two stacked blocks.
+  margin-bottom = 0.5rem
 end
 
 
@@ -2781,7 +2785,15 @@ end
 -- button): no gap, and the inner corners squared off so they read as a single
 -- unit. Use a plain `row #child-gap=…` for merely spaced children.
 style group with
-  display = flex
+  -- INLINE-flex, matching the reference's `<fieldset>`. Not cosmetic: an
+  -- inline-level box does not margin-collapse, so the group's own
+  -- `margin-bottom` below STAYS INSIDE its form. As a block-level flex it
+  -- collapsed straight out through the form's bottom edge and merged with the
+  -- section's margin, costing the section a full rhythm step -- and the group
+  -- itself measured correctly the whole time, so the loss showed up only as a
+  -- short section.
+  width = 100%
+  display = inline-flex
   child-layout = row
   child-gap = 0
   -- A group is one composite control, so its parts must not each carry the

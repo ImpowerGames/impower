@@ -1709,6 +1709,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -1784,7 +1785,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {
@@ -3868,6 +3870,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -3943,7 +3946,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {
@@ -5989,6 +5993,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -6064,7 +6069,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {
@@ -8232,6 +8238,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -8307,7 +8314,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {
@@ -10334,6 +10342,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -10409,7 +10418,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {
@@ -12418,6 +12428,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -12493,7 +12504,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {
@@ -14552,6 +14564,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -14627,7 +14640,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {
@@ -16653,6 +16667,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -16728,7 +16743,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {
@@ -18754,6 +18770,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -18829,7 +18846,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {
@@ -20855,6 +20873,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -20930,7 +20949,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {
@@ -22956,6 +22976,7 @@ spark-web-player #game .field_group {
 spark-web-player #game .group_label {
   font-weight: 600;
   padding: 0px;
+  margin-bottom: 0.5rem;
 }
 spark-web-player #game .modal {
   display: none;
@@ -23031,7 +23052,8 @@ spark-web-player #game .badge {
   font-weight: 600;
 }
 spark-web-player #game .group {
-  display: flex;
+  width: 100%;
+  display: inline-flex;
   flex-direction: row;
   gap: 0px;
   >* {

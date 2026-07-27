@@ -18595,12 +18595,14 @@
           },
           "child-gap": "0",
           "child-layout": "row",
-          "display": "flex",
-          "margin-bottom": "1rem"
+          "display": "inline-flex",
+          "margin-bottom": "1rem",
+          "width": "100%"
         },
         "group_label": {
           "$name": "group_label",
           "$type": "style",
+          "margin-bottom": "0.5rem",
           "padding": "0",
           "text-weight": "600"
         },
@@ -92395,12 +92397,14 @@
           },
           "child-gap": "0",
           "child-layout": "row",
-          "display": "flex",
-          "margin-bottom": "1rem"
+          "display": "inline-flex",
+          "margin-bottom": "1rem",
+          "width": "100%"
         },
         "group_label": {
           "$name": "group_label",
           "$type": "style",
+          "margin-bottom": "0.5rem",
           "padding": "0",
           "text-weight": "600"
         },
