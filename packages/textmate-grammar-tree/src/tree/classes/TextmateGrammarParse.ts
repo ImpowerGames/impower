@@ -117,11 +117,25 @@ export class TextmateGrammarParse implements PartialParse {
       this.compiler = new Compiler(grammar);
     }
 
+    // When restarting from an in-scope split point, anchor the tokenizer's
+    // text window at the OUTERMOST open scope's begin position (not the
+    // restart point): lookbehind assertions evaluate against `state.str`,
+    // and the original parse could see back to the construct's start.
+    const resume = this.compiler.resumeState;
+    this.compiler.resumeState = undefined;
+    const anchor =
+      resume && resume.frames.length > 0
+        ? Math.min(resume.frames[0]!.openedAtAbs, this.region.from)
+        : this.region.from;
+
     this.tokenizer = new ResumableTokenizer(
       grammar,
       (pos: number) => this.region.next(pos),
-      this.region.from,
+      anchor,
     );
+    if (resume) {
+      this.tokenizer.restore(resume, this.region.from);
+    }
   }
 
   /**
@@ -274,6 +288,17 @@ export class TextmateGrammarParse implements PartialParse {
 
       const step = this.tokenizer.step();
       let matchLength = step.length;
+
+      if (step.splitAt) {
+        // The tokenizer crossed a line boundary inside open scopes: split
+        // the chunk stream there (before this batch's tokens are added —
+        // the lookbehind-buffered token from before the boundary arrives
+        // in this same batch) so a later edit can restart at the boundary.
+        this.compiler.packet.scheduleSplit(
+          step.splitAt.at,
+          step.splitAt.resume,
+        );
+      }
 
       if (matchLength === 0) {
         this.consecutiveEmptyMatchCount += 1;

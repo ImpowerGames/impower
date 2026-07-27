@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { GrammarToken, type ParserAction } from "../../core";
+import { type TokenizerResume } from "../../grammar/classes/ResumableTokenizer";
 
 import { type ITreeBuffer } from "../types/ITreeBuffer";
 import { CompileStack } from "./CompileStack";
@@ -61,6 +62,21 @@ export class Chunk {
 
   isSplitPoint: boolean;
 
+  /**
+   * True when this chunk began with no open scopes. Chunks minted at a
+   * line boundary inside open scopes (see {@link inheritFrom}) start
+   * impure; they are valid RESTART points (via their {@link resume}
+   * snapshot) but must not be spliced in as reused-ahead chunks — their
+   * baked child counts assume the exact token stream that preceded them.
+   */
+  startsPure = true;
+
+  /**
+   * Tokenizer state needed to restart a parse at this chunk's `from`.
+   * Only present on split-point chunks minted inside open scopes.
+   */
+  resume?: TokenizerResume;
+
   get endsPure() {
     return !this.scopes || this.scopes.length === 0;
   }
@@ -87,6 +103,40 @@ export class Chunk {
   offset(offset: number) {
     this.from += offset;
     this.to = this.from + this.length;
+    // The resume snapshot's positions are document-absolute — keep them in
+    // the same coordinate space as the chunk when it slides.
+    if (this.resume) {
+      for (const f of this.resume.frames) {
+        f.openedAtAbs += offset;
+      }
+    }
+  }
+
+  /**
+   * Seeds this chunk's compile stack from the previous chunk's residual
+   * open frames so that a scope opened in an earlier chunk can be closed
+   * here with a correct span AND a correct child count (the "inherit
+   * scopes + accumulate counts" fix proven in crossChunkAssemblySpike):
+   * the open position is carried ABSOLUTE (stored relative to this chunk,
+   * possibly negative — the Uint32Array wraps it and the Int32Array
+   * compile buffer unwraps it on emit), and the child count carries the
+   * running total instead of restarting at zero.
+   */
+  inheritFrom(prev: Chunk) {
+    this.startsPure = false;
+    for (let i = 0; i < prev.stack.length; i++) {
+      // `| 0` unwraps a possibly-wrapped negative stored by an earlier
+      // inherit before rebasing to this chunk's coordinates.
+      const prevRelative = prev.stack.positions[i]! | 0;
+      this.stack.push(
+        prev.stack.ids[i]!,
+        prev.from + prevRelative - this.from,
+        prev.stack.children[i]!,
+      );
+    }
+    if (prev.scopes && prev.scopes.length > 0) {
+      this.scopes = prev.scopes.slice();
+    }
   }
 
   /**

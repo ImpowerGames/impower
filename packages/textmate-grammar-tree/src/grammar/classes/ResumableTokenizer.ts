@@ -7,6 +7,7 @@ import { type GrammarToken } from "../../core/types/GrammarToken";
 import { Wrapping } from "../enums/Wrapping";
 import { type Rule } from "../types/Rule";
 import { Grammar } from "./Grammar";
+import { type GrammarNode } from "./GrammarNode";
 import { GrammarState } from "./GrammarState";
 import { Matched } from "./Matched";
 import { ScopedRule } from "./rules/ScopedRule";
@@ -52,6 +53,26 @@ interface TokenizerFrame {
   wrapperNodes?: number[];
 }
 
+/**
+ * Everything needed to resume tokenization at a line boundary inside open
+ * scopes: the grammar scope stack (nodes + begin captures, for end-pattern
+ * backreferences) plus the tokenizer's frame metadata. Positions are
+ * document-absolute so the snapshot survives being carried on a cached
+ * chunk across parses. Holds live rule/node references — this is an
+ * in-process cache, never serialized.
+ */
+export interface TokenizerResume {
+  stack: { node: GrammarNode; beginCaptures: string[] }[];
+  frames: {
+    rule: ScopedRule;
+    openedAtAbs: number;
+    contentNodeIndex: number;
+    contentOpened: boolean;
+    emptyMatchCount: number;
+    wrapperNodes?: number[];
+  }[];
+}
+
 /** Result of {@link ResumableTokenizer.step}. */
 export interface TokenizerStepResult {
   /**
@@ -67,6 +88,13 @@ export interface TokenizerStepResult {
 
   /** True once the tokenizer has fully drained (EOF reached, all flushed). */
   done: boolean;
+
+  /**
+   * Set when this step started at a line boundary inside open scopes: the
+   * parse should split the chunk stream at `at` (document-absolute) and
+   * store `resume` on the new chunk so a later parse can restart there.
+   */
+  splitAt?: { at: number; resume: TokenizerResume };
 }
 
 /** Internal result of dispatching rules at one position. */
@@ -143,6 +171,9 @@ export class ResumableTokenizer {
 
   /** True once EOF was hit and every frame was drained. */
   protected drained = false;
+
+  /** Highest position already checked for a line-boundary split. */
+  protected lastSplitCheckPos = 0;
 
   constructor(
     grammar: Grammar,
@@ -474,6 +505,54 @@ export class ResumableTokenizer {
    * match, one end, or one frame close. Returns the flushed tokens and the
    * number of characters consumed.
    */
+  /** Captures a document-absolute resume snapshot of the current state. */
+  snapshot(): TokenizerResume {
+    return {
+      stack: this.state.stack.stack.slice(1).map((el) => ({
+        node: el.node,
+        beginCaptures: el.beginCaptures.slice(),
+      })),
+      frames: this.frames.map((f) => ({
+        rule: f.rule,
+        openedAtAbs: this.anchor + f.openedAt,
+        contentNodeIndex: f.contentNodeIndex,
+        contentOpened: f.contentOpened,
+        emptyMatchCount: f.emptyMatchCount,
+        wrapperNodes: f.wrapperNodes?.slice(),
+      })),
+    };
+  }
+
+  /**
+   * Restores a mid-scope state captured by {@link snapshot} and moves the
+   * head to `restartAbs`. The tokenizer must have been constructed with an
+   * anchor at or before the outermost open scope's begin position so that
+   * lookbehinds and `visited` keys see the same text window the original
+   * parse saw (`state.str` is contiguous from the anchor).
+   */
+  restore(resume: TokenizerResume, restartAbs: number) {
+    this.pos = restartAbs - this.anchor;
+    this.lastSplitCheckPos = 0;
+    const stack = this.state.stack;
+    for (const el of resume.stack) {
+      stack.push(el.node, el.beginCaptures.slice());
+    }
+    for (const f of resume.frames) {
+      const openedAt = f.openedAtAbs - this.anchor;
+      this.frames.push({
+        rule: f.rule,
+        openedAt,
+        contentNodeIndex: f.contentNodeIndex,
+        contentOpened: f.contentOpened,
+        emptyMatchCount: f.emptyMatchCount,
+        wrapperNodes: f.wrapperNodes?.slice(),
+      });
+      // The recursive matcher holds each open scope's (id, position) in
+      // `visited` for the scope's whole lifetime.
+      this.state.enter(f.rule.id, openedAt);
+    }
+  }
+
   step(): TokenizerStepResult {
     const out: GrammarToken[] = [];
     const posBefore = this.pos;
@@ -500,20 +579,31 @@ export class ResumableTokenizer {
     }
 
     if (this.frames.length > 0) {
+      // At the FIRST step on a new line inside open scopes, capture a
+      // resume snapshot BEFORE any matching mutates the state: the parse
+      // splits its chunk stream here so a later edit further down the
+      // block can restart from this boundary instead of the block start.
+      let splitAt: TokenizerStepResult["splitAt"];
+      if (this.pos > this.lastSplitCheckPos) {
+        this.lastSplitCheckPos = this.pos;
+        if (this.state.str.charCodeAt(this.pos - 1) === 10 /* \n */) {
+          splitAt = { at: this.anchor + this.pos, resume: this.snapshot() };
+        }
+      }
       const frame = this.frames[this.frames.length - 1]!;
       const applyEndPatternLast = frame.rule.applyEndPatternLast;
       if (!applyEndPatternLast && this.tryEnd(out)) {
-        return { tokens: out, length: this.pos - posBefore, done: false };
+        return { tokens: out, length: this.pos - posBefore, done: false, splitAt };
       }
       if (this.tryContent(out)) {
-        return { tokens: out, length: this.pos - posBefore, done: false };
+        return { tokens: out, length: this.pos - posBefore, done: false, splitAt };
       }
       if (applyEndPatternLast && this.tryEnd(out)) {
-        return { tokens: out, length: this.pos - posBefore, done: false };
+        return { tokens: out, length: this.pos - posBefore, done: false, splitAt };
       }
       // Neither content nor end matched mid-input: incomplete scope.
       this.closeWithoutEnd(out, false);
-      return { tokens: out, length: this.pos - posBefore, done: false };
+      return { tokens: out, length: this.pos - posBefore, done: false, splitAt };
     }
 
     if (this.tryTopLevel(out)) {

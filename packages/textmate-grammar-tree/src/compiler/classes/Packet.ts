@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { type GrammarToken, type ParserAction } from "../../core";
+import { type TokenizerResume } from "../../grammar/classes/ResumableTokenizer";
 
 import { search } from "../utils/search";
 import { Chunk } from "./Chunk";
@@ -24,11 +25,37 @@ export class Packet {
   /** The node(s) that are open at the end of this packet. */
   scopes?: ParserAction;
 
+  /**
+   * A pending in-scope split request from the tokenizer: the next token at
+   * or past `at` should start a new inheriting split-point chunk carrying
+   * `resume` (see {@link add}).
+   */
+  protected pendingSplit?: { at: number; resume: TokenizerResume };
+
   /** @param chunks - The chunks to populate the packet with. */
   constructor(chunks?: Chunk[]) {
     if (chunks) {
       this.chunks = chunks;
     }
+  }
+
+  /**
+   * Schedules an in-scope line-boundary split: when the next token at or
+   * past `at` arrives, a new split-point chunk is minted there, inheriting
+   * the previous chunk's residual open frames and carrying the tokenizer's
+   * resume snapshot so a later parse can restart at `at`.
+   *
+   * (Called before the boundary's tokens are added — the tokenizer's
+   * one-token lookbehind buffer means the last token BEFORE the boundary
+   * arrives in the same batch; comparing `from >= at` sorts them out.)
+   */
+  scheduleSplit(at: number, resume: TokenizerResume) {
+    this.pendingSplit = { at, resume };
+  }
+
+  /** Clears any scheduled split (a new parse run starts fresh). */
+  clearScheduledSplit() {
+    this.pendingSplit = undefined;
   }
 
   /** The first chunk in the packet. */
@@ -80,6 +107,21 @@ export class Packet {
     let current = this.chunks[this.chunks.length - 1];
 
     let newChunk = false;
+
+    if (this.pendingSplit && from >= this.pendingSplit.at) {
+      const { at, resume } = this.pendingSplit;
+      this.pendingSplit = undefined;
+      // Mint an inheriting split-point chunk at the line boundary — but
+      // only mid-scope: at a pure boundary the ordinary split machinery
+      // below already provides a (cheaper, snapshot-free) restart point.
+      if (current && !current.endsPure && current.from < at && current.to <= at) {
+        current = new Chunk(at, true);
+        current.inheritFrom(this.chunks[this.chunks.length - 1]!);
+        current.resume = resume;
+        this.chunks.push(current);
+        newChunk = true;
+      }
+    }
 
     if (!current || current.endsPure) {
       current = new Chunk(from);
@@ -157,7 +199,16 @@ export class Packet {
     let chunk = this.chunks[index];
 
     while (chunk) {
-      if (chunk && chunk.isSplitPoint && chunk.from > editedTo) {
+      // Only PURE split points are valid ahead-splice targets: an in-scope
+      // split chunk's baked child counts and spans assume the exact token
+      // stream that preceded it in the parse that made it, which the
+      // reparse behind it may have changed.
+      if (
+        chunk &&
+        chunk.isSplitPoint &&
+        chunk.startsPure &&
+        chunk.from > editedTo
+      ) {
         // This is the first pure chunk after the edit.
         // We can safely reuse everything after this point
         return { chunk, index };

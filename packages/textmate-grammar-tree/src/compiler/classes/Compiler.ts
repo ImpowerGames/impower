@@ -4,6 +4,7 @@
 
 import { GrammarToken, NodeID } from "../../core";
 import { Grammar } from "../../grammar";
+import { type TokenizerResume } from "../../grammar/classes/ResumableTokenizer";
 
 import { SpecialRecord } from "../enums/SpecialRecord";
 import { ITreeBuffer } from "../types/ITreeBuffer";
@@ -36,6 +37,12 @@ export class Compiler {
   declare reparsedTo?: number;
   declare ahead?: Packet;
   declare maxTreeBufferLength: number;
+
+  /**
+   * When {@link reuse} restarts from an in-scope split point, this holds
+   * the tokenizer snapshot needed to resume there (consumed by the parse).
+   */
+  declare resumeState?: TokenizerResume;
 
   constructor(
     grammar: Grammar,
@@ -91,13 +98,34 @@ export class Compiler {
     // `[reparsedFrom, staleReparsedTo]` instead of `[reparsedFrom, end]`,
     // silently dropping every annotation for the newly appended content.
     this.reparsedTo = undefined;
+    this.resumeState = undefined;
+    // a stale split request from a previous parse run must not leak into
+    // this one
+    this.packet.clearScheduledSplit();
     const splitPointBeforeEdit = this.packet.findBehindSplitPoint(editedFrom);
-    const splitBehind = this.packet.findBehindSplitPoint(
+    let splitBehind = this.packet.findBehindSplitPoint(
       splitPointBeforeEdit.chunk?.from ?? 0,
     );
+    // An in-scope split point is only restartable with its resume snapshot;
+    // without one, restarting there would reparse mid-block with an empty
+    // scope stack (the wrong-tree failure mode). Walk further back.
+    while (
+      splitBehind.chunk &&
+      !splitBehind.chunk.startsPure &&
+      !splitBehind.chunk.resume
+    ) {
+      splitBehind = this.packet.findBehindSplitPoint(splitBehind.chunk.from);
+    }
     if (splitBehind.index != null) {
       const right = this.rewind(splitBehind.index);
       const from = splitBehind.chunk?.from ?? 0;
+      // Capture the restart snapshot for in-scope split points, and detach
+      // it from the discarded chunk BEFORE the slide below — the restart
+      // point is behind the edit, so its positions must not shift.
+      this.resumeState = splitBehind.chunk?.resume;
+      if (splitBehind.chunk) {
+        splitBehind.chunk.resume = undefined;
+      }
       right.slide(0, editedOffset, true);
       const splitAhead = right.findAheadSplitPoint(editedTo);
       if (splitAhead.chunk && splitAhead.index != null) {
