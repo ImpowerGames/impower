@@ -18904,6 +18904,68 @@
           "pointer_events": "auto",
           "text-weight": "400"
         },
+        "layouts": {
+          "$name": "layouts",
+          "$type": "style",
+          "& >> #data-tooltip": {
+            "@after": {
+              "background-color": "transparent",
+              "border-left-color": "transparent",
+              "border-left-style": "solid",
+              "border-left-width": "0.3rem",
+              "border-right-color": "transparent",
+              "border-right-style": "solid",
+              "border-right-width": "0.3rem",
+              "border-top-color": "slate_95",
+              "border-top-style": "solid",
+              "border-top-width": "0.3rem",
+              "bottom": "100%",
+              "content": "",
+              "corner": "0",
+              "display": "block",
+              "left": "50%",
+              "opacity": "0",
+              "padding": "0",
+              "pointer-events": "none",
+              "position": "absolute",
+              "transform": "translate(-50%, 0)",
+              "z-index": "99"
+            },
+            "@before": {
+              "background-color": "slate_95",
+              "bottom": "100%",
+              "content": "attr(data-tooltip)",
+              "corner": "0.25rem",
+              "display": "block",
+              "left": "50%",
+              "opacity": "0",
+              "padding": "0.25rem 0.5rem",
+              "pointer-events": "none",
+              "position": "absolute",
+              "text-color": "black",
+              "text-decoration": "none",
+              "text-overflow": "ellipsis",
+              "text-size": "0.875rem",
+              "text-style": "normal",
+              "text-weight": "400",
+              "transform": "translate(-50%, -0.25rem)",
+              "z-index": "99"
+            },
+            "@hovered @after, @focused @after": {
+              "animation-duration": "0.2s",
+              "animation-fill-mode": "forwards",
+              "animation-name": "tooltip_caret_slide",
+              "opacity": "1"
+            },
+            "@hovered @before, @focused @before": {
+              "animation-duration": "0.2s",
+              "animation-fill-mode": "forwards",
+              "animation-name": "tooltip_slide",
+              "opacity": "1"
+            },
+            "position": "relative"
+          }
+        },
         "link": {
           "$name": "link",
           "$type": "style",
@@ -19645,66 +19707,6 @@
           "padding_right": "40px",
           "position": "absolute",
           "text_align": "center"
-        },
-        "tooltip": {
-          "$name": "tooltip",
-          "$type": "style",
-          "@after": {
-            "background-color": "transparent",
-            "border-left-color": "transparent",
-            "border-left-style": "solid",
-            "border-left-width": "0.3rem",
-            "border-right-color": "transparent",
-            "border-right-style": "solid",
-            "border-right-width": "0.3rem",
-            "border-top-color": "slate_95",
-            "border-top-style": "solid",
-            "border-top-width": "0.3rem",
-            "bottom": "100%",
-            "content": "",
-            "corner": "0",
-            "display": "block",
-            "left": "50%",
-            "opacity": "0",
-            "padding": "0",
-            "pointer-events": "none",
-            "position": "absolute",
-            "transform": "translate(-50%, 0)",
-            "z-index": "99"
-          },
-          "@before": {
-            "background-color": "slate_95",
-            "bottom": "100%",
-            "content": "attr(data-tooltip)",
-            "corner": "0.25rem",
-            "display": "block",
-            "left": "50%",
-            "opacity": "0",
-            "padding": "0.25rem 0.5rem",
-            "pointer-events": "none",
-            "position": "absolute",
-            "text-color": "black",
-            "text-decoration": "none",
-            "text-overflow": "ellipsis",
-            "text-size": "0.875rem",
-            "text-style": "normal",
-            "text-weight": "400",
-            "transform": "translate(-50%, -0.25rem)",
-            "z-index": "99"
-          },
-          "@hovered @after, @focused @after": {
-            "animation-duration": "0.2s",
-            "animation-fill-mode": "forwards",
-            "animation-name": "tooltip_caret_slide",
-            "opacity": "1"
-          },
-          "@hovered @before, @focused @before": {
-            "animation-duration": "0.2s",
-            "animation-fill-mode": "forwards",
-            "animation-name": "tooltip_slide",
-            "opacity": "1"
-          },
-          "position": "relative"
         },
         "transitional": {
           "$name": "transitional",
@@ -92771,6 +92773,68 @@
           "pointer_events": "auto",
           "text-weight": "400"
         },
+        "layouts": {
+          "$name": "layouts",
+          "$type": "style",
+          "& >> #data-tooltip": {
+            "@after": {
+              "background-color": "transparent",
+              "border-left-color": "transparent",
+              "border-left-style": "solid",
+              "border-left-width": "0.3rem",
+              "border-right-color": "transparent",
+              "border-right-style": "solid",
+              "border-right-width": "0.3rem",
+              "border-top-color": "slate_95",
+              "border-top-style": "solid",
+              "border-top-width": "0.3rem",
+              "bottom": "100%",
+              "content": "",
+              "corner": "0",
+              "display": "block",
+              "left": "50%",
+              "opacity": "0",
+              "padding": "0",
+              "pointer-events": "none",
+              "position": "absolute",
+              "transform": "translate(-50%, 0)",
+              "z-index": "99"
+            },
+            "@before": {
+              "background-color": "slate_95",
+              "bottom": "100%",
+              "content": "attr(data-tooltip)",
+              "corner": "0.25rem",
+              "display": "block",
+              "left": "50%",
+              "opacity": "0",
+              "padding": "0.25rem 0.5rem",
+              "pointer-events": "none",
+              "position": "absolute",
+              "text-color": "black",
+              "text-decoration": "none",
+              "text-overflow": "ellipsis",
+              "text-size": "0.875rem",
+              "text-style": "normal",
+              "text-weight": "400",
+              "transform": "translate(-50%, -0.25rem)",
+              "z-index": "99"
+            },
+            "@hovered @after, @focused @after": {
+              "animation-duration": "0.2s",
+              "animation-fill-mode": "forwards",
+              "animation-name": "tooltip_caret_slide",
+              "opacity": "1"
+            },
+            "@hovered @before, @focused @before": {
+              "animation-duration": "0.2s",
+              "animation-fill-mode": "forwards",
+              "animation-name": "tooltip_slide",
+              "opacity": "1"
+            },
+            "position": "relative"
+          }
+        },
         "link": {
           "$name": "link",
           "$type": "style",
@@ -93512,66 +93576,6 @@
           "padding_right": "40px",
           "position": "absolute",
           "text_align": "center"
-        },
-        "tooltip": {
-          "$name": "tooltip",
-          "$type": "style",
-          "@after": {
-            "background-color": "transparent",
-            "border-left-color": "transparent",
-            "border-left-style": "solid",
-            "border-left-width": "0.3rem",
-            "border-right-color": "transparent",
-            "border-right-style": "solid",
-            "border-right-width": "0.3rem",
-            "border-top-color": "slate_95",
-            "border-top-style": "solid",
-            "border-top-width": "0.3rem",
-            "bottom": "100%",
-            "content": "",
-            "corner": "0",
-            "display": "block",
-            "left": "50%",
-            "opacity": "0",
-            "padding": "0",
-            "pointer-events": "none",
-            "position": "absolute",
-            "transform": "translate(-50%, 0)",
-            "z-index": "99"
-          },
-          "@before": {
-            "background-color": "slate_95",
-            "bottom": "100%",
-            "content": "attr(data-tooltip)",
-            "corner": "0.25rem",
-            "display": "block",
-            "left": "50%",
-            "opacity": "0",
-            "padding": "0.25rem 0.5rem",
-            "pointer-events": "none",
-            "position": "absolute",
-            "text-color": "black",
-            "text-decoration": "none",
-            "text-overflow": "ellipsis",
-            "text-size": "0.875rem",
-            "text-style": "normal",
-            "text-weight": "400",
-            "transform": "translate(-50%, -0.25rem)",
-            "z-index": "99"
-          },
-          "@hovered @after, @focused @after": {
-            "animation-duration": "0.2s",
-            "animation-fill-mode": "forwards",
-            "animation-name": "tooltip_caret_slide",
-            "opacity": "1"
-          },
-          "@hovered @before, @focused @before": {
-            "animation-duration": "0.2s",
-            "animation-fill-mode": "forwards",
-            "animation-name": "tooltip_slide",
-            "opacity": "1"
-          },
-          "position": "relative"
         },
         "transitional": {
           "$name": "transitional",

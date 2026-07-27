@@ -184,11 +184,14 @@ end
   // caret is a border triangle, and both are hidden until hover/focus.
   test("tooltip emits a bubble, a caret, and a hover/focus reveal", async () => {
     const out = await css(`layout main with
-  text tooltip "Abbr." #data-tooltip="Abbreviation"
+  text "Abbr." #data-tooltip="Abbreviation"
 end
 `);
-    const block = out.slice(out.indexOf(".tooltip"));
+    // Attribute-driven and global: no class is involved, and the rule lives on
+    // the `layouts` container so it reaches any element in any layout.
+    const block = out.slice(out.indexOf(".layouts"));
     const rule = block.slice(0, block.indexOf("\n}\n") + 3);
+    expect(rule).toContain("[data-tooltip]");
     // The bubble's text comes from the attribute, unquoted so it resolves.
     expect(rule).toContain("content: attr(data-tooltip);");
     // Hidden until asked for — both pieces.
