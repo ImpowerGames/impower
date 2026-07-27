@@ -1002,4 +1002,14 @@ export abstract class SparkdownWorkspace {
   abstract getFileVersion(uri: string): Promise<number>;
 
   abstract getFileLanguageId(uri: string): Promise<string>;
+
+  /**
+   * Read a file's raw bytes as base64, for hosts where the file's `src` isn't
+   * fetchable from this worker (VS Code). Deliberately NOT abstract: hosts
+   * that serve their assets over http never need it, and returning undefined
+   * degrades to the non-composited preview rather than breaking them.
+   */
+  async getFileBytes(_uri: string): Promise<string | undefined> {
+    return undefined;
+  }
 }
