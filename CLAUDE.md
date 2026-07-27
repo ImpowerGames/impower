@@ -76,6 +76,40 @@ Heredocs are also lossy through some shell paths here (a `//` comment came out
 as `/`, breaking a file mid-edit). For anything with code in it, write the file
 with the editor tool rather than piping a heredoc.
 
+## Generated files — edit the YAML source, never the JSON (silent-revert footgun)
+
+These JSON files are **build artifacts**, generated from YAML sources at the
+repo root. Editing them directly *works* — tests pass, the change ships — and
+then the next `definitions` build silently regenerates them and your change
+vanishes:
+
+| Generated (do NOT edit)                                        | Source of truth                                  |
+| -------------------------------------------------------------- | ------------------------------------------------ |
+| `packages/sparkdown/language/sparkdown.language-grammar.json`  | `definitions/yaml/sparkdown.language-grammar.yaml` |
+| `packages/sparkdown/language/sparkdown.language-config.json`   | `definitions/yaml/sparkdown.language-config.yaml`  |
+| `packages/sparkdown/language/sparkdown.language-snippets.json` | `definitions/yaml/sparkdown.language-snippets.yaml` |
+
+(The full `definitions` build also propagates these to a sibling
+`vscode-sparkdown` checkout; `definitions/yaml/sparkdown.language-completions.yaml`
+exists but is not currently propagated.)
+
+The sources are easy to miss: they live under `definitions/yaml/` at the repo
+root, NOT under `packages/`, and a grep for a rule's expanded regex won't find
+them — the YAML uses `{{VARIABLE}}` templating (e.g. `{{WS}}` expands to
+`(?:[^\S\n\r])`; the `variables:` block near the top of the grammar YAML defines
+them). Rule NAMES do match, so grep for the rule name instead.
+
+To change a grammar/config/snippets rule:
+
+```sh
+# 1. edit the rule in definitions/yaml/<file>.yaml
+# 2. regenerate (from the repo root):
+cd definitions && npx tsx src/language.ts ../packages/sparkdown/language
+```
+
+Commit the YAML **and** the regenerated JSON together. If your JSON diff
+contains a change with no matching YAML diff, the change is doomed.
+
 ## Strict rule — LOOK. Never guess.
 
 When working on code or assets that affect the impower-dev web editor or visuals or images (ui, prototypes, portraits, renders, animations, layout, color, anything you can see), **verify by actually looking at the rendered pixels — screenshot and view it (zoom in for small details).** LOOK before considering your work done. This is a hard requirement, not a nice-to-have:
