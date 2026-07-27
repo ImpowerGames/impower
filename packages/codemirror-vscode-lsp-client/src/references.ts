@@ -27,11 +27,6 @@ export const referencesTheme = EditorView.baseTheme({
       "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     fontSize: "13px",
   },
-  ".cm-lsp-reference-container": {
-    display: "flex",
-    flex: 1,
-    overflow: "hidden",
-  },
   ".cm-lsp-reference-list": {
     overflowY: "auto",
     backgroundColor: "inherit",
@@ -40,6 +35,11 @@ export const referencesTheme = EditorView.baseTheme({
   ".cm-lsp-reference-file": {
     padding: "4px 8px",
     display: "flex",
+    // Explicit: a host may normalize `flex-direction` across its subtree
+    // (spark-editor forces `column` on every descendant of the editor root),
+    // and a direction-less flex container silently stacks when it does. This
+    // one is `[collapse icon][file name]`.
+    flexDirection: "row",
     alignItems: "center",
     position: "sticky",
     top: 0,
@@ -57,6 +57,9 @@ export const referencesTheme = EditorView.baseTheme({
     overflow: "clip",
     textOverflow: "ellipsis",
     display: "flex",
+    // Same reason as `.cm-lsp-reference-file` above; this one is
+    // `[line number][code snippet]`.
+    flexDirection: "row",
     gap: "8px",
     "&[aria-selected]": {
       backgroundColor: "#04395e",

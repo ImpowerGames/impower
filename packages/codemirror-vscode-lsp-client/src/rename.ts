@@ -14,6 +14,10 @@ import { LSPPlugin } from "./plugin";
 export const renameTheme = EditorView.baseTheme({
   ".cm-lsp-rename-tooltip": {
     display: "flex",
+    // Explicit: a host may normalize `flex-direction` across its subtree
+    // (spark-editor forces `column` on every descendant of the editor root),
+    // and a direction-less flex container silently stacks when it does.
+    flexDirection: "row",
     alignItems: "stretch",
     gap: "4px",
     padding: "8px",
