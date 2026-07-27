@@ -1,4 +1,5 @@
 import {
+  bytesToBase64,
   composeThumbnailBlob,
   thumbnailCacheKey,
   type ThumbnailSource,
@@ -69,17 +70,8 @@ const cacheSet = (key: string, value: string) => {
   }
 };
 
-const toDataUri = (bytes: Uint8Array, mime: string) => {
-  // Chunked so a large buffer doesn't blow the argument limit on `apply`.
-  let binary = "";
-  const CHUNK = 0x8000;
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode(
-      ...(bytes.subarray(i, i + CHUNK) as unknown as number[]),
-    );
-  }
-  return `data:${mime};base64,${btoa(binary)}`;
-};
+const toDataUri = (bytes: Uint8Array, mime: string) =>
+  `data:${mime};base64,${bytesToBase64(bytes)}`;
 
 /**
  * Fetch one layer's bytes along with the metadata its cache key needs.

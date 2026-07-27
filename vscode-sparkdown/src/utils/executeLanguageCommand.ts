@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { LSPAny } from "vscode-languageserver-protocol";
 import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
+import { bytesToBase64 } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 import { getEditor } from "./getEditor";
 import { getOpenTextDocument } from "./getOpenTextDocument";
 
@@ -20,14 +21,7 @@ const getFileText = async (uri: string) => {
  */
 const getFileBytes = async (uri: string) => {
   const buffer = await vscode.workspace.fs.readFile(vscode.Uri.parse(uri));
-  let binary = "";
-  const CHUNK = 0x8000;
-  for (let i = 0; i < buffer.length; i += CHUNK) {
-    binary += String.fromCharCode(
-      ...(buffer.subarray(i, i + CHUNK) as unknown as number[]),
-    );
-  }
-  return btoa(binary);
+  return bytesToBase64(buffer);
 };
 
 const getFileSrc = (uri: string) => {

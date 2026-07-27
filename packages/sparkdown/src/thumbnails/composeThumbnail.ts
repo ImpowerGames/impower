@@ -132,3 +132,85 @@ export const composeThumbnailBlob = async (
 const canRasterize = () =>
   typeof OffscreenCanvas !== "undefined" &&
   typeof createImageBitmap === "function";
+
+/**
+ * Base64-encode bytes in chunks.
+ *
+ * Chunked because `String.fromCharCode(...bytes)` on a whole image throws
+ * RangeError past roughly 100k elements — and a real asset is far bigger than
+ * that, so the unchunked form fails on exactly the files a thumbnail is most
+ * wanted for.
+ */
+export const bytesToBase64 = (bytes: Uint8Array) => {
+  let binary = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(
+      ...(bytes.subarray(i, i + CHUNK) as unknown as number[]),
+    );
+  }
+  return btoa(binary);
+};
+
+/** The subset of Cache Storage this needs, so callers can pass a fake. */
+export interface ThumbnailCache {
+  match(key: string): Promise<Response | undefined>;
+  put(key: string, response: Response): Promise<void>;
+}
+
+/** A file to thumbnail: its bytes plus the identity its cache key needs. */
+export interface ThumbnailFile extends Blob {
+  lastModified: number;
+}
+
+/**
+ * Cached-or-freshly-generated thumbnail response for one file, or `undefined`
+ * if it can't be generated (caller serves the original).
+ *
+ * The cache is a parameter rather than reached for directly so this is
+ * testable outside a service worker — and so the same logic could be backed by
+ * something other than Cache Storage (VS Code would use extension storage).
+ */
+export const getOrCreateThumbnail = async (
+  cache: ThumbnailCache,
+  path: string,
+  file: ThumbnailFile,
+  thumbParam: string,
+  keyPrefix = "",
+): Promise<Response | undefined> => {
+  const requested = Math.floor(Number(thumbParam)) || 0;
+  if (!Number.isFinite(requested) || requested < THUMB_MIN_WIDTH) {
+    // Garbage or absurdly small: not a thumbnail request worth honouring.
+    return undefined;
+  }
+  const maxWidth = clampThumbnailWidth(requested);
+  const key = `${keyPrefix}${path}?${thumbnailCacheKey(
+    [{ path, lastModified: file.lastModified, size: file.size }],
+    maxWidth,
+  )}`;
+  try {
+    const cached = await cache.match(key);
+    if (cached) {
+      return cached;
+    }
+    const blob = await composeThumbnailBlob(
+      [{ path, blob: file, lastModified: file.lastModified, size: file.size }],
+      maxWidth,
+    );
+    if (!blob) {
+      return undefined;
+    }
+    const response = new Response(blob, {
+      status: 200,
+      headers: new Headers({
+        "Content-Type": MIME,
+        "Content-Length": String(blob.size),
+        "Cache-Control": "max-age=31536000, immutable",
+      }),
+    });
+    await cache.put(key, response.clone());
+    return response;
+  } catch {
+    return undefined;
+  }
+};

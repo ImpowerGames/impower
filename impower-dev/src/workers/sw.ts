@@ -1,12 +1,7 @@
 export default null;
 declare var self: ServiceWorkerGlobalScope;
 
-import {
-  composeThumbnailBlob,
-  thumbnailCacheKey,
-  THUMB_MAX_WIDTH,
-  THUMB_MIN_WIDTH,
-} from "@impower/sparkdown/src/thumbnails/composeThumbnail";
+import { getOrCreateThumbnail as getOrCreateThumbnailShared } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 
 // Build-time values injected via Vite `define` (see getServiceWorkerDefine).
 // Read through a `typeof` guard so (a) an un-injected build falls back safely
@@ -97,58 +92,30 @@ async function handleLocalAssetRequest(url: URL) {
 }
 
 /**
- * Return a cached or freshly-generated downscaled webp thumbnail for an image
- * file, or `undefined` if generation fails (caller serves the original).
+ * Cached-or-freshly-generated downscaled webp thumbnail for an image file, or
+ * `undefined` if generation fails (caller serves the original).
  *
- * Keyed by the file's STABLE signature — `path` + `lastModified` + `size` + the
- * requested width — NOT the request url. The request url carries a
- * `?v=${Date.now()}` cache-bust that the workspace re-stamps on every load, so
- * keying on it would regenerate every thumbnail on every page load (and leak
- * orphaned cache entries). The signature changes only when the file's bytes
- * actually change, so a real edit still invalidates the thumbnail.
+ * A thin adapter over the shared generator: this supplies Cache Storage, the
+ * generator owns sizing, encoding and the cache key. That key is the file's
+ * STABLE signature (path + lastModified + size + width), NOT the request url —
+ * the url carries a `?v=${Date.now()}` cache-bust the workspace re-stamps on
+ * every load, so keying on it would regenerate every thumbnail on every page
+ * load and leak orphaned entries.
  */
 async function getOrCreateThumbnail(
   path: string,
   file: File,
   thumbParam: string,
 ): Promise<Response | undefined> {
-  const maxWidth = Math.max(
-    THUMB_MIN_WIDTH,
-    Math.min(THUMB_MAX_WIDTH, Math.floor(Number(thumbParam)) || 0),
-  );
-  if (!Number.isFinite(maxWidth) || maxWidth < THUMB_MIN_WIDTH) {
-    return undefined;
-  }
-  const cacheKey = `${RESOURCE_PROTOCOL}${path}?${thumbnailCacheKey(
-    [{ path, lastModified: file.lastModified, size: file.size }],
-    maxWidth,
-  )}`;
   try {
     const cache = await caches.open(SW_THUMB_CACHE_NAME);
-    const cached = await cache.match(cacheKey);
-    if (cached) {
-      return cached;
-    }
-    // Generation is shared with the language server's asset previews so the
-    // editor and the completion popup can't disagree about what an asset looks
-    // like. A single file is just the one-layer case of a composite.
-    const blob = await composeThumbnailBlob(
-      [{ path, blob: file, lastModified: file.lastModified, size: file.size }],
-      maxWidth,
+    return await getOrCreateThumbnailShared(
+      cache,
+      path,
+      file,
+      thumbParam,
+      RESOURCE_PROTOCOL,
     );
-    if (!blob) {
-      return undefined;
-    }
-    const response = new Response(blob, {
-      status: 200,
-      headers: new Headers({
-        "Content-Type": "image/webp",
-        "Content-Length": String(blob.size),
-        "Cache-Control": "max-age=31536000, immutable",
-      }),
-    });
-    await cache.put(cacheKey, response.clone());
-    return response;
   } catch {
     return undefined;
   }
