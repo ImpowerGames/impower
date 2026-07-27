@@ -92,6 +92,39 @@ spark-web-player textarea {
 }
 
 /*
+Remove the UA's typographic margins.
+
+This is the preflight rule this file was otherwise derived from, and its
+absence leaked: `blockquote` and `figure` keep `1em 40px`, `ul`/`ol` and `p`
+keep `1em 0`, so those elements arrived with a rhythm step nobody wrote. Every
+builtin that renders one has been zeroing it by hand, which reads as redundant
+and gets "cleaned up" — reintroducing an 18px gap that looks like a spacing bug
+several layers away.
+
+MARGIN ONLY. Preflight also drops `list-style` and `padding` from lists; the
+`list` / `ordered_list` builtins style their own markers and indent, so taking
+those here would remove the bullets.
+*/
+spark-web-player blockquote,
+spark-web-player dl,
+spark-web-player dd,
+spark-web-player h1,
+spark-web-player h2,
+spark-web-player h3,
+spark-web-player h4,
+spark-web-player h5,
+spark-web-player h6,
+spark-web-player hr,
+spark-web-player figure,
+spark-web-player p,
+spark-web-player pre,
+spark-web-player ol,
+spark-web-player ul,
+spark-web-player menu {
+  margin: 0;
+}
+
+/*
 Remove the inheritance of text transform in Edge and Firefox.
 */
 spark-web-player button,
