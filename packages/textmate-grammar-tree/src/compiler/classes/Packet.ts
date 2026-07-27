@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { type GrammarToken, type ParserAction } from "../../core";
+import { type TokenizerResume } from "../../grammar/classes/ResumableTokenizer";
 
 import { search } from "../utils/search";
 import { Chunk } from "./Chunk";
@@ -24,11 +25,37 @@ export class Packet {
   /** The node(s) that are open at the end of this packet. */
   scopes?: ParserAction;
 
+  /**
+   * A pending in-scope split request from the tokenizer: the next token at
+   * or past `at` should start a new inheriting split-point chunk carrying
+   * `resume` (see {@link add}).
+   */
+  protected pendingSplit?: { at: number; resume: TokenizerResume };
+
   /** @param chunks - The chunks to populate the packet with. */
   constructor(chunks?: Chunk[]) {
     if (chunks) {
       this.chunks = chunks;
     }
+  }
+
+  /**
+   * Schedules an in-scope line-boundary split: when the next token at or
+   * past `at` arrives, a new split-point chunk is minted there, inheriting
+   * the previous chunk's residual open frames and carrying the tokenizer's
+   * resume snapshot so a later parse can restart at `at`.
+   *
+   * (Called before the boundary's tokens are added — the tokenizer's
+   * one-token lookbehind buffer means the last token BEFORE the boundary
+   * arrives in the same batch; comparing `from >= at` sorts them out.)
+   */
+  scheduleSplit(at: number, resume: TokenizerResume) {
+    this.pendingSplit = { at, resume };
+  }
+
+  /** Clears any scheduled split (a new parse run starts fresh). */
+  clearScheduledSplit() {
+    this.pendingSplit = undefined;
   }
 
   /** The first chunk in the packet. */
@@ -80,6 +107,22 @@ export class Packet {
     let current = this.chunks[this.chunks.length - 1];
 
     let newChunk = false;
+
+    if (this.pendingSplit && from >= this.pendingSplit.at) {
+      const { at, resume } = this.pendingSplit;
+      this.pendingSplit = undefined;
+      // Mint an inheriting split-point chunk at the line boundary — but
+      // only mid-scope: at a pure boundary the ordinary split machinery
+      // below already provides a (cheaper, snapshot-free) restart point.
+      if (current && !current.endsPure && current.from < at && current.to <= at) {
+        current = new Chunk(at, true);
+        current.inheritFrom(this.chunks[this.chunks.length - 1]!);
+        current.resume = resume;
+        current.spliceSafe = spliceStateAccountsForSeeds(resume, current);
+        this.chunks.push(current);
+        newChunk = true;
+      }
+    }
 
     if (!current || current.endsPure) {
       current = new Chunk(from);
@@ -157,7 +200,18 @@ export class Packet {
     let chunk = this.chunks[index];
 
     while (chunk) {
-      if (chunk && chunk.isSplitPoint && chunk.from > editedTo) {
+      // Pure split points are always valid ahead targets. In-scope split
+      // points are only candidates when marked spliceSafe with a resume
+      // snapshot — the parse verifies on ARRIVAL that its tokenizer state
+      // matches the snapshot before splicing (and fixes up the baked
+      // child counts/positions); if the check fails it simply parses on
+      // and re-splits further ahead.
+      if (
+        chunk &&
+        chunk.isSplitPoint &&
+        (chunk.startsPure || (chunk.spliceSafe && chunk.resume)) &&
+        chunk.from > editedTo
+      ) {
         // This is the first pure chunk after the edit.
         // We can safely reuse everything after this point
         return { chunk, index };
@@ -241,4 +295,44 @@ export class Packet {
     }
     return this;
   }
+}
+
+/**
+ * True when the tokenizer-level resume state fully explains the chunk-level
+ * inherited stack: each open frame contributes its emitting-switch wrappers
+ * (outermost first), its scope node, and — if opened — its content wrapper.
+ * When the boundary's first steps retroactively closed markers onto the
+ * token BEFORE the boundary, the seeds diverge from this derivation and
+ * the boundary cannot be spliced into mid-scope (the pre-boundary token in
+ * a NEW parse would be missing those markers).
+ */
+function spliceStateAccountsForSeeds(
+  resume: TokenizerResume,
+  chunk: Chunk,
+): boolean {
+  const seeds = chunk.entrySeeds;
+  if (!seeds) {
+    return false;
+  }
+  const derived: number[] = [];
+  for (const f of resume.frames) {
+    if (f.wrapperNodes) {
+      for (const w of f.wrapperNodes) {
+        derived.push(w);
+      }
+    }
+    derived.push(f.rule.node.typeIndex);
+    if (f.contentOpened) {
+      derived.push(f.contentNodeIndex);
+    }
+  }
+  if (derived.length !== seeds.ids.length) {
+    return false;
+  }
+  for (let i = 0; i < derived.length; i++) {
+    if (derived[i] !== seeds.ids[i]) {
+      return false;
+    }
+  }
+  return true;
 }

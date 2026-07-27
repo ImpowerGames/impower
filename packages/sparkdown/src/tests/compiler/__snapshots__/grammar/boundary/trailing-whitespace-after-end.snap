@@ -1,0 +1,105 @@
+sparkdown [0..93]
+ ├─ LuauSparkdownWhileLoop [0..22]
+ │   ├─ LuauSparkdownWhileLoop_begin [0..6]
+ │   │   ├─ LuauSparkdownWhileLoop_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauSparkdownWhileLoop_begin_c2 [0..5]
+ │   │   │   └─ LuauWhileKeyword [0..5]: "while"
+ │   │   └─ LuauSparkdownWhileLoop_begin_c3 [5..6]
+ │   │       └─ LuauSparkdownWhileLoop_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauSparkdownWhileLoop_content [6..22]
+ │   │   ├─ LuauWhileCondition [6..7]
+ │   │   │   ├─ LuauWhileCondition_begin 6
+ │   │   │   ├─ LuauWhileCondition_content [6..7]
+ │   │   │   │   └─ LuauAccessPath [6..7]
+ │   │   │   │       ├─ LuauAccessPath_begin 6
+ │   │   │   │       ├─ LuauAccessPath_content [6..7]
+ │   │   │   │       │   └─ LuauAccessPart [6..7]
+ │   │   │   │       │       └─ LuauVariable [6..7]
+ │   │   │   │       │           └─ LuauVariable_c1 [6..7]
+ │   │   │   │       │               └─ LuauVariableName [6..7]: "x"
+ │   │   │   │       └─ LuauAccessPath_end 7
+ │   │   │   │           └─ LuauAccessPath_end_c1 7
+ │   │   │   └─ LuauWhileCondition_end 7
+ │   │   └─ LuauSparkdownDoBlock [7..22]
+ │   │       ├─ LuauSparkdownDoBlock_begin [7..10]
+ │   │       │   ├─ LuauSparkdownDoBlock_begin_c1 [7..8]
+ │   │       │   │   └─ OptionalWhitespace [7..8]: " "
+ │   │       │   ├─ LuauSparkdownDoBlock_begin_c2 [8..10]
+ │   │       │   │   └─ LuauDoKeyword [8..10]: "do"
+ │   │       │   └─ LuauSparkdownDoBlock_begin_c3 10
+ │   │       │       └─ LuauSparkdownDoBlock_begin_c3 10
+ │   │       │           └─ OptionalWhitespace 10
+ │   │       ├─ LuauSparkdownDoBlock_content [10..19]
+ │   │       │   ├─ Newline [10..11]: "\n"
+ │   │       │   ├─ ImplicitAction [11..18]
+ │   │       │   │   ├─ ImplicitAction_begin [11..13]
+ │   │       │   │   │   └─ ImplicitAction_begin_c1 [11..13]
+ │   │       │   │   │       └─ OptionalWhitespace [11..13]: "  "
+ │   │       │   │   ├─ ImplicitAction_content [13..18]
+ │   │       │   │   │   └─ LineEnd [13..18]
+ │   │       │   │   │       ├─ LineEnd_begin 13
+ │   │       │   │   │       │   └─ LineEnd_begin_c1 13
+ │   │       │   │   │       │       └─ OptionalWhitespace 13
+ │   │       │   │   │       ├─ LineEnd_content [13..18]
+ │   │       │   │   │       │   └─ TextChunk [13..18]
+ │   │       │   │   │       │       ├─ TextChunk_begin 13
+ │   │       │   │   │       │       ├─ TextChunk_content [13..18]
+ │   │       │   │   │       │       │   ├─ Word [13..16]: "foo"
+ │   │       │   │   │       │       │   ├─ Punctuation [16..17]: "("
+ │   │       │   │   │       │       │   └─ Punctuation [17..18]: ")"
+ │   │       │   │   │       │       └─ TextChunk_end 18
+ │   │       │   │   │       └─ LineEnd_end 18
+ │   │       │   │   └─ ImplicitAction_end 18
+ │   │       │   └─ Newline [18..19]: "\n"
+ │   │       └─ LuauSparkdownDoBlock_end [19..22]
+ │   │           ├─ LuauSparkdownDoBlock_end_c1 19
+ │   │           │   └─ LuauSparkdownDoBlock_end_c1 19
+ │   │           │       └─ OptionalWhitespace 19
+ │   │           └─ LuauSparkdownDoBlock_end_c2 [19..22]
+ │   │               └─ LuauEndKeyword [19..22]: "end"
+ │   └─ LuauSparkdownWhileLoop_end 22
+ ├─ TrailingWhitespace [22..24]: "  "
+ ├─ Newline [24..25]: "\n"
+ ├─ ImplicitAction [25..92]
+ │   ├─ ImplicitAction_begin 25
+ │   │   └─ ImplicitAction_begin_c1 25
+ │   │       └─ OptionalWhitespace 25
+ │   ├─ ImplicitAction_content [25..92]
+ │   │   └─ LineEnd [25..92]
+ │   │       ├─ LineEnd_begin 25
+ │   │       │   └─ LineEnd_begin_c1 25
+ │   │       │       └─ OptionalWhitespace 25
+ │   │       ├─ LineEnd_content [25..92]
+ │   │       │   └─ TextChunk [25..92]
+ │   │       │       ├─ TextChunk_begin 25
+ │   │       │       ├─ TextChunk_content [25..92]
+ │   │       │       │   ├─ Word [25..27]: "An"
+ │   │       │       │   ├─ Space [27..28]: " "
+ │   │       │       │   ├─ Word [28..34]: "action"
+ │   │       │       │   ├─ Space [34..35]: " "
+ │   │       │       │   ├─ Word [35..39]: "line"
+ │   │       │       │   ├─ Space [39..40]: " "
+ │   │       │       │   ├─ Word [40..45]: "after"
+ │   │       │       │   ├─ Space [45..46]: " "
+ │   │       │       │   ├─ Word [46..47]: "a"
+ │   │       │       │   ├─ Space [47..48]: " "
+ │   │       │       │   ├─ Word [48..52]: "loop"
+ │   │       │       │   ├─ Space [52..53]: " "
+ │   │       │       │   ├─ Word [53..58]: "whose"
+ │   │       │       │   ├─ Space [58..59]: " "
+ │   │       │       │   ├─ Word [59..62]: "end"
+ │   │       │       │   ├─ Space [62..63]: " "
+ │   │       │       │   ├─ Word [63..67]: "line"
+ │   │       │       │   ├─ Space [67..68]: " "
+ │   │       │       │   ├─ Word [68..75]: "carries"
+ │   │       │       │   ├─ Space [75..76]: " "
+ │   │       │       │   ├─ Word [76..84]: "trailing"
+ │   │       │       │   ├─ Space [84..85]: " "
+ │   │       │       │   ├─ Word [85..91]: "spaces"
+ │   │       │       │   └─ Punctuation [91..92]: "."
+ │   │       │       └─ TextChunk_end 92
+ │   │       └─ LineEnd_end 92
+ │   └─ ImplicitAction_end 92
+ └─ Newline [92..93]: "\n"

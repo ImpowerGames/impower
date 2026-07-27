@@ -67,8 +67,20 @@ export class TextmateParseRegion {
       if (fragments.length === 1) {
         const fragment = fragments[0]!;
         // special case that seems to happen when scrolling,
-        // the fragment is the entire parsed range
-        if (fragment.offset === 0 && !fragment.openStart && fragment.openEnd) {
+        // the fragment is the entire parsed range.
+        // The full-coverage check (`from === 0 && to >= input.length`) is
+        // load-bearing: a REPLACEMENT at the document tail also yields a
+        // single `{offset: 0, !openStart, openEnd}` fragment, but that
+        // fragment stops BEFORE the input end — collapsing it to a
+        // zero-width edit at the document end would let the reuse fast
+        // path keep stale chunks for the replaced text.
+        if (
+          fragment.offset === 0 &&
+          !fragment.openStart &&
+          fragment.openEnd &&
+          fragment.from === 0 &&
+          fragment.to >= input.length
+        ) {
           from = input.length;
           to = input.length;
           offset = 0;

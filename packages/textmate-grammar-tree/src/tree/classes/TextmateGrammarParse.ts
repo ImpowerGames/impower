@@ -10,6 +10,7 @@ import { Compiler } from "../../compiler/classes/Compiler";
 import { NodeID } from "../../core/enums/NodeID";
 import { GrammarToken } from "../../core/types/GrammarToken";
 import { Grammar } from "../../grammar/classes/Grammar";
+import { ResumableTokenizer } from "../../grammar/classes/ResumableTokenizer";
 import { cachedCompilerProp } from "../props/cachedCompilerProp";
 import { TextmateParseRegion } from "./TextmateParseRegion";
 
@@ -38,6 +39,14 @@ export class TextmateGrammarParse implements PartialParse {
   declare protected region: TextmateParseRegion;
 
   declare protected compiler: Compiler;
+
+  /**
+   * The persistent flat tokenizer. Replaces the per-call recursive
+   * `grammar.match` so a parse can be suspended (and, with resume state,
+   * restarted) at any token boundary instead of only between top-level
+   * constructs.
+   */
+  declare protected tokenizer: ResumableTokenizer;
 
   /** The current position of the parser. */
   declare parsedPos: number;
@@ -87,6 +96,19 @@ export class TextmateGrammarParse implements PartialParse {
           (f.tree as any).props as any[],
         ).find((v) => v instanceof Compiler);
         if (cachedCompiler) {
+          // Only reuse if the compiler is still in the state this tree was
+          // built from. Trees share ONE mutable compiler; a parse that was
+          // started off some tree and then abandoned (routine while
+          // typing) leaves the compiler rewound/mutated, and this tree's
+          // fragments no longer describe it — reusing would corrupt the
+          // result. An epoch mismatch falls back to a from-scratch parse.
+          const stampedEpoch = (f.tree as any).__compilerEpoch;
+          if (
+            stampedEpoch !== undefined &&
+            stampedEpoch !== cachedCompiler.reuseEpoch
+          ) {
+            break;
+          }
           const restartFrom = cachedCompiler.reuse(
             this.region.edit.from,
             this.region.edit.to,
@@ -107,11 +129,51 @@ export class TextmateGrammarParse implements PartialParse {
     if (!this.compiler) {
       this.compiler = new Compiler(grammar);
     }
+
+    // When restarting, anchor the tokenizer's text window so `^` and
+    // lookbehind assertions see the same text a from-scratch parse would:
+    // at least the start of the LINE containing the restart (grammar
+    // assertions are line-local under the `m` flag — a pure split point
+    // can sit mid-line, e.g. right after a zero-width scope close, where
+    // an unwidened window would make `(?<!^)`-style assertions flip), and
+    // for in-scope restarts no later than the outermost open scope's
+    // begin position.
+    const resume = this.compiler.resumeState;
+    this.compiler.resumeState = undefined;
+    const base =
+      resume && resume.frames.length > 0
+        ? Math.min(resume.frames[0]!.openedAtAbs, this.region.from)
+        : this.region.from;
+    const anchor = this.findLineStart(base);
+
+    this.tokenizer = new ResumableTokenizer(
+      grammar,
+      (pos: number) => this.region.next(pos),
+      anchor,
+    );
+    if (resume) {
+      this.tokenizer.restore(resume, this.region.from);
+    } else if (this.region.from > anchor) {
+      // Pure restart mid-line: start matching at the restart position but
+      // keep the line prefix visible in the window for assertions.
+      this.tokenizer.skip(this.region.from - anchor);
+    }
+    // In-block split points are only minted on INCREMENTAL parses (ones
+    // that restarted from a cached compiler): a from-scratch parse keeps
+    // whole-block chunks so they stay TreeBuffer-convertible (fast initial
+    // parse); the first edit inside a block reparses that block once and
+    // mints its fine-grained restart points then.
+    this.tokenizer.emitSplitSignals = this.region.from > 0 || !!this.region.edit;
   }
 
-  /** True if the parser is done. */
+  /**
+   * True if the parser is done. Open frames keep the parse alive past
+   * `region.to` — the recursive matcher consumed a whole construct per
+   * call, overshooting a `stopAt` boundary until the construct closed, and
+   * the flat tokenizer must finish constructs the same way.
+   */
   get done() {
-    return this.parsedPos >= this.region.to;
+    return this.parsedPos >= this.region.to && !this.tokenizer.hasOpenFrames;
   }
 
   /**
@@ -126,8 +188,14 @@ export class TextmateGrammarParse implements PartialParse {
 
   /** Advances tokenization one step. */
   advance(): Tree | null {
-    // if we're told to stop, we need to BAIL
-    if (this.stoppedAt && this.parsedPos >= this.stoppedAt) {
+    // if we're told to stop, we need to BAIL — but only at the top level;
+    // an open construct is always finished first (the recursive matcher
+    // consumed whole constructs per call, overshooting the stop the same way)
+    if (
+      this.stoppedAt &&
+      this.parsedPos >= this.stoppedAt &&
+      !this.tokenizer.hasOpenFrames
+    ) {
       return this.finish();
     }
 
@@ -149,6 +217,16 @@ export class TextmateGrammarParse implements PartialParse {
   }
 
   protected finish(): Tree {
+    // Flush the tokenizer's one-token lookbehind buffer. At true EOF the
+    // step loop already drained it; this covers parses that end at a
+    // stopAt/region boundary before EOF. The `done`/`stoppedAt` gates
+    // guarantee no frames are open here, so the token can't receive any
+    // more close markers.
+    const pending = this.tokenizer.flushPending();
+    if (pending) {
+      this.compiler.add(pending);
+    }
+
     const nodeSet = this.nodeSet;
     const topID = NodeID.top;
 
@@ -192,6 +270,10 @@ export class TextmateGrammarParse implements PartialParse {
       const props = Object.create(null);
       props[(cachedCompilerProp as any).id] = this.compiler;
       (tree as any).props = props;
+      // Stamp the tree with the compiler state it was built from — a later
+      // parse refuses to reuse the compiler if another parse has mutated
+      // it since (see the epoch check in the constructor).
+      (tree as any).__compilerEpoch = this.compiler.reuseEpoch;
 
       return tree;
     }
@@ -200,56 +282,175 @@ export class TextmateGrammarParse implements PartialParse {
     return new Tree(topNodeType, [], [], length);
   }
 
+  /**
+   * Finds the start of the line containing `pos` (0 if none) by reading
+   * backward through the input in bounded windows.
+   */
+  protected findLineStart(pos: number): number {
+    let from = pos;
+    while (from > 0) {
+      const start = Math.max(0, from - 1024);
+      const text = this.region.input.read(start, from);
+      const idx = text.lastIndexOf("\n");
+      if (idx >= 0) {
+        return start + idx + 1;
+      }
+      from = start;
+    }
+    return 0;
+  }
+
+  /**
+   * Flushes the tokenizer's held-back token into the compiler. Callers must
+   * gate on `tokenizer.flushableNow` (no open frames) first.
+   */
+  protected flushPendingIntoCompiler() {
+    const pending = this.tokenizer.flushPending();
+    if (pending) {
+      this.compiler.add(pending);
+    }
+  }
+
+  /**
+   * Jumps the tokenizer head to an absolute document position (used after
+   * appending reused-ahead chunks, whose text was already parsed).
+   */
+  protected advanceTokenizerTo(absolutePos: number) {
+    const delta = absolutePos - this.tokenizer.absolutePos;
+    if (delta > 0) {
+      this.tokenizer.skip(delta);
+    }
+  }
+
+  /**
+   * Tries to splice the reused-ahead chunks in MID-scope: when the head
+   * arrives exactly at an in-scope split point whose recorded entry state
+   * matches the tokenizer's current state, the old chunks' tokens are
+   * exactly what re-tokenizing would produce — append them (with a fixup
+   * of the child counts/positions their spanning scopes baked in) instead
+   * of reparsing the rest of the block.
+   */
+  protected tryImpureSplice(): boolean {
+    const ahead = this.compiler.ahead;
+    const first = ahead?.first;
+    if (!ahead || !first) {
+      return false;
+    }
+    if (!this.region.contiguous) {
+      return false;
+    }
+    // The splice retires the tokenizer (finishAfterSplice), so the spliced
+    // tail MUST carry the parse through the whole region. An abandoned
+    // parse can leave the cached packet truncated mid-document; splicing
+    // its tail would silently end the tree there.
+    if ((ahead.last?.to ?? 0) < this.region.to) {
+      return false;
+    }
+    if (!this.tokenizer.hasOpenFrames || this.tokenizer.done) {
+      return false;
+    }
+    if (
+      first.startsPure ||
+      !first.spliceSafe ||
+      !first.resume ||
+      !first.entrySeeds
+    ) {
+      return false;
+    }
+    if (this.parsedPos !== first.from) {
+      return false;
+    }
+    // Must be BEFORE any step runs at this position — afterwards the new
+    // stream already contains this position's tokens.
+    if (!this.tokenizer.atFreshPosition) {
+      return false;
+    }
+    if (!this.tokenizer.matchesResume(first.resume)) {
+      return false;
+    }
+
+    // The entry states match, so the boundary's behavior is deterministic
+    // and (spliceSafe) adds no retroactive close markers — flushing the
+    // held-back token here is safe.
+    this.flushPendingIntoCompiler();
+    const arriving = this.compiler.packet.last;
+    const seeds = first.entrySeeds;
+    const seedLen = seeds.ids.length;
+    if (!arriving || arriving.stack.length !== seedLen) {
+      return false;
+    }
+    const deltas: number[] = [];
+    const trueAbs: number[] = [];
+    for (let i = 0; i < seedLen; i++) {
+      if (arriving.stack.ids[i] !== seeds.ids[i]) {
+        return false;
+      }
+      deltas.push(arriving.stack.children[i]! - seeds.children[i]!);
+      trueAbs.push(arriving.from + (arriving.stack.positions[i]! | 0));
+    }
+
+    const frameOpenPositions = this.tokenizer.frameOpenPositions();
+    const frameGroupSizes = this.tokenizer.frameGroupSizes();
+    this.compiler.packet.clearScheduledSplit();
+    const startIndex = this.compiler.packet.chunks.length;
+    this.compiler.append(ahead);
+    this.compiler.spliceFixup(
+      startIndex,
+      deltas,
+      trueAbs,
+      frameOpenPositions,
+      frameGroupSizes,
+    );
+    this.compiler.ahead = undefined;
+    this.parsedPos = this.compiler.packet.last!.to;
+    this.tokenizer.finishAfterSplice();
+    return true;
+  }
+
   /** Advances the parser to the next chunk. */
   protected nextChunk() {
     // this condition is a little misleading,
     // as we're actually going to break out when any chunk is emitted.
-    // however, if we're at the "last chunk", this condition catches that
-    while (this.parsedPos < this.region.to) {
-      const pos = this.parsedPos;
-
-      const start = Math.max(pos, this.region.from);
-      const startCompensated = this.region.compensate(pos, start - pos);
-
-      const next = (pos: number) => this.region.next(pos);
-
-      const str = next(startCompensated);
-
-      const match = this.grammar.match(str, next, pos - start, pos);
-
-      let matchTokens: GrammarToken[] | null = null;
-      let matchLength = 0;
-
-      if (match) {
-        matchTokens = match.compile();
-        matchLength = match.length;
-      } else {
-        // if we didn't match, we'll advance to prevent getting stuck
-        matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
-        matchLength = 1;
+    // however, if we're at the "last chunk", this condition catches that.
+    // Open frames keep the loop alive past `region.to` so a construct that
+    // started inside the region is finished (or drained at EOF), matching
+    // the recursive matcher's whole-construct overshoot.
+    while (
+      this.parsedPos < this.region.to ||
+      (this.tokenizer.hasOpenFrames && !this.tokenizer.done)
+    ) {
+      if (this.tryImpureSplice()) {
+        return true;
       }
 
-      // console.log(
-      //   "incremental parse match",
-      //   pos,
-      //   pos + matchLength,
-      //   JSON.stringify(this.region.input.read(pos, pos + matchLength)),
-      //   matchTokens?.map((t) => [
-      //     this.grammar.nodeNames[t[0]!],
-      //     JSON.stringify(this.region.input.read(t[1], t[2])),
-      //     t[3]?.map((o) => this.grammar.nodeNames[o]).join(","),
-      //     t[4]?.map((c) => this.grammar.nodeNames[c]).join(","),
-      //   ])
-      // );
+      const pos = this.parsedPos;
+
+      const step = this.tokenizer.step();
+      let matchLength = step.length;
+
+      if (step.splitAt) {
+        // The tokenizer crossed a line boundary inside open scopes: split
+        // the chunk stream there (before this batch's tokens are added —
+        // the lookbehind-buffered token from before the boundary arrives
+        // in this same batch) so a later edit can restart at the boundary.
+        this.compiler.packet.scheduleSplit(
+          step.splitAt.at,
+          step.splitAt.resume,
+        );
+      }
 
       if (matchLength === 0) {
         this.consecutiveEmptyMatchCount += 1;
       } else {
         this.consecutiveEmptyMatchCount = 0;
       }
-      if (this.consecutiveEmptyMatchCount > 100) {
-        // Possible infinite loop!
-        matchLength = 1;
+      if (this.consecutiveEmptyMatchCount > 100 && this.tokenizer.flushableNow) {
+        // Possible infinite loop! Skip a character to force progress — but
+        // only at the top level: the recursive matcher's backstop always
+        // fired between whole top-level matches, so the skipped character
+        // must not land inside an open scope (it would widen the scope).
+        matchLength += 1;
+        this.tokenizer.skip(1);
         console.warn(
           `Possible infinite loop at pos=${pos}!`,
           JSON.stringify(this.region.input.read(Math.max(0, pos - 100), pos)),
@@ -260,33 +461,27 @@ export class TextmateGrammarParse implements PartialParse {
 
       let addedChunk = false;
 
-      if (matchTokens) {
-        for (let idx = 0; idx < matchTokens.length; idx++) {
-          const t = matchTokens[idx]!;
+      for (let idx = 0; idx < step.tokens.length; idx++) {
+        const t = step.tokens[idx]!;
 
-          if (!this.region.contiguous) {
-            const from = this.region.compensate(pos, t[1] - pos);
-            const end = this.region.compensate(pos, t[2] - pos);
-            t[1] = from;
-            t[2] = end;
-          }
+        if (!this.region.contiguous) {
+          const from = this.region.compensate(pos, t[1] - pos);
+          const end = this.region.compensate(pos, t[2] - pos);
+          t[1] = from;
+          t[2] = end;
+        }
 
-          // console.log(
-          //   "TOKEN",
-          //   this.grammar.nodes[t[0]!]?.typeId,
-          //   JSON.stringify(this.region.input.read(t[1]!, t[2]!)),
-          //   t[3]!,
-          //   t[4]!,
-          //   this.compiler.buffer.scopes
-          // );
-          if (this.compiler.add(t)) {
-            addedChunk = true;
-          }
+        if (this.compiler.add(t)) {
+          addedChunk = true;
         }
       }
 
       if (addedChunk) {
         return true;
+      }
+
+      if (step.done) {
+        break;
       }
     }
 
@@ -301,10 +496,24 @@ export class TextmateGrammarParse implements PartialParse {
    */
   protected tryToReuseAhead() {
     if (this.compiler.ahead) {
+      // Old chunks can only be spliced in at a top-level boundary. The
+      // recursive matcher guaranteed this implicitly (parsedPos only ever
+      // landed between whole top-level constructs); the stepping tokenizer
+      // visits every token boundary, including positions inside an open
+      // scope that happen to coincide with an old pure boundary — splicing
+      // there would nest the old chunks into the open scope.
+      if (!this.tokenizer.flushableNow) {
+        return false;
+      }
       // console.log("REUSABLE?", this.parsedPos, ">=", reusableFrom, pos >= reusableFrom);
       if (this.compiler.ahead.first) {
-        if (this.parsedPos === this.compiler.ahead.first.from) {
+        if (
+          this.parsedPos === this.compiler.ahead.first.from &&
+          this.compiler.ahead.first.startsPure
+        ) {
+          this.flushPendingIntoCompiler();
           this.compiler.append(this.compiler.ahead);
+          this.advanceTokenizerTo(this.compiler.packet.last!.to);
           this.parsedPos = this.compiler.packet.last!.to;
           // console.log(
           //   "REUSE AHEAD EXACTLY",
@@ -325,8 +534,13 @@ export class TextmateGrammarParse implements PartialParse {
               splitAhead.index,
             );
             this.compiler.ahead = aheadSplitBuffer.right;
-            if (this.parsedPos === this.compiler.ahead.first?.from) {
+            if (
+              this.parsedPos === this.compiler.ahead.first?.from &&
+              this.compiler.ahead.first.startsPure
+            ) {
+              this.flushPendingIntoCompiler();
               this.compiler.append(this.compiler.ahead);
+              this.advanceTokenizerTo(this.compiler.packet.last!.to);
               this.parsedPos = this.compiler.packet.last!.to;
               // console.log(
               //   "REUSE AHEAD OVERSHOOT",
