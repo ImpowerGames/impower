@@ -339,13 +339,21 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -1270,6 +1278,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;
@@ -2501,13 +2571,21 @@ exports[`dom render > image show renders background span + img 1`] = `
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -3432,6 +3510,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;
@@ -4625,13 +4765,21 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -5556,6 +5704,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;
@@ -6871,13 +7081,21 @@ exports[`dom render > screen tree renders into overlay 1`] = `
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -7802,6 +8020,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;
@@ -8976,13 +9256,21 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -9907,6 +10195,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;
@@ -11063,13 +11413,21 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -11994,6 +12352,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;
@@ -13200,13 +13620,21 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -14131,6 +14559,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;
@@ -15304,13 +15794,21 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -16235,6 +16733,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;
@@ -17408,13 +17968,21 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -18339,6 +18907,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;
@@ -19512,13 +20142,21 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -20443,6 +21081,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;
@@ -21616,13 +22316,21 @@ exports[`dom render · image lifecycle > layered images stack background-image o
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+@keyframes tooltip_slide {
+  0% { transform: translate(-50%, 0.75rem); opacity: 0; }
+  100% { transform: translate(-50%, -0.25rem); opacity: 1; }
+}
+@keyframes tooltip_caret_slide {
+  0% { transform: translate(-50%, -0.25rem); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
 @keyframes progress_indeterminate {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
 @keyframes ping {
-  0% { offset: 0.75; transform: scale(2); opacity: 0; }
-  100% { offset: 1; transform: scale(2); opacity: 0; }
+  75% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(2); opacity: 0; }
 }
 @keyframes bounce {
   0% { transform: translateY(-50%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
@@ -22547,6 +23255,68 @@ spark-web-player #game .abbreviation {
   border-bottom-style: dotted;
   cursor: help;
   line-height: normal;
+}
+spark-web-player #game .tooltip {
+  position: relative;
+  &::before {
+    content: attr(data-tooltip);
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -0.25rem);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background-color: var(--theme-color-slate_95);
+    color: black;
+    font-size: 0.875rem;
+    font-weight: 400;
+    font-style: normal;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    z-index: 99;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    padding: 0px;
+    border-radius: 0px;
+    background-color: transparent;
+    border-top-width: 0.3rem;
+    border-top-style: solid;
+    border-top-color: var(--theme-color-slate_95);
+    border-right-width: 0.3rem;
+    border-right-style: solid;
+    border-right-color: transparent;
+    border-left-width: 0.3rem;
+    border-left-style: solid;
+    border-left-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    cursor: default;
+  }
+  &:hover::before, &:focus::before {
+    opacity: 1;
+    animation-name: tooltip_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
+  &:hover::after, &:focus::after {
+    opacity: 1;
+    animation-name: tooltip_caret_slide;
+    animation-duration: 0.2s;
+    animation-fill-mode: forwards;
+  }
 }
 spark-web-player #game .divider {
   display: block;

@@ -113,6 +113,99 @@ end
     expect(out).not.toMatch(/\n\s+\{\n/);
   });
 
+  // A keyframe's `offset` POSITIONS it. It used to do neither job: the
+  // selector came from the array index alone, and `offset` fell through into
+  // the declarations — emitting a literal `offset: 0.75`, which is a real CSS
+  // property (the motion-path shorthand), inside the keyframe.
+  test("keyframe `offset` sets the selector and is never a declaration", async () => {
+    const out = await css(`animation slide with
+  target = layer.self
+  keyframes:
+    -
+      opacity = "0"
+    -
+      offset = 0.75
+      opacity = "1"
+    -
+      opacity = "0"
+  timing:
+    duration = 1
+    easing = "linear"
+    iterations = 1
+    fill = "none"
+    direction = "normal"
+end
+layout main with
+  text "x"
+end
+`);
+    const block = out.slice(out.indexOf("@keyframes slide"));
+    const frames = block.slice(0, block.indexOf("\n}") + 2);
+    // Authored offset drives its own frame; the unauthored ends anchor 0/100.
+    expect(frames).toContain("0% {");
+    expect(frames).toContain("75% {");
+    expect(frames).toContain("100% {");
+    // `offset` must not survive as a declaration.
+    expect(frames).not.toMatch(/\boffset:/);
+  });
+
+  // Unauthored keyframes space themselves evenly, as they always did — the
+  // offset support must not disturb the common case of no offsets at all.
+  test("keyframes with no offsets are still spaced evenly", async () => {
+    const out = await css(`animation evenly with
+  target = layer.self
+  keyframes:
+    -
+      opacity = "0"
+    -
+      opacity = "0.5"
+    -
+      opacity = "1"
+  timing:
+    duration = 1
+    easing = "linear"
+    iterations = 1
+    fill = "none"
+    direction = "normal"
+end
+layout main with
+  text "x"
+end
+`);
+    const block = out.slice(out.indexOf("@keyframes evenly"));
+    const frames = block.slice(0, block.indexOf("\n}") + 2);
+    expect(frames).toContain("0% {");
+    expect(frames).toContain("50% {");
+    expect(frames).toContain("100% {");
+  });
+
+  // The tooltip is built entirely out of pseudo-elements, so every piece of it
+  // has to survive emission: the bubble takes its text from the attribute, the
+  // caret is a border triangle, and both are hidden until hover/focus.
+  test("tooltip emits a bubble, a caret, and a hover/focus reveal", async () => {
+    const out = await css(`layout main with
+  text tooltip "Abbr." #data-tooltip="Abbreviation"
+end
+`);
+    const block = out.slice(out.indexOf(".tooltip"));
+    const rule = block.slice(0, block.indexOf("\n}\n") + 3);
+    // The bubble's text comes from the attribute, unquoted so it resolves.
+    expect(rule).toContain("content: attr(data-tooltip);");
+    // Hidden until asked for — both pieces.
+    expect(rule).toMatch(/opacity: 0;/);
+    // The caret is a border triangle, not a glyph.
+    expect(rule).toContain("border-top-color: var(--theme-color-slate_95);");
+    expect(rule).toContain("border-left-color: transparent;");
+    // Revealed on hover AND on keyboard focus.
+    expect(rule).toContain("&:hover::before");
+    expect(rule).toContain("&:focus::before");
+    // The reveal animations must actually exist in the sheet.
+    expect(out).toContain("@keyframes tooltip_slide");
+    expect(out).toContain("@keyframes tooltip_caret_slide");
+    // A bubble that swallowed the pointer would flicker on/off under it.
+    expect(rule).toContain("pointer-events: none;");
+  });
+
   // Pico composes several of its components out of DIRECT-CHILD rules, so the
   // `> selector` form has to survive into the sheet.
   test("`> child` selectors compose article sections and joined groups", async () => {

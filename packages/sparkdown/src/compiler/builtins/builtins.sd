@@ -2038,6 +2038,85 @@ style abbreviation with
   text-leading = normal
 end
 
+-- A hover/focus TOOLTIP, following Pico's: a bubble above the element with a
+-- little caret under it, sliding in on hover and on keyboard focus.
+--
+-- Authored as a class plus the text it should show:
+--
+--   text abbreviation tooltip "Abbr." #data-tooltip="Abbreviation"
+--   button tooltip "Save" #data-tooltip="Writes the file"
+--
+-- Pico triggers purely on the `data-tooltip` ATTRIBUTE, with no class at all.
+-- That needs a rule matching any element carrying the attribute, and a style
+-- block can only be keyed by class today — a style NAME is not run through the
+-- selector aliases, and a bare descendant rule has nowhere global to live (a
+-- layout's root element is classed after the layout, so there is no selector
+-- that reaches every layout). Hence the extra class. The `data-tooltip` name
+-- is kept so the markup still reads like Pico's.
+style tooltip with
+  -- The bubble and caret are positioned against this.
+  position = relative
+  -- BUBBLE.
+  @before:
+    content = attr(data-tooltip)
+    display = block
+    position = absolute
+    z-index = 99
+    bottom = 100%
+    left = 50%
+    transform = translate(-50%, -0.25rem)
+    padding = 0.25rem 0.5rem
+    corner = 0.25rem
+    background-color = slate_95
+    text-color = black
+    text-size = 0.875rem
+    text-weight = 400
+    text-style = normal
+    text-decoration = none
+    -- One line, clipped rather than wrapped, as Pico does. `text-overflow`
+    -- carries `overflow: hidden` and `white-space: nowrap` with it, so stating
+    -- those too would only duplicate them in the sheet.
+    text-overflow = ellipsis
+    opacity = 0
+    -- Never let the bubble eat the hover that summoned it.
+    pointer-events = none
+  -- CARET. A triangle made of borders, coloured to match the bubble; `content`
+  -- is empty because the glyph IS the border.
+  @after:
+    content = ""
+    display = block
+    position = absolute
+    z-index = 99
+    bottom = 100%
+    left = 50%
+    transform = translate(-50%, 0)
+    padding = 0
+    corner = 0
+    background-color = transparent
+    border-top-width = 0.3rem
+    border-top-style = solid
+    border-top-color = slate_95
+    border-right-width = 0.3rem
+    border-right-style = solid
+    border-right-color = transparent
+    border-left-width = 0.3rem
+    border-left-style = solid
+    border-left-color = transparent
+    opacity = 0
+    pointer-events = none
+  -- Shown on hover AND on keyboard focus, so it is reachable without a mouse.
+  @hovered @before, @focused @before:
+    opacity = 1
+    animation-name = tooltip_slide
+    animation-duration = 0.2s
+    animation-fill-mode = forwards
+  @hovered @after, @focused @after:
+    opacity = 1
+    animation-name = tooltip_caret_slide
+    animation-duration = 0.2s
+    animation-fill-mode = forwards
+end
+
 -- `divider` renders an <hr>. The overlay's flex default would collapse it, so
 -- it is an explicit block rule.
 style divider with
@@ -3089,6 +3168,45 @@ animation spin with
     easing = "linear"
     iterations = "infinite"
     fill = "none"
+    direction = "normal"
+end
+
+-- A tooltip bubble rises the last quarter-rem into place as it fades in, and
+-- its caret follows. Two animations rather than one because the bubble and the
+-- caret rest at different offsets (the caret sits flush against the element).
+animation tooltip_slide with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translate(-50%, 0.75rem)"
+      opacity = "0"
+    -
+      transform = "translate(-50%, -0.25rem)"
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease-out"
+    iterations = 1
+    fill = "forwards"
+    direction = "normal"
+end
+
+animation tooltip_caret_slide with
+  target = layer.self
+  keyframes:
+    -
+      transform = "translate(-50%, -0.25rem)"
+      opacity = "0"
+    -
+      transform = "translate(-50%, 0)"
+      opacity = "1"
+  timing:
+    delay = 0
+    duration = 0
+    easing = "ease-out"
+    iterations = 1
+    fill = "forwards"
     direction = "normal"
 end
 

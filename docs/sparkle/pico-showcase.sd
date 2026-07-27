@@ -173,7 +173,9 @@ layout main with
           text "Text <sub>Sub</sub>"
           text "Text <sup>Sup</sup>"
         row grid:
-          text abbreviation "Abbr."
+          -- `tooltip` + `#data-tooltip` shows a bubble on hover and on focus,
+          -- the way the reference page's `<abbr data-tooltip=…>` does.
+          text abbreviation tooltip "Abbr." #data-tooltip="Abbreviation"
           text key "Kbd"
           text highlight "Highlighted"
 
