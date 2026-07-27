@@ -1,5 +1,5 @@
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { getImagePreviewMarkup } from "@impower/sparkdown/src/compiler/utils/getImagePreviewSrc";
+import { getImagePreviewMarkupComposited } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { MarkupKind, type CompletionItem } from "vscode-languageserver";
 
 /**
@@ -25,10 +25,10 @@ export interface CompletionItemResolveData {
  * to what is actually shown, which also leaves room for the preview to become
  * genuinely expensive later (see #292 — compositing layered images).
  */
-export const resolveCompletion = (
+export const resolveCompletion = async (
   item: CompletionItem,
   program: SparkProgram | undefined,
-): CompletionItem => {
+): Promise<CompletionItem> => {
   const data = item.data as CompletionItemResolveData | undefined;
   if (!data || item.documentation != null) {
     return item;
@@ -37,7 +37,10 @@ export const resolveCompletion = (
   if (!struct) {
     return item;
   }
-  const preview = getImagePreviewMarkup(program?.context, struct);
+  const preview = await getImagePreviewMarkupComposited(
+    program?.context,
+    struct,
+  );
   if (!preview) {
     return item;
   }

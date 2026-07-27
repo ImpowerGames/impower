@@ -269,14 +269,14 @@ try {
   });
 
   // completionProvider.resolveProvider
-  connection.onCompletionResolve((item) => {
+  connection.onCompletionResolve(async (item) => {
     const data = item.data as CompletionItemResolveData | undefined;
     if (!data?.uri) {
       return item;
     }
     performance.mark(`lsp: onCompletionResolve ${item.label} start`);
     const program = workspace.program(data.uri);
-    const resolved = resolveCompletion(item, program);
+    const resolved = await resolveCompletion(item, program);
     performance.mark(`lsp: onCompletionResolve ${item.label} end`);
     performance.measure(
       `lsp: onCompletionResolve ${item.label}`,

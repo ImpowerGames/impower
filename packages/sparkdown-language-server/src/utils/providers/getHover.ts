@@ -4,25 +4,32 @@ import { SparkdownCompilerConfig } from "@impower/sparkdown/src/compiler/types/S
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { getExpectedSelectorTypes } from "@impower/sparkdown/src/compiler/utils/getExpectedSelectorTypes";
-import { getImagePreviewMarkup } from "@impower/sparkdown/src/compiler/utils/getImagePreviewSrc";
+import { getImagePreviewMarkupComposited } from "@impower/sparkdown/src/compiler/utils/getImageComposite";
 import { resolveSelector } from "@impower/sparkdown/src/compiler/utils/resolveSelector";
-import { MarkupKind, type Hover, type Position } from "vscode-languageserver";
+import {
+  MarkupKind,
+  type Hover,
+  type Position,
+  type Range,
+} from "vscode-languageserver";
 
-export const getHover = (
+export const getHover = async (
   document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations | undefined,
   program: SparkProgram | undefined,
   config: SparkdownCompilerConfig | undefined,
   position: Position,
-): Hover | null => {
+): Promise<Hover | null> => {
   if (!document || !annotations || !program) {
     return null;
   }
-  let result: Hover | null = null;
+  // The annotation walk is synchronous, so pick the struct out first and build
+  // the (possibly composited, therefore async) markup afterwards.
+  let match: { struct: any; range: Range } | null = null;
   const searchFrom = document.offsetAt(position);
   const searchTo = document.offsetAt({ line: position.line + 1, character: 0 });
   annotations.references.between(searchFrom, searchTo, (from, to, value) => {
-    if (result != null) {
+    if (match != null) {
       return false;
     }
     const range = document.range(from, to);
@@ -63,20 +70,8 @@ export const getHover = (
                 );
               }
             }
-            const preview = getImagePreviewMarkup(
-              program.context,
-              resolvedValue,
-            );
-            if (preview) {
-              result = {
-                contents: {
-                  kind: MarkupKind.Markdown,
-                  value: preview,
-                },
-                range,
-              };
-              return false;
-            }
+            match = { struct: resolvedValue, range };
+            return false;
           }
           // TODO: const name: type
           // TODO: var name: type
@@ -92,5 +87,19 @@ export const getHover = (
     }
     return undefined;
   });
-  return result;
+  if (!match) {
+    return null;
+  }
+  const { struct, range } = match as { struct: any; range: Range };
+  const preview = await getImagePreviewMarkupComposited(
+    program.context,
+    struct,
+  );
+  if (!preview) {
+    return null;
+  }
+  return {
+    contents: { kind: MarkupKind.Markdown, value: preview },
+    range,
+  };
 };
