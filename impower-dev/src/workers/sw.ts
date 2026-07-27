@@ -2,6 +2,7 @@ export default null;
 declare var self: ServiceWorkerGlobalScope;
 
 import { getOrCreateThumbnail as getOrCreateThumbnailShared } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
+import { getStaleCacheNames } from "./swCaches";
 
 // Build-time values injected via Vite `define` (see getServiceWorkerDefine).
 // Read through a `typeof` guard so (a) an un-injected build falls back safely
@@ -169,12 +170,9 @@ self.addEventListener("activate", (e) => {
     (async () => {
       const names = await caches.keys();
       await Promise.all(
-        names.map((name) => {
-          if (name !== SW_CACHE_NAME && name !== SW_THUMB_CACHE_NAME) {
-            return caches.delete(name);
-          }
-          return false;
-        }),
+        getStaleCacheNames(names, [SW_CACHE_NAME, SW_THUMB_CACHE_NAME]).map(
+          (name) => caches.delete(name),
+        ),
       );
       await self.clients.claim();
     })(),
