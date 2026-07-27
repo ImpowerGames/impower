@@ -200,6 +200,60 @@ describe("getImageCompositeSrc", () => {
     expect(src).toBeUndefined();
   });
 
+  it("evicts old entries rather than growing without bound", async () => {
+    stubRasterizer();
+    const calls = stubFetch();
+    // Well past the 64-entry ceiling: each composite stores two entries (a
+    // provisional src key and the stable signature key).
+    const contexts = Array.from({ length: 60 }, (_, i) =>
+      makeContext(`evict${i}`, ["base", "prop"]),
+    );
+    for (const ctx of contexts) {
+      await getImageCompositeSrc(ctx, ctx.layered_image.bg);
+    }
+    const before = calls.length;
+    // The first one is long since evicted, so this must go back to the network.
+    await getImageCompositeSrc(contexts[0]!, contexts[0]!.layered_image.bg);
+    expect(calls.length).toBeGreaterThan(before);
+  });
+
+  it("keeps recently READ entries, evicting by use rather than by insertion", async () => {
+    // The distinction between an LRU and a plain FIFO: without the recency
+    // refresh on read, the entry below would be evicted despite being the most
+    // recently used, and a preview the user keeps returning to would
+    // recomposite every time.
+    stubRasterizer();
+    const calls = stubFetch();
+    const hot = makeContext("hot", ["base", "prop"]);
+    await getImageCompositeSrc(hot, hot.layered_image.bg);
+
+    const filler = Array.from({ length: 30 }, (_, i) =>
+      makeContext(`filler${i}`, ["base", "prop"]),
+    );
+    for (const ctx of filler) {
+      await getImageCompositeSrc(ctx, ctx.layered_image.bg);
+    }
+
+    // Touch it, making it the most recently used entry.
+    const beforeTouch = calls.length;
+    await getImageCompositeSrc(hot, hot.layered_image.bg);
+    expect(calls.length).toBe(beforeTouch);
+
+    // Now overflow the cache. A FIFO would drop `hot` (inserted first).
+    for (const ctx of Array.from({ length: 20 }, (_, i) =>
+      makeContext(`after${i}`, ["base", "prop"]),
+    )) {
+      await getImageCompositeSrc(ctx, ctx.layered_image.bg);
+    }
+
+    const beforeFinal = calls.length;
+    await getImageCompositeSrc(hot, hot.layered_image.bg);
+    expect(calls.length).toBe(beforeFinal);
+    // ...while an untouched early entry did get evicted.
+    await getImageCompositeSrc(filler[0]!, filler[0]!.layered_image.bg);
+    expect(calls.length).toBeGreaterThan(beforeFinal);
+  });
+
   it("degrades when the host cannot rasterize", async () => {
     // No OffscreenCanvas: an older host, or a worker without canvas support.
     stubFetch();
