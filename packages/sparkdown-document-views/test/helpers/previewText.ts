@@ -19,7 +19,7 @@
 //      line. If anything remains, look up the enclosing block kind in the
 //      tree at the line's starting position and emit `<kind> visible`.
 
-import { ensureSyntaxTree, language, syntaxTree } from "@codemirror/language";
+import { language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import type { Range } from "@codemirror/state";
 import type { Decoration } from "@codemirror/view";
@@ -29,10 +29,9 @@ import {
   SCREENPLAY_LANGUAGE_SUPPORT,
   decorate,
 } from "../../src/modules/screenplay-preview/utils/screenplayFormatting";
+import { completeTree } from "./parseSettle";
 
 type HideInterval = { from: number; to: number };
-
-const PARSE_TIMEOUT_MS = 30_000;
 
 // Build state with language facet via language.of() (Language.extension
 // getter doesn't activate the facet correctly in this test environment).
@@ -41,9 +40,10 @@ const parseSource = (source: string): { state: EditorState; tree: Tree } => {
     doc: source,
     extensions: [language.of(SCREENPLAY_LANGUAGE_SUPPORT.language)],
   });
-  ensureSyntaxTree(state, source.length, PARSE_TIMEOUT_MS);
-  const tree = syntaxTree(state);
-  return { state, tree };
+  // `completeTree`, NOT `syntaxTree(state)` — the latter returns the
+  // 20ms-budgeted truncated snapshot taken when the state was created, which
+  // is what made this extractor's output depend on machine load (#281).
+  return { state, tree: completeTree(state) };
 };
 
 const collectHiddenRanges = (
