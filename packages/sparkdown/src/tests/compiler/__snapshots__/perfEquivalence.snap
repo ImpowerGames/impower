@@ -18005,7 +18005,7 @@
             "child-align": "center",
             "child-justify": "center",
             "display": "flex",
-            "min-height": "4rem"
+            "min-height": "3.5rem"
           },
           "background-color": "slate_30",
           "corner": "0.25rem",
@@ -18145,7 +18145,7 @@
           "child-layout": "row",
           "corner": "0.25rem",
           "cursor": "pointer",
-          "display": "flex",
+          "display": "inline-flex",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "text-align": "center",
@@ -18880,6 +18880,9 @@
           "$type": "style",
           "> input, > field, > slider, > dropdown, > textarea": {
             "margin-top": "0.25rem"
+          },
+          ">> *": {
+            "pointer_events": "auto"
           },
           "margin-bottom": "0.375rem",
           "pointer_events": "auto",
@@ -91817,7 +91820,7 @@
             "child-align": "center",
             "child-justify": "center",
             "display": "flex",
-            "min-height": "4rem"
+            "min-height": "3.5rem"
           },
           "background-color": "slate_30",
           "corner": "0.25rem",
@@ -91957,7 +91960,7 @@
           "child-layout": "row",
           "corner": "0.25rem",
           "cursor": "pointer",
-          "display": "flex",
+          "display": "inline-flex",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "text-align": "center",
@@ -92692,6 +92695,9 @@
           "$type": "style",
           "> input, > field, > slider, > dropdown, > textarea": {
             "margin-top": "0.25rem"
+          },
+          ">> *": {
+            "pointer_events": "auto"
           },
           "margin-bottom": "0.375rem",
           "pointer_events": "auto",
