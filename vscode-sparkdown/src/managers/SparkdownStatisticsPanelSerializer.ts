@@ -59,7 +59,7 @@ export async function refreshPanel(
     version: document.version,
     loading: true,
   });
-  const program = SparkProgramManager.instance.get(document.uri);
+  const program = await SparkProgramManager.instance.getOrCompile(document.uri);
   if (program) {
     const stats = await retrieveScreenPlayStatistics(
       context,
