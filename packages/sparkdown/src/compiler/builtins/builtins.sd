@@ -2937,13 +2937,6 @@ end
 
 style label with
   pointer_events = auto
-  -- ...and so does everything inside it. A wrapping label's whole point is
-  -- that its TEXT toggles the control, and the overlay sets
-  -- `pointer-events: none` on every element -- so the label alone opting in
-  -- is not enough: the words sitting on top of it are not hit targets, and
-  -- the click lands on nothing. Reads as a dead label, not a pointer problem.
-  >> *:
-    pointer_events = auto
   text-weight = 400
   margin-bottom = 0.375rem
   -- A control NESTED inside its label sits slightly off the label text --

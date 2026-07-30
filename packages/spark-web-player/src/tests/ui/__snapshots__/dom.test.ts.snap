@@ -1862,9 +1862,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
@@ -4036,9 +4033,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
@@ -6172,9 +6166,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
@@ -8430,9 +8421,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
@@ -10547,9 +10535,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
@@ -12646,9 +12631,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
@@ -14795,9 +14777,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
@@ -16911,9 +16890,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
@@ -19027,9 +19003,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
@@ -21143,9 +21116,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
@@ -23259,9 +23229,6 @@ spark-web-player #game .progress_fill {
 }
 spark-web-player #game .label {
   pointer-events: auto;
-  & * {
-    pointer-events: auto;
-  }
   font-weight: 400;
   margin-bottom: 0.375rem;
   >.input, >.field, >.slider, >.dropdown, >.textarea {
