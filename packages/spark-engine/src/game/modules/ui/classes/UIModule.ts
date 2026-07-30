@@ -440,8 +440,8 @@ const ELEMENT_TAGS: Record<string, string> = {
   header: "header",
   footer: "footer",
   form: "form",
-  field_group: "fieldset",
-  group_label: "legend",
+  fieldset: "fieldset",
+  legend: "legend",
   foldout: "details",
   // Authored as `modal`; still a real <dialog>. Named `modal` so it cannot be
   // confused with the SCREENPLAY `dialogue` style (speech), which is a

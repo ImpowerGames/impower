@@ -12,7 +12,7 @@
 // checkbox, radio, switch, dropdown, option, divider, progress, list,
 // ordered_list, item, table + table_header/table_body/table_row/head/cell,
 // quote, citation, figure, caption, foldout, article, section, header,
-// footer, form, field_group, group_label, modal.
+// footer, form, fieldset, legend, modal.
 //
 // Everything ELSE on an element line is a style CLASS — `column`, `row`, `card`,
 // `nav`, `badge`, `h1`, `muted`, `small`, `group`, `grid`, `container`,
@@ -142,11 +142,11 @@ layout main with
             -- button the block rhythm below it, so it lines up with the inputs
             -- beside it instead of stretching to fill the row.
             button #type="submit" "Subscribe"
-          -- A `field_group` wrapping a `label row`, as the reference does. The
+          -- A `fieldset` wrapping a `label row`, as the reference does. The
           -- switch and its wording are one control, so the text should toggle
           -- it; and a bare `row` is a layout primitive carrying no margin, so
           -- the block would otherwise end flush against the section below it.
-          field_group:
+          fieldset:
             label row #child-gap=8 #child-align=center:
               switch #checked={agreed} @change=set_agreed
               text "I agree to the "
@@ -292,8 +292,8 @@ layout main with
               input #type="color" #value={swatch}
 
           row grid:
-            field_group:
-              group_label:
+            fieldset:
+              legend:
                 strong "Checkboxes"
               label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
                 checkbox #checked=true
@@ -302,8 +302,8 @@ layout main with
                 checkbox
                 text "Checkbox 2"
 
-            field_group:
-              group_label:
+            fieldset:
+              legend:
                 strong "Radio buttons"
               label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
                 radio #name="radio" #checked=true
@@ -312,8 +312,8 @@ layout main with
                 radio #name="radio"
                 text "Radio button 2"
 
-            field_group:
-              group_label:
+            fieldset:
+              legend:
                 strong "Switches"
               label row #child-gap=8 #child-align=center #align="start" #cursor="pointer":
                 switch #checked=true

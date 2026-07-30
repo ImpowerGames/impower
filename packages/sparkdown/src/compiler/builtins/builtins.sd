@@ -2717,7 +2717,7 @@ style form with
 end
 
 -- Pico strips the default fieldset chrome and uses it purely as a grouping box.
-style field_group with
+style fieldset with
   display = block
   border-width = 0
   padding = 0
@@ -2730,7 +2730,7 @@ style field_group with
   margin-bottom = 1rem
 end
 
-style group_label with
+style legend with
   text-weight = 600
   padding = 0
   -- A legend introduces the controls under it, so it owns the space between

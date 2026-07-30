@@ -18446,8 +18446,8 @@
           "transition": "all 0.2s ease-in-out",
           "width": "100%"
         },
-        "field_group": {
-          "$name": "field_group",
+        "fieldset": {
+          "$name": "fieldset",
           "$type": "style",
           "border-width": "0",
           "display": "block",
@@ -18605,13 +18605,6 @@
           "display": "inline-flex",
           "margin-bottom": "1rem",
           "width": "100%"
-        },
-        "group_label": {
-          "$name": "group_label",
-          "$type": "style",
-          "margin-bottom": "0.5rem",
-          "padding": "0",
-          "text-weight": "600"
         },
         "h1": {
           "$name": "h1",
@@ -18946,6 +18939,13 @@
             },
             "position": "relative"
           }
+        },
+        "legend": {
+          "$name": "legend",
+          "$type": "style",
+          "margin-bottom": "0.5rem",
+          "padding": "0",
+          "text-weight": "600"
         },
         "link": {
           "$name": "link",
@@ -92258,8 +92258,8 @@
           "transition": "all 0.2s ease-in-out",
           "width": "100%"
         },
-        "field_group": {
-          "$name": "field_group",
+        "fieldset": {
+          "$name": "fieldset",
           "$type": "style",
           "border-width": "0",
           "display": "block",
@@ -92417,13 +92417,6 @@
           "display": "inline-flex",
           "margin-bottom": "1rem",
           "width": "100%"
-        },
-        "group_label": {
-          "$name": "group_label",
-          "$type": "style",
-          "margin-bottom": "0.5rem",
-          "padding": "0",
-          "text-weight": "600"
         },
         "h1": {
           "$name": "h1",
@@ -92758,6 +92751,13 @@
             },
             "position": "relative"
           }
+        },
+        "legend": {
+          "$name": "legend",
+          "$type": "style",
+          "margin-bottom": "0.5rem",
+          "padding": "0",
+          "text-weight": "600"
         },
         "link": {
           "$name": "link",

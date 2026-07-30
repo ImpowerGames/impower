@@ -1709,14 +1709,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;
@@ -3880,14 +3880,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;
@@ -6013,14 +6013,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;
@@ -8268,14 +8268,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;
@@ -10382,14 +10382,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;
@@ -12478,14 +12478,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;
@@ -14624,14 +14624,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;
@@ -16737,14 +16737,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;
@@ -18850,14 +18850,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;
@@ -20963,14 +20963,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;
@@ -23076,14 +23076,14 @@ spark-web-player #game .form {
     width: 100%;
   }
 }
-spark-web-player #game .field_group {
+spark-web-player #game .fieldset {
   display: block;
   border-width: 0px;
   padding: 0px;
   margin: 0px;
   margin-bottom: 1rem;
 }
-spark-web-player #game .group_label {
+spark-web-player #game .legend {
   font-weight: 600;
   padding: 0px;
   margin-bottom: 0.5rem;

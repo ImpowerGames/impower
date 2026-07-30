@@ -155,8 +155,8 @@ end
   section:
     text "In a section"
   form:
-    field_group:
-      group_label "Choose"
+    fieldset:
+      legend "Choose"
       field #value="x"
   foldout "More":
     text "Hidden detail"
