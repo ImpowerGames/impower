@@ -10,6 +10,7 @@ import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import type * as lsp from "vscode-languageserver-protocol";
 import { LSPClient, LSPClientExtension } from "./client";
 import { LSPPlugin } from "./plugin";
+import { coalesceRequest } from "./requestCoalescer";
 
 export interface SemanticTokens {
   /** (Optional) For delta updates; this extension ignores deltas and expects full sets */
@@ -175,25 +176,27 @@ export async function updateDocumentSemanticHighlighting(
   client: LSPClient,
   uri: string,
 ) {
-  let file = client.workspace.getFile(uri);
-  if (!file) return;
-  const view = file.getView();
-  if (!view) return;
-  const plugin = LSPPlugin.get(view);
-  if (!plugin) return;
-  const result = await plugin.client.request<
-    lsp.SemanticTokensParams,
-    lsp.SemanticTokens | null,
-    typeof lsp.SemanticTokensRequest.method
-  >("textDocument/semanticTokens/full", {
-    textDocument: { uri },
+  return coalesceRequest(client, `semanticTokens:${uri}`, async () => {
+    let file = client.workspace.getFile(uri);
+    if (!file) return;
+    const view = file.getView();
+    if (!view) return;
+    const plugin = LSPPlugin.get(view);
+    if (!plugin) return;
+    const result = await plugin.client.request<
+      lsp.SemanticTokensParams,
+      lsp.SemanticTokens | null,
+      typeof lsp.SemanticTokensRequest.method
+    >("textDocument/semanticTokens/full", {
+      textDocument: { uri },
+    });
+    view.dispatch(
+      setDocumentSemanticHighlighting(
+        view.state,
+        convertFromServerSemanticTokens(plugin, result),
+      ),
+    );
   });
-  view.dispatch(
-    setDocumentSemanticHighlighting(
-      view.state,
-      convertFromServerSemanticTokens(plugin, result),
-    ),
-  );
 }
 
 export function serverSemanticHighlighting(
