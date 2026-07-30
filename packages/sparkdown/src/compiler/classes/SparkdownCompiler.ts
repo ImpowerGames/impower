@@ -193,6 +193,25 @@ export class SparkdownCompiler {
   // cross-flow fingerprint matches AND no header/global chunk changed (const
   // inlining / global decl) — see the `flowMemo` in `compile`.
   protected _flowJsonCache?: Map<string, { fp: string; value: any }>;
+
+  // Bumped whenever the file registry changes (assets added/updated/removed,
+  // or a reconfigure). Part of the no-change compile short-circuit key:
+  // document versions alone can't see asset changes, but populateAssets and
+  // include resolution can be affected by them.
+  protected _filesEpoch = 0;
+  // The previous successful compile, reusable verbatim when nothing that
+  // feeds a compile has changed since. A forced no-change recompile measured
+  // ~450ms on a large project even with every incremental cache warm --
+  // ExportRuntime alone is ~200ms and fully non-incremental -- and PLAY /
+  // init paths re-request compiles without any edit having happened.
+  protected _lastCompileResult?: {
+    uri: string;
+    scripts: Record<string, number>;
+    filesEpoch: number;
+    countAllVisits: boolean;
+    program: SparkProgram;
+    story?: RuntimeStory;
+  };
   // While recomputing a non-reusable flow's subtree, populateLocations tees the
   // entries it commits here so they can be cached for next compile.
   protected _locCaptureTarget?: {
@@ -237,6 +256,9 @@ export class SparkdownCompiler {
   }
 
   configure(config: SparkdownCompilerConfig) {
+    // Anything a reconfigure can change (definitions, settings, files) feeds
+    // compiles, so retire the no-change short-circuit's snapshot.
+    this._filesEpoch++;
     if (
       config.definitions?.builtins !== undefined &&
       config.definitions?.builtins !== this._config.definitions?.builtins
@@ -365,6 +387,7 @@ export class SparkdownCompiler {
   }
 
   addFile(params: AddCompilerFileParams) {
+    this._filesEpoch++;
     const result = this.files.add(params);
     const file = params.file;
     if (
@@ -390,6 +413,7 @@ export class SparkdownCompiler {
   }
 
   updateFile(params: UpdateCompilerFileParams) {
+    this._filesEpoch++;
     const file = params.file;
     if (
       file.type === "script" &&
@@ -416,6 +440,7 @@ export class SparkdownCompiler {
   }
 
   removeFile(params: RemoveCompilerFileParams) {
+    this._filesEpoch++;
     this.files.remove(params);
     const file = params.file;
     const removed = this.documents.remove({ textDocument: { uri: file.uri } });
@@ -446,7 +471,42 @@ export class SparkdownCompiler {
     const uri = params.textDocument.uri;
     const startFrom = params.startFrom;
 
-    // console.clear();
+    // No-change short-circuit: if every script the last compile read is at
+    // the same version, the file registry hasn't changed, and the visit
+    // counting mode matches, this compile would reproduce the previous
+    // program bit-for-bit -- serve it instead of re-running the pipeline.
+    // (Per-request fields are re-stamped below; listeners still fire so
+    // downstream consumers observe the compile as usual.)
+    const cached = this._lastCompileResult;
+    if (
+      cached &&
+      cached.uri === uri &&
+      cached.filesEpoch === this._filesEpoch &&
+      cached.countAllVisits === !!params.countAllVisits &&
+      Object.entries(cached.scripts).every(
+        ([scriptUri, version]) =>
+          this.documents.get(scriptUri)?.version === version,
+      )
+    ) {
+      cached.program.startFrom = startFrom ?? this._config.startFrom;
+      const result: {
+        textDocument: { uri: string; version: number };
+        program: SparkProgram;
+        story?: RuntimeStory;
+      } = {
+        textDocument: {
+          uri,
+          version: this.documents.get(uri)?.version ?? -1,
+        },
+        program: cached.program,
+        story: cached.story,
+      };
+      this._events[CompiledProgramMessage.method].forEach((l) => {
+        l?.(result);
+      });
+      delete result.story;
+      return result;
+    }
 
     const program: SparkProgram = {
       uri,
@@ -571,6 +631,7 @@ export class SparkdownCompiler {
     this._compilationIds = new Set();
     this._changedChunkRanges = [];
 
+    let compileThrew = false;
     try {
       profile("start", this._profilerId, "ink/parse", uri);
       const parsedStory = this.parseIncrementally(
@@ -686,6 +747,7 @@ export class SparkdownCompiler {
         profile("end", this._profilerId, "populateLocations", uri);
       }
     } catch (e) {
+      compileThrew = true;
       console.error(e);
     }
 
@@ -713,6 +775,18 @@ export class SparkdownCompiler {
     // anything already filtered.
     populateFilteredImages(program.context ?? {});
     this.stripImageData(program);
+    // Remember this compile for the no-change short-circuit -- but only if it
+    // completed cleanly (a compile that threw may hold a partial program).
+    this._lastCompileResult = compileThrew
+      ? undefined
+      : {
+          uri,
+          scripts: { ...program.scripts },
+          filesEpoch: this._filesEpoch,
+          countAllVisits: !!params.countAllVisits,
+          program,
+          story: state.story,
+        };
     const result = {
       textDocument: {
         uri,
