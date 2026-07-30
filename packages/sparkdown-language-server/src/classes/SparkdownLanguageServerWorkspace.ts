@@ -211,6 +211,12 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     this._documents.update(params);
   }
 
+  // Fingerprint of the last diagnostics published per uri, so a compile only
+  // notifies files whose diagnostics actually changed. Every publish fans out
+  // into client-side feature re-pulls, so N identical publishes per compile
+  // multiply into real work.
+  protected _lastPublishedDiagnostics = new Map<string, string>();
+
   override onCompiledTextDocument(params: {
     textDocument?: { uri: string };
     program: any;
@@ -219,14 +225,23 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     for (const uri of uris) {
       const version = this._documentVersions.get(uri);
       const diagnostics = this.getDiagnostics(params.program, uri);
+      const fingerprint = JSON.stringify(diagnostics);
+      if (this._lastPublishedDiagnostics.get(uri) === fingerprint) {
+        continue;
+      }
+      this._lastPublishedDiagnostics.set(uri, fingerprint);
       this.sendNotification(PublishDiagnosticsNotification.method, {
         uri,
         diagnostics,
         version,
       });
-      this.sendRequest(FoldingRangeRefreshRequest.method, {});
-      this.sendRequest(SemanticTokensRefreshRequest.method, {});
     }
+    // These refreshes are workspace-wide and carry no params, so once per
+    // compile is lossless. (They used to be sent inside the loop above --
+    // 2 x tracked-uris redundant refresh storms per keystroke, each of which
+    // made clients re-pull folding/semantic tokens for every visible file.)
+    this.sendRequest(FoldingRangeRefreshRequest.method, {});
+    this.sendRequest(SemanticTokensRefreshRequest.method, {});
   }
 
   override onCreatedFile(file: {
@@ -295,6 +310,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }) {
     this._documents.remove({ textDocument: { uri: file.uri } });
     this._lastFormattedText.delete(file.uri);
+    this._lastPublishedDiagnostics.delete(file.uri);
   }
 
   public listen(): Disposable {

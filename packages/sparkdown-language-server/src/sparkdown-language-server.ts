@@ -150,12 +150,34 @@ try {
     }
   });
 
+  // Clients re-pull folding ranges and semantic tokens after every change AND
+  // every refresh, so identical requests arrive in bursts. Both computations
+  // are pure functions of (document version, program version) -- cache the
+  // last result per uri and only recompute when either input moves.
+  const foldingRangeCache = new Map<
+    string,
+    { documentVersion: number; programVersion: number | undefined; result: any }
+  >();
+  const semanticTokensCache = new Map<
+    string,
+    { documentVersion: number; programVersion: number | undefined; result: any }
+  >();
+
   // foldingRangeProvider
   connection.onFoldingRanges((params) => {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
     const program = workspace.program(uri);
+    const cached = foldingRangeCache.get(uri);
+    if (
+      document &&
+      cached &&
+      cached.documentVersion === document.version &&
+      cached.programVersion === program?.version
+    ) {
+      return cached.result;
+    }
     performance.mark(`lsp: onFoldingRanges ${uri} start`);
     const result = getFoldingRanges(document, annotations, program);
     performance.mark(`lsp: onFoldingRanges ${uri} end`);
@@ -164,6 +186,13 @@ try {
       `lsp: onFoldingRanges ${uri} start`,
       `lsp: onFoldingRanges ${uri} end`,
     );
+    if (document) {
+      foldingRangeCache.set(uri, {
+        documentVersion: document.version,
+        programVersion: program?.version,
+        result,
+      });
+    }
     return result;
   });
 
@@ -625,6 +654,15 @@ try {
     const annotations = workspace.annotations(uri);
     const program =
       workspace.program(uri) || (await workspace.compile(uri, true));
+    const cached = semanticTokensCache.get(uri);
+    if (
+      document &&
+      cached &&
+      cached.documentVersion === document.version &&
+      cached.programVersion === program?.version
+    ) {
+      return cached.result;
+    }
     performance.mark(`lsp: semanticTokens.on ${uri} start`);
     const result = getSemanticTokens(document, annotations, program);
     performance.mark(`lsp: semanticTokens.on ${uri} end`);
@@ -633,6 +671,13 @@ try {
       `lsp: semanticTokens.on ${uri} start`,
       `lsp: semanticTokens.on ${uri} end`,
     );
+    if (document) {
+      semanticTokensCache.set(uri, {
+        documentVersion: document.version,
+        programVersion: program?.version,
+        result,
+      });
+    }
     return result;
   });
   connection.languages.semanticTokens.onRange(async (params) => {
