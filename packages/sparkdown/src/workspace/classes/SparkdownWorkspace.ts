@@ -261,7 +261,6 @@ export abstract class SparkdownWorkspace {
       files?: Omit<File, "type" | "name" | "ext">[];
     } & Omit<SparkdownCompilerConfig, "files">;
   }): Promise<{
-    program?: SparkProgram;
     textDocuments?: {
       uri: string;
       text: string;
@@ -344,12 +343,25 @@ export abstract class SparkdownWorkspace {
         compilerConfig.workspace ??
         params.workspaceFolders?.[0]?.uri ??
         params.rootUri;
-      await this.loadCompiler({
-        ...compilerConfig,
-        workspace,
-        files,
+      // Configure the compiler and run the first compile OFF the initialize
+      // response path. Nothing the client renders first needs them: compiler
+      // requests wait on `whenCompilerConfigured`, results arrive through
+      // publishDiagnostics/didCompile, and the post-initialize refreshes
+      // re-request anything asked for too early (#224). Awaiting this wall
+      // here kept the editor invisible for the entire multi-second
+      // parse+configure+compile chain on large projects (#285).
+      (async () => {
+        await this.loadCompiler({
+          ...compilerConfig,
+          workspace,
+          files,
+        });
+        if (uri) {
+          await this.compile(uri, true);
+        }
+      })().catch((err) => {
+        console.error("compiler configuration failed", err);
       });
-      const program = uri ? await this.compile(uri, true) : undefined;
       const textDocuments: {
         uri: string;
         text: string;
@@ -370,7 +382,7 @@ export abstract class SparkdownWorkspace {
           });
         }
       }
-      return { program, textDocuments };
+      return { textDocuments };
     }
     return {};
   }
@@ -615,10 +627,24 @@ export abstract class SparkdownWorkspace {
     return this._openDocuments.has(uri);
   }
 
+  /**
+   * Wait (if necessary) for the compiler worker to be configured before
+   * talking to it. Since initialize() no longer blocks on configuration,
+   * document/file traffic can otherwise race ahead of ConfigureCompiler and
+   * be silently clobbered by its files snapshot.
+   */
+  protected async compilerReady() {
+    const configuring = this.whenCompilerConfigured;
+    if (configuring) {
+      await configuring;
+    }
+  }
+
   protected async updateCompilerDocument(
     textDocument: { uri: string },
     contentChanges: SparkdownDocumentContentChangeEvent[],
   ) {
+    await this.compilerReady();
     return this._compilerChannelConnection.sendRequest(
       UpdateCompilerDocumentMessage.type,
       {
@@ -924,6 +950,7 @@ export abstract class SparkdownWorkspace {
       line: selectedRange.start.line,
     };
     this.onSelectTextDocument(params);
+    await this.compilerReady();
     const result = await this._compilerChannelConnection.sendRequest(
       SelectCompilerDocumentMessage.type,
       params,
@@ -939,6 +966,7 @@ export abstract class SparkdownWorkspace {
     const file = await this.loadFile({ uri });
     this._watchedFiles.set(uri, file);
     this.onCreatedFile(file);
+    await this.compilerReady();
     await this._compilerChannelConnection.sendRequest(
       AddCompilerFileMessage.type,
       { file },
@@ -960,6 +988,7 @@ export abstract class SparkdownWorkspace {
       this._watchedFiles.set(uri, file);
       this._documentVersions.set(uri, file.version);
       this.onChangedFile(file);
+      await this.compilerReady();
       await this._compilerChannelConnection.sendRequest(
         UpdateCompilerFileMessage.type,
         { file },
@@ -986,6 +1015,7 @@ export abstract class SparkdownWorkspace {
     if (deletedFile) {
       this.onDeletedFile(deletedFile!);
     }
+    await this.compilerReady();
     await this._compilerChannelConnection.sendRequest(
       RemoveCompilerFileMessage.type,
       {
