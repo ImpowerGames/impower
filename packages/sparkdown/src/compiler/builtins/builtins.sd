@@ -2392,19 +2392,12 @@ style foldout_label with
       border-color = slate_60
 end
 style foldout with
+  -- No margin. A `foldout` is BOTH a document disclosure and a menu control --
+  -- the nav dropdown is one -- and no single default is right for both. It used
+  -- to carry `margin-bottom: 1rem` plus a `&.menu` rule undoing it, which is
+  -- the shape of a default that does not hold. Whatever lays a foldout out
+  -- decides its spacing, as with every other control.
   display = block
-  -- A disclosure is a BLOCK in the flow and owns its trailing step, like every
-  -- other semantic block here. Without it stacked accordions sit flush against
-  -- each other and against whatever follows.
-  --
-  -- Note the `margin-bottom` further down is a different thing entirely: it is
-  -- on the LABEL, and only while opened.
-  margin-bottom = 1rem
-  -- ...except as a MENU. The same element serves the nav dropdown, which is a
-  -- control inside a list, not a block in the document flow -- document rhythm
-  -- under it pushes the whole header down.
-  &.menu:
-    margin-bottom = 0
   &@opened:
     > foldout_label:
       text-color = slate_60

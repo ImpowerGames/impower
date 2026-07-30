@@ -18460,9 +18460,6 @@
         "foldout": {
           "$name": "foldout",
           "$type": "style",
-          "&.menu": {
-            "margin-bottom": "0"
-          },
           "&@opened": {
             "> foldout_label": {
               "&.secondary": {
@@ -18476,8 +18473,7 @@
               "text-color": "slate_60"
             }
           },
-          "display": "block",
-          "margin-bottom": "1rem"
+          "display": "block"
         },
         "foldout_label": {
           "$name": "foldout_label",
@@ -92231,9 +92227,6 @@
         "foldout": {
           "$name": "foldout",
           "$type": "style",
-          "&.menu": {
-            "margin-bottom": "0"
-          },
           "&@opened": {
             "> foldout_label": {
               "&.secondary": {
@@ -92247,8 +92240,7 @@
               "text-color": "slate_60"
             }
           },
-          "display": "block",
-          "margin-bottom": "1rem"
+          "display": "block"
         },
         "foldout_label": {
           "$name": "foldout_label",
