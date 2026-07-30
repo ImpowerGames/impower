@@ -370,7 +370,7 @@ const ELEMENT_TAGS: Record<string, string> = {
   table_body: "tbody",
   table_footer: "tfoot",
   table_row: "tr",
-  header_cell: "th",
+  head: "th",
   cell: "td",
   // Text structure. `strong`/`emphasis` are ELEMENTS because they carry
   // MEANING a screen reader acts on (importance / stress emphasis). Purely

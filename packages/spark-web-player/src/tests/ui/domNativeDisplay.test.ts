@@ -44,7 +44,7 @@ describe("native display", () => {
   table:
     table_header:
       table_row:
-        header_cell "A"
+        head "A"
     table_body:
       table_row:
         cell "1"

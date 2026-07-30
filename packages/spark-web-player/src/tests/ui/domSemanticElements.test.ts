@@ -184,8 +184,8 @@ end
   table:
     table_header:
       table_row:
-        header_cell "Name"
-        header_cell "Qty"
+        head "Name"
+        head "Qty"
     table_body:
       table_row:
         cell "Sword"

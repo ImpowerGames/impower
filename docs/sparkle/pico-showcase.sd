@@ -10,7 +10,7 @@
 // Element TAGS are builtins, named readably rather than after HTML — block, span,
 // scroller, text, link, label, field, textarea, button, picture, input, slider,
 // checkbox, radio, switch, dropdown, option, divider, progress, list,
-// ordered_list, item, table + table_header/table_body/table_row/header_cell/cell,
+// ordered_list, item, table + table_header/table_body/table_row/head/cell,
 // quote, citation, figure, caption, foldout, article, section, header,
 // footer, form, field_group, group_label, modal.
 //
@@ -332,20 +332,20 @@ layout main with
           table striped:
             table_header:
               table_row:
-                header_cell "#" #scope="col"
-                header_cell "Heading" #scope="col"
-                header_cell "Heading" #scope="col"
-                header_cell "Heading" #scope="col"
-                header_cell "Heading" #scope="col"
-                header_cell "Heading" #scope="col"
-                header_cell "Heading" #scope="col"
-                header_cell "Heading" #scope="col"
+                head "#" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
+                head "Heading" #scope="col"
             table_body:
-              -- The row number is a `header_cell` with `#scope="row"`, not a
+              -- The row number is a `head` with `#scope="row"`, not a
               -- plain cell: it LABELS the row, so a screen reader announces it
               -- alongside each value in that row.
               table_row:
-                header_cell "1" #scope="row"
+                head "1" #scope="row"
                 cell "Cell"
                 cell "Cell"
                 cell "Cell"
@@ -354,7 +354,7 @@ layout main with
                 cell "Cell"
                 cell "Cell"
               table_row:
-                header_cell "2" #scope="row"
+                head "2" #scope="row"
                 cell "Cell"
                 cell "Cell"
                 cell "Cell"
@@ -363,7 +363,7 @@ layout main with
                 cell "Cell"
                 cell "Cell"
               table_row:
-                header_cell "3" #scope="row"
+                head "3" #scope="row"
                 cell "Cell"
                 cell "Cell"
                 cell "Cell"

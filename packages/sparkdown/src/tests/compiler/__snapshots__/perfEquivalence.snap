@@ -18690,13 +18690,8 @@
           "text-size": "1rem",
           "text-weight": "700"
         },
-        "header": {
-          "$name": "header",
-          "$type": "style",
-          "display": "block"
-        },
-        "header_cell": {
-          "$name": "header_cell",
+        "head": {
+          "$name": "head",
           "$type": "style",
           "border-bottom-color": "slate_30",
           "border-bottom-style": "solid",
@@ -18704,6 +18699,11 @@
           "display": "table-cell",
           "padding": "0.5rem 1rem",
           "text-weight": "400"
+        },
+        "header": {
+          "$name": "header",
+          "$type": "style",
+          "display": "block"
         },
         "heading": {
           "$name": "heading",
@@ -19521,7 +19521,7 @@
             "border-bottom-width": "0.1875rem",
             "text-weight": "600"
           },
-          ">> header_cell": {
+          ">> head": {
             "border-bottom-width": "0.1875rem",
             "text-weight": "600"
           },
@@ -92502,13 +92502,8 @@
           "text-size": "1rem",
           "text-weight": "700"
         },
-        "header": {
-          "$name": "header",
-          "$type": "style",
-          "display": "block"
-        },
-        "header_cell": {
-          "$name": "header_cell",
+        "head": {
+          "$name": "head",
           "$type": "style",
           "border-bottom-color": "slate_30",
           "border-bottom-style": "solid",
@@ -92516,6 +92511,11 @@
           "display": "table-cell",
           "padding": "0.5rem 1rem",
           "text-weight": "400"
+        },
+        "header": {
+          "$name": "header",
+          "$type": "style",
+          "display": "block"
         },
         "heading": {
           "$name": "heading",
@@ -93333,7 +93333,7 @@
             "border-bottom-width": "0.1875rem",
             "text-weight": "600"
           },
-          ">> header_cell": {
+          ">> head": {
             "border-bottom-width": "0.1875rem",
             "text-weight": "600"
           },

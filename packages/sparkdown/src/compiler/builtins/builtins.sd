@@ -2295,7 +2295,7 @@ end
 -- layout at all (columns stop aligning across rows).
 style table_header with
   display = table-header-group
-  >> header_cell:
+  >> head:
     text-weight = 600
     border-bottom-width = 0.1875rem
   >> cell:
@@ -2323,7 +2323,7 @@ style table with
   margin-bottom = 1rem
 end
 
-style header_cell with
+style head with
   display = table-cell
   text-weight = 400
   padding = 0.5rem 1rem

@@ -1391,7 +1391,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -1416,7 +1416,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;
@@ -3562,7 +3562,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -3587,7 +3587,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;
@@ -5695,7 +5695,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -5720,7 +5720,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;
@@ -7950,7 +7950,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -7975,7 +7975,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;
@@ -10064,7 +10064,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -10089,7 +10089,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;
@@ -12160,7 +12160,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -12185,7 +12185,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;
@@ -14306,7 +14306,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -14331,7 +14331,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;
@@ -16419,7 +16419,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -16444,7 +16444,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;
@@ -18532,7 +18532,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -18557,7 +18557,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;
@@ -20645,7 +20645,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -20670,7 +20670,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;
@@ -22758,7 +22758,7 @@ spark-web-player #game .item {
 }
 spark-web-player #game .table_header {
   display: table-header-group;
-  & .header_cell {
+  & .head {
     font-weight: 600;
     border-bottom-width: 0.1875rem;
   }
@@ -22783,7 +22783,7 @@ spark-web-player #game .table {
   text-align: left;
   margin-bottom: 1rem;
 }
-spark-web-player #game .header_cell {
+spark-web-player #game .head {
   display: table-cell;
   font-weight: 400;
   padding: 0.5rem 1rem;

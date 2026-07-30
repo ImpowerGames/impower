@@ -107,7 +107,7 @@ describe("pico showcase example", () => {
     // Semantic element tags realize as their real HTML tags.
     for (const tag of [
       // Real DOM tags, from readable builtin names (`list` -> <ul>,
-      // `header_cell` -> <th>, `modal` -> <dialog>, …).
+      // `head` -> <th>, `modal` -> <dialog>, …).
       //
       // The line is MEANING, not appearance: anything a screen reader acts on
       // is an element, anything purely visual (`mark`, `highlight`, `muted`)
