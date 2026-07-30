@@ -56,6 +56,7 @@ import { formatList } from "../utils/formatList";
 import { getExpectedSelectorTypes } from "../utils/getExpectedSelectorTypes";
 import { getPossibleStringIdentifiers } from "../utils/getPossibleStringIdentifiers";
 import { indexStructs } from "../utils/indexStructs";
+import { populateFilteredImages } from "../utils/populateFilteredImages";
 import { profile } from "../utils/profile";
 import { readProperty } from "../utils/readProperty";
 import { resolveFileUsingImpliedExtension } from "../utils/resolveFileUsingImpliedExtension";
@@ -704,6 +705,14 @@ export class SparkdownCompiler {
       program.simulationOptions = this._config.simulationOptions;
     }
     program.startFrom = startFrom ?? this._config.startFrom;
+    // Precompute every authored filtered_image's `filtered_src` while the raw
+    // SVG source is still attached, then strip that source from the context:
+    // it dominated the full program payload (7.5MB of 8.9MB on a real
+    // project), and with filtered_srcs baked no consumer reads it -- previews
+    // resolve through `src`, and the engine's runtime filterImage() no-ops on
+    // anything already filtered.
+    populateFilteredImages(program.context ?? {});
+    this.stripImageData(program);
     const result = {
       textDocument: {
         uri,
@@ -2324,6 +2333,22 @@ export class SparkdownCompiler {
     this.populateImplicitDefs(state, program);
     this.populateDefinedDefaultProperties(state, program);
     profile("end", this._profilerId, "buildContext", uri);
+  }
+
+  /**
+   * Remove the inlined SVG source (`data`) from image context structs before
+   * the program leaves the compiler. Runs AFTER populateFilteredImages, so
+   * filtered images already carry their computed `filtered_src`.
+   */
+  protected stripImageData(program: SparkProgram) {
+    const images = program.context?.["image"];
+    if (images) {
+      for (const image of Object.values(images)) {
+        if (image && typeof image === "object" && (image as any).data != null) {
+          delete (image as any).data;
+        }
+      }
+    }
   }
 
   populateBuiltins(state: SparkdownCompilerState, program: SparkProgram) {
