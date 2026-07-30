@@ -135,10 +135,13 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     // Handle Workspace Events
     if (InitializeMessage.type.is(message)) {
       connection.sendResponse(message, async () => {
-        const { program } = await state.workspace.initialize(message.params);
+        // The initial compile inside initialize() already delivers the
+        // program to the game via the CompiledProgram notification; no caller
+        // reads it from this response, so don't clone the multi-MB program
+        // into it too.
+        await state.workspace.initialize(message.params);
         return {
           capabilities: {},
-          program,
         };
       });
       return;
