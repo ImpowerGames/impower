@@ -18368,7 +18368,7 @@
           },
           "+ small": {
             "margin-bottom": "1rem",
-            "margin-top": "-0.75rem"
+            "margin-top": "0.25rem"
           },
           "@disabled": {
             "cursor": "not-allowed",
@@ -18394,7 +18394,6 @@
           "color-scheme": "dark",
           "corner": "0.25rem",
           "cursor": "default",
-          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "padding-right": "2.5rem",
           "pointer_events": "auto",
@@ -18718,7 +18717,7 @@
           "$type": "style",
           "+ small": {
             "margin-bottom": "1rem",
-            "margin-top": "-0.75rem"
+            "margin-top": "0.25rem"
           },
           "@disabled": {
             "cursor": "not-allowed",
@@ -18775,7 +18774,6 @@
           "color-scheme": "dark",
           "corner": "0.25rem",
           "height": "3.125rem",
-          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "text-color": "slate_90",
@@ -19223,7 +19221,6 @@
           "corner": "0.25rem",
           "display": "inline-block",
           "height": "0.5rem",
-          "margin-bottom": "0.5rem",
           "overflow": "hidden",
           "text-color": "sky_40",
           "width": "100%"
@@ -19356,7 +19353,6 @@
           "corner": "0.25rem",
           "cursor": "pointer",
           "height": "1.25rem",
-          "margin-bottom": "1rem",
           "pointer_events": "auto",
           "width": "100%"
         },
@@ -19533,7 +19529,7 @@
           "$type": "style",
           "+ small": {
             "margin-bottom": "1rem",
-            "margin-top": "-0.75rem"
+            "margin-top": "0.25rem"
           },
           "@disabled": {
             "cursor": "not-allowed",
@@ -19556,7 +19552,6 @@
           "border-style": "solid",
           "border-width": "0.0625rem",
           "corner": "0.25rem",
-          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "resize": "vertical",
@@ -92144,7 +92139,7 @@
           },
           "+ small": {
             "margin-bottom": "1rem",
-            "margin-top": "-0.75rem"
+            "margin-top": "0.25rem"
           },
           "@disabled": {
             "cursor": "not-allowed",
@@ -92170,7 +92165,6 @@
           "color-scheme": "dark",
           "corner": "0.25rem",
           "cursor": "default",
-          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "padding-right": "2.5rem",
           "pointer_events": "auto",
@@ -92494,7 +92488,7 @@
           "$type": "style",
           "+ small": {
             "margin-bottom": "1rem",
-            "margin-top": "-0.75rem"
+            "margin-top": "0.25rem"
           },
           "@disabled": {
             "cursor": "not-allowed",
@@ -92551,7 +92545,6 @@
           "color-scheme": "dark",
           "corner": "0.25rem",
           "height": "3.125rem",
-          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "text-color": "slate_90",
@@ -92999,7 +92992,6 @@
           "corner": "0.25rem",
           "display": "inline-block",
           "height": "0.5rem",
-          "margin-bottom": "0.5rem",
           "overflow": "hidden",
           "text-color": "sky_40",
           "width": "100%"
@@ -93132,7 +93124,6 @@
           "corner": "0.25rem",
           "cursor": "pointer",
           "height": "1.25rem",
-          "margin-bottom": "1rem",
           "pointer_events": "auto",
           "width": "100%"
         },
@@ -93309,7 +93300,7 @@
           "$type": "style",
           "+ small": {
             "margin-bottom": "1rem",
-            "margin-top": "-0.75rem"
+            "margin-top": "0.25rem"
           },
           "@disabled": {
             "cursor": "not-allowed",
@@ -93332,7 +93323,6 @@
           "border-style": "solid",
           "border-width": "0.0625rem",
           "corner": "0.25rem",
-          "margin-bottom": "1rem",
           "padding": "0.75rem 1rem",
           "pointer_events": "auto",
           "resize": "vertical",

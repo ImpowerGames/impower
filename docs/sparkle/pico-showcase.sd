@@ -136,12 +136,12 @@ layout main with
           row grid:
             -- `#aria-label` because the placeholder is the only visible label:
             -- a placeholder is not an accessible name.
-            input #value={first_name} #placeholder="First name" #aria-label="First name" #required=true @input=set_first
-            input #type="email" #value={email} #placeholder="Email address" #aria-label="Email address" #autocomplete="email" #required=true @input=set_email
+            input #value={first_name} #placeholder="First name" #aria-label="First name" #required=true @input=set_first #margin-bottom=18
+            input #type="email" #value={email} #placeholder="Email address" #aria-label="Email address" #autocomplete="email" #required=true @input=set_email #margin-bottom=18
             -- `#type="submit"` as in the reference: it is what gives a form
             -- button the block rhythm below it, so it lines up with the inputs
             -- beside it instead of stretching to fill the row.
-            button #type="submit" "Subscribe"
+            button #type="submit" "Subscribe" #margin-bottom=18
           -- A `fieldset` wrapping a `label row`, as the reference does. The
           -- switch and its wording are one control, so the text should toggle
           -- it; and a bare `row` is a layout primitive carrying no margin, so
@@ -255,41 +255,41 @@ layout main with
         -- Order and labels follow the reference exactly.
         form:
           label "Search"
-          input search #type="search" #value={search_term} #placeholder="Search" @input=set_search
+          input search #type="search" #value={search_term} #placeholder="Search" @input=set_search #margin-bottom=18
 
           label "Text"
-          input #placeholder="Text"
+          input #placeholder="Text" #margin-bottom=18
           small muted "Curabitur consequat lacus at lacus porta finibus."
 
           label "Select"
-          dropdown #value={size} #required=true @change=set_size:
+          dropdown #value={size} #required=true @change=set_size #margin-bottom=18:
             -- An empty-valued selected first option is the placeholder: with
             -- `#required` it cannot be submitted, so it reads as a prompt.
             option "Select…" #value="" #selected=true
             option "…"
 
           label "File browser":
-            input file_input #type="file"
+            input file_input #type="file" #margin-bottom=18
 
           label "Range slider":
-            slider #value={volume} #min=0 #max=100 @input=set_volume
+            slider #value={volume} #min=0 #max=100 @input=set_volume #margin-bottom=18
 
           -- Validation states are Pico's `aria-invalid`, not a class.
           row grid:
             label "Valid":
-              input valid #placeholder="Valid" #aria-invalid=false
+              input valid #placeholder="Valid" #aria-invalid=false #margin-bottom=18
             label "Invalid":
-              input invalid #placeholder="Invalid" #aria-invalid=true
+              input invalid #placeholder="Invalid" #aria-invalid=true #margin-bottom=18
             label "Disabled":
-              input #placeholder="Disabled" #disabled=true
+              input #placeholder="Disabled" #disabled=true #margin-bottom=18
 
           row grid:
             label "Date":
-              input #type="date" #value={when}
+              input #type="date" #value={when} #margin-bottom=18
             label "Time":
-              input #type="time" #value={at_time}
+              input #type="time" #value={at_time} #margin-bottom=18
             label "Color":
-              input #type="color" #value={swatch}
+              input #type="color" #value={swatch} #margin-bottom=18
 
           row grid:
             fieldset:
@@ -322,8 +322,8 @@ layout main with
                 switch #checked={agreed} @change=set_agreed
                 text "Switch 2"
 
-          button secondary "Reset" #type="reset"
-          button "Submit" #type="submit"
+          button secondary "Reset" #type="reset" #margin-bottom=18
+          button "Submit" #type="submit" #margin-bottom=18
 
       -- Tables -------------------------------------------------------------
       section:
@@ -417,8 +417,8 @@ layout main with
       -- Progress -----------------------------------------------------------
       section:
         h2 "Progress bar"
-        progress #value={done} #max=100
-        progress
+        progress #value={done} #max=100 #margin-bottom=9
+        progress #margin-bottom=9
 
       -- Loading ------------------------------------------------------------
       section:

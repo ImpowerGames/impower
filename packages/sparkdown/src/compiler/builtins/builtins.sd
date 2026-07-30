@@ -1635,15 +1635,24 @@ end
 -- It needs the same chrome as `field`, which is just `input #type="text"` under
 -- a friendlier name — without this, every typed input fell back to the
 -- browser's white default while `field` next to it was dark.
+-- Form controls carry NO margin of their own.
+--
+-- They are PRIMITIVES, like `row` and `column` and `text`: whatever lays a
+-- control out decides its spacing. Only genuine document elements ship with
+-- rhythm -- `paragraph`, `h1`-`h6`, `list`, `table`, `section`, `article`,
+-- `quote`, `fieldset`.
+--
+-- A baked-in `margin-bottom` reads as correct on a web form and as a bug in a
+-- game menu, where a `row` of dropdowns and sliders would carry a rhythm step
+-- under each one that nothing asked for and no gap accounts for. Spacing a
+-- form is the FORM's business, and the showcase states it per control.
 style input with
   pointer_events = auto
   color-scheme = dark
   text-leading = 1.5
   width = 100%
-  -- See `field`: controls carry the rhythm below them.
-  margin-bottom = 1rem
   + small:
-    margin-top = -0.75rem
+    margin-top = 0.25rem
     margin-bottom = 1rem
   -- Every input gets the SAME explicit height, exactly as Pico does — content
   -- height + vertical padding + borders. Deriving it from content instead only
@@ -1781,10 +1790,8 @@ style textarea with
   width = 100%
   pointer_events = auto
   padding = 0.75rem 1rem
-  -- See `field`: controls carry the rhythm below them.
-  margin-bottom = 1rem
   + small:
-    margin-top = -0.75rem
+    margin-top = 0.25rem
     margin-bottom = 1rem
   corner = 0.25rem
   border-width = 0.0625rem
@@ -1843,10 +1850,6 @@ style slider with
     opacity = 0.5
     cursor = not-allowed
     pointer-events = none
-  -- Every other form control owns the step below it; the slider was the one
-  -- left out, so a range field ended flush against whatever followed and
-  -- pulled the entire rest of the form up with it.
-  margin-bottom = 1rem
 end
 
 style link with
@@ -1891,10 +1894,8 @@ style dropdown with
   text-leading = 1.5
   padding = 0.75rem 1rem
   padding-right = 2.5rem
-  -- See `field`: controls carry the rhythm below them.
-  margin-bottom = 1rem
   + small:
-    margin-top = -0.75rem
+    margin-top = 0.25rem
     margin-bottom = 1rem
   corner = 0.25rem
   border-width = 0.0625rem
@@ -2877,9 +2878,6 @@ style progress with
     animation-iteration-count = infinite
     @bar:
       background-color = transparent
-  -- A progress bar carries its own trailing half-step, as Pico does — two
-  -- stacked bars sit closer together than two blocks would.
-  margin-bottom = 0.5rem
   width = 100%
   height = 0.5rem
   corner = 0.25rem

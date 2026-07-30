@@ -301,6 +301,49 @@ end
     expect(marks).toEqual(["", "", "disc", "none", "", "circle"]);
   });
 
+  // Form controls are PRIMITIVES: whatever lays one out decides its spacing.
+  // A baked-in `margin-bottom` reads as correct on a web form and as a bug in a
+  // game menu, where a `row` of dropdowns and sliders would carry a rhythm step
+  // under each one that nothing asked for and no gap accounts for.
+  test("controls carry no margin of their own, and take one when asked", async () => {
+    const h = createDOMHarness(
+      `layout main with
+  row:
+    input #placeholder="a"
+    dropdown:
+      option "x"
+    slider #min=0 #max=100
+  input #placeholder="b" #margin-bottom=18
+end
+`,
+      0,
+      { autoOpenAll: true },
+    );
+    await h.ready;
+    await flushMicrotasks(20);
+    const style = (el: Element | null) => el?.getAttribute("style") ?? "";
+    const controls = [...h.overlay.querySelectorAll("input, select")];
+
+    // Bare in a row: nothing underneath them.
+    for (const c of controls.slice(0, 3)) {
+      expect(
+        style(c),
+        `<${c.tagName.toLowerCase()}> should carry no margin of its own`,
+      ).not.toContain("margin-bottom");
+    }
+
+    // Asked for: honoured. This could NOT be expressed at all until the widget
+    // mounters were fixed — they routed EVERY prop to attributes, so
+    // `#margin-bottom=18` emitted a literal `margin-bottom="18"` attribute that
+    // the browser ignores. Valid-looking markup, no warning, no effect.
+    expect(style(controls[controls.length - 1]!)).toContain("margin-bottom: 18px");
+
+    // ...and real attributes still route to attributes.
+    expect(
+      h.overlay.querySelector('input[type="range"]')?.getAttribute("max"),
+    ).toBe("100");
+  });
+
   // Pico composes several of its components out of DIRECT-CHILD rules, so the
   // `> selector` form has to survive into the sheet.
   test("`> child` selectors compose article sections and joined groups", async () => {

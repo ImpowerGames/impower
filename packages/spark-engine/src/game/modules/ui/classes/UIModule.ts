@@ -1557,18 +1557,49 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ...widget.attributes,
     };
     const reactive: Omit<ReactiveAttr, "element">[] = [];
+    // A control takes STYLE props too, exactly as a container does. Every prop
+    // used to become an attribute here, so `#margin-bottom=18` on an input
+    // emitted a literal `margin-bottom="18"` attribute -- valid-looking markup
+    // that the browser ignores entirely. It failed silently: no warning, no
+    // style, and an attribute sitting in the DOM to suggest it had worked.
+    //
+    // This matters because form controls carry no margin of their own (see
+    // builtins.sd), so stating the spacing at the call site is the ONLY way to
+    // space one -- and it was the one thing that could not be done.
+    const style: Record<string, string | null> = {};
+    const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     for (const [prop, propValue] of Object.entries(node.props)) {
       const boolean = prop === "checked";
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
+      if (!isAttributeProp(prop)) {
+        const val = resolved == null ? null : String(resolved);
+        style[prop] = val;
+        if (this.isReactiveProp(propValue)) {
+          reactiveStyles.push({ prop, propValue, last: val, deps });
+        }
+        continue;
+      }
       const attrVal = this.propToAttr(resolved, boolean);
-      attributes[prop] = attrVal;
+      attributes[toDataAttributeName(prop)] = attrVal;
       if (this.isReactiveProp(propValue)) {
         reactive.push({ prop, propValue, boolean, last: attrVal, deps });
       }
     }
-    const el = this.createElement(parent, { type: "input", name, attributes }, before);
+    const el = this.createElement(
+      parent,
+      {
+        type: "input",
+        name,
+        attributes,
+        ...(Object.keys(style).length > 0 ? { style } : {}),
+      },
+      before,
+    );
+    for (const r of reactiveStyles) {
+      scope.styles.push({ element: el, ...r });
+    }
     for (const r of reactive) {
       scope.attrs.push({ element: el, ...r });
     }
@@ -1655,24 +1686,45 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   ): Element {
     const vs = this._game.story.variablesState;
     const attributes: Record<string, string | null> = {};
+    const style: Record<string, string | null> = {};
+    const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     for (const [prop, propValue] of Object.entries(node.props)) {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
+      // A style prop is a STYLE, not an attribute. Routing everything to
+      // attributes emitted things like `margin-bottom="18"` into the DOM:
+      // markup that looks deliberate and does nothing at all.
+      if (!isAttributeProp(prop)) {
+        const val = resolved == null ? null : String(resolved);
+        style[prop] = val;
+        if (this.isReactiveProp(propValue)) {
+          reactiveStyles.push({ prop, propValue, last: val, deps });
+        }
+        continue;
+      }
       const attrVal = this.propToAttr(resolved, false);
-      attributes[prop] = attrVal;
+      attributes[toDataAttributeName(prop)] = attrVal;
       if (this.isReactiveProp(propValue)) {
         reactive.push({ prop, propValue, boolean: false, last: attrVal, deps });
       }
     }
     const el = this.createElement(
       parent,
-      { type: "textarea", name, attributes },
+      {
+        type: "textarea",
+        name,
+        attributes,
+        ...(Object.keys(style).length > 0 ? { style } : {}),
+      },
       before,
     );
     for (const r of reactive) {
       scope.attrs.push({ element: el, ...r });
+    }
+    for (const r of reactiveStyles) {
+      scope.styles.push({ element: el, ...r });
     }
     for (const ev of node.events) {
       this.mountEvent(el, ev, scope);
@@ -1690,11 +1742,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const vs = this._game.story.variablesState;
     const attributes: Record<string, string | null> = {};
     const reactive: Omit<ReactiveAttr, "element">[] = [];
+    const style: Record<string, string | null> = {};
+    const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     let selected: { propValue?: PropValue; last: string | null; deps: ReactiveDeps } | null = null;
     for (const [prop, propValue] of Object.entries(node.props)) {
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
+      // A style prop is a STYLE, not an attribute. Routing everything to
+      // attributes emitted things like `margin-bottom="18"` into the DOM:
+      // markup that looks deliberate and does nothing at all.
+      if (!isAttributeProp(prop)) {
+        const val = resolved == null ? null : String(resolved);
+        style[prop] = val;
+        if (this.isReactiveProp(propValue)) {
+          reactiveStyles.push({ prop, propValue, last: val, deps });
+        }
+        continue;
+      }
       const attrVal = this.propToAttr(resolved, false);
       if (prop === "value") {
         // Defer until options are mounted (a <select>.value can't select an
@@ -1711,7 +1776,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         reactive.push({ prop, propValue, boolean: false, last: attrVal, deps });
       }
     }
-    const el = this.createElement(parent, { type: "select", name, attributes }, before);
+    const el = this.createElement(
+      parent,
+      {
+        type: "select",
+        name,
+        attributes,
+        ...(Object.keys(style).length > 0 ? { style } : {}),
+      },
+      before,
+    );
+    for (const r of reactiveStyles) {
+      scope.styles.push({ element: el, ...r });
+    }
     // Options (incl. those produced by `for`/`if`) mount as DIRECT children of
     // the <select> — wrapperless, so HTMLSelectElement.options enumerates them.
     this.mountChildren(el, node.children, scope, null);

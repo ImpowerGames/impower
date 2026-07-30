@@ -871,9 +871,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -1008,9 +1007,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -1075,7 +1073,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -1114,9 +1111,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -1811,7 +1807,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -3007,9 +3002,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -3144,9 +3138,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -3211,7 +3204,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -3250,9 +3242,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -3947,7 +3938,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -5105,9 +5095,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -5242,9 +5231,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -5309,7 +5297,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -5348,9 +5335,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -6045,7 +6031,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -7325,9 +7310,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -7462,9 +7446,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -7529,7 +7512,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -7568,9 +7550,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -8265,7 +8246,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -9404,9 +9384,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -9541,9 +9520,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -9608,7 +9586,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -9647,9 +9624,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -10344,7 +10320,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -11465,9 +11440,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -11602,9 +11576,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -11669,7 +11642,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -11708,9 +11680,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -12405,7 +12376,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -13576,9 +13546,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -13713,9 +13682,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -13780,7 +13748,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -13819,9 +13786,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -14516,7 +14482,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -15654,9 +15619,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -15791,9 +15755,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -15858,7 +15821,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -15897,9 +15859,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -16594,7 +16555,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -17732,9 +17692,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -17869,9 +17828,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -17936,7 +17894,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -17975,9 +17932,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -18672,7 +18628,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -19810,9 +19765,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -19947,9 +19901,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -20014,7 +19967,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -20053,9 +20005,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -20750,7 +20701,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
@@ -21888,9 +21838,8 @@ spark-web-player #game .input {
   color-scheme: dark;
   line-height: 1.5;
   width: 100%;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   height: 3.125rem;
@@ -22025,9 +21974,8 @@ spark-web-player #game .textarea {
   width: 100%;
   pointer-events: auto;
   padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -22092,7 +22040,6 @@ spark-web-player #game .slider {
     pointer-events: none;
     cursor: default;
   }
-  margin-bottom: 1rem;
 }
 spark-web-player #game .link {
   text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
@@ -22131,9 +22078,8 @@ spark-web-player #game .dropdown {
   line-height: 1.5;
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
-  margin-bottom: 1rem;
   +.small {
-    margin-top: -0.75rem;
+    margin-top: 0.25rem;
     margin-bottom: 1rem;
   }
   border-radius: 0.25rem;
@@ -22828,7 +22774,6 @@ spark-web-player #game .progress {
       background-color: transparent;
     }
   }
-  margin-bottom: 0.5rem;
   width: 100%;
   height: 0.5rem;
   border-radius: 0.25rem;
