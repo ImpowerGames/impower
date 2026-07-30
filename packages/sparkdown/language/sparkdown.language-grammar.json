@@ -5758,7 +5758,7 @@
     "BuiltinComponentName": {
       "tag": "definitionKeyword",
       "name": "keyword.other.component.builtin.name.sd",
-      "match": "\\b(ordered_list|preformatted|table_footer|table_header|table_body|paragraph|table_row|checkbox|citation|dropdown|emphasis|fieldset|progress|scroller|textarea|article|caption|divider|foldout|picture|section|button|figure|footer|header|legend|option|slider|stroke|strong|switch|block|field|image|input|label|modal|quote|radio|small|table|cell|code|form|head|item|link|list|mask|span|text|kbd|sub|sup|h1|h2|h3|h4|h5|h6)(?!(?:[-_\\p{L}][0-9_\\p{L}-]*\\b))"
+      "match": "\\b(ordered_list|preformatted|table_footer|table_header|table_body|paragraph|table_row|checkbox|citation|dropdown|emphasis|fieldset|progress|scroller|textarea|article|caption|divider|foldout|picture|section|button|figure|footer|header|legend|option|slider|stroke|strong|switch|block|image|input|label|modal|quote|radio|small|table|cell|code|form|head|item|link|list|mask|span|text|kbd|sub|sup|h1|h2|h3|h4|h5|h6)(?!(?:[-_\\p{L}][0-9_\\p{L}-]*\\b))"
     },
     "CustomComponentName": {
       "tag": "className",

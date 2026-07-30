@@ -1591,51 +1591,6 @@ style button with
       animation-iteration-count = infinite
 end
 
-style field with
-  -- A form control fills its form. This was free while the form was a flex
-  -- column -- `align-items: stretch` sized every child -- and became invisible
-  -- the moment the form became a block: `width: auto` on a form control means
-  -- its INTRINSIC size, not its container's, so a select collapsed to the
-  -- width of its longest option and a button to the width of its label.
-  width = 100%
-  pointer_events = auto
-  padding = 0.75rem 1rem
-  text-leading = 1.5
-  -- Stated rather than derived from content, matching Pico and `input`.
-  -- (The player's own stylesheet sets `box-sizing: border-box` on everything
-  -- in the overlay, so this is the border box, as Pico intends.)
-  height = 3.125rem
-  -- A control closes a block in the flow, so it carries the rhythm BELOW it.
-  -- This is the one place the builtins use a bottom margin rather than the
-  -- top-margin rhythm everything else uses: a control is followed by the next
-  -- field's label, and a label cannot know whether a control preceded it.
-  margin-bottom = 1rem
-  -- A helper `small` belongs to the control above it, so it sits tight against
-  -- it rather than a full rhythm step away.
-  + small:
-    margin-top = -0.75rem
-    margin-bottom = 1rem
-  corner = 0.25rem
-  border-width = 0.0625rem
-  border-style = solid
-  border-color = slate_40
-  background-color = slate_30
-  text-color = slate_90
-  transition = all 0.2s ease-in-out
-  @placeholder:
-    text-color = slate_70
-  @focused:
-    border-color = sky_40
-    shadow = 0 0 0 0.0625rem var(--theme-color-sky_40)
-  @disabled:
-    opacity = 0.5
-    cursor = not-allowed
-    pointer-events = none
-  -- A read-only field is not editable, so it must not light up like one.
-  @readonly @focused:
-    border-color = slate_40
-    shadow = none
-end
 
 style checkbox with
   pointer_events = auto
@@ -2860,7 +2815,7 @@ style group with
   -- loses outright to `.button[type="submit"]`.
   > *:
     margin-bottom = 0
-  > field, > input, > dropdown, > textarea, > button:
+  > input, > dropdown, > textarea, > button:
     margin-bottom = 0
   -- The step the children gave up is spent here instead, on the group as a
   -- whole — again matching Pico, which puts `margin-bottom` on `[role=group]`.
@@ -2952,7 +2907,7 @@ style label with
   -- It also has to live on the label rather than as a margin-top on the
   -- control: where the two are SIBLINGS those margins are adjacent and
   -- collapse to the larger of the pair, not the sum, so it would vanish.
-  > input, > field, > slider, > dropdown, > textarea:
+  > input, > slider, > dropdown, > textarea:
     margin-top = 0.25rem
 end
 

@@ -136,8 +136,8 @@ layout main with
           row grid:
             -- `#aria-label` because the placeholder is the only visible label:
             -- a placeholder is not an accessible name.
-            field #value={first_name} #placeholder="First name" #aria-label="First name" #required=true @input=set_first
-            field #type="email" #value={email} #placeholder="Email address" #aria-label="Email address" #autocomplete="email" #required=true @input=set_email
+            input #value={first_name} #placeholder="First name" #aria-label="First name" #required=true @input=set_first
+            input #type="email" #value={email} #placeholder="Email address" #aria-label="Email address" #autocomplete="email" #required=true @input=set_email
             -- `#type="submit"` as in the reference: it is what gives a form
             -- button the block rhythm below it, so it lines up with the inputs
             -- beside it instead of stretching to fill the row.
@@ -258,7 +258,7 @@ layout main with
           input search #type="search" #value={search_term} #placeholder="Search" @input=set_search
 
           label "Text"
-          field #placeholder="Text"
+          input #placeholder="Text"
           small muted "Curabitur consequat lacus at lacus porta finibus."
 
           label "Select"
@@ -277,11 +277,11 @@ layout main with
           -- Validation states are Pico's `aria-invalid`, not a class.
           row grid:
             label "Valid":
-              field valid #placeholder="Valid" #aria-invalid=false
+              input valid #placeholder="Valid" #aria-invalid=false
             label "Invalid":
-              field invalid #placeholder="Invalid" #aria-invalid=true
+              input invalid #placeholder="Invalid" #aria-invalid=true
             label "Disabled":
-              field #placeholder="Disabled" #disabled=true
+              input #placeholder="Disabled" #disabled=true
 
           row grid:
             label "Date":
@@ -411,7 +411,7 @@ layout main with
         h2 "Group"
         form:
           row group:
-            field #placeholder="Enter your email"
+            input #placeholder="Enter your email"
             button "Subscribe"
 
       -- Progress -----------------------------------------------------------

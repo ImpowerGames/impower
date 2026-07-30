@@ -60,7 +60,7 @@ layout main with
       button "Heal" @click=heal
       button "Shuffle" @click=shuffle
     text "Rename hero (type to see {hero} update live):"
-    field #value={hero} @input=rename
+    input #value={hero} @input=rename
     row:
       checkbox #checked={loud} @change=set_loud
       text "Loud mode is {loud}"

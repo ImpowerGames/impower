@@ -9,7 +9,7 @@ text.source.sparkdown [0..231]
  ├─ meta.layout.luau [17..54]
  │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
  │   └─ meta.struct.body.luau [19..54]
- │       ├─ keyword.other.component.builtin.name.sd [19..24]: "field"
+ │       ├─ entity.name.type.class.view.sd [19..24]: "field"
  │       ├─ punctuation.whitespace.optional.sd [24..25]: " "
  │       ├─ entity.name.function.attribute.name.view.sd [25..26]: "@"
  │       ├─ entity.name.function.attribute.name.view.sd [26..31]: "input"
@@ -83,7 +83,7 @@ text.source.sparkdown [0..231]
  ├─ meta.layout.luau [149..193]
  │   ├─ punctuation.whitespace.optional.sd [149..151]: "  "
  │   └─ meta.struct.body.luau [151..193]
- │       ├─ keyword.other.component.builtin.name.sd [151..156]: "field"
+ │       ├─ entity.name.type.class.view.sd [151..156]: "field"
  │       ├─ punctuation.whitespace.optional.sd [156..157]: " "
  │       ├─ entity.name.function.attribute.name.view.sd [157..158]: "@"
  │       ├─ entity.name.function.attribute.name.view.sd [158..163]: "input"

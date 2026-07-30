@@ -157,7 +157,7 @@ end
   form:
     fieldset:
       legend "Choose"
-      field #value="x"
+      input #value="x"
   foldout "More":
     text "Hidden detail"
 end

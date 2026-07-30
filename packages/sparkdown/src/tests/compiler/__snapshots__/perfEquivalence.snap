@@ -18409,43 +18409,6 @@
           "display": "inline",
           "text-style": "italic"
         },
-        "field": {
-          "$name": "field",
-          "$type": "style",
-          "+ small": {
-            "margin-bottom": "1rem",
-            "margin-top": "-0.75rem"
-          },
-          "@disabled": {
-            "cursor": "not-allowed",
-            "opacity": "0.5",
-            "pointer-events": "none"
-          },
-          "@focused": {
-            "border-color": "sky_40",
-            "shadow": "0 0 0 0.0625rem var(--theme-color-sky_40)"
-          },
-          "@placeholder": {
-            "text-color": "slate_70"
-          },
-          "@readonly @focused": {
-            "border-color": "slate_40",
-            "shadow": "none"
-          },
-          "background-color": "slate_30",
-          "border-color": "slate_40",
-          "border-style": "solid",
-          "border-width": "0.0625rem",
-          "corner": "0.25rem",
-          "height": "3.125rem",
-          "margin-bottom": "1rem",
-          "padding": "0.75rem 1rem",
-          "pointer_events": "auto",
-          "text-color": "slate_90",
-          "text-leading": "1.5",
-          "transition": "all 0.2s ease-in-out",
-          "width": "100%"
-        },
         "fieldset": {
           "$name": "fieldset",
           "$type": "style",
@@ -18597,7 +18560,7 @@
             "corner-bottom-left": "0",
             "corner-top-left": "0"
           },
-          "> field, > input, > dropdown, > textarea, > button": {
+          "> input, > dropdown, > textarea, > button": {
             "margin-bottom": "0"
           },
           "child-gap": "0",
@@ -18871,7 +18834,7 @@
         "label": {
           "$name": "label",
           "$type": "style",
-          "> input, > field, > slider, > dropdown, > textarea": {
+          "> input, > slider, > dropdown, > textarea": {
             "margin-top": "0.25rem"
           },
           "margin-bottom": "0.375rem",
@@ -92221,43 +92184,6 @@
           "display": "inline",
           "text-style": "italic"
         },
-        "field": {
-          "$name": "field",
-          "$type": "style",
-          "+ small": {
-            "margin-bottom": "1rem",
-            "margin-top": "-0.75rem"
-          },
-          "@disabled": {
-            "cursor": "not-allowed",
-            "opacity": "0.5",
-            "pointer-events": "none"
-          },
-          "@focused": {
-            "border-color": "sky_40",
-            "shadow": "0 0 0 0.0625rem var(--theme-color-sky_40)"
-          },
-          "@placeholder": {
-            "text-color": "slate_70"
-          },
-          "@readonly @focused": {
-            "border-color": "slate_40",
-            "shadow": "none"
-          },
-          "background-color": "slate_30",
-          "border-color": "slate_40",
-          "border-style": "solid",
-          "border-width": "0.0625rem",
-          "corner": "0.25rem",
-          "height": "3.125rem",
-          "margin-bottom": "1rem",
-          "padding": "0.75rem 1rem",
-          "pointer_events": "auto",
-          "text-color": "slate_90",
-          "text-leading": "1.5",
-          "transition": "all 0.2s ease-in-out",
-          "width": "100%"
-        },
         "fieldset": {
           "$name": "fieldset",
           "$type": "style",
@@ -92409,7 +92335,7 @@
             "corner-bottom-left": "0",
             "corner-top-left": "0"
           },
-          "> field, > input, > dropdown, > textarea, > button": {
+          "> input, > dropdown, > textarea, > button": {
             "margin-bottom": "0"
           },
           "child-gap": "0",
@@ -92683,7 +92609,7 @@
         "label": {
           "$name": "label",
           "$type": "style",
-          "> input, > field, > slider, > dropdown, > textarea": {
+          "> input, > slider, > dropdown, > textarea": {
             "margin-top": "0.25rem"
           },
           "margin-bottom": "0.375rem",

@@ -309,7 +309,6 @@ const INPUT_WIDGETS: Record<
   string,
   { inputType: string; attributes?: Record<string, string> }
 > = {
-  field: { inputType: "text" },
   input: { inputType: "text" },
   slider: { inputType: "range" },
   checkbox: { inputType: "checkbox" },
@@ -323,7 +322,7 @@ const INPUT_WIDGETS: Record<
  * `image`, `mask` and the layout containers want.
  *
  * Names are READABLE rather than HTML jargon (`list`/`item`, not `ul`/`li`),
- * matching the rest of the vocabulary (`field`, `dropdown`, `slider`,
+ * matching the rest of the vocabulary (`input`, `dropdown`, `slider`,
  * `divider`, `modal`). HTML tag names buy nothing for portability anyway — UI
  * Toolkit has no `ul`/`table`, so a Unity renderer maps `list`/`item` just as
  * easily, and readable names keep the model from biasing toward HTML.

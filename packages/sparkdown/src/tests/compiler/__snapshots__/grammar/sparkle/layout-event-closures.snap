@@ -31,7 +31,7 @@ sparkdown [0..231]
  │   │   │   │               ├─ LuauStructBareMarker_c1 19
  │   │   │   │               │   └─ OptionalWhitespace 19
  │   │   │   │               ├─ LuauStructBareMarker_c2 [19..24]
- │   │   │   │               │   └─ BuiltinComponentName [19..24]: "field"
+ │   │   │   │               │   └─ CustomComponentName [19..24]: "field"
  │   │   │   │               ├─ LuauStructBareMarker_c3 [24..25]
  │   │   │   │               │   └─ LuauStructBareMarker_c3 [24..25]
  │   │   │   │               │       └─ OptionalWhitespace [24..25]: " "
@@ -336,7 +336,7 @@ sparkdown [0..231]
  │   │   │   │               ├─ LuauStructBareMarker_c1 151
  │   │   │   │               │   └─ OptionalWhitespace 151
  │   │   │   │               ├─ LuauStructBareMarker_c2 [151..156]
- │   │   │   │               │   └─ BuiltinComponentName [151..156]: "field"
+ │   │   │   │               │   └─ CustomComponentName [151..156]: "field"
  │   │   │   │               ├─ LuauStructBareMarker_c3 [156..157]
  │   │   │   │               │   └─ LuauStructBareMarker_c3 [156..157]
  │   │   │   │               │       └─ OptionalWhitespace [156..157]: " "

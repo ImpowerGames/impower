@@ -35,7 +35,7 @@ end
     const h = createDOMHarness(
       `store name = "Zelda"
 layout form with
-  field #value={name}
+  input #value={name}
 end
 `,
       0,
@@ -80,7 +80,7 @@ store vol = 40
 layout form with
   button "Go" @click=noop
   link "More" @click=noop
-  field #value={name}
+  input #value={name}
   checkbox #checked={on}
   slider #value={vol} #min=0 #max=100
 end

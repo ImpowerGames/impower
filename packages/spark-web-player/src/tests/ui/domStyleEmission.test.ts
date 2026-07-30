@@ -310,7 +310,7 @@ end
     text "b"
     footer "F"
   row group:
-    field
+    input
     button "Go"
 end
 `);
