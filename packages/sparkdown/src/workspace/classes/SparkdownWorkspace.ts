@@ -257,6 +257,7 @@ export abstract class SparkdownWorkspace {
       uri?: string;
       omitImageData?: boolean;
       slimProgramNotifications?: boolean;
+      compileDebounceDelay?: number;
       files?: Omit<File, "type" | "name" | "ext">[];
     } & Omit<SparkdownCompilerConfig, "files">;
   }): Promise<{
@@ -273,11 +274,12 @@ export abstract class SparkdownWorkspace {
       this._resolveCompilerConfigured = resolve;
     });
     if (params.initializationOptions) {
-      // (slimProgramNotifications must be destructured out so it doesn't
-      // fall through into compilerConfig.)
+      // (slimProgramNotifications/compileDebounceDelay must be destructured
+      // out so they don't fall through into compilerConfig.)
       const {
         omitImageData,
         slimProgramNotifications,
+        compileDebounceDelay,
         settings,
         uri,
         ...compilerConfig
@@ -287,6 +289,9 @@ export abstract class SparkdownWorkspace {
       }
       if (slimProgramNotifications != null) {
         this.slimProgramNotifications = slimProgramNotifications;
+      }
+      if (compileDebounceDelay != null) {
+        this._changeCompileDebounceDelay = compileDebounceDelay;
       }
       if (settings) {
         this.loadConfiguration(settings);
@@ -627,6 +632,42 @@ export abstract class SparkdownWorkspace {
     return this.compile(uri, force);
   }, DEBOUNCE_DELAY);
 
+  // Trailing debounce for keystroke-driven compiles. A full compile costs
+  // hundreds of ms on a large project, and running one per keystroke just
+  // saturates the compiler worker with results that are stale on arrival.
+  // The max-wait keeps diagnostics/preview converging during sustained
+  // typing instead of freezing until the first pause.
+  protected _changeCompileDebounceDelay = 200;
+  protected _changeCompileTimer?: ReturnType<typeof setTimeout>;
+  protected _changeCompileDeadline?: number;
+  protected _pendingChangeCompileUri?: string;
+
+  protected scheduleChangeCompile(uri: string) {
+    const delay = this._changeCompileDebounceDelay;
+    if (delay <= 0) {
+      this.compile(uri, false);
+      return;
+    }
+    this._pendingChangeCompileUri = uri;
+    if (this._changeCompileTimer != null) {
+      clearTimeout(this._changeCompileTimer);
+    }
+    const now = Date.now();
+    if (this._changeCompileDeadline == null) {
+      this._changeCompileDeadline = now + delay * 4;
+    }
+    const wait = Math.min(delay, Math.max(0, this._changeCompileDeadline - now));
+    this._changeCompileTimer = setTimeout(() => {
+      this._changeCompileTimer = undefined;
+      this._changeCompileDeadline = undefined;
+      const pendingUri = this._pendingChangeCompileUri;
+      this._pendingChangeCompileUri = undefined;
+      if (pendingUri != null) {
+        this.compile(pendingUri, false);
+      }
+    }, wait);
+  }
+
   async compile(
     uri: string,
     force: boolean,
@@ -644,7 +685,23 @@ export abstract class SparkdownWorkspace {
     }
     const state = this.getProgramState(uri);
     if (!force && !anyDocChanged && state.program) {
+      // Flush any waiters queued behind a compile that ended up unnecessary
+      // (e.g. a forced compile already covered their version).
+      const nextCompiledCallbacks = this._onNextCompiled.get(uri);
+      if (nextCompiledCallbacks) {
+        this._onNextCompiled.delete(uri);
+        nextCompiledCallbacks.forEach((c) => c?.(state.program));
+      }
       return state.program;
+    }
+    if (!force && this._pendingChangeCompileUri === uri) {
+      // A debounced keystroke compile for this document is already scheduled;
+      // piggyback on it instead of racing it with a second full compile.
+      return new Promise((resolve) => {
+        const nextCompiledCallbacks = this._onNextCompiled.get(uri) || [];
+        nextCompiledCallbacks.push(resolve);
+        this._onNextCompiled.set(uri, nextCompiledCallbacks);
+      });
     }
     if (
       !force &&
@@ -845,7 +902,7 @@ export abstract class SparkdownWorkspace {
     const contentChanges = params.contentChanges;
     this._documentVersions.set(textDocument.uri, textDocument.version);
     this.updateCompilerDocument(textDocument, contentChanges).then(() => {
-      this.compile(textDocument.uri, false);
+      this.scheduleChangeCompile(textDocument.uri);
     });
     this.onChangeTextDocument(params);
   }
