@@ -1120,7 +1120,11 @@ export class GamePlayerController {
     await this.startGameAndApp(true);
   }
 
-  protected debouncedRestartGame = debounce(() => this.restartGame(), 100);
+  // Long enough to actually coalesce: compiles arrive at most once per
+  // typing pause (they're debounced upstream), so a 100ms window here never
+  // merged anything and a RUNNING game was torn down and restarted for every
+  // pause. One second batches consecutive pauses into one restart.
+  protected debouncedRestartGame = debounce(() => this.restartGame(), 1000);
 
   async buildGame(program: SparkProgram, restarted?: boolean) {
     const options = this._options;
@@ -1423,7 +1427,13 @@ export class GamePlayerController {
       this.listen(this._game);
     }
 
-    this._app = await this.buildApp(this._game);
+    // Rebuilding the Application destroys and recreates the game's whole
+    // DOM/canvas binding (~100ms+ on the iframe main thread). Only necessary
+    // when the Game instance itself changed -- NOT on cursor scrubs, which
+    // land here with the same game and just need a re-preview.
+    if (shouldBuildNewGame || !this._app) {
+      this._app = await this.buildApp(this._game);
+    }
 
     if (validPreviewFrom) {
       this._game.preview(validPreviewFrom.file, validPreviewFrom.line);
