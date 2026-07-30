@@ -1198,6 +1198,12 @@ style layouts with
   & >> #tooltip:
     -- The bubble and caret are positioned against this.
     position = relative
+    -- A tooltip is revealed by `:hover`, and `:hover` does not fire on an
+    -- element the pointer cannot reach. The overlay is transparent to the
+    -- pointer by default (see spark-web-player.css), so carrying `#tooltip`
+    -- has to opt the element IN -- otherwise the bubble is styled perfectly
+    -- and simply never appears.
+    pointer_events = auto
     -- BUBBLE.
     @before:
       content = attr(data-tooltip)

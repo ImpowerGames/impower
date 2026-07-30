@@ -18900,6 +18900,7 @@
               "animation-name": "tooltip_slide",
               "opacity": "1"
             },
+            "pointer_events": "auto",
             "position": "relative"
           }
         },
@@ -92675,6 +92676,7 @@
               "animation-name": "tooltip_slide",
               "opacity": "1"
             },
+            "pointer_events": "auto",
             "position": "relative"
           }
         },

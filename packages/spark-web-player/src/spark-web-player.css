@@ -15,7 +15,6 @@ spark-web-player {
 }
 
 spark-web-player * {
-  pointer-events: none;
   touch-action: none;
   user-select: none;
   -webkit-user-drag: none;
@@ -37,26 +36,26 @@ spark-web-player *::after {
 }
 
 /*
-An interactive control's own CONTENT is clickable too.
+The UI overlay is transparent to the pointer, so a click on empty layout
+space reaches the game canvas underneath it.
 
-The universal rule above sets `pointer-events: none` on every element, and it
-sets it EXPLICITLY -- so a control opting back in does not carry its children
-with it. A button's label, a label's text, a link's words: each is a span
-sitting on top of the thing that wanted the click, and none of them is a hit
-target. The click lands on nothing.
+Set ONCE, here, and INHERITED -- `pointer-events` is an inherited property.
+That is the whole design: an interactive control sets `pointer-events: auto`
+on itself and everything inside it becomes clickable with it, because the
+value flows down.
 
-That is most of a button's area, so buttons were clickable only on their
-padding. It reads as a dead control rather than as a pointer problem, which is
-why it survived this long -- the element is right there, styled correctly, and
-simply does not respond.
+It used to be `* { pointer-events: none }`, which sets the property EXPLICITLY
+on every element and so defeats inheritance entirely. A control could opt
+itself back in but not its own label, so the span covering most of a button
+was not a hit target and the click landed on nothing. That produced four
+separate defects -- an ungrabbable table scrollbar, a dead checkbox label, a
+button that ignored clicks on its text, and a tooltip that never appeared
+because `:hover` could not fire -- none of which looked like a pointer
+problem, and each of which was patched individually before the cause was
+clear.
 */
-spark-web-player button *,
-spark-web-player a *,
-spark-web-player label *,
-spark-web-player summary *,
-spark-web-player select *,
-spark-web-player option * {
-  pointer-events: auto;
+spark-web-player #game-ui {
+  pointer-events: none;
 }
 
 spark-web-player *:focus-visible {
