@@ -239,11 +239,13 @@ describe("compiler incremental equivalence", () => {
     //    returns (epoch-guarded targetContent + targetPath restore);
     //  - a global `store` declared INSIDE a scene registers into the story
     //    at GENERATION time, so that scene must be disqualified from reuse;
-    //  - an anonymous fn added EARLIER renumbers `__synth_<n>` ordinals baked
-    //    into a LATER unchanged flow at generation (rename demotion).
+    //  - an anonymous fn added MID-DOCUMENT renumbers `__synth_<n>` ordinals
+    //    baked into a LATER unchanged flow at generation (rename demotion).
     const SCENARIOS: {
       name: string;
       steps: { find: string; replace: string }[];
+      /** Assert the reuse-demotion path actually ran (see that scenario). */
+      expectsDemotion?: boolean;
     }[] = [
       {
         name: "remove last read-count reference, then edit elsewhere",
@@ -273,7 +275,14 @@ describe("compiler incremental equivalence", () => {
         ],
       },
       {
-        name: "anonymous fn added earlier renumbers later synthetics",
+        name: "anonymous fn added mid-document renumbers later synthetics",
+        // Both inserts land MID-document on purpose. An insert near the top
+        // re-lowers the front-matter chunk, which trips the root-region guard
+        // and disables reuse for that compile — the scenario would then pass
+        // without ever exercising demotion (verified: it did exactly that
+        // before this was moved down). `expectsDemotion` asserts the path
+        // really runs, so a future guard change can't silently un-cover it.
+        expectsDemotion: true,
         steps: [
           // Seed a synthetic in a LATE scene first...
           {
@@ -281,12 +290,13 @@ describe("compiler incremental equivalence", () => {
             replace:
               "  Action describing room 11 in some detail here.\n& local f11 = function(x) return x + 1 end",
           },
-          // ...then add one EARLIER: scene_11 is unchanged (reused) but its
-          // `__synth_<n>` ordinal shifts, so it must be regenerated.
+          // ...then add one EARLIER-BUT-STILL-MID: scenes after it are
+          // unchanged (reused) yet their `__synth_<n>` ordinals shift, so they
+          // must be demoted and regenerated.
           {
-            find: "  Action describing room 1 in some detail here.",
+            find: "  Action describing room 6 in some detail here.",
             replace:
-              "  Action describing room 1 in some detail here.\n& local f1 = function(x) return x + 2 end",
+              "  Action describing room 6 in some detail here.\n& local f6 = function(x) return x + 2 end",
           },
           { find: "Not yet in scene 12.", replace: "Not yet in scene 12!!" },
         ],
@@ -300,6 +310,17 @@ describe("compiler incremental equivalence", () => {
       for (const scenario of SCENARIOS) {
         let text = coupledScreenplay();
         const incr = new SparkdownCompiler();
+        // Count demotions (a committed reuse invalidated mid-compile and
+        // regenerated) so `expectsDemotion` can prove the path was covered.
+        let demotions = 0;
+        const anyIncr = incr as unknown as {
+          resetSubtreeRuntime: (n: unknown) => void;
+        };
+        const originalReset = anyIncr.resetSubtreeRuntime;
+        anyIncr.resetSubtreeRuntime = function (n: unknown) {
+          demotions += 1;
+          return originalReset.call(this, n);
+        };
         incr.configure({
           files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
         });
@@ -328,6 +349,12 @@ describe("compiler incremental equivalence", () => {
             stable(incrProg),
             `${scenario.name}: step ${stepIdx + 1}`,
           ).toBe(stable(coldProg));
+        }
+        if (scenario.expectsDemotion) {
+          expect(
+            demotions,
+            `${scenario.name}: expected the reuse-demotion path to run`,
+          ).toBeGreaterThan(0);
         }
       }
     } finally {
