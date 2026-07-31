@@ -59,11 +59,18 @@ export const ARIA_ATTRIBUTE_ALIASES: ReadonlyMap<string, string> = new Map([
  * no inline prop can reach one. The builtin therefore reads a custom property —
  * `background-color: var(--spinner-color, …)` — and the author sets it.
  *
- * Authors CAN write `#--spinner-color` directly; custom properties pass through
- * untouched. The alias exists so they do not have to know that. Every other prop
- * is a plain name, and asking someone to remember which few need a `--` prefix
- * is a rule with no reason behind it from the outside — the prefix is an
- * implementation detail of how the builtin plumbs the value to a pseudo-element.
+ * The alias is the ONLY way to set one. `#--spinner-color` does not parse: no
+ * prop-name pattern admits a leading `-`, so the `#` matches alone and the `--`
+ * opens a Luau line comment that swallows the prop, its value, and every
+ * attribute after it on that line — with no diagnostic. Verified: `box
+ * #--my-var=4 #gap=12 #background-color=red:` renders with NO style attribute at
+ * all, while the same line without the `#--my-var` renders both of the others.
+ *
+ * (An earlier revision of this comment claimed authors could write `#--name`
+ * directly and that the alias was merely a convenience. That was wrong in the
+ * most misleading direction: it documented a capability that silently destroys
+ * the rest of the line. `ValidationAnnotator`'s unrecognized-prop message still
+ * recommends `#--name` and has the same problem.)
  *
  * Aliased rather than open-ended for the same reason as the attribute props
  * above: an unrecognized `#spinnr-color` must still be reported, not silently
