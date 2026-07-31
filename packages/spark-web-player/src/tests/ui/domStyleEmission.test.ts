@@ -3,6 +3,8 @@
 // simply never appeared, with nothing failing anywhere.
 
 import { describe, expect, test } from "vitest";
+import { CUSTOM_PROPERTY_ALIASES } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
+import { CSS_UTILITIES } from "../../../../sparkle-style-transformer/src/constants/CSS_UTILITIES";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
 async function css(src: string): Promise<string> {
@@ -396,5 +398,30 @@ end
     expect(block).toContain('content: "";');
     expect(block).toContain("&:checked");
     expect(block).toContain("transform: translateX(1rem);");
+  });
+
+  // Two lists have to agree for a custom-property alias to work, and they live
+  // in different packages: CUSTOM_PROPERTY_ALIASES only stops the validator
+  // warning about the authored name, while CSS_UTILITIES is what actually
+  // renames it and lets its STYLE_TRANSFORMER resolve the value.
+  //
+  // Listing a prop in the first alone is WORSE than not listing it: the prop
+  // stops being reported as unrecognized and still emits nothing — the precise
+  // silent no-op the named-prop lists exist to prevent. Nothing about the
+  // failure is visible in either file on its own, so it is checked here.
+  test("every custom-property alias is actually emitted by CSS_UTILITIES", () => {
+    for (const [authored, cssProp] of CUSTOM_PROPERTY_ALIASES) {
+      const utility = CSS_UTILITIES[authored as keyof typeof CSS_UTILITIES] as
+        | Record<string, Record<string, string>>
+        | undefined;
+      expect(
+        utility,
+        `\`#${authored}\` suppresses the unrecognized-prop warning but has no CSS_UTILITIES entry, so it emits nothing`,
+      ).toBeTruthy();
+      expect(
+        Object.keys(utility![""] ?? {}),
+        `\`#${authored}\` must emit \`${cssProp}\``,
+      ).toContain(cssProp);
+    }
   });
 });

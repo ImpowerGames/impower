@@ -85,24 +85,27 @@ end
     // no inline prop can address, so the value has to arrive as a variable —
     // but that is the builtin's plumbing and not something an author should
     // have to know to spell differently from every other prop.
-    expect(await inlineSpinnerColor('#spinner-color="red"')).toBe("red");
+    expect(await inlineSpinnerColor('#spinner-color="#8891a4"')).toBe("#8891a4");
   });
 
-  test("an explicit theme variable as `#spinner-color` is passed through", async () => {
+  test("an explicit theme variable is passed through untouched", async () => {
     expect(
       await inlineSpinnerColor('#spinner-color="var(--theme-color-sky_60)"'),
     ).toBe("var(--theme-color-sky_60)");
   });
 
-  // Pinning a KNOWN GAP rather than a desired behaviour, so that closing it
-  // fails here loudly instead of going unnoticed.
+  // The point of the whole alias. `#background-color=sky_60` has always resolved
+  // a bare token; for a while this one did not, and emitted the inert string
+  // `sky_60`. Two spellings that look identical in source where only one did
+  // anything — which is the failure mode the named-props list exists to prevent,
+  // reintroduced in a new shape.
   //
-  // `#background-color=sky_60` resolves to `var(--theme-color-sky_60)`, because
-  // upstream resolves bare token names for props it knows are colour-valued. An
-  // aliased custom property is not one of those, so the same spelling emits the
-  // inert string `sky_60`. The asymmetry is the trap: the two look identical in
-  // source and only one of them does anything.
-  test("a BARE token name does not resolve (known gap)", async () => {
-    expect(await inlineSpinnerColor("#spinner-color=sky_60")).toBe("sky_60");
+  // It resolves because the prop is declared in CSS_UTILITIES with a
+  // `getCssColor` transformer, exactly like `accent-color` and `caret-color`,
+  // NOT because the renderer renames it.
+  test("a bare theme token resolves, like every other colour prop", async () => {
+    expect(await inlineSpinnerColor("#spinner-color=sky_60")).toBe(
+      "var(--theme-color-sky_60)",
+    );
   });
 });

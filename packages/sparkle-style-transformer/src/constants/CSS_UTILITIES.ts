@@ -298,6 +298,17 @@ export const CSS_UTILITIES = {
     "": { "caret-color": "" },
   },
 
+  // Authored WITHOUT the `--`, emitted WITH it. A builtin exposes one knob of a
+  // pseudo-element (the busy spinner's colour) the only way it can — through a
+  // custom property the `::before` reads with `var()` — and this is what keeps
+  // that plumbing from leaking into the authored name. It also has to be
+  // declared HERE rather than renamed in the renderer: the rename alone made
+  // `#spinner-color=sky_60` emit the bare token while `#background-color=sky_60`
+  // resolved, two identical-looking spellings where only one did anything.
+  "spinner-color": {
+    "": { "--spinner-color": "" },
+  },
+
   "text-font": {
     "": { "font-family": "" },
   },

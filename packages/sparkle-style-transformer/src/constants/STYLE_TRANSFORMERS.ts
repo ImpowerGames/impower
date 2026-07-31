@@ -239,4 +239,8 @@ export const STYLE_TRANSFORMERS = {
   // nothing.
   "accent-color": getCssColor,
   "caret-color": getCssColor,
+
+  // The spinner's colour names a theme token like any other color prop, even
+  // though it lands in a custom property rather than a real CSS property.
+  "spinner-color": getCssColor,
 } as const;

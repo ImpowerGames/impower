@@ -1,4 +1,3 @@
-import { toCustomPropertyName } from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
 import { getVarName } from "../../../spark-engine/src/game/modules/ui/utils/getVarName";
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
@@ -11,22 +10,16 @@ export const getCSSPropertyKeyValue = (
   name: string,
   value: unknown,
 ): [string, string] => {
-  // A custom property, either written as one (`#--spinner-color`) or aliased to
-  // one (`#spinner-color`). Only the NAME is special; the value still goes
-  // through the resolution below, so an already-resolved token object becomes
-  // `var(--theme-color-…)` instead of stringifying to `[object Object]`, which
-  // is what the early return it replaced used to do.
+  // A custom property keeps its name, but NOT its old early return: the value
+  // still goes through the resolution below, so a resolved token object becomes
+  // `var(--theme-color-…)` rather than stringifying to `[object Object]`.
   //
-  // KNOWN GAP: a BARE token name does not reach here as an object. Upstream
-  // resolves `sky_60` to a colour only for props it knows are colour-valued,
-  // and an aliased custom property is not one, so `#spinner-color=sky_60`
-  // arrives as the string `"sky_60"` and emits an inert declaration. Literals
-  // (`"red"`, `"#8891a4"`) and an explicit `"var(--theme-color-sky_60)"` both
-  // work. Teaching the compiler that an alias is colour-valued is the real
-  // fix; it is not in this layer.
-  const cssProp = name.startsWith("--")
-    ? name
-    : (toCustomPropertyName(name) ?? getCSSPropertyName(name));
+  // Aliases like `#spinner-color` are deliberately NOT renamed here. They are
+  // declared in CSS_UTILITIES, which renames AND runs the colour transformer in
+  // one place; doing the rename here as well produced a prop that emitted
+  // `--spinner-color: sky_60` — the right name carrying an unresolved token,
+  // because the value transformer keys off the AUTHORED name and never saw it.
+  const cssProp = name.startsWith("--") ? name : getCSSPropertyName(name);
   const cssValue =
     typeof value === "object" &&
     value &&

@@ -68,6 +68,15 @@ export const ARIA_ATTRIBUTE_ALIASES: ReadonlyMap<string, string> = new Map([
  * Aliased rather than open-ended for the same reason as the attribute props
  * above: an unrecognized `#spinnr-color` must still be reported, not silently
  * become an inert variable nothing reads.
+ *
+ * THIS LIST ONLY SUPPRESSES THE WARNING. The rename and the value handling live
+ * in `CSS_UTILITIES` / `STYLE_TRANSFORMERS` (sparkle-style-transformer), which
+ * is what actually emits `--spinner-color` and resolves a theme token in the
+ * value. Renaming here as well was tried and was worse than useless: it
+ * produced the right property name carrying an unresolved token, because the
+ * value transformer keys off the AUTHORED name and so never ran. An entry here
+ * without a matching CSS_UTILITIES entry means the prop stops warning and still
+ * does nothing — the exact silent no-op this file exists to prevent.
  */
 export const CUSTOM_PROPERTY_ALIASES: ReadonlyMap<string, string> = new Map([
   ["spinner-color", "--spinner-color"],
@@ -77,9 +86,12 @@ export const CUSTOM_PROPERTY_ALIASES: ReadonlyMap<string, string> = new Map([
 export const isAliasedAttributeProp = (prop: string): boolean =>
   DATA_ATTRIBUTE_PROPS.has(prop) || ARIA_ATTRIBUTE_ALIASES.has(prop);
 
-/** The CSS custom property a prop is written as, if it is one. */
-export const toCustomPropertyName = (prop: string): string | undefined =>
-  CUSTOM_PROPERTY_ALIASES.get(prop);
+// NOTE: there is deliberately no `toCustomPropertyName` helper. One existed and
+// was used to rename the prop in the renderer, which is the wrong layer — the
+// value transformer keys off the AUTHORED name, so renaming early emitted
+// `--spinner-color: sky_60`, the right property carrying an unresolved token.
+// CSS_UTILITIES does the rename and the value together. A helper here would
+// only invite that mistake again.
 
 /** The DOM attribute name a prop is written as. */
 export const toDataAttributeName = (prop: string): string =>
