@@ -39,7 +39,7 @@ class IndentedLineWrappingPluginValue implements PluginValue {
   }
 
   update(update: ViewUpdate) {
-    if (update.docChanged) {
+    if (update.docChanged || update.viewportChanged) {
       this.decorations = this.getDecorations(update.view);
     }
   }
@@ -50,34 +50,44 @@ class IndentedLineWrappingPluginValue implements PluginValue {
 
     const tabSize = view.state.tabSize;
 
-    for (let i of [...Array(view.state.doc.lines).keys()]) {
-      const line = view.state.doc.line(i + 1);
-      if (line.length === 0) {
-        continue;
-      }
-
-      let indentSize = 0;
-      for (let ch of line.text) {
-        if (ch === "\t") {
-          indentSize = indentSize + tabSize;
-        } else if (ch === " ") {
-          indentSize = indentSize + 1;
-        } else {
-          break;
+    // Decorations only take effect inside the rendered (visible) ranges, so
+    // only build them there instead of for every line in the document.
+    let lastLineFrom = -1;
+    for (const range of view.visibleRanges) {
+      for (let pos = range.from; pos <= range.to; ) {
+        const line = view.state.doc.lineAt(pos);
+        pos = line.to + 1;
+        if (line.from === lastLineFrom) {
+          continue;
         }
+        lastLineFrom = line.from;
+        if (line.length === 0) {
+          continue;
+        }
+
+        let indentSize = 0;
+        for (let ch of line.text) {
+          if (ch === "\t") {
+            indentSize = indentSize + tabSize;
+          } else if (ch === " ") {
+            indentSize = indentSize + 1;
+          } else {
+            break;
+          }
+        }
+
+        const indentWidth = `${indentSize}ch`;
+        const textIndent = `-${indentWidth}`;
+        const paddingLeft = `calc(${config.padding} + ${indentWidth})`;
+
+        const decoration = Decoration.line({
+          attributes: {
+            style: `text-indent: ${textIndent}; padding-left: ${paddingLeft}`,
+          },
+        });
+
+        decorations.push(decoration.range(line.from, line.from));
       }
-
-      const indentWidth = `${indentSize}ch`;
-      const textIndent = `-${indentWidth}`;
-      const paddingLeft = `calc(${config.padding} + ${indentWidth})`;
-
-      const decoration = Decoration.line({
-        attributes: {
-          style: `text-indent: ${textIndent}; padding-left: ${paddingLeft}`,
-        },
-      });
-
-      decorations.push(decoration.range(line.from, line.from));
     }
 
     return Decoration.set(decorations, true);

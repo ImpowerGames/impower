@@ -38,7 +38,7 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
   const treeView = vscode.window.createTreeView("sparkdown-compilation", {
     treeDataProvider: SparkdownCompilationTreeDataProvider.instance,
   });
-  treeView.onDidChangeSelection((e) => {
+  treeView.onDidChangeSelection(async (e) => {
     const initiatedByReveal = programmaticSelectionDepth > 0;
     if (initiatedByReveal) {
       // Ignore programmatically selected tree items
@@ -46,7 +46,7 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
     }
     // If user selected tree item, then select the corresponding document location
     if (SparkdownCompilationTreeDataProvider.instance.uri) {
-      const program = SparkProgramManager.instance.get(
+      const program = await SparkProgramManager.instance.getOrCompile(
         SparkdownCompilationTreeDataProvider.instance.uri,
       );
       if (program) {
@@ -79,37 +79,52 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
   });
   context.subscriptions.push(treeView);
 
+  // With slim program notifications the compiled tree is no longer pushed to
+  // us on every compile -- pull it on demand, and only while the tree view is
+  // actually visible. While hidden, just remember that the data went stale.
+  let treeDataStale = false;
+  let treeDataUri: vscode.Uri | undefined;
+  const refreshTreeData = async (uri: vscode.Uri) => {
+    treeDataUri = uri;
+    if (!treeView.visible) {
+      treeDataStale = true;
+      return;
+    }
+    treeDataStale = false;
+    const program = await SparkProgramManager.instance.getOrCompile(uri);
+    // The visible/current uri may have changed while we awaited the program.
+    if (treeDataUri?.toString() === uri.toString()) {
+      SparkdownCompilationTreeDataProvider.instance.setTreeData(
+        uri,
+        program?.compiled,
+      );
+    }
+  };
+
   // Initialize provider
   const editor = vscode.window.activeTextEditor;
   if (editor?.document.languageId === "sparkdown") {
-    const program = SparkProgramManager.instance.get(editor.document.uri);
-    SparkdownCompilationTreeDataProvider.instance.setTreeData(
-      editor.document.uri,
-      program?.compiled,
-    );
+    refreshTreeData(editor.document.uri);
   }
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor?.document.languageId === "sparkdown") {
-        const program = SparkProgramManager.instance.get(editor.document.uri);
-        SparkdownCompilationTreeDataProvider.instance.setTreeData(
-          editor.document.uri,
-          program?.compiled,
-        );
+        refreshTreeData(editor.document.uri);
       }
     }),
   );
 
-  const handleCompiledProgram = (uri: vscode.Uri, program: SparkProgram) => {
+  const handleCompiledProgram = (
+    uri: vscode.Uri,
+    _program: SparkProgram | undefined,
+  ) => {
     if (
       SparkdownCompilationTreeDataProvider.instance.uri?.toString() ===
-      uri.toString()
+        uri.toString() ||
+      treeDataUri?.toString() === uri.toString()
     ) {
-      SparkdownCompilationTreeDataProvider.instance.setTreeData(
-        uri,
-        program.compiled,
-      );
+      refreshTreeData(uri);
     }
   };
   SparkProgramManager.instance.addListener(handleCompiledProgram);
@@ -118,6 +133,14 @@ export function activateCompilationView(context: vscode.ExtensionContext) {
       SparkProgramManager.instance.removeListener(handleCompiledProgram);
     },
   });
+
+  context.subscriptions.push(
+    treeView.onDidChangeVisibility((e) => {
+      if (e.visible && treeDataStale && treeDataUri) {
+        refreshTreeData(treeDataUri);
+      }
+    }),
+  );
 
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorSelection((change) => {

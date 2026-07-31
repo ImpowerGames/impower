@@ -257,10 +257,10 @@ export abstract class SparkdownWorkspace {
       uri?: string;
       omitImageData?: boolean;
       slimProgramNotifications?: boolean;
+      compileDebounceDelay?: number;
       files?: Omit<File, "type" | "name" | "ext">[];
     } & Omit<SparkdownCompilerConfig, "files">;
   }): Promise<{
-    program?: SparkProgram;
     textDocuments?: {
       uri: string;
       text: string;
@@ -273,11 +273,12 @@ export abstract class SparkdownWorkspace {
       this._resolveCompilerConfigured = resolve;
     });
     if (params.initializationOptions) {
-      // (slimProgramNotifications must be destructured out so it doesn't
-      // fall through into compilerConfig.)
+      // (slimProgramNotifications/compileDebounceDelay must be destructured
+      // out so they don't fall through into compilerConfig.)
       const {
         omitImageData,
         slimProgramNotifications,
+        compileDebounceDelay,
         settings,
         uri,
         ...compilerConfig
@@ -287,6 +288,9 @@ export abstract class SparkdownWorkspace {
       }
       if (slimProgramNotifications != null) {
         this.slimProgramNotifications = slimProgramNotifications;
+      }
+      if (compileDebounceDelay != null) {
+        this._changeCompileDebounceDelay = compileDebounceDelay;
       }
       if (settings) {
         this.loadConfiguration(settings);
@@ -339,12 +343,25 @@ export abstract class SparkdownWorkspace {
         compilerConfig.workspace ??
         params.workspaceFolders?.[0]?.uri ??
         params.rootUri;
-      await this.loadCompiler({
-        ...compilerConfig,
-        workspace,
-        files,
+      // Configure the compiler and run the first compile OFF the initialize
+      // response path. Nothing the client renders first needs them: compiler
+      // requests wait on `whenCompilerConfigured`, results arrive through
+      // publishDiagnostics/didCompile, and the post-initialize refreshes
+      // re-request anything asked for too early (#224). Awaiting this wall
+      // here kept the editor invisible for the entire multi-second
+      // parse+configure+compile chain on large projects (#285).
+      (async () => {
+        await this.loadCompiler({
+          ...compilerConfig,
+          workspace,
+          files,
+        });
+        if (uri) {
+          await this.compile(uri, true);
+        }
+      })().catch((err) => {
+        console.error("compiler configuration failed", err);
       });
-      const program = uri ? await this.compile(uri, true) : undefined;
       const textDocuments: {
         uri: string;
         text: string;
@@ -365,7 +382,7 @@ export abstract class SparkdownWorkspace {
           });
         }
       }
-      return { program, textDocuments };
+      return { textDocuments };
     }
     return {};
   }
@@ -610,10 +627,24 @@ export abstract class SparkdownWorkspace {
     return this._openDocuments.has(uri);
   }
 
+  /**
+   * Wait (if necessary) for the compiler worker to be configured before
+   * talking to it. Since initialize() no longer blocks on configuration,
+   * document/file traffic can otherwise race ahead of ConfigureCompiler and
+   * be silently clobbered by its files snapshot.
+   */
+  protected async compilerReady() {
+    const configuring = this.whenCompilerConfigured;
+    if (configuring) {
+      await configuring;
+    }
+  }
+
   protected async updateCompilerDocument(
     textDocument: { uri: string },
     contentChanges: SparkdownDocumentContentChangeEvent[],
   ) {
+    await this.compilerReady();
     return this._compilerChannelConnection.sendRequest(
       UpdateCompilerDocumentMessage.type,
       {
@@ -626,6 +657,57 @@ export abstract class SparkdownWorkspace {
   debouncedCompile = debounce(async (uri: string, force: boolean) => {
     return this.compile(uri, force);
   }, DEBOUNCE_DELAY);
+
+  // Trailing debounce for keystroke-driven compiles. A full compile costs
+  // hundreds of ms on a large project, and running one per keystroke just
+  // saturates the compiler worker with results that are stale on arrival.
+  // The max-wait keeps diagnostics/preview converging during sustained
+  // typing instead of freezing until the first pause.
+  protected _changeCompileDebounceDelay = 200;
+  protected _changeCompileTimer?: ReturnType<typeof setTimeout>;
+  protected _changeCompileDeadline?: number;
+  // EVERY document with a pending debounced compile. A multi-file change
+  // burst (find-and-replace, Save All, a workspace edit) can touch documents
+  // in DIFFERENT compile trees (a standalone script, a second main.sd tree);
+  // keeping only the latest uri silently dropped the earlier ones' compiles,
+  // stranding their piggybacked waiters and leaving their diagnostics stale.
+  protected _pendingChangeCompileUris = new Set<string>();
+
+  protected scheduleChangeCompile(uri: string) {
+    const delay = this._changeCompileDebounceDelay;
+    if (delay <= 0) {
+      this.compile(uri, false).catch((e) => {
+        console.error(e);
+      });
+      return;
+    }
+    this._pendingChangeCompileUris.add(uri);
+    if (this._changeCompileTimer != null) {
+      clearTimeout(this._changeCompileTimer);
+    }
+    const now = Date.now();
+    if (this._changeCompileDeadline == null) {
+      this._changeCompileDeadline = now + delay * 4;
+    }
+    const wait = Math.min(delay, Math.max(0, this._changeCompileDeadline - now));
+    this._changeCompileTimer = setTimeout(async () => {
+      this._changeCompileTimer = undefined;
+      this._changeCompileDeadline = undefined;
+      const pendingUris = Array.from(this._pendingChangeCompileUris);
+      this._pendingChangeCompileUris.clear();
+      // Compile each pending document in order. Documents covered by an
+      // earlier compile in this batch hit the no-change early-return (which
+      // also flushes their waiters), so same-tree batches still cost one
+      // compile; only genuinely separate trees pay for their own.
+      for (const pendingUri of pendingUris) {
+        try {
+          await this.compile(pendingUri, false);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }, wait);
+  }
 
   async compile(
     uri: string,
@@ -644,7 +726,23 @@ export abstract class SparkdownWorkspace {
     }
     const state = this.getProgramState(uri);
     if (!force && !anyDocChanged && state.program) {
+      // Flush any waiters queued behind a compile that ended up unnecessary
+      // (e.g. a forced compile already covered their version).
+      const nextCompiledCallbacks = this._onNextCompiled.get(uri);
+      if (nextCompiledCallbacks) {
+        this._onNextCompiled.delete(uri);
+        nextCompiledCallbacks.forEach((c) => c?.(state.program));
+      }
       return state.program;
+    }
+    if (!force && this._pendingChangeCompileUris.has(uri)) {
+      // A debounced keystroke compile for this document is already scheduled;
+      // piggyback on it instead of racing it with a second full compile.
+      return new Promise((resolve) => {
+        const nextCompiledCallbacks = this._onNextCompiled.get(uri) || [];
+        nextCompiledCallbacks.push(resolve);
+        this._onNextCompiled.set(uri, nextCompiledCallbacks);
+      });
     }
     if (
       !force &&
@@ -660,32 +758,51 @@ export abstract class SparkdownWorkspace {
     state.compilingDocumentVersion = this._documentVersions.get(uri);
     let result: CompileProgramResult | undefined = undefined;
     const mainScriptUri = this.getMainScriptUri(uri);
-    if (mainScriptUri) {
-      result = await this.compileDocument(mainScriptUri);
-      this.getProgramState(mainScriptUri).program = result.program;
-      if (result.program.scripts) {
-        for (const [uri, version] of Object.entries(result.program.scripts)) {
-          const state = this.getProgramState(uri);
-          state.program = result.program;
-          state.compilingDocumentVersion = undefined;
-          state.compiledDocumentVersion = version;
-          state.version++;
-          this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
-          this._onNextCompiled.delete(uri);
+    try {
+      if (mainScriptUri) {
+        result = await this.compileDocument(mainScriptUri);
+        this.getProgramState(mainScriptUri).program = result.program;
+        if (result.program.scripts) {
+          for (const [uri, version] of Object.entries(result.program.scripts)) {
+            const state = this.getProgramState(uri);
+            state.program = result.program;
+            state.compilingDocumentVersion = undefined;
+            state.compiledDocumentVersion = version;
+            state.version++;
+            this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
+            this._onNextCompiled.delete(uri);
+          }
         }
       }
-    }
-    if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
-      // Target script is not included by main,
-      // So it must be parsed on its own to report diagnostics
-      result = await this.compileDocument(uri);
-      const state = this.getProgramState(uri);
-      state.program = result.program;
+      if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
+        // Target script is not included by main,
+        // So it must be parsed on its own to report diagnostics
+        result = await this.compileDocument(uri);
+        const state = this.getProgramState(uri);
+        state.program = result.program;
+        state.compilingDocumentVersion = undefined;
+        state.compiledDocumentVersion = result.program?.scripts[uri];
+        state.version++;
+        this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
+        this._onNextCompiled.delete(uri);
+      }
+    } catch (e) {
+      // Settle instead of strand: piggybacked callers (pull diagnostics etc.)
+      // are awaiting these resolvers, and a compile failure must not turn
+      // their requests into permanent hangs.
+      const flush = (flushUri: string) => {
+        const callbacks = this._onNextCompiled.get(flushUri);
+        if (callbacks) {
+          this._onNextCompiled.delete(flushUri);
+          callbacks.forEach((c) => c?.(undefined));
+        }
+      };
+      flush(uri);
+      if (mainScriptUri) {
+        flush(mainScriptUri);
+      }
       state.compilingDocumentVersion = undefined;
-      state.compiledDocumentVersion = result.program?.scripts[uri];
-      state.version++;
-      this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
-      this._onNextCompiled.delete(uri);
+      throw e;
     }
     if (result?.program) {
       const state = this.getProgramState(uri);
@@ -845,7 +962,7 @@ export abstract class SparkdownWorkspace {
     const contentChanges = params.contentChanges;
     this._documentVersions.set(textDocument.uri, textDocument.version);
     this.updateCompilerDocument(textDocument, contentChanges).then(() => {
-      this.compile(textDocument.uri, false);
+      this.scheduleChangeCompile(textDocument.uri);
     });
     this.onChangeTextDocument(params);
   }
@@ -867,6 +984,7 @@ export abstract class SparkdownWorkspace {
       line: selectedRange.start.line,
     };
     this.onSelectTextDocument(params);
+    await this.compilerReady();
     const result = await this._compilerChannelConnection.sendRequest(
       SelectCompilerDocumentMessage.type,
       params,
@@ -882,6 +1000,7 @@ export abstract class SparkdownWorkspace {
     const file = await this.loadFile({ uri });
     this._watchedFiles.set(uri, file);
     this.onCreatedFile(file);
+    await this.compilerReady();
     await this._compilerChannelConnection.sendRequest(
       AddCompilerFileMessage.type,
       { file },
@@ -903,6 +1022,7 @@ export abstract class SparkdownWorkspace {
       this._watchedFiles.set(uri, file);
       this._documentVersions.set(uri, file.version);
       this.onChangedFile(file);
+      await this.compilerReady();
       await this._compilerChannelConnection.sendRequest(
         UpdateCompilerFileMessage.type,
         { file },
@@ -929,6 +1049,7 @@ export abstract class SparkdownWorkspace {
     if (deletedFile) {
       this.onDeletedFile(deletedFile!);
     }
+    await this.compilerReady();
     await this._compilerChannelConnection.sendRequest(
       RemoveCompilerFileMessage.type,
       {

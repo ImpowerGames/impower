@@ -56,7 +56,6 @@ import { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { Application } from "./app/Application";
 import { conflate } from "./utils/conflate";
-import { debounce } from "./utils/debounce";
 import { profile } from "./utils/profile";
 
 const COMMON_ASPECT_RATIOS = [
@@ -1020,12 +1019,11 @@ export class GamePlayerController {
       this._program = program;
       this._checkpoint = checkpoint;
       if (this._game?.state === "running") {
-        // Stop and restart game if we loaded a new game while the old game was running
-        await this.debouncedRestartGame();
-        sendProtocolMessage(
-          GameReloadedMessage.type.notification({}),
-          this.host,
-        );
+        // Stop and restart game if we loaded a new game while the old game
+        // was running. (GameReloaded is sent when the restart actually
+        // executes -- see scheduleRestartGame -- not when it is merely
+        // scheduled.)
+        this.scheduleRestartGame();
       } else {
         this._options ??= {};
         this._options.startFrom ??= program.startFrom;
@@ -1073,6 +1071,9 @@ export class GamePlayerController {
   }
 
   async destroyGameAndApp() {
+    // A teardown supersedes any pending compile-driven restart; without this
+    // the timer fires after STOP and silently resurrects the game.
+    this.cancelScheduledRestart();
     if (this._game) {
       this._game.destroy();
       this._game = undefined;
@@ -1120,7 +1121,37 @@ export class GamePlayerController {
     await this.startGameAndApp(true);
   }
 
-  protected debouncedRestartGame = debounce(() => this.restartGame(), 100);
+  // Compile-driven restart of a RUNNING game, coalesced: compiles arrive at
+  // most once per typing pause (they're debounced upstream), so the old
+  // 100ms window never merged anything and the running game was torn down
+  // and restarted for every pause. One second batches consecutive pauses
+  // into one restart. Owned as an explicit timer (not the bare debounce
+  // util) so teardown paths can CANCEL it -- a pending restart firing after
+  // the user hit STOP would resurrect the game.
+  protected _restartGameTimeout?: ReturnType<typeof setTimeout>;
+
+  protected cancelScheduledRestart() {
+    if (this._restartGameTimeout != null) {
+      clearTimeout(this._restartGameTimeout);
+      this._restartGameTimeout = undefined;
+    }
+  }
+
+  protected scheduleRestartGame() {
+    this.cancelScheduledRestart();
+    this._restartGameTimeout = setTimeout(async () => {
+      this._restartGameTimeout = undefined;
+      // Only restart a game that is still meant to be running; the state can
+      // have changed (STOP, finish, error) while the timer was pending.
+      if (this._game?.state === "running") {
+        await this.restartGame();
+        sendProtocolMessage(
+          GameReloadedMessage.type.notification({}),
+          this.host,
+        );
+      }
+    }, 1000);
+  }
 
   async buildGame(program: SparkProgram, restarted?: boolean) {
     const options = this._options;
@@ -1423,7 +1454,13 @@ export class GamePlayerController {
       this.listen(this._game);
     }
 
-    this._app = await this.buildApp(this._game);
+    // Rebuilding the Application destroys and recreates the game's whole
+    // DOM/canvas binding (~100ms+ on the iframe main thread). Only necessary
+    // when the Game instance itself changed -- NOT on cursor scrubs, which
+    // land here with the same game and just need a re-preview.
+    if (shouldBuildNewGame || !this._app) {
+      this._app = await this.buildApp(this._game);
+    }
 
     if (validPreviewFrom) {
       this._game.preview(validPreviewFrom.file, validPreviewFrom.line);

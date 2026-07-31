@@ -190,6 +190,49 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     });
   }
 
+  override async initialize(
+    params: Parameters<SparkdownWorkspace["initialize"]>[0],
+  ) {
+    const result = await super.initialize(params);
+    this.scheduleBackgroundParses();
+    return result;
+  }
+
+  /**
+   * Project scripts are registered with deferred parses (see onCreatedFile)
+   * so initialize can return immediately. Warm them here in the background --
+   * smallest first, one per tick so early feature requests aren't stuck
+   * behind the whole project -- because some features (e.g. completions) read
+   * every script's annotations and would otherwise pay all outstanding
+   * parses at once on first use. tree() is a no-op for anything already
+   * parsed on demand in the meantime.
+   */
+  protected scheduleBackgroundParses() {
+    const uris = Array.from(this._documents.keys()).sort(
+      (a, b) =>
+        (this._documents.get(a)?.length ?? 0) -
+        (this._documents.get(b)?.length ?? 0),
+    );
+    let i = 0;
+    const step = () => {
+      if (i >= uris.length) {
+        return;
+      }
+      const uri = uris[i++]!;
+      try {
+        // The document can have been removed since the list was captured;
+        // touching it would just recreate an empty registry state entry.
+        if (this._documents.has(uri)) {
+          this._documents.tree(uri);
+        }
+      } catch (e) {
+        console.error("background parse failed", uri, e);
+      }
+      setTimeout(step, 50);
+    };
+    setTimeout(step, 500);
+  }
+
   override async onOpenTextDocument(params: {
     textDocument: {
       uri: string;
@@ -211,6 +254,19 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     this._documents.update(params);
   }
 
+  // Fingerprint + published-at version of the last diagnostics publish per
+  // uri, so a compile only notifies files whose diagnostics actually changed.
+  // Every publish fans out into client-side feature re-pulls, so N identical
+  // publishes per compile multiply into real work. The VERSION must be part
+  // of the key: clients that declare versionSupport DROP a publish whose
+  // version trails their document (routine mid-typing, since compiles are
+  // debounced with a max-wait), so an identical-content publish at a NEWER
+  // version must still go out or the client keeps stale squiggles forever.
+  protected _lastPublishedDiagnostics = new Map<
+    string,
+    { fingerprint: string; version: number | undefined }
+  >();
+
   override onCompiledTextDocument(params: {
     textDocument?: { uri: string };
     program: any;
@@ -219,14 +275,24 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     for (const uri of uris) {
       const version = this._documentVersions.get(uri);
       const diagnostics = this.getDiagnostics(params.program, uri);
+      const fingerprint = JSON.stringify(diagnostics);
+      const last = this._lastPublishedDiagnostics.get(uri);
+      if (last && last.fingerprint === fingerprint && last.version === version) {
+        continue;
+      }
+      this._lastPublishedDiagnostics.set(uri, { fingerprint, version });
       this.sendNotification(PublishDiagnosticsNotification.method, {
         uri,
         diagnostics,
         version,
       });
-      this.sendRequest(FoldingRangeRefreshRequest.method, {});
-      this.sendRequest(SemanticTokensRefreshRequest.method, {});
     }
+    // These refreshes are workspace-wide and carry no params, so once per
+    // compile is lossless. (They used to be sent inside the loop above --
+    // 2 x tracked-uris redundant refresh storms per keystroke, each of which
+    // made clients re-pull folding/semantic tokens for every visible file.)
+    this.sendRequest(FoldingRangeRefreshRequest.method, {});
+    this.sendRequest(SemanticTokensRefreshRequest.method, {});
   }
 
   override onCreatedFile(file: {
@@ -245,14 +311,22 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      this._documents.set({
-        textDocument: {
-          uri: file.uri,
-          text: file.text! || "",
-          version: file.version,
-          languageId: file.languageId,
+      // Defer the parse: this fires for EVERY project script during
+      // initialize, but this registry only serves language-feature requests,
+      // which arrive for documents the user actually has open. Eagerly
+      // parsing the whole project here (with all annotators) cost many
+      // seconds of time-to-first-interaction on large projects (#224/#285).
+      this._documents.set(
+        {
+          textDocument: {
+            uri: file.uri,
+            text: file.text! || "",
+            version: file.version,
+            languageId: file.languageId,
+          },
         },
-      });
+        { defer: true },
+      );
     }
   }
 
@@ -272,14 +346,19 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      this._documents.set({
-        textDocument: {
-          uri: file.uri,
-          text: file.text! || "",
-          version: file.version,
-          languageId: file.languageId,
+      // Only unopened scripts arrive here (see SparkdownWorkspace.changeFile);
+      // defer their re-parse until something reads them.
+      this._documents.set(
+        {
+          textDocument: {
+            uri: file.uri,
+            text: file.text! || "",
+            version: file.version,
+            languageId: file.languageId,
+          },
         },
-      });
+        { defer: true },
+      );
     }
   }
 
@@ -295,6 +374,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }) {
     this._documents.remove({ textDocument: { uri: file.uri } });
     this._lastFormattedText.delete(file.uri);
+    this._lastPublishedDiagnostics.delete(file.uri);
   }
 
   public listen(): Disposable {
@@ -329,7 +409,18 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         async (
           params: CompileProgramParams,
         ): Promise<SparkProgram | undefined> => {
-          return this.compile(params.textDocument.uri, true);
+          // Tolerate the bare `{ uri }` shape older clients sent.
+          const uri =
+            params.textDocument?.uri ?? (params as { uri?: string }).uri;
+          if (!uri) {
+            return undefined;
+          }
+          // force=false: when nothing changed since the last compile this
+          // serves the cached program WITHOUT re-compiling or re-notifying.
+          // A forced compile here re-broadcast compiler/didCompile, and
+          // pull-on-didCompile consumers (the vscode compilation view) would
+          // chase their own tail in an infinite pull->compile->notify loop.
+          return this.compile(uri, false);
         },
       ),
     );

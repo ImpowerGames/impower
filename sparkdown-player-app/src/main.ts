@@ -88,11 +88,24 @@ connection.addEventListener("message", async (e) => {
   if (isMessage(message)) {
     // Forward protocol messages from editor to player
     sendProtocolMessage(message);
-    // Forward protocol responses and notifications from editor to service worker
-    navigator.serviceWorker.controller?.postMessage(
-      message,
-      (message as any).result?.transfer || (message as any).params?.transfer,
-    );
+    // Forward protocol RESPONSES to our own service worker. The SW only ever
+    // awaits responses (to the FetchGameAsset requests it sends while serving
+    // /file:/ assets), so notifications -- including the editor's
+    // per-keystroke textDocument traffic -- would just be cloned into it and
+    // dropped. Same-origin/proxied preview never registers this SW at all;
+    // the editor's own root-scoped SW serves /file:/ there.
+    if (
+      !SAME_ORIGIN &&
+      !SAME_ORIGIN_PROXY &&
+      (message as any).id !== undefined &&
+      ((message as any).result !== undefined ||
+        (message as any).error !== undefined)
+    ) {
+      navigator.serviceWorker.controller?.postMessage(
+        message,
+        (message as any).result?.transfer || (message as any).params?.transfer,
+      );
+    }
   }
 });
 

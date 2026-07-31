@@ -120,10 +120,12 @@ export interface ScriptEditorOptions {
 }
 
 // How long a load may keep the editor hidden before it is revealed anyway.
-// Comfortably longer than a normal large-project parse (~2.7s measured on an
-// 8k-line script) so the usual idle-driven fade-in still wins the race and
-// the user doesn't see a half-parsed document flash; short enough that a
-// wedged load self-heals well inside the "is this broken?" threshold.
+// The normal reveal comes from `onViewportParsed` (the syntax tree covers the
+// visible region, usually within a few hundred ms) or, on small documents,
+// from the parse-idle signal. This backstop only exists for loads where
+// neither signal arrives (a wedged parse, or a deep saved scroll position on
+// a document that parses slowly) -- short enough that a broken load
+// self-heals well inside the "is this broken?" threshold.
 const LOAD_REVEAL_TIMEOUT_MS = 5000;
 
 export class ScriptEditorController {
@@ -666,6 +668,7 @@ export class ScriptEditorController {
               ? (visibleRange?.start.line ?? 0) + 1
               : undefined,
           onIdle: this.handleIdle,
+          onViewportParsed: this.handleViewportParsed,
           onFocus: () => {
             this._editing = true;
             if (this._textDocument) {
@@ -1054,6 +1057,33 @@ export class ScriptEditorController {
     this.refs.editor.style.visibility = "visible";
     this.refs.editor.style.opacity = "1";
     this._loadingRequest = undefined;
+  };
+
+  /**
+   * The syntax tree covers the visible viewport (and the restored scroll
+   * target) while the rest of the document is still parsing. That is enough
+   * to finish loading: restore scroll/focus and reveal now instead of hiding
+   * the editor behind the multi-second full-document parse. Runs the same
+   * completion path as the idle signal, so whichever fires first wins and the
+   * other becomes a no-op.
+   */
+  protected handleViewportParsed = () => {
+    if (this._loaded) {
+      return;
+    }
+    // Wait for fonts before the first reveal so the just-shown viewport
+    // doesn't immediately reflow under a late-loading editor font.
+    const fonts = document.fonts;
+    if (fonts && fonts.status !== "loaded") {
+      const view = this._view;
+      fonts.ready.then(() => {
+        if (!this._loaded && this._view === view) {
+          this.handleIdle();
+        }
+      });
+      return;
+    }
+    this.handleIdle();
   };
 
   protected handleIdle = () => {

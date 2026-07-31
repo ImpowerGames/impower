@@ -288,13 +288,17 @@ export default function PreviewGame(_props: PreviewGameProps) {
           if (!(e instanceof CustomEvent)) return;
           const message = e.detail;
 
-          // Forward editor → iframe for game/preview/workspace/textDocument
+          // Forward editor → iframe for game/preview/workspace/textDocument.
+          // (Except didSave: nothing in the player consumes it, and it carries
+          // the entire document text on every change -- a 200KB+ clone per
+          // keystroke on a large script.)
           if (
             typeof message.method === "string" &&
             (message.method.startsWith("game/") ||
               message.method.startsWith("preview/") ||
               message.method.startsWith("workspace/") ||
-              message.method.startsWith("textDocument/"))
+              (message.method.startsWith("textDocument/") &&
+                message.method !== "textDocument/didSave"))
           ) {
             if (!initializedRef.current) {
               await initializingRef.current;

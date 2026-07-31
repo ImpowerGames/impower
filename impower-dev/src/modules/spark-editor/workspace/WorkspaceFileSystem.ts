@@ -70,7 +70,6 @@ export default class WorkspaceFileSystem {
     this.loadInitialFiles.bind(this),
   );
 
-  protected _preloaded: Record<string, HTMLElement> = {};
 
   protected _scheme = "file://";
   get scheme() {
@@ -153,7 +152,6 @@ export default class WorkspaceFileSystem {
       this._files ??= {};
       this._files[file.uri] = { ...file };
       result[file.uri] = file;
-      this.preloadFile(file);
     });
     if (!files.some((f) => f.name === "main" && f.type === "script")) {
       // Create a default empty main script if one doesn't exist
@@ -265,7 +263,6 @@ export default class WorkspaceFileSystem {
       message.params.files.forEach((file) => {
         this._files ??= {};
         this._files[file.uri] = { ...file };
-        this.preloadFile(file);
       });
       sendProtocolMessage(message);
     } else if (DidCreateFilesMessage.type.isNotification(message)) {
@@ -274,7 +271,6 @@ export default class WorkspaceFileSystem {
     } else if (DidDeleteFilesMessage.type.isNotification(message)) {
       message.params.files.forEach((file) => {
         delete this._files?.[file.uri];
-        delete this._preloaded[file.uri];
       });
       Workspace.ls.connection.sendNotification(message.method, message.params);
       sendProtocolMessage(message);
@@ -284,7 +280,6 @@ export default class WorkspaceFileSystem {
         const oldFile = this._files[file.oldUri];
         if (oldFile) {
           delete this._files[file.oldUri];
-          delete this._preloaded[file.oldUri];
         }
       });
       Workspace.ls.connection.sendNotification(message.method, message.params);
@@ -735,39 +730,6 @@ export default class WorkspaceFileSystem {
       [encodedText.buffer],
     );
     return result;
-  }
-
-  async preloadFile(file: FileData) {
-    try {
-      await new Promise((resolve, reject) => {
-        /* Preload image so it can be previewed instantly */
-        if (file.type === "image") {
-          const img = new Image();
-          img.src = file.src;
-          img.onload = () => {
-            resolve(img);
-          };
-          img.onerror = () => {
-            reject(img);
-          };
-          this._preloaded[file.uri] = img;
-        }
-        /* We shouldn't need to preload audio */
-        // else if (file.type === "audio") {
-        //   const aud = new Audio();
-        //   aud.src = file.src;
-        //   aud.onload = () => {
-        //     resolve(aud);
-        //   };
-        //   aud.onerror = () => {
-        //     reject(aud);
-        //   };
-        //   this._preloaded[file.uri] = aud;
-        // }
-      });
-    } catch (e) {
-      console.warn("Could not load: ", file.name, file.src);
-    }
   }
 
   async applyWorkspaceEdit(

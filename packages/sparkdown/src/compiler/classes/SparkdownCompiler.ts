@@ -342,14 +342,20 @@ export class SparkdownCompiler {
           file.version !== undefined &&
           file.languageId !== undefined
         ) {
-          this.documents.add({
-            textDocument: {
-              uri: file.uri,
-              languageId: file.languageId!,
-              version: file.version,
-              text: file.text || "",
+          // Defer parses: the compile that follows pulls the trees it needs
+          // through tree()/annotations(), so scripts the program never
+          // includes are never parsed, and configure itself stays fast.
+          this.documents.add(
+            {
+              textDocument: {
+                uri: file.uri,
+                languageId: file.languageId!,
+                version: file.version,
+                text: file.text || "",
+              },
             },
-          });
+            { defer: true },
+          );
         }
         this.addFile({ file });
       }
@@ -365,14 +371,19 @@ export class SparkdownCompiler {
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      this.documents.add({
-        textDocument: {
-          uri: file.uri,
-          text: file.text || "",
-          version: file.version,
-          languageId: file.languageId,
+      // Deferred: the next compile pulls the tree if this script is part of
+      // the program (see configure()).
+      this.documents.add(
+        {
+          textDocument: {
+            uri: file.uri,
+            text: file.text || "",
+            version: file.version,
+            languageId: file.languageId,
+          },
         },
-      });
+        { defer: true },
+      );
     }
     return result;
   }
@@ -384,14 +395,17 @@ export class SparkdownCompiler {
       file.version !== undefined &&
       file.languageId !== undefined
     ) {
-      this.documents.set({
-        textDocument: {
-          uri: file.uri,
-          text: file.text! || "",
-          version: file.version,
-          languageId: file.languageId,
+      this.documents.set(
+        {
+          textDocument: {
+            uri: file.uri,
+            text: file.text! || "",
+            version: file.version,
+            languageId: file.languageId,
+          },
         },
-      });
+        { defer: true },
+      );
     }
     return this.files.update(params);
   }

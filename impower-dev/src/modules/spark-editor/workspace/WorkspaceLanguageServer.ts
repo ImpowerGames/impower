@@ -296,7 +296,6 @@ export default class WorkspaceLanguageServer {
       this._initializeParams,
     );
     this._initializeResult = result;
-    this.updateProgram(result["program"]);
     this._connection.sendNotification(InitializedMessage.method, {});
     this._onInitialized.forEach((callback) => {
       callback?.(result);
