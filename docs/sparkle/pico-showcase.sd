@@ -24,6 +24,11 @@
 // <b>/<i>. So it is `link "Home"`, NOT `text link "Home"`:
 // two tags on one line is a warning.
 //
+// ARIA state is authored WITHOUT the prefix — `#busy`, `#invalid`, `#label`
+// map to `aria-busy` / `aria-invalid` / `aria-label`. ARIA is a web concept;
+// keeping it out of the authored names (and out of style selectors) leaves a
+// Unity front-end free to map the same states onto USS, which has no ARIA.
+//
 // Styling WITHIN a line uses rich-text tags instead: `text "a <b>bold</b> word"`.
 //
 // NOTE: `#href` takes relative/fragment URLs here — an absolute `https://` value
@@ -134,10 +139,10 @@ layout main with
         paragraph "Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas."
         form:
           row grid:
-            -- `#aria-label` because the placeholder is the only visible label:
+            -- `#label` (an alias for `aria-label`) because the placeholder is the
             -- a placeholder is not an accessible name.
-            input #value={first_name} #placeholder="First name" #aria-label="First name" #required=true @input=set_first #margin-bottom=18
-            input #type="email" #value={email} #placeholder="Email address" #aria-label="Email address" #autocomplete="email" #required=true @input=set_email #margin-bottom=18
+            input #value={first_name} #placeholder="First name" #label="First name" #required=true @input=set_first #margin-bottom=18
+            input #type="email" #value={email} #placeholder="Email address" #label="Email address" #autocomplete="email" #required=true @input=set_email #margin-bottom=18
             -- `#type="submit"` as in the reference: it is what gives a form
             -- button the block rhythm below it, so it lines up with the inputs
             -- beside it instead of stretching to fill the row.
@@ -277,9 +282,9 @@ layout main with
           -- Validation states are Pico's `aria-invalid`, not a class.
           row grid:
             label "Valid":
-              input valid #placeholder="Valid" #aria-invalid=false #margin-bottom=18
+              input valid #placeholder="Valid" #invalid=false #margin-bottom=18
             label "Invalid":
-              input invalid #placeholder="Invalid" #aria-invalid=true #margin-bottom=18
+              input invalid #placeholder="Invalid" #invalid=true #margin-bottom=18
             label "Disabled":
               input #placeholder="Disabled" #disabled=true #margin-bottom=18
 
@@ -424,8 +429,8 @@ layout main with
       section:
         h2 "Loading"
         -- A bare busy `article` is Pico's block-level loading placeholder.
-        article #aria-busy=true
+        article #busy=true
         row #child-gap=8 #child-align=center:
-          button "Please wait…" #aria-busy={busy} @click=toggle_busy
+          button "Please wait…" #busy={busy} @click=toggle_busy
           text muted "Click to toggle aria-busy"
 end

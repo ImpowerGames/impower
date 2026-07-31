@@ -3,7 +3,7 @@ import { NotificationMessage } from "@impower/jsonrpc/src/common/types/Notificat
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import {
-  DATA_ATTRIBUTE_PROPS,
+  isAliasedAttributeProp,
   toDataAttributeName,
 } from "@impower/sparkdown/src/compiler/constants/dataAttributeProps";
 import type {
@@ -480,7 +480,7 @@ const BOOLEAN_ATTRIBUTES: ReadonlySet<string> = new Set([
 function isAttributeProp(prop: string): boolean {
   return (
     ATTRIBUTE_PROPS.has(prop) ||
-    DATA_ATTRIBUTE_PROPS.has(prop) ||
+    isAliasedAttributeProp(prop) ||
     prop.startsWith("aria-") ||
     prop.startsWith("data-")
   );

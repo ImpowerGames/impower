@@ -1,4 +1,7 @@
-import { DATA_ATTRIBUTE_PROPS } from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
+import {
+  DATA_ATTRIBUTE_PROPS,
+  ARIA_ATTRIBUTE_ALIASES,
+} from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
 import { getCssEquivalent } from "../../../sparkle-style-transformer/src/utils/getCssEquivalent";
 import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 
@@ -156,7 +159,13 @@ export function getCSSSelector(
   selector = selector.replace(
     DATA_ATTRIBUTE_SELECTOR_REGEX,
     (m, name: string) =>
-      DATA_ATTRIBUTE_PROPS.has(name) ? `#data-${name}` : m,
+      // A selector names the prop as AUTHORED; it has to match the attribute
+      // actually written, or the rule silently applies to nothing.
+      ARIA_ATTRIBUTE_ALIASES.has(name)
+        ? `#${ARIA_ATTRIBUTE_ALIASES.get(name)}`
+        : DATA_ATTRIBUTE_PROPS.has(name)
+          ? `#data-${name}`
+          : m,
   );
 
   // Anchor a LEADING `>>` to an explicit `&` first. `>>` becomes a space below,

@@ -1573,7 +1573,7 @@ style button with
     opacity = 0.5
     cursor = not-allowed
     pointer-events = none
-  -- Busy state: `button "Save" #aria-busy={saving}` grows a spinner, matching
+  -- Busy state: `button "Save" #busy={saving}` grows a spinner, matching
   -- Pico. `@busy` is the alias for `[aria-busy="true"]` (a raw `#a=v` can't be
   -- used as a selector — that's the inline prop syntax). `spin` is a builtin
   -- @keyframes.
@@ -2614,7 +2614,7 @@ style article with
     border-top-color = slate_30
     corner-bottom-left = 0.25rem
     corner-bottom-right = 0.25rem
-  -- An `article #aria-busy=true` with no children is Pico's block-level
+  -- An `article #busy=true` with no children is Pico's block-level
   -- loading placeholder: just a centred spinner.
   @busy:
     -- FLEX, explicitly. A busy article is not document flow -- it is a box
