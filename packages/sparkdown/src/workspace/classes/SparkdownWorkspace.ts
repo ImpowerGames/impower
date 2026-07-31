@@ -666,15 +666,22 @@ export abstract class SparkdownWorkspace {
   protected _changeCompileDebounceDelay = 200;
   protected _changeCompileTimer?: ReturnType<typeof setTimeout>;
   protected _changeCompileDeadline?: number;
-  protected _pendingChangeCompileUri?: string;
+  // EVERY document with a pending debounced compile. A multi-file change
+  // burst (find-and-replace, Save All, a workspace edit) can touch documents
+  // in DIFFERENT compile trees (a standalone script, a second main.sd tree);
+  // keeping only the latest uri silently dropped the earlier ones' compiles,
+  // stranding their piggybacked waiters and leaving their diagnostics stale.
+  protected _pendingChangeCompileUris = new Set<string>();
 
   protected scheduleChangeCompile(uri: string) {
     const delay = this._changeCompileDebounceDelay;
     if (delay <= 0) {
-      this.compile(uri, false);
+      this.compile(uri, false).catch((e) => {
+        console.error(e);
+      });
       return;
     }
-    this._pendingChangeCompileUri = uri;
+    this._pendingChangeCompileUris.add(uri);
     if (this._changeCompileTimer != null) {
       clearTimeout(this._changeCompileTimer);
     }
@@ -683,13 +690,21 @@ export abstract class SparkdownWorkspace {
       this._changeCompileDeadline = now + delay * 4;
     }
     const wait = Math.min(delay, Math.max(0, this._changeCompileDeadline - now));
-    this._changeCompileTimer = setTimeout(() => {
+    this._changeCompileTimer = setTimeout(async () => {
       this._changeCompileTimer = undefined;
       this._changeCompileDeadline = undefined;
-      const pendingUri = this._pendingChangeCompileUri;
-      this._pendingChangeCompileUri = undefined;
-      if (pendingUri != null) {
-        this.compile(pendingUri, false);
+      const pendingUris = Array.from(this._pendingChangeCompileUris);
+      this._pendingChangeCompileUris.clear();
+      // Compile each pending document in order. Documents covered by an
+      // earlier compile in this batch hit the no-change early-return (which
+      // also flushes their waiters), so same-tree batches still cost one
+      // compile; only genuinely separate trees pay for their own.
+      for (const pendingUri of pendingUris) {
+        try {
+          await this.compile(pendingUri, false);
+        } catch (e) {
+          console.error(e);
+        }
       }
     }, wait);
   }
@@ -720,7 +735,7 @@ export abstract class SparkdownWorkspace {
       }
       return state.program;
     }
-    if (!force && this._pendingChangeCompileUri === uri) {
+    if (!force && this._pendingChangeCompileUris.has(uri)) {
       // A debounced keystroke compile for this document is already scheduled;
       // piggyback on it instead of racing it with a second full compile.
       return new Promise((resolve) => {
@@ -743,32 +758,51 @@ export abstract class SparkdownWorkspace {
     state.compilingDocumentVersion = this._documentVersions.get(uri);
     let result: CompileProgramResult | undefined = undefined;
     const mainScriptUri = this.getMainScriptUri(uri);
-    if (mainScriptUri) {
-      result = await this.compileDocument(mainScriptUri);
-      this.getProgramState(mainScriptUri).program = result.program;
-      if (result.program.scripts) {
-        for (const [uri, version] of Object.entries(result.program.scripts)) {
-          const state = this.getProgramState(uri);
-          state.program = result.program;
-          state.compilingDocumentVersion = undefined;
-          state.compiledDocumentVersion = version;
-          state.version++;
-          this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
-          this._onNextCompiled.delete(uri);
+    try {
+      if (mainScriptUri) {
+        result = await this.compileDocument(mainScriptUri);
+        this.getProgramState(mainScriptUri).program = result.program;
+        if (result.program.scripts) {
+          for (const [uri, version] of Object.entries(result.program.scripts)) {
+            const state = this.getProgramState(uri);
+            state.program = result.program;
+            state.compilingDocumentVersion = undefined;
+            state.compiledDocumentVersion = version;
+            state.version++;
+            this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
+            this._onNextCompiled.delete(uri);
+          }
         }
       }
-    }
-    if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
-      // Target script is not included by main,
-      // So it must be parsed on its own to report diagnostics
-      result = await this.compileDocument(uri);
-      const state = this.getProgramState(uri);
-      state.program = result.program;
+      if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
+        // Target script is not included by main,
+        // So it must be parsed on its own to report diagnostics
+        result = await this.compileDocument(uri);
+        const state = this.getProgramState(uri);
+        state.program = result.program;
+        state.compilingDocumentVersion = undefined;
+        state.compiledDocumentVersion = result.program?.scripts[uri];
+        state.version++;
+        this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
+        this._onNextCompiled.delete(uri);
+      }
+    } catch (e) {
+      // Settle instead of strand: piggybacked callers (pull diagnostics etc.)
+      // are awaiting these resolvers, and a compile failure must not turn
+      // their requests into permanent hangs.
+      const flush = (flushUri: string) => {
+        const callbacks = this._onNextCompiled.get(flushUri);
+        if (callbacks) {
+          this._onNextCompiled.delete(flushUri);
+          callbacks.forEach((c) => c?.(undefined));
+        }
+      };
+      flush(uri);
+      if (mainScriptUri) {
+        flush(mainScriptUri);
+      }
       state.compilingDocumentVersion = undefined;
-      state.compiledDocumentVersion = result.program?.scripts[uri];
-      state.version++;
-      this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
-      this._onNextCompiled.delete(uri);
+      throw e;
     }
     if (result?.program) {
       const state = this.getProgramState(uri);
