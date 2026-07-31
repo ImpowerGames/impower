@@ -1,0 +1,2 @@
+store a = `Hi {{shout}}!`
+store b = "Val: {{fmt(1, 2)}}"

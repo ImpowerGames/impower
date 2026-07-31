@@ -300,6 +300,9 @@
       "include": "#LuauSparkdownControlBlock"
     },
     {
+      "include": "#LuauFunctionCallShorthand"
+    },
+    {
       "include": "#LuauInterpolatedStringExpression"
     },
     {
@@ -470,6 +473,9 @@
       "name": "punctuation.definition.comment.content.sd",
       "begin": "(?=.)",
       "patterns": [
+        {
+          "include": "#LuauFunctionCallShorthand"
+        },
         {
           "include": "#LuauInterpolatedStringExpression"
         },
@@ -784,6 +790,9 @@
           "include": "#ArmDivert"
         },
         {
+          "include": "#LuauFunctionCallShorthand"
+        },
+        {
           "include": "#LuauInterpolatedStringExpression"
         },
         {
@@ -803,6 +812,9 @@
         },
         {
           "include": "#ArmDivert"
+        },
+        {
+          "include": "#LuauFunctionCallShorthand"
         },
         {
           "include": "#LuauInterpolatedStringExpression"
@@ -1126,6 +1138,9 @@
           "patterns": [
             {
               "include": "#Annotation"
+            },
+            {
+              "include": "#LuauFunctionCallShorthand"
             },
             {
               "include": "#LuauInterpolatedStringExpression"
@@ -3367,6 +3382,9 @@
           "include": "#Escape"
         },
         {
+          "include": "#LuauFunctionCallShorthand"
+        },
+        {
           "include": "#LuauInterpolatedStringExpression"
         },
         {
@@ -4038,6 +4056,9 @@
         },
         {
           "include": "#Thread"
+        },
+        {
+          "include": "#LuauFunctionCallShorthand"
         },
         {
           "include": "#LuauInterpolatedStringExpression"
@@ -5498,7 +5519,7 @@
     "StringFieldValueInterpolated": {
       "tag": "string",
       "name": "string.quoted.double.sd",
-      "begin": "([\"])(?=(?:[^\"{}]|\\{\\{|\\}\\}|\\\\.)*\\{(?!\\{))",
+      "begin": "([\"])(?=(?:[^\"{\\\\]|\\\\.)*\\{)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5510,7 +5531,7 @@
       },
       "patterns": [
         {
-          "include": "#SparkleLiteralBrace"
+          "include": "#LuauFunctionCallShorthand"
         },
         {
           "include": "#LuauInterpolatedStringExpression"
@@ -5548,11 +5569,6 @@
           ]
         }
       }
-    },
-    "SparkleLiteralBrace": {
-      "tag": "string",
-      "name": "string.quoted.double.sd",
-      "match": "(\\{\\{|\\}\\})"
     },
     "UnquotedStringFieldValue": {
       "match": "(.+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
@@ -7094,6 +7110,9 @@
               "include": "#StringEscape"
             },
             {
+              "include": "#LuauFunctionCallShorthand"
+            },
+            {
               "include": "#LuauInterpolatedStringExpression"
             },
             {
@@ -7506,6 +7525,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauFunctionCallShorthand"
+        },
+        {
           "include": "#LuauInterpolatedStringExpression"
         },
         {
@@ -7569,7 +7591,7 @@
     "LuauElementContentStringInterpolated": {
       "tag": "string",
       "name": "string.quoted.double.sd",
-      "begin": "([\"])(?=(?:[^\"{}]|\\{\\{|\\}\\}|\\\\.)*\\{(?!\\{))",
+      "begin": "([\"])(?=(?:[^\"{\\\\]|\\\\.)*\\{)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -7581,7 +7603,7 @@
       },
       "patterns": [
         {
-          "include": "#SparkleLiteralBrace"
+          "include": "#LuauFunctionCallShorthand"
         },
         {
           "include": "#LuauInterpolatedStringExpression"
@@ -11670,6 +11692,9 @@
           "include": "#LuauStringEscape"
         },
         {
+          "include": "#LuauDoubleQuotedFunctionCallShorthand"
+        },
+        {
           "include": "#LuauDoubleQuotedStringInterpolation"
         },
         {
@@ -11830,6 +11855,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauBacktickFunctionCallShorthand"
+        },
+        {
           "include": "#LuauBacktickStringInterpolation"
         },
         {
@@ -11964,6 +11992,160 @@
       "end": "([}])|(?=[`])",
       "endCaptures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      },
+      "applyEndPatternLast": true
+    },
+    "LuauFunctionCallShorthand": {
+      "tag": "meta",
+      "name": "meta.template.expression.function-shorthand.luau",
+      "contentName": "meta.embedded.line.luau",
+      "brackets": true,
+      "begin": "([{])([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "([}])([}])?",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
+    },
+    "LuauDoubleQuotedFunctionCallShorthand": {
+      "tag": "meta",
+      "name": "meta.template.expression.function-shorthand.luau",
+      "contentName": "meta.embedded.line.luau",
+      "brackets": true,
+      "begin": "([{])([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "([}])([}])?|(?=[\"])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        }
+      }
+    },
+    "LuauBacktickFunctionCallShorthand": {
+      "tag": "meta",
+      "name": "meta.template.expression.function-shorthand.luau",
+      "contentName": "meta.embedded.line.luau",
+      "brackets": true,
+      "begin": "([{])([{])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceOpen"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauExpression"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "([}])([}])?|(?=[`])",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationBraceClose"
+            }
+          ]
+        },
+        "2": {
           "patterns": [
             {
               "include": "#PunctuationBraceClose"

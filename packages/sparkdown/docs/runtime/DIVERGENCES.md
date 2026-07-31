@@ -600,9 +600,16 @@ than edited in place, because re-vendoring is an `rm -rf` + fresh copy
 If that patch list grows beyond a handful of lines, treat it as evidence to
 revisit the `"..."` interpolation decision rather than as routine upkeep.
 
-Sparkle CONTENT strings are a separate context with their own rule, where
-`{{` / `}}` are literal-brace escapes per spec decision D3 — Luau instead
-rejects `{{` outright, a divergence sparkdown keeps deliberately.
+One more divergence is deliberate and permanent: Luau rejects `{{` inside an
+interpolated string outright ("Double braces are not permitted within
+interpolated strings; did you mean '\{'?"). In sparkdown, `{{name}}` /
+`{{name(args)}}` is the **function-call shorthand** (issue #223) — it calls
+the named function and interpolates its return value — and it works uniformly
+in every interpolation context: display text, Sparkle content strings,
+field/prop values, and both `"..."` and `` `...` `` Luau strings. (The
+shorthand superseded spec decision D3, which briefly made `{{`/`}}`
+literal-brace escapes in Sparkle content strings; the literal escape is now
+`\{` / `\}` — the same spelling Luau itself suggests.)
 
 ### Regex literals: `@/pattern/flags`
 

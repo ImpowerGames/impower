@@ -20,6 +20,7 @@ import { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { LowerContext } from "../context";
 import {
+  FUNCTION_CALL_SHORTHAND_NODES,
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
@@ -597,7 +598,10 @@ function collectTopLevelInjections(
       // Don't descend into a backtick string — its inner `{...}` belongs to
       // the string itself, not the surrounding display body.
       if (node.name === "LuauInterpolatedString") return;
-      if (node.name === "LuauInterpolatedStringExpression") {
+      if (
+        node.name === "LuauInterpolatedStringExpression" ||
+        node.name === "LuauFunctionCallShorthand"
+      ) {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "expr", node, from: node.from, to: node.to });
         }
@@ -989,7 +993,12 @@ function hasAdjacentInterpolationSibling(node: SyntaxNode): boolean {
   let cursor: SyntaxNode | null = node.nextSibling;
   while (cursor) {
     if (cursor.name === "Newline") return false;
-    if (cursor.name === "LuauInterpolatedStringExpression") return true;
+    if (
+      cursor.name === "LuauInterpolatedStringExpression" ||
+      cursor.name === "LuauFunctionCallShorthand"
+    ) {
+      return true;
+    }
     if (
       cursor.name === "Whitespace" ||
       cursor.name === "ExtraWhitespace" ||
@@ -1185,6 +1194,10 @@ function tryLowerInlineAlternator(
   // so we just need to find either variant here. Look for the
   // interpolation-content child first (a `_content` wrapper), then any
   // direct child below.
+  // `{{...}}` is call-only: never reinterpret its body as an alternator —
+  // fall through to `lowerExpressionFromContainer`, which enforces the
+  // shorthand semantics (`{{queue|A|B end}}` is an error, not an alternator).
+  if (FUNCTION_CALL_SHORTHAND_NODES.has(interpNode.name)) return null;
   const content = findFirstDirectChild(
     interpNode,
     "LuauInterpolatedStringExpression_content",
@@ -1231,6 +1244,9 @@ function tryLowerInlineConditional(
   interpNode: SyntaxNode,
   ctx: LowerContext,
 ): Conditional | null {
+  // Call-only shorthand: `{{if … then … else …}}` must NOT become a
+  // Conditional — see the matching guard in `tryLowerInlineAlternator`.
+  if (FUNCTION_CALL_SHORTHAND_NODES.has(interpNode.name)) return null;
   const ifExpr = findFirstDirectChild(interpNode, "LuauTernaryExpression");
   if (!ifExpr) return null;
   const firstCondContent = getDescendent(

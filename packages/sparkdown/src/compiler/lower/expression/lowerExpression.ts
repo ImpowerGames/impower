@@ -45,6 +45,7 @@ import {
   lookupStdLibConstant,
   METHOD_PREFIX,
 } from "../../../inkjs/engine/StdLib";
+import { ErrorType } from "../../../inkjs/engine/Error";
 
 // Wrap the lowerer's `new FunctionCall(name, args)` site so that
 // bare (unnamespaced) source names registered in `STDLIB`
@@ -77,6 +78,19 @@ function makeGlobalFunctionCall(
 // Public entry points
 // ============================================================================
 
+// `{{fn}}` / `{{fn(args)}}` function-call shorthand containers (issue #223).
+// One per string-bounding context (see the grammar); all three carry the SAME
+// semantics: the body must be a function call, and a bare name is coerced to
+// a nullary call. Consumers that scan for interpolation nodes treat these as
+// interpolations; the coercion lives in `lowerExpressionFromContainer` so
+// every context (display text, content strings, prop values, Luau strings,
+// Sparkle bindings) picks it up through the one funnel they already call.
+export const FUNCTION_CALL_SHORTHAND_NODES = new Set([
+  "LuauFunctionCallShorthand",
+  "LuauDoubleQuotedFunctionCallShorthand",
+  "LuauBacktickFunctionCallShorthand",
+]);
+
 // Lower the value-expression formed by the children of `parent`. Operator
 // markers that aren't part of the expression value (e.g. LuauAssignmentOperator
 // before the RHS) are skipped via SKIP_NAMES.
@@ -86,7 +100,67 @@ export function lowerExpressionFromContainer(
 ): Expression | null {
   const tokens: Token[] = [];
   collectTokens(parent, ctx, tokens);
-  return prattParse(tokens, 0);
+  const expr = prattParse(tokens, 0);
+  if (FUNCTION_CALL_SHORTHAND_NODES.has(parent.name)) {
+    return coerceFunctionCallShorthand(expr, parent, ctx);
+  }
+  return expr;
+}
+
+// Apply the `{{...}}` shorthand semantics to the lowered body expression:
+//   - `{{fn(a, b)}}` — already a call; pass it through unchanged (identical
+//     to `{fn(a, b)}`).
+//   - `{{fn}}` — the shorthand's whole point: a bare name becomes a nullary
+//     call, dispatched exactly like a written-out `fn()` (local binding →
+//     value call; global/knot/stdlib → FunctionCall).
+//   - `{{obj.fn}}` — a dotted path calls the referenced VALUE (`math.random`
+//     works without being a registered global).
+//   - anything else (`{{1 + 2}}`, bare `{{}}`) — the classic "expected a
+//     function name" error the old InkParser raised for a bare `{{`.
+function coerceFunctionCallShorthand(
+  expr: Expression | null,
+  node: SyntaxNode,
+  ctx: LowerContext,
+): Expression | null {
+  if (expr instanceof FunctionCall || expr instanceof CallValueExpression) {
+    return expr;
+  }
+  if (expr instanceof VariableReference) {
+    const path = expr.pathIdentifiers;
+    if (path.length === 1 && path[0]?.name) {
+      const nameStr = path[0].name;
+      if (resolveCallableBinding(nameStr, ctx) === "local") {
+        return new CallValueExpression(
+          new VariableReference([new Identifier(nameStr)]),
+          [],
+        );
+      }
+      const callName = siblingSubFlowInfo(nameStr, ctx)?.knotName ?? nameStr;
+      return makeGlobalFunctionCall(
+        new Identifier(callName),
+        withSiblingSubFlowUpvalArgs(nameStr, [], ctx),
+        node,
+        ctx,
+      );
+    }
+    return new CallValueExpression(expr, []);
+  }
+  if (ctx.diagnostics) {
+    ctx.diagnostics.push({
+      message:
+        "Expected a function name — `{{...}}` is the function-call shorthand (`{{fn}}` or `{{fn(args)}}`). For a literal brace, write `\\{`",
+      severity: ErrorType.Error,
+      source: {
+        fileName: null,
+        filePath: ctx.filePath ?? null,
+        startLineNumber: ctx.lineNumber(node.from) + 1,
+        endLineNumber: ctx.lineNumber(node.to) + 1,
+        startCharacterNumber: ctx.characterNumber(node.from) + 1,
+        endCharacterNumber: ctx.characterNumber(node.to) + 1,
+      },
+    });
+  }
+  return null;
 }
 
 // Lower an expression formed by a list of specific nodes (used for function
@@ -1952,11 +2026,13 @@ export function processLuauEscapes(s: string): string {
 }
 
 // `"..."` uses its own interpolation rule (bounded by the closing quote), so
-// both node names count as an interpolation.
+// both node names count as an interpolation. The `{{fn}}` call-shorthand
+// containers interpolate their call's return value the same way.
 const INTERPOLATION_NODES = new Set([
   "LuauInterpolatedStringExpression",
   "LuauDoubleQuotedStringInterpolation",
   "LuauBacktickStringInterpolation",
+  ...FUNCTION_CALL_SHORTHAND_NODES,
 ]);
 
 function hasInterpolation(node: SyntaxNode): boolean {
