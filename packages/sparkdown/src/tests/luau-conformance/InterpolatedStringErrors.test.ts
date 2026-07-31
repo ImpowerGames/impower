@@ -133,10 +133,14 @@ describe("empty interpolation", () => {
 // Luau: parse_interpolated_string_double_brace_begin / _mid
 // "Double braces are not permitted within interpolated strings; did you mean '\{'?"
 //
-// Sparkle CONTENT strings use `{{` as the literal-brace escape (see
-// guide/Structure.md), so adopting Luau's error would need the two contexts
-// separated first.
-describe.skip("double braces (diverges: `{{` is Sparkle's literal-brace escape)", () => {
+// DELIBERATE divergence (issue #223): in sparkdown `{{name}}` is the
+// function-call shorthand — `{{oops}}` means "call oops() and interpolate its
+// return value" in every interpolation context, including Luau interpolated
+// strings — so Luau's flat-out rejection of `{{` will never be adopted. (It
+// used to diverge for a different reason: `{{` was Sparkle's literal-brace
+// escape per spec decision D3, since superseded; the literal escape is now
+// `\{` — same as Luau's own suggestion.)
+describe.skip("double braces (diverges: `{{fn}}` is the call shorthand)", () => {
   test.each([
     ["begin", "store a = `{{oops}}`\n"],
     ["mid", "store a = `{nice} {{oops}}`\n"],

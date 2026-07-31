@@ -351,7 +351,10 @@ function appendNodeContent(
       markers.push({ kind: "tag", node });
       return;
     }
-    if (node.name === "LuauInterpolatedStringExpression") {
+    if (
+      node.name === "LuauInterpolatedStringExpression" ||
+      node.name === "LuauFunctionCallShorthand"
+    ) {
       markers.push({ kind: "expr", node });
       return;
     }

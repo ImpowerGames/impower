@@ -501,14 +501,36 @@ end
     expect(fill.children[0]).toMatchObject({ tag: "button" });
   });
 
-  test("literal `{{`/`}}` brace escapes collapse, no binding emitted", () => {
+  test("literal `\\{`/`\\}` brace escapes unescape, no binding emitted", () => {
     const ast = screenAst(`layout hud with
-  text = "literal {{braces}} kept"
+  text = "literal \\{braces\\} kept"
 end
 `);
     expect(ast.hud.children[0].content).toEqual([
       { kind: "literal", text: "literal {braces} kept" },
     ]);
+  });
+
+  test("`{{fn}}` call shorthand in content lowers to a binding calling fn", () => {
+    const ast = screenAst(`layout hud with
+  text = "Cry: {{shout}}!"
+end
+`);
+    const parts = ast.hud.children[0].content;
+    expect(parts[0]).toEqual({ kind: "literal", text: "Cry: " });
+    expect(parts[1].kind).toBe("binding");
+    expect(parts[1].binding.source).toBe("{{shout}}");
+    expect(parts[2]).toEqual({ kind: "literal", text: "!" });
+  });
+
+  test("`{{fn(args)}}` call shorthand in a prop value lowers to a binding", () => {
+    const ast = screenAst(`layout hud with
+  text #label={{format_hp(hp, max_hp)}}
+end
+`);
+    const label = ast.hud.children[0].props.label;
+    expect(label.kind).toBe("binding");
+    expect(label.binding.source).toBe("{{format_hp(hp, max_hp)}}");
   });
 
   test("`as PARENT` carries inheritance onto the screen node", () => {

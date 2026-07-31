@@ -269,10 +269,12 @@ function warnMultipleTags(builtins: SyntaxNode[], ctx: LowerContext): void {
   }
 }
 
-/** Collapse the content-string brace escapes (spec D3): `{{` → `{`, `}}` → `}`.
- *  Only applied to display CONTENT (not Luau-position prop/style values). */
-function collapseBraceEscapes(text: string): string {
-  return text.replace(/\{\{/g, "{").replace(/\}\}/g, "}");
+/** Unescape the content-string literal-brace escapes: `\{` → `{`, `\}` → `}`.
+ *  (`{{`/`}}` no longer escape — doubled braces are the `{{fn}}` call
+ *  shorthand per issue #223, superseding spec decision D3.) Only applied to
+ *  display CONTENT (not Luau-position prop/style values). */
+function unescapeBraces(text: string): string {
+  return text.replace(/\\\{/g, "{").replace(/\\\}/g, "}");
 }
 
 /** Compile a `{expr}` interpolation node (a `LuauInterpolatedStringExpression`)
@@ -562,7 +564,10 @@ function lowerHandlerClosure(
 
 const PROP_ATTR = new Set(["LuauPropAttribute"]);
 const PROP_NAME = new Set(["StyleAttributeName"]);
-const PROP_INTERP = new Set(["LuauInterpolatedStringExpression"]);
+const PROP_INTERP = new Set([
+  "LuauInterpolatedStringExpression",
+  "LuauFunctionCallShorthand",
+]);
 const PROP_QUOTED = new Set(["InlinePropQuotedValue"]);
 const PROP_LITERAL = new Set(["InlinePropLiteralValue"]);
 
@@ -637,8 +642,8 @@ function readProps(
 
 /** Build the ordered literal/binding content parts for an element's display
  *  content. Handles the interpolation-aware `StringFieldValueInterpolated`
- *  (literal runs + `{expr}` bindings) and plain values (a single literal part),
- *  collapsing `{{`/`}}` brace escapes in literal text. */
+ *  (literal runs + `{expr}` / `{{fn}}` bindings) and plain values (a single
+ *  literal part), unescaping `\{`/`\}` brace escapes in literal text. */
 function readContentParts(
   value: SyntaxNode | null,
   ctx: LowerContext,
@@ -650,13 +655,16 @@ function readContentParts(
     let textBuf = "";
     const flush = () => {
       if (textBuf.length > 0) {
-        parts.push({ kind: "literal", text: collapseBraceEscapes(textBuf) });
+        parts.push({ kind: "literal", text: unescapeBraces(textBuf) });
         textBuf = "";
       }
     };
     let child = inner?.firstChild ?? null;
     while (child) {
-      if (child.name === "LuauInterpolatedStringExpression") {
+      if (
+        child.name === "LuauInterpolatedStringExpression" ||
+        child.name === "LuauFunctionCallShorthand"
+      ) {
         flush();
         parts.push({ kind: "binding", binding: lowerBinding(child, ctx) });
       } else {
@@ -667,13 +675,13 @@ function readContentParts(
     flush();
     return parts.length > 0 ? parts : [{ kind: "literal", text: "" }];
   }
-  // Plain value → a single literal content part (collapse brace escapes for
+  // Plain value → a single literal content part (unescape brace escapes for
   // strings; numbers/bools stringify).
   const literal = readLiteralValue(value, ctx);
   if (literal.kind === "literal") {
     const text =
       typeof literal.value === "string"
-        ? collapseBraceEscapes(literal.value)
+        ? unescapeBraces(literal.value)
         : String(literal.value);
     return [{ kind: "literal", text }];
   }

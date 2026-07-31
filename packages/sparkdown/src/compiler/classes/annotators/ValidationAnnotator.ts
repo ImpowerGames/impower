@@ -267,7 +267,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (
       nodeRef.name === "LuauInterpolatedStringExpression" ||
       nodeRef.name === "LuauDoubleQuotedStringInterpolation" ||
-      nodeRef.name === "LuauBacktickStringInterpolation"
+      nodeRef.name === "LuauBacktickStringInterpolation" ||
+      nodeRef.name === "LuauFunctionCallShorthand" ||
+      nodeRef.name === "LuauDoubleQuotedFunctionCallShorthand" ||
+      nodeRef.name === "LuauBacktickFunctionCallShorthand"
     ) {
       const raw = this.read(nodeRef.from, nodeRef.to);
       // Empty `{}` — Luau: "Malformed interpolated string, expected expression

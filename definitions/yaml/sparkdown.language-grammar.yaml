@@ -256,6 +256,7 @@ patterns:
   - { include: "#LuauExplicitStatement" }
   - { include: "#LuauDeclarations" }
   - { include: "#LuauSparkdownControlBlock" }
+  - { include: "#LuauFunctionCallShorthand" }
   - { include: "#LuauInterpolatedStringExpression" }
   - { include: "#LuauEndKeyword" }
 
@@ -391,6 +392,7 @@ repository:
     name: punctuation.definition.comment.content.sd
     begin: (?=.)
     patterns:
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#TagText" }
     end: (?=$|{{TAG_START}})
@@ -607,6 +609,7 @@ repository:
       # would have nothing structural to dispatch through and the divert
       # would be silently stringified.
       - { include: "#ArmDivert" }
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#ArmTag" }
       - { include: "#InlineText" }
@@ -624,6 +627,7 @@ repository:
       # diverts inside arms need to be matched as structural nodes so
       # the lowerer can route them through `buildDivert`.
       - { include: "#ArmDivert" }
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#ArmTag" }
       - { include: "#InlineText" }
@@ -837,6 +841,7 @@ repository:
       1:
         patterns:
           - { include: "#Annotation" }
+          - { include: "#LuauFunctionCallShorthand" }
           - { include: "#LuauInterpolatedStringExpression" }
           - { include: "#DisplayText" }
 
@@ -2146,6 +2151,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Escape" }
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#ParentheticalLine" }
       - { include: "#Chain" }
@@ -2533,6 +2539,7 @@ repository:
       - { include: "#Escape" }
       - { include: "#Divert" }
       - { include: "#Thread" }
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       # Inline-glued alternators (`.. queue|a|b|c ..`) must come before
       # `InlineText` / `Styling` so the alternator-opening `..` is
@@ -3536,26 +3543,27 @@ repository:
           - { include: "#EndOfLine" }
 
   # A double-quoted sparkle content string that contains at least one `{expr}`
-  # interpolation (reactive content, spec §6/D3). Listed BEFORE StringFieldValue
-  # at every value site so PLAIN (non-interpolated) strings fall through to
-  # StringFieldValue unchanged — its highlighting tree stays byte-identical.
-  # Same `string`/`string.quoted.double.sd` scope so the color matches; each
+  # interpolation or `{{fn}}` call shorthand (reactive content, spec §6).
+  # Listed BEFORE StringFieldValue at every value site so PLAIN
+  # (non-interpolated) strings fall through to StringFieldValue unchanged —
+  # its highlighting tree stays byte-identical. Same
+  # `string`/`string.quoted.double.sd` scope so the color matches; each
   # `{expr}` reuses the existing LuauInterpolatedStringExpression node (so it
   # colors like backtick interpolation AND is the named node the reactive
-  # lowerer reads to build bindings). `{{`/`}}` are literal braces (D3) and are
-  # matched first so they never open an interpolation. The begin-lookahead
-  # requires a lone `{` (skipping `{{`/`}}` pairs and escapes) so a string with
-  # only literal braces is left to plain StringFieldValue.
+  # lowerer reads to build bindings). The begin-lookahead requires an
+  # UNESCAPED `{` (skipping `\{`-style escapes) so a string with only escaped
+  # braces is left to plain StringFieldValue. Literal braces are written
+  # `\{` / `\}` (D3 superseded by #223 — `{{` now means a function call).
   StringFieldValueInterpolated:
     tag: string
     name: string.quoted.double.sd
-    begin: (["])(?=(?:[^"{}]|\{\{|\}\}|\\.)*\{(?!\{))
+    begin: (["])(?=(?:[^"{\\]|\\.)*\{)
     beginCaptures:
       1:
         patterns:
           - { include: "#PunctuationStringOpen" }
     patterns:
-      - { include: "#SparkleLiteralBrace" }
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#StringEscape" }
       - { include: "#SparkleRichTextTag" }
@@ -3570,14 +3578,6 @@ repository:
       2:
         patterns:
           - { include: "#EndOfLine" }
-
-  # Literal `{{` / `}}` inside an interpolated content string (D3). Same string
-  # scope so it blends with surrounding content; the lowerer collapses each to a
-  # single brace.
-  SparkleLiteralBrace:
-    tag: string
-    name: string.quoted.double.sd
-    match: (\{\{|\}\})
 
   UnquotedStringFieldValue:
     match: (.+)({{EOPL}})
@@ -4460,6 +4460,7 @@ repository:
       1:
         patterns:
           - { include: "#StringEscape" }
+          - { include: "#LuauFunctionCallShorthand" }
           - { include: "#LuauInterpolatedStringExpression" }
           - { include: "#StringCharacter" }
 
@@ -4747,10 +4748,12 @@ repository:
         patterns:
           - { include: "#EqualOperator" }
     patterns:
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
-      # A quoted value with a `{expr}` interpolates like display content (spec D3:
-      # `#label="HP: {hp}"`), tried before the plain quoted value so a string with
-      # only literal text (or `{{`/`}}`) still falls through to InlinePropQuotedValue.
+      # A quoted value with a `{expr}` interpolates like display content
+      # (`#label="HP: {hp}"`), tried before the plain quoted value so a string
+      # with only literal text (or `\{`/`\}` escapes) still falls through to
+      # InlinePropQuotedValue.
       - { include: "#LuauElementContentStringInterpolated" }
       - { include: "#InlinePropQuotedValue" }
       - { include: "#InlinePropLiteralValue" }
@@ -4789,13 +4792,13 @@ repository:
   LuauElementContentStringInterpolated:
     tag: string
     name: string.quoted.double.sd
-    begin: (["])(?=(?:[^"{}]|\{\{|\}\}|\\.)*\{(?!\{))
+    begin: (["])(?=(?:[^"{\\]|\\.)*\{)
     beginCaptures:
       1:
         patterns:
           - { include: "#PunctuationStringOpen" }
     patterns:
-      - { include: "#SparkleLiteralBrace" }
+      - { include: "#LuauFunctionCallShorthand" }
       - { include: "#LuauInterpolatedStringExpression" }
       - { include: "#StringEscape" }
       - { include: "#SparkleRichTextTag" }
@@ -7474,6 +7477,7 @@ repository:
           - { include: "#PunctuationStringDoubleQuoteOpen" }
     patterns:
       - { include: "#LuauStringEscape" }
+      - { include: "#LuauDoubleQuotedFunctionCallShorthand" }
       - { include: "#LuauDoubleQuotedStringInterpolation" }
       - { include: "#Color" }
       - { include: "#PlainText" }
@@ -7553,6 +7557,7 @@ repository:
         patterns:
           - { include: "#PunctuationStringBacktickQuoteOpen" }
     patterns:
+      - { include: "#LuauBacktickFunctionCallShorthand" }
       - { include: "#LuauBacktickStringInterpolation" }
       - { include: "#LuauStringEscape" }
       - { include: "#Color" }
@@ -7626,6 +7631,101 @@ repository:
       "1":
         patterns:
           - include: "#PunctuationBraceClose"
+    applyEndPatternLast: true
+
+  # `{{fn}}` / `{{fn(args)}}` — function-call shorthand (issue #223). Doubled
+  # braces mean "call the named function and output its return value", in EVERY
+  # interpolation context (display text, element content strings, field/prop
+  # values, Luau interpolated strings) — one rule, no per-context exceptions.
+  # Must be listed BEFORE the matching interpolation rule at every include site
+  # so `{{` isn't taken as an interpolation opening at the first `{`. The two
+  # opening braces are REQUIRED adjacent (`{ {tbl} }` with a space stays a
+  # table interpolation). The body reuses #LuauExpression so `{{fn(a, b)}}`
+  # tokenizes exactly like `{fn(a, b)}`; the LOWERER supplies the shorthand
+  # semantics (a bare name is coerced to a call; a non-call body is the
+  # "expected a function name" error — see lowerFunctionCallShorthand).
+  LuauFunctionCallShorthand:
+    tag: meta
+    name: meta.template.expression.function-shorthand.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([}])([}])?
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  # `{{fn}}` inside a `"..."` Luau string — string-bounded like
+  # LuauDoubleQuotedStringInterpolation so an unterminated `{{` can't swallow
+  # past the closing quote.
+  LuauDoubleQuotedFunctionCallShorthand:
+    tag: meta
+    name: meta.template.expression.function-shorthand.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([}])([}])?|(?=["])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+
+  # `{{fn}}` inside a backtick string — bounded by the closing backtick, same
+  # `applyEndPatternLast` rationale as LuauBacktickStringInterpolation.
+  LuauBacktickFunctionCallShorthand:
+    tag: meta
+    name: meta.template.expression.function-shorthand.luau
+    contentName: meta.embedded.line.luau
+    brackets: true
+    begin: ([{])([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceOpen" }
+    patterns:
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: ([}])([}])?|(?=[`])
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
+      2:
+        patterns:
+          - { include: "#PunctuationBraceClose" }
     applyEndPatternLast: true
 
   LuauStringEscape:

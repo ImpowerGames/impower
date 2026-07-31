@@ -189,12 +189,20 @@ row    #background-color={team_color}
 
 - The braces' contents are compiled as a Luau expression and re-evaluated when any state it
   reads changes (§8). A content string may mix literal text and multiple `{…}` spans.
-- **Literal braces:** `{{` and `}}` emit literal `{` / `}`. (Needed because some CSS/struct
-  values legitimately contain braces.)
+- **Call shorthand:** `{{fn}}` / `{{fn(args)}}` calls the named function and interpolates
+  its return value — the same shorthand as display text (issue #223). One rule, every
+  interpolation context.
+- **Literal braces:** `\{` and `\}` emit literal `{` / `}` (needed because some CSS/struct
+  values legitimately contain braces). This is the same escape Luau suggests for `{`.
 
 > **[DECISION D3] Brace policy.** Confirm `{…}` = reactive Luau, `{{`/`}}` = literal. The
 > alternative (require a sigil like `${…}` for dynamic) is more explicit but noisier and
 > contradicts the docs. **Recommend `{…}` reactive.**
+>
+> **SUPERSEDED (issue #223):** the `{{`/`}}` literal-escape half of D3 was ratified and
+> then superseded when the `{{fn}}` function-call shorthand was re-added — the shorthand
+> applies uniformly in every interpolation context, so `{{` cannot also mean a literal
+> brace. `{…}` = reactive Luau stands; the literal-brace escape is now `\{` / `\}`.
 
 ### 4.5 Events
 
@@ -740,7 +748,7 @@ end
 |----|----------|----------------|
 | D1 | Container child delimiter | trailing `:` |
 | D2 | Content delimiter `tag "x"` vs `tag = "x"` | adjacency `tag "x"` (re-migrates ui.sd) |
-| D3 | `{…}` reactive, `{{`/`}}` literal | yes |
+| D3 | `{…}` reactive, `{{`/`}}` literal | `{…}` reactive stands; literal half SUPERSEDED by the `{{fn}}` call shorthand (issue #223) — escape is `\{`/`\}` (§4.4) |
 | D4 | First-class event set | click/input/change/submit/focus/blur/keydown |
 | D5 | Control-flow delimiter | Luau keywords (`then`/`do`/`end`) |
 | D6 | `repeat n` → numeric `for` | drop `repeat`, use `for i = 1, n do` |

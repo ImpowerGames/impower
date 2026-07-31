@@ -152,11 +152,13 @@ function lowerInner(
     case "ImplicitAction":
       return lowerImplicitAction(nodeRef, ctx);
     case "LuauInterpolatedStringExpression":
-      // Bare `{ expr }` lines at top level — the grammar matches these
-      // as `LuauInterpolatedStringExpression` directly (not wrapped in
-      // ImplicitAction the way `text {expr} text` lines are). Sparkdown
-      // handles them via `lowerExpressionFromContainer`; this case is
-      // required so they're handled here directly (there is no parser
+    case "LuauFunctionCallShorthand":
+      // Bare `{ expr }` / `{{fn}}` lines at top level — the grammar matches
+      // these directly (not wrapped in ImplicitAction the way
+      // `text {expr} text` lines are). Sparkdown handles them via
+      // `lowerExpressionFromContainer` (which applies the `{{...}}`
+      // call-shorthand coercion when the node is the shorthand); this case
+      // is required so they're handled here directly (there is no parser
       // fallback — the grammar+lowerers are the only path — and nothing
       // else would know Luau-specific operators `^`, `//`, `..`).
       return lowerLuauInterpolatedStringExpression(nodeRef, ctx);
