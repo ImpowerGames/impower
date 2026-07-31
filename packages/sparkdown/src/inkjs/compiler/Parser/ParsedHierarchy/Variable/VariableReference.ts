@@ -86,6 +86,17 @@ export class VariableReference extends Expression {
   public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
 
+    // Read-count conversion below (`name = null` + `pathForCount = ...`) is a
+    // one-way door on the runtime object. Under incremental container reuse
+    // the SAME runtime object is re-resolved on later compiles — restore it
+    // to its generated form first so the conversion is re-derived from the
+    // CURRENT tree (a deleted target flow decays back to a plain variable
+    // reference exactly like a cold compile).
+    if (this._runtimeVarRef && this._runtimeVarRef.name === null) {
+      this._runtimeVarRef.name = this.name;
+      this._runtimeVarRef.pathForCount = null;
+    }
+
     // Work is already done if it's a constant or list item reference
     if (this.isConstantReference || this.isListItemReference) {
       return;

@@ -258,6 +258,12 @@ export abstract class ParsedObject {
     message: string,
     source: ParsedObject | Identifier | DebugMetadata | null = null,
     isWarning: boolean = false,
+    // The node that RAISED this diagnostic, forwarded unchanged as the error
+    // bubbles up to the Story. `source` is chosen for dedup//reporting and is
+    // often an `Identifier` or raw `DebugMetadata` — neither has a parent
+    // chain — so it can't be used to attribute the diagnostic to a flow. The
+    // raiser always can. See `Story.Error`'s generation-phase attribution.
+    raiser: ParsedObject = this,
   ): void {
     if (source === null) {
       source = this;
@@ -282,7 +288,7 @@ export abstract class ParsedObject {
     }
 
     if (this.parent) {
-      this.parent.Error(message, source, isWarning);
+      this.parent.Error(message, source, isWarning, raiser);
     } else {
       throw new Error(`No parent object to send error to: ${message}`);
     }

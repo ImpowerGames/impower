@@ -69,9 +69,24 @@ export class Story extends FlowBase {
   private _errorHandler: ErrorHandler | null = null;
   private _hadError: boolean = false;
   private _hadWarning: boolean = false;
-  private _dontFlattenContainers: Set<RuntimeContainer> = new Set();
   private _listDefs: Map<string, ListDefinition> = new Map();
   private _structDefs: Map<string, StructDefinition> = new Map();
+
+  // True while `ExportRuntime` is materializing runtime objects (generation),
+  // false during the later `ResolveReferences` pass. Diagnostics raised during
+  // GENERATION are attributed to their enclosing top-level flow below — the
+  // incremental compiler skips generation for unchanged flows, which would
+  // silently drop such a diagnostic on the next compile, so any flow that
+  // produced one is barred from reuse (resolve-time diagnostics re-emit
+  // naturally because resolution always runs over the full tree).
+  private _generationPhase: boolean = false;
+
+  // Top-level flows that raised a diagnostic during generation this export,
+  // plus a flag for diagnostics that couldn't be attributed to one (no parsed
+  // source or no top-level ancestor) — the compiler reacts by disabling flow
+  // reuse entirely for the next compile.
+  public flowsWithGenerationDiagnostics: Set<ParsedObject> = new Set();
+  public hadUnattributableGenerationDiagnostic: boolean = false;
 
   get flowLevel(): FlowLevel {
     return FlowLevel.Story;
@@ -281,6 +296,14 @@ export class Story extends FlowBase {
     // errors when name resolution failed.)
     this.ResolveWeavePointNaming();
 
+    // Everything from here until `ResolveReferences` is GENERATION — see
+    // `_generationPhase`. Diagnostics raised in this window are attributed to
+    // their top-level flow so the incremental compiler can bar that flow from
+    // reuse (reuse skips generation, which would drop the diagnostic).
+    this._generationPhase = true;
+    this.flowsWithGenerationDiagnostics = new Set();
+    this.hadUnattributableGenerationDiagnostic = false;
+
     // Get default implementation of runtimeObject, which calls ContainerBase's generation method
     const rootContainer = this.runtimeObject as RuntimeContainer;
 
@@ -390,6 +413,9 @@ export class Story extends FlowBase {
     );
 
     this.runtimeObject = runtimeStory;
+
+    // Generation is complete (FlattenContainersIn emits no diagnostics).
+    this._generationPhase = false;
 
     // Optimisation step - inline containers that can be
     this.FlattenContainersIn(rootContainer);
@@ -501,6 +527,23 @@ export class Story extends FlowBase {
     }
 
     for (const innerContainer of innerContainers) {
+      // Count-flag reconcile for incremental container reuse. This walk runs
+      // after ALL generation and before `ResolveReferences`, and visits every
+      // container in the tree exactly once, so it doubles as the reconcile
+      // point: a container seen for the FIRST time (fresh this compile) has
+      // flags that are purely generation-derived — snapshot them as its
+      // intrinsic state. A REUSED container additionally carries last
+      // compile's resolve-time cross-flow sets — restore it to intrinsic so
+      // this compile's resolve pass re-derives exactly the sets that still
+      // exist (a deleted remote read-count decays instead of sticking).
+      if (innerContainer._intrinsicVisits === undefined) {
+        innerContainer._intrinsicVisits = innerContainer.visitsShouldBeCounted;
+        innerContainer._intrinsicTurns = innerContainer.turnIndexShouldBeCounted;
+      } else {
+        innerContainer.visitsShouldBeCounted = innerContainer._intrinsicVisits;
+        innerContainer.turnIndexShouldBeCounted =
+          innerContainer._intrinsicTurns!;
+      }
       this.TryFlattenContainer(innerContainer);
       this.FlattenContainersIn(innerContainer);
     }
@@ -510,7 +553,7 @@ export class Story extends FlowBase {
     if (
       (container.namedContent && container.namedContent.size > 0) ||
       container.hasValidName ||
-      this._dontFlattenContainers.has(container)
+      container._dontFlatten
     ) {
       return;
     }
@@ -541,11 +584,38 @@ export class Story extends FlowBase {
     message: string,
     source: ParsedObject | DebugMetadata | null | undefined,
     isWarning: boolean | null | undefined,
+    // Node that raised the diagnostic (see `ParsedObject.Error`). Defaults to
+    // `source` for the direct callers that don't bubble through a parent.
+    raiser?: ParsedObject,
   ) => {
     let errorType: ErrorType = isWarning ? ErrorType.Warning : ErrorType.Error;
 
     this._hadError = errorType === ErrorType.Error;
     this._hadWarning = errorType === ErrorType.Warning;
+
+    // Attribute generation-time diagnostics to their top-level flow (see
+    // `_generationPhase`). `source` may be raw DebugMetadata (no parent
+    // chain) — then the diagnostic can't be attributed and the compiler must
+    // assume the worst.
+    if (this._generationPhase) {
+      // Prefer the raiser: `source` is frequently an `Identifier` or raw
+      // `DebugMetadata` (chosen for dedup/reporting), and neither carries a
+      // parent chain to attribute from.
+      let node: ParsedObject | null =
+        raiser ??
+        (source instanceof DebugMetadata ? null : (source ?? null));
+      if (!(node instanceof ParsedObject)) {
+        node = null;
+      }
+      while (node && node.parent && !(node.parent instanceof Story)) {
+        node = node.parent;
+      }
+      if (node && node.parent instanceof Story) {
+        this.flowsWithGenerationDiagnostics.add(node);
+      } else {
+        this.hadUnattributableGenerationDiagnostic = true;
+      }
+    }
 
     if (this._errorHandler !== null) {
       const debugMetadata =
@@ -613,7 +683,10 @@ export class Story extends FlowBase {
   public readonly DontFlattenContainer = (
     container: RuntimeContainer,
   ): void => {
-    this._dontFlattenContainers.add(container);
+    // Marked on the container itself (not a per-compile Set on this Story) so
+    // the protection survives container reuse across compiles — a reused
+    // flow's generation is skipped, so it gets no chance to re-register here.
+    container._dontFlatten = true;
   };
 
   public readonly NameConflictError = (
