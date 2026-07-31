@@ -1,0 +1,48 @@
+text.source.sparkdown [0..57]
+ ├─ storage.modifier.scope.luau [0..5]: "store"
+ ├─ punctuation.whitespace.optional.sd [5..6]: " "
+ ├─ variable.other.readwrite.luau [6..7]: "a"
+ ├─ punctuation.whitespace.optional.sd [7..8]: " "
+ ├─ keyword.operator.assignment.luau [8..9]: "="
+ ├─ punctuation.whitespace.optional.sd [9..10]: " "
+ ├─ string.interpolated.luau [10..25]
+ │   ├─ punctuation.definition.string.backtick.begin.sd [10..11]: "`"
+ │   ├─ markup.raw.text.sd [11..13]: "Hi"
+ │   ├─ markup.raw.space.sd [13..14]: " "
+ │   ├─ meta.template.expression.function-shorthand.luau [14..23]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [14..15]: "{"
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [15..16]: "{"
+ │   │   ├─ meta.embedded.line.luau [16..21]
+ │   │   │   └─ variable.other.readwrite.luau [16..21]: "shout"
+ │   │   ├─ punctuation.definition.template-expression.end.sd [21..22]: "}"
+ │   │   └─ punctuation.definition.template-expression.end.sd [22..23]: "}"
+ │   ├─ markup.raw.punctuation.sd [23..24]: "!"
+ │   └─ punctuation.definition.string.backtick.end.sd [24..25]: "`"
+ ├─ Newline [25..26]: "\n"
+ ├─ storage.modifier.scope.luau [26..31]: "store"
+ ├─ punctuation.whitespace.optional.sd [31..32]: " "
+ ├─ variable.other.readwrite.luau [32..33]: "b"
+ ├─ punctuation.whitespace.optional.sd [33..34]: " "
+ ├─ keyword.operator.assignment.luau [34..35]: "="
+ ├─ punctuation.whitespace.optional.sd [35..36]: " "
+ ├─ string.quoted.double.luau [36..56]
+ │   ├─ punctuation.definition.string.double.begin.sd [36..37]: "\""
+ │   ├─ markup.raw.text.sd [37..40]: "Val"
+ │   ├─ markup.raw.punctuation.sd [40..41]: ":"
+ │   ├─ markup.raw.space.sd [41..42]: " "
+ │   ├─ meta.template.expression.function-shorthand.luau [42..55]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [42..43]: "{"
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [43..44]: "{"
+ │   │   ├─ meta.embedded.line.luau [44..53]
+ │   │   │   ├─ entity.name.function.luau [44..47]: "fmt"
+ │   │   │   └─ meta.parameter.luau [47..53]
+ │   │   │       ├─ punctuation.definition.template-expression.begin.sd [47..48]: "("
+ │   │   │       ├─ constant.numeric.decimal.luau [48..49]: "1"
+ │   │   │       ├─ keyword.operator.comma.luau [49..50]: ","
+ │   │   │       ├─ punctuation.whitespace.optional.sd [50..51]: " "
+ │   │   │       ├─ constant.numeric.decimal.luau [51..52]: "2"
+ │   │   │       └─ punctuation.definition.template-expression.end.sd [52..53]: ")"
+ │   │   ├─ punctuation.definition.template-expression.end.sd [53..54]: "}"
+ │   │   └─ punctuation.definition.template-expression.end.sd [54..55]: "}"
+ │   └─ punctuation.definition.string.double.end.sd [55..56]: "\""
+ └─ Newline [56..57]: "\n"

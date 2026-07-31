@@ -116,7 +116,14 @@ text "You have {player.hp} HP left!"
 text "Level {player.level} — {player.hp}/{player.max_hp}"
 ```
 
-Sparkle automatically re-renders any interpolated value when your game state changes — no wiring required. (Need a literal brace? Write `{{` or `}}`.)
+Sparkle automatically re-renders any interpolated value when your game state changes — no wiring required. (Need a literal brace? Escape it: `\{` or `\}`.)
+
+Doubled braces are the **function-call shorthand**: `{{fn}}` calls `fn` and shows its return value — the same as writing `{fn()}` — and `{{fn(args)}}` passes arguments. It works in every place `{ }` interpolation does, including regular story text.
+
+```sparkdown
+text "Battle cry: {{shout}}"
+text "HP bar: {{render_hp(player.hp)}}"
+```
 
 For `image`, the quoted content is the image source. You can also set it with the `#src` prop — handy when the source is dynamic: `image #src={item.icon}`.
 
