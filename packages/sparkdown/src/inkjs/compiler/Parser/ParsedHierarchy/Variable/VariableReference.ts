@@ -25,8 +25,18 @@ export class VariableReference extends Expression {
     return this.pathIdentifiers.map((id) => id.name!).filter(filterUndef);
   }
 
+  /**
+   * Derived, not a generation-time flag: constants are known before any
+   * generation runs, and a stored flag would be STICKY across compiles.
+   * Incremental ExportRuntime reuses a flow without regenerating it, so a
+   * reference that was constant when it was last generated would keep
+   * claiming so after the constant is deleted — silently suppressing the
+   * `Cannot find variable named` warning a cold compile emits.
+   */
+  get isConstantReference(): boolean {
+    return this.story.constants.has(this.name);
+  }
   // Only known after GenerateIntoContainer has run
-  public isConstantReference: boolean = false;
   public isListItemReference: boolean = false;
 
   get runtimeVarRef() {
@@ -45,16 +55,15 @@ export class VariableReference extends Expression {
   public readonly GenerateIntoContainer = (
     container: RuntimeContainer,
   ): void => {
-    let constantValue = this.story.constants.get(this.name);
-
-    // If it's a constant reference, just generate the literal expression value
-    // It's okay to access the constants at code generation time, since the
-    // first thing the ExportRuntime function does it search for all the constants
-    // in the story hierarchy, so they're all available.
-    if (constantValue) {
-      constantValue.expression.GenerateConstantIntoContainer(container);
-      this.isConstantReference = true;
-
+    // Constants are ordinary runtime globals now, initialized ahead of every
+    // other global in the "global decl" container, so a reference is a plain
+    // variable lookup. This used to COPY the constant's entire runtime-object
+    // graph in here, once per reference site — which also meant any
+    // initializer containing an operator threw outright, because
+    // `NativeFunctionCall` has no `Copy()`.
+    if (this.story.constants.has(this.name)) {
+      this._runtimeVarRef = new RuntimeVariableReference(this.name);
+      container.AddContent(this._runtimeVarRef);
       return;
     }
 

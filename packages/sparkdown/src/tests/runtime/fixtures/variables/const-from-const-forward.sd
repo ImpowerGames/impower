@@ -1,0 +1,4 @@
+const DOUBLED = BASE * 2
+const BASE = 5
+store x = DOUBLED
+{x}
