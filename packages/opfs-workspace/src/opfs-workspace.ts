@@ -1306,9 +1306,18 @@ const updateFileMetaCache = (
   const name = getName(uri);
   const ext = getFileExtension(uri);
   const type = getFileType(uri);
+  // The `?v=` stamp is the file's CONTENT SIGNATURE (mtime-size), not a
+  // mint-time timestamp. The stamp's job is to bust the service worker's
+  // `immutable` responses when the bytes change — a signature does that
+  // while staying IDENTICAL across sessions for an unchanged file, so the
+  // browser's HTTP/renderer caches (and any URL-keyed downstream cache) keep
+  // working across reloads instead of re-fetching every asset because every
+  // load minted a fresh `Date.now()`. Falls back to a mint-time stamp only
+  // when no mtime is known (degrades to the old always-fresh behavior).
+  const resolvedModified = modified ?? existingFile?.modified ?? Date.now();
   let src = existingFile?.src || "";
   if (name && !src) {
-    src = getSrcFromUri(uri) + `?v=${Date.now()}`;
+    src = getSrcFromUri(uri) + `?v=${resolvedModified}-${size}`;
   }
   const file = {
     uri,
@@ -1318,7 +1327,7 @@ const updateFileMetaCache = (
     src,
     version: version ?? existingFile?.version ?? 0,
     size,
-    modified: modified ?? existingFile?.modified ?? Date.now(),
+    modified: resolvedModified,
     languageId: type === "script" ? LANGUAGE_ID : null,
     text: existingFile?.text,
   };
@@ -1375,9 +1384,17 @@ const updateFileCache = (
     return file;
   }
 
+  // Content-signature stamp (see updateFileMetaCache). On a write the caller
+  // passes the write time as `modified`, so the signature — and therefore the
+  // URL — advances and busts the `immutable` caches; on load it derives from
+  // the OPFS file's lastModified, so an unchanged file keeps the SAME url
+  // across sessions. (A write session stamps its own clock time, which can
+  // differ from the mtime OPFS persists by a few ms — costing at most one
+  // extra bust on the next load, never a stale serve.)
+  const resolvedModified = modified ?? existingFile?.modified ?? Date.now();
   if (name) {
     if (!src || overwrite) {
-      src = getSrcFromUri(uri) + `?v=${Date.now()}`;
+      src = getSrcFromUri(uri) + `?v=${resolvedModified}-${buffer.byteLength}`;
     }
   }
   const text =
@@ -1395,7 +1412,7 @@ const updateFileCache = (
     // Size from the buffer; modified from the OPFS file's lastModified on load
     // or the write time on a fresh write (falls back to the cached value).
     size: buffer.byteLength,
-    modified: modified ?? existingFile?.modified ?? Date.now(),
+    modified: resolvedModified,
     languageId: type === "script" ? LANGUAGE_ID : null,
     text,
   };

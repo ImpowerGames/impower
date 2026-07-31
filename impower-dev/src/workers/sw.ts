@@ -118,9 +118,9 @@ async function handleLocalAssetRequest(url: URL) {
  * A thin adapter over the shared generator: this supplies Cache Storage, the
  * generator owns sizing, encoding and the cache key. That key is the file's
  * STABLE signature (path + lastModified + size + width), NOT the request url —
- * the url carries a `?v=${Date.now()}` cache-bust the workspace re-stamps on
- * every load, so keying on it would regenerate every thumbnail on every page
- * load and leak orphaned entries.
+ * urls are now signature-stamped too (`?v=<mtime>-<size>`), but the stamp can
+ * fall back to a mint-time value when no mtime was known, so the cache keeps
+ * deriving its key from the file itself rather than trusting url parsing.
  */
 async function getOrCreateThumbnail(
   path: string,
