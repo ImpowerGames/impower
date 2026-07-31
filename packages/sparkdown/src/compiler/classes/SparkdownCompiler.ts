@@ -278,6 +278,11 @@ export class SparkdownCompiler {
   // `store`'s value still keeps reuse.
   protected _censusEntries?: string[];
   protected _prevCensusKey?: string;
+  // Parsed nodes whose subtree provably contains no compiler-synthesized
+  // name, so `canonicalizeSyntheticFlowNames` can skip them wholesale on
+  // later compiles. Keyed by identity, which the incremental pipeline
+  // preserves for unchanged content and replaces on re-lowering.
+  protected _synthFreeSubtrees = new WeakSet<object>();
   // [container, previous parent] for every container committed to reuse this
   // compile — restored if the compile throws, so the previous RuntimeStory
   // (still live in the checkpoint-builder Game) isn't left holding containers
@@ -2079,14 +2084,35 @@ export class SparkdownCompiler {
     // Identifier-valued fields are visited before the plain string fields
     // (same order the previous two-pass implementation used, so ordinal
     // assignment is unchanged).
-    const collect = (node: ParsedObject) => {
+    // Returns whether this subtree contains ANY synthetic name.
+    //
+    // Subtrees with none are remembered by node identity and skipped entirely
+    // on later compiles: the incremental pipeline carries unchanged nodes
+    // forward by identity, and a re-lowered node is a NEW object, so it is
+    // never wrongly skipped. The set stays valid across the rewrite below
+    // because renaming only ever rewrites names that already matched SYNTH
+    // (including the canonical `__synth_<n>` form), so a synth-free subtree
+    // cannot acquire one. Most of a screenplay is display text with no
+    // synthetics at all, which is what makes this worth caching — the walk
+    // itself is otherwise whole-tree on every keystroke.
+    const collect = (node: ParsedObject): boolean => {
+      if (this._synthFreeSubtrees.has(node)) {
+        return false;
+      }
+      let found = false;
       for (const f of IDENTIFIER_FIELDS) {
         const val = (node as any)[f];
         if (val instanceof Identifier) {
+          if (val.name && SYNTH.test(val.name)) {
+            found = true;
+          }
           considerId(val, node);
         } else if (Array.isArray(val)) {
           for (const el of val) {
             if (el instanceof Identifier) {
+              if (el.name && SYNTH.test(el.name)) {
+                found = true;
+              }
               considerId(el, node);
             }
           }
@@ -2095,19 +2121,28 @@ export class SparkdownCompiler {
       for (const f of NAME_STRING_FIELDS) {
         const v = (node as any)[f];
         if (typeof v === "string" && SYNTH.test(v)) {
+          found = true;
           considerName(v);
           matchedStrings.push({ node, field: f });
         }
       }
       if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
+        // Only flows that actually contain a synthetic can need re-keying,
+        // and a skipped subtree contains none by construction.
         flowsToRekey.push(node);
       }
       const content = node.content;
       if (content) {
         for (const c of content) {
-          collect(c);
+          if (collect(c)) {
+            found = true;
+          }
         }
       }
+      if (!found) {
+        this._synthFreeSubtrees.add(node);
+      }
+      return found;
     };
     collect(root);
     if (!changed) {
