@@ -56,6 +56,26 @@ describe("Variables (ported from inkjs)", () => {
     expect(runToEnd(ctx.story)).toBe("54\n");
   });
 
+  // Constants are runtime globals initialized ahead of every other global,
+  // rather than expressions copied into each reference site. These two shapes
+  // were impossible under the old inlining: copying the constant's runtime
+  // objects hit `NativeFunctionCall`, which has no `Copy()`, so ANY constant
+  // whose initializer contained an operator threw and the whole program
+  // compiled to nothing — with no diagnostic at all.
+  test("const with an expression initializer", () => {
+    const ctx = makeRuntimeStoryFromFile("variables", "const-expression");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(runToEnd(ctx.story)).toBe("5\n");
+  });
+
+  // Declaration order must not matter: constants are emitted in dependency
+  // order, so a constant may be built from one declared later in the file.
+  test("const built from a const declared later", () => {
+    const ctx = makeRuntimeStoryFromFile("variables", "const-from-const-forward");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(runToEnd(ctx.story)).toBe("10\n");
+  });
+
   // The Luau-style port `varStr == CONST_STR and "success" or ""` works
   // because `NativeFunctionCall.Call()` has a fast-path for `and`/`or` that
   // returns one operand based on truthiness, matching Luau's short-circuit

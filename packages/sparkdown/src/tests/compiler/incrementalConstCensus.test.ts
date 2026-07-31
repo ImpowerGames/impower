@@ -1,15 +1,17 @@
-// Constant-census oracle for incremental ExportRuntime.
+// Declared-name census oracle for incremental ExportRuntime.
 //
-// A constant reference is INLINED: generation copies the constant's whole
-// expression bytecode into every referencing flow. Flow reuse skips
-// generation, so any change to the set of declared constants must invalidate
-// reuse or a reused flow keeps last compile's inlined value.
+// Constants and globals are registered in `story.variableDeclarations`, which
+// `Divert.ResolveTargetContent` consults during GENERATION. So a name that
+// enters or leaves that set can change other flows' call-site codegen, and a
+// reused flow (whose generation is skipped) would keep the old shape. The
+// census compares the whole declared-NAME set across compiles to catch it —
+// including DELETIONS, which the per-chunk scan cannot see because a deleted
+// declaration appears in no chunk at all.
 //
-// Changing or adding a constant is caught by the per-chunk scan (its chunk is
-// new AND contains a ConstantDeclaration). DELETING one is not: the constant
-// then appears in no chunk at all. This pins the census comparison that
-// covers deletion — the case the root-region identity guard used to catch
-// incidentally, before that guard was narrowed to structural descriptors.
+// Since #309 a constant's VALUE is no longer inlined into referencing flows —
+// it is initialized once as an ordinary global — so editing a constant's
+// value no longer has to invalidate anything. The last test pins that
+// distinction, which is the whole point of that change.
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -85,6 +87,49 @@ describe("incremental constant census", () => {
       (console as any).warn("\n" + log.join("\n") + "\n");
     }
     expect(log.filter((l) => l.includes("DIVERGED"))).toEqual([]);
+  });
+
+  // The #309 payoff. A constant's value is initialized once rather than
+  // copied into each referencing flow, so changing it cannot invalidate any
+  // other flow's bytecode and must NOT cost reuse. Its NAME still enters the
+  // census (constants live in `variableDeclarations`, which generation reads
+  // when resolving call targets), so removing one still does.
+  it("editing a const's VALUE keeps reuse; removing the const does not", () => {
+    const w = console.warn, e = console.error;
+    console.warn = () => {}; console.error = () => {};
+    const seen: { reused: number; matches: boolean }[] = [];
+    try {
+      let text = base();
+      const incr = conf(text);
+      incr.compile({ textDocument: { uri: URI } } as any);
+      let version = 1;
+      const steps = [
+        { find: "Room 3 limit", replace: "Room 3 Limit" }, // warm up reuse
+        { find: "const LIMIT = 5", replace: "const LIMIT = 6" }, // VALUE edit
+        { find: "const LIMIT = 6\n", replace: "" }, // removal
+      ];
+      for (const s of steps) {
+        const off = text.indexOf(s.find);
+        expect(off, `find ${s.find}`).toBeGreaterThanOrEqual(0);
+        version++;
+        incr.updateDocument({ textDocument: { uri: URI, version }, contentChanges: [{ range: { start: posAt(text, off), end: posAt(text, off + s.find.length) }, text: s.replace }] } as any);
+        text = text.slice(0, off) + s.replace + text.slice(off + s.find.length);
+        const a = stable(pick((incr.compile({ textDocument: { uri: URI } } as any) as any).program));
+        const b = stable(pick((conf(text).compile({ textDocument: { uri: URI } } as any) as any).program));
+        seen.push({
+          reused: (incr as any)._reusedFlowsThisCompile?.size ?? -1,
+          matches: a === b,
+        });
+      }
+    } finally {
+      console.warn = w; console.error = e;
+    }
+    // Every step must still match a cold compile.
+    expect(seen.map((s) => s.matches)).toEqual([true, true, true]);
+    // Editing the value keeps flows reused (this is what #309 bought)...
+    expect(seen[1]!.reused).toBeGreaterThan(0);
+    // ...while removing the declaration still invalidates via the census.
+    expect(seen[2]!.reused).toBe(0);
   });
 });
 

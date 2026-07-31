@@ -257,7 +257,7 @@ export class SparkdownCompiler {
     {
       disqualifies: boolean;
       invalidatesGlobals: boolean;
-      constNames: string[];
+      declaredNames: string[];
     }
   >;
   // Census of every constant and global NAME declared anywhere in the
@@ -265,8 +265,8 @@ export class SparkdownCompiler {
   // the previous compile's. Two distinct generation-time dependencies make a
   // reused flow's bytecode sensitive to names declared OUTSIDE it:
   //
-  //   - a constant is INLINED BY VALUE into every referencing flow, so a
-  //     constant that disappears leaves stale inlined bytecode behind; and
+  //   - a LIST is inlined by value into every referencing flow, so one that
+  //     disappears leaves stale inlined bytecode behind; and
   //   - `Divert.ResolveTargetContent` runs during GENERATION and consults
   //     `story.variableDeclarations`, so a global whose name matches a flow
   //     shadows it and flips every call site from knot-call codegen (which
@@ -1195,15 +1195,17 @@ export class SparkdownCompiler {
     // never be reused, because skipping its generation loses a story-global
     // side effect: global `var`/`store` declarations register into the fresh
     // Story's variableDeclarations, EXTERNALs into `story.externals`, and
-    // const/list/struct declarations feed story-level maps AND (for
-    // consts/lists) are INLINED BY VALUE into other flows' bytecode — which
-    // is also why a CHANGED chunk containing one disables reuse globally.
+    // const/list/struct declarations feed story-level maps, and a LIST is
+    // additionally INLINED BY VALUE into other flows' bytecode — which is why
+    // a CHANGED chunk containing a list disables reuse globally. Constants
+    // are no longer inlined (#309), so they only cost the declaring flow its
+    // own reuse, not everyone else's.
     const scanChunkForReuse = (
       block: any,
     ): {
       disqualifies: boolean;
       invalidatesGlobals: boolean;
-      constNames: string[];
+      declaredNames: string[];
     } => {
       let cached = this._chunkReuseScan?.get(block);
       if (cached) {
@@ -1214,18 +1216,30 @@ export class SparkdownCompiler {
       const declaredNames: string[] = [];
       const scan = (nodes: ParsedObject[]) => {
         for (const n of nodes) {
-          if (
-            n instanceof ConstantDeclaration ||
-            n instanceof ListDefinition
-          ) {
+          if (n instanceof ListDefinition) {
+            // List items are still resolved and inlined at generation time.
             disqualifies = true;
             invalidatesGlobals = true;
-            const constName =
-              n instanceof ConstantDeclaration
-                ? n.constantName
-                : n.identifier?.name;
-            if (constName) {
-              declaredNames.push(`c:${constName}`);
+            const listName = n.identifier?.name;
+            if (listName) {
+              declaredNames.push(`c:${listName}`);
+            }
+          } else if (n instanceof ConstantDeclaration) {
+            // Constants are no longer inlined into referencing flows (#309),
+            // so a constant's VALUE changing can't invalidate anyone else's
+            // bytecode and `invalidatesGlobals` is not set — editing a
+            // constant no longer kills flow reuse program-wide.
+            //
+            // The NAME still matters, and for the same reason a global's
+            // does: constants are registered in `story.variableDeclarations`,
+            // which `Divert.ResolveTargetContent` consults during GENERATION,
+            // so a constant named like a flow shadows it and changes call-site
+            // codegen. Hence a `g:` census entry, not the retired `c:` one.
+            // `disqualifies` also stays: the declaring flow still performs a
+            // story-global registration when it generates.
+            disqualifies = true;
+            if (n.constantName) {
+              declaredNames.push(`g:${n.constantName}`);
             }
           } else if (
             n instanceof ExternalDeclaration ||
@@ -1272,11 +1286,13 @@ export class SparkdownCompiler {
     // them can alter a reused flow's bytecode — top-level flows are
     // name-addressed in `namedOnlyContent`, so their internal paths don't
     // shift when top-level content grows or shrinks, and globals are read
-    // through runtime variable lookups rather than inlined. Constants ARE
-    // inlined, and are covered precisely by (2).
+    // through runtime variable lookups rather than inlined — as are
+    // constants since #309. Their NAMES still matter, and are covered by the
+    // declared-name census (see `_censusEntries`); LIST values are still
+    // inlined and are covered by (2).
     //
-    // (2) A changed chunk containing a const/list declaration anywhere
-    // disables all reuse (value inlining into other flows).
+    // (2) A changed chunk containing a list declaration anywhere disables all
+    // reuse (value inlining into other flows).
     {
       const rootDescriptors: string[] = [];
       for (const rec of chunkRecords) {

@@ -30,9 +30,16 @@ export class VariableAssignment extends ParsedObject {
   // defined type names when computing IMPLICIT parent types
   // (`as character` where `character` is never `define`d).
   public isDefineDeclaration: boolean = false;
+  // True for the synthetic declaration minted per `const` so constants
+  // participate in normal global initialization (see
+  // `Story.RegisterConstantGlobals`). Constants used to be inlined into every
+  // reference site instead of being initialized once.
+  public isConstantDeclaration: boolean = false;
 
   override get typeName() {
-    if (this.listDefinition !== null) {
+    if (this.isConstantDeclaration) {
+      return "const";
+    } else if (this.listDefinition !== null) {
       return "list";
     } else if (this.structDefinition !== null) {
       return "define";
@@ -57,6 +64,7 @@ export class VariableAssignment extends ParsedObject {
 
   constructor({
     assignedExpression,
+    constantExpression,
     isGlobalDeclaration,
     isPropertyDeclaration,
     isTemporaryNewDeclaration,
@@ -66,6 +74,11 @@ export class VariableAssignment extends ParsedObject {
     variableIdentifier,
   }: {
     readonly assignedExpression?: Expression;
+    /**
+     * The expression of an existing `ConstantDeclaration`, adopted WITHOUT
+     * `AddContent` — see the constructor body.
+     */
+    readonly constantExpression?: Expression;
     readonly isGlobalDeclaration?: boolean;
     readonly isPropertyDeclaration?: boolean;
     readonly isTemporaryNewDeclaration?: boolean;
@@ -105,6 +118,19 @@ export class VariableAssignment extends ParsedObject {
       }
     } else if (assignedExpression) {
       this.expression = this.AddContent(assignedExpression) as Expression;
+    } else if (constantExpression) {
+      // Adopted by DIRECT ASSIGNMENT, deliberately not `AddContent`.
+      // `AddContent` REPARENTS its argument, which would move the expression
+      // off its `ConstantDeclaration` and onto this synthetic node — and this
+      // node is never added to the parse tree, so its own `parent` is null.
+      // The expression's `story` getter (which walks parents to the root)
+      // would then return this VariableAssignment instead of the Story, and
+      // `Error()` would throw "No parent object to send error to" instead of
+      // reporting a diagnostic. Sharing the expression is safe because it is
+      // generated exactly once, into the global-init container.
+      this.expression = constantExpression;
+      this.isConstantDeclaration = true;
+      this.isGlobalDeclaration = true;
     }
   }
 
@@ -177,6 +203,30 @@ export class VariableAssignment extends ParsedObject {
       }
     }
 
+    // Constants are immutable. This has to be checked OUTSIDE the
+    // "unresolved name" branch below: constants are now registered in
+    // `variableDeclarations`, so `ResolveVariableWithName` finds them and
+    // that branch never runs for a constant. (The check that used to live
+    // there was dead anyway — it tested `name in someMap`, which is always
+    // false for a Map.) Without this, assigning to a constant silently
+    // mutates it, and because the value then differs from its default it
+    // would also start being written into save files.
+    if (
+      !this.isDeclaration &&
+      !this.isConstantDeclaration &&
+      this.story.constants.has(this.variableName) &&
+      // Only when the name actually BINDS to the constant. A local or
+      // parameter of the same name shadows it — that already reports its own
+      // `Duplicate identifier`, and adding this on top would be misleading.
+      this.story.variableDeclarations.get(this.variableName)
+        ?.isConstantDeclaration
+    ) {
+      this.Error(
+        `Cannot re-assign the const \`${this.variableName}\`.`,
+        this.identifier,
+      );
+    }
+
     if (!this.isNewTemporaryDeclaration) {
       const resolvedVarAssignment = context.ResolveVariableWithName(
         this.variableName,
@@ -184,9 +234,6 @@ export class VariableAssignment extends ParsedObject {
       );
 
       if (!resolvedVarAssignment.found) {
-        if (this.variableName in this.story.constants) {
-          this.Error(`Cannot re-assign a const variable`, this);
-        }
         // Luau auto-global semantics: a bare `x = expr` that doesn't
         // resolve to any local-in-scope or existing global becomes a
         // global creation at execution time. The runtime side handles
@@ -195,7 +242,7 @@ export class VariableAssignment extends ParsedObject {
         // so we just suppress the compile-time error here and let the
         // runtime auto-create the global. Mark the runtime assignment
         // as global so the dispatcher routes correctly.
-        else if (this._runtimeAssignment) {
+        if (this._runtimeAssignment) {
           this._runtimeAssignment.isGlobal = true;
           // ALSO register the auto-global in the story's variable
           // declarations so downstream `Divert.ResolveTargetContent`

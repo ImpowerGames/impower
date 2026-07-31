@@ -235,6 +235,20 @@ export class Story extends FlowBase {
       this.constants.set(constDecl.constantName!, constDecl);
     }
 
+    // Constants are ordinary runtime globals: each gets a synthetic
+    // declaration registered here, BEFORE any generation runs, so that
+    // `variableDeclarations` (an insertion-ordered Map, which the global-init
+    // container is emitted from) lists every constant ahead of every
+    // store/define. That ordering is what lets `store B = SOME_CONST` work
+    // regardless of the order they appear in the source.
+    //
+    // They used to be inlined into each reference site instead, which made
+    // ordering irrelevant but copied the constant's whole runtime-object
+    // graph per reference — and threw outright for any initializer
+    // containing an operator, because `NativeFunctionCall` has no `Copy()`.
+    this.unregisterableConstants = new Set<string>();
+    this.RegisterConstantGlobals();
+
     // List definitions are treated like constants too - they should be usable
     // from other variable declarations.
     this._listDefs = new Map();
@@ -412,6 +426,16 @@ export class Story extends FlowBase {
       runtimeStructs,
     );
 
+    // Publish the constant names so the runtime can keep them read-only and
+    // out of save data while still exposing them as inspectable globals.
+    // Only the ones actually registered: a constant that failed validation
+    // has no initializer in `global decl`, so it is not a global at all.
+    for (const [name] of this.constants) {
+      if (this.variableDeclarations.get(name)?.isConstantDeclaration) {
+        runtimeStory.constantNames.add(name);
+      }
+    }
+
     this.runtimeObject = runtimeStory;
 
     // Generation is complete (FlattenContainersIn emits no diagnostics).
@@ -437,6 +461,111 @@ export class Story extends FlowBase {
     runtimeStory.ResetState();
 
     return runtimeStory;
+  };
+
+  /**
+   * Register one synthetic global declaration per constant, ordered so that a
+   * constant always precedes any constant that references it.
+   *
+   * Iterates `this.constants` rather than the raw declaration list so a
+   * duplicated name registers once (the duplicate is already diagnosed where
+   * the map is built). A dependency cycle is reported and the members fall
+   * back to source order, so the compile still produces a program.
+   */
+  /**
+   * Names a constant's initializer reads that are NOT themselves constants.
+   *
+   * A constant may only be built from other constants: constants are
+   * initialized ahead of every mutable global, so reading a `store` here would
+   * see nil. Such a constant is neither registered nor initialized (the nil
+   * arithmetic would throw out of `ResetState` and cost the whole program its
+   * bytecode), and `ConstantDeclaration.ResolveReferences` reports it.
+   */
+  /**
+   * Constants that could NOT be registered as globals — built from a
+   * non-constant, part of a dependency cycle, or reading one of those. They
+   * emit no initializer, so their references read nil; each is reported by
+   * `ConstantDeclaration.ResolveReferences`.
+   */
+  public unregisterableConstants: Set<string> = new Set<string>();
+
+  public readonly NonConstantInitializerRefs = (
+    constDecl: ConstantDeclaration,
+  ): string[] =>
+    constDecl.expression
+      .FindAll(VariableReference)()
+      .map((ref) => ref.name)
+      .filter(
+        (name): name is string =>
+          Boolean(name) && !this.constants.has(name!),
+      );
+
+  protected readonly RegisterConstantGlobals = (): void => {
+    const visited = new Set<string>();
+    const onStack = new Set<string>();
+
+    const visit = (name: string): void => {
+      if (visited.has(name)) {
+        return;
+      }
+      const constDecl = this.constants.get(name);
+      if (!constDecl) {
+        return;
+      }
+      if (onStack.has(name)) {
+        this.Error(
+          `Circular constant definition: \`${name}\` depends on itself.`,
+          constDecl,
+          false,
+        );
+        // Poison EVERY member of the cycle, not just the name we re-entered:
+        // registering any of them emits an initializer that reads one of the
+        // others before it exists, and the resulting nil arithmetic throws
+        // out of `ResetState`, costing the whole program its bytecode.
+        for (const member of onStack) {
+          this.unregisterableConstants.add(member);
+        }
+        return;
+      }
+      onStack.add(name);
+      // Emit every constant this one reads first, so its initializer sees a
+      // value rather than nil. A self-reference is deliberately NOT filtered
+      // out here — walking it is what lets `onStack` detect it.
+      const refs = constDecl.expression.FindAll(VariableReference)();
+      for (const ref of refs) {
+        if (ref.name && this.constants.has(ref.name)) {
+          visit(ref.name);
+        }
+      }
+      onStack.delete(name);
+      visited.add(name);
+
+      // Not registerable if it is built from a non-constant, is a cycle
+      // member, or reads a constant that itself failed — each case would
+      // otherwise emit an initializer reading an uninitialized global.
+      // Dependencies are visited above, so their verdicts are already known.
+      const readsUnregisterable = refs.some(
+        (ref) => ref.name && this.unregisterableConstants.has(ref.name),
+      );
+      if (
+        this.unregisterableConstants.has(name) ||
+        readsUnregisterable ||
+        this.NonConstantInitializerRefs(constDecl).length > 0
+      ) {
+        this.unregisterableConstants.add(name);
+        return;
+      }
+
+      const declaration = new VariableAssignment({
+        variableIdentifier: constDecl.identifier!,
+        constantExpression: constDecl.expression,
+      });
+      this.AddNewVariableDeclaration(declaration);
+    };
+
+    for (const name of this.constants.keys()) {
+      visit(name);
+    }
   };
 
   public readonly ResolveStruct = (
