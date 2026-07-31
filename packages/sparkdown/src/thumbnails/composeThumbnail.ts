@@ -48,10 +48,12 @@ export const clampThumbnailWidth = (requested: unknown) => {
  * Cache key for a thumbnail of `sources` at `maxWidth`.
  *
  * Keyed by each layer's STABLE signature — path + lastModified + size — never
- * by its url. Asset urls carry a `?v=${Date.now()}` cache-buster that the
- * workspace re-stamps on load, so a url-derived key regenerates everything on
- * every page load and leaks orphaned entries. The signature only moves when
- * the bytes actually do, so a real edit still invalidates.
+ * by its url. Asset urls now carry a signature-derived `?v=<mtime>-<size>`
+ * stamp, but this cache still computes its own key from the file it was
+ * handed: the url stamp can fall back to a mint-time value when no mtime was
+ * known, and parsing identity back out of a url is exactly the coupling this
+ * key discipline exists to avoid. The signature only moves when the bytes
+ * actually do, so a real edit still invalidates.
  */
 export const thumbnailCacheKey = (
   sources: readonly Pick<
