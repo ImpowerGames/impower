@@ -1831,6 +1831,23 @@ style slider with
     height = 0.25rem
     corner = 0.25rem
     background-color = slate_30
+    -- The FILLED part of the track, left of the thumb.
+    --
+    -- `--_fill-percentage` is computed by the engine from value/min/max and
+    -- re-applied whenever any of them change, so the fill follows the value
+    -- with no `oninput` handler. It has existed and been kept live since the
+    -- slider was written; nothing consumed it, so the mechanism ran on every
+    -- drag and drew nothing.
+    --
+    -- A hard-stop gradient rather than `accent-color`: the reference tints the
+    -- NATIVE control, but `appearance: none` above opts out of native
+    -- rendering entirely, so `accent-color` has nothing left to colour. Once
+    -- the track is ours to draw, the fill has to be ours too.
+    --
+    -- `sky_40` is the progress bar's fill (`progress @fill`). A slider and a
+    -- progress bar are the same picture -- a filled proportion of a track --
+    -- so they should not be two different blues.
+    background-image = linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%))
   @thumb:
     appearance = none
     width = 1.125rem
@@ -1842,10 +1859,27 @@ style slider with
     -- `appearance: none` collapses the track to its own box, so the thumb has
     -- to be lifted by half its overhang to sit centred on it.
     margin-top = -0.4375rem
-    transition = background-color 0.2s ease-in-out
+    -- `transform` is in the transition because the PRESS animates it. Without
+    -- it the thumb still scales, it just snaps -- the state would be right and
+    -- the motion missing.
+    transition = background-color 0.2s ease-in-out, transform 0.2s ease-in-out
   @hovered:
     @thumb:
       background-color = sky_40
+  -- Pressing GROWS the thumb, matching the reference
+  -- (`[type=range]:active::-webkit-slider-thumb { transform: scale(1.25) }`).
+  -- The scale is what reads as "grabbed": a colour change alone does not,
+  -- because the thumb is already tinted on hover and the pointer is sitting on
+  -- top of it at the moment of the press.
+  --
+  -- `:active` sits on the INPUT and the thumb is a pseudo-element OF it, so
+  -- `@thumb` nests inside `@pressed` and not the other way round -- a
+  -- pseudo-element cannot itself be `:active`.
+  @pressed:
+    @thumb:
+      transform = scale(1.25)
+      background-color = sky_40
+      cursor = grabbing
   @disabled:
     opacity = 0.5
     cursor = not-allowed

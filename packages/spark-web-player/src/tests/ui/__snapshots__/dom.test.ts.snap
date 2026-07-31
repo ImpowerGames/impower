@@ -1050,6 +1050,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -1060,11 +1061,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {
@@ -3177,6 +3185,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -3187,11 +3196,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {
@@ -5266,6 +5282,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -5276,11 +5293,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {
@@ -7477,6 +7501,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -7487,11 +7512,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {
@@ -9547,6 +9579,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -9557,11 +9590,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {
@@ -11599,6 +11639,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -11609,11 +11650,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {
@@ -13701,6 +13749,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -13711,11 +13760,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {
@@ -15770,6 +15826,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -15780,11 +15837,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {
@@ -17839,6 +17903,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -17849,11 +17914,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {
@@ -19908,6 +19980,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -19918,11 +19991,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {
@@ -21977,6 +22057,7 @@ spark-web-player #game .slider {
     height: 0.25rem;
     border-radius: 0.25rem;
     background-color: var(--theme-color-slate_30);
+    background-image: linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%));
   }
   &::-webkit-slider-thumb {
     appearance: none;
@@ -21987,11 +22068,18 @@ spark-web-player #game .slider {
     border-width: 0px;
     cursor: grab;
     margin-top: -0.4375rem;
-    transition: background-color 0.2s ease-in-out;
+    transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
   }
   &:hover {
     &::-webkit-slider-thumb {
       background-color: var(--theme-color-sky_40);
+    }
+  }
+  &:active {
+    &::-webkit-slider-thumb {
+      transform: scale(1.25);
+      background-color: var(--theme-color-sky_40);
+      cursor: grabbing;
     }
   }
   &:disabled {

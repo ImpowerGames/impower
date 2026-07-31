@@ -19327,6 +19327,13 @@
               "background-color": "sky_40"
             }
           },
+          "@pressed": {
+            "@thumb": {
+              "background-color": "sky_40",
+              "cursor": "grabbing",
+              "transform": "scale(1.25)"
+            }
+          },
           "@thumb": {
             "appearance": "none",
             "background-color": "slate_50",
@@ -19335,11 +19342,12 @@
             "cursor": "grab",
             "height": "1.125rem",
             "margin-top": "-0.4375rem",
-            "transition": "background-color 0.2s ease-in-out",
+            "transition": "background-color 0.2s ease-in-out, transform 0.2s ease-in-out",
             "width": "1.125rem"
           },
           "@track": {
             "background-color": "slate_30",
+            "background-image": "linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%))",
             "corner": "0.25rem",
             "height": "0.25rem",
             "width": "100%"
@@ -93094,6 +93102,13 @@
               "background-color": "sky_40"
             }
           },
+          "@pressed": {
+            "@thumb": {
+              "background-color": "sky_40",
+              "cursor": "grabbing",
+              "transform": "scale(1.25)"
+            }
+          },
           "@thumb": {
             "appearance": "none",
             "background-color": "slate_50",
@@ -93102,11 +93117,12 @@
             "cursor": "grab",
             "height": "1.125rem",
             "margin-top": "-0.4375rem",
-            "transition": "background-color 0.2s ease-in-out",
+            "transition": "background-color 0.2s ease-in-out, transform 0.2s ease-in-out",
             "width": "1.125rem"
           },
           "@track": {
             "background-color": "slate_30",
+            "background-image": "linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%))",
             "corner": "0.25rem",
             "height": "0.25rem",
             "width": "100%"
