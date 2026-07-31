@@ -203,8 +203,8 @@ layout main with
         paragraph "Sed ultricies dolor non ante vulputate hendrerit. Vivamus sit amet suscipit sapien. Nulla iaculis eros a elit pharetra egestas."
         form:
           row grid:
-            -- `#label` (an alias for `aria-label`) because the placeholder is the
-            -- a placeholder is not an accessible name.
+            -- `#label` (an alias for `aria-label`) because these inputs have no
+            -- visible label, and a placeholder is not an accessible name.
             input #value={first_name} #placeholder="First name" #label="First name" #required=true @input=set_first #margin-bottom=18
             input #type="email" #value={email} #placeholder="Email address" #label="Email address" #autocomplete="email" #required=true @input=set_email #margin-bottom=18
             -- `#type="submit"` as in the reference: it is what gives a form

@@ -64,6 +64,7 @@ layout main with
     row:
       checkbox #checked={loud} @change=set_loud
       text "Loud mode is {loud}"
+end
 
 -> start
 

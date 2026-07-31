@@ -400,6 +400,39 @@ end
     expect(block).toContain("transform: translateX(1rem);");
   });
 
+  // A colour prop's value used to be matched against a PREFIX WHITELIST —
+  // `var(`, `rgb(`, `hsl(`, `lch` — and anything unrecognized was assumed to be
+  // a theme token name and wrapped. So a CSS function the list had not been
+  // taught came out as `var(--theme-color-color-mix(in srgb, …))`: a
+  // valid-looking reference to a variable that cannot exist. The browser drops
+  // it and the property silently falls back to its initial value.
+  //
+  // It went unnoticed in `style link`, whose underline is meant to be half-
+  // strength `currentColor` so it adapts to the `.secondary` and `.contrast`
+  // variants, and rendered at full strength instead. A whitelist fails CLOSED
+  // into corruption; a token name is an identifier and cannot contain `(`, so
+  // that is the test.
+  test("a colour prop takes a CSS function instead of mangling it into a token", async () => {
+    const out = await css(`style linky with
+  text-decoration-color = color-mix(in srgb, currentColor 50%, transparent)
+  border-color = oklch(70% 0.1 200)
+  background-color = slate_30
+end
+layout main with
+  box linky
+end
+`);
+    const block = out.slice(out.indexOf(".linky"));
+    expect(block).toContain(
+      "text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);",
+    );
+    expect(block).toContain("border-color: oklch(70% 0.1 200);");
+    expect(out).not.toContain("var(--theme-color-color-mix");
+    expect(out).not.toContain("var(--theme-color-oklch");
+    // The passthrough must not be so broad that a real token stops resolving.
+    expect(block).toContain("background-color: var(--theme-color-slate_30);");
+  });
+
   // Two lists have to agree for a custom-property alias to work, and they live
   // in different packages: CUSTOM_PROPERTY_ALIASES only stops the validator
   // warning about the authored name, while CSS_UTILITIES is what actually

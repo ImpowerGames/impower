@@ -1301,12 +1301,13 @@ style layouts with
       -- `stroke-dasharray`'d, so only the arc is ever painted -- the trailing
       -- ring is a different spinner idiom that reads as a progress track.
       --
-      -- (A `color-mix()` here for a translucent track was silently CORRUPTED:
-      -- a colour-valued prop whose value is not already `var(...)` is treated
-      -- as a token NAME, so it emitted
-      -- `var(--theme-color-color-mix(in srgb, ...))` -- a valid-looking
-      -- declaration referencing a variable that cannot exist. Colour props
-      -- take a token name or a `var()`, not arbitrary CSS colour functions.)
+      -- (A `color-mix()` here for a translucent track used to be silently
+      -- CORRUPTED into `var(--theme-color-color-mix(in srgb, ...))`, because
+      -- the colour transformer recognized CSS functions by a prefix whitelist
+      -- and mangled anything it had not been taught. It passes any value
+      -- containing `(` through now, so a colour function is fine here again.
+      -- The track stays absent regardless -- that is the reference's shape,
+      -- not a workaround.)
       border-color = transparent
       border-top-color = var(--spinner-color, var(--theme-color-slate_65))
       animation-name = spin
@@ -1972,7 +1973,13 @@ style link with
   align-self = start
   display = inline-block
   text-color = sky_60
-  text-decoration = underline
+  -- The LONGHAND, deliberately. `text-decoration` is a shorthand covering
+  -- line, colour, style and thickness, so `text-decoration: underline` resets
+  -- the colour to its initial `currentColor` -- and it is emitted AFTER the
+  -- `text-decoration-color` above, so it silently wiped it. The underline
+  -- rendered at full strength while the rule asking for half sat right there
+  -- in the block, looking applied.
+  text-decoration-line = underline
   cursor = pointer
   transition = all 0.2s ease-in-out
   -- Hover promotes the underline back to full strength, as Pico does.
@@ -3097,12 +3104,12 @@ end
 
 style character_name with
   padding_bottom = 8px
-  font_weight = 600px
+  font_weight = 600
 end
 
 style character_parenthetical with
   padding_bottom = 8px
-  font_weight = 400px
+  font_weight = 400
   font_size = 1rem
   @screen_size(sm):
     font_size = 0.875rem
@@ -3326,22 +3333,6 @@ animation align_right with
     easing = "ease-in-out"
     iterations = 1
     fill = "both"
-    direction = "normal"
-end
-
--- A progress bar with no `value` is indeterminate: Pico sweeps a coloured
--- segment across the track rather than showing a fill.
-animation progress-indeterminate with
-  target = layer.self
-  keyframes:
-    -
-      background-position = "200% 0"
-  timing:
-    delay = 0
-    duration = 0
-    easing = "linear"
-    iterations = "infinite"
-    fill = "none"
     direction = "normal"
 end
 

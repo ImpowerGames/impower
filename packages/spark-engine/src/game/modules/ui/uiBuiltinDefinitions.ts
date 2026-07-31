@@ -597,12 +597,12 @@ export const uiBuiltinDefinitions = () => ({
     character_name: default_style({
       $name: "character_name",
       padding_bottom: "8px",
-      font_weight: "600px",
+      font_weight: "600",
     }),
     character_parenthetical: default_style({
       $name: "character_parenthetical",
       padding_bottom: "8px",
-      font_weight: "400px",
+      font_weight: "400",
       font_size: "1rem",
       "@screen_size(sm)": { font_size: "0.875rem" },
     }),

@@ -144,7 +144,7 @@ function rename()
   who = "Friend"
 end
 layout form with
-  field #placeholder="Hi {who}"
+  input #placeholder="Hi {who}"
 end
 `,
       0,

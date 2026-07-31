@@ -25,14 +25,14 @@ describe("preview a UI-only reactive layout emits no ink flow error", () => {
   test("interpolation prop binding", async () => {
     await previewClean(
       "prop",
-      `store email = ""\nlayout main with\n  field #value={email}\nend\n`,
+      `store email = ""\nlayout main with\n  input #value={email}\nend\n`,
     );
   });
 
   test("inline @event handler closure", async () => {
     await previewClean(
       "handler",
-      `store email = ""\nlayout main with\n  field #value={email} @input={ email = event.value }\nend\n`,
+      `store email = ""\nlayout main with\n  input #value={email} @input={ email = event.value }\nend\n`,
     );
   });
 

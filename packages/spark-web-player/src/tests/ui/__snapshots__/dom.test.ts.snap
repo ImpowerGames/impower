@@ -334,9 +334,6 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -1095,13 +1092,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -1908,11 +1905,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;
@@ -2472,9 +2469,6 @@ exports[`dom render > image show renders background span + img 1`] = `
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -3233,13 +3227,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -4046,11 +4040,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;
@@ -4572,9 +4566,6 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -5333,13 +5324,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -6146,11 +6137,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;
@@ -6794,9 +6785,6 @@ exports[`dom render > screen tree renders into overlay 1`] = `
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -7555,13 +7543,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -8368,11 +8356,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;
@@ -8875,9 +8863,6 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -9636,13 +9621,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -10449,11 +10434,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;
@@ -10938,9 +10923,6 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -11699,13 +11681,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -12512,11 +12494,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;
@@ -13051,9 +13033,6 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -13812,13 +13791,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -14625,11 +14604,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;
@@ -15131,9 +15110,6 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -15892,13 +15868,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -16705,11 +16681,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;
@@ -17211,9 +17187,6 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -17972,13 +17945,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -18785,11 +18758,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;
@@ -19291,9 +19264,6 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -20052,13 +20022,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -20865,11 +20835,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;
@@ -21371,9 +21341,6 @@ exports[`dom render · image lifecycle > layered images stack background-image o
 @keyframes align_right {
   to { translate: calc(1 * (100cqw - 100%)) 0px; }
 }
-@keyframes progress {
-  to {  }
-}
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -22132,13 +22099,13 @@ spark-web-player #game .slider {
   }
 }
 spark-web-player #game .link {
-  text-decoration-color: var(--theme-color-color-mix(in srgb, currentColor 50%, transparent));
+  text-decoration-color: color-mix(in srgb, currentColor 50%, transparent);
   text-underline-offset: 0.125rem;
   pointer-events: auto;
   align-self: flex-start;
   display: inline-block;
   color: var(--theme-color-sky_60);
-  text-decoration: underline;
+  text-decoration-line: underline;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
   &:hover, &:active, &:focus {
@@ -22945,11 +22912,11 @@ spark-web-player #game .character_info {
 }
 spark-web-player #game .character_name {
   padding-bottom: 8px;
-  font-weight: 600px;
+  font-weight: 600;
 }
 spark-web-player #game .character_parenthetical {
   padding-bottom: 8px;
-  font-weight: 400px;
+  font-weight: 400;
   font-size: 1rem;
   @container screen (max-width:640px) {
     font-size: 0.875rem;

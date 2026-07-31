@@ -102,11 +102,17 @@ end
     expect(css).toContain(".button");
     expect(css).toContain("cursor: pointer");
     expect(css).toContain(":hover");
-    // link — underlined
+    // link — underlined. The LONGHAND: `text-decoration` is a shorthand that
+    // resets the decoration colour, so `style link` cannot use it.
     expect(css).toContain(".link");
-    expect(css).toContain("text-decoration: underline");
-    // field — has a background fill (styled input, not the OS default)
-    expect(css).toContain(".field");
+    expect(css).toContain("text-decoration-line: underline");
+    // input — has a background fill (styled input, not the OS default).
+    //
+    // Was `toContain(".field")`, which kept passing after the `field` builtin
+    // was deleted because `.fieldset` contains `.field` as a SUBSTRING. The
+    // assertion survived the thing it existed to check. Anchored on the rule
+    // opening now, so a substring of a different class cannot satisfy it.
+    expect(css).toMatch(/\.input\s*\{/);
     // checkbox / slider — native controls tinted via accent-color
     expect(css).toContain(".checkbox");
     expect(css).toContain(".slider");

@@ -9,11 +9,11 @@ const evalGlobal = (h: UIHarness, name: string): unknown =>
   (h.game.story as any).variablesState.$(name);
 
 describe("two-way binding (input write-back)", () => {
-  test("field renders as <input> with its bound value", async () => {
+  test("input renders as <input> with its bound value", async () => {
     const h = createHarness(
       `store name = "Zelda"
 layout form with
-  field #value={name}
+  input #value={name}
 end
 `,
       0,
@@ -35,16 +35,16 @@ function set_name(event)
   name = event.value
 end
 layout form with
-  field #value={name} @input=set_name
+  input #value={name} @input=set_name
 end
 `,
       0,
       { reactive: true },
     );
     await h.ready;
-    const fieldId = h.observedElementIds()[0];
-    expect(fieldId).toBeTruthy();
-    h.emitEvent("input", fieldId!, { value: "Link" });
+    const inputId = h.observedElementIds()[0];
+    expect(inputId).toBeTruthy();
+    h.emitEvent("input", inputId!, { value: "Link" });
     expect(evalGlobal(h, "name")).toBe("Link");
   });
 
@@ -72,16 +72,16 @@ end
     const h = createHarness(
       `store name = "Zelda"
 layout form with
-  field #value={name} @input={ name = event.value }
+  input #value={name} @input={ name = event.value }
 end
 `,
       0,
       { reactive: true },
     );
     await h.ready;
-    const fieldId = h.observedElementIds()[0];
-    expect(fieldId).toBeTruthy();
-    h.emitEvent("input", fieldId!, { value: "Link" });
+    const inputId = h.observedElementIds()[0];
+    expect(inputId).toBeTruthy();
+    h.emitEvent("input", inputId!, { value: "Link" });
     expect(evalGlobal(h, "name")).toBe("Link");
   });
 
@@ -162,7 +162,7 @@ end
     const h = createHarness(
       `store name = "Zelda"
 layout form with
-  field #value={name} @input={ name = event.value }
+  input #value={name} @input={ name = event.value }
 end
 `,
       0,
@@ -203,17 +203,17 @@ end
     const h = createHarness(
       `store player = { name = "Zelda" }
 layout form with
-  field #value={player.name} @input={ player.name = event.value }
+  input #value={player.name} @input={ player.name = event.value }
 end
 `,
       0,
       { reactive: true },
     );
     await h.ready;
-    const fieldId = h.observedElementIds()[0];
-    expect(fieldId).toBeTruthy();
+    const inputId = h.observedElementIds()[0];
+    expect(inputId).toBeTruthy();
     h.reset();
-    h.emitEvent("input", fieldId!, { value: "Link" });
+    h.emitEvent("input", inputId!, { value: "Link" });
     const update = h
       .snapshotFiltered("ui/update")
       .find(
@@ -229,7 +229,7 @@ function clear_name(event)
   name = ""
 end
 layout form with
-  field #value={name} @input=set_name
+  input #value={name} @input=set_name
   button "Clear" @click=clear_name
 end
 `,

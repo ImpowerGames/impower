@@ -321,9 +321,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "--theme-color-slate_20": "rgb(15,23,42)",
                   "--theme-color-slate_30": "rgb(30,41,59)",
                   "--theme-color-slate_40": "rgb(51,65,85)",
+                  "--theme-color-slate_45": "rgb(61,75,95)",
                   "--theme-color-slate_50": "rgb(71,85,105)",
                   "--theme-color-slate_60": "rgb(100,116,139)",
+                  "--theme-color-slate_65": "rgb(124,140,163)",
                   "--theme-color-slate_70": "rgb(148,163,184)",
+                  "--theme-color-slate_75": "rgb(176,188,206)",
                   "--theme-color-slate_80": "rgb(203,213,225)",
                   "--theme-color-slate_90": "rgb(226,232,240)",
                   "--theme-color-slate_95": "rgb(241,245,249)",
@@ -748,6 +751,30 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "iterations": 1,
                   },
                 },
+                "progress_indeterminate": {
+                  "$name": "progress_indeterminate",
+                  "$type": "animation",
+                  "keyframes": [
+                    {
+                      "background-position": "200% 0",
+                    },
+                    {
+                      "background-position": "-200% 0",
+                    },
+                  ],
+                  "target": {
+                    "$name": "self",
+                    "$type": "layer",
+                  },
+                  "timing": {
+                    "delay": 0,
+                    "direction": "normal",
+                    "duration": 0,
+                    "easing": "linear",
+                    "fill": "none",
+                    "iterations": "infinite",
+                  },
+                },
                 "pulse": {
                   "$name": "pulse",
                   "$type": "animation",
@@ -1083,6 +1110,58 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "iterations": "infinite",
                   },
                 },
+                "tooltip_caret_slide": {
+                  "$name": "tooltip_caret_slide",
+                  "$type": "animation",
+                  "keyframes": [
+                    {
+                      "opacity": "0",
+                      "transform": "translate(-50%, -0.25rem)",
+                    },
+                    {
+                      "opacity": "1",
+                      "transform": "translate(-50%, 0)",
+                    },
+                  ],
+                  "target": {
+                    "$name": "self",
+                    "$type": "layer",
+                  },
+                  "timing": {
+                    "delay": 0,
+                    "direction": "normal",
+                    "duration": 0,
+                    "easing": "ease-out",
+                    "fill": "forwards",
+                    "iterations": 1,
+                  },
+                },
+                "tooltip_slide": {
+                  "$name": "tooltip_slide",
+                  "$type": "animation",
+                  "keyframes": [
+                    {
+                      "opacity": "0",
+                      "transform": "translate(-50%, 0.75rem)",
+                    },
+                    {
+                      "opacity": "1",
+                      "transform": "translate(-50%, -0.25rem)",
+                    },
+                  ],
+                  "target": {
+                    "$name": "self",
+                    "$type": "layer",
+                  },
+                  "timing": {
+                    "delay": 0,
+                    "direction": "normal",
+                    "duration": 0,
+                    "easing": "ease-out",
+                    "fill": "forwards",
+                    "iterations": 1,
+                  },
+                },
                 "waitin": {
                   "$name": "waitin",
                   "$type": "animation",
@@ -1301,6 +1380,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "cursor": "help",
                   "display": "inline-block",
                   "justify-self": "start",
+                  "text-leading": "normal",
                 },
                 "action": {
                   "$name": "action",
@@ -1318,8 +1398,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "article": {
                   "$name": "article",
                   "$type": "style",
+                  "> :last-child": {
+                    "margin-bottom": "0",
+                  },
                   "> footer": {
-                    "border-top-color": "slate_20",
+                    "background-color": "rgb(255 255 255 / 1.5%)",
+                    "border-top-color": "slate_30",
                     "border-top-style": "solid",
                     "border-top-width": "0.0625rem",
                     "corner-bottom-left": "0.25rem",
@@ -1328,7 +1412,8 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "padding": "0.66rem 1rem",
                   },
                   "> header": {
-                    "border-bottom-color": "slate_20",
+                    "background-color": "rgb(255 255 255 / 1.5%)",
+                    "border-bottom-color": "slate_30",
                     "border-bottom-style": "solid",
                     "border-bottom-width": "0.0625rem",
                     "corner-top-left": "0.25rem",
@@ -1337,30 +1422,15 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "padding": "0.66rem 1rem",
                   },
                   "@busy": {
-                    "@before": {
-                      "animation-duration": "0.6s",
-                      "animation-iteration-count": "infinite",
-                      "animation-name": "spin",
-                      "animation-timing-function": "linear",
-                      "border-color": "var(--theme-color-slate_40)",
-                      "border-style": "solid",
-                      "border-top-color": "var(--theme-color-sky_60)",
-                      "border-width": "0.125rem",
-                      "content": "",
-                      "corner": "50%",
-                      "height": "1.25rem",
-                      "width": "1.25rem",
-                    },
                     "child-align": "center",
                     "child-justify": "center",
-                    "min-height": "4rem",
+                    "display": "flex",
+                    "min-height": "3.5rem",
                   },
                   "background-color": "slate_30",
-                  "child-gap": "1rem",
-                  "child-layout": "column",
                   "corner": "0.25rem",
-                  "display": "flex",
-                  "margin": "0",
+                  "display": "block",
+                  "margin-bottom": "1rem",
                   "padding": "1rem",
                 },
                 "backdrop": {
@@ -1385,15 +1455,29 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "text-size": "0.75rem",
                   "text-weight": "600",
                 },
+                "block": {
+                  "$name": "block",
+                  "$type": "style",
+                  "display": "block",
+                },
                 "bold": {
                   "$name": "bold",
                   "$type": "style",
                   "text-weight": "700",
                 },
+                "bulleted": {
+                  "$name": "bulleted",
+                  "$type": "style",
+                  "list-style-type": "disc",
+                  "padding-left": "40px",
+                },
                 "button": {
                   "$name": "button",
                   "$type": "style",
                   "&.contrast": {
+                    "@focused": {
+                      "shadow": "0 0 0 0.125rem rgb(226 232 240 / 25%)",
+                    },
                     "@hovered, @pressed, @focused": {
                       "background-color": "white",
                       "border-color": "white",
@@ -1429,6 +1513,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "text-color": "slate_70",
                   },
                   "&.secondary": {
+                    "@focused": {
+                      "shadow": "0 0 0 0.125rem rgb(148 163 184 / 25%)",
+                    },
                     "@hovered, @pressed, @focused": {
                       "background-color": "slate_60",
                       "border-color": "slate_60",
@@ -1438,21 +1525,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   },
                   "@busy": {
                     "@before": {
-                      "animation-duration": "0.6s",
-                      "animation-iteration-count": "infinite",
-                      "animation-name": "spin",
-                      "animation-timing-function": "linear",
-                      "border-color": "rgb(255 255 255 / 40%)",
-                      "border-style": "solid",
-                      "border-top-color": "white",
-                      "border-width": "0.125rem",
-                      "content": "",
-                      "corner": "50%",
-                      "height": "0.75rem",
                       "margin-right": "0.5rem",
-                      "width": "0.75rem",
+                      "spinner-color": "white",
                     },
-                    "cursor": "progress",
+                  },
+                  "@disabled": {
+                    "cursor": "not-allowed",
+                    "opacity": "0.5",
+                    "pointer-events": "none",
                   },
                   "@focused": {
                     "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
@@ -1460,6 +1540,10 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "@hovered, @pressed, @focused": {
                     "background-color": "sky_50",
                     "border-color": "sky_50",
+                  },
+                  "@type_submit, @type_reset, @type_button": {
+                    "margin-bottom": "1rem",
+                    "margin-top": "0",
                   },
                   "background-color": "sky_40",
                   "border-color": "sky_40",
@@ -1470,19 +1554,25 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "child-layout": "row",
                   "corner": "0.25rem",
                   "cursor": "pointer",
-                  "display": "flex",
+                  "display": "inline-flex",
                   "padding": "0.75rem 1rem",
                   "pointer_events": "auto",
                   "text-align": "center",
                   "text-color": "white",
+                  "text-leading": "1.5",
                   "text-weight": "400",
                   "transition": "all 0.2s ease-in-out",
                 },
                 "caption": {
                   "$name": "caption",
                   "$type": "style",
+                  "> *": {
+                    "display": "inline",
+                  },
+                  "display": "block",
                   "padding": "0.5rem 0",
                   "text-color": "slate_60",
+                  "width": "100%",
                 },
                 "card": {
                   "$name": "card",
@@ -1523,7 +1613,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "character_name": {
                   "$name": "character_name",
                   "$type": "style",
-                  "font_weight": "600px",
+                  "font_weight": "600",
                   "padding_bottom": "8px",
                 },
                 "character_parenthetical": {
@@ -1533,7 +1623,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "font_size": "0.875rem",
                   },
                   "font_size": "1rem",
-                  "font_weight": "400px",
+                  "font_weight": "400",
                   "padding_bottom": "8px",
                 },
                 "checkbox": {
@@ -1547,8 +1637,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "background-size": "0.75rem auto",
                     "border-color": "sky_40",
                   },
+                  "@disabled": {
+                    "cursor": "not-allowed",
+                    "opacity": "0.5",
+                    "pointer-events": "none",
+                  },
                   "@focused": {
-                    "shadow": "0 0 0 0.125rem var(--theme-color-sky_40)",
+                    "border-color": "sky_40",
+                    "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
                   },
                   "appearance": "none",
                   "background-color": "slate_30",
@@ -1559,7 +1655,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "cursor": "pointer",
                   "height": "1.25rem",
                   "pointer_events": "auto",
-                  "transition": "all 0.2s ease-in-out",
+                  "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
                   "width": "1.25rem",
                 },
                 "choice": {
@@ -1601,6 +1697,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "citation": {
                   "$name": "citation",
                   "$type": "style",
+                  "margin-top": "0.5rem",
                   "text-color": "slate_60",
                   "text-style": "italic",
                 },
@@ -1623,9 +1720,9 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "container",
                   "$type": "style",
                   "margin": "0 auto",
-                  "padding": "1rem",
+                  "padding": "1rem 0",
                   "width": "100%",
-                  "width-max": "40rem",
+                  "width-max": "700px",
                 },
                 "continue_indicator": {
                   "$name": "continue_indicator",
@@ -1672,9 +1769,20 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "dropdown": {
                   "$name": "dropdown",
                   "$type": "style",
+                  "&.invalid": {
+                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")",
+                  },
+                  "&.valid": {
+                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")",
+                  },
+                  "+ small": {
+                    "margin-bottom": "1rem",
+                    "margin-top": "0.25rem",
+                  },
                   "@disabled": {
                     "cursor": "not-allowed",
                     "opacity": "0.5",
+                    "pointer-events": "none",
                   },
                   "@focused": {
                     "border-color": "sky_40",
@@ -1692,13 +1800,16 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "border-color": "slate_40",
                   "border-style": "solid",
                   "border-width": "0.0625rem",
+                  "color-scheme": "dark",
                   "corner": "0.25rem",
                   "cursor": "default",
                   "padding": "0.75rem 1rem",
                   "padding-right": "2.5rem",
                   "pointer_events": "auto",
                   "text-color": "slate_90",
+                  "text-leading": "1.5",
                   "transition": "all 0.2s ease-in-out",
+                  "width": "100%",
                 },
                 "emphasis": {
                   "$name": "emphasis",
@@ -1706,51 +1817,48 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "display": "inline",
                   "text-style": "italic",
                 },
-                "field": {
-                  "$name": "field",
-                  "$type": "style",
-                  "@disabled": {
-                    "cursor": "not-allowed",
-                    "opacity": "0.5",
-                  },
-                  "@focused": {
-                    "border-color": "sky_40",
-                    "shadow": "0 0 0 0.0625rem var(--theme-color-sky_40)",
-                  },
-                  "@placeholder": {
-                    "text-color": "slate_70",
-                  },
-                  "background-color": "slate_30",
-                  "border-color": "slate_40",
-                  "border-style": "solid",
-                  "border-width": "0.0625rem",
-                  "corner": "0.25rem",
-                  "padding": "0.75rem 1rem",
-                  "pointer_events": "auto",
-                  "text-color": "slate_90",
-                  "transition": "all 0.2s ease-in-out",
-                },
-                "field_group": {
-                  "$name": "field_group",
+                "fieldset": {
+                  "$name": "fieldset",
                   "$type": "style",
                   "border-width": "0",
-                  "child-gap": "0.5rem",
-                  "child-layout": "column",
-                  "display": "flex",
+                  "display": "block",
                   "margin": "0",
+                  "margin-bottom": "1rem",
                   "padding": "0",
                 },
                 "figure": {
                   "$name": "figure",
                   "$type": "style",
-                  "child-align": "start",
-                  "child-layout": "column",
-                  "display": "flex",
-                  "margin": "0",
+                  "display": "block",
                 },
                 "file_input": {
                   "$name": "file_input",
                   "$type": "style",
+                  "@disabled": {
+                    "cursor": "not-allowed",
+                    "opacity": "0.5",
+                    "pointer-events": "none",
+                  },
+                  "@file_button": {
+                    "@hovered": {
+                      "background-color": "slate_60",
+                      "border-color": "slate_60",
+                    },
+                    "background-color": "slate_50",
+                    "border-color": "slate_50",
+                    "border-style": "solid",
+                    "border-width": "0.0625rem",
+                    "corner": "0.25rem",
+                    "cursor": "pointer",
+                    "margin-left": "0",
+                    "margin-right": "0.5rem",
+                    "padding": "0.375rem 1rem",
+                    "text-color": "white",
+                    "text-leading": "1.5",
+                    "text-size": "1rem",
+                    "text-weight": "400",
+                    "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out",
+                  },
                   "background-color": "transparent",
                   "border-style": "none",
                   "border-width": "0",
@@ -1808,6 +1916,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "display": "block",
                     "float": "right",
                     "height": "1rem",
+                    "margin-left": "0.5rem",
                     "transform": "rotate(-90deg)",
                     "transition": "transform 0.2s ease-in-out",
                     "width": "1rem",
@@ -1816,21 +1925,21 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "display": "list-item",
                   "list-style": "none",
                   "pointer_events": "auto",
+                  "text-leading": "1",
                   "text-weight": "400",
                 },
                 "footer": {
                   "$name": "footer",
                   "$type": "style",
-                  "child-gap": "0.5rem",
-                  "child-layout": "column",
-                  "display": "flex",
+                  "display": "block",
                 },
                 "form": {
                   "$name": "form",
                   "$type": "style",
-                  "child-gap": "1rem",
-                  "child-layout": "column",
-                  "display": "flex",
+                  "> button": {
+                    "width": "100%",
+                  },
+                  "display": "block",
                 },
                 "grid": {
                   "$name": "grid",
@@ -1842,27 +1951,41 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "group": {
                   "$name": "group",
                   "$type": "style",
+                  "> *": {
+                    "margin-bottom": "0",
+                    "width": "auto",
+                  },
                   "> @first": {
                     "corner-bottom-right": "0",
                     "corner-top-right": "0",
+                    "flex": "1 1 auto",
+                    "width": "1%",
                   },
                   "> @last": {
                     "corner-bottom-left": "0",
                     "corner-top-left": "0",
                   },
+                  "> button": {
+                    "padding-left": "2rem",
+                    "padding-right": "2rem",
+                  },
+                  "> input, > dropdown, > textarea, > button": {
+                    "margin-bottom": "0",
+                  },
                   "child-gap": "0",
                   "child-layout": "row",
-                  "display": "flex",
-                },
-                "group_label": {
-                  "$name": "group_label",
-                  "$type": "style",
-                  "padding": "0",
-                  "text-weight": "600",
+                  "display": "inline-flex",
+                  "margin-bottom": "1rem",
+                  "width": "100%",
                 },
                 "h1": {
                   "$name": "h1",
                   "$type": "style",
+                  "@first": {
+                    "margin-top": "0",
+                  },
+                  "margin-bottom": "1rem",
+                  "margin-top": "1.5em",
                   "text-color": "slate_95",
                   "text-leading": "1.125",
                   "text-size": "2rem",
@@ -1871,6 +1994,11 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "h2": {
                   "$name": "h2",
                   "$type": "style",
+                  "@first": {
+                    "margin-top": "0",
+                  },
+                  "margin-bottom": "1rem",
+                  "margin-top": "1.5em",
                   "text-color": "slate_90",
                   "text-leading": "1.15",
                   "text-size": "1.75rem",
@@ -1879,6 +2007,11 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "h3": {
                   "$name": "h3",
                   "$type": "style",
+                  "@first": {
+                    "margin-top": "0",
+                  },
+                  "margin-bottom": "1rem",
+                  "margin-top": "1.5em",
                   "text-leading": "1.175",
                   "text-size": "1.5rem",
                   "text-weight": "700",
@@ -1886,6 +2019,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "h4": {
                   "$name": "h4",
                   "$type": "style",
+                  "@first": {
+                    "margin-top": "0",
+                  },
+                  "margin-bottom": "1rem",
+                  "margin-top": "1.5em",
+                  "text-color": "slate_75",
                   "text-leading": "1.2",
                   "text-size": "1.25rem",
                   "text-weight": "700",
@@ -1893,6 +2032,11 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "h5": {
                   "$name": "h5",
                   "$type": "style",
+                  "@first": {
+                    "margin-top": "0",
+                  },
+                  "margin-bottom": "1rem",
+                  "margin-top": "1.5em",
                   "text-color": "slate_70",
                   "text-leading": "1.225",
                   "text-size": "1.125rem",
@@ -1901,20 +2045,18 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "h6": {
                   "$name": "h6",
                   "$type": "style",
-                  "text-color": "slate_70",
+                  "@first": {
+                    "margin-top": "0",
+                  },
+                  "margin-bottom": "1rem",
+                  "margin-top": "1.5em",
+                  "text-color": "slate_65",
                   "text-leading": "1.25",
                   "text-size": "1rem",
                   "text-weight": "700",
                 },
-                "header": {
-                  "$name": "header",
-                  "$type": "style",
-                  "child-gap": "0.5rem",
-                  "child-layout": "column",
-                  "display": "flex",
-                },
-                "header_cell": {
-                  "$name": "header_cell",
+                "head": {
+                  "$name": "head",
                   "$type": "style",
                   "border-bottom-color": "slate_30",
                   "border-bottom-style": "solid",
@@ -1922,6 +2064,11 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "display": "table-cell",
                   "padding": "0.5rem 1rem",
                   "text-weight": "400",
+                },
+                "header": {
+                  "$name": "header",
+                  "$type": "style",
+                  "display": "block",
                 },
                 "heading": {
                   "$name": "heading",
@@ -1946,6 +2093,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "justify-self": "start",
                   "padding": "0.125rem 0.25rem",
                   "text-color": "white",
+                  "text-leading": "normal",
                 },
                 "hint": {
                   "$name": "hint",
@@ -1977,9 +2125,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "input": {
                   "$name": "input",
                   "$type": "style",
+                  "+ small": {
+                    "margin-bottom": "1rem",
+                    "margin-top": "0.25rem",
+                  },
                   "@disabled": {
                     "cursor": "not-allowed",
                     "opacity": "0.5",
+                    "pointer-events": "none",
                   },
                   "@focused": {
                     "border-color": "sky_40",
@@ -1988,15 +2141,53 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "@placeholder": {
                     "text-color": "slate_70",
                   },
+                  "@readonly @focused": {
+                    "border-color": "slate_40",
+                    "shadow": "none",
+                  },
+                  "@type_color": {
+                    "@swatch": {
+                      "border-width": "0",
+                      "corner": "0.125rem",
+                    },
+                    "@swatch_wrapper": {
+                      "padding": "0",
+                    },
+                  },
+                  "@type_date": {
+                    "@picker": {
+                      "cursor": "pointer",
+                      "opacity": "0",
+                    },
+                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E")",
+                    "background-position": "right 0.75rem center",
+                    "background-repeat": "no-repeat",
+                    "background-size": "1rem auto",
+                    "padding-right": "1.75rem",
+                  },
+                  "@type_time": {
+                    "@picker": {
+                      "cursor": "pointer",
+                      "opacity": "0",
+                    },
+                    "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238891a4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E")",
+                    "background-position": "right 0.75rem center",
+                    "background-repeat": "no-repeat",
+                    "background-size": "1rem auto",
+                    "padding-right": "1.75rem",
+                  },
                   "accent-color": "sky_60",
                   "background-color": "slate_30",
                   "border-color": "slate_40",
                   "border-style": "solid",
                   "border-width": "0.0625rem",
+                  "color-scheme": "dark",
                   "corner": "0.25rem",
+                  "height": "3.125rem",
                   "padding": "0.75rem 1rem",
                   "pointer_events": "auto",
                   "text-color": "slate_90",
+                  "text-leading": "1.5",
                   "transition": "all 0.2s ease-in-out",
                   "width": "100%",
                 },
@@ -2027,11 +2218,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "item": {
                   "$name": "item",
                   "$type": "style",
+                  "@last": {
+                    "margin-bottom": "0",
+                  },
                   "display": "list-item",
                   "margin-bottom": "0.25rem",
                 },
-                "key": {
-                  "$name": "key",
+                "kbd": {
+                  "$name": "kbd",
                   "$type": "style",
                   "align-self": "start",
                   "background-color": "slate_80",
@@ -2041,15 +2235,107 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "justify-self": "start",
                   "padding": "0.375rem",
                   "text-color": "slate_20",
+                  "text-leading": "normal",
                   "text-size": "0.875rem",
                   "text-weight": "700",
                 },
                 "label": {
                   "$name": "label",
                   "$type": "style",
+                  "> input, > slider, > dropdown, > textarea": {
+                    "margin-top": "0.25rem",
+                  },
                   "margin-bottom": "0.375rem",
                   "pointer_events": "auto",
                   "text-weight": "400",
+                },
+                "layouts": {
+                  "$name": "layouts",
+                  "$type": "style",
+                  "& >> #tooltip": {
+                    "@after": {
+                      "background-color": "transparent",
+                      "border-left-color": "transparent",
+                      "border-left-style": "solid",
+                      "border-left-width": "0.3rem",
+                      "border-right-color": "transparent",
+                      "border-right-style": "solid",
+                      "border-right-width": "0.3rem",
+                      "border-top-color": "slate_95",
+                      "border-top-style": "solid",
+                      "border-top-width": "0.3rem",
+                      "bottom": "100%",
+                      "content": "",
+                      "corner": "0",
+                      "display": "block",
+                      "left": "50%",
+                      "opacity": "0",
+                      "padding": "0",
+                      "pointer-events": "none",
+                      "position": "absolute",
+                      "transform": "translate(-50%, 0)",
+                      "z-index": "99",
+                    },
+                    "@before": {
+                      "background-color": "slate_95",
+                      "bottom": "100%",
+                      "content": "attr(data-tooltip)",
+                      "corner": "0.25rem",
+                      "display": "block",
+                      "left": "50%",
+                      "opacity": "0",
+                      "padding": "0.25rem 0.5rem",
+                      "pointer-events": "none",
+                      "position": "absolute",
+                      "text-color": "black",
+                      "text-decoration": "none",
+                      "text-overflow": "ellipsis",
+                      "text-size": "0.875rem",
+                      "text-style": "normal",
+                      "text-weight": "400",
+                      "transform": "translate(-50%, -0.25rem)",
+                      "z-index": "99",
+                    },
+                    "@hovered @after, @focused @after": {
+                      "animation-duration": "0.2s",
+                      "animation-fill-mode": "forwards",
+                      "animation-name": "tooltip_caret_slide",
+                      "opacity": "1",
+                    },
+                    "@hovered @before, @focused @before": {
+                      "animation-duration": "0.2s",
+                      "animation-fill-mode": "forwards",
+                      "animation-name": "tooltip_slide",
+                      "opacity": "1",
+                    },
+                    "pointer_events": "auto",
+                    "position": "relative",
+                  },
+                  "& >> @busy": {
+                    "@before": {
+                      "animation-duration": "0.75s",
+                      "animation-iteration-count": "infinite",
+                      "animation-name": "spin",
+                      "animation-timing-function": "linear",
+                      "border-color": "transparent",
+                      "border-style": "solid",
+                      "border-top-color": "var(--spinner-color, var(--theme-color-slate_65))",
+                      "border-width": "0.1667em",
+                      "content": "",
+                      "corner": "50%",
+                      "display": "inline-block",
+                      "height": "1em",
+                      "vertical-align": "-0.125em",
+                      "width": "1em",
+                    },
+                  },
+                },
+                "legend": {
+                  "$name": "legend",
+                  "$type": "style",
+                  "margin-bottom": "0.5rem",
+                  "padding": "0",
+                  "text-weight": "600",
                 },
                 "link": {
                   "$name": "link",
@@ -2057,32 +2343,38 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "&.contrast": {
                     "@hovered, @pressed, @focused": {
                       "text-color": "white",
+                      "text-decoration-color": "currentColor",
                     },
                     "text-color": "slate_90",
                   },
                   "&.secondary": {
                     "@hovered, @pressed, @focused": {
-                      "text-color": "slate_80",
+                      "text-color": "slate_75",
+                      "text-decoration-color": "currentColor",
                     },
                     "text-color": "slate_70",
                   },
                   "@hovered, @pressed, @focused": {
                     "text-color": "sky_70",
+                    "text-decoration-color": "currentColor",
                   },
                   "align-self": "start",
                   "cursor": "pointer",
                   "display": "inline-block",
                   "pointer_events": "auto",
                   "text-color": "sky_60",
-                  "text-decoration": "underline",
+                  "text-decoration-color": "color-mix(in srgb, currentColor 50%, transparent)",
+                  "text-decoration-line": "underline",
+                  "text-underline-offset": "0.125rem",
                   "transition": "all 0.2s ease-in-out",
                 },
                 "list": {
                   "$name": "list",
                   "$type": "style",
                   "display": "block",
-                  "list-style": "square",
-                  "padding-left": "1.5rem",
+                  "list-style": "none",
+                  "margin-bottom": "1rem",
+                  "padding-left": "0",
                 },
                 "loading_bar": {
                   "$name": "loading_bar",
@@ -2133,6 +2425,10 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$name": "menu",
                   "$type": "style",
                   "&@opened": {
+                    "> foldout_label": {
+                      "margin-bottom": "0",
+                      "text-color": "white",
+                    },
                     "> list": {
                       "display": "flex",
                     },
@@ -2140,7 +2436,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "> foldout_label": {
                     "@after": {
                       "background-image": "url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")",
-                      "margin-left": "0.5rem",
+                      "margin-left": "0.25rem",
                       "transform": "rotate(0)",
                     },
                     "@hovered, @pressed, @focused": {
@@ -2157,6 +2453,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "display": "flex",
                     "padding": "0.375rem 0.5rem",
                     "text-color": "white",
+                    "text-leading": "1.5",
                     "text-weight": "400",
                     "transition": "all 0.2s ease-in-out",
                   },
@@ -2169,17 +2466,19 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "corner": "0.25rem",
                     "display": "none",
                     "left": "0",
-                    "list-style": "none",
-                    "min-width": "10rem",
+                    "min-width": "100%",
                     "padding": "0.25rem",
-                    "padding-left": "0",
                     "position": "absolute",
+                    "shadow": "0 0.5rem 1rem rgb(0 0 0 / 30%)",
                     "top": "100%",
                     "z-index": "10",
                   },
+                  "> list > item": {
+                    "margin-top": "0",
+                  },
                   ">> item": {
                     "list-style": "none",
-                    "padding": "0.375rem 1rem",
+                    "padding": "0",
                   },
                   ">> link": {
                     "@hovered": {
@@ -2189,29 +2488,43 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "align-self": "stretch",
                     "corner": "0",
                     "display": "block",
-                    "margin": "-0.375rem -1rem",
+                    "flex": "1 1 auto",
+                    "margin": "0",
                     "padding": "0.375rem 1rem",
                     "text-color": "slate_80",
                     "text-decoration": "none",
-                    "width": "100%",
                   },
                   "position": "relative",
                 },
                 "modal": {
                   "$name": "modal",
                   "$type": "style",
+                  "> article": {
+                    "> footer": {
+                      "text-align": "right",
+                    },
+                    "margin": "0",
+                    "width": "100%",
+                    "width-max": "700px",
+                  },
                   "@opened": {
                     "display": "flex",
                   },
                   "anchor": "0",
-                  "background-color": "rgb(0 0 0 / 50%)",
+                  "backdrop-filter": "blur(0.375rem)",
+                  "background-color": "rgb(8 9 10 / 75%)",
                   "border-width": "0",
                   "child-align": "center",
                   "child-justify": "center",
                   "display": "none",
+                  "height": "100%",
+                  "height-max": "100%",
+                  "margin": "0",
                   "padding": "1rem",
                   "position": "fixed",
                   "text-color": "slate_90",
+                  "width": "100%",
+                  "width-max": "100%",
                   "z": "999",
                 },
                 "muted": {
@@ -2227,8 +2540,15 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "child-gap": "1rem",
                     "child-layout": "row",
                     "display": "flex",
-                    "list-style": "none",
-                    "padding-left": "0",
+                  },
+                  "> list > item": {
+                    "padding": "1rem 0.5rem",
+                  },
+                  "> list > item > link": {
+                    "@hovered": {
+                      "text-decoration": "underline",
+                    },
+                    "text-decoration": "none",
                   },
                   "child-align": "center",
                   "child-gap": "1rem",
@@ -2252,13 +2572,15 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$type": "style",
                   "display": "block",
                   "list-style": "decimal",
-                  "padding-left": "1.5rem",
+                  "margin-bottom": "1rem",
+                  "padding-left": "40px",
                 },
                 "overflow_auto": {
                   "$name": "overflow_auto",
                   "$type": "style",
                   "display": "block",
                   "overflow-x": "auto",
+                  "pointer_events": "auto",
                   "width": "100%",
                 },
                 "overlay": {
@@ -2266,6 +2588,12 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$type": "style",
                   "inset": "0",
                   "position": "absolute",
+                },
+                "paragraph": {
+                  "$name": "paragraph",
+                  "$type": "style",
+                  "display": "block",
+                  "margin-bottom": "1rem",
                 },
                 "picture": {
                   "$name": "picture",
@@ -2295,13 +2623,33 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "progress": {
                   "$name": "progress",
                   "$type": "style",
+                  "@bar": {
+                    "background-color": "transparent",
+                  },
+                  "@fill": {
+                    "background-color": "sky_40",
+                    "corner": "0.25rem",
+                  },
+                  "@indeterminate": {
+                    "@bar": {
+                      "background-color": "transparent",
+                    },
+                    "animation-duration": "1s",
+                    "animation-iteration-count": "infinite",
+                    "animation-name": "progress_indeterminate",
+                    "animation-timing-function": "linear",
+                    "background-image": "linear-gradient(to right, var(--theme-color-sky_40) 30%, var(--theme-color-slate_30) 30%)",
+                    "background-size": "150% 150%",
+                  },
                   "accent-color": "sky_40",
+                  "appearance": "none",
                   "background-color": "slate_30",
                   "border-style": "none",
                   "border-width": "0",
                   "corner": "0.25rem",
                   "display": "inline-block",
                   "height": "0.5rem",
+                  "overflow": "hidden",
                   "text-color": "sky_40",
                   "width": "100%",
                 },
@@ -2321,13 +2669,15 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "quote": {
                   "$name": "quote",
                   "$type": "style",
+                  "> :last-child": {
+                    "margin-bottom": "0",
+                  },
                   "border-left-color": "slate_30",
                   "border-left-style": "solid",
                   "border-left-width": "0.25rem",
-                  "child-gap": "0.5rem",
-                  "child-layout": "column",
-                  "display": "flex",
-                  "margin": "1rem 0",
+                  "display": "block",
+                  "margin-bottom": "1rem",
+                  "margin-top": "1rem",
                   "padding": "1rem",
                 },
                 "radio": {
@@ -2338,8 +2688,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "border-color": "sky_40",
                     "border-width": "0.35rem",
                   },
+                  "@disabled": {
+                    "cursor": "not-allowed",
+                    "opacity": "0.5",
+                    "pointer-events": "none",
+                  },
                   "@focused": {
-                    "shadow": "0 0 0 0.125rem var(--theme-color-sky_40)",
+                    "border-color": "sky_40",
+                    "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
                   },
                   "appearance": "none",
                   "background-color": "slate_30",
@@ -2369,6 +2725,11 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "pointer_events": "none",
                   "position": "absolute",
                 },
+                "scroller": {
+                  "$name": "scroller",
+                  "$type": "style",
+                  "pointer_events": "auto",
+                },
                 "search": {
                   "$name": "search",
                   "$type": "style",
@@ -2382,17 +2743,55 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "section": {
                   "$name": "section",
                   "$type": "style",
-                  "child-gap": "1rem",
-                  "child-layout": "column",
-                  "display": "flex",
+                  "display": "block",
+                  "margin-bottom": "1rem",
                 },
                 "slider": {
                   "$name": "slider",
                   "$type": "style",
-                  "accent-color": "sky_60",
+                  "@disabled": {
+                    "cursor": "not-allowed",
+                    "opacity": "0.5",
+                    "pointer-events": "none",
+                  },
+                  "@pressed": {
+                    "@thumb": {
+                      "transform": "scale(1.25)",
+                    },
+                  },
+                  "@pressed, @focused": {
+                    "@thumb": {
+                      "background-color": "sky_40",
+                    },
+                    "@track": {
+                      "background-color": "slate_40",
+                    },
+                  },
+                  "@thumb": {
+                    "appearance": "none",
+                    "background-color": "slate_50",
+                    "border-color": "slate_20",
+                    "border-style": "solid",
+                    "border-width": "2px",
+                    "corner": "50%",
+                    "cursor": "pointer",
+                    "height": "1.25rem",
+                    "margin-top": "-0.4375rem",
+                    "transition": "background-color 0.2s ease-in-out, transform 0.2s ease-in-out",
+                    "width": "1.25rem",
+                  },
+                  "@track": {
+                    "background-color": "slate_30",
+                    "background-image": "linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%))",
+                    "corner": "0.25rem",
+                    "height": "0.375rem",
+                    "transition": "background-color 0.2s ease-in-out",
+                    "width": "100%",
+                  },
+                  "appearance": "none",
                   "background-color": "transparent",
                   "corner": "0.25rem",
-                  "cursor": "default",
+                  "cursor": "pointer",
                   "height": "1.25rem",
                   "pointer_events": "auto",
                   "width": "100%",
@@ -2400,7 +2799,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "small": {
                   "$name": "small",
                   "$type": "style",
-                  "text-size": "0.875rem",
+                  "text-size": "0.875em",
                 },
                 "stack": {
                   "$name": "stack",
@@ -2465,7 +2864,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "left": "0",
                     "position": "absolute",
                     "top": "0",
-                    "transition": "transform 0.2s ease-in-out",
+                    "transition": "transform 0.1s ease-in-out",
                     "width": "0.875rem",
                   },
                   "@checked": {
@@ -2473,14 +2872,19 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                       "transform": "translateX(1rem)",
                     },
                     "background-color": "sky_40",
-                    "border-color": "slate_40",
+                    "border-color": "sky_40",
+                  },
+                  "@disabled": {
+                    "cursor": "not-allowed",
+                    "opacity": "0.5",
+                    "pointer-events": "none",
                   },
                   "@focused": {
-                    "shadow": "0 0 0 0.125rem var(--theme-color-sky_40)",
+                    "shadow": "0 0 0 0.125rem rgb(14 165 233 / 37.5%)",
                   },
                   "appearance": "none",
-                  "background-color": "slate_40",
-                  "border-color": "slate_40",
+                  "background-color": "slate_45",
+                  "border-color": "slate_45",
                   "border-style": "solid",
                   "border-width": "0.1875rem",
                   "corner": "1.25rem",
@@ -2488,7 +2892,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "height": "1.25rem",
                   "pointer_events": "auto",
                   "position": "relative",
-                  "transition": "background-color 0.2s ease-in-out",
+                  "transition": "background-color 0.2s ease-in-out, border-color 0.2s ease-in-out",
                   "width": "2.25rem",
                 },
                 "table": {
@@ -2496,7 +2900,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "$type": "style",
                   "border-collapse": "collapse",
                   "display": "table",
-                  "margin": "1rem 0",
+                  "margin-bottom": "1rem",
                   "text-align": "left",
                   "width": "100%",
                 },
@@ -2517,7 +2921,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                     "border-bottom-width": "0.1875rem",
                     "text-weight": "600",
                   },
-                  ">> header_cell": {
+                  ">> head": {
                     "border-bottom-width": "0.1875rem",
                     "text-weight": "600",
                   },
@@ -2563,9 +2967,14 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                 "textarea": {
                   "$name": "textarea",
                   "$type": "style",
+                  "+ small": {
+                    "margin-bottom": "1rem",
+                    "margin-top": "0.25rem",
+                  },
                   "@disabled": {
                     "cursor": "not-allowed",
                     "opacity": "0.5",
+                    "pointer-events": "none",
                   },
                   "@focused": {
                     "border-color": "sky_40",
@@ -2573,6 +2982,10 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   },
                   "@placeholder": {
                     "text-color": "slate_70",
+                  },
+                  "@readonly @focused": {
+                    "border-color": "slate_40",
+                    "shadow": "none",
                   },
                   "background-color": "slate_30",
                   "border-color": "slate_40",
@@ -2584,6 +2997,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
                   "resize": "vertical",
                   "text-color": "slate_90",
                   "transition": "all 0.2s ease-in-out",
+                  "width": "100%",
                 },
                 "textbox": {
                   "$name": "textbox",
@@ -3218,6 +3632,7 @@ exports[`screen > screen tree construction (full ui/create stream at connect) 1`
               "xl": 1280,
               "xs": 400,
             },
+            "root_text_size": "",
           },
         },
         {
