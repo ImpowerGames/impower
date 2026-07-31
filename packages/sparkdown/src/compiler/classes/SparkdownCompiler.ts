@@ -322,6 +322,12 @@ export class SparkdownCompiler {
       this._config.skipValidation = config.skipValidation;
     }
     if (
+      config.stripImageData !== undefined &&
+      config.stripImageData !== this._config.stripImageData
+    ) {
+      this._config.stripImageData = config.stripImageData;
+    }
+    if (
       config.workspace !== undefined &&
       config.workspace !== this._config.workspace
     ) {
@@ -2527,6 +2533,13 @@ export class SparkdownCompiler {
         }
         program.context[type][name] = { ...file, ...contextFile };
         delete program.context[type][name].text;
+        if (this._config.stripImageData) {
+          // #299: hosts that resolve filtered images through the on-demand
+          // `?filters=` service-worker route don't need the inlined SVG
+          // source, which dominated the program payload. Only the context
+          // COPY is stripped — the file registry keeps the source.
+          delete program.context[type][name].data;
+        }
 
         state.contextPropertyRegistry ??= {};
         state.contextPropertyRegistry[type] ??= {};

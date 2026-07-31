@@ -1,5 +1,7 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import { FetchGameAssetMessage } from "../../../packages/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage";
+import { filterSVG } from "../../../packages/sparkdown/src/compiler/utils/filterSVG";
+import { parseImageFilterParam } from "../../../packages/sparkdown/src/filters/filteredSvg";
 
 export {};
 declare const self: ServiceWorkerGlobalScope;
@@ -49,6 +51,28 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
       const buffer = transfer[0];
       const filename = path.split("/").at(-1);
       const contentType = guessType(filename || "");
+
+      // On-demand filtered SVG variants (#299): the round-trip only relays
+      // the PATH to the editor, so the filters param must be honored here or
+      // filtered_src URLs silently render unfiltered. No Cache Storage in
+      // this SW on purpose — it never learns the file's lastModified/size, so
+      // a cache here could never invalidate on mid-session edits; per-fetch
+      // recompute matches how every asset is relayed through this worker.
+      const filtersParam = url.searchParams.get("filters");
+      if (filtersParam && contentType === "image/svg+xml") {
+        const filter = parseImageFilterParam(filtersParam);
+        if (filter) {
+          const filtered = filterSVG(new TextDecoder().decode(buffer), filter);
+          return new Response(filtered, {
+            status: 200,
+            headers: new Headers({
+              "Content-Type": "image/svg+xml",
+              "Cache-Control": "max-age=31536000, immutable",
+            }),
+          });
+        }
+      }
+
       const contentLength = buffer.byteLength;
       const headers = new Headers({
         "Content-Type": contentType,

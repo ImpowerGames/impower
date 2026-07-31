@@ -266,6 +266,10 @@ export default function PreviewGame(_props: PreviewGameProps) {
                 descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
               },
               skipValidation: true,
+              // Filtered images resolve through the service worker's
+              // on-demand `?filters=` route in this host (#299); the player's
+              // own compiler doesn't need the inlined SVG source either.
+              stripImageData: true,
               uri,
               workspace: projectPath,
               ...getGameConfiguration(),

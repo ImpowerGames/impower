@@ -7,6 +7,7 @@ import {
   SparkdownDocumentRegistry,
 } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { buildSVGSource } from "@impower/sparkdown/src/compiler/utils/buildSVGSource";
 import { resolveFileUsingImpliedExtension } from "@impower/sparkdown/src/compiler/utils/resolveFileUsingImpliedExtension";
 import COMPILER_INLINE_WORKER_STRING from "@impower/sparkdown/src/worker/sparkdown.worker";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
@@ -267,10 +268,56 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     { fingerprint: string; version: number | undefined }
   >();
 
+  /**
+   * Under `stripImageData` (#299) the program's image structs arrive without
+   * their inlined SVG source, but LS-side previews (hover/completion
+   * `filterImage` calls, composite previews) still read `image.data` — and in
+   * VS Code the markdown sanitizer only loads http(s)/data: srcs, so previews
+   * of FILTERED svgs must stay data-URI-based. Attach a lazy, self-memoizing
+   * `data` getter that rebuilds the source from `_watchedFiles` (which
+   * retains every svg's text and refreshes it on change) on first access —
+   * so nothing pays for it until a preview actually needs it.
+   */
+  protected attachLazyImageData(program: {
+    context?: { image?: Record<string, any> };
+  }): void {
+    const images = program?.context?.image;
+    if (!images) {
+      return;
+    }
+    for (const image of Object.values(images)) {
+      if (
+        !image ||
+        typeof image !== "object" ||
+        "data" in image ||
+        image.ext !== "svg" ||
+        typeof image.uri !== "string"
+      ) {
+        continue;
+      }
+      Object.defineProperty(image, "data", {
+        configurable: true,
+        enumerable: true,
+        get: () => {
+          const text = this._watchedFiles.get(image.uri)?.text;
+          const value = text ? buildSVGSource(text) : undefined;
+          Object.defineProperty(image, "data", {
+            configurable: true,
+            enumerable: true,
+            writable: true,
+            value,
+          });
+          return value;
+        },
+      });
+    }
+  }
+
   override onCompiledTextDocument(params: {
     textDocument?: { uri: string };
     program: any;
   }): void {
+    this.attachLazyImageData(params.program);
     const uris = Array.from(this._documentVersions.keys());
     for (const uri of uris) {
       const version = this._documentVersions.get(uri);

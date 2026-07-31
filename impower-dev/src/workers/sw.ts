@@ -1,6 +1,7 @@
 export default null;
 declare var self: ServiceWorkerGlobalScope;
 
+import { getOrCreateFilteredSvg as getOrCreateFilteredSvgShared } from "@impower/sparkdown/src/filters/filteredSvg";
 import { getOrCreateThumbnail as getOrCreateThumbnailShared } from "@impower/sparkdown/src/thumbnails/composeThumbnail";
 import { getStaleCacheNames } from "./swCaches";
 
@@ -23,6 +24,11 @@ const SW_CACHE_NAME: string = `cache-${SW_VERSION}`;
 // THUMB_VERSION (in the shared generator) to invalidate every thumbnail when
 // the generation logic changes. Kept across `activate`'s cache sweep.
 const SW_THUMB_CACHE_NAME: string = "asset-thumbnails";
+// On-demand filtered SVG variants (#299): same discipline as thumbnails — a
+// FIXED bucket surviving SW updates, keyed by file signature + canonical
+// filter param + FILTER_VERSION (see filters/filteredSvg), with superseded
+// signatures pruned on write.
+const SW_FILTERED_CACHE_NAME: string = "filtered-svgs";
 const SW_RESOURCES: string[] = JSON.parse(
   typeof SW_RESOURCES_INJECTED !== "undefined" ? SW_RESOURCES_INJECTED : "[]",
 );
@@ -79,6 +85,19 @@ async function handleLocalAssetRequest(url: URL) {
     }
   }
 
+  // `filtered_image` variants resolve as `?filters=<canonical>` on the root
+  // SVG's url (#299): apply filterSVG here (SVG-only) and cache the result by
+  // file signature + filter combo, so the program never has to embed SVG
+  // source just to make filtering possible. Garbage or no-op params fall
+  // through to the unfiltered original.
+  const filtersParam = url.searchParams.get("filters");
+  if (filtersParam && contentType === "image/svg+xml") {
+    const filtered = await getOrCreateFilteredSvg(path, file, filtersParam);
+    if (filtered) {
+      return filtered;
+    }
+  }
+
   const headers = new Headers({
     "Content-Type": contentType,
     "Content-Length": String(contentLength),
@@ -115,6 +134,36 @@ async function getOrCreateThumbnail(
       path,
       file,
       thumbParam,
+      RESOURCE_PROTOCOL,
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Cached-or-freshly-filtered SVG variant, or `undefined` (caller serves the
+ * unfiltered original). Same thin-adapter shape as `getOrCreateThumbnail`:
+ * this supplies Cache Storage, the shared generator owns canonicalization,
+ * the signature key, and superseded-signature pruning.
+ */
+async function getOrCreateFilteredSvg(
+  path: string,
+  file: File,
+  filtersParam: string,
+): Promise<Response | undefined> {
+  try {
+    const cache = await caches.open(SW_FILTERED_CACHE_NAME);
+    return await getOrCreateFilteredSvgShared(
+      {
+        match: (key) => cache.match(key),
+        put: (key, response) => cache.put(key, response),
+        delete: (key) => cache.delete(key),
+        keys: () => cache.keys(),
+      },
+      path,
+      file,
+      filtersParam,
       RESOURCE_PROTOCOL,
     );
   } catch {
@@ -170,7 +219,11 @@ self.addEventListener("activate", (e) => {
     (async () => {
       const names = await caches.keys();
       await Promise.all(
-        getStaleCacheNames(names, [SW_CACHE_NAME, SW_THUMB_CACHE_NAME]).map(
+        getStaleCacheNames(names, [
+          SW_CACHE_NAME,
+          SW_THUMB_CACHE_NAME,
+          SW_FILTERED_CACHE_NAME,
+        ]).map(
           (name) => caches.delete(name),
         ),
       );

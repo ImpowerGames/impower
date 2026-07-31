@@ -1,3 +1,4 @@
+import { buildFilteredSrc } from "../../filters/filteredSvg";
 import { filterMatchesName } from "./filterMatchesName";
 import { filterSVG } from "./filterSVG";
 
@@ -88,6 +89,16 @@ export const filterImage = (
               imageToFilter.data,
               combinedFilter,
             );
+          } else {
+            // stripImageData host (#299): the root's SVG source is not
+            // inlined; resolve to an on-demand URL that the service worker
+            // filters lazily. Falls back to the PLAIN root src for remote or
+            // raster roots and for no-op filters (an unfiltered image beats
+            // no image).
+            const filteredSrc = buildFilteredSrc(imageToFilter, combinedFilter);
+            if (filteredSrc) {
+              filteredImage.filtered_src = filteredSrc;
+            }
           }
         }
         if (
