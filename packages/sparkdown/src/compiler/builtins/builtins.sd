@@ -1828,9 +1828,11 @@ style slider with
   appearance = none
   @track:
     width = 100%
-    height = 0.25rem
+    height = 0.375rem
     corner = 0.25rem
     background-color = slate_30
+    -- The track lightens under the press, the same tell as the thumb growing.
+    transition = background-color 0.2s ease-in-out
     -- The FILLED part of the track, left of the thumb.
     --
     -- `--_fill-percentage` is computed by the engine from value/min/max and
@@ -1850,36 +1852,65 @@ style slider with
     background-image = linear-gradient(to right, var(--theme-color-sky_40) var(--_fill-percentage, 0%), transparent var(--_fill-percentage, 0%))
   @thumb:
     appearance = none
-    width = 1.125rem
-    height = 1.125rem
+    width = 1.25rem
+    height = 1.25rem
     corner = 50%
     background-color = slate_50
-    border-width = 0
-    cursor = grab
+    -- `px`, not `rem`, and deliberately -- the only fixed length on the
+    -- control. Every other size here is typographic and scales with the root
+    -- font size (which the reference steps up per breakpoint), but this ring
+    -- is a separator, not type. In `rem` it would be 2.25px at an 18px root
+    -- and 2.5px at 20px, thickening the ring and eating the thumb's fill as
+    -- the page got bigger. The reference hardcodes 2px for the same reason.
+    border-width = 2px
+    border-style = solid
+    -- The ring that separates the thumb from the track, matching the reference
+    -- (`2px solid var(--pico-background-color)`) -- it is the BACKDROP colour,
+    -- not a border in the usual sense, which is why it reads as a gap rather
+    -- than an outline. `slate_20` is this theme's page background; a project on
+    -- a differently-coloured page has to restate it, exactly as Pico would.
+    border-color = slate_20
+    cursor = pointer
     -- `appearance: none` collapses the track to its own box, so the thumb has
-    -- to be lifted by half its overhang to sit centred on it.
+    -- to be lifted by half its overhang: -(thumb - track) / 2. At 1.25rem over
+    -- a 0.375rem track that is -0.4375rem, and it MOVES if either size changes
+    -- -- the three are one measurement, not three constants.
+    --
+    -- This value did NOT change when the thumb and track were sized up to the
+    -- reference, and that is the whole reason they were able to sit undersized
+    -- unnoticed. Both were an eighth of a rem short (1.125 over 0.25), which
+    -- leaves the DIFFERENCE at 0.875rem either way, so the derived offset was
+    -- correct for the wrong pair. A centred thumb proves nothing about scale.
     margin-top = -0.4375rem
     -- `transform` is in the transition because the PRESS animates it. Without
     -- it the thumb still scales, it just snaps -- the state would be right and
     -- the motion missing.
     transition = background-color 0.2s ease-in-out, transform 0.2s ease-in-out
-  @hovered:
+  -- The reference tints the thumb on PRESS AND FOCUS, and has no hover state
+  -- at all. We had one, and it was why the press read wrong: the pointer is
+  -- necessarily on top of the thumb at the moment of a press, so a thumb
+  -- already tinted by hover cannot also change colour on press -- the only
+  -- thing left to see was the scale. Dropping hover gives the colour back to
+  -- the press, which is the state that actually means something.
+  --
+  -- Focus is grouped with press because a keyboard user gets no press: arrow
+  -- keys move the value with the control focused and never active, so without
+  -- this the thumb would sit untinted through the whole interaction.
+  --
+  -- `:active`/`:focus` sit on the INPUT and the thumb is a pseudo-element OF
+  -- it, so `@thumb` nests INSIDE them and not the other way round -- a
+  -- pseudo-element cannot itself be active or focused.
+  @pressed, @focused:
+    @track:
+      background-color = slate_40
     @thumb:
       background-color = sky_40
-  -- Pressing GROWS the thumb, matching the reference
-  -- (`[type=range]:active::-webkit-slider-thumb { transform: scale(1.25) }`).
-  -- The scale is what reads as "grabbed": a colour change alone does not,
-  -- because the thumb is already tinted on hover and the pointer is sitting on
-  -- top of it at the moment of the press.
-  --
-  -- `:active` sits on the INPUT and the thumb is a pseudo-element OF it, so
-  -- `@thumb` nests inside `@pressed` and not the other way round -- a
-  -- pseudo-element cannot itself be `:active`.
+  -- The GROWTH is press-only, unlike the tint above -- it is the direct
+  -- feedback of a pointer holding the thumb, and the reference scopes it the
+  -- same way (`[type=range]:active::-webkit-slider-thumb`).
   @pressed:
     @thumb:
       transform = scale(1.25)
-      background-color = sky_40
-      cursor = grabbing
   @disabled:
     opacity = 0.5
     cursor = not-allowed

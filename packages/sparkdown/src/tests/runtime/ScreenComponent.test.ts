@@ -217,7 +217,15 @@ end
     });
   });
 
-  test("multiple builtin tags on one element line warns (does not error)", () => {
+  // This used to warn. An element line was read as a bag of names, so a builtin
+  // sitting anywhere on it was a candidate TAG, and two of them were ambiguous.
+  //
+  // Position decides now: the FIRST name is the tag and every name after it is a
+  // class, whether or not it happens to also be a builtin. `button text "Oops"`
+  // is a button carrying the `text` class -- unambiguous, so there is nothing to
+  // warn about. Requiring class names to avoid colliding with the ~60 builtins
+  // would be a rule authors could not keep in their heads.
+  test("a builtin name after the tag is a class, not a second tag", () => {
     const compiler = new SparkdownCompiler();
     compiler.configure({
       files: [
@@ -247,7 +255,13 @@ end
         );
       }
     }
-    expect(messages.some((m) => m.includes("only have one tag"))).toBe(true);
+    expect(messages.some((m) => m.includes("only have one tag"))).toBe(false);
+    // Not merely unwarned -- actually lowered, as `<button class="button text">`.
+    // Asserting only the absence of the diagnostic would pass just as happily if
+    // the trailing name were dropped on the floor.
+    expect(JSON.stringify(result.program.context?.["layout"])).toContain(
+      "button text",
+    );
   });
 });
 

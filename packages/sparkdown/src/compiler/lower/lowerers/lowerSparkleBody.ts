@@ -216,9 +216,14 @@ function descendants(node: SyntaxNode, names: Set<string>): SyntaxNode[] {
 /** Tag + classes from an object-header/bare-marker node. Per the sparkle rule:
  *  the BUILTIN/component token is the tag (position-independent — `mask shadow_1`
  *  and `shadow_1 mask` both → tag "mask"); every OTHER bare word (and bare
- *  number) is a class. A line with more than one builtin tag is ambiguous, so a
- *  warning is emitted (the first builtin is kept as the tag). With no builtin,
- *  the first token is taken as the (component) tag. */
+ *  number) is a class. With no builtin, the first token is taken as the
+ *  (component) tag.
+ *
+ *  Only the FIRST name on a line is tokenized as a `BuiltinComponentName` — a
+ *  builtin name appearing after it is an ordinary class, so `button text` is a
+ *  button classed `text` rather than two competing tags. `warnMultipleTags`
+ *  below therefore no longer fires from this path; it is kept as a guard in case
+ *  another node shape yields two builtin tokens. */
 function tagAndClasses(
   node: SyntaxNode,
   ctx: LowerContext,
