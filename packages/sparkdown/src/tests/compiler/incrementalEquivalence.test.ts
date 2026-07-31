@@ -228,6 +228,114 @@ describe("compiler incremental equivalence", () => {
     }
   });
 
+  it("incremental == cold across reuse-repair sequences (flow-reuse hazards)", () => {
+    // Multi-step sequences targeting the incremental-ExportRuntime failure
+    // modes that only appear when an UNCHANGED (reused) flow's cached runtime
+    // subtree must be repaired by re-resolution:
+    //  - read-count removal: the target flow's `#f` count flag must DECAY on
+    //    its reused container (set-only cross-flow flag reconcile);
+    //  - rename-then-rename-back: a reused flow's divert must drop its stale
+    //    resolved path when the target vanishes AND re-resolve when it
+    //    returns (epoch-guarded targetContent + targetPath restore);
+    //  - a global `store` declared INSIDE a scene registers into the story
+    //    at GENERATION time, so that scene must be disqualified from reuse;
+    //  - an anonymous fn added EARLIER renumbers `__synth_<n>` ordinals baked
+    //    into a LATER unchanged flow at generation (rename demotion).
+    const SCENARIOS: {
+      name: string;
+      steps: { find: string; replace: string }[];
+    }[] = [
+      {
+        name: "remove last read-count reference, then edit elsewhere",
+        steps: [
+          // scene_2 holds the ONLY read-count of scene_3; removing it must
+          // clear scene_3's visit flag even though scene_3 is reused.
+          { find: "read-count {scene_3} here.", replace: "read-count gone." },
+          { find: "Not yet in scene 9.", replace: "Not yet in scene 9!" },
+        ],
+      },
+      {
+        name: "rename a divert target away and back",
+        steps: [
+          { find: "scene scene_4", replace: "scene scene_4x" },
+          { find: "scene scene_4x", replace: "scene scene_4" },
+        ],
+      },
+      {
+        name: "global store declared inside a scene, then edit elsewhere",
+        steps: [
+          {
+            find: "  Action describing room 5 in some detail here.",
+            replace:
+              "  Action describing room 5 in some detail here.\nstore inscene_flag = 7",
+          },
+          { find: "Not yet in scene 10.", replace: "Not yet in scene 10?" },
+        ],
+      },
+      {
+        name: "anonymous fn added earlier renumbers later synthetics",
+        steps: [
+          // Seed a synthetic in a LATE scene first...
+          {
+            find: "  Action describing room 11 in some detail here.",
+            replace:
+              "  Action describing room 11 in some detail here.\n& local f11 = function(x) return x + 1 end",
+          },
+          // ...then add one EARLIER: scene_11 is unchanged (reused) but its
+          // `__synth_<n>` ordinal shifts, so it must be regenerated.
+          {
+            find: "  Action describing room 1 in some detail here.",
+            replace:
+              "  Action describing room 1 in some detail here.\n& local f1 = function(x) return x + 2 end",
+          },
+          { find: "Not yet in scene 12.", replace: "Not yet in scene 12!!" },
+        ],
+      },
+    ];
+    const realWarn = console.warn;
+    const realError = console.error;
+    console.warn = () => {};
+    console.error = () => {};
+    try {
+      for (const scenario of SCENARIOS) {
+        let text = coupledScreenplay();
+        const incr = new SparkdownCompiler();
+        incr.configure({
+          files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
+        });
+        incr.compile({ textDocument: { uri: URI } });
+        let version = 1;
+        for (const [stepIdx, step] of scenario.steps.entries()) {
+          const offset = text.indexOf(step.find);
+          expect(
+            offset,
+            `${scenario.name}: find "${step.find}" present`,
+          ).toBeGreaterThanOrEqual(0);
+          const start = posAt(text, offset);
+          const end = posAt(text, offset + step.find.length);
+          version += 1;
+          incr.updateDocument({
+            textDocument: { uri: URI, version },
+            contentChanges: [{ range: { start, end }, text: step.replace }],
+          });
+          text =
+            text.slice(0, offset) +
+            step.replace +
+            text.slice(offset + step.find.length);
+          const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+          const coldProg = coldCompile(text);
+          expect(
+            stable(incrProg),
+            `${scenario.name}: step ${stepIdx + 1}`,
+          ).toBe(stable(coldProg));
+        }
+      }
+    } finally {
+      console.warn = realWarn;
+      console.error = realError;
+    }
+  });
+
   it("incremental == cold location maps when a structural edit changes the flow set", () => {
     // Breaking the FIRST scene's header removes it from the flow set and shifts
     // the document-global `dataLocations` ownership (the first `& trust =`, which
