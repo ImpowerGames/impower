@@ -584,6 +584,9 @@ export class Story extends FlowBase {
     message: string,
     source: ParsedObject | DebugMetadata | null | undefined,
     isWarning: boolean | null | undefined,
+    // Node that raised the diagnostic (see `ParsedObject.Error`). Defaults to
+    // `source` for the direct callers that don't bubble through a parent.
+    raiser?: ParsedObject,
   ) => {
     let errorType: ErrorType = isWarning ? ErrorType.Warning : ErrorType.Error;
 
@@ -595,8 +598,15 @@ export class Story extends FlowBase {
     // chain) — then the diagnostic can't be attributed and the compiler must
     // assume the worst.
     if (this._generationPhase) {
+      // Prefer the raiser: `source` is frequently an `Identifier` or raw
+      // `DebugMetadata` (chosen for dedup/reporting), and neither carries a
+      // parent chain to attribute from.
       let node: ParsedObject | null =
-        source instanceof DebugMetadata ? null : (source ?? null);
+        raiser ??
+        (source instanceof DebugMetadata ? null : (source ?? null));
+      if (!(node instanceof ParsedObject)) {
+        node = null;
+      }
       while (node && node.parent && !(node.parent instanceof Story)) {
         node = node.parent;
       }

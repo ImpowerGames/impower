@@ -229,6 +229,16 @@ export class SparkdownCompiler {
   // generation, which would silently drop the diagnostic — such flows are
   // barred from reuse and rebuilt so the diagnostic re-emits).
   protected _flowsWithGenDiagnostics = new WeakSet<object>();
+  // Signature (arity + per-parameter flags) of every named flow last compile.
+  // A CALL SITE's bytecode depends on its CALLEE's parameter list — a trailing
+  // `...` makes the caller emit a `PackTuple` to fill the callee's varargs
+  // slot (see `Divert.GenerateRuntimeObject`) — and that is baked in at the
+  // CALLER's generation time. So editing a callee's signature must invalidate
+  // reuse of every flow that might call it, even though the caller's own
+  // chunks are untouched; otherwise the caller keeps argument-push bytecode
+  // for the old signature and the callee pops a different number of values,
+  // silently and with no diagnostic.
+  protected _prevFlowSignatures?: Map<string, string>;
   // Per-file identity sequence of ROOT-REGION chunks (loose content before
   // the first flow, externals, post-external loose content, include/run
   // sites). Any change there can shift consts/globals whose values were
@@ -512,6 +522,9 @@ export class SparkdownCompiler {
     this._filesEpoch++;
     this.files.remove(params);
     const file = params.file;
+    // Drop the root-region record for this file — it strongly references that
+    // file's chunk IR, and nothing else prunes this map.
+    this._lastRootBlocksByUri?.delete(file.uri);
     const removed = this.documents.remove({ textDocument: { uri: file.uri } });
     this._events[RemovedCompilerFileMessage.method].forEach((l) => {
       l?.({ textDocument: { uri: file.uri } });
@@ -763,10 +776,34 @@ export class SparkdownCompiler {
       // carried-forward chunk re-emits the same diagnostics a cold compile
       // would, without a per-compile tree walk.)
       //
+      // A callee's signature is baked into its CALLERS' bytecode at their
+      // generation time, so a signature change invalidates reuse of flows
+      // whose own chunks are untouched (see `_prevFlowSignatures`). The
+      // current signatures aren't known until assembly finishes, so this is
+      // a post-hoc check that feeds the same demotion path as a
+      // late-discovered global change.
+      const flowSignatures = this.collectFlowSignatures(parsedStory);
+      if (this._prevFlowSignatures && !this._flowReuseDisabled) {
+        const prev = this._prevFlowSignatures;
+        let signaturesChanged = flowSignatures.size !== prev.size;
+        if (!signaturesChanged) {
+          for (const [name, sig] of flowSignatures) {
+            if (prev.get(name) !== sig) {
+              signaturesChanged = true;
+              break;
+            }
+          }
+        }
+        if (signaturesChanged) {
+          this._flowReuseDisabled = true;
+        }
+      }
+      this._prevFlowSignatures = flowSignatures;
       // Late-discovered global change (e.g. a mid-file `run` whose .luau
-      // source changed re-lowered its virtual file's root region): demote any
-      // reuse already committed before the discovery so this compile
-      // regenerates those flows from their (intact) parsed content.
+      // source changed re-lowered its virtual file's root region), or a
+      // callee-signature change discovered just above: demote any reuse
+      // already committed before the discovery so this compile regenerates
+      // those flows from their (intact) parsed content.
       if (this._flowReuseDisabled && this._reusedFlowsThisCompile?.size) {
         for (const flow of this._reusedFlowsThisCompile) {
           this.resetSubtreeRuntime(flow);
@@ -1821,6 +1858,32 @@ export class SparkdownCompiler {
   // and all of its references share the exact same string and are emitted within
   // the same chunk, so a uniform string→string remap suffices (no need to link
   // references back to definitions).
+  // Call-relevant signature of every named flow, keyed by name. Walks the
+  // flow tree only (each flow's named sub-flows), never the full parsed tree,
+  // so this is O(flows) — negligible next to a compile. See
+  // `_prevFlowSignatures` for why call sites depend on it.
+  protected collectFlowSignatures(
+    flow: FlowBase,
+    into: Map<string, string> = new Map(),
+  ): Map<string, string> {
+    for (const sub of flow.subFlowsByName.values()) {
+      const name = sub.identifier?.name;
+      if (name) {
+        const args = (sub.args ?? [])
+          .map(
+            (a) =>
+              `${a.isVararg ? "*" : ""}${a.isByReference ? "&" : ""}${
+                a.isDivertTarget ? ">" : ""
+              }`,
+          )
+          .join(",");
+        into.set(name, `${sub.isFunction ? "fn" : "knot"}(${args})`);
+      }
+      this.collectFlowSignatures(sub, into);
+    }
+    return into;
+  }
+
   // Recursively clear cached runtime objects under a constructed flow so the
   // next `ExportRuntime` regenerates it from its (intact) parsed content —
   // used to DEMOTE a flow whose committed reuse turned out to be invalid
