@@ -2,7 +2,10 @@ import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import VALID_STYLE_PROPS_DATA from "../../constants/validStyleProps.json";
-import { isAliasedAttributeProp } from "../../constants/dataAttributeProps";
+import {
+  CUSTOM_PROPERTY_ALIASES,
+  isAliasedAttributeProp,
+} from "../../constants/dataAttributeProps";
 import { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
@@ -335,7 +338,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         name.startsWith("--") ||
         name.startsWith("data-") ||
         name.startsWith("aria-") ||
-        isAliasedAttributeProp(name);
+        isAliasedAttributeProp(name) ||
+        CUSTOM_PROPERTY_ALIASES.has(normalizeStylePropName(name));
       if (
         name &&
         !isPassThrough &&

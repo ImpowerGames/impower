@@ -49,6 +49,70 @@ define ui as config with
   root_text_size = "112.5%"
 end
 
+// THE PALETTE. The engine's defaults are Tailwind's ramps and STAY that way —
+// this file repaints them for itself, which is the whole point of the exercise:
+// matching a design system should be a per-project override, not a fork of the
+// builtins.
+//
+// A colour is a `define … as color`, and `--theme-color-<name>` is generated
+// from those. (The `theme NAME with` keyword is a separate token struct and
+// does not feed this — worth knowing before reaching for it.) So overriding the
+// ~16 tokens the builtin styles actually reference repaints everything built on
+// them, without touching a single style rule.
+//
+// The slate ramp lines up with Pico's headings ONE PER LEVEL — h1..h6 are
+// slate_95, _90, (body), _75, _70, _65 in both systems, and slate_80 is
+// simultaneously body text and Pico's h3, exactly as `--pico-color` is. The
+// mapping was discovered, not imposed.
+//
+// Two tokens serve two Pico roles each and take their dominant one: slate_30 is
+// the form-element background (#1c212c) though Pico draws table/muted borders a
+// shade lighter (#202632), and slate_70 is h5 (#a4acba) though Pico's secondary
+// text is #969eaf. Both differences are under 5/255 and invisible; naming them
+// here so the next person does not hunt for a bug.
+//
+// slate_45 was a THIRD such collision and is not one any more: the switch's off
+// track had been borrowing the form-element border, so it could not be given
+// Pico's #333c4e without dragging every input border with it. It has its own
+// step now, which is the general fix — a token shared by two things that have
+// no reason to agree is a bug waiting for the first project that retints one.
+//
+// What each token pays for:
+//
+//   slate_20  backdrop, kbd text, slider thumb ring   slate_75  h4
+//   slate_30  form element background                 slate_80  body text, h3
+//   slate_40  form element border                     slate_90  h2, form text
+//   slate_45  switch off track                        slate_95  h1, contrast
+//   slate_50  secondary background, slider thumb      sky_20    mark background
+//   slate_60  muted text                              sky_40    primary button
+//   slate_65  h6, spinner                             sky_50    primary hover bg
+//   slate_70  h5                                      sky_60    link text, accent
+//                                                     sky_70    link hover text
+//
+// (Annotating each `define` on its own line would be the obvious thing and is a
+// trap: after `end`, a `--` opens an EM DASH in display context, not a comment,
+// so `end -- primary` parses as a character named "-- primary". `//` is the
+// comment that survives here, and only on a line of its own.)
+
+define slate_20 as color with value = "#13171f" end
+define slate_30 as color with value = "#1c212c" end
+define slate_40 as color with value = "#2a3140" end
+define slate_45 as color with value = "#333c4e" end
+define slate_50 as color with value = "#525f7a" end
+define slate_60 as color with value = "#7b8495" end
+define slate_65 as color with value = "#8891a4" end
+define slate_70 as color with value = "#a4acba" end
+define slate_75 as color with value = "#b3b9c5" end
+define slate_80 as color with value = "#c2c7d0" end
+define slate_90 as color with value = "#e0e3e7" end
+define slate_95 as color with value = "#f0f1f3" end
+
+define sky_20 as color with value = "#014063" end
+define sky_40 as color with value = "#0172ad" end
+define sky_50 as color with value = "#017fc0" end
+define sky_60 as color with value = "#01aaff" end
+define sky_70 as color with value = "#79c0ff" end
+
 store first_name = ""
 store email = ""
 store agreed = false

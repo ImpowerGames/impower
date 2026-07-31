@@ -1,3 +1,4 @@
+import { toCustomPropertyName } from "../../../sparkdown/src/compiler/constants/dataAttributeProps";
 import { getVarName } from "../../../spark-engine/src/game/modules/ui/utils/getVarName";
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
@@ -10,10 +11,22 @@ export const getCSSPropertyKeyValue = (
   name: string,
   value: unknown,
 ): [string, string] => {
-  if (name.startsWith("--")) {
-    return [name, String(value)];
-  }
-  const cssProp = getCSSPropertyName(name);
+  // A custom property, either written as one (`#--spinner-color`) or aliased to
+  // one (`#spinner-color`). Only the NAME is special; the value still goes
+  // through the resolution below, so an already-resolved token object becomes
+  // `var(--theme-color-…)` instead of stringifying to `[object Object]`, which
+  // is what the early return it replaced used to do.
+  //
+  // KNOWN GAP: a BARE token name does not reach here as an object. Upstream
+  // resolves `sky_60` to a colour only for props it knows are colour-valued,
+  // and an aliased custom property is not one, so `#spinner-color=sky_60`
+  // arrives as the string `"sky_60"` and emits an inert declaration. Literals
+  // (`"red"`, `"#8891a4"`) and an explicit `"var(--theme-color-sky_60)"` both
+  // work. Teaching the compiler that an alias is colour-valued is the real
+  // fix; it is not in this layer.
+  const cssProp = name.startsWith("--")
+    ? name
+    : (toCustomPropertyName(name) ?? getCSSPropertyName(name));
   const cssValue =
     typeof value === "object" &&
     value &&

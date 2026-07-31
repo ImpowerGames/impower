@@ -918,6 +918,14 @@ define slate_50 as color with
   value = "rgb(71,85,105)"
 end
 
+-- Halfway between slate_40 and slate_50, like slate_65 and slate_75 below.
+-- Exists because the switch's OFF track wants its own step: it was borrowing
+-- the form-element border colour, which meant a project retinting its inputs
+-- silently moved the switch too, and the two have no reason to agree.
+define slate_45 as color with
+  value = "rgb(61,75,95)"
+end
+
 define slate_60 as color with
   value = "rgb(100,116,139)"
 end
@@ -1263,6 +1271,48 @@ style layouts with
       animation-name = tooltip_caret_slide
       animation-duration = 0.2s
       animation-fill-mode = forwards
+  -- BUSY. Any element carrying `#busy=true` grows a spinner:
+  --
+  --   button "Save" #busy={saving}
+  --   box #busy={loading}
+  --   article #busy=true
+  --
+  -- Declared HERE, once, rather than per-component. It used to live inside
+  -- `style button` and `style article` as two separate copies, which is why a
+  -- busy `box` or `row` showed nothing at all -- the state was authorable on
+  -- anything and only two elements had been taught to draw it. The copies had
+  -- also drifted to different sizes (0.75rem and 1.25rem) and different
+  -- colours, so the same state looked like two different components.
+  --
+  -- `1em`, so it scales with whatever text it sits beside, and `0.1667em` of
+  -- stroke -- the reference's 4/24 of its 24-unit viewBox, in the box's own
+  -- units so the ring keeps its weight at any size.
+  & >> @busy:
+    @before:
+      content = ""
+      display = inline-block
+      width = 1em
+      height = 1em
+      vertical-align = -0.125em
+      corner = 50%
+      border-width = 0.1667em
+      border-style = solid
+      -- NO faint full ring behind the arc. The reference's circle is
+      -- `stroke-dasharray`'d, so only the arc is ever painted -- the trailing
+      -- ring is a different spinner idiom that reads as a progress track.
+      --
+      -- (A `color-mix()` here for a translucent track was silently CORRUPTED:
+      -- a colour-valued prop whose value is not already `var(...)` is treated
+      -- as a token NAME, so it emitted
+      -- `var(--theme-color-color-mix(in srgb, ...))` -- a valid-looking
+      -- declaration referencing a variable that cannot exist. Colour props
+      -- take a token name or a `var()`, not arbitrary CSS colour functions.)
+      border-color = transparent
+      border-top-color = var(--spinner-color, var(--theme-color-slate_65))
+      animation-name = spin
+      animation-duration = 0.75s
+      animation-timing-function = linear
+      animation-iteration-count = infinite
 end
 
 style row with
@@ -1582,19 +1632,16 @@ style button with
   -- rather than "this one button is working".
   @busy:
     @before:
-      content = ""
-      width = 0.75rem
-      height = 0.75rem
+      -- The spinner ITSELF is global (see `style layouts`). A button only says
+      -- what is different about wearing one: it sits against a filled primary
+      -- background, so it is white rather than the muted default, and it has a
+      -- caption beside it that needs a gap.
+      --
+      -- `spinner-color` is the authored spelling of `--spinner-color`; the
+      -- global rule reads it with `var()`. Setting it here is the same move an
+      -- author makes with `#spinner-color="…"` at a call site.
+      spinner-color = white
       margin-right = 0.5rem
-      corner = 50%
-      border-width = 0.125rem
-      border-style = solid
-      border-color = rgb(255 255 255 / 40%)
-      border-top-color = white
-      animation-name = spin
-      animation-duration = 0.6s
-      animation-timing-function = linear
-      animation-iteration-count = infinite
 end
 
 
@@ -1749,10 +1796,10 @@ style switch with
   width = 2.25rem
   height = 1.25rem
   corner = 1.25rem
-  background-color = slate_40
+  background-color = slate_45
   border-width = 0.1875rem
   border-style = solid
-  border-color = slate_40
+  border-color = slate_45
   cursor = pointer
   position = relative
   transition = background-color 0.2s ease-in-out, border-color 0.2s ease-in-out
@@ -2690,19 +2737,6 @@ style article with
     child-align = center
     child-justify = center
     min-height = 3.5rem
-    @before:
-      content = ""
-      width = 1.25rem
-      height = 1.25rem
-      corner = 50%
-      border-width = 0.125rem
-      border-style = solid
-      border-color = var(--theme-color-slate_40)
-      border-top-color = var(--theme-color-sky_60)
-      animation-name = spin
-      animation-duration = 0.6s
-      animation-timing-function = linear
-      animation-iteration-count = infinite
 end
 
 style header with
@@ -2878,8 +2912,6 @@ style group with
   -- stretches to fill that extra space and no longer matches the field beside
   -- it. Named as well as `> *` because a bare `> *` ties with `.field` and
   -- loses outright to `.button[type="submit"]`.
-  > *:
-    margin-bottom = 0
   > input, > dropdown, > textarea, > button:
     margin-bottom = 0
   -- The step the children gave up is spent here instead, on the group as a
@@ -2893,6 +2925,22 @@ style group with
   -- row and the field collapses to its minimum.
   > *:
     width = auto
+    -- The `> *: margin-bottom = 0` that used to sit above was DEAD. A style
+    -- block is keyed by its selector, so this second `> *` replaced it
+    -- outright -- the same hazard the note above warns about for `> @first`,
+    -- and it had already happened here. The named rule was doing the work
+    -- alone; merged here so there is one `> *` and no silent loser.
+    margin-bottom = 0
+  -- A button in a group is padded DOUBLE (the reference sets
+  -- `--pico-form-element-spacing-horizontal: 2rem` on exactly these), which is
+  -- why its Subscribe is 151px against our 115px for identical text. The group
+  -- is one composite control and the button is its terminal, so it wants
+  -- enough width to read as a target rather than as a label crammed against a
+  -- seam. Purely horizontal -- the vertical padding still has to match the
+  -- field beside it or the seam steps.
+  > button:
+    padding-left = 2rem
+    padding-right = 2rem
   > @first:
     flex = 1 1 auto
     width = 1%

@@ -49,9 +49,37 @@ export const ARIA_ATTRIBUTE_ALIASES: ReadonlyMap<string, string> = new Map([
   ["label", "aria-label"],
 ]);
 
+/**
+ * Props authored as ordinary names that emit a CSS CUSTOM PROPERTY.
+ *
+ *   article #busy=true #spinner-color="red"   ->   --spinner-color: red
+ *
+ * A builtin that wants one knob overridable from the call site has a problem:
+ * the thing being styled is a PSEUDO-ELEMENT (the spinner is a `::before`), and
+ * no inline prop can reach one. The builtin therefore reads a custom property —
+ * `background-color: var(--spinner-color, …)` — and the author sets it.
+ *
+ * Authors CAN write `#--spinner-color` directly; custom properties pass through
+ * untouched. The alias exists so they do not have to know that. Every other prop
+ * is a plain name, and asking someone to remember which few need a `--` prefix
+ * is a rule with no reason behind it from the outside — the prefix is an
+ * implementation detail of how the builtin plumbs the value to a pseudo-element.
+ *
+ * Aliased rather than open-ended for the same reason as the attribute props
+ * above: an unrecognized `#spinnr-color` must still be reported, not silently
+ * become an inert variable nothing reads.
+ */
+export const CUSTOM_PROPERTY_ALIASES: ReadonlyMap<string, string> = new Map([
+  ["spinner-color", "--spinner-color"],
+]);
+
 /** Props routed to an attribute despite not looking like one. */
 export const isAliasedAttributeProp = (prop: string): boolean =>
   DATA_ATTRIBUTE_PROPS.has(prop) || ARIA_ATTRIBUTE_ALIASES.has(prop);
+
+/** The CSS custom property a prop is written as, if it is one. */
+export const toCustomPropertyName = (prop: string): string | undefined =>
+  CUSTOM_PROPERTY_ALIASES.get(prop);
 
 /** The DOM attribute name a prop is written as. */
 export const toDataAttributeName = (prop: string): string =>

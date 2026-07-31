@@ -223,6 +223,7 @@ exports[`dom render > dialogue line renders per-glyph text spans 1`] = `
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -554,6 +555,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -819,19 +838,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -968,10 +976,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -1646,20 +1654,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -1768,13 +1762,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -2362,6 +2361,7 @@ exports[`dom render > image show renders background span + img 1`] = `
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -2693,6 +2693,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -2958,19 +2976,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -3107,10 +3114,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -3785,20 +3792,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -3907,13 +3900,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -4463,6 +4461,7 @@ exports[`dom render > inline-styled dialogue (bold) sets font-weight on the styl
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -4794,6 +4793,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -5059,19 +5076,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -5208,10 +5214,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -5886,20 +5892,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -6008,13 +6000,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -6686,6 +6683,7 @@ exports[`dom render > screen tree renders into overlay 1`] = `
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -7017,6 +7015,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -7282,19 +7298,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -7431,10 +7436,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -8109,20 +8114,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -8231,13 +8222,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -8768,6 +8764,7 @@ exports[`dom render · choices + real click > a real DOM click on a choice clear
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -9099,6 +9096,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -9364,19 +9379,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -9513,10 +9517,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -10191,20 +10195,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -10313,13 +10303,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -10832,6 +10827,7 @@ exports[`dom render · choices + real click > choices render into overlay 1`] = 
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -11163,6 +11159,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -11428,19 +11442,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -11577,10 +11580,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -12255,20 +12258,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -12377,13 +12366,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -12946,6 +12940,7 @@ exports[`dom render · image lifecycle > asset-bearing hide destroys its transie
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -13277,6 +13272,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -13542,19 +13555,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -13691,10 +13693,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -14369,20 +14371,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -14491,13 +14479,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -15027,6 +15020,7 @@ exports[`dom render · image lifecycle > crossfade: show BG then BG2 leaves only
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -15358,6 +15352,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -15623,19 +15635,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -15772,10 +15773,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -16450,20 +16451,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -16572,13 +16559,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -17108,6 +17100,7 @@ exports[`dom render · image lifecycle > image animate keeps the shown layer 1`]
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -17439,6 +17432,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -17704,19 +17715,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -17853,10 +17853,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -18531,20 +18531,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -18653,13 +18639,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -19189,6 +19180,7 @@ exports[`dom render · image lifecycle > image hide clears the backdrop layer 1`
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -19520,6 +19512,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -19785,19 +19795,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -19934,10 +19933,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -20612,20 +20611,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -20734,13 +20719,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;
@@ -21270,6 +21260,7 @@ exports[`dom render · image lifecycle > layered images stack background-image o
   --theme-color-slate_30: rgb(30,41,59);
   --theme-color-slate_40: rgb(51,65,85);
   --theme-color-slate_50: rgb(71,85,105);
+  --theme-color-slate_45: rgb(61,75,95);
   --theme-color-slate_60: rgb(100,116,139);
   --theme-color-slate_70: rgb(148,163,184);
   --theme-color-slate_75: rgb(176,188,206);
@@ -21601,6 +21592,24 @@ spark-web-player #game .layouts {
       animation-fill-mode: forwards;
     }
   }
+  & [aria-busy="true"] {
+    &::before {
+      content: "";
+      display: inline-block;
+      width: 1em;
+      height: 1em;
+      vertical-align: -0.125em;
+      border-radius: 50%;
+      border-width: 0.1667em;
+      border-style: solid;
+      border-color: transparent;
+      border-top-color: var(--spinner-color, var(--theme-color-slate_65));
+      animation-name: spin;
+      animation-duration: 0.75s;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+    }
+  }
 }
 spark-web-player #game .row {
   display: flex;
@@ -21866,19 +21875,8 @@ spark-web-player #game .button {
   }
   &[aria-busy="true"] {
     &::before {
-      content: "";
-      width: 0.75rem;
-      height: 0.75rem;
+      --spinner-color: white;
       margin-right: 0.5rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: rgb(255 255 255 / 40%);
-      border-top-color: white;
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
     }
   }
 }
@@ -22015,10 +22013,10 @@ spark-web-player #game .switch {
   width: 2.25rem;
   height: 1.25rem;
   border-radius: 1.25rem;
-  background-color: var(--theme-color-slate_40);
+  background-color: var(--theme-color-slate_45);
   border-width: 0.1875rem;
   border-style: solid;
-  border-color: var(--theme-color-slate_40);
+  border-color: var(--theme-color-slate_45);
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
@@ -22693,20 +22691,6 @@ spark-web-player #game .article {
     align-items: center;
     justify-content: center;
     min-height: 3.5rem;
-    &::before {
-      content: "";
-      width: 1.25rem;
-      height: 1.25rem;
-      border-radius: 50%;
-      border-width: 0.125rem;
-      border-style: solid;
-      border-color: var(--theme-color-slate_40);
-      border-top-color: var(--theme-color-sky_60);
-      animation-name: spin;
-      animation-duration: 0.6s;
-      animation-timing-function: linear;
-      animation-iteration-count: infinite;
-    }
   }
 }
 spark-web-player #game .header {
@@ -22815,13 +22799,18 @@ spark-web-player #game .group {
   display: inline-flex;
   flex-direction: row;
   gap: 0px;
-  >* {
-    width: auto;
-  }
   >.input, >.dropdown, >.textarea, >.button {
     margin-bottom: 0px;
   }
   margin-bottom: 1rem;
+  >* {
+    width: auto;
+    margin-bottom: 0px;
+  }
+  >.button {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
   >:first-child {
     flex: 1 1 auto;
     width: 1%;

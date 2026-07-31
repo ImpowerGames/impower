@@ -105,8 +105,18 @@ end
     // blocked" rather than "this one button is working".
     expect(block).not.toContain("cursor: progress;");
     expect(block).toContain("&::before");
-    expect(block).toContain('content: "";');
-    expect(block).toContain("animation-name: spin;");
+
+    // The spinner itself is NOT in the button's block any more — it is one
+    // global rule (see `busySpinner.test.ts`), because `#busy` is authorable on
+    // any element and two per-component copies meant a busy `box` drew nothing.
+    // What the button still owns is what differs about wearing one on a filled
+    // primary background.
+    expect(block).toContain("--spinner-color: white;");
+    expect(block).toContain("margin-right: 0.5rem;");
+
+    // The drawing lives in the sheet, just not under this selector.
+    expect(out).toContain('content: "";');
+    expect(out).toContain("animation-name: spin;");
     // The referenced keyframes must actually be in the sheet.
     expect(out).toContain("@keyframes spin");
     // Regression: an alias that fails to expand leaves an empty selector.
