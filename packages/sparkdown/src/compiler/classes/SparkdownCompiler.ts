@@ -239,11 +239,11 @@ export class SparkdownCompiler {
   // for the old signature and the callee pops a different number of values,
   // silently and with no diagnostic.
   protected _prevFlowSignatures?: Map<string, string>;
-  // Per-file identity sequence of ROOT-REGION chunks (loose content before
-  // the first flow, externals, post-external loose content, include/run
-  // sites). Any change there can shift consts/globals whose values were
-  // INLINED into flows at generation — all reuse is disabled that compile.
-  protected _lastRootBlocksByUri?: Map<string, object[]>;
+  // Per-file ordered ROOT-REGION STRUCTURE descriptors — `include`/`run`
+  // targets and `EXTERNAL` name+arity. A change to this sequence disables all
+  // reuse for that compile; ordinary root content (front matter, loose text,
+  // globals) is deliberately excluded. See the guard for the full rationale.
+  protected _lastRootBlocksByUri?: Map<string, string[]>;
   // Reuse kill-switches. `_flowReuseDisabled` is recomputed per compile;
   // starts true so the first compile after construction never reuses.
   protected _flowReuseDisabled = true;
@@ -254,8 +254,30 @@ export class SparkdownCompiler {
   // computed once per chunk identity.
   protected _chunkReuseScan?: WeakMap<
     object,
-    { disqualifies: boolean; invalidatesGlobals: boolean }
+    {
+      disqualifies: boolean;
+      invalidatesGlobals: boolean;
+      constNames: string[];
+    }
   >;
+  // Census of every constant and global NAME declared anywhere in the
+  // program, accumulated across all files of one compile and compared against
+  // the previous compile's. Two distinct generation-time dependencies make a
+  // reused flow's bytecode sensitive to names declared OUTSIDE it:
+  //
+  //   - a constant is INLINED BY VALUE into every referencing flow, so a
+  //     constant that disappears leaves stale inlined bytecode behind; and
+  //   - `Divert.ResolveTargetContent` runs during GENERATION and consults
+  //     `story.variableDeclarations`, so a global whose name matches a flow
+  //     shadows it and flips every call site from knot-call codegen (which
+  //     emits `PackTuple`/padding derived from the callee's parameters) to
+  //     variable-target codegen, which emits none of that.
+  //
+  // Neither is visible to the per-chunk scan: a DELETED declaration appears
+  // in no chunk at all. Names only — values may change freely, so editing a
+  // `store`'s value still keeps reuse.
+  protected _censusEntries?: string[];
+  protected _prevCensusKey?: string;
   // [container, previous parent] for every container committed to reuse this
   // compile — restored if the compile throws, so the previous RuntimeStory
   // (still live in the checkpoint-builder Game) isn't left holding containers
@@ -751,6 +773,7 @@ export class SparkdownCompiler {
     this._nextFlowRuns = new Map();
     this._reuseParentBackups = undefined;
     this._renamedFlowNames = undefined;
+    this._censusEntries = [];
 
     try {
       profile("start", this._profilerId, "ink/parse", uri);
@@ -782,6 +805,14 @@ export class SparkdownCompiler {
       // current signatures aren't known until assembly finishes, so this is
       // a post-hoc check that feeds the same demotion path as a
       // late-discovered global change.
+      // Declared-name census across every file of this compile — see
+      // `_censusEntries`. Compared here (not per file) so includes can't
+      // clobber each other's census.
+      const censusKey = (this._censusEntries ?? []).sort().join("");
+      if (this._prevCensusKey !== undefined && this._prevCensusKey !== censusKey) {
+        this._flowReuseDisabled = true;
+      }
+      this._prevCensusKey = censusKey;
       const flowSignatures = this.collectFlowSignatures(parsedStory);
       if (this._prevFlowSignatures && !this._flowReuseDisabled) {
         const prev = this._prevFlowSignatures;
@@ -953,6 +984,9 @@ export class SparkdownCompiler {
       // drop all reuse records so the next compile rebuilds from scratch.
       this._prevFlowRuns = undefined;
       this._lastRootBlocksByUri = undefined;
+      // The census may be half-collected (the throw can land mid-parse), so
+      // drop it rather than compare a truncated one next compile.
+      this._prevCensusKey = undefined;
       this._disableFlowReuseNextCompile = true;
     }
 
@@ -1166,13 +1200,18 @@ export class SparkdownCompiler {
     // is also why a CHANGED chunk containing one disables reuse globally.
     const scanChunkForReuse = (
       block: any,
-    ): { disqualifies: boolean; invalidatesGlobals: boolean } => {
+    ): {
+      disqualifies: boolean;
+      invalidatesGlobals: boolean;
+      constNames: string[];
+    } => {
       let cached = this._chunkReuseScan?.get(block);
       if (cached) {
         return cached;
       }
       let disqualifies = false;
       let invalidatesGlobals = false;
+      const declaredNames: string[] = [];
       const scan = (nodes: ParsedObject[]) => {
         for (const n of nodes) {
           if (
@@ -1181,14 +1220,30 @@ export class SparkdownCompiler {
           ) {
             disqualifies = true;
             invalidatesGlobals = true;
+            const constName =
+              n instanceof ConstantDeclaration
+                ? n.constantName
+                : n.identifier?.name;
+            if (constName) {
+              declaredNames.push(`c:${constName}`);
+            }
           } else if (
             n instanceof ExternalDeclaration ||
             n instanceof StructDefinition ||
             (n instanceof ParsedVariableAssignment && n.isGlobalDeclaration)
           ) {
             disqualifies = true;
+            const globalName =
+              n instanceof ParsedVariableAssignment
+                ? n.variableName
+                : n.identifier?.name;
+            if (globalName) {
+              declaredNames.push(`g:${globalName}`);
+            }
           }
-          if (n.content && !(invalidatesGlobals && disqualifies)) {
+          // Always recurse: the NAME census below must be complete, so this
+          // can't early-out once the boolean verdicts are both decided.
+          if (n.content) {
             scan(n.content);
           }
         }
@@ -1196,54 +1251,81 @@ export class SparkdownCompiler {
       if (block?.content) {
         scan(block.content);
       }
-      cached = { disqualifies, invalidatesGlobals };
+      cached = { disqualifies, invalidatesGlobals, declaredNames };
       (this._chunkReuseScan ??= new WeakMap()).set(block, cached);
       return cached;
     };
 
     // ---- Flow-reuse guards computed from this file's chunk list ----
-    // (1) ROOT-REGION identity: loose content before the first flow,
-    // externals, post-external loose content, and include/run sites define
-    // consts/globals whose values were inlined into flows at generation. ANY
-    // change to that sequence (add/remove/modify) disables all reuse.
+    // (1) ROOT-REGION STRUCTURE: the ordered sequence of `include`/`run`
+    // targets and `EXTERNAL` signatures. These change which files contribute
+    // flows, and which call sites compile to external calls — neither of
+    // which a reused flow can re-derive on its own. Compared by DESCRIPTOR
+    // (the target string / the external's name+arity), NOT by chunk identity:
+    // an identity comparison also fired for a re-lowered-but-unchanged chunk,
+    // and the incremental parser's reparse window routinely re-lowers a root
+    // chunk adjacent to an edit — which is why editing the front matter, or
+    // the first scene, used to kill reuse for that whole compile.
+    //
+    // Deliberately NOT part of the descriptor: front matter, loose top-level
+    // content, and top-level `store`/`var`/`define` declarations. None of
+    // them can alter a reused flow's bytecode — top-level flows are
+    // name-addressed in `namedOnlyContent`, so their internal paths don't
+    // shift when top-level content grows or shrinks, and globals are read
+    // through runtime variable lookups rather than inlined. Constants ARE
+    // inlined, and are covered precisely by (2).
+    //
     // (2) A changed chunk containing a const/list declaration anywhere
     // disables all reuse (value inlining into other flows).
     {
-      const rootBlocks: object[] = [];
-      let attachesToFlow = false;
+      const rootDescriptors: string[] = [];
       for (const rec of chunkRecords) {
         const block = rec.block as any;
-        if (block.include || block.run) {
-          rootBlocks.push(block);
+        if (block.include) {
+          rootDescriptors.push(`inc:${block.include}`);
         }
-        const kind = chunkFlowKind(block);
-        if (kind === "knot" || kind === "stitch") {
-          attachesToFlow = true;
-        } else if (kind === "external") {
-          attachesToFlow = false;
-          rootBlocks.push(block);
-        } else if (kind === "body" && !attachesToFlow) {
-          rootBlocks.push(block);
+        if (block.run) {
+          rootDescriptors.push(`run:${block.run}`);
         }
-        if (
-          !this._flowReuseDisabled &&
-          block.content &&
-          this._prevCompilationIds &&
-          !this._prevCompilationIds.has(block) &&
-          scanChunkForReuse(block).invalidatesGlobals
-        ) {
-          this._flowReuseDisabled = true;
+        if (chunkFlowKind(block) === "external") {
+          const ext = block.content?.[0] as ExternalDeclaration | undefined;
+          rootDescriptors.push(
+            `ext:${ext?.identifier?.name ?? "?"}/${
+              ext?.argumentNames?.length ?? 0
+            }`,
+          );
+        }
+        if (block.content) {
+          const scan = scanChunkForReuse(block);
+          // Declared-NAME census (see `_censusEntries`). Cached per chunk
+          // identity, so unchanged chunks cost a map lookup. Accumulated
+          // across the WHOLE compile rather than per file — this function
+          // recurses once per `include`/`run`, so a per-file key would be
+          // overwritten by each included file and then compared against a
+          // different file's census on the next compile, permanently
+          // disabling reuse for any multi-file project.
+          for (const name of scan.declaredNames) {
+            this._censusEntries?.push(`${uri}|${name}`);
+          }
+          if (
+            !this._flowReuseDisabled &&
+            this._prevCompilationIds &&
+            !this._prevCompilationIds.has(block) &&
+            scan.invalidatesGlobals
+          ) {
+            this._flowReuseDisabled = true;
+          }
         }
       }
-      const prevRootBlocks = this._lastRootBlocksByUri?.get(uri);
+      const prevRootDescriptors = this._lastRootBlocksByUri?.get(uri);
       if (
-        !prevRootBlocks ||
-        prevRootBlocks.length !== rootBlocks.length ||
-        rootBlocks.some((b, i) => prevRootBlocks[i] !== b)
+        !prevRootDescriptors ||
+        prevRootDescriptors.length !== rootDescriptors.length ||
+        rootDescriptors.some((d, i) => prevRootDescriptors[i] !== d)
       ) {
         this._flowReuseDisabled = true;
       }
-      (this._lastRootBlocksByUri ??= new Map()).set(uri, rootBlocks);
+      (this._lastRootBlocksByUri ??= new Map()).set(uri, rootDescriptors);
     }
 
     // Chunks whose content-assembly is skipped because they feed a flow
@@ -2539,6 +2621,27 @@ export class SparkdownCompiler {
         }
         if (!sameSet) {
           effPrevCache = undefined;
+        }
+      }
+      // A flow's cached locations are keyed by INDEX-addressed runtime paths,
+      // and an unchanged flow's subtree can still change SHAPE when something
+      // before it changes: a constant is inlined at generation, and how many
+      // runtime objects it expands to is type-dependent (a string emits
+      // BeginString/StringValue/EndString, a number emits one value). So
+      // retyping or removing a constant shifts sibling indices inside flows
+      // whose own source shows no changed chunk, and replaying their cached
+      // keys would map real paths to wrong lines. Apply the same global guard
+      // `computeFlowReuse` uses for the bytecode cache: if any changed chunk
+      // starts before the first flow, reuse nothing this compile.
+      if (effPrevCache && this._changedChunkRanges?.length) {
+        const firstStart = starts.length
+          ? starts[0]!
+          : Number.POSITIVE_INFINITY;
+        for (const [changedStart] of this._changedChunkRanges) {
+          if (changedStart < firstStart) {
+            effPrevCache = undefined;
+            break;
+          }
         }
       }
       for (const f of flows) {

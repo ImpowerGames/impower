@@ -407,6 +407,18 @@ export class Divert extends ParsedObject {
     let isBuiltIn: boolean = false;
     let isExternal: boolean = false;
 
+    // NOTE for incremental reuse: the external branch below is a one-way door
+    // like the target paths above (it sets `isExternal`/`externalArgs` and
+    // flips `pushesToStack` to false), but it deliberately gets NO reset here.
+    // A correct reset would have to restore `pushesToStack` to its
+    // GENERATION-time value (set true for calls/tunnels at
+    // `GenerateRuntimeObject`), which resolution cannot recompute — and a
+    // partial reset would half-decay the divert, which is worse than none.
+    // Instead, adding, removing, renaming, or re-arity-ing an `EXTERNAL` is a
+    // structural change that disables flow reuse for that compile (see the
+    // root-region descriptor in `SparkdownCompiler.parseIncrementally`), so a
+    // reused divert can never outlive its external declaration.
+
     if (!this.target) {
       throw new Error();
     } else if (this.target.numberOfComponents === 1) {
