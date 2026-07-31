@@ -650,10 +650,13 @@ try {
   // semanticTokensProvider
   connection.languages.semanticTokens.on(async (params) => {
     const uri = params.textDocument.uri;
+    const program =
+      workspace.program(uri) || (await workspace.compile(uri, false));
+    // Read the document/annotations AFTER the potential compile await, so a
+    // didChange processed during it can't leave us caching a result built
+    // from older annotations under the newer document version.
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
-    const program =
-      workspace.program(uri) || (await workspace.compile(uri, true));
     const cached = semanticTokensCache.get(uri);
     if (
       document &&
@@ -682,10 +685,10 @@ try {
   });
   connection.languages.semanticTokens.onRange(async (params) => {
     const uri = params.textDocument.uri;
+    const program =
+      workspace.program(uri) || (await workspace.compile(uri, false));
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
-    const program =
-      workspace.program(uri) || (await workspace.compile(uri, true));
     performance.mark(`lsp: semanticTokens.onRange ${uri} start`);
     const result = getSemanticTokens(
       document,

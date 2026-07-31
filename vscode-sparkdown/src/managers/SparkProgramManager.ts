@@ -147,7 +147,9 @@ export class SparkProgramManager {
 
   async compile(uri: vscode.Uri) {
     const client = await this.languageClientReady;
-    const params: CompileProgramParams = { uri: uri.toString() };
+    const params: CompileProgramParams = {
+      textDocument: { uri: uri.toString() },
+    };
     const program = await client.sendRequest<SparkProgram>(
       CompileProgramMessage.method,
       params,

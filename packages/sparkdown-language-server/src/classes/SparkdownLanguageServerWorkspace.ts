@@ -220,7 +220,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       }
       const uri = uris[i++]!;
       try {
-        this._documents.tree(uri);
+        // The document can have been removed since the list was captured;
+        // touching it would just recreate an empty registry state entry.
+        if (this._documents.has(uri)) {
+          this._documents.tree(uri);
+        }
       } catch (e) {
         console.error("background parse failed", uri, e);
       }
@@ -250,11 +254,18 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     this._documents.update(params);
   }
 
-  // Fingerprint of the last diagnostics published per uri, so a compile only
-  // notifies files whose diagnostics actually changed. Every publish fans out
-  // into client-side feature re-pulls, so N identical publishes per compile
-  // multiply into real work.
-  protected _lastPublishedDiagnostics = new Map<string, string>();
+  // Fingerprint + published-at version of the last diagnostics publish per
+  // uri, so a compile only notifies files whose diagnostics actually changed.
+  // Every publish fans out into client-side feature re-pulls, so N identical
+  // publishes per compile multiply into real work. The VERSION must be part
+  // of the key: clients that declare versionSupport DROP a publish whose
+  // version trails their document (routine mid-typing, since compiles are
+  // debounced with a max-wait), so an identical-content publish at a NEWER
+  // version must still go out or the client keeps stale squiggles forever.
+  protected _lastPublishedDiagnostics = new Map<
+    string,
+    { fingerprint: string; version: number | undefined }
+  >();
 
   override onCompiledTextDocument(params: {
     textDocument?: { uri: string };
@@ -265,10 +276,11 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       const version = this._documentVersions.get(uri);
       const diagnostics = this.getDiagnostics(params.program, uri);
       const fingerprint = JSON.stringify(diagnostics);
-      if (this._lastPublishedDiagnostics.get(uri) === fingerprint) {
+      const last = this._lastPublishedDiagnostics.get(uri);
+      if (last && last.fingerprint === fingerprint && last.version === version) {
         continue;
       }
-      this._lastPublishedDiagnostics.set(uri, fingerprint);
+      this._lastPublishedDiagnostics.set(uri, { fingerprint, version });
       this.sendNotification(PublishDiagnosticsNotification.method, {
         uri,
         diagnostics,
@@ -397,7 +409,18 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
         async (
           params: CompileProgramParams,
         ): Promise<SparkProgram | undefined> => {
-          return this.compile(params.textDocument.uri, true);
+          // Tolerate the bare `{ uri }` shape older clients sent.
+          const uri =
+            params.textDocument?.uri ?? (params as { uri?: string }).uri;
+          if (!uri) {
+            return undefined;
+          }
+          // force=false: when nothing changed since the last compile this
+          // serves the cached program WITHOUT re-compiling or re-notifying.
+          // A forced compile here re-broadcast compiler/didCompile, and
+          // pull-on-didCompile consumers (the vscode compilation view) would
+          // chase their own tail in an infinite pull->compile->notify loop.
+          return this.compile(uri, false);
         },
       ),
     );
