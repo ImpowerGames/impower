@@ -13,7 +13,7 @@
 // one" symptom — line decorations on character cues / dialogue
 // content stop matching the lines that contain them.
 
-import { ensureSyntaxTree, language } from "@codemirror/language";
+import { language } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
@@ -21,6 +21,7 @@ import {
   SCREENPLAY_LANGUAGE_SUPPORT,
   default as screenplayFormatting,
 } from "../src/modules/screenplay-preview/utils/screenplayFormatting";
+import { settleParse } from "./helpers/parseSettle";
 
 const mount = (source: string): EditorView => {
   const parent = document.createElement("div");
@@ -42,9 +43,9 @@ const contentHTML = (view: EditorView): string => {
   // Force the incremental parser to catch up before sampling the DOM.
   // Otherwise the partial tree leaks decorations into the trailing
   // viewport area, producing spurious classes like 17 `collapse`s on
-  // the final cm-line.
-  ensureSyntaxTree(view.state, view.state.doc.length, 30_000);
-  view.dispatch({}); // trigger a no-op update so decorate() re-runs against the full tree
+  // the final cm-line. (settleParse also commits the finished tree back into
+  // the state field so decorate() re-runs against it — see helpers/parseSettle.)
+  settleParse(view);
   const c = view.dom.querySelector(".cm-content");
   if (!c) return "";
   return c.outerHTML.replace(

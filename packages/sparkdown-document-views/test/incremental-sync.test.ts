@@ -21,6 +21,7 @@ import {
   SCREENPLAY_LANGUAGE_SUPPORT,
   default as screenplayFormatting,
 } from "../src/modules/screenplay-preview/utils/screenplayFormatting";
+import { settleParse } from "./helpers/parseSettle";
 
 const mount = (source: string): EditorView => {
   const parent = document.createElement("div");
@@ -45,6 +46,9 @@ const mount = (source: string): EditorView => {
 // line decorations, not how many estimated pixels were reserved for the
 // virtual scroll.
 const contentHTML = (view: EditorView): string => {
+  // Both sides must be sampled from a COMPLETE parse, or the comparison is
+  // really "did these two parses get the same wall-clock slice" (#281).
+  settleParse(view);
   const c = view.dom.querySelector(".cm-content");
   if (!c) return "";
   return c.outerHTML.replace(

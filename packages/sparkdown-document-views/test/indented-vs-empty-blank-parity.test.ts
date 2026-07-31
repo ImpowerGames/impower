@@ -17,6 +17,7 @@ import {
   SCREENPLAY_LANGUAGE_SUPPORT,
   default as screenplayFormatting,
 } from "../src/modules/screenplay-preview/utils/screenplayFormatting";
+import { settleParse } from "./helpers/parseSettle";
 
 // Indented blank line between dialogue and following action.
 const FIXTURE_INDENTED_BLANK =
@@ -43,6 +44,9 @@ const mountAndExtractCollapseLine = (
       }),
       parent,
     });
+    // The initial parse is wall-clock budgeted, so the `collapse` line we're
+    // looking for may not exist yet on a loaded machine (#281).
+    settleParse(view);
     const lineEls = Array.from(
       view.dom.querySelectorAll(".cm-line"),
     ) as HTMLElement[];
