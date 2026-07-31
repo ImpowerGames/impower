@@ -2703,7 +2703,7 @@ end
 -- Follows Pico's shape — the DIALOG is the full-screen scrim and the `article`
 -- inside it is the card — so a modal is authored as:
 --
---   dialog #open={show}:
+--   modal #open=<a bound boolean>:
 --     article:
 --       ...
 --
