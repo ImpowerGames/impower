@@ -283,6 +283,11 @@ export default class WorkspaceLanguageServer {
         // the language server relay a slim program instead of the whole ~9MB
         // per keystroke. The player and vscode keep the full relay.
         slimProgramNotifications: true,
+        // Filtered images resolve through the service worker's on-demand
+        // `?filters=` route in this host (#299), so the program doesn't need
+        // the inlined SVG source that dominated its payload. LS previews
+        // re-source it lazily from watched files.
+        stripImageData: true,
       },
       workspaceFolders: [
         {

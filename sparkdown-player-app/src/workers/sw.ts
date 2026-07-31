@@ -1,10 +1,21 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import { FetchGameAssetMessage } from "../../../packages/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage";
+import { filterSVG } from "../../../packages/sparkdown/src/compiler/utils/filterSVG";
+import { parseImageFilterParam } from "../../../packages/sparkdown/src/filters/filteredSvg";
 
 export {};
 declare const self: ServiceWorkerGlobalScope;
 
 const RESOURCE_PROTOCOL: string = "/file:/";
+
+// Generated filtered-SVG variants (#299), keyed by REQUEST URL. URL keying is
+// sound here only because asset urls are content-signature-stamped
+// (`?v=<mtime>-<size>`, #305): a byte change produces a NEW url, so an old
+// entry can never be served for changed content. (This SW can't use the
+// editor SW's file-signature keying — it never sees file metadata, only the
+// bytes relayed back from the editor page.) Superseded signatures of the same
+// path+filters variant are pruned on write.
+const SW_FILTERED_CACHE_NAME: string = "filtered-svgs";
 
 const _listeners: Set<(message: any) => void> = new Set();
 
@@ -36,6 +47,31 @@ async function sendRequest<M extends string, P, R>(
 
 async function handleLocalAssetRequest(url: URL, clientId: string) {
   const path = url.pathname.replace(RESOURCE_PROTOCOL, "");
+  const filename = path.split("/").at(-1);
+  const contentType = guessType(filename || "");
+
+  // On-demand filtered SVG variants (#299): the round-trip only relays the
+  // PATH to the editor, so the filters param must be honored here or
+  // filtered_src URLs silently render unfiltered.
+  const filtersParam = url.searchParams.get("filters");
+  const filter =
+    filtersParam && contentType === "image/svg+xml"
+      ? parseImageFilterParam(filtersParam)
+      : undefined;
+
+  // Serve a previously generated variant WITHOUT paying the SW -> page ->
+  // editor relay round-trip or re-running filterSVG (see the cache-name
+  // comment for why URL keying is sound).
+  if (filter) {
+    try {
+      const cache = await caches.open(SW_FILTERED_CACHE_NAME);
+      const cached = await cache.match(url.href);
+      if (cached) {
+        return cached;
+      }
+    } catch {}
+  }
+
   try {
     const client = await self.clients.get(clientId);
     if (client) {
@@ -47,8 +83,39 @@ async function handleLocalAssetRequest(url: URL, clientId: string) {
         },
       );
       const buffer = transfer[0];
-      const filename = path.split("/").at(-1);
-      const contentType = guessType(filename || "");
+
+      if (filter) {
+        const filtered = filterSVG(new TextDecoder().decode(buffer), filter);
+        const response = new Response(filtered, {
+          status: 200,
+          headers: new Headers({
+            "Content-Type": "image/svg+xml",
+            "Cache-Control": "max-age=31536000, immutable",
+          }),
+        });
+        try {
+          const cache = await caches.open(SW_FILTERED_CACHE_NAME);
+          // Prune superseded signatures of this exact variant: same path +
+          // same filters at a DIFFERENT url means the file's `?v=` signature
+          // moved (an edit), so the old entry can never be requested again.
+          const keys = await cache.keys();
+          await Promise.all(
+            keys
+              .filter((req) => {
+                const cachedUrl = new URL(req.url);
+                return (
+                  cachedUrl.pathname === url.pathname &&
+                  cachedUrl.searchParams.get("filters") === filtersParam &&
+                  req.url !== url.href
+                );
+              })
+              .map((req) => cache.delete(req)),
+          );
+          await cache.put(url.href, response.clone());
+        } catch {}
+        return response;
+      }
+
       const contentLength = buffer.byteLength;
       const headers = new Headers({
         "Content-Type": contentType,
