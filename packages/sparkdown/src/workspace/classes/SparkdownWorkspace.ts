@@ -757,10 +757,18 @@ export abstract class SparkdownWorkspace {
     }
     state.compilingDocumentVersion = this._documentVersions.get(uri);
     let result: CompileProgramResult | undefined = undefined;
+    // When the compiler's no-change short-circuit serves its cached program,
+    // it returns the SAME object as last time. Bumping our version counter on
+    // that would advertise a "new" program that is bit-identical -- and the
+    // player rebuilds its whole Game whenever program.version changes -- so
+    // detect identity and keep the version stable.
+    let programUnchanged = false;
     const mainScriptUri = this.getMainScriptUri(uri);
     try {
       if (mainScriptUri) {
+        const previousProgram = this.getProgramState(mainScriptUri).program;
         result = await this.compileDocument(mainScriptUri);
+        programUnchanged = result.program === previousProgram;
         this.getProgramState(mainScriptUri).program = result.program;
         if (result.program.scripts) {
           for (const [uri, version] of Object.entries(result.program.scripts)) {
@@ -768,7 +776,9 @@ export abstract class SparkdownWorkspace {
             state.program = result.program;
             state.compilingDocumentVersion = undefined;
             state.compiledDocumentVersion = version;
-            state.version++;
+            if (!programUnchanged) {
+              state.version++;
+            }
             this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
             this._onNextCompiled.delete(uri);
           }
@@ -777,12 +787,16 @@ export abstract class SparkdownWorkspace {
       if (uri !== mainScriptUri && result?.program?.scripts[uri] == null) {
         // Target script is not included by main,
         // So it must be parsed on its own to report diagnostics
+        const previousProgram = this.getProgramState(uri).program;
         result = await this.compileDocument(uri);
+        programUnchanged = result.program === previousProgram;
         const state = this.getProgramState(uri);
         state.program = result.program;
         state.compilingDocumentVersion = undefined;
         state.compiledDocumentVersion = result.program?.scripts[uri];
-        state.version++;
+        if (!programUnchanged) {
+          state.version++;
+        }
         this._onNextCompiled.get(uri)?.forEach((c) => c?.(result?.program));
         this._onNextCompiled.delete(uri);
       }
@@ -806,7 +820,9 @@ export abstract class SparkdownWorkspace {
     }
     if (result?.program) {
       const state = this.getProgramState(uri);
-      result.program.version = state.version;
+      if (!programUnchanged) {
+        result.program.version = state.version;
+      }
       // With slimProgramNotifications, relay only what the notification's
       // consumers actually read instead of the whole program (which is ~9MB on
       // a large project and re-broadcast on EVERY compile; the receiver pays a
