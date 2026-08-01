@@ -15,6 +15,20 @@ export interface SparkdownCompilerConfig {
    * filtering depends on the inlined source.
    */
   stripImageData?: boolean;
+  /**
+   * Serialize the compiled program into `program.compiled` (#345).
+   *
+   * Defaults to on. Hosts that never read the bytecode turn it OFF: the
+   * language-server instance relays a slim projection that excludes `compiled`,
+   * so serializing it costs ~25-30ms per keystroke on a large project for data
+   * that is discarded, and the full program still rides the compile response
+   * across the worker boundary.
+   *
+   * Only SERIALIZATION is skipped. `ExportRuntime` still runs, because
+   * generation-time diagnostics come out of it and `populateAllLocations`
+   * walks the runtime tree for `pathLocations`.
+   */
+  emitCompiledProgram?: boolean;
   workspace?: string;
   startFrom?: { file: string; line: number };
   simulationOptions?: Record<
