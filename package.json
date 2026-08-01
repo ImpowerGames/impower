@@ -21,6 +21,7 @@
   "devDependencies": {
     "ajv": "^8.17.1",
     "eslint": "^9.18.0",
-    "eslint-plugin-yml": "^1.14.0"
+    "eslint-plugin-yml": "^1.14.0",
+    "playwright": "^1.61.0"
   }
 }
