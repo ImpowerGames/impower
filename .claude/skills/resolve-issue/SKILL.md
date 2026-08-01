@@ -80,9 +80,32 @@ bug/enhancement *labels* were deleted; issue kind is now a GitHub **issue type**
 
 Never work on `main`, and never reuse another issue's worktree.
 
+### Naming
+
+**Branch: `<type>/<slug>-<issue#>`**
+
+`<type>` is the same vocabulary as the commit prefix — `fix`, `feat`, `perf`,
+`docs`, `test`, `refactor`. `<slug>` is 2–4 dash-separated words naming the
+*defect or capability*, not the area. The issue number goes **last**.
+
+```
+fix/document-views-parse-settle-281
+perf/lazy-asset-bytes-227
+feat/composite-asset-previews-292
+```
+
+Do **not** use the `claude/<slug>-<hex>` form. Those are auto-generated worktree
+branches; the random suffix carries no meaning and they usually omit the issue
+number, which breaks the branch↔ticket link.
+
+**Worktree directory: the branch with `/` replaced by `-`**, placed in
+`C:/Users/Lovelle/Documents/GitHub/impower.worktrees/impower/`. So
+`fix/filterimage-layers-302` lives at `.../impower/fix-filterimage-layers-302`.
+One glance at the directory tells you the branch, the type, and the ticket.
+
 ```bash
 git fetch origin main
-git worktree add -b claude/issue-302-filterimage "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/impower/issue-302-filterimage" origin/main
+git worktree add -b fix/filterimage-layers-302 "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/impower/fix-filterimage-layers-302" origin/main
 ```
 
 A fresh worktree has **no `node_modules`** — the monorepo is npm workspaces, so
@@ -316,54 +339,91 @@ also fails on `origin/main`.
 
 ---
 
-## 6. Adversarial code review
+## 6. Adversarial code review (subagent fan-out)
 
 Do this **before** opening the PR, on the real diff. The goal is to *break your
-own fix*, not to admire it.
+own fix*, not to admire it. Run it as a subagent fan-out — independent readers
+who have not been anchored by your reasoning find things you cannot.
 
-**6a — built-in review of the working diff:**
+**6a — capture the diff once**, so every reviewer sees the same artifact:
 
+```bash
+git diff origin/main...HEAD > review-diff.patch
 ```
-/code-review
-```
 
-**6b — independent adversarial passes.** Spawn several subagents in parallel,
-each given a **different lens** and each instructed to *refute*, defaulting to
-"this is broken" when uncertain. Diversity matters more than count — redundant
-reviewers find redundant things. Useful lenses for this repo:
+(`...` is deliberate: changes on your branch since it diverged from `main`,
+not `main`'s subsequent commits.) This file is **untracked** — delete it before
+§7, or it gets swept into the commit.
 
-- **Correctness** — does the fix hold at the boundaries (empty input, first/last
-  element, the loop iteration the original bug lived in)?
+**6b — fan out.** Spawn the lenses below **in parallel — one message, multiple
+Agent tool calls**, all `subagent_type: Explore` (read-only; a reviewer must not
+edit the tree). Give each one, verbatim:
+
+> You are reviewing a fix for issue #N in the Impower monorepo. The diff is in
+> `review-diff.patch`; the working tree is the branch under review. Your lens is
+> **\<LENS\>** — review ONLY through it. Your job is to REFUTE this change, not
+> to approve it. Assume it is broken and find out how. If you are uncertain,
+> report the concern rather than suppressing it. For each finding give:
+> `file:line`, a concrete failure scenario (inputs → wrong output), and how you
+> confirmed it in the code. Report "no findings through this lens" if you have
+> none — do not pad. Do not edit any files.
+
+Lenses — diversity matters far more than count; redundant reviewers find
+redundant things:
+
+- **Correctness at boundaries** — empty input, single element, first/last
+  iteration, and specifically the loop iteration or branch the original bug
+  lived in.
 - **Incrementality** — the compiler reuses constructed flows and short-circuits
-  no-change compiles. Does this change stay correct on the *second* keystroke,
-  not just a cold compile?
-- **Blast radius** — enumerate every caller of the changed function and argue
-  each one is unaffected. Cite `file:line`.
+  no-change compiles. Is this still correct on the *second* keystroke, not just
+  a cold compile? Does it corrupt reused state?
+- **Blast radius** — enumerate every caller of every changed function and argue
+  each is unaffected, citing `file:line`. Any caller you cannot account for is
+  a finding.
 - **Test honesty** — does the §5 regression test pin the ticket's *behaviour*,
-  or merely the shape of the patch? Would it catch the bug coming back by a
+  or merely the shape of the patch? Would it catch the bug returning by a
   different route?
-- **Generated files** — see Gotchas. Did the diff edit a generated JSON without
-  its YAML source?
+- **Repo traps** — check the Gotchas below against this diff: a generated
+  `language/*.json` edited without its `definitions/yaml/*.yaml` source, a
+  `.claude`-style ignore interaction, whitespace-significant display lines.
 
-Then **verify each surviving finding yourself** before acting. Fix what is real;
-for anything you consciously decline, say so in the PR body with the reason.
-Reviewer output is a hypothesis, not a verdict — subagents confidently report
-defects that do not exist.
+Add a lens when the diff warrants one (concurrency, serialization, asset
+pipeline). Skip one that cannot apply.
 
-**6c —** `/code-review ultra` runs a multi-agent cloud review of the branch. It
-is **user-triggered and billed**; you cannot launch it. Offer it, don't attempt
-it.
+**6c — adjudicate.** Reviewer output is a **hypothesis, not a verdict**;
+subagents confidently report defects that do not exist. For every finding,
+confirm it yourself in the code before acting — a claimed `file:line` that
+doesn't say what the reviewer claims is a dead finding, full stop.
+
+Then either fix it, or record it in the PR body as a conscious decline with the
+reason. Do not silently drop findings.
+
+**6d — re-verify after fixing.** Any change made in response to review re-opens
+§4 and §5: re-run the regression test and re-take the live screenshot. A review
+fix is a code change like any other, and it is the one most likely to be
+committed unverified.
 
 ---
 
 ## 7. Commit, push, PR
 
-Commit on the issue branch (never `main`), referencing the issue:
+First clean up the review scratch files, then **look at what you are about to
+stage** — this step has swept up stray artifacts before:
 
 ```bash
-git add -A
+rm -f review-diff.patch testrun.log
+git status --short
+```
+
+Stage **deliberately**, by path. `git add -A` will happily commit a screenshot,
+a `.patch`, a scratch `.sd`, or a `du.exe.stackdump` that some earlier command
+left behind:
+
+```bash
+git add packages/sparkdown/src/compiler/utils/filterImage.ts packages/sparkdown/src/tests/compiler/FilterImageLayers.test.ts
+git status --short
 git commit -F commit-msg.txt
-git push -u origin claude/issue-302-filterimage
+git push -u origin fix/filterimage-layers-302
 ```
 
 Write bodies to a **file** and pass `--body-file`. `@-` is a *curl* idiom;
