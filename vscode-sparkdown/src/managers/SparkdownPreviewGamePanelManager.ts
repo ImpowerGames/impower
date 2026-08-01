@@ -169,10 +169,17 @@ export class SparkdownPreviewGamePanelManager {
       }
       if (ExecuteCommandMessage.type.isRequest(message)) {
         const params = message.params;
+        // Always answer. `executeLanguageCommand` returns undefined for an
+        // unrecognized command and for a missing/non-string uri, and the
+        // webview player awaits this request — skipping the response leaves
+        // it waiting for the life of the panel (#332). `null` is the
+        // JSON-RPC "no value" result.
         const result = await executeLanguageCommand(params);
-        if (result !== undefined) {
-          this.sendResponse(ExecuteCommandMessage.type, message.id, result);
-        }
+        this.sendResponse(
+          ExecuteCommandMessage.type,
+          message.id,
+          result ?? null,
+        );
       }
       if (HoveredOnPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "game") {
