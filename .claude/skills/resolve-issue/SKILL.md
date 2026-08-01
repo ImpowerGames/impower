@@ -303,20 +303,44 @@ several matching layers and asserts all of them come back.
 **5b — prove the test is honest.** A regression test that passes against the
 *old* code pins nothing.
 
+**Never use `git stash` for this.** The stash stack is per-**repo**, not
+per-worktree, and this checkout has ~17 live worktrees with other sessions
+running concurrently. A `git stash pop` takes whatever is at `stash@{0}` *at
+that moment* — which may be another session's WIP pushed between your push and
+your pop. That lands their work in your tree and leaves your fix on the stack.
+
+Copy the file aside instead, revert it, and copy it back:
+
 ```bash
-git stash push -- <the source file(s) you changed>
+cp packages/sparkdown/src/compiler/utils/filterImage.ts "$SCRATCH/fix.ts"
+git checkout -- packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
 Re-run the new test — it **must fail**, and fail for the reason in the ticket,
-not on an import error or a typo. Then restore:
+not on an import error or a typo. Then restore **from the copy**:
 
 ```bash
-git stash pop
+cp "$SCRATCH/fix.ts" packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
-Re-run — it must pass. Record both outcomes for the PR body. (If your fix spans
-files that are awkward to stash, revert the single key line by hand instead;
-the point is seeing red, not the mechanism.)
+`git checkout --` reverts to HEAD, so it restores the *pre-fix* file — using it
+to undo the revert silently throws the fix away. **Confirm the restore landed
+before trusting anything downstream:**
+
+```bash
+git diff --stat
+```
+
+The file must still be listed. A test that passed alone and then fails in the
+full suite is usually this, not a flake — check the diff before blaming timing.
+
+Re-run — it must pass. Record both outcomes for the PR body.
+
+Where a whole-file revert would break the test's imports (the fix adds an export
+the test uses), simulate the old behaviour in place instead: disable the one
+branch that matters, or restore the old function body under the new name. Keep a
+**positive control** in the file — an assertion that passes both before and
+after — so a red run proves the defect, not a broken harness.
 
 **5c — run the suite.** Start with the file, widen to the package.
 
@@ -618,6 +642,7 @@ Things that look like they work and don't:
 | `verify` returns `preview.installed: false` | `window.__preview` only exists in same-origin mode. Don't pass `--cross-origin`. |
 | Game Preview pane is blank **white**; `gameMounted: false` | The `#game` scaffold never mounted after a server restart. `down`, `up`, retry. Discard the screenshot. |
 | Scrub lands on the wrong beat; `scrubWarning` set | The target line isn't a playable beat — pick the indented dialogue/action line, not the `NAME:` line, a heading, or a blank line. |
+| `verify` dies with `Timeout 90000ms exceeded` waiting for `.cm-content` | The machine is saturated — usually a vitest suite running in this or another worktree. The server is fine (`status` says UP, the URL returns 200). Wait for the suite and re-run; don't go hunting for a regression. |
 | vitest exits 0 with no `Test Files` / `Tests` summary | An OOM'd worker was killed by the OS. Not a pass. Lower `maxForks`, split the suite. |
 | `minThreads and maxThreads must not conflict` | You passed `maxForks` without `minForks`. Always pass both. |
 | `npm install` dies `ENOSPC`; or `npx esbuild --version` / `npx vitest --version` fails to spawn (`EFTYPE`) | Disk was full; `node_modules` is silently corrupt (truncated binaries, empty dirs). `npm cache clean --force`, prune `%LOCALAPPDATA%\Temp`, delete **all** `node_modules` (root + every workspace — nested ones die with the parent), reinstall **once**. Piecemeal repair is whack-a-mole. |
