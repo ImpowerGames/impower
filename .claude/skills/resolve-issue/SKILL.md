@@ -82,31 +82,38 @@ Never work on `main`, and never reuse another issue's worktree.
 
 ### Naming
 
-**Branch: `<type>/<slug>-<issue#>`**
-
-`<type>` is the same vocabulary as the commit prefix — `fix`, `feat`, `perf`,
-`docs`, `test`, `refactor`. `<slug>` is 2–4 dash-separated words naming the
-*defect or capability*, not the area. The issue number goes **last**.
+**`<type>/<issue>-<slug>` — and the worktree path is that same string**, under
+`C:/Users/Lovelle/Documents/GitHub/impower.worktrees/impower/`. No
+transformation, no second name to remember:
 
 ```
-fix/document-views-parse-settle-281
-perf/lazy-asset-bytes-227
-feat/composite-asset-previews-292
+branch     fix/302-filterimage-layers
+worktree   …/impower.worktrees/impower/fix/302-filterimage-layers
 ```
 
-Do **not** use the `claude/<slug>-<hex>` form. Those are auto-generated worktree
-branches; the random suffix carries no meaning and they usually omit the issue
-number, which breaks the branch↔ticket link.
+- `<type>` — the commit-prefix vocabulary: `fix`, `feat`, `perf`, `docs`,
+  `test`, `refactor`.
+- `<issue>` — the number, bare, **first**, so branches sort by ticket.
+- `<slug>` — 2–4 dash-separated words naming the *defect or capability*, not
+  the area (`filterimage-layers`, not `sparkdown-compiler`).
 
-**Worktree directory: the branch with `/` replaced by `-`**, placed in
-`C:/Users/Lovelle/Documents/GitHub/impower.worktrees/impower/`. So
-`fix/filterimage-layers-302` lives at `.../impower/fix-filterimage-layers-302`.
-One glance at the directory tells you the branch, the type, and the ticket.
+More examples: `fix/281-document-views-parse-settle`,
+`perf/227-lazy-asset-bytes`, `feat/292-composite-asset-previews`.
+
+**Never put `claude` in a branch or worktree name.** Some existing branches
+carry an auto-generated `claude/<slug>-<hex>` form; that is not the convention —
+the random suffix is meaningless and it drops the issue number, breaking the
+branch↔ticket link.
+
+`git worktree add` creates the intermediate `<type>/` directory for you:
 
 ```bash
 git fetch origin main
-git worktree add -b fix/filterimage-layers-302 "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/impower/fix-filterimage-layers-302" origin/main
+git worktree add -b fix/302-filterimage-layers "C:/Users/Lovelle/Documents/GitHub/impower.worktrees/impower/fix/302-filterimage-layers" origin/main
 ```
+
+When you later remove the worktree, the now-empty `<type>/` directory is left
+behind — `rmdir` it so the tree stays tidy.
 
 A fresh worktree has **no `node_modules`** — the monorepo is npm workspaces, so
 install once at the new worktree's root:
@@ -423,7 +430,7 @@ left behind:
 git add packages/sparkdown/src/compiler/utils/filterImage.ts packages/sparkdown/src/tests/compiler/FilterImageLayers.test.ts
 git status --short
 git commit -F commit-msg.txt
-git push -u origin fix/filterimage-layers-302
+git push -u origin fix/302-filterimage-layers
 ```
 
 Write bodies to a **file** and pass `--body-file`. `@-` is a *curl* idiom;
