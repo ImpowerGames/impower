@@ -1,3 +1,4 @@
+import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import {
   ProtocolObserver,
   sendProtocolMessage,
@@ -795,7 +796,7 @@ export class GamePlayerController {
       ? StartGameMessage.type.response(message.id, { success })
       : StartGameMessage.type.error(message.id, {
           code: 1,
-          message: !this._program?.compiled
+          message: !hasCompiledProgram(this._program)
             ? "The program contains errors that prevent it from being compiled"
             : `The game could not be started`,
         });
@@ -1011,7 +1012,7 @@ export class GamePlayerController {
 
   loadProgram = conflate(
     async (program: SparkProgram, checkpoint: string | undefined) => {
-      if (!program.compiled) {
+      if (!hasCompiledProgram(program)) {
         console.error("Program not compiled", program);
         return;
       }
@@ -1061,7 +1062,7 @@ export class GamePlayerController {
     this.simulate(this._game, this._options?.simulationOptions);
     this.listen(this._game);
     this._app = await this.buildApp(this._game);
-    const programCompiled = Boolean(this._program?.compiled);
+    const programCompiled = hasCompiledProgram(this._program);
     this._game?.start();
     if (programCompiled) {
       this._app?.start();

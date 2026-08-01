@@ -432,3 +432,53 @@ export const readProgramBuffer = (input: Uint8Array): ProgramBuffer => {
 /** Decode bytes produced by {@link encodeProgram} back to a JSON value. */
 export const decodeProgram = <T = unknown>(bytes: Uint8Array): T =>
   materializeNode(readProgramBuffer(bytes)) as T;
+
+/**
+ * A program carrying bytecode in EITHER representation.
+ *
+ * Typed structurally rather than as `SparkProgram`, because `SparkProgram`
+ * imports `ProgramBuffer` from this module and the reverse import would be a
+ * cycle.
+ */
+export interface CompiledProgramLike {
+  compiled?: Record<string, any>;
+  compiledBuffer?: ProgramBuffer;
+}
+
+/**
+ * True if the program has runnable bytecode, whichever form it arrived in.
+ *
+ * Call sites used to test `program.compiled` for truthiness as a readiness
+ * gate; with the binary path those gates must accept the buffer too, or a
+ * perfectly good program reads as "not compiled yet".
+ */
+export const hasCompiledProgram = (
+  program: CompiledProgramLike | undefined | null,
+): boolean => Boolean(program && (program.compiled || program.compiledBuffer));
+
+/**
+ * The program's bytecode as a JS object tree, materializing the binary form.
+ *
+ * `new Story(...)` walks a plain object tree, so the binary form has to be
+ * materialized at that boundary. Materializing is still cheaper than what it
+ * replaces: the object graph no longer crosses the worker hop as a structured
+ * clone, only the typed arrays and the string table do.
+ *
+ * Not memoized — callers materialize once and keep the result (see
+ * `Game.updateProgram`), because caching onto the program would mutate an
+ * object the compiler retains for its no-change short-circuit.
+ */
+export const resolveCompiledProgram = (
+  program: CompiledProgramLike | undefined | null,
+): Record<string, any> | undefined => {
+  if (!program) {
+    return undefined;
+  }
+  if (program.compiled) {
+    return program.compiled;
+  }
+  if (program.compiledBuffer) {
+    return materializeNode(program.compiledBuffer) as Record<string, any>;
+  }
+  return undefined;
+};
