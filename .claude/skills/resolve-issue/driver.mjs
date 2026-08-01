@@ -73,12 +73,10 @@ function portFree(port) {
 
 // Pick a stable base port from the worktree path.
 //
-// `npm run web:dev` normally auto-picks RANDOM free ports. That is right for a
-// human but wrong for an agent: OPFS is scoped per ORIGIN, so a new port every
-// launch means the project you loaded last time is GONE. Deriving the port from
-// the worktree path gives this checkout the same origin every run (so a loaded
-// repro survives `down`/`up`) while still differing from every other worktree on
-// the machine — this box routinely has 4+ of them running at once.
+// OPFS is scoped per ORIGIN, so the random ports `npm run web:dev` picks would
+// discard the loaded project on every launch. Hashing the worktree path keeps
+// this checkout on one origin while staying clear of the other worktrees
+// running on the same machine.
 async function pickPorts() {
   let h = 0;
   for (const ch of REPO_ROOT) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -104,8 +102,7 @@ async function pickPorts() {
 // Do NOT try to scrape the launcher's "✓ Live preview ready → URL" line: a
 // detached child on Windows does not flush its stdio into an inherited file
 // handle, so the log stays 0 bytes forever while the servers run perfectly.
-// Pinning the port sidesteps the whole problem — we already know the URL, so
-// readiness is just an HTTP poll.
+// Since the port is pinned, readiness is just an HTTP poll.
 async function up(args) {
   const existing = readState();
   if (existing?.url && (await isUp(existing.url))) {
@@ -290,9 +287,6 @@ async function withEditor(fn, { headless = true } = {}) {
 // Write a .sd source into the editor project's OPFS and reload so the editor
 // re-reads it. The default project id is "local" and its entry script is
 // "main.sd" (WorkspaceConstants.LOCAL_PROJECT_ID / WorkspaceStore).
-//
-// Playwright's page.evaluate awaits promises properly, so the sessionStorage
-// dance needed under Claude-in-Chrome's javascript_tool is NOT required here.
 async function writeMainSd(page, source) {
   return page.evaluate(async (src) => {
     const root = await navigator.storage.getDirectory();
@@ -325,8 +319,8 @@ async function waitForEditor(page, timeout = 90_000) {
 //      appears to do nothing.
 //   2. The editor RESTORES the previous session's cursor position asynchronously
 //      after load, so a scrub issued too early gets clobbered a second later and
-//      the preview settles on the OLD line. That is why this dispatches, waits,
-//      re-reads the actual cursor, and re-dispatches if it drifted.
+//      the preview settles on the OLD line. Hence the dispatch/re-read/
+//      re-dispatch loop below.
 async function scrubToLine(page, line, attempts = 4) {
   const dispatch = (n) =>
     page.evaluate((target) => {

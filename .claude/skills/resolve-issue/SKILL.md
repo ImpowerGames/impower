@@ -133,15 +133,11 @@ install once at the new worktree's root:
 npm install
 ```
 
-That takes several minutes and roughly 2–3 GB. **Verify it before trusting it** —
-this repo has a documented ENOSPC failure mode where a full disk leaves a
-*silently* corrupted `node_modules`: truncated binaries, empty package dirs,
-missing `dist/*.mjs` files. `npm install` can exit non-zero and still leave that
-behind, and the corruption only surfaces much later as a baffling build error.
-
-Don't check file sizes — they drift as packages change. **Execute the two
-binaries the toolchain depends on.** A truncated executable fails to spawn
-(`EFTYPE`) regardless of what it should have weighed:
+That takes several minutes and roughly 2–3 GB. **Verify it before trusting it.**
+A full disk leaves a *silently* corrupted `node_modules` — truncated binaries,
+empty package dirs, missing `dist/*.mjs` — and the corruption surfaces much
+later as a baffling build error. Execute the binaries rather than checking file
+sizes; a truncated executable fails to spawn whatever its expected size:
 
 ```bash
 npx esbuild --version
@@ -151,10 +147,9 @@ npx esbuild --version
 npx vitest --version
 ```
 
-Both must print a version and exit 0 (`0.18.20` and `vitest/2.1.9 win32-x64
-node-v23.6.0` at time of writing — the numbers will move; the *exit code* is the
-check). A spawn error, `EFTYPE`, or "not found" means a corrupted install — see
-Troubleshooting.
+Both must print a version and **exit 0** — the exit code is the check, not the
+numbers. A spawn error, `EFTYPE`, or "not found" means a corrupted install —
+see Troubleshooting.
 
 Everything from here runs **inside the new worktree**.
 
@@ -243,9 +238,8 @@ How to read it — **check these before trusting the PNG**:
   If the right-hand number is not the line you asked for, the driver sets
   `scrubWarning`; the line is probably not a playable beat (blank line,
   character-name line, heading).
-- `visible` — the game's rendered text. **Every line appears twice**: the player
-  draws a second copy as a text *outline* layer. This is deliberate and load-
-  bearing, not a bug — don't "fix" it and don't read it as duplicated output.
+- `visible` — the game's rendered text. **Every line appears twice**: the second
+  copy is the text *outline* layer. Expected — not duplicated output.
 - `settled: false` — the DOM never stopped mutating. Re-run.
 
 `--sd` is only needed when the script changes: the pinned port keeps the same
@@ -268,7 +262,7 @@ node .claude/skills/resolve-issue/driver.mjs down
 
 **Every fix and feature lands with a test that pins it.** Code with no test is
 not done — the next refactor silently reintroduces the bug or breaks the
-feature, which is exactly how several issues in this tracker were born.
+feature.
 
 **5a — write the test.** For a fix, it pins the defect. For a feature, it pins
 the new behaviour. Put it beside the existing ones for the package you changed:
@@ -286,16 +280,14 @@ Copy an existing neighbouring test's imports rather than inventing them — in
 primes `Container` first to break a class-extends TDZ cycle).
 
 **If the package has no tests at all, set it up — don't skip the test.** Most
-packages here don't have one yet (`sparkle`, `spark-dom`, `jsonrpc`,
-`spec-component`, `codemirror-vscode-lsp-client` and a dozen more have no
-`vitest.config.ts`). Adding the harness is part of the work, not a reason to
-land untested code. Use `packages/opfs-workspace` as the template — three
-pieces:
+packages here have no `vitest.config.ts` yet. Standing one up is part of the
+work, not a reason to land untested code. Use `packages/opfs-workspace` as the
+template — three pieces:
 
 1. `vitest.config.ts` at the package root. Copy
-   `packages/opfs-workspace/vitest.config.ts` verbatim; its `pool: "forks"` +
-   `singleFork` + `fileParallelism: false` settings exist because this repo has
-   OOM-crashed the machine on parallel runs. Keep them.
+   `packages/opfs-workspace/vitest.config.ts` verbatim and keep its
+   `pool: "forks"` + `singleFork` + `fileParallelism: false` settings —
+   parallel runs OOM this machine.
 2. `"test": "vitest run"` in the package's `scripts`, and `vitest` in its
    `devDependencies` (match the version other packages use — `^2.1.9`).
 3. A `test/` directory holding `*.test.ts`.
@@ -341,10 +333,9 @@ Run this via the **PowerShell** tool (in bash, `$_` gets eaten by the shell):
 Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -like '*vitest*' } | Select-Object ProcessId
 ```
 
-Other worktrees frequently have runs in flight — there were two live during
-this skill's own verification. If anything comes back, wait.
+Other worktrees frequently have runs in flight. If anything comes back, wait.
 
-Single file (verified — this exact command ran green):
+Single file:
 
 ```bash
 cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=1024" npx vitest run src/tests/compiler/constDeclarationValidity.test.ts --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1
@@ -377,8 +368,8 @@ cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=4096" npx vitest run
 **Exit code 0 does not mean green.** Two OOM shapes both exit 0:
 `Error: Worker exited unexpectedly` with no pass count; or the log simply
 *stops* with no `Test Files` / `Tests` summary at all. Confirm the summary lines
-exist and the file count matches what you expected — one run exited 0 having
-completed 13 of 156 files and looked perfectly clean. To count:
+exist and the file count matches what you expected — a run can exit 0 having
+completed 13 of 156 files and look perfectly clean. To count:
 
 ```bash
 grep -c "✓ src/" testrun.log
@@ -393,8 +384,8 @@ also fails on `origin/main`.
 ## 6. Adversarial code review (subagent fan-out)
 
 Do this **before** opening the PR, on the real diff. The goal is to *break your
-own fix*, not to admire it. Run it as a subagent fan-out — independent readers
-who have not been anchored by your reasoning find things you cannot.
+own fix*, not to admire it — and to have readers who weren't anchored by your
+reasoning do it.
 
 **6a — capture the diff once**, so every reviewer sees the same artifact:
 
@@ -465,16 +456,15 @@ committed unverified.
 ## 7. Commit, push, PR
 
 First clean up the review scratch files, then **look at what you are about to
-stage** — this step has swept up stray artifacts before:
+stage**:
 
 ```bash
 rm -f review-diff.patch testrun.log
 git status --short
 ```
 
-Stage **deliberately**, by path. `git add -A` will happily commit a screenshot,
-a `.patch`, a scratch `.sd`, or a `du.exe.stackdump` that some earlier command
-left behind:
+Stage **deliberately, by path**. `git add -A` will happily commit a screenshot,
+a `.patch`, a scratch `.sd`, or a crash dump some earlier command left behind:
 
 ```bash
 git add packages/sparkdown/src/compiler/utils/filterImage.ts packages/sparkdown/src/tests/compiler/FilterImageLayers.test.ts
@@ -483,9 +473,9 @@ git commit -F commit-msg.txt
 git push -u origin fix/302-filterimage-layers
 ```
 
-Write bodies to a **file** and pass `--body-file`. `@-` is a *curl* idiom;
-`gh` and `git` accept it as the literal two-character string `@-` and exit 0,
-which has already shipped a merged PR with an empty description.
+Write bodies to a **file** and pass `--body-file`. `@-` is a *curl* idiom; `gh`
+and `git` take it as the literal two-character string `@-` and exit 0, so the
+damage is invisible until you read the artifact back.
 
 ```bash
 gh pr create --title "fix(compiler): accumulate all matching filtered_layers (#302)" --body-file pr-body.md
@@ -561,10 +551,9 @@ Things that look like they work and don't:
 - **A blank WHITE Game Preview is a different failure from a black one.** After
   a server restart the player iframe can load — `readyState: "complete"`,
   `sameOrigin: true` — while the `#game` scaffold never mounts, so the pane
-  renders empty and every other signal looks healthy. Observed live during this
-  skill's own verification. The driver polls for `#game`, reloads once, and sets
-  `gameMounted: false` if it still isn't there. Never accept a screenshot
-  without checking that field.
+  renders empty and every other signal looks healthy. The driver polls for
+  `#game`, reloads once, and sets `gameMounted: false` if it still isn't there.
+  Never accept a screenshot without checking that field.
 - **Scrubbing only works while the preview is STOPPED.** After PLAY the engine
   is time-driven and ignores the cursor entirely; the scrub silently does
   nothing.
@@ -588,11 +577,9 @@ Things that look like they work and don't:
   reflows the spans back into words).
 - **The route indicator lives inside the player iframe**, not the editor
   document. Searching the editor DOM for `main : N → main : M` finds nothing.
-- **Every visible line appears twice** in `visible`. The duplicate is a text
-  **outline** layer: CSS has no native text outline, and `text-shadow` overlaps
-  badly once each character is wrapped in its own span, so the player draws a
-  second copy underneath. Necessary, not a defect — and not evidence that your
-  change is emitting content twice.
+- **Every visible line appears twice** in `visible`. The duplicate is the text
+  **outline** layer the player draws underneath. Expected — not evidence that
+  your change is emitting content twice.
 - **Generated files silently revert. DO NOT EDIT THEM.**
   `packages/sparkdown/language/*.json` are build artifacts of
   `definitions/yaml/*.yaml`. Editing the JSON will *seem* to work — tests will
