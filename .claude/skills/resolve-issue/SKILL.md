@@ -108,12 +108,10 @@ Everything from here runs **inside the new worktree**.
 Do not start editing off the ticket's say-so. Establish the failure first, and
 keep the artifact — it becomes the "before" half of the PR.
 
-- **Compiler / parser / engine issue** (`system: sparkdown`) → write a failing
-  test next to the existing ones in
-  `packages/sparkdown/src/tests/compiler/`, and run just that file (§5).
-  Note `compileSnapshot.ts` in that directory: its import order is
-  load-bearing (it primes `Container` first to break a class-extends TDZ
-  cycle), so copy an existing test's imports rather than inventing them.
+- **Compiler / parser / engine issue** (`system: sparkdown`) → write the failing
+  test now and run just that file (§5). Written first, it *is* your repro, and
+  it becomes the regression test in §5 unchanged — you get the "fails before,
+  passes after" evidence for free instead of reconstructing it later.
 - **Editor / preview / visual issue** (`app: web-editor`, `system: sparkle-ui`)
   → write a `.sd` repro and drive it through the editor (§4). Screenshot the
   broken state now.
@@ -208,7 +206,54 @@ node .claude/skills/resolve-issue/driver.mjs down
 
 ---
 
-## 5. Tests
+## 5. Regression tests
+
+**Every fix lands with a test that pins it.** A fix with no test is not done —
+the next refactor silently reintroduces the bug, which is exactly how several
+issues in this tracker were born.
+
+**5a — write the regression test.** Put it beside the existing ones for the
+package you changed:
+
+| Changed | Tests live in |
+| --- | --- |
+| `packages/sparkdown` compiler/lowering | `packages/sparkdown/src/tests/compiler/` |
+| `packages/sparkdown` runtime | `packages/sparkdown/src/tests/runtime/` |
+| Luau semantics | `packages/sparkdown/src/tests/luau-conformance/` |
+| Another package | that package's `test/` or `src/tests/` |
+| `impower-dev` | `impower-dev/test/` |
+
+Copy an existing neighbouring test's imports rather than inventing them — in
+`src/tests/compiler/`, `compileSnapshot.ts`'s import order is load-bearing (it
+primes `Container` first to break a class-extends TDZ cycle).
+
+Assert the **behaviour from the ticket**, not the shape of your patch. If the
+issue says "only the last matching layer survives", the test builds a case with
+several matching layers and asserts all of them come back.
+
+**5b — prove the test is honest.** A regression test that passes against the
+*old* code pins nothing.
+
+```bash
+git stash push -- <the source file(s) you changed>
+```
+
+Re-run the new test — it **must fail**, and fail for the reason in the ticket,
+not on an import error or a typo. Then restore:
+
+```bash
+git stash pop
+```
+
+Re-run — it must pass. Record both outcomes for the PR body. (If your fix spans
+files that are awkward to stash, revert the single key line by hand instead;
+the point is seeing red, not the mechanism.)
+
+**5c — run the suite.** Start with the file, widen to the package.
+
+---
+
+### Running vitest safely
 
 **Never run two vitest suites at once, and never run one uncapped.** This
 monorepo has OOM'd and hard-crashed this machine. Check first:
@@ -240,12 +285,31 @@ A directory, with a slightly larger cap:
 cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=2048" npx vitest run src/tests/compiler --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=2
 ```
 
+`packages/sparkdown`'s full suite is ~156 files / ~1800 tests / ~28 min and is
+at the edge of this machine even at `--max-old-space-size=4096`. **Never run it
+in one go** — run it in halves, sequentially, waiting for each to fully exit:
+
+```bash
+cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=4096" npx vitest run src/tests/compiler src/tests/runtime --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=2
+```
+
+```bash
+cd packages/sparkdown && NODE_OPTIONS="--max-old-space-size=4096" npx vitest run src/tests/luau-conformance --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=2
+```
+
 **Exit code 0 does not mean green.** Two OOM shapes both exit 0:
 `Error: Worker exited unexpectedly` with no pass count; or the log simply
 *stops* with no `Test Files` / `Tests` summary at all. Confirm the summary lines
-exist and the file count matches what you expected. Never run
-`packages/sparkdown`'s full ~156-file suite in one go — split it
-(`src/tests/compiler src/tests/runtime`, then `src/tests/luau-conformance`).
+exist and the file count matches what you expected — one run exited 0 having
+completed 13 of 156 files and looked perfectly clean. To count:
+
+```bash
+grep -c "✓ src/" testrun.log
+```
+
+Report the real numbers in the PR body. If a pre-existing failure is unrelated
+to your change, say so explicitly rather than quietly ignoring it — confirm it
+also fails on `origin/main`.
 
 ---
 
@@ -272,8 +336,9 @@ reviewers find redundant things. Useful lenses for this repo:
   not just a cold compile?
 - **Blast radius** — enumerate every caller of the changed function and argue
   each one is unaffected. Cite `file:line`.
-- **Test honesty** — would the new test actually fail against the *old* code?
-  Revert the source change, confirm it goes red, restore.
+- **Test honesty** — does the §5 regression test pin the ticket's *behaviour*,
+  or merely the shape of the patch? Would it catch the bug coming back by a
+  different route?
 - **Generated files** — see Gotchas. Did the diff edit a generated JSON without
   its YAML source?
 
@@ -312,9 +377,18 @@ gh pr create --title "fix(compiler): accumulate all matching filtered_layers (#3
 gh pr view --json number,title,body
 ```
 
-PR body should carry: what broke and why (with `file:line`), the fix, the test
-that now covers it, the before/after screenshots, and anything the adversarial
-review raised that you deliberately did not change.
+PR body should carry:
+
+- What broke and why, with `file:line`.
+- The fix.
+- **The regression test** — its path, and the red/green evidence from §5b
+  ("fails on the pre-fix source with `<assertion>`, passes after").
+- **Suite results** — which suites you ran and their actual `Test Files` /
+  `Tests` counts. Note any pre-existing failure you confirmed also fails on
+  `origin/main`.
+- The before/after screenshots from §4.
+- Anything the adversarial review raised that you deliberately did not change,
+  and why.
 
 ---
 
