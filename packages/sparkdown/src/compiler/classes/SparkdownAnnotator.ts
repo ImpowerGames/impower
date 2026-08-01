@@ -1,4 +1,4 @@
-import { Line, Range, RangeSet, Text } from "@codemirror/state";
+import { ChangeDesc, Line, Range, RangeSet, Text } from "@codemirror/state";
 import { SyntaxNodeRef, Tree } from "@lezer/common";
 import { SparkdownAnnotation } from "./SparkdownAnnotation";
 
@@ -35,6 +35,13 @@ export abstract class SparkdownAnnotator<
     this.text = text;
     if (uri !== undefined) this.uri = uri;
   }
+
+  /**
+   * Shift any position-keyed state this annotator caches across updates
+   * through an edit. Called once per update, BEFORE the re-annotation window
+   * is computed, so `begin` sees offsets in the new document.
+   */
+  mapState(changes: ChangeDesc) {}
 
   begin(iterateFrom: number, iterateTo: number) {}
 
