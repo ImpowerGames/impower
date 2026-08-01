@@ -278,6 +278,16 @@ export class SparkdownCompiler {
   // `store`'s value still keeps reuse.
   protected _censusEntries?: string[];
   protected _prevCensusKey?: string;
+  // Parsed nodes whose subtree provably contains no compiler-synthesized
+  // name, so `canonicalizeSyntheticFlowNames` can skip them wholesale on
+  // later compiles. Keyed by identity, which the incremental pipeline
+  // preserves for unchanged content and replaces on re-lowering.
+  // Value is the node's content length when it was marked. Assembly can APPEND
+  // to a carried-forward container (a later changed chunk's content is added
+  // into an existing weave), which would make a stale mark hide the new
+  // children. Comparing the length on lookup catches that in O(1); a subtree
+  // whose own nodes changed gets a new identity anyway.
+  protected _synthFreeSubtrees = new WeakMap<object, number>();
   // [container, previous parent] for every container committed to reuse this
   // compile — restored if the compile throws, so the previous RuntimeStory
   // (still live in the checkpoint-builder Game) isn't left holding containers
@@ -2079,14 +2089,39 @@ export class SparkdownCompiler {
     // Identifier-valued fields are visited before the plain string fields
     // (same order the previous two-pass implementation used, so ordinal
     // assignment is unchanged).
-    const collect = (node: ParsedObject) => {
+    // Returns whether this subtree contains ANY synthetic name.
+    //
+    // Subtrees with none are remembered by node identity and skipped entirely
+    // on later compiles: the incremental pipeline carries unchanged nodes
+    // forward by identity, and a re-lowered node is a NEW object, so it is
+    // never wrongly skipped. The set stays valid across the rewrite below
+    // because renaming only ever rewrites names that already matched SYNTH
+    // (including the canonical `__synth_<n>` form), so a synth-free subtree
+    // cannot acquire one. Most of a screenplay is display text with no
+    // synthetics at all, which is what makes this worth caching — the walk
+    // itself is otherwise whole-tree on every keystroke.
+    const collect = (node: ParsedObject): boolean => {
+      const markedLength = this._synthFreeSubtrees.get(node);
+      if (
+        markedLength !== undefined &&
+        markedLength === (node.content?.length ?? 0)
+      ) {
+        return false;
+      }
+      let found = false;
       for (const f of IDENTIFIER_FIELDS) {
         const val = (node as any)[f];
         if (val instanceof Identifier) {
+          if (val.name && SYNTH.test(val.name)) {
+            found = true;
+          }
           considerId(val, node);
         } else if (Array.isArray(val)) {
           for (const el of val) {
             if (el instanceof Identifier) {
+              if (el.name && SYNTH.test(el.name)) {
+                found = true;
+              }
               considerId(el, node);
             }
           }
@@ -2095,19 +2130,28 @@ export class SparkdownCompiler {
       for (const f of NAME_STRING_FIELDS) {
         const v = (node as any)[f];
         if (typeof v === "string" && SYNTH.test(v)) {
+          found = true;
           considerName(v);
           matchedStrings.push({ node, field: f });
         }
       }
       if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
+        // Only flows that actually contain a synthetic can need re-keying,
+        // and a skipped subtree contains none by construction.
         flowsToRekey.push(node);
       }
       const content = node.content;
       if (content) {
         for (const c of content) {
-          collect(c);
+          if (collect(c)) {
+            found = true;
+          }
         }
       }
+      if (!found) {
+        this._synthFreeSubtrees.set(node, node.content?.length ?? 0);
+      }
+      return found;
     };
     collect(root);
     if (!changed) {
@@ -3472,6 +3516,73 @@ export class SparkdownCompiler {
   validateReferences(state: SparkdownCompilerState, program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateReferences", uri);
+    // Per-COMPILE memos. Both of these are pure functions of the reference's
+    // `declaration` plus `program`/`config`/`state`, all of which are fixed
+    // for the duration of this call — but they were being recomputed once per
+    // reference, and a screenplay repeats the same declaration across
+    // hundreds of references (every `[[show backdrop X]]` shares one). Scoped
+    // to this call deliberately: nothing here survives to the next compile,
+    // so there is no staleness surface.
+    const stringIdentifiersByDeclaration = new Map<string, string[]>();
+    const selectorTypesByDeclaration = new Map<string, string[]>();
+    const possibleStringIdentifiersFor = (declaration: string | undefined) => {
+      const key = declaration ?? "";
+      let cached = stringIdentifiersByDeclaration.get(key);
+      if (!cached) {
+        cached = getPossibleStringIdentifiers(
+          program,
+          declaration,
+          this._config,
+          state,
+        );
+        stringIdentifiersByDeclaration.set(key, cached);
+      }
+      return cached;
+    };
+    // Same per-compile scope, for the selector resolution itself. The key
+    // covers every field of `SparkSelector` — an incomplete key would resolve
+    // one selector to another's struct.
+    const resolvedSelectors = new Map<string, any>();
+    const resolveSelectorMemo = (
+      selector: SparkSelector,
+      expectedSelectorTypes: string[],
+    ) => {
+      const key = [
+        selector.displayType ?? "",
+        selector.displayName ?? "",
+        (selector.types ?? []).join(","),
+        selector.name ?? "",
+        selector.property ?? "",
+        selector.value ?? "",
+        String(selector.fuzzy ?? false),
+        expectedSelectorTypes.join(","),
+      ].join("|");
+      if (resolvedSelectors.has(key)) {
+        return resolvedSelectors.get(key);
+      }
+      const [resolved] = resolveSelector<any>(
+        program,
+        selector,
+        expectedSelectorTypes,
+        state,
+      );
+      resolvedSelectors.set(key, resolved);
+      return resolved;
+    };
+    const expectedSelectorTypesFor = (declaration: string | undefined) => {
+      const key = declaration ?? "";
+      let cached = selectorTypesByDeclaration.get(key);
+      if (!cached) {
+        cached = getExpectedSelectorTypes(
+          program,
+          declaration,
+          this._config,
+          state,
+        );
+        selectorTypesByDeclaration.set(key, cached);
+      }
+      return cached;
+    };
     for (const uri of Object.keys(program.scripts)) {
       const doc = this.documents.get(uri);
       if (doc) {
@@ -3516,18 +3627,9 @@ export class SparkdownCompiler {
           }
           if (reference.selectors) {
             const declaration = reference.assigned;
-            const possibleStringIdentifiers = getPossibleStringIdentifiers(
-              program,
-              declaration,
-              this._config,
-              state,
-            );
-            const expectedSelectorTypes = getExpectedSelectorTypes(
-              program,
-              declaration,
-              this._config,
-              state,
-            );
+            const possibleStringIdentifiers =
+              possibleStringIdentifiersFor(declaration);
+            const expectedSelectorTypes = expectedSelectorTypesFor(declaration);
             if (expectedSelectorTypes.includes("color")) {
               const range = doc.range(cur.from, cur.to);
               program.colorAnnotations ??= {};
@@ -3538,12 +3640,7 @@ export class SparkdownCompiler {
             // Validate that reference resolves to existing an struct
             let found: any = undefined;
             for (const s of reference.selectors) {
-              const [resolved] = resolveSelector<any>(
-                program,
-                s,
-                expectedSelectorTypes,
-                state,
-              );
+              const resolved = resolveSelectorMemo(s, expectedSelectorTypes);
               if (resolved) {
                 found = resolved;
               }
