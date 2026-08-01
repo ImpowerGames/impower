@@ -84,6 +84,13 @@ export const filterImage = (
           imageToFilter.$type === "image" &&
           !imageToFilter.$name.startsWith("$")
         ) {
+          // Structs are carried across incremental compiles by identity, so a
+          // root that flipped from layered_image to image would otherwise keep
+          // the layer set derived when it was still layered, and consumers
+          // would draw it alongside the fresh `filtered_src`. (The reverse
+          // flip stays stale: `filtered_src` is already set by then, so the
+          // early-out above means this never re-runs.)
+          filteredImage.filtered_layers = undefined;
           if (imageToFilter.data) {
             filteredImage.filtered_src = filterSVG(
               imageToFilter.data,
@@ -105,8 +112,13 @@ export const filterImage = (
           imageToFilter.$type === "layered_image" &&
           !imageToFilter.$name.startsWith("$")
         ) {
-          // One array across every layer: the result is the SET of layers
-          // matching the filter, so it must outlive a single iteration.
+          // `filtered_layers` is the set of layers to DRAW, so it accumulates
+          // the layers the filter does NOT match: `filterMatchesName` selects
+          // what gets filtered OUT (`filterSVG` deletes the nodes it matches).
+          // Layers that aren't filterable, and `default` ones, never match and
+          // so always survive — which is what makes a filter-less
+          // `filtered_image` show exactly the default layers.
+          // One array across every layer, so it outlives a single iteration.
           const filteredLayers: {
             $type: "image";
             $name: string;
@@ -118,14 +130,11 @@ export const filterImage = (
             imageToFilter.assets ?? {},
           )) {
             const keyIsArrayIndex = !Number.isNaN(Number(key));
-            if (keyIsArrayIndex) {
-              if (filterMatchesName(layerImage.$name, combinedFilter)) {
-                filteredLayers.push(layerImage);
-              }
-            } else {
-              if (filterMatchesName(key, combinedFilter)) {
-                filteredLayers.push(layerImage);
-              }
+            // Positional entries carry no key to match on, so the layer's own
+            // name is the subject; a keyed table names each layer by its key.
+            const layerName = keyIsArrayIndex ? layerImage.$name : key;
+            if (!filterMatchesName(layerName, combinedFilter)) {
+              filteredLayers.push(layerImage);
             }
           }
           filteredImage.filtered_layers = filteredLayers;

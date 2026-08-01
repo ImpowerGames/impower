@@ -303,12 +303,20 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return `${ease.function}(${ease.parameters.join(",")})`;
   }
 
-  getImageAssets(type: string, name: string) {
+  getImageAssets(type: string, name: string, visited = new Set<string>()) {
+    // `a` -> filtered `a` -> `a` is authorable, and the untyped fan-out below
+    // re-enters this method, so without a guard a cycle recurses until the
+    // stack blows rather than rendering a missing image.
+    const visitKey = `${type}:${name}`;
+    if (visited.has(visitKey)) {
+      return [];
+    }
+    visited.add(visitKey);
     if (!type) {
       const images: Image[] = [];
-      images.push(...this.getImageAssets("filtered_image", name));
-      images.push(...this.getImageAssets("layered_image", name));
-      images.push(...this.getImageAssets("image", name));
+      images.push(...this.getImageAssets("filtered_image", name, visited));
+      images.push(...this.getImageAssets("layered_image", name, visited));
+      images.push(...this.getImageAssets("image", name, visited));
       return images;
     }
     if (type === "image") {
@@ -326,7 +334,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // `Object.values(undefined)` and abort the whole UI restore.
         for (const image of Object.values(layeredImage.assets ?? {})) {
           if (image && typeof image === "object") {
-            images.push(...this.getImageAssets(image.$type, image.$name));
+            // Branch the guard per layer: it exists to stop cycles along one
+            // path, and sharing it would drop a layer that legitimately
+            // reuses an asset an earlier layer already used.
+            images.push(
+              ...this.getImageAssets(image.$type, image.$name, new Set(visited)),
+            );
           }
         }
         return images;
@@ -345,9 +358,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         if (filteredImage.filtered_layers) {
           for (const layer of filteredImage.filtered_layers) {
-            const image = this.context?.image?.[layer?.$name];
-            if (image) {
-              images.push(image);
+            if (layer && typeof layer === "object") {
+              // Resolve each surviving layer the same way the layered_image
+              // branch does: a layer can itself be a group, and the compiler
+              // emits bare references with an empty `$type`, so a direct
+              // `context.image` lookup would silently drop it.
+              images.push(
+                ...this.getImageAssets(
+                  layer.$type,
+                  layer.$name,
+                  new Set(visited),
+                ),
+              );
             }
           }
         }
@@ -360,9 +382,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   getImageSrcsByName(name: string) {
     const imageName = name.includes("~") ? sortFilteredName(name) : name;
     if (this.context?.filtered_image?.[imageName]) {
-      filterImage(this.context, this.context?.filtered_image?.[imageName]);
-      if (this.context?.filtered_image?.[imageName].filtered_src) {
-        return [this.context?.filtered_image?.[imageName].filtered_src];
+      const filteredImage = this.context.filtered_image[imageName];
+      filterImage(this.context, filteredImage);
+      if (filteredImage.filtered_src) {
+        return [filteredImage.filtered_src];
+      }
+      // A layered root yields no single flattened src — it filters down to the
+      // subset of layers that survived, which still has to be composited.
+      // Only claim the lookup when something survived: an empty array would
+      // join into a trailing empty `background-image` component, which
+      // invalidates the whole declaration and blanks sibling images too.
+      if (filteredImage.filtered_layers?.length) {
+        const srcs = this.getImageAssets("filtered_image", imageName).map(
+          (asset) => asset.src,
+        );
+        if (srcs.length > 0) {
+          return srcs;
+        }
       }
     }
     if (this.context?.layered_image?.[imageName]) {

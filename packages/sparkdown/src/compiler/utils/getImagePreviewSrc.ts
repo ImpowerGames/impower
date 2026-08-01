@@ -44,7 +44,25 @@ export const getImagePreviewSrc = (
     if (struct["filtered_src"]) {
       return struct["filtered_src"];
     }
-    // Raster or layered root: nothing to filter, so preview the root itself.
+    const filteredLayers = struct["filtered_layers"];
+    if (filteredLayers?.length) {
+      // A layered root filters down to the layers that survived. Previewing
+      // the root instead would show a layer the filter removes -- which is
+      // what happens whenever exactly one layer survives, since the compositor
+      // skips anything with fewer than two.
+      for (const layer of filteredLayers) {
+        const src = getImagePreviewSrc(
+          context,
+          resolveImageReference(context, layer),
+          visited,
+        );
+        if (src) {
+          return src;
+        }
+      }
+      return undefined;
+    }
+    // Raster root, or nothing survived: preview the root itself.
     return getImagePreviewSrc(
       context,
       resolveImageReference(context, struct["image"]),
