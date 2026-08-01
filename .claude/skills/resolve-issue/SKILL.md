@@ -1,6 +1,6 @@
 ---
 name: resolve-issue
-description: Resolve a GitHub issue in this repo end-to-end — read the ticket, reproduce it, fix it, run the tests, verify it live in the running editor with a screenshot, adversarially review the diff, and open a PR. Use when asked to fix, resolve, work on, or take an issue/ticket/bug by number (e.g. "fix #302", "resolve issue 311", "take the next ticket").
+description: Resolve a GitHub issue in this repo end-to-end — read the ticket, reproduce it, fix it, add a regression test and run the suite, verify it live in the running editor with a screenshot, adversarially review the diff, and open a PR. Use when asked to fix, resolve, work on, or take an issue/ticket/bug by number (e.g. "fix #302", "resolve issue 311", "take the next ticket").
 ---
 
 # Resolve a GitHub issue
