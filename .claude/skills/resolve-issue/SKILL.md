@@ -256,6 +256,39 @@ Repeat after the fix to produce `after.png`. Stop the servers when done:
 node .claude/skills/resolve-issue/driver.mjs down
 ```
 
+### When the change has no visual signature
+
+Some fixes cannot show up in a screenshot — a perf change, a memory leak, an
+internal data structure no pixel depends on. Two before/after PNGs that look
+identical prove nothing, and presenting them as the gate is worse than useless:
+they read as evidence while carrying none.
+
+For those, **the gate is a measured before/after, and it REPLACES the
+screenshot** — it does not sit alongside a pair of identical images. Still boot
+the editor and confirm nothing visible broke; just don't dress that up as proof
+the fix worked.
+
+What makes a timing here honest:
+
+- **One candidate per process.** A shared process inflates whatever runs second
+  by several times. Run the baseline and the patch as separate commands.
+- **Interleave and take medians.** Run-to-run variance on this machine is large
+  enough to invert a real 2× difference. Three alternating pairs is the minimum.
+- **Carry a control** — a second measurement the change should NOT affect. If
+  the control moves as much as the candidate, the pair is noise; measure again.
+- **Report absolute numbers, not just ratios.** "2×" hides whether that is
+  4ms → 8ms or 400ms → 800ms.
+- **Say where the number came from.** If no benchmark in the repo covers the
+  path — several don't; `perfProfile.test.ts` drives `SparkdownCompiler`, whose
+  annotate set excludes `formatting` and `semantics` — say the figure comes from
+  a scratch harness and name what it drove.
+
+Same shape for a memory or count regression: measure the quantity over a fixed
+number of operations, before and after, and report both numbers.
+
+A performance cost the fix knowingly carries is a **headline, not a footnote** —
+put it at the top of the PR body.
+
 ---
 
 ## 5. Regression tests
@@ -520,7 +553,10 @@ PR body should carry:
 - **Suite results** — which suites you ran and their actual `Test Files` /
   `Tests` counts. Note any pre-existing failure you confirmed also fails on
   `origin/main`.
-- The before/after screenshots from §4.
+- The before/after screenshots from §4 — or, when the change has no visual
+  signature, the before/after **measurement** that replaces them, with absolute
+  numbers and how they were taken.
+- Any performance cost the fix carries, at the TOP of the body.
 - Anything the adversarial review raised that you deliberately did not change,
   and why.
 
