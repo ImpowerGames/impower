@@ -7,9 +7,7 @@
 // whole loop: boot the two dev servers, remember the port it got, drive the
 // editor with Playwright, and drop screenshots on disk.
 //
-// Playwright is a declared root devDependency (it used to arrive only
-// transitively via vscode-sparkdown -> @vscode/test-web, which made this driver
-// depend on a package no manifest asked for). Browsers come from the local
+// Playwright is a declared root devDependency. Browsers come from the local
 // ms-playwright cache; `npx playwright install chromium` if it is empty.
 //
 // This file must live inside the repo tree regardless: Node resolves

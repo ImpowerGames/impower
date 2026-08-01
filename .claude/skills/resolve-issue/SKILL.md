@@ -532,10 +532,7 @@ its return value lands in the JSON), `--headed` (visible browser).
 
 State lives in `.claude/skills/resolve-issue/.state.json` (gitignored).
 
-Playwright is a **declared root devDependency** (`playwright: ^1.61.0`). It used
-to arrive only transitively via `vscode-sparkdown → @vscode/test-web`, which
-meant this driver silently depended on a package no manifest asked for; it is
-declared now so the driver can't be broken from an unrelated corner of the repo.
+Playwright is a **declared root devDependency** (`playwright: ^1.61.0`).
 Browsers come from the local `ms-playwright` cache — if it's empty on a new
 machine, `npx playwright install chromium`.
 
