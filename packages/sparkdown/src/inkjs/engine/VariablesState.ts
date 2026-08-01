@@ -736,4 +736,27 @@ export class VariablesState extends VariablesStateAccessor<
     this._reactiveChangedTables = new Set();
     return changes;
   }
+
+  /**
+   * Merge a previously taken change-set back in.
+   *
+   * `takeReactiveChanges` is destructive, so a caller that takes it to discard
+   * its OWN residue also discards everything the turn recorded before it ran.
+   * That is not recoverable downstream: reactive updates are equality-gated on
+   * the last emitted value, so a dropped change is never re-derived and the
+   * affected bindings stay stale indefinitely. Restoring is safe in the other
+   * direction — per the note above, a false positive costs one extra
+   * equality-gated re-eval and never a missed update.
+   */
+  public restoreReactiveChanges(changes: {
+    globals: Set<string>;
+    tables: Set<object>;
+  }): void {
+    for (const name of changes.globals) {
+      this._reactiveChangedGlobals.add(name);
+    }
+    for (const table of changes.tables) {
+      this._reactiveChangedTables.add(table);
+    }
+  }
 }

@@ -1,5 +1,6 @@
 import { IMessage } from "@impower/jsonrpc/src/common/types/IMessage";
 import { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
+import { ErrorType } from "../../../core/enums/ErrorType";
 import { filterImage } from "@impower/sparkdown/src/compiler/utils/filterImage";
 import { sortFilteredName } from "@impower/sparkdown/src/compiler/utils/sortFilteredName";
 import {
@@ -533,7 +534,32 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // for table elements are accepted directly — see StoryState
     // .PassArgumentsToEvaluationStack). Non-loop bindings are nullary.
     const args = (binding.params ?? []).map((name) => env?.[name]);
-    return story.EvaluateFunction(exprId, args);
+    // A binding that THROWS must not abort the mount. `text "{player.stats.hp}"`
+    // with `player.stats` nil compiles with zero diagnostics and then threw out
+    // of mountTextContent -> constructLayoutsFromAst -> onConnected ->
+    // Game.connect -> buildApp, with no try/catch anywhere on that chain: the
+    // whole preview went blank, nothing reached the wire, and no error was
+    // surfaced. The identical expression in DIALOGUE degrades gracefully, so
+    // the same text was fatal in one position and harmless in the other.
+    //
+    // `undefined` is already the not-evaluable answer here (see the guards
+    // above) and every consumer handles it.
+    try {
+      return story.EvaluateFunction(exprId, args);
+    } catch (e) {
+      this.reportRuntimeError(`Error evaluating \`${binding.source ?? exprId}\``, e);
+      return undefined;
+    }
+  }
+
+  /** Surface a runtime error without unwinding the caller.
+   *
+   *  `story.onError` is the channel `Game.setupStory` wires to its own runtime
+   *  error notification, so this reaches the editor exactly like an ink runtime
+   *  error rather than dying silently in a console. */
+  protected reportRuntimeError(what: string, e: unknown): void {
+    const detail = e instanceof Error ? e.message : String(e);
+    this._game.story.onError?.(`${what}: ${detail}`, ErrorType.Error);
   }
 
   override getBuiltins() {
@@ -552,6 +578,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   override async onConnected() {
     this._root = undefined;
     this._root = this.getOrCreateRootElement();
+    // Dropping the root restarts the deterministic structural id counters, so
+    // every id this connect mints has been used before. `_events` is keyed by
+    // those ids and was cleared only in `onReset()` — and this branch reuses
+    // the `Game` across live-preview edits, so from the second edit onward
+    // (the first still takes the `simulation === "fail"` reset path; later
+    // same-beat edits return early and reset nothing) a handler the author had
+    // DELETED kept firing under a re-minted id. Clearing here is safe because
+    // `mountEvent` re-registers every live handler during the replay below.
+    this._events = {};
     // Reactive layouts are the ONLY render path now (the `config.ui.reactive`
     // opt-in was retired once `main` auto-opens and `[[open/close]]` mount the
     // rest). The static `constructLayouts` path remains only as a fallback when a
@@ -1987,7 +2022,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected runHandlerFunction(name: string, event?: AbstractValue): void {
     const story = this._game.story;
     if (story.HasFunction(name)) {
-      story.EvaluateFunction(name, event !== undefined ? [event] : []);
+      // Same containment as `evalBinding`: a handler that throws must not take
+      // down the click that ran it (and, through `refreshLayouts`, the rest of
+      // the UI).
+      try {
+        story.EvaluateFunction(name, event !== undefined ? [event] : []);
+      } catch (e) {
+        this.reportRuntimeError(`Error running handler \`${name}\``, e);
+      }
     }
   }
 
@@ -3107,11 +3149,22 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (!layout) {
       return;
     }
-    // Mount captures the layout's reactive deps; settle the load-time change
+    // Mount captures the layout's reactive deps; settle the mount's own change
     // residue afterwards so the first per-turn refresh only sees post-mount
     // changes (mirrors constructLayoutsFromAst).
+    //
+    // But `takeReactiveChanges` is DESTRUCTIVE and this runs mid-beat:
+    // `Coordinator` applies layout instructions BEFORE `refreshLayouts`, so
+    // consuming the whole set here handed the refresh an empty one. A beat that
+    // wrote a store and ran `[[open X]]` left every already-mounted layout
+    // stale — permanently, because updates are equality-gated on the last
+    // emitted value, so a dropped change is never re-derived. Take the beat's
+    // changes aside, discard the mount's residue, hand them back.
+    const vs = this._game.story.variablesState;
+    const pending = vs.takeReactiveChanges();
     const element = this.constructLayoutFromAst(layout);
-    this._game.story.variablesState.takeReactiveChanges();
+    vs.takeReactiveChanges();
+    vs.restoreReactiveChanges(pending);
     // The layouts layer's root opacity is revealed on the first beat anyway, but
     // open it here too so a layout opened before any dialogue is visible.
     this.reveal();
