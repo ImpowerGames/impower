@@ -231,6 +231,10 @@ export class SparkdownCompiler {
   // compile"; see `maybeReseedBinaryTable`.
   protected _binaryTableBaseline = 0;
 
+  // Previous compile's buffer size, so the writer allocates once instead of
+  // regrowing geometrically. The program is nearly the same size every edit.
+  protected _binarySlotHint = 0;
+
   // ---- Incremental ExportRuntime: constructed-flow reuse ------------------
   // A top-level flow (knot/scene/function, plus its stitches) is assembled
   // from a RUN of chunks: the declaration chunk plus every body chunk that
@@ -938,7 +942,7 @@ export class SparkdownCompiler {
         // object tree — so on the no-memo path it does strictly less work.
         const binary = this._config.binaryProgram === true;
         const writer = binary
-          ? new ProgramBinaryWriter(this._binaryTable)
+          ? new ProgramBinaryWriter(this._binaryTable, this._binarySlotHint)
           : new SimpleJson.Writer();
         // Incremental ToJson: reuse the serialized subtree of each top-level flow
         // whose source content is unchanged AND whose cross-flow fingerprint
@@ -1059,7 +1063,9 @@ export class SparkdownCompiler {
           // transfer in O(1) across a worker boundary, and packing them into
           // one self-describing byte blob costs ~10ms/compile (it re-encodes
           // the whole string table to UTF-8) for no benefit on that hop.
-          program.compiledBuffer = (writer as ProgramBinaryWriter).toBuffer();
+          const buffer = (writer as ProgramBinaryWriter).toBuffer();
+          program.compiledBuffer = buffer;
+          this._binarySlotHint = buffer.nodes.length;
           // Safe to run AFTER emitting: reseeding installs fresh arrays on the
           // table rather than clearing them in place, so the buffer just
           // emitted keeps its own (correct) string array alive.

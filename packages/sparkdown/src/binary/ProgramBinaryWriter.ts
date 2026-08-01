@@ -80,6 +80,14 @@ export const reseedProgramTable = (table: ProgramTable): void => {
  */
 export interface ProgramChunk {
   readonly nodes: Uint32Array;
+  /**
+   * Largest payload/size slot in this chunk, recorded at capture.
+   *
+   * Splicing needs it to keep the buffer's slot-width decision correct, and
+   * caching it here is what keeps splice a pure memcpy rather than a memcpy
+   * plus a rescan of every record.
+   */
+  readonly widest: number;
   readonly generation: number;
 }
 
@@ -90,7 +98,9 @@ export interface CachedFlowChunk {
 }
 
 export class ProgramBinaryWriter {
-  private _nodes: number[] = [];
+  private _nodes: Uint32Array;
+  /** Slots written so far (NOT records, and not the array's capacity). */
+  private _length = 0;
   private _table: ProgramTable;
   /** Indices of records whose `size` is still unpatched, innermost last. */
   private _open: number[] = [];
@@ -101,14 +111,29 @@ export class ProgramBinaryWriter {
   private _pendingCapture: { name: string; fp: string } | null = null;
   private _captured = new Map<string, CachedFlowChunk>();
 
-  constructor(table: ProgramTable = createProgramTable()) {
+  constructor(table: ProgramTable = createProgramTable(), hint = 0) {
     this._table = table;
     // Ids already in the table stay valid, so the widest existing pointer is a
     // lower bound on the slot width this buffer needs.
-    this._widest = Math.max(
-      table.strings.length,
-      table.numbers.length,
-    );
+    this._widest = Math.max(table.strings.length, table.numbers.length);
+    // Sizing from the previous compile avoids most regrowth: the program is
+    // nearly the same size every keystroke.
+    this._nodes = new Uint32Array(Math.max(hint, 1024));
+  }
+
+  /** Ensure room for `slots` more, growing geometrically. */
+  private _ensure(slots: number): void {
+    const needed = this._length + slots;
+    if (needed <= this._nodes.length) {
+      return;
+    }
+    let capacity = this._nodes.length * 2;
+    while (capacity < needed) {
+      capacity *= 2;
+    }
+    const grown = new Uint32Array(capacity);
+    grown.set(this._nodes.subarray(0, this._length));
+    this._nodes = grown;
   }
 
   // ---------------------------------------------------------------- interning
@@ -145,14 +170,19 @@ export class ProgramBinaryWriter {
 
   /** Append a record, returning its index in RECORDS (not slots). */
   private _emit(tag: ProgramNodeTag, value: number): number {
-    const index = this._nodes.length / NODE_WIDTH;
-    this._nodes.push(tag, value, 0);
-    return index;
+    this._ensure(NODE_WIDTH);
+    const at = this._length;
+    const nodes = this._nodes;
+    nodes[at] = tag;
+    nodes[at + 1] = value;
+    nodes[at + 2] = 0;
+    this._length = at + NODE_WIDTH;
+    return at / NODE_WIDTH;
   }
 
   /** Patch a record's subtree SIZE, in records, including itself. */
   private _close(index: number): void {
-    const size = this._nodes.length / NODE_WIDTH - index;
+    const size = this._length / NODE_WIDTH - index;
     this._nodes[index * NODE_WIDTH + 2] = size;
     if (size > this._widest) {
       this._widest = size;
@@ -161,7 +191,13 @@ export class ProgramBinaryWriter {
 
   /** A leaf: opens and closes in one step. */
   private _leaf(tag: ProgramNodeTag, value: number): void {
-    this._nodes.push(tag, value, 1);
+    this._ensure(NODE_WIDTH);
+    const at = this._length;
+    const nodes = this._nodes;
+    nodes[at] = tag;
+    nodes[at + 1] = value;
+    nodes[at + 2] = 1;
+    this._length = at + NODE_WIDTH;
   }
 
   // ------------------------------------------------- SimpleJson.Writer surface
@@ -199,7 +235,7 @@ export class ProgramBinaryWriter {
     // A Member must have exactly one child. `WriteInt`/`WriteFloat`/`WriteBool`
     // write NOTHING when handed null (mirroring SimpleJson), which would
     // otherwise leave a childless Member and a structurally invalid buffer.
-    if (this._nodes.length / NODE_WIDTH === index + 1) {
+    if (this._length / NODE_WIDTH === index + 1) {
       this._leaf(ProgramNodeTag.Null, 0);
     }
     this._close(index);
@@ -433,7 +469,7 @@ export class ProgramBinaryWriter {
 
   /** Node index the next written value will start at. */
   mark(): number {
-    return this._nodes.length / NODE_WIDTH;
+    return this._length / NODE_WIDTH;
   }
 
   /**
@@ -443,32 +479,35 @@ export class ProgramBinaryWriter {
    * for as long as the shared table keeps this generation.
    */
   captureChunk(start: number): ProgramChunk {
-    const from = start * NODE_WIDTH;
-    const nodes = new Uint32Array(this._nodes.length - from);
-    for (let i = 0; i < nodes.length; i += 1) {
-      nodes[i] = this._nodes[from + i]!;
+    // A typed-array slice: one bulk copy, not a per-element loop.
+    const nodes = this._nodes.slice(start * NODE_WIDTH, this._length);
+    let widest = 0;
+    for (let i = 0; i < nodes.length; i += NODE_WIDTH) {
+      const payload = nodes[i + 1]!;
+      const size = nodes[i + 2]!;
+      if (payload > widest) {
+        widest = payload;
+      }
+      if (size > widest) {
+        widest = size;
+      }
     }
-    return { nodes, generation: this._table.generation };
+    // Recorded at capture so splicing does not have to rescan the chunk; the
+    // values are position-independent, so this stays valid for its lifetime.
+    return { nodes, widest, generation: this._table.generation };
   }
 
   /** Append a chunk's records verbatim. */
   private _spliceChunk(chunk: ProgramChunk): void {
     const src = chunk.nodes;
-    for (let i = 0; i < src.length; i += 1) {
-      this._nodes.push(src[i]!);
-    }
-    // Sizes are relative and pointers are table-global, so nothing inside the
-    // chunk needs rewriting. Only the width tracker has to notice the chunk's
-    // largest slot; the tags themselves are always < 8.
-    for (let i = 0; i < src.length; i += NODE_WIDTH) {
-      const payload = src[i + 1]!;
-      const size = src[i + 2]!;
-      if (payload > this._widest) {
-        this._widest = payload;
-      }
-      if (size > this._widest) {
-        this._widest = size;
-      }
+    this._ensure(src.length);
+    // The whole point of relocatable records: sizes are relative and payload
+    // pointers are table-global, so an unchanged flow is a bulk memcpy with no
+    // per-node rewriting and no rescan.
+    this._nodes.set(src, this._length);
+    this._length += src.length;
+    if (chunk.widest > this._widest) {
+      this._widest = chunk.widest;
     }
   }
 
@@ -477,10 +516,12 @@ export class ProgramBinaryWriter {
   /** The assembled buffer. */
   toBuffer(): ProgramBuffer {
     return {
+      // subarray, not the whole capacity: the array is grown geometrically so
+      // its tail is unwritten slack.
       nodes:
         this._widest <= 0xffff
-          ? Uint16Array.from(this._nodes)
-          : Uint32Array.from(this._nodes),
+          ? Uint16Array.from(this._nodes.subarray(0, this._length))
+          : this._nodes.slice(0, this._length),
       strings: this._table.strings,
       numbers: Float64Array.from(this._table.numbers),
     };
@@ -495,4 +536,5 @@ export const isProgramChunk = (value: unknown): value is ProgramChunk =>
   !!value &&
   typeof value === "object" &&
   (value as ProgramChunk).nodes instanceof Uint32Array &&
+  typeof (value as ProgramChunk).widest === "number" &&
   typeof (value as ProgramChunk).generation === "number";
