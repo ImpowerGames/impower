@@ -58,11 +58,49 @@ function applyAttribute(element: Element, k: string, v: string | null): void {
     }
     return;
   }
+  if (k === "id" && v == null) {
+    // Never leave an element without an id: the reconcile addresses nodes by
+    // one, and `getElement`'s DOM fallback resolves through it. Clearing an
+    // authored `#id` reverts to the structural id rather than removing.
+    const structural = (element as any).__sdId;
+    if (structural) {
+      element.setAttribute("id", structural);
+      return;
+    }
+  }
   if (v == null) {
     element.removeAttribute(k);
   } else {
     element.setAttribute(k, v);
   }
+}
+
+/**
+ * Apply a batch of attributes so that `value` and `checked` land LAST.
+ *
+ * Both are written to the live DOM property, and the browser sanitizes `value`
+ * against the element's CURRENT `min`/`max`. Authored order therefore decided
+ * the outcome: `slider #value={150} #min=0 #max=200` clamped to 100 (the
+ * default max at the moment `value` was written) while the same three props
+ * written `#min` `#max` `#value` kept 150 — with byte-identical `outerHTML`
+ * either way, which is what made it invisible.
+ *
+ * `mountDropdown` already sequences `<option>`s before the `<select>`'s value
+ * for the same reason; this is that rule generalized to the renderer.
+ */
+function applyAttributes(
+  element: Element,
+  attributes: Record<string, string | null>,
+): void {
+  const deferred: [string, string | null][] = [];
+  Object.entries(attributes).forEach(([k, v]) => {
+    if (k === "value" || k === "checked") {
+      deferred.push([k, v]);
+    } else {
+      applyAttribute(element, k, v);
+    }
+  });
+  deferred.forEach(([k, v]) => applyAttribute(element, k, v));
 }
 
 export default class UIManager extends Manager {
@@ -121,11 +159,17 @@ export default class UIManager extends Manager {
     this._placeCursor.clear();
     const overlay = this.app.overlay;
     if (overlay) {
-      overlay.querySelectorAll("[id]").forEach((node) => {
+      // Scanned by STRUCTURAL id (`__sdId`), not `[id]`: an authored `#id`
+      // owns the DOM attribute, and adopting that value would mark an id the
+      // create stream never re-emits — the sweep would then delete a live
+      // element. Elements this manager did not create carry no `__sdId` and
+      // are correctly left alone.
+      overlay.querySelectorAll("*").forEach((node) => {
         const el = node as HTMLElement;
-        if (el.id) {
-          this._staleIds.add(el.id);
-          this._elements.set(el.id, el);
+        const structural = (el as any).__sdId;
+        if (structural) {
+          this._staleIds.add(structural);
+          this._elements.set(structural, el);
         }
       });
     }
@@ -161,11 +205,13 @@ export default class UIManager extends Manager {
     if (el) {
       this.removeListeners(id);
       this._elements.delete(id);
-      el.querySelectorAll("[id]").forEach((d) => {
-        const childId = (d as HTMLElement).id;
-        this.removeListeners(childId);
-        this._elements.delete(childId);
-        this._staleIds.delete(childId);
+      el.querySelectorAll("*").forEach((d) => {
+        const childId = (d as any).__sdId;
+        if (childId) {
+          this.removeListeners(childId);
+          this._elements.delete(childId);
+          this._staleIds.delete(childId);
+        }
       });
       el.remove();
     }
@@ -191,7 +237,17 @@ export default class UIManager extends Manager {
     if (cached) {
       return cached;
     }
-    const found = this.app.overlay?.querySelector(`#${id}`) as HTMLElement;
+    // Resolved by STRUCTURAL id. A `#${id}` selector would match an authored
+    // `#id` that happens to collide with a structural one, and would miss the
+    // element whose own `#id` replaced its structural value in the DOM.
+    // `_elements` is repopulated for the whole overlay at the start of every
+    // reconcile pass, so this walk is a cache-miss fallback, not the hot path.
+    let found: HTMLElement | undefined;
+    this.app.overlay?.querySelectorAll("*").forEach((node) => {
+      if (!found && (node as any).__sdId === id) {
+        found = node as HTMLElement;
+      }
+    });
     if (found) {
       this._elements.set(id, found);
     }
@@ -241,12 +297,25 @@ export default class UIManager extends Manager {
         el = document.createElement(params.type);
       }
       if (id) {
+        // The STRUCTURAL id — the reconcile key — is stamped as a JS property,
+        // never read back out of the DOM. An authored `#id` legitimately owns
+        // `el.id`, and while the reconcile keyed off `el.id` that was fatal:
+        // the next pass's DOM scan adopted the AUTHORED id as stale while the
+        // create stream only ever marks the structural one, so the sweep
+        // deleted a live element and `input #id="name_field"` vanished on the
+        // first live-preview edit after it appeared.
+        //
+        // A JS property is the right home: the node object outlives the
+        // UIManager (onDispose keeps the overlay for the next manager to adopt)
+        // and stamping it costs no DOM mutation and no attribute noise.
+        (el as any).__sdId = id;
         // Only write the id attribute when it actually differs (a fresh or
         // tag-swapped node). Re-assigning the same id to a REUSED node still
         // fires a mutation — which flashes the whole subtree in devtools and
         // reads as a rebuild even though the node was reused in place.
-        if (el.id !== id) {
-          el.id = id;
+        const domId = params.attributes?.["id"] ?? id;
+        if (el.id !== domId) {
+          el.id = domId;
         }
         this._elements.set(id, el);
         this._staleIds.delete(id);
@@ -294,12 +363,33 @@ export default class UIManager extends Manager {
           // re-applied by the same pass's ui/update messages.)
           el.style.cssText = "";
         }
-        if (params.attributes) {
-          Object.entries(params.attributes).forEach(([k, v]) => {
-            if (v != null) {
-              applyAttribute(el, k, v);
+        // No `v != null` guard here: `applyAttribute` REMOVES on null, and on a
+        // REUSED node that is the only path that can clear an attribute. With
+        // the guard, editing `#disabled=true` to `#disabled=false` left
+        // `disabled=""` on the node and the control stayed permanently
+        // unclickable in the live preview. On a fresh node the null branch is a
+        // harmless no-op.
+        //
+        // The names this create wrote are recorded on the node so the NEXT
+        // create can clear any that have since disappeared: when the last
+        // attribute is deleted from the source, `params.attributes` is absent
+        // ENTIRELY, so a pass driven only by its contents can never notice.
+        // Deliberately not the update path's blanket `removeAttribute` sweep —
+        // that would strip `id`, which the reconcile addresses elements by.
+        {
+          const written = params.attributes ? Object.keys(params.attributes) : [];
+          if (params.attributes) {
+            applyAttributes(el, params.attributes);
+          }
+          if (reused) {
+            const prior: string[] = (el as any).__sdAttrs ?? [];
+            for (const k of prior) {
+              if (!written.includes(k)) {
+                applyAttribute(el, k, null);
+              }
             }
-          });
+          }
+          (el as any).__sdAttrs = written;
         }
         if (params.content && "fonts" in params.content) {
           for (const [, font] of Object.entries(params.content.fonts)) {
@@ -403,11 +493,7 @@ export default class UIManager extends Manager {
         }
         if (params.attributes != undefined) {
           if (params.attributes) {
-            Object.entries(params.attributes).forEach(([k, v]) => {
-              if (element) {
-                applyAttribute(element, k, v);
-              }
-            });
+            applyAttributes(element, params.attributes);
           } else {
             Array.from(element.attributes).forEach((attr) =>
               element.removeAttribute(attr.name),

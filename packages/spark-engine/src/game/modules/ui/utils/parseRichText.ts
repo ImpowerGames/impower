@@ -225,7 +225,10 @@ export function parseRichText(input: string): RichTextRun[] {
       continue;
     }
 
-    const value = rawValue?.replace(/^"|"$/g, "").trim() ?? "";
+    // Trim BEFORE stripping quotes: `^"` cannot match a quote that leading
+    // whitespace has pushed off the start, so `<color= "red">` used to survive
+    // as `"red` — an invalid CSS value the browser silently drops.
+    const value = rawValue?.trim().replace(/^"|"$/g, "") ?? "";
     // A semantic tag contributes no style of its own — `?? {}` rather than
     // `FLAG_TAGS[name]!`, which would be `undefined` for one and merge into the
     // active style as garbage.

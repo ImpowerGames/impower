@@ -110,6 +110,20 @@ end
     expect(byText["big"]).toContain("font-size: 2rem");
   });
 
+  // The value normalizer stripped quotes BEFORE trimming, so a leading space
+  // pushed the opening quote off the `^` anchor and it survived into the CSS as
+  // `"red` — a value the browser silently drops, leaving unstyled text.
+  test("a quoted value survives whitespace on either side of it", async () => {
+    const h = await render(`layout main with
+  text '<color= "red">spaced</color><color="blue" >tight</color>'
+end
+`);
+    const byText = Object.fromEntries(runs(h));
+    expect(byText["spaced"]).toContain("red");
+    expect(byText["spaced"]).not.toContain('"');
+    expect(byText["tight"]).toContain("blue");
+  });
+
   test("`<noparse>` and unknown tags stay literal", async () => {
     const h = await render(`layout main with
   text "<noparse><b>kept</b></noparse> 5 < 6 <notatag>x"

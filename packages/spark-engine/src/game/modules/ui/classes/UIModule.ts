@@ -1607,7 +1607,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style: Record<string, string | null> = {};
     const reactiveStyles: Omit<ReactiveStyle, "element">[] = [];
     for (const [prop, propValue] of Object.entries(node.props)) {
-      const boolean = prop === "checked";
+      // Every presence-semantics attribute, not just `checked`. HTML reads
+      // `disabled="false"` as DISABLED, so `#disabled={locked}` with
+      // `locked = false` produced a control that could never be enabled — and
+      // because `entry.boolean` is reused by `refreshScope`, flipping the store
+      // back could not clear it either.
+      const boolean = BOOLEAN_ATTRIBUTES.has(prop);
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
@@ -1742,10 +1747,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         continue;
       }
-      const attrVal = this.propToAttr(resolved, false);
+      // `readonly`/`disabled`/`required` are presence-semantics: passing them
+      // through as the string "false" READS AS TRUE in HTML.
+      const boolean = BOOLEAN_ATTRIBUTES.has(prop);
+      const attrVal = this.propToAttr(resolved, boolean);
       attributes[toDataAttributeName(prop)] = attrVal;
       if (this.isReactiveProp(propValue)) {
-        reactive.push({ prop, propValue, boolean: false, last: attrVal, deps });
+        reactive.push({ prop, propValue, boolean, last: attrVal, deps });
       }
     }
     const el = this.createElement(
@@ -1798,7 +1806,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
         continue;
       }
-      const attrVal = this.propToAttr(resolved, false);
+      // `multiple`/`disabled`/`required` on a <select> are presence-semantics;
+      // `value` never is, and is deferred below regardless.
+      const attrVal = this.propToAttr(resolved, BOOLEAN_ATTRIBUTES.has(prop));
       if (prop === "value") {
         // Defer until options are mounted (a <select>.value can't select an
         // option that doesn't exist yet).
@@ -1811,7 +1821,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
       attributes[prop] = attrVal;
       if (this.isReactiveProp(propValue)) {
-        reactive.push({ prop, propValue, boolean: false, last: attrVal, deps });
+        reactive.push({
+          prop,
+          propValue,
+          boolean: BOOLEAN_ATTRIBUTES.has(prop),
+          last: attrVal,
+          deps,
+        });
       }
     }
     const el = this.createElement(
@@ -1867,7 +1883,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const reactive: Omit<ReactiveAttr, "element">[] = [];
     let hasValue = false;
     for (const [prop, propValue] of Object.entries(node.props)) {
-      const boolean = prop === "selected" || prop === "disabled";
+      const boolean = BOOLEAN_ATTRIBUTES.has(prop);
       vs.beginReactiveRead();
       const resolved = this.resolveProp(propValue, scope.env);
       const deps = vs.endReactiveRead();
@@ -1929,9 +1945,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return propValue.kind === "binding" || propValue.kind === "content";
   }
 
-  /** Map a resolved prop value to an attribute string: a boolean (checkbox
-   *  `checked`) becomes a presence attribute (`""`/absent); everything else is
-   *  stringified (nullish → absent). */
+  /** Map a resolved prop value to an attribute string: a presence-semantics
+   *  attribute ({@link BOOLEAN_ATTRIBUTES}) becomes `""`/absent; everything
+   *  else is stringified (nullish → absent).
+   *
+   *  Stringifying a presence attribute is never merely imprecise — HTML reads
+   *  `disabled="false"` as disabled, so `false` would produce exactly the
+   *  state it denies. */
   protected propToAttr(resolved: unknown, boolean: boolean): string | null {
     if (boolean) {
       return this.isTruthy(resolved) ? "" : null;
