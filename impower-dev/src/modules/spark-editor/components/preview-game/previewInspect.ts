@@ -34,7 +34,14 @@ export interface PreviewInspector {
   game(): Element | null;
   /** outerHTML of the matched element, or the whole document if no selector. */
   html(selector?: string): string | null;
-  /** Performance entries from inside the iframe (optionally filtered by type). */
+  /**
+   * Performance entries from inside the iframe (optionally filtered by type).
+   *
+   * `"mark"` and `"measure"` come back empty: the profiler clears each entry as
+   * soon as it emits it, because user timing has no buffer cap and the player
+   * runs with profiling permanently on. Read those live with a
+   * `PerformanceObserver` in the iframe, which still receives every entry.
+   */
   perf(type?: string): PerformanceEntry[];
   /**
    * Resolves once the iframe document is loaded and the `#game` scaffold exists

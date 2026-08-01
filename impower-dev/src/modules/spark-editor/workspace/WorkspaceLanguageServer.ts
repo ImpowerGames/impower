@@ -21,6 +21,7 @@ import {
   CompiledProgramMessage,
   CompiledProgramParams,
 } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { profilePhase } from "@impower/sparkdown/src/compiler/utils/profile";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
@@ -241,15 +242,13 @@ export default class WorkspaceLanguageServer {
     this._connection.onNotification(
       CompiledProgramMessage.method,
       (params: CompiledProgramParams) => {
-        performance.mark(`CompiledProgramMessage start`);
+        // Via the shared helper rather than raw marks: this fires once per
+        // compile for the life of the page, and user-timing entries are never
+        // evicted by the platform.
+        profilePhase("start", `CompiledProgramMessage`);
         this.updateProgram(params.program);
         sendProtocolMessage(CompiledProgramMessage.type.notification(params));
-        performance.mark(`CompiledProgramMessage end`);
-        performance.measure(
-          `CompiledProgramMessage`,
-          `CompiledProgramMessage start`,
-          `CompiledProgramMessage end`,
-        );
+        profilePhase("end", `CompiledProgramMessage`);
       },
     );
     this._connection.onClose(() => {

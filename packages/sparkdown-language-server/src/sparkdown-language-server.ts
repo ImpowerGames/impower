@@ -10,6 +10,7 @@ import {
   TextDocumentSyncKind,
 } from "vscode-languageserver/browser";
 import { SparkdownLanguageServerWorkspace } from "./classes/SparkdownLanguageServerWorkspace";
+import { profile } from "./utils/logging/profile";
 import { canRename } from "./utils/providers/canRename";
 import { getCodeLenses } from "./utils/providers/getCodeLenses";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
@@ -178,14 +179,9 @@ try {
     ) {
       return cached.result;
     }
-    performance.mark(`lsp: onFoldingRanges ${uri} start`);
+    profile("start", "lsp: onFoldingRanges", uri);
     const result = getFoldingRanges(document, annotations, program);
-    performance.mark(`lsp: onFoldingRanges ${uri} end`);
-    performance.measure(
-      `lsp: onFoldingRanges ${uri}`,
-      `lsp: onFoldingRanges ${uri} start`,
-      `lsp: onFoldingRanges ${uri} end`,
-    );
+    profile("end", "lsp: onFoldingRanges", uri);
     if (document) {
       foldingRangeCache.set(uri, {
         documentVersion: document.version,
@@ -202,25 +198,15 @@ try {
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
     const program = workspace.program(uri);
-    performance.mark(`lsp: onDocumentColor ${uri} start`);
+    profile("start", "lsp: onDocumentColor", uri);
     const result = getDocumentColors(document, annotations, program);
-    performance.mark(`lsp: onDocumentColor ${uri} end`);
-    performance.measure(
-      `lsp: onDocumentColor ${uri}`,
-      `lsp: onDocumentColor ${uri} start`,
-      `lsp: onDocumentColor ${uri} end`,
-    );
+    profile("end", "lsp: onDocumentColor", uri);
     return result;
   });
   connection.onColorPresentation((params) => {
-    performance.mark(`lsp: onDocumentColor start`);
+    profile("start", "lsp: onDocumentColor");
     const result = getColorPresentations(params.color);
-    performance.mark(`lsp: onDocumentColor end`);
-    performance.measure(
-      `lsp: onDocumentColor`,
-      `lsp: onDocumentColor start`,
-      `lsp: onDocumentColor end`,
-    );
+    profile("end", "lsp: onDocumentColor");
     return result;
   });
 
@@ -229,14 +215,9 @@ try {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
-    performance.mark(`lsp: onDocumentSymbol ${uri} start`);
+    profile("start", "lsp: onDocumentSymbol", uri);
     const result = getDocumentSymbols(document, annotations);
-    performance.mark(`lsp: onDocumentSymbol ${uri} end`);
-    performance.measure(
-      `lsp: onDocumentSymbol ${uri}`,
-      `lsp: onDocumentSymbol ${uri} start`,
-      `lsp: onDocumentSymbol ${uri} end`,
-    );
+    profile("end", "lsp: onDocumentSymbol", uri);
     return result;
   });
 
@@ -247,7 +228,7 @@ try {
     const annotations = workspace.annotations(uri);
     const program = workspace.program(uri);
     const config = workspace.compilerConfig;
-    performance.mark(`lsp: onHover ${uri} start`);
+    profile("start", "lsp: onHover", uri);
     const result = getHover(
       document,
       annotations,
@@ -256,12 +237,7 @@ try {
       params.position,
       imageCompositeOptions,
     );
-    performance.mark(`lsp: onHover ${uri} end`);
-    performance.measure(
-      `lsp: onHover ${uri}`,
-      `lsp: onHover ${uri} start`,
-      `lsp: onHover ${uri} end`,
-    );
+    profile("end", "lsp: onHover", uri);
     return result;
   });
 
@@ -277,7 +253,7 @@ try {
     for (const uri of Object.keys(scripts)) {
       scriptAnnotations.set(uri, workspace.annotations(uri));
     }
-    performance.mark(`lsp: onCompletion ${uri} start`);
+    profile("start", "lsp: onCompletion", uri);
     const result = getCompletions(
       document,
       tree,
@@ -287,12 +263,7 @@ try {
       params.position,
       params.context,
     );
-    performance.mark(`lsp: onCompletion ${uri} end`);
-    performance.measure(
-      `lsp: onCompletion ${uri}`,
-      `lsp: onCompletion ${uri} start`,
-      `lsp: onCompletion ${uri} end`,
-    );
+    profile("end", "lsp: onCompletion", uri);
     // `workspace.program()` is keyed by the REQUESTED document uri, not by
     // `program.uri` (which is the compiled root), so resolve has to be told
     // which document it came from. Stamped here to keep uri plumbing out of
@@ -313,19 +284,14 @@ try {
     if (!data?.uri) {
       return item;
     }
-    performance.mark(`lsp: onCompletionResolve ${item.label} start`);
+    profile("start", "lsp: onCompletionResolve", item.label);
     const program = workspace.program(data.uri);
     const resolved = await resolveCompletion(
       item,
       program,
       imageCompositeOptions,
     );
-    performance.mark(`lsp: onCompletionResolve ${item.label} end`);
-    performance.measure(
-      `lsp: onCompletionResolve ${item.label}`,
-      `lsp: onCompletionResolve ${item.label} start`,
-      `lsp: onCompletionResolve ${item.label} end`,
-    );
+    profile("end", "lsp: onCompletionResolve", item.label);
     return resolved;
   });
 
@@ -337,7 +303,7 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
-    performance.mark(`lsp: onDocumentFormatting ${uri} start`);
+    profile("start", "lsp: onDocumentFormatting", uri);
     // Incremental (delta) formatting for format-on-save: only reprocess
     // the construct(s) changed since the last format. The dirty range is
     // the diff against the last formatted output — safe because outside
@@ -363,12 +329,7 @@ try {
         : document.getText();
       workspace.markFormatted(uri, formatted);
     }
-    performance.mark(`lsp: onDocumentFormatting ${uri} end`);
-    performance.measure(
-      `lsp: onDocumentFormatting ${uri}`,
-      `lsp: onDocumentFormatting ${uri} start`,
-      `lsp: onDocumentFormatting ${uri} end`,
-    );
+    profile("end", "lsp: onDocumentFormatting", uri);
     return result;
   });
 
@@ -380,7 +341,7 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
-    performance.mark(`lsp: onDocumentRangeFormatting ${uri} start`);
+    profile("start", "lsp: onDocumentRangeFormatting", uri);
     const result = getDocumentFormattingEdits(
       document,
       tree,
@@ -388,12 +349,7 @@ try {
       params.options,
       params.range,
     );
-    performance.mark(`lsp: onDocumentRangeFormatting ${uri} end`);
-    performance.measure(
-      `lsp: onDocumentRangeFormatting ${uri}`,
-      `lsp: onDocumentRangeFormatting ${uri} start`,
-      `lsp: onDocumentRangeFormatting ${uri} end`,
-    );
+    profile("end", "lsp: onDocumentRangeFormatting", uri);
     return result;
   });
 
@@ -405,7 +361,7 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
-    performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} start`);
+    profile("start", "lsp: onDocumentOnTypeFormatting", uri);
     const result = getDocumentFormattingEdits(
       document,
       tree,
@@ -414,12 +370,7 @@ try {
       undefined,
       params.position,
     );
-    performance.mark(`lsp: onDocumentOnTypeFormatting ${uri} end`);
-    performance.measure(
-      `lsp: onDocumentOnTypeFormatting ${uri}`,
-      `lsp: onDocumentOnTypeFormatting ${uri} start`,
-      `lsp: onDocumentOnTypeFormatting ${uri} end`,
-    );
+    profile("end", "lsp: onDocumentOnTypeFormatting", uri);
     return result;
   });
 
@@ -428,14 +379,9 @@ try {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
-    performance.mark(`lsp: onPrepareRename ${uri} start`);
+    profile("start", "lsp: onPrepareRename", uri);
     const result = canRename(document, tree, params.position);
-    performance.mark(`lsp: onPrepareRename ${uri} end`);
-    performance.measure(
-      `lsp: onPrepareRename ${uri}`,
-      `lsp: onPrepareRename ${uri} start`,
-      `lsp: onPrepareRename ${uri} end`,
-    );
+    profile("end", "lsp: onPrepareRename", uri);
     return result;
   });
 
@@ -447,7 +393,7 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    performance.mark(`lsp: onRenameRequest ${uri} start`);
+    profile("start", "lsp: onRenameRequest", uri);
     const result = getRenameEdits(
       settings,
       document,
@@ -457,12 +403,7 @@ try {
       params.newName,
       params.position,
     );
-    performance.mark(`lsp: onRenameRequest ${uri} end`);
-    performance.measure(
-      `lsp: onRenameRequest ${uri}`,
-      `lsp: onRenameRequest ${uri} start`,
-      `lsp: onRenameRequest ${uri} end`,
-    );
+    profile("end", "lsp: onRenameRequest", uri);
     return result;
   });
 
@@ -518,7 +459,7 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    performance.mark(`lsp: onReferences ${uri} start`);
+    profile("start", "lsp: onReferences", uri);
     const { references } = getReferences(
       document,
       tree,
@@ -532,12 +473,7 @@ try {
         includeLinks: true,
       },
     );
-    performance.mark(`lsp: onReferences ${uri} end`);
-    performance.measure(
-      `lsp: onReferences ${uri}`,
-      `lsp: onReferences ${uri} start`,
-      `lsp: onReferences ${uri} end`,
-    );
+    profile("end", "lsp: onReferences", uri);
     return references;
   });
 
@@ -547,7 +483,7 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    performance.mark(`lsp: onDeclaration ${uri} start`);
+    profile("start", "lsp: onDeclaration", uri);
     const { references } = getReferences(
       document,
       tree,
@@ -562,12 +498,7 @@ try {
         includeLinks: false,
       },
     );
-    performance.mark(`lsp: onDeclaration ${uri} end`);
-    performance.measure(
-      `lsp: onDeclaration ${uri}`,
-      `lsp: onDeclaration ${uri} start`,
-      `lsp: onDeclaration ${uri} end`,
-    );
+    profile("end", "lsp: onDeclaration", uri);
     return references;
   });
 
@@ -577,7 +508,7 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    performance.mark(`lsp: onDefinition ${uri} start`);
+    profile("start", "lsp: onDefinition", uri);
     const { references } = getReferences(
       document,
       tree,
@@ -592,12 +523,7 @@ try {
         includeLinks: false,
       },
     );
-    performance.mark(`lsp: onDefinition ${uri} end`);
-    performance.measure(
-      `lsp: onDefinition ${uri}`,
-      `lsp: onDefinition ${uri} start`,
-      `lsp: onDefinition ${uri} end`,
-    );
+    profile("end", "lsp: onDefinition", uri);
     return references;
   });
 
@@ -607,14 +533,9 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const annotations = workspace.annotations(uri);
-    performance.mark(`lsp: onDocumentLinks ${uri} start`);
+    profile("start", "lsp: onDocumentLinks", uri);
     const result = getDocumentLinks(document, tree, annotations, workspace);
-    performance.mark(`lsp: onDocumentLinks ${uri} end`);
-    performance.measure(
-      `lsp: onDocumentLinks ${uri}`,
-      `lsp: onDocumentLinks ${uri} start`,
-      `lsp: onDocumentLinks ${uri} end`,
-    );
+    profile("end", "lsp: onDocumentLinks", uri);
     return result;
   });
 
@@ -624,7 +545,7 @@ try {
     const document = workspace.document(uri);
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
-    performance.mark(`lsp: onDocumentHighlight ${uri} start`);
+    profile("start", "lsp: onDocumentHighlight", uri);
     const { references } = getReferences(
       document,
       tree,
@@ -638,12 +559,7 @@ try {
         includeLinks: true,
       },
     );
-    performance.mark(`lsp: onDocumentHighlight ${uri} end`);
-    performance.measure(
-      `lsp: onDocumentHighlight ${uri}`,
-      `lsp: onDocumentHighlight ${uri} start`,
-      `lsp: onDocumentHighlight ${uri} end`,
-    );
+    profile("end", "lsp: onDocumentHighlight", uri);
     return references;
   });
 
@@ -666,14 +582,9 @@ try {
     ) {
       return cached.result;
     }
-    performance.mark(`lsp: semanticTokens.on ${uri} start`);
+    profile("start", "lsp: semanticTokens.on", uri);
     const result = getSemanticTokens(document, annotations, program);
-    performance.mark(`lsp: semanticTokens.on ${uri} end`);
-    performance.measure(
-      `lsp: semanticTokens.on ${uri}`,
-      `lsp: semanticTokens.on ${uri} start`,
-      `lsp: semanticTokens.on ${uri} end`,
-    );
+    profile("end", "lsp: semanticTokens.on", uri);
     if (document) {
       semanticTokensCache.set(uri, {
         documentVersion: document.version,
@@ -689,19 +600,14 @@ try {
       workspace.program(uri) || (await workspace.compile(uri, false));
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
-    performance.mark(`lsp: semanticTokens.onRange ${uri} start`);
+    profile("start", "lsp: semanticTokens.onRange", uri);
     const result = getSemanticTokens(
       document,
       annotations,
       program,
       params.range,
     );
-    performance.mark(`lsp: semanticTokens.onRange ${uri} end`);
-    performance.measure(
-      `lsp: semanticTokens.onRange ${uri}`,
-      `lsp: semanticTokens.onRange ${uri} start`,
-      `lsp: semanticTokens.onRange ${uri} end`,
-    );
+    profile("end", "lsp: semanticTokens.onRange", uri);
     return result;
   });
 
@@ -710,14 +616,9 @@ try {
     const uri = params.textDocument.uri;
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
-    performance.mark(`lsp: onCodeLens ${uri} start`);
+    profile("start", "lsp: onCodeLens", uri);
     const result = getCodeLenses(document, annotations);
-    performance.mark(`lsp: onCodeLens ${uri} end`);
-    performance.measure(
-      `lsp: onCodeLens ${uri}`,
-      `lsp: onCodeLens ${uri} start`,
-      `lsp: onCodeLens ${uri} end`,
-    );
+    profile("end", "lsp: onCodeLens", uri);
     return result;
   });
 
