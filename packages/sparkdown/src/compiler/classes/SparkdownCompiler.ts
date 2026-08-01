@@ -282,7 +282,12 @@ export class SparkdownCompiler {
   // name, so `canonicalizeSyntheticFlowNames` can skip them wholesale on
   // later compiles. Keyed by identity, which the incremental pipeline
   // preserves for unchanged content and replaces on re-lowering.
-  protected _synthFreeSubtrees = new WeakSet<object>();
+  // Value is the node's content length when it was marked. Assembly can APPEND
+  // to a carried-forward container (a later changed chunk's content is added
+  // into an existing weave), which would make a stale mark hide the new
+  // children. Comparing the length on lookup catches that in O(1); a subtree
+  // whose own nodes changed gets a new identity anyway.
+  protected _synthFreeSubtrees = new WeakMap<object, number>();
   // [container, previous parent] for every container committed to reuse this
   // compile — restored if the compile throws, so the previous RuntimeStory
   // (still live in the checkpoint-builder Game) isn't left holding containers
@@ -2096,7 +2101,11 @@ export class SparkdownCompiler {
     // synthetics at all, which is what makes this worth caching — the walk
     // itself is otherwise whole-tree on every keystroke.
     const collect = (node: ParsedObject): boolean => {
-      if (this._synthFreeSubtrees.has(node)) {
+      const markedLength = this._synthFreeSubtrees.get(node);
+      if (
+        markedLength !== undefined &&
+        markedLength === (node.content?.length ?? 0)
+      ) {
         return false;
       }
       let found = false;
@@ -2140,7 +2149,7 @@ export class SparkdownCompiler {
         }
       }
       if (!found) {
-        this._synthFreeSubtrees.add(node);
+        this._synthFreeSubtrees.set(node, node.content?.length ?? 0);
       }
       return found;
     };
