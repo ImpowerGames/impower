@@ -7,11 +7,14 @@
 // whole loop: boot the two dev servers, remember the port it got, drive the
 // editor with Playwright, and drop screenshots on disk.
 //
-// Playwright is NOT a declared dependency of this repo. It is present because
-// vscode-sparkdown -> @vscode/test-web -> playwright@1.61, and the browsers are
-// already in the local ms-playwright cache. That is why this file must live
-// inside the repo tree: Node resolves `playwright` from the SCRIPT's directory,
-// not from cwd, so a copy of this script in a temp dir will not find it.
+// Playwright is a declared root devDependency (it used to arrive only
+// transitively via vscode-sparkdown -> @vscode/test-web, which made this driver
+// depend on a package no manifest asked for). Browsers come from the local
+// ms-playwright cache; `npx playwright install chromium` if it is empty.
+//
+// This file must live inside the repo tree regardless: Node resolves
+// `playwright` from the SCRIPT's directory, not from cwd, so a copy of this
+// script in a temp dir will not find it.
 //
 //   node .claude/skills/resolve-issue/driver.mjs up
 //   node .claude/skills/resolve-issue/driver.mjs status
