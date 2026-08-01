@@ -1,19 +1,20 @@
+import { profilePhase } from "@impower/jsonrpc/src/browser/utils/profile";
+
+// One implementation lives in @impower/jsonrpc; see the notes there for why
+// entries are cleared and why the duration is not resolved through mark names.
+export {
+  profilePhase,
+  setRetainProfilerEntries,
+} from "@impower/jsonrpc/src/browser/utils/profile";
+
 export const profile = (
   mark: "start" | "end",
   profilerId: string | undefined,
   method: string,
   uri: string = "",
 ) => {
-  if (profilerId) {
-    if (mark === "end") {
-      performance.mark(`${profilerId} ${method} ${uri} end`);
-      performance.measure(
-        `${profilerId} ${method} ${uri}`.trim(),
-        `${profilerId} ${method} ${uri} start`,
-        `${profilerId} ${method} ${uri} end`,
-      );
-    } else {
-      performance.mark(`${profilerId} ${method} ${uri} start`);
-    }
+  if (!profilerId) {
+    return;
   }
+  profilePhase(mark, `${profilerId} ${method} ${uri}`.trim());
 };
